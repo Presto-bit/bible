@@ -676,24 +676,42 @@ class _GreetingHeaderState extends ConsumerState<_GreetingHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final base = homeGreeting(welcomeBack: widget.welcomeBack);
-    final name = ref.watch(prefsProvider).getString('onboarding_name');
+    final greeting = homeGreeting(welcomeBack: widget.welcomeBack);
+    final raw = ref.watch(prefsProvider).getString('onboarding_name')?.trim();
+    final fullName = (raw != null && raw.isNotEmpty) ? raw : '读经伙伴';
+    // 对齐 PWA HomeGreetStreak：名称截断 6 字 + 问候同一行
+    final displayName =
+        fullName.length <= 6 ? fullName : '${fullName.substring(0, 6)}…';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Text(base,
-                  style:
-                      const TextStyle(color: AppColors.inkSoft, fontSize: 13)),
-              const SizedBox(height: 2),
               Text(
-                (name != null && name.isNotEmpty) ? name : '读经伙伴',
+                displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  greeting,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    height: 1.2,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
               ),
             ],
           ),
@@ -1345,7 +1363,7 @@ class _GrowthStack extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var i = 0; i < rows.length; i++) ...[
-          if (i > 0) const SizedBox(height: 12),
+          if (i > 0) const SizedBox(height: 24),
           rows[i],
         ],
       ],
@@ -1353,7 +1371,7 @@ class _GrowthStack extends StatelessWidget {
   }
 }
 
-/// 对齐 PWA HomeMediaRow：左媒右文。
+/// 对齐 PWA HomeMediaRow：左媒右文（thumb 60 · title 15 · metric 22）。
 class _MediaGrowthRow extends StatelessWidget {
   const _MediaGrowthRow({
     required this.tag,
@@ -1379,6 +1397,8 @@ class _MediaGrowthRow extends StatelessWidget {
   final String? metricSuffix;
   final int? progressPct;
 
+  static const _thumb = 60.0;
+
   @override
   Widget build(BuildContext context) {
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
@@ -1387,134 +1407,145 @@ class _MediaGrowthRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          height: 80,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 68,
-                height: 68,
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: ColoredBox(
-                        color: AppColors.accentWash,
-                        child: hasImage
-                            ? Image.network(
-                                imageUrl!,
-                                width: 68,
-                                height: 68,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 88),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: _thumb,
+                  height: _thumb,
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: ColoredBox(
+                          color: AppColors.accentWash,
+                          child: hasImage
+                              ? Image.network(
+                                  imageUrl!,
+                                  width: _thumb,
+                                  height: _thumb,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Center(
+                                    child: Icon(icon,
+                                        color: AppColors.accentDeep, size: 22),
+                                  ),
+                                )
+                              : Center(
                                   child: Icon(icon,
-                                      color: AppColors.accentDeep, size: 24),
+                                      color: AppColors.accentDeep, size: 22),
                                 ),
-                              )
-                            : Center(
-                                child: Icon(icon,
-                                    color: AppColors.accentDeep, size: 24),
-                              ),
-                      ),
-                    ),
-                    if (hasImage)
-                      Positioned(
-                        left: 6,
-                        bottom: 6,
-                        child: Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.92),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(icon,
-                              size: 13, color: AppColors.accentDeep),
                         ),
                       ),
-                    if (progressPct != null && progressPct! > 0)
-                      Positioned(
-                        right: 2,
-                        top: 2,
-                        child: _MonthProgressBadge(pct: progressPct!),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      tag,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.inkFaint,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    if (metricValue != null)
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            if (metricPrefix != null)
-                              TextSpan(
-                                text: '$metricPrefix ',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkSoft,
-                                ),
-                              ),
-                            TextSpan(
-                              text: metricValue,
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w700,
-                                height: 1.05,
-                                color: AppColors.ink,
-                              ),
+                      if (hasImage)
+                        Positioned(
+                          left: 5,
+                          bottom: 5,
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            if (metricSuffix != null)
+                            child: Icon(icon,
+                                size: 12, color: AppColors.accentDeep),
+                          ),
+                        ),
+                      if (progressPct != null && progressPct! > 0)
+                        Positioned(
+                          right: 2,
+                          top: 2,
+                          child: _MonthProgressBadge(pct: progressPct!),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        tag,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.2,
+                          color: AppColors.inkFaint,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      if (metricValue != null)
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              if (metricPrefix != null)
+                                TextSpan(
+                                  text: '$metricPrefix ',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.inkSoft,
+                                  ),
+                                ),
                               TextSpan(
-                                text: ' $metricSuffix',
+                                text: metricValue,
                                 style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkSoft,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.0,
+                                  letterSpacing: -0.3,
+                                  color: AppColors.ink,
                                 ),
                               ),
-                          ],
+                              if (metricSuffix != null)
+                                TextSpan(
+                                  text: ' $metricSuffix',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.inkSoft,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        )
+                      else
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            height: 1.3,
+                            color: AppColors.ink,
+                          ),
                         ),
-                      )
-                    else
+                      const SizedBox(height: 2),
                       Text(
-                        title,
+                        detail,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
+                          fontSize: 12,
+                          height: 1.35,
+                          color: AppColors.inkFaint,
                         ),
                       ),
-                    Text(
-                      detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.inkFaint,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right,
-                  color: AppColors.inkFaint, size: 18),
-            ],
+                const Icon(Icons.chevron_right,
+                    color: AppColors.inkFaint, size: 18),
+              ],
+            ),
           ),
         ),
       ),

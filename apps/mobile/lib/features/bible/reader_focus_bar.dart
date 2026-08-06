@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import 'reader_marking_models.dart';
+import 'reader_preferences.dart';
 
 class ReaderFocusBar extends StatefulWidget {
   const ReaderFocusBar({
@@ -20,6 +21,7 @@ class ReaderFocusBar extends StatefulWidget {
     required this.onClose,
     this.underlinesEnabled = true,
     this.thoughtsEnabled = true,
+    this.readingMode = ReadingMode.study,
   });
 
   final HighlightMark? currentMark;
@@ -33,6 +35,7 @@ class ReaderFocusBar extends StatefulWidget {
   final VoidCallback onClose;
   final bool underlinesEnabled;
   final bool thoughtsEnabled;
+  final ReadingMode readingMode;
 
   @override
   State<ReaderFocusBar> createState() => _ReaderFocusBarState();
@@ -53,7 +56,10 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (widget.underlinesEnabled && _markPaletteOpen && !hasMark)
+            if (widget.underlinesEnabled &&
+                widget.readingMode != ReadingMode.focus &&
+                _markPaletteOpen &&
+                !hasMark)
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
                 child: Row(
@@ -92,13 +98,16 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (widget.thoughtsEnabled)
+                  // 专注：仅复制；默想/查经：想法+划线+金句+小爱；对照仅查经
+                  if (widget.thoughtsEnabled &&
+                      widget.readingMode != ReadingMode.focus)
                     _iconBtn(
                       icon: Icons.lightbulb_outline,
                       label: '想法',
                       onTap: widget.onThought,
                     ),
-                  if (widget.underlinesEnabled)
+                  if (widget.underlinesEnabled &&
+                      widget.readingMode != ReadingMode.focus)
                     _iconBtn(
                       icon: hasMark
                           ? Icons.format_color_reset_outlined
@@ -119,21 +128,24 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
                     label: '复制',
                     onTap: widget.onCopy,
                   ),
-                  _iconBtn(
-                    icon: Icons.crop_landscape_outlined,
-                    label: '金句卡',
-                    onTap: widget.onVerseCard,
-                  ),
-                  _iconBtn(
-                    icon: Icons.compare_arrows,
-                    label: '对照',
-                    onTap: widget.onCompare,
-                  ),
-                  _iconBtn(
-                    icon: Icons.auto_awesome,
-                    label: '小爱',
-                    onTap: widget.onLightAi,
-                  ),
+                  if (widget.readingMode != ReadingMode.focus)
+                    _iconBtn(
+                      icon: Icons.crop_landscape_outlined,
+                      label: '金句卡',
+                      onTap: widget.onVerseCard,
+                    ),
+                  if (widget.readingMode == ReadingMode.study)
+                    _iconBtn(
+                      icon: Icons.compare_arrows,
+                      label: '对照',
+                      onTap: widget.onCompare,
+                    ),
+                  if (widget.readingMode != ReadingMode.focus)
+                    _iconBtn(
+                      icon: Icons.auto_awesome,
+                      label: '小爱',
+                      onTap: widget.onLightAi,
+                    ),
                   IconButton(
                     onPressed: widget.onClose,
                     icon: const Icon(Icons.close, size: 18),

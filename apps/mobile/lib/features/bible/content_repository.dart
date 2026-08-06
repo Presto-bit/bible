@@ -136,6 +136,39 @@ class ContentRepository {
     return TimelineTour.fromJson(res.data['tour'] as Map<String, dynamic>);
   }
 
+  /// 本章时间线（SummarySheet「本章背景」）。
+  Future<TimelineChapterRow?> timelineForChapter(
+      String book, int chapter) async {
+    try {
+      final res = await _dio.get('/content/timeline', queryParameters: {
+        'book': book,
+        'chapter': chapter,
+      });
+      final row = res.data['timeline'];
+      if (row is Map<String, dynamic>) {
+        return TimelineChapterRow.fromJson(row);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 本章相关地点。
+  Future<List<GeoPlace>> geographyForChapter(String book, int chapter) async {
+    try {
+      final res = await _dio.get('/content/geography', queryParameters: {
+        'book': book,
+        'chapter': chapter,
+      });
+      return ((res.data['places'] ?? []) as List)
+          .map((e) => GeoPlace.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<List<DiagramItem>> diagrams() async {
     final res = await _dio.get('/content/diagrams');
     return ((res.data['items'] ?? []) as List)
@@ -282,6 +315,48 @@ class TimelineEvent {
         label: (j['label'] ?? j['title'] ?? '') as String,
         ref: j['ref'] as String?,
         era: j['era'] as String?,
+      );
+}
+
+/// 章级时间轴条目（/content/timeline?book&chapter）。
+class TimelineChapterRow {
+  TimelineChapterRow({
+    this.yearDisplay,
+    this.era,
+    this.year,
+  });
+  final String? yearDisplay;
+  final String? era;
+  final int? year;
+
+  factory TimelineChapterRow.fromJson(Map<String, dynamic> j) =>
+      TimelineChapterRow(
+        yearDisplay: j['year_display'] as String?,
+        era: j['era'] as String?,
+        year: (j['year'] as num?)?.toInt(),
+      );
+
+  String? get eraLabel {
+    if (yearDisplay != null && yearDisplay!.trim().isNotEmpty) {
+      return yearDisplay;
+    }
+    if (era != null && era!.trim().isNotEmpty) return era;
+    if (year != null) {
+      return year! < 0 ? '${year!.abs()} BC' : '$year AD';
+    }
+    return null;
+  }
+}
+
+class GeoPlace {
+  GeoPlace({required this.id, required this.name, this.modernName});
+  final String id;
+  final String name;
+  final String? modernName;
+  factory GeoPlace.fromJson(Map<String, dynamic> j) => GeoPlace(
+        id: '${j['id'] ?? j['name'] ?? ''}',
+        name: (j['name'] ?? j['title'] ?? '') as String,
+        modernName: j['modern_name'] as String? ?? j['modern'] as String?,
       );
 }
 

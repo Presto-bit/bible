@@ -76,11 +76,14 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
 
   @override
   void didChangeMetrics() {
-    // 键盘 resize：把 visual 高度注入 H5，贴近 iOS PWA 输入栏贴边
+    // 键盘 resize：把 **WebView 实际可用高度** 注入 H5，贴近 iOS PWA 输入栏贴边
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final mq = MediaQuery.of(context);
-      final h = mq.size.height;
+      final box = context.findRenderObject() as RenderBox?;
+      final h = (box != null && box.hasSize)
+          ? box.size.height
+          : mq.size.height;
       final bottom = mq.viewInsets.bottom;
       if (_viewHeight == h && _viewBottomInset == bottom) return;
       _viewHeight = h;
@@ -100,13 +103,19 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final c = _controller;
     if (c == null || !mounted) return;
     final mq = MediaQuery.of(context);
-    final h = mq.size.height - mq.viewInsets.bottom;
+    final box = context.findRenderObject() as RenderBox?;
+    // 关键：embed 时必须用宿主高度，勿用全屏 size（否则底栏区内容被壳遮挡）
+    final hostH = (box != null && box.hasSize)
+        ? box.size.height
+        : mq.size.height;
     final kb = mq.viewInsets.bottom;
+    final vv = (hostH - kb).clamp(120.0, 4000.0);
     await c.runJavaScript('''
 (function(){
   try {
     var root = document.documentElement;
-    root.style.setProperty('--peiai-vv-h', '${h.toStringAsFixed(1)}px');
+    root.style.setProperty('--peiai-vv-h', '${vv.toStringAsFixed(1)}px');
+    root.style.setProperty('--im-vv-h', '${vv.toStringAsFixed(1)}px');
     root.style.setProperty('--im-kb-inset', '${kb.toStringAsFixed(1)}px');
     if ($kb > 0) {
       document.body && document.body.classList.add('im-keyboard', 'android-flutter-kb');
@@ -522,6 +531,20 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
           );
 
     // 键盘：resizeToAvoidBottomInset 默认 true，与 WebView 共用高度
+    // LayoutBuilder 在约束变化时刷新 vv，避免 100dvh 误用设备全高
+    Widget sized = LayoutBuilder(
+      builder: (ctx, constraints) {
+        final nextH = constraints.maxHeight;
+        if (_viewHeight != nextH && nextH > 0) {
+          _viewHeight = nextH;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _injectViewportMetrics();
+          });
+        }
+        return body;
+      },
+    );
+
     final content = widget.showAppBar
         ? Scaffold(
             backgroundColor: bg,
@@ -537,12 +560,12 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
                 },
               ),
             ),
-            body: body,
+            body: sized,
           )
         : Scaffold(
             backgroundColor: bg,
             resizeToAvoidBottomInset: true,
-            body: body,
+            body: sized,
           );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(

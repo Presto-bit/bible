@@ -41,10 +41,8 @@ class BibleRepository {
       );
       return Chapter.fromJson(res.data as Map<String, dynamic>);
     } catch (e) {
-      if (version == null || version == 'cuvs' || version == 'cnv') {
-        final local = await _offline?.chapter(book, chapter);
-        if (local != null) return local;
-      }
+      final local = await _offline?.chapter(book, chapter, version: version);
+      if (local != null) return local;
       rethrow;
     }
   }

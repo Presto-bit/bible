@@ -212,8 +212,8 @@ html.android-flutter-h5 {
   --tabbar-inner: 0px;
   --tabbar-float-gap: 0px;
   --tabbar-safe: 0px;
-  /* 消息列表底仅留小呼吸；真正底栏高度由 Flutter 裁切 WebView */
-  --tabbar-h: 12px;
+  /* WebView 高度 = 壳已裁切底栏；仅小呼吸边。勿再垫真 · tab 高度。 */
+  --tabbar-h: 16px;
   overscroll-behavior: none;
 }
 
@@ -239,9 +239,14 @@ html.android-flutter-h5 nav.tabbar {
 html.android-flutter-h5 .app-body,
 html.android-flutter-h5 body.pwa-standalone .app-body {
   padding-top: max(var(--safe-top), 0px);
-  padding-bottom: calc(var(--tabbar-h) + 4px);
-  min-height: 100%;
-  min-height: 100dvh;
+  padding-bottom: calc(var(--tabbar-h) + 8px);
+  /* 关键：100dvh 是设备全高，在 Flutter 裁切后的 WebView 内会撑破底部 → 被原底栏挡住 */
+  min-height: 0;
+  min-height: var(--peiai-vv-h, 100%);
+  height: var(--peiai-vv-h, 100%);
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* 已装在 App 内：不催安装 / 分享安装条 */
@@ -256,11 +261,6 @@ html.android-flutter-h5 body.android-flutter-kb .im-composer-bar,
 html.android-flutter-h5 body.im-keyboard .im-composer-bar {
   bottom: max(0px, var(--im-kb-inset, 0px)) !important;
   padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
-}
-
-html.android-flutter-h5 {
-  /* 避免原生底栏之上再垫一层 Web tabbar 占位 */
-  --tabbar-h: 10px;
 }
 
 /* 暗色 H5：与 Flutter paper 对齐，减少「两个 App」感 */

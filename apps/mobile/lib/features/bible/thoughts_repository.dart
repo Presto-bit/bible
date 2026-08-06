@@ -10,6 +10,8 @@ import 'package:uuid/uuid.dart';
 import '../../core/api_client.dart';
 import '../../core/user_storage.dart';
 
+export '../../core/mark_ref.dart' show selectionRef;
+
 const _thoughtsKey = 'verse_thoughts_v1';
 
 class VerseThoughtData {
@@ -91,13 +93,6 @@ List<VerseThoughtData> _readAll(SharedPreferences prefs) {
 Future<void> _writeAll(
     SharedPreferences prefs, List<VerseThoughtData> rows) async {
   await userPrefSetString(prefs, _thoughtsKey, jsonEncode(rows.map((e) => e.toJson()).toList()));
-}
-
-String selectionRef(String bookId, int chapter, List<int> verses) {
-  final sel = [...verses]..sort();
-  if (sel.isEmpty) return '$bookId.$chapter';
-  if (sel.first == sel.last) return '$bookId.$chapter.${sel.first}';
-  return '$bookId.$chapter.${sel.first}-${sel.last}';
 }
 
 int? verseFromRef(String ref, int chapter) {

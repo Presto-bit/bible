@@ -705,7 +705,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   onTap: () async {
                     await markFootprintSeen(prefs, 'marks', highlights);
                     if (!context.mounted) return;
-                    context.push('/notes');
+                    context.push('/notes?tab=highlights');
                   },
                 ),
                 _FootprintCell(
@@ -1222,7 +1222,7 @@ class _SettingsSheet extends ConsumerWidget {
                 Navigator.pop(context);
                 context.push('/knowledge-bases');
               }),
-              _row('离线圣经', '下载 CNV 经包', onTap: () {
+              _row('离线圣经', '下载和合本经包', onTap: () {
                 Navigator.pop(context);
                 showOfflineDownloadSheet(context, ref);
               }),

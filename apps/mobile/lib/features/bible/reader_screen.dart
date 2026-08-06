@@ -26,11 +26,12 @@ import '../plans/plan_steps.dart';
 import 'offline_notice.dart';
 import 'offline_bible.dart';
 import 'bible_repository.dart';
-import 'bible_summary.dart';
 import 'models.dart';
 import 'reader_experience.dart';
 import 'reader_loc_popover.dart';
 import 'reader_settings_menu.dart';
+import 'summary_sheet.dart';
+import 'group_checkin_sheet.dart';
 import '../plans/plans_repository.dart';
 import 'reading_repository.dart';
 
@@ -72,9 +73,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   int _chapter = 1;
   bool _seeded = false;
   Timer? _timer;
-  Timer? _chromeTimer;
   bool _chromeHidden = false;
-  String _versionLabel = '新译本';
+  String _versionLabel = '和合本';
   String? _compareVersionId;
   String? _mainVersionId;
   PlanReadingMeta? _planMeta;
@@ -95,45 +95,64 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         ref.read(readingRepoProvider).addMinutes(1);
       }
     });
-    _scheduleChromeHide();
     final prefs = ref.read(prefsProvider);
     final savedCompare = prefs.getString('reader_parallel_version');
     final savedMain = prefs.getString('reader_main_version');
+    final layout = prefs.getString('reader_layout');
     if (savedMain != null && savedMain.isNotEmpty) {
       _mainVersionId = savedMain;
-      _versionLabel = savedMain.toUpperCase();
+      _versionLabel = _versionLabelFor(savedMain);
     } else if (savedCompare != null && savedCompare.isNotEmpty) {
       _compareVersionId = savedCompare;
-      _versionLabel = '新译本 · ${savedCompare.toUpperCase()}';
+      _versionLabel = '和合本 · ${_versionLabelFor(savedCompare)}';
+    } else if (layout == 'parallel') {
+      _compareVersionId = 'cnv';
+      _versionLabel = '和合本 · ${_versionLabelFor('cnv')}';
+    } else {
+      _versionLabel = '和合本';
     }
   }
 
+  static String _versionLabelFor(String id) {
+    switch (id.toLowerCase()) {
+      case 'cuvs':
+        return '和合本';
+      case 'cnv':
+        return '新译本';
+      case 'contemporary':
+        return '当代译本';
+      case 'kjv':
+        return 'King James Version';
+      default:
+        return id.toUpperCase();
+    }
+  }
+
+  /// 对齐 PWA：顶栏 + 底栏一体沉浸；点按切换，无 idle 自动藏。
   void _setChrome(bool hidden) {
-    if (mounted) setState(() => _chromeHidden = hidden);
-    if (ref.read(readerImmersiveProvider) != hidden) {
-      ref.read(readerImmersiveProvider.notifier).set(hidden);
+    if (!mounted) return;
+    if (_chromeHidden != hidden) {
+      setState(() => _chromeHidden = hidden);
+    }
+    final want = hidden && ref.read(navIndexProvider) == 1;
+    if (ref.read(readerImmersiveProvider) != want) {
+      ref.read(readerImmersiveProvider.notifier).set(want);
     }
   }
 
-  void _scheduleChromeHide() {
-    _chromeTimer?.cancel();
-    if (_book == null) {
-      _setChrome(false);
-      return;
-    }
-    _setChrome(false);
-    _chromeTimer = Timer(const Duration(milliseconds: 2800), () {
-      if (mounted && _book != null) _setChrome(true);
-    });
+  void _revealChrome() => _setChrome(false);
+
+  void _toggleChrome() {
+    if (_book == null) return;
+    _setChrome(!_chromeHidden);
   }
 
-  void _onReaderInteract() => _scheduleChromeHide();
+  /// 打开半屏 / 设置 / AI 时强制恢复 chrome（对齐 PWA overlay 规则）。
+  void _onOpenOverlay() => _revealChrome();
 
   @override
   void dispose() {
     _timer?.cancel();
-    _chromeTimer?.cancel();
-    // 离开阅读器时复位，避免其它 Tab 误隐藏底部导航。
     ref.read(readerImmersiveProvider.notifier).set(false);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -156,11 +175,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       setState(() {
         _book = b;
         _chapter = ch;
-            _seeded = true;
-          });
-          ref.read(readerJumpProvider.notifier).clear();
-          _scheduleChromeHide();
-        });
+        _seeded = true;
+      });
+      ref.read(readerJumpProvider.notifier).clear();
+      _revealChrome();
+    });
+
+    // 回到圣经 Tab：若 session 内仍沉浸，恢复底栏隐藏。
+    ref.listen(navIndexProvider, (prev, next) {
+      if (next == 1 && _chromeHidden) {
+        ref.read(readerImmersiveProvider.notifier).set(true);
+      }
+    });
 
     return Scaffold(
       backgroundColor: ref.watch(readerExperienceThemeProvider).background,
@@ -171,10 +197,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 对齐 PWA：版本 | 经卷章 | 概要
             InkWell(
               onTap: () {
-                _onReaderInteract();
+                _onOpenOverlay();
                 _pickVersions(context);
               },
               borderRadius: BorderRadius.circular(6),
@@ -191,7 +216,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             InkWell(
               key: _locKey,
               onTap: () {
-                _onReaderInteract();
+                _onOpenOverlay();
                 _pickBookChapter(context);
               },
               borderRadius: BorderRadius.circular(6),
@@ -209,7 +234,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             Container(width: 1, height: 14, color: AppColors.line),
             InkWell(
               onTap: () {
-                _onReaderInteract();
+                _onOpenOverlay();
                 _openChapterSummary();
               },
               borderRadius: BorderRadius.circular(6),
@@ -231,39 +256,53 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             tooltip: '搜索',
             icon: const Icon(Icons.search),
             onPressed: () {
-              _onReaderInteract();
+              _onOpenOverlay();
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const SearchScreen()),
               );
             },
           ),
           IconButton(
-            tooltip: '更多设置',
+            tooltip: '阅读设置',
             icon: const Icon(Icons.more_vert),
             onPressed: () {
-              _onReaderInteract();
-              showReaderMoreMenu(context, ref);
+              _onOpenOverlay();
+              showReaderSettingsSheet(
+                context,
+                ref,
+                onLayoutApplied: (mainId, compareId, label) {
+                  final prefs = ref.read(prefsProvider);
+                  setState(() {
+                    _mainVersionId = mainId;
+                    _compareVersionId = compareId;
+                    _versionLabel = label;
+                  });
+                  if (mainId == null) {
+                    prefs.remove('reader_main_version');
+                  } else {
+                    prefs.setString('reader_main_version', mainId);
+                  }
+                  if (compareId == null) {
+                    prefs.remove('reader_parallel_version');
+                  } else {
+                    prefs.setString('reader_parallel_version', compareId);
+                  }
+                },
+              );
             },
           ),
         ],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onTap: () {
-          if (_chromeHidden) {
-            _setChrome(false);
-            _scheduleChromeHide();
-          } else {
-            _onReaderInteract();
-          }
-        },
+        // 对齐 PWA：点按切换 chrome，无 idle 自动藏
+        onTap: _toggleChrome,
         child: booksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorView(message: '$e', onRetry: () => ref.refresh(booksProvider)),
         data: (books) {
           if (!_seeded) {
             var target = widget.initialBook ?? 'JHN';
-            // 无显式起点时，回到上次阅读进度
             if (widget.initialBook == null && widget.initialChapter == null) {
               final saved = ref.read(readingProgressStreamProvider).value;
               if (saved != null) {
@@ -301,13 +340,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                 _chapter = ch.clamp(1, b.chapterCount);
               });
             },
-            onNav: (d) {
-              _nav(d);
-              _scheduleChromeHide();
-            },
-            onInteract: _onReaderInteract,
+            onNav: _nav,
+            onInteract: () {},
+            onNextChapter: () => _nav(1),
             onAskAi: (refStr, refLabel, selectionText, explainOnly) {
-              _onReaderInteract();
+              _onOpenOverlay();
               _openXiaoAiSheet(
                 context,
                 refStr: refStr,
@@ -338,7 +375,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         },
       ),
       ),
-      floatingActionButton: _book == null || _chromeHidden
+      // PWA 沉浸时仍保留 FAB
+      floatingActionButton: _book == null
           ? null
           : Padding(
               padding: const EdgeInsets.only(bottom: 4, right: 4),
@@ -354,18 +392,40 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                         backgroundColor: AppColors.surface,
                         foregroundColor: AppColors.inkSoft,
                         onPressed: () {
-                          _onReaderInteract();
+                          _revealChrome();
                           setState(() => _planMeta = null);
                         },
                         child: const Text('退出', style: TextStyle(fontSize: 12)),
                       ),
                     ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: FloatingActionButton.small(
+                      heroTag: 'reader-checkin',
+                      backgroundColor: AppColors.surface,
+                      foregroundColor: AppColors.accentDeep,
+                      tooltip: '打卡到共读群',
+                      onPressed: () {
+                        final b = _book;
+                        if (b == null) return;
+                        _onOpenOverlay();
+                        showGroupCheckinSheet(
+                          context,
+                          ref,
+                          bookId: b.id,
+                          bookName: b.name,
+                          chapter: _chapter,
+                        );
+                      },
+                      child: const Icon(Icons.groups_outlined, size: 20),
+                    ),
+                  ),
                   FloatingActionButton(
                     heroTag: 'reader-xiaoai',
                     backgroundColor: AppColors.accentDeep,
                     foregroundColor: Colors.white,
                     onPressed: () {
-                      _onReaderInteract();
+                      _onOpenOverlay();
                       _openXiaoAiSheet(context);
                     },
                     child: const Icon(Icons.auto_awesome, size: 22),
@@ -458,78 +518,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   void _openChapterSummary() {
     final book = _book;
     if (book == null) return;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-        return Padding(
-          padding: EdgeInsets.fromLTRB(20, 12, 12, 24 + bottom),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${book.name} · 第 $_chapter 章',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 17,
-                          color: AppColors.ink),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.inkFaint),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              FutureBuilder<String>(
-                future: loadChapterSummary(
-                  ref,
-                  ref.read(prefsProvider),
-                  book.id,
-                  book.name,
-                  _chapter,
-                ),
-                builder: (c, snap) {
-                  if (snap.connectionState != ConnectionState.done) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  if (snap.hasError) {
-                    return Text('加载失败：${snap.error}',
-                        style: const TextStyle(color: AppColors.inkSoft));
-                  }
-                  return ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.sizeOf(ctx).height * 0.55,
-                    ),
-                    child: SingleChildScrollView(
-                      child: Text(
-                        snap.data ?? '',
-                        style: const TextStyle(
-                            fontSize: 15,
-                            height: 1.75,
-                            color: AppColors.inkSoft),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
+    showBibleSummarySheet(
+      context,
+      ref,
+      bookId: book.id,
+      bookName: book.name,
+      chapter: _chapter,
+      initialTab: 'chapter',
     );
   }
 
@@ -1220,8 +1215,8 @@ class _VersionPickerBody extends ConsumerStatefulWidget {
 }
 
 class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
-  bool _cnvInstalled = false;
-  bool _cnvFailed = false;
+  final Map<String, bool> _offlineOk = {};
+  String? _failedId;
 
   @override
   void initState() {
@@ -1242,52 +1237,61 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
   }
 
   Future<void> _refreshInstalled() async {
-    final ok = await ref.read(offlineBibleProvider).checkInstalled();
-    if (mounted) setState(() => _cnvInstalled = ok);
+    final svc = ref.read(offlineBibleProvider);
+    for (final id in const ['cuvs', 'cnv', 'contemporary', 'kjv']) {
+      _offlineOk[id] = await svc.checkInstalled(id);
+    }
+    if (mounted) setState(() {});
   }
 
+  bool _offlineable(String id) =>
+      const {'cuvs', 'cnv', 'contemporary', 'kjv'}.contains(id);
+
   bool _selectable(BibleVersion v) {
-    // CNV 在选择器内以本地离线包为准；其它译本仍看服务端可用性
-    if (v.id == 'cnv') return _cnvInstalled;
+    if (_offlineable(v.id)) return _offlineOk[v.id] == true || v.available;
     return v.available;
   }
 
-  bool _needsCnvDownload(BibleVersion v) => v.id == 'cnv' && !_cnvInstalled;
+  bool _needsDownload(BibleVersion v) =>
+      _offlineable(v.id) && _offlineOk[v.id] != true;
 
   String _trailing(BibleVersion v, OfflineBibleService svc) {
-    if (v.id == 'cnv') {
-      if (svc.isDownloading) {
+    if (_offlineable(v.id)) {
+      if (svc.isDownloading && svc.downloadingId == v.id) {
         final p = svc.downloadProgress;
         if (p != null && p > 0) {
           return '下载中… ${(p * 100).clamp(0, 100).toStringAsFixed(0)}%';
         }
         return '下载中…';
       }
-      if (_cnvFailed) return '重试';
-      if (_cnvInstalled) return '已下载';
+      if (_failedId == v.id) return '重试';
+      if (_offlineOk[v.id] == true) return '已下载';
+      if (v.available) return '下载离线';
       return '下载';
     }
-    return v.available ? '已下载' : '暂不可用';
+    return v.available ? '可用' : '暂不可用';
   }
 
-  Future<void> _downloadCnv(List<BibleVersion> versions) async {
-    setState(() => _cnvFailed = false);
+  Future<void> _downloadVersion(BibleVersion v, List<BibleVersion> versions) async {
+    setState(() => _failedId = null);
     final svc = ref.read(offlineBibleProvider);
     try {
-      await svc.downloadPack();
+      await svc.downloadPack(translationId: v.id);
       await _refreshInstalled();
-      final primary = versions.where((x) => x.primary).firstOrNull;
-      final label = primary?.label ?? '圣经新译本';
-      widget.onApplied(null, null, label);
+      if (v.primary || v.id == 'cuvs') {
+        final primary = versions.where((x) => x.primary).firstOrNull;
+        final label = primary?.label ?? '和合本';
+        widget.onApplied(null, null, label);
+      }
       ref.invalidate(offlineInstalledProvider);
     } catch (_) {
-      if (mounted) setState(() => _cnvFailed = true);
+      if (mounted) setState(() => _failedId = v.id);
     }
   }
 
   void _applyTap(BibleVersion v, List<BibleVersion> versions) {
     final primary = versions.where((x) => x.primary).firstOrNull;
-    final primaryLabel = primary?.label ?? '新译本';
+    final primaryLabel = primary?.label ?? '和合本';
     final isParallel =
         widget.compareVersionId != null && widget.mainVersionId == null;
     final isMainDisplay = v.primary
@@ -1357,9 +1361,9 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                   children: versions.map((v) {
                     final selectable = _selectable(v);
                     final downloading =
-                        v.id == 'cnv' && svc.isDownloading;
-                    final needsDl = _needsCnvDownload(v) ||
-                        (v.id == 'cnv' && _cnvFailed);
+                        svc.isDownloading && svc.downloadingId == v.id;
+                    final needsDl =
+                        _needsDownload(v) || _failedId == v.id;
                     final isMainDisplay = v.primary
                         ? widget.mainVersionId == null && !isParallel
                         : widget.mainVersionId == v.id;
@@ -1368,6 +1372,14 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                     final checked =
                         selectable && (isMainDisplay || isCompare);
                     final trailing = _trailing(v, svc);
+
+                    void handle() {
+                      if (_needsDownload(v) || _failedId == v.id) {
+                        unawaited(_downloadVersion(v, versions));
+                        return;
+                      }
+                      if (selectable) _applyTap(v, versions);
+                    }
 
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -1387,39 +1399,21 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                       ),
                       title: Text(v.label),
                       trailing: TextButton(
-                        onPressed: downloading
-                            ? null
-                            : () {
-                                if (v.id == 'cnv' &&
-                                    (_cnvFailed || !_cnvInstalled)) {
-                                  unawaited(_downloadCnv(versions));
-                                  return;
-                                }
-                                if (selectable) _applyTap(v, versions);
-                              },
+                        onPressed: downloading ? null : handle,
                         child: Text(
                           trailing,
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: needsDl || _cnvFailed
+                            fontWeight: needsDl || _failedId == v.id
                                 ? FontWeight.w600
                                 : FontWeight.w400,
-                            color: needsDl || downloading || _cnvFailed
+                            color: needsDl || downloading || _failedId == v.id
                                 ? AppColors.accentDeep
                                 : AppColors.inkFaint,
                           ),
                         ),
                       ),
-                      onTap: downloading
-                          ? null
-                          : () {
-                              if (v.id == 'cnv' &&
-                                  (_cnvFailed || !_cnvInstalled)) {
-                                unawaited(_downloadCnv(versions));
-                                return;
-                              }
-                              if (selectable) _applyTap(v, versions);
-                            },
+                      onTap: downloading ? null : handle,
                     );
                   }).toList(),
                 );

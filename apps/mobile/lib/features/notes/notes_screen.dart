@@ -15,6 +15,7 @@ import '../bible/markings_repository.dart';
 import '../bible/reader_marking_models.dart'
     show chipColor, highlightColorKeys, markColorSemantics;
 import '../bible/reader_screen.dart' show readerJumpProvider;
+import '../bible/reader_thoughts_sheet.dart' show showWriteThoughtSheet;
 import '../bible/thoughts_repository.dart';
 import '../social/share_to_social_sheet.dart';
 
@@ -30,7 +31,10 @@ String formatDateTimeMs(int ms) {
 }
 
 class NotesScreen extends ConsumerStatefulWidget {
-  const NotesScreen({super.key});
+  const NotesScreen({super.key, this.initialTab = 0});
+
+  /// 0=想法 · 1=划线（对齐 `/notes?tab=highlights`）
+  final int initialTab;
 
   @override
   ConsumerState<NotesScreen> createState() => _NotesScreenState();
@@ -38,7 +42,7 @@ class NotesScreen extends ConsumerStatefulWidget {
 
 class _NotesScreenState extends ConsumerState<NotesScreen> {
   bool _autoSynced = false;
-  int _tab = 0; // 0=想法 1=划线
+  late int _tab; // 0=想法 1=划线
   String _query = '';
   String _colorFilter = 'all';
   String? _thoughtGroup;
@@ -50,6 +54,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   @override
   void initState() {
     super.initState();
+    _tab = widget.initialTab.clamp(0, 1);
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoSync());
   }
 
@@ -217,6 +222,17 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                               refLabel: formatGroupRefLabel(e.ref),
                               kind: 'verse',
                             ),
+                            onAddThought: () => showWriteThoughtSheet(
+                              context,
+                              ref,
+                              refStr: e.ref,
+                              refLabel: formatGroupRefLabel(e.ref),
+                            ),
+                            onDelete: () async {
+                              await ref
+                                  .read(markingsRepoProvider)
+                                  .removeHighlight(e.ref);
+                            },
                           );
                         },
                       );
@@ -332,6 +348,10 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                   TextButton(
                       onPressed: () => _openRef(t.ref),
                       child: const Text('跳转经文')),
+                TextButton(
+                  onPressed: () => _editThought(t),
+                  child: const Text('编辑'),
+                ),
                 TextButton(
                   onPressed: () => showShareToSocialSheet(
                     context,
@@ -554,6 +574,75 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     ref.read(navIndexProvider.notifier).set(1);
     Navigator.of(context).pop();
   }
+
+  Future<void> _editThought(VerseThoughtData t) async {
+    final ctl = TextEditingController(text: t.body);
+    final body = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          18,
+          20,
+          MediaQuery.viewInsetsOf(ctx).bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('编辑想法',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: AppColors.ink)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctl,
+              autofocus: true,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: '写下你的领受…',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accentDeep),
+                onPressed: () => Navigator.pop(ctx, ctl.text),
+                child: const Text('保存'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    ctl.dispose();
+    if (body == null || body.trim().isEmpty) return;
+    await ref.read(thoughtsRepoProvider).updateThought(t.id, body.trim());
+    if (!mounted) return;
+    setState(() {
+      _thoughtDetail = VerseThoughtData(
+        id: t.id,
+        ref: t.ref,
+        body: body.trim(),
+        authorId: t.authorId,
+        authorName: t.authorName,
+        likesCount: t.likesCount,
+        likedBy: t.likedBy,
+        isShared: t.isShared,
+        createdAtMs: t.createdAtMs,
+      );
+    });
+  }
 }
 
 class _ColorFilterBar extends StatelessWidget {
@@ -722,59 +811,93 @@ class _HighlightCard extends StatelessWidget {
     required this.onOpen,
     this.timeLabel = '',
     this.onShare,
+    this.onAddThought,
+    this.onDelete,
   });
   final String refStr;
   final String color;
   final String timeLabel;
   final VoidCallback onOpen;
   final VoidCallback? onShare;
+  final VoidCallback? onAddThought;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.line),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: chipColor(color),
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(markColorSemantics[color] ?? '划线',
-                          style: const TextStyle(
-                              fontSize: 11, color: AppColors.inkFaint)),
-                    ),
-                    if (timeLabel.isNotEmpty)
-                      Text(timeLabel,
-                          style: const TextStyle(
-                              fontSize: 11, color: AppColors.inkFaint)),
-                  ],
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: chipColor(color),
+                  shape: BoxShape.circle,
                 ),
-                Text(formatGroupRefLabel(refStr),
+              ),
+              const SizedBox(width: 8),
+              Text(markColorSemantics[color] ?? '划线',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.inkFaint)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(formatGroupRefLabel(refStr),
                     style: const TextStyle(
-                        fontWeight: FontWeight.w600, color: AppColors.ink)),
-              ],
-            ),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: AppColors.accentDeep)),
+              ),
+              if (timeLabel.isNotEmpty)
+                Text(timeLabel,
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.inkFaint)),
+            ],
           ),
-          TextButton(onPressed: onOpen, child: const Text('跳转')),
-          if (onShare != null)
-            TextButton(onPressed: onShare, child: const Text('分享')),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 4,
+            runSpacing: 0,
+            children: [
+              TextButton(
+                  onPressed: onOpen,
+                  style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      visualDensity: VisualDensity.compact),
+                  child: const Text('跳转经文')),
+              if (onAddThought != null)
+                TextButton(
+                    onPressed: onAddThought,
+                    style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        visualDensity: VisualDensity.compact),
+                    child: const Text('加想法')),
+              if (onShare != null)
+                TextButton(
+                    onPressed: onShare,
+                    style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        visualDensity: VisualDensity.compact),
+                    child: const Text('分享')),
+              if (onDelete != null)
+                TextButton(
+                    onPressed: onDelete,
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFB1554A),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('删除')),
+            ],
+          ),
         ],
       ),
     );

@@ -153,7 +153,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           builder: (context, state) => const DictionaryScreen()),
       GoRoute(
           path: '/notes',
-          builder: (context, state) => const NotesScreen()),
+          builder: (context, state) => NotesScreen(
+            initialTab:
+                state.uri.queryParameters['tab'] == 'highlights' ? 1 : 0,
+          )),
       GoRoute(
           path: '/search',
           builder: (context, state) => const SearchScreen()),

@@ -1,6 +1,7 @@
 /// 阅读体验增强：主题、进度条、情境头、Focus 模式、轻问小爱、章节缓存。
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
@@ -11,7 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/mark_notes.dart';
-import 'bible_summary.dart';
+import '../../core/mark_ref.dart' show selectionRef;
+import 'summary_sheet.dart';
 import '../../core/database/app_database.dart';
 import '../../core/theme.dart';
 import '../plans/plan_bar.dart';
@@ -22,6 +24,7 @@ import '../plans/plan_steps.dart';
 import '../notes/notes_for_chapter.dart';
 import '../notes/notes_repository.dart';
 import 'bible_repository.dart';
+import 'chapter_guide_tip.dart';
 import 'content_repository.dart';
 import 'dictionary_match.dart';
 import 'entity_knowledge_sheet.dart';
@@ -34,9 +37,12 @@ import 'reader_marking_models.dart';
 import 'reader_preferences.dart';
 import 'reader_thoughts_sheet.dart';
 import 'reading_repository.dart';
-import 'thoughts_repository.dart';
+import 'selection_range.dart';
+import 'thoughts_repository.dart' hide selectionRef;
 import 'verse_card_sheet.dart';
 import 'verse_compare_sheet.dart';
+import 'verse_diff.dart';
+import 'verse_words.dart';
 
 /// 阅读字号（对齐 H5 中/大/特大）。
 enum ReaderFontSize { medium, large, xlarge }
@@ -244,6 +250,7 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
     required this.onInteract,
     required this.onRead,
     required this.onAskAi,
+    this.onNextChapter,
     this.compareVersionId,
     this.mainVersionId,
     this.planMeta,
@@ -264,6 +271,7 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
   final PlanReadingMeta? planMeta;
   final ValueChanged<PlanReadingMeta?>? onPlanMetaChange;
   final void Function(String bookId, int chapter)? onPlanJump;
+  final VoidCallback? onNextChapter;
 
   /// 打开小爱解读弹窗。explainOnly=true 时仅解释选中经文。
   final void Function(
@@ -276,7 +284,13 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
 
 class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   Set<int> _selected = {};
+  WordRange? _wordRange;
   bool _bookDone = false;
+  bool _chapterTipVisible = false;
+  bool _chapterBottomFired = false;
+  bool _guideTipVisible = false;
+  bool _guideTipCompact = false;
+  Timer? _guideDwellTimer;
   int? _resumeFlashVerse;
   final _resumeAnchorKey = GlobalKey();
   final _scroll = ScrollController();
@@ -285,6 +299,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   bool _resumeScheduled = false;
   bool _planDayFinishScheduled = false;
   Chapter? _cachedChapter;
+  Chapter? _liveChapter;
 
   @override
   void initState() {
@@ -293,6 +308,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final prefs = ref.read(prefsProvider);
     _cachedChapter =
         readChapterCache(prefs, widget.book.id, widget.chapter);
+    _scheduleGuideTips(fromSwipe: false, prevBookId: null, prevChapter: null);
   }
 
   @override
@@ -301,15 +317,29 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     if (oldWidget.book.id != widget.book.id ||
         oldWidget.chapter != widget.chapter ||
         oldWidget.planMeta?.day != widget.planMeta?.day) {
+      final fromSwipe = oldWidget.book.id == widget.book.id &&
+          (widget.chapter - oldWidget.chapter).abs() == 1;
       setState(() {
         _selected.clear();
+        _wordRange = null;
         _bookDone = false;
+        _chapterTipVisible = false;
+        _chapterBottomFired = false;
+        _guideTipVisible = false;
+        _guideTipCompact = false;
         _resumeFlashVerse = null;
         _planDayFinishScheduled = false;
         _resumeScheduled = false;
+        _liveChapter = null;
         _cachedChapter = readChapterCache(
             ref.read(prefsProvider), widget.book.id, widget.chapter);
       });
+      _guideDwellTimer?.cancel();
+      _scheduleGuideTips(
+        fromSwipe: fromSwipe,
+        prevBookId: oldWidget.book.id,
+        prevChapter: oldWidget.chapter,
+      );
       _persistPlanRef();
     }
   }
@@ -341,9 +371,66 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
 
   @override
   void dispose() {
+    _guideDwellTimer?.cancel();
     _scroll.removeListener(_onScroll);
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _scheduleGuideTips({
+    required bool fromSwipe,
+    String? prevBookId,
+    int? prevChapter,
+  }) {
+    if (widget.planMeta != null) return;
+    final prefs = ref.read(prefsProvider);
+    final nav = resolveChapterGuideNavKind(
+      fromSwipe: fromSwipe,
+      prevBookId: prevBookId,
+      prevChapter: prevChapter,
+      bookId: widget.book.id,
+      chapter: widget.chapter,
+    );
+    if (nav == ChapterGuideNavKind.jump &&
+        shouldShowChapterGuideTip(
+          prefs: prefs,
+          bookId: widget.book.id,
+          chapter: widget.chapter,
+          intent: ChapterGuideIntent.jump,
+        )) {
+      unawaited(recordChapterGuideTipShown(
+          prefs, widget.book.id, widget.chapter));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _guideTipVisible = true;
+            _guideTipCompact = false;
+          });
+        }
+      });
+      return;
+    }
+    // 连翻 / 邻章：仅 dwell
+    _guideDwellTimer = Timer(
+      const Duration(milliseconds: chapterGuideDwellMs),
+      () {
+        if (!mounted) return;
+        final p = ref.read(prefsProvider);
+        if (shouldShowChapterGuideTip(
+          prefs: p,
+          bookId: widget.book.id,
+          chapter: widget.chapter,
+          intent: ChapterGuideIntent.dwell,
+        )) {
+          unawaited(
+              recordChapterGuideTipShown(p, widget.book.id, widget.chapter));
+          setState(() {
+            _guideTipVisible = true;
+            _guideTipCompact = true;
+          });
+        }
+      },
+    );
   }
 
   double _lastOffset = 0;
@@ -351,9 +438,24 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   void _onScroll() {
     if (!_scroll.hasClients) return;
     final cur = _scroll.position.pixels;
-    // 上滑（往回读）即恢复顶栏 + 底部 Tab；下滑继续沉浸。
-    if (cur < _lastOffset - 4) widget.onInteract();
     _lastOffset = cur;
+
+    // 章末读完轻提示（对齐 PWA ChapterCompleteTip；专注模式 / 计划模式关闭）
+    if (!_chapterBottomFired &&
+        widget.planMeta == null &&
+        cur >= _scroll.position.maxScrollExtent - 100) {
+      _chapterBottomFired = true;
+      final mode = ref.read(readingModeProvider);
+      final tipOn = ref.read(chapterCompleteTipOnProvider);
+      final prefs = ref.read(readerPreferencesProvider);
+      if (tipOn &&
+          mode != ReadingMode.focus &&
+          !prefs.hasShownChapterCompleteTip(widget.book.id, widget.chapter)) {
+        unawaited(
+            prefs.markChapterCompleteTipShown(widget.book.id, widget.chapter));
+        if (mounted) setState(() => _chapterTipVisible = true);
+      }
+    }
 
     if (_bookDone) return;
     // 仅在「读完整卷」（本卷最后一章滚动到底）时庆祝，避免每章都打扰。
@@ -409,29 +511,71 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         );
   }
 
-  // 长按：进入选中（单节）。
-  void _startSelect(int verse) {
+  // 长按：进入选中（整节）。
+  void _startSelect(int verse, String text) {
     widget.onInteract();
-    setState(() => _selected = {verse});
+    final range = wholeVerseRange(verse, text);
+    setState(() {
+      _wordRange = range;
+      _selected = {verse};
+    });
     _markRead(verse);
     _scheduleFocusBarLayout();
   }
 
-  // 点按：扩展为连续区间（方案 A）。
-  void _toggleSelect(int verse) {
+  // 词块长按：半节/词选起点。
+  void _startWordSelect(int verse, int start, int end) {
+    widget.onInteract();
+    final a = WordAnchor(verse: verse, start: start, end: end);
+    setState(() {
+      _wordRange = WordRange(anchor: a, focus: a);
+      _selected = {verse};
+    });
+    _markRead(verse);
+    _scheduleFocusBarLayout();
+  }
+
+  // 词块点按：扩展选区。
+  void _extendWordSelect(int verse, int start, int end) {
+    if (_wordRange == null) return;
+    widget.onInteract();
+    final f = WordAnchor(verse: verse, start: start, end: end);
+    final range = WordRange(anchor: _wordRange!.anchor, focus: f);
+    setState(() {
+      _wordRange = range;
+      _selected = wordRangeToSpan(range).verses.toSet();
+    });
+    _markRead(verse);
+    _scheduleFocusBarLayout();
+  }
+
+  // 点按：扩展为连续区间（整节）。
+  void _toggleSelect(int verse, String text) {
     if (_selected.isEmpty) return;
     widget.onInteract();
+    if (_wordRange != null) {
+      _extendWordSelect(verse, 0, text.length);
+      return;
+    }
     final lo = _selected.reduce((a, b) => a < b ? a : b);
     final hi = _selected.reduce((a, b) => a > b ? a : b);
     final start = verse < lo ? verse : lo;
     final end = verse > hi ? verse : hi;
-    setState(() => _selected = {for (var i = start; i <= end; i++) i});
+    setState(() {
+      _selected = {for (var i = start; i <= end; i++) i};
+      // 跨节整节选：无半节 span
+      _wordRange = WordRange(
+        anchor: WordAnchor(verse: start, start: 0, end: 0),
+        focus: WordAnchor(verse: end, start: 0, end: text.length),
+      );
+    });
     _markRead(verse);
     _scheduleFocusBarLayout();
   }
 
   void _clearSelection() => setState(() {
         _selected.clear();
+        _wordRange = null;
         _focusBarTop = null;
       });
 
@@ -472,14 +616,51 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
 
   String _selectionText(Chapter? ch) {
     if (ch == null) return '';
+    final wr = _wordRange;
+    if (wr != null) {
+      return textFromWordRange(
+        wr,
+        (v) => ch.verses
+            .where((x) => x.verse == v)
+            .map((x) => x.text)
+            .firstOrNull ??
+            '',
+      );
+    }
     return ch.verses
         .where((v) => _selected.contains(v.verse))
         .map((v) => v.text)
         .join();
   }
 
-  String get _selectionRefStr =>
-      selectionRef(widget.book.id, widget.chapter, _sortedSel);
+  String get _selectionRefStr {
+    final wr = _wordRange;
+    if (wr == null) {
+      return selectionRef(widget.book.id, widget.chapter, _sortedSel);
+    }
+    final p = wordRangeToSpan(wr);
+    int? spanStart = p.span?.start;
+    int? spanEnd = p.span?.end;
+    if (p.verses.length == 1 && spanStart != null && spanEnd != null) {
+      final ch = _liveChapter ?? _cachedChapter;
+      final text = ch?.verses
+              .where((x) => x.verse == p.verses.first)
+              .map((x) => x.text)
+              .firstOrNull ??
+          '';
+      if (spanStart <= 0 && spanEnd >= text.length) {
+        spanStart = null;
+        spanEnd = null;
+      }
+    }
+    return selectionRef(
+      widget.book.id,
+      widget.chapter,
+      p.verses,
+      spanStart: spanStart,
+      spanEnd: spanEnd,
+    );
+  }
 
   String get _refStr => _selectionRefStr;
 
@@ -502,8 +683,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final sel = _sortedSel;
     if (sel.isEmpty) return;
     final map = ref.read(highlightMapProvider).value ?? {};
-    final storageRef = _highlightStorageRef(map, sel) ??
-        selectionRef(widget.book.id, widget.chapter, sel);
+    final storageRef = _highlightStorageRef(map, sel) ?? _selectionRefStr;
     final added = await ref.read(markingsRepoProvider).toggleHighlight(
           storageRef,
           color: color,
@@ -597,8 +777,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   }
 
   String? _highlightStorageRef(Map<String, HighlightMark> map, List<int> sel) {
-    final selRef = selectionRef(widget.book.id, widget.chapter, sel);
+    final selRef = _selectionRefStr;
     if (map.containsKey(selRef)) return selRef;
+    final base = selectionRef(widget.book.id, widget.chapter, sel);
+    if (map.containsKey(base)) return base;
     for (final v in sel) {
       final k = '${widget.book.id}.${widget.chapter}.$v';
       if (map.containsKey(k)) return k;
@@ -606,7 +788,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final min = sel.first;
     final max = sel.last;
     for (final k in map.keys) {
-      final parts = k.split('.');
+      final parts = k.split('@').first.split('.');
       if (parts.length < 3) continue;
       if (parts[0] != widget.book.id || int.tryParse(parts[1]) != widget.chapter) {
         continue;
@@ -626,7 +808,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   Future<void> _writeThought(Chapter? ch) async {
     final sel = _sortedSel;
     if (sel.isEmpty) return;
-    final refStr = selectionRef(widget.book.id, widget.chapter, sel);
+    final refStr = _selectionRefStr;
     await showWriteThoughtSheet(
       context,
       ref,
@@ -647,15 +829,14 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     );
   }
 
-  void _showSummarySheet(String title, Future<String> Function() load) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => _SummarySheet(title: title, load: load),
+  void _showChapterSummary({String initialTab = 'chapter'}) {
+    showBibleSummarySheet(
+      context,
+      ref,
+      bookId: widget.book.id,
+      bookName: widget.book.name,
+      chapter: widget.chapter,
+      initialTab: initialTab,
     );
   }
 
@@ -854,6 +1035,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final toggles = ref.watch(readerFeatureTogglesProvider);
     final pageTurn = ref.watch(readerPageTurnProvider);
     final fontFamily = ref.watch(readerFontFamilyProvider);
+    final readingMode = ref.watch(readingModeProvider);
     final thoughtsByVerse = ref.watch(thoughtsByChapterProvider((
       book: widget.book.id,
       chapter: widget.chapter,
@@ -891,6 +1073,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         : null;
 
     Widget buildBody(Chapter ch, Chapter? compareCh, Chapter? layoutCh) {
+      _liveChapter = ch;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.onRead(widget.book.id, widget.chapter);
         if (widget.mainVersionId == null) {
@@ -983,6 +1166,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
               left: 12,
               right: 12,
               child: ReaderFocusBar(
+                readingMode: readingMode,
                 currentMark: toggles.underlines
                     ? _currentSelectionMark(highlights)
                     : null,
@@ -1035,6 +1219,61 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 },
                 onClearMark: _clearHighlight,
                 onClose: _clearSelection,
+              ),
+            ),
+          if (_guideTipVisible &&
+              _selected.isEmpty &&
+              widget.planMeta == null)
+            Positioned(
+              left: 12,
+              right: 12,
+              top: widget.chromeHidden ? 28 : 56,
+              child: _ChapterGuideTipBar(
+                bookName: widget.book.name,
+                chapter: widget.chapter,
+                compact: _guideTipCompact,
+                onOpen: () {
+                  setState(() => _guideTipVisible = false);
+                  _showChapterSummary(initialTab: 'chapter');
+                },
+                onSkipSession: () {
+                  skipChapterGuideThisSession(
+                      widget.book.id, widget.chapter);
+                  setState(() => _guideTipVisible = false);
+                },
+                onDisableForever: () async {
+                  await disableChapterGuideAuto(ref.read(prefsProvider));
+                  if (mounted) setState(() => _guideTipVisible = false);
+                },
+              ),
+            ),
+          if (_chapterTipVisible &&
+              _selected.isEmpty &&
+              widget.planMeta == null)
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: widget.chromeHidden ? 24 : 80,
+              child: _ChapterCompleteTip(
+                bookName: widget.book.name,
+                chapter: widget.chapter,
+                meditate: readingMode == ReadingMode.meditate,
+                onThought: () {
+                  setState(() => _chapterTipVisible = false);
+                  showWriteThoughtSheet(
+                    context,
+                    ref,
+                    refStr: '${widget.book.id}.${widget.chapter}.1',
+                    refLabel: '${widget.book.name} ${widget.chapter}:1',
+                  );
+                },
+                onNext: () {
+                  setState(() => _chapterTipVisible = false);
+                  widget.onNextChapter?.call();
+                  if (widget.onNextChapter == null) widget.onNav(1);
+                },
+                onDismiss: () =>
+                    setState(() => _chapterTipVisible = false),
               ),
             ),
         ],
@@ -1156,15 +1395,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   GestureDetector(
-                    onTap: () => _showSummarySheet(
-                      widget.book.name,
-                      () => loadBookSummary(
-                        ref,
-                        ref.read(prefsProvider),
-                        widget.book.id,
-                        widget.book.name,
-                      ),
-                    ),
+                    onTap: () => _showChapterSummary(initialTab: 'book'),
                     child: Text(widget.book.name,
                         style: TextStyle(
                             fontSize: 20,
@@ -1173,16 +1404,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                   ),
                   const SizedBox(width: 10),
                   GestureDetector(
-                    onTap: () => _showSummarySheet(
-                      '${widget.book.name} · 第 ${widget.chapter} 章',
-                      () => loadChapterSummary(
-                        ref,
-                        ref.read(prefsProvider),
-                        widget.book.id,
-                        widget.book.name,
-                        widget.chapter,
-                      ),
-                    ),
+                    onTap: () => _showChapterSummary(initialTab: 'chapter'),
                     child: Text('第 ${widget.chapter} 章',
                         style: TextStyle(
                             fontSize: 13,
@@ -1217,6 +1439,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             verseNo: verseNo,
             poetry: poetry,
             selected: _selected,
+            wordRange: _wordRange,
             highlightMarks: highlights,
             underlinesEnabled: underlinesEnabled,
             thoughtsEnabled: thoughtsEnabled,
@@ -1232,6 +1455,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             onViewNote: _viewNote,
             onStart: _startSelect,
             onToggle: _toggleSelect,
+            onWordStart: _startWordSelect,
+            onWordExtend: _extendWordSelect,
             onOpenThoughts: _openThoughtsForVerse,
             onOpenDict: (entity, name) {
               showEntityKnowledgeSheet(
@@ -1256,6 +1481,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     bool poetry,
   ) {
     final fontPx = ref.watch(readerFontProvider).px;
+    final showDiff = ref.watch(parallelDiffOnProvider) &&
+        ref.watch(readingModeProvider) == ReadingMode.study;
     final sectionByVerse = {
       for (final s in outlineFor(widget.book.id, widget.chapter)) s.verse: s.title
     };
@@ -1279,6 +1506,39 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
           '—';
     }
 
+    List<InlineSpan> textSpans({
+      required String text,
+      required List<DiffSpan> diffs,
+      required TextStyle base,
+      TextStyle? diffStyle,
+      bool selected = false,
+      Paint? selBg,
+    }) {
+      if (!showDiff || diffs.isEmpty) {
+        return [
+          TextSpan(
+            text: '$text ',
+            style: selected ? base.copyWith(background: selBg) : base,
+          ),
+        ];
+      }
+      final parts = renderTextWithDiffSpans(text, diffs);
+      return [
+        for (final p in parts)
+          TextSpan(
+            text: p.text,
+            style: p.diff
+                ? (diffStyle ??
+                    base.copyWith(
+                      backgroundColor: const Color(0x33D97706),
+                      color: base.color,
+                    ))
+                : (selected ? base.copyWith(background: selBg) : base),
+          ),
+        TextSpan(text: ' ', style: base),
+      ];
+    }
+
     return GestureDetector(
       onHorizontalDragEnd: (d) {
         widget.onInteract();
@@ -1297,15 +1557,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => _showSummarySheet(
-                      widget.book.name,
-                      () => loadBookSummary(
-                        ref,
-                        ref.read(prefsProvider),
-                        widget.book.id,
-                        widget.book.name,
-                      ),
-                    ),
+                    onTap: () => _showChapterSummary(initialTab: 'book'),
                     child: Text(widget.book.name,
                         style: TextStyle(
                             fontSize: 20,
@@ -1314,16 +1566,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                   ),
                   const SizedBox(width: 10),
                   GestureDetector(
-                    onTap: () => _showSummarySheet(
-                      '${widget.book.name} · 第 ${widget.chapter} 章',
-                      () => loadChapterSummary(
-                        ref,
-                        ref.read(prefsProvider),
-                        widget.book.id,
-                        widget.book.name,
-                        widget.chapter,
-                      ),
-                    ),
+                    onTap: () => _showChapterSummary(initialTab: 'chapter'),
                     child: Text('第 ${widget.chapter} 章',
                         style: TextStyle(
                             fontSize: 13,
@@ -1350,8 +1593,29 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
           final primarySpans = <InlineSpan>[];
           final compareSpans = <InlineSpan>[];
           final selBg = Paint()..color = AppColors.accentWash;
+          final mainBase = TextStyle(
+            color: theme.ink,
+            fontSize: fontPx,
+            height: poetry ? 2.0 : 1.85,
+            fontFamily: 'Georgia',
+          );
+          final parallelBase = TextStyle(
+            color: theme.ink.withValues(alpha: 0.55),
+            fontSize: fontPx * 0.92,
+            height: 1.75,
+            fontFamily: 'Georgia',
+          );
           for (final v in para.verses) {
             final isSel = _selected.contains(v.verse);
+            final mainT = verseText(primary, v.verse);
+            final parallelT = verseText(compare, v.verse);
+            final diff = showDiff && sameScriptRoughly(mainT, parallelT)
+                ? cachedVerseDiff(
+                    '${widget.book.id}.${widget.chapter}.${v.verse}',
+                    mainT,
+                    parallelT,
+                  )
+                : const VerseDiffResult(main: [], parallel: [], heavy: false);
             if (verseNo != ReaderVerseNumberMode.hidden) {
               primarySpans.add(TextSpan(
                 text: '${v.verse} ',
@@ -1363,10 +1627,24 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 ),
               ));
             }
-            primarySpans.add(TextSpan(
-              text: '${verseText(primary, v.verse)} ',
-              style: isSel ? TextStyle(background: selBg) : null,
-            ));
+            if (diff.heavy) {
+              primarySpans.add(TextSpan(
+                text: '$mainT ',
+                style: mainBase.copyWith(
+                  backgroundColor: isSel
+                      ? AppColors.accentWash
+                      : const Color(0x22D97706),
+                ),
+              ));
+            } else {
+              primarySpans.addAll(textSpans(
+                text: mainT,
+                diffs: diff.main,
+                base: mainBase,
+                selected: isSel,
+                selBg: selBg,
+              ));
+            }
             if (verseNo != ReaderVerseNumberMode.hidden) {
               compareSpans.add(TextSpan(
                 text: '${v.verse} ',
@@ -1377,7 +1655,20 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 ),
               ));
             }
-            compareSpans.add(TextSpan(text: '${verseText(compare, v.verse)} '));
+            if (diff.heavy) {
+              compareSpans.add(TextSpan(
+                text: '$parallelT ',
+                style: parallelBase.copyWith(
+                  backgroundColor: const Color(0x22D97706),
+                ),
+              ));
+            } else {
+              compareSpans.addAll(textSpans(
+                text: parallelT,
+                diffs: diff.parallel,
+                base: parallelBase,
+              ));
+            }
           }
           return Container(
             margin: const EdgeInsets.symmetric(vertical: 4),
@@ -1387,100 +1678,17 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
               children: [
                 RichText(
                   textAlign: TextAlign.justify,
-                  text: TextSpan(
-                    style: TextStyle(
-                      color: theme.ink,
-                      fontSize: fontPx,
-                      height: poetry ? 2.0 : 1.85,
-                      fontFamily: 'Georgia',
-                    ),
-                    children: primarySpans,
-                  ),
+                  text: TextSpan(style: mainBase, children: primarySpans),
                 ),
                 const SizedBox(height: 6),
                 RichText(
                   textAlign: TextAlign.justify,
-                  text: TextSpan(
-                    style: TextStyle(
-                      color: theme.ink.withValues(alpha: 0.55),
-                      fontSize: fontPx * 0.92,
-                      height: 1.75,
-                      fontFamily: 'Georgia',
-                    ),
-                    children: compareSpans,
-                  ),
+                  text: TextSpan(style: parallelBase, children: compareSpans),
                 ),
               ],
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _SummarySheet extends StatefulWidget {
-  const _SummarySheet({required this.title, required this.load});
-  final String title;
-  final Future<String> Function() load;
-
-  @override
-  State<_SummarySheet> createState() => _SummarySheetState();
-}
-
-class _SummarySheetState extends State<_SummarySheet> {
-  late Future<String> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = widget.load();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 12, 12, 24 + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(widget.title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
-                        color: AppColors.ink)),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: AppColors.inkFaint),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          FutureBuilder<String>(
-            future: _future,
-            builder: (ctx, snap) {
-              if (snap.connectionState != ConnectionState.done) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (snap.hasError) {
-                return Text('加载失败：${snap.error}',
-                    style: const TextStyle(color: AppColors.inkSoft));
-              }
-              return Text(snap.data ?? '',
-                  style: const TextStyle(
-                      fontSize: 15, height: 1.75, color: AppColors.inkSoft));
-            },
-          ),
-        ],
       ),
     );
   }
@@ -1494,6 +1702,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     required this.verseNo,
     required this.poetry,
     required this.selected,
+    this.wordRange,
     required this.highlightMarks,
     required this.underlinesEnabled,
     required this.thoughtsEnabled,
@@ -1509,6 +1718,8 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     required this.onViewNote,
     required this.onStart,
     required this.onToggle,
+    required this.onWordStart,
+    required this.onWordExtend,
     required this.onOpenThoughts,
     required this.onOpenDict,
   });
@@ -1519,6 +1730,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final ReaderVerseNumberMode verseNo;
   final bool poetry;
   final Set<int> selected;
+  final WordRange? wordRange;
   final Map<String, HighlightMark> highlightMarks;
   final bool underlinesEnabled;
   final bool thoughtsEnabled;
@@ -1532,8 +1744,10 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final int? resumeFlashVerse;
   final GlobalKey? resumeAnchorKey;
   final void Function(Note note) onViewNote;
-  final void Function(int verse) onStart;
-  final void Function(int verse) onToggle;
+  final void Function(int verse, String text) onStart;
+  final void Function(int verse, String text) onToggle;
+  final void Function(int verse, int start, int end) onWordStart;
+  final void Function(int verse, int start, int end) onWordExtend;
   final void Function(int verse, String text) onOpenThoughts;
   final void Function(DictEntity entity, String name) onOpenDict;
 
@@ -1557,18 +1771,6 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     super.dispose();
   }
 
-  GestureRecognizer _recognizerFor(int verse, bool selectionActive) {
-    final GestureRecognizer r;
-    if (selectionActive) {
-      r = TapGestureRecognizer()..onTap = () => widget.onToggle(verse);
-    } else {
-      r = LongPressGestureRecognizer()
-        ..onLongPress = () => widget.onStart(verse);
-    }
-    _recognizers.add(r);
-    return r;
-  }
-
   @override
   Widget build(BuildContext context) {
     _clearRecognizers();
@@ -1581,12 +1783,11 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
       height: widget.poetry ? 2.1 : 1.85,
       fontFamily: widget.fontFamily.fontFamily,
     );
+    const selBg = Color(0x473390FF);
 
     final spans = <InlineSpan>[];
     var hasThoughtLine = false;
     for (final v in widget.paragraph.verses) {
-      final rec = _recognizerFor(v.verse, selectionActive);
-      final isSel = widget.selected.contains(v.verse);
       final markInfo = widget.underlinesEnabled
           ? markForVerse(
               widget.highlightMarks, widget.book.id, widget.chapter, v.verse)
@@ -1597,141 +1798,155 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         hasThoughtLine = true;
       }
 
-      final verseLabel = StringBuffer();
+      final verseInSel = widget.selected.contains(v.verse);
+      final resumeFlash = widget.resumeFlashVerse == v.verse;
+      final GlobalKey? verseKey = v.verse == widget.selectionAnchorVerse
+          ? widget.selectionAnchorKey
+          : resumeFlash
+              ? widget.resumeAnchorKey
+              : null;
+
+      // 节号：长按整节 / 选中态点按扩展
       if (widget.verseNo != ReaderVerseNumberMode.hidden) {
-        verseLabel.write('${v.verse} ');
-      }
-      verseLabel.write('${v.text} ');
-
-      TextStyle verseStyle = baseStyle;
-      if (isSel) {
-        // selection card handled below
-      } else if (selectionActive) {
-        verseStyle = baseStyle.copyWith(color: dimmedInk);
-      } else if (mark != null) {
-        verseStyle = applyHighlightStyle(baseStyle, mark: mark, disabled: false);
-      }
-
-      if (isSel) {
-        final resumeFlash = widget.resumeFlashVerse == v.verse;
-        spans.add(WidgetSpan(
-          alignment: PlaceholderAlignment.baseline,
-          baseline: TextBaseline.alphabetic,
-          child: GestureDetector(
-            onTap: selectionActive ? () => widget.onToggle(v.verse) : null,
-            onLongPress:
-                !selectionActive ? () => widget.onStart(v.verse) : null,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 320),
-              key: v.verse == widget.selectionAnchorVerse
-                  ? widget.selectionAnchorKey
-                  : v.verse == widget.resumeFlashVerse
-                      ? widget.resumeAnchorKey
-                      : null,
-              margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-              decoration: BoxDecoration(
-                color: resumeFlash
-                    ? AppColors.accent.withValues(alpha: 0.28)
-                    : AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: resumeFlash
-                        ? AppColors.accentDeep.withValues(alpha: 0.55)
-                        : AppColors.accent.withValues(alpha: 0.35)),
-                boxShadow: resumeFlash
-                    ? [
-                        BoxShadow(
-                          color: AppColors.accentDeep.withValues(alpha: 0.2),
-                          blurRadius: 12,
-                          spreadRadius: 1,
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: AppColors.accentDeep.withValues(alpha: 0.12),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-              ),
-              child: Text(
-                verseLabel.toString(),
-                style: baseStyle.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
+        final noRec = selectionActive
+            ? (TapGestureRecognizer()
+              ..onTap = () => widget.onToggle(v.verse, v.text))
+            : (LongPressGestureRecognizer()
+              ..onLongPress = () => widget.onStart(v.verse, v.text));
+        _recognizers.add(noRec);
+        spans.add(TextSpan(
+          text: '${v.verse} ',
+          recognizer: noRec,
+          style: baseStyle.copyWith(
+            color: verseInSel
+                ? AppColors.ink
+                : (selectionActive ? dimmedInk : AppColors.accentDeep),
+            fontWeight: FontWeight.w600,
+            fontSize: fontPx * 0.78,
+            backgroundColor: verseInSel ? selBg : null,
           ),
         ));
-      } else if (widget.resumeFlashVerse == v.verse) {
-        spans.add(WidgetSpan(
-          alignment: PlaceholderAlignment.baseline,
-          baseline: TextBaseline.alphabetic,
-          child: Container(
-            key: widget.resumeAnchorKey,
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.22),
-              borderRadius: BorderRadius.circular(6),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.accentDeep.withValues(alpha: 0.18),
-                  blurRadius: 10,
-                ),
-              ],
-            ),
-            child: Text(
-              verseLabel.toString(),
-              style: verseStyle,
-            ),
-          ),
-        ));
+      }
+
+      final words = sliceVerseWords(v.text);
+      if (words.isEmpty) {
+        final emptyRec = selectionActive
+            ? (TapGestureRecognizer()
+              ..onTap = () => widget.onToggle(v.verse, v.text))
+            : (LongPressGestureRecognizer()
+              ..onLongPress = () => widget.onStart(v.verse, v.text));
+        _recognizers.add(emptyRec);
+        spans.add(TextSpan(text: ' ', style: baseStyle, recognizer: emptyRec));
       } else {
-        // 节号 + 正文；正文内专名可点（对齐 PWA proper-noun）
-        if (widget.verseNo != ReaderVerseNumberMode.hidden) {
-          spans.add(TextSpan(
-            text: '${v.verse} ',
-            recognizer: rec,
-            style: verseStyle,
-          ));
-        }
-        if (selectionActive || widget.dictKeys.isEmpty) {
-          spans.add(TextSpan(
-            text: '${v.text} ',
-            recognizer: rec,
-            style: verseStyle,
-          ));
-        } else {
-          final tokens =
-              splitDictTokens(v.text, widget.dictIndex, widget.dictKeys);
-          for (final token in tokens) {
-            if (token.entity != null) {
-              final ent = token.entity!;
-              final name = token.text;
-              final dictRec = TapGestureRecognizer()
-                ..onTap = () => widget.onOpenDict(ent, name);
-              _recognizers.add(dictRec);
-              spans.add(TextSpan(
-                text: name,
-                recognizer: dictRec,
-                style: verseStyle.copyWith(
-                  color: AppColors.accentDeep,
-                  decoration: TextDecoration.underline,
-                  decorationColor:
-                      AppColors.accentDeep.withValues(alpha: 0.45),
-                  decorationStyle: TextDecorationStyle.dotted,
-                  fontWeight: FontWeight.w600,
-                ),
-              ));
-            } else {
-              spans.add(TextSpan(
-                text: token.text,
-                recognizer: rec,
-                style: verseStyle,
-              ));
-            }
+        var cursor = 0;
+        var firstWord = true;
+        for (final w in words) {
+          if (w.start > cursor) {
+            spans.add(TextSpan(
+              text: v.text.substring(cursor, w.start),
+              style: baseStyle.copyWith(
+                color: selectionActive && !verseInSel ? dimmedInk : null,
+              ),
+            ));
           }
-          spans.add(TextSpan(text: ' ', style: verseStyle, recognizer: rec));
+          final activeWord = widget.wordRange != null &&
+              wordOverlapsRange(v.verse, w.start, w.end, widget.wordRange!);
+          // 半节划线
+          final markOnWord = mark != null &&
+              (markInfo?.spanStart == null ||
+                  (w.start < (markInfo!.spanEnd ?? 0) &&
+                      w.end > (markInfo.spanStart ?? 0)));
+          TextStyle wordStyle = baseStyle;
+          if (activeWord) {
+            wordStyle = baseStyle.copyWith(backgroundColor: selBg);
+          } else if (selectionActive && !verseInSel) {
+            wordStyle = baseStyle.copyWith(color: dimmedInk);
+          } else if (selectionActive && verseInSel && !activeWord) {
+            // 词选未覆盖时整节浅选感
+            wordStyle = baseStyle.copyWith(
+              backgroundColor: selBg.withValues(alpha: 0.35),
+            );
+          } else if (markOnWord) {
+            wordStyle =
+                applyHighlightStyle(baseStyle, mark: mark!, disabled: false);
+          }
+          if (resumeFlash) {
+            wordStyle = wordStyle.copyWith(
+              backgroundColor: AppColors.accent.withValues(alpha: 0.28),
+            );
+          }
+
+          final wr = selectionActive
+              ? (TapGestureRecognizer()
+                ..onTap =
+                    () => widget.onWordExtend(v.verse, w.start, w.end))
+              : (LongPressGestureRecognizer()
+                ..onLongPress =
+                    () => widget.onWordStart(v.verse, w.start, w.end));
+          _recognizers.add(wr);
+
+          // 词典点名仅在未选时
+          final dictHit = !selectionActive && widget.dictKeys.isNotEmpty
+              ? matchDictToken(w.text, widget.dictIndex, widget.dictKeys)
+              : null;
+          GestureRecognizer activeRec = wr;
+          if (dictHit != null) {
+            final dictRec = TapGestureRecognizer()
+              ..onTap = () => widget.onOpenDict(dictHit.$1, dictHit.$2);
+            _recognizers.add(dictRec);
+            activeRec = dictRec;
+            wordStyle = wordStyle.copyWith(
+              decoration: TextDecoration.underline,
+              decorationStyle: switch (dictHit.$1.type) {
+                'place' => TextDecorationStyle.dashed,
+                'person' => TextDecorationStyle.dotted,
+                _ => TextDecorationStyle.dotted,
+              },
+              decorationColor:
+                  (wordStyle.color ?? AppColors.ink).withValues(alpha: 0.35),
+              decorationThickness: 1.2,
+            );
+          }
+
+          if (firstWord && verseKey != null) {
+            spans.add(WidgetSpan(
+              alignment: PlaceholderAlignment.baseline,
+              baseline: TextBaseline.alphabetic,
+              child: GestureDetector(
+                onLongPress: selectionActive
+                    ? null
+                    : () => widget.onWordStart(v.verse, w.start, w.end),
+                onTap: selectionActive
+                    ? () => widget.onWordExtend(v.verse, w.start, w.end)
+                    : (dictHit != null
+                        ? () => widget.onOpenDict(dictHit.$1, dictHit.$2)
+                        : null),
+                child: Container(
+                  key: verseKey,
+                  color: activeWord ? selBg : Colors.transparent,
+                  child: Text(w.text, style: wordStyle),
+                ),
+              ),
+            ));
+          } else {
+            spans.add(TextSpan(
+              text: w.text,
+              style: wordStyle,
+              recognizer: activeRec,
+            ));
+          }
+          firstWord = false;
+          cursor = w.end;
         }
+        if (cursor < v.text.length) {
+          spans.add(TextSpan(
+            text: v.text.substring(cursor),
+            style: baseStyle.copyWith(
+              color: selectionActive && !verseInSel ? dimmedInk : null,
+            ),
+          ));
+        }
+        spans.add(TextSpan(text: ' ', style: baseStyle));
       }
 
       final note = widget.notesByVerse[v.verse]?.firstOrNull;
@@ -1778,7 +1993,8 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             child: Padding(
               padding: const EdgeInsets.only(left: 4, right: 4, bottom: 6),
               child: CustomPaint(
-                painter: _DashedLinePainter(color: AppColors.accentDeep.withValues(alpha: 0.45)),
+                painter: _DashedLinePainter(
+                    color: AppColors.accentDeep.withValues(alpha: 0.45)),
                 child: const SizedBox(height: 1, width: double.infinity),
               ),
             ),
@@ -1786,6 +2002,25 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
       ],
     );
   }
+}
+
+/// 简单词典词条命中（整词精确/前缀）。
+(DictEntity, String)? matchDictToken(
+  String text,
+  Map<String, List<DictEntity>> index,
+  List<String> keys,
+) {
+  final t = text.trim();
+  if (t.isEmpty) return null;
+  final list = index[t];
+  if (list != null && list.isNotEmpty) return (list.first, t);
+  for (final k in keys) {
+    if (k.length >= 2 && t.startsWith(k)) {
+      final ents = index[k];
+      if (ents != null && ents.isNotEmpty) return (ents.first, k);
+    }
+  }
+  return null;
 }
 
 class _DashedLinePainter extends CustomPainter {
@@ -1809,4 +2044,148 @@ class _DashedLinePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _DashedLinePainter oldDelegate) =>
       oldDelegate.color != color;
+}
+
+/// 章首导读轻条（对齐 PWA ChapterGuideTip）。
+class _ChapterGuideTipBar extends StatelessWidget {
+  const _ChapterGuideTipBar({
+    required this.bookName,
+    required this.chapter,
+    required this.compact,
+    required this.onOpen,
+    required this.onSkipSession,
+    required this.onDisableForever,
+  });
+  final String bookName;
+  final int chapter;
+  final bool compact;
+  final VoidCallback onOpen;
+  final VoidCallback onSkipSession;
+  final VoidCallback onDisableForever;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(12),
+      color: AppColors.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        child: Row(
+          children: [
+            Text('✦',
+                style: TextStyle(
+                    color: AppColors.accentDeep.withValues(alpha: 0.85),
+                    fontSize: 14)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                compact
+                    ? '第 $chapter 章导读'
+                    : '30 秒章导读 · $bookName 第 $chapter 章',
+                style: const TextStyle(fontSize: 13, color: AppColors.ink),
+              ),
+            ),
+            TextButton(
+              onPressed: onOpen,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accentDeep,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('打开', style: TextStyle(fontSize: 13)),
+            ),
+            TextButton(
+              onPressed: onSkipSession,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.inkFaint,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('本次忽略', style: TextStyle(fontSize: 12)),
+            ),
+            if (!compact)
+              TextButton(
+                onPressed: onDisableForever,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.inkFaint,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('不再提示', style: TextStyle(fontSize: 12)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 章末轻提示：对齐 PWA ChapterCompleteTip。
+class _ChapterCompleteTip extends StatelessWidget {
+  const _ChapterCompleteTip({
+    required this.bookName,
+    required this.chapter,
+    required this.meditate,
+    required this.onThought,
+    required this.onNext,
+    required this.onDismiss,
+  });
+  final String bookName;
+  final int chapter;
+  final bool meditate;
+  final VoidCallback onThought;
+  final VoidCallback onNext;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 6,
+      borderRadius: BorderRadius.circular(14),
+      color: AppColors.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '本章读完 · $bookName 第 $chapter 章',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: onThought,
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: AppColors.accentDeep,
+              ),
+              child: Text(meditate ? '写想法' : '写想法'),
+            ),
+            TextButton(
+              onPressed: onNext,
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: AppColors.accentDeep,
+              ),
+              child: const Text('下一章'),
+            ),
+            IconButton(
+              onPressed: onDismiss,
+              icon: const Icon(Icons.close, size: 18, color: AppColors.inkFaint),
+              visualDensity: VisualDensity.compact,
+              tooltip: '关闭',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

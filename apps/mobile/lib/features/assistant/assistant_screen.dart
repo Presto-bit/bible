@@ -226,8 +226,30 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   Future<void> _send({String? seedQuestion, AssistantScene? scene}) async {
     final text = (seedQuestion ?? _input.text).trim();
     final hasRef = (_anchorRef ?? '').isNotEmpty && _turns.isEmpty;
-    if (text.isEmpty && !hasRef) return;
-    if (_streaming) return;
+    if (text.isEmpty && !hasRef) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('请输入问题'),
+            duration: Duration(milliseconds: 1200),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+    if (_streaming) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('小爱还在回答，稍后再问'),
+            duration: Duration(milliseconds: 1200),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
 
     final activeScene = scene ?? _scene ?? resolveScene(mode: _mode.id);
     _scene = activeScene;
@@ -280,7 +302,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           mode: modeFromScene,
           scene: activeScene,
           history: history,
-          knowledgeBaseId: 'platform',
+          knowledgeBaseId: _knowledgeBaseId,
         );
 
     await for (final evt in stream) {
@@ -305,6 +327,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           setState(() => reply.content =
               reply.content.isEmpty ? message : '${reply.content}\n\n⚠️ $message');
       }
+    }
+    if (reply.content.isEmpty) {
+      setState(() => reply.content = '小爱暂时没有给出回答，请稍后再试。');
     }
     if (reply.content.isNotEmpty) {
       await repo.addMessage(sid, 'assistant', bodyText(reply.content),
@@ -455,27 +480,29 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                 child: _AnchorChip(refText: _anchorRef!),
               ),
-            // 空态：提示 + 输入区（含可右滑 chips）整体垂直居中。
+            // 空态：提示贴顶，下方紧接输入区，避免一条一行占满屏。
             if (_turns.isEmpty)
               Expanded(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const Spacer(flex: 1),
                     _EmptyHint(
                       anchor: anchorLabel,
                       onChip: _quotaExhausted ? null : _sendChip,
                     ),
-                    const SizedBox(height: 16),
+                    const Spacer(flex: 2),
                     _Composer(
                       controller: _input,
                       streaming: _streaming,
                       disabled: _quotaExhausted,
-                      docked: false,
+                      docked: true,
                       chips: intentChips,
                       onChip: _quotaExhausted ? null : _sendChip,
                       onSend: () => _send(),
                       knowledgeBaseLabel: _knowledgeBaseName,
-                      onPickKnowledgeBase: _quotaExhausted ? null : _pickKnowledgeBase,
+                      onPickKnowledgeBase:
+                          _quotaExhausted ? null : _pickKnowledgeBase,
                     ),
                   ],
                 ),
@@ -550,44 +577,58 @@ class _EmptyHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAnchor = anchor.isNotEmpty && anchor != '未锚定经文';
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('一起把经文聊明白',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text(
-              hasAnchor
-                  ? '已锚定 $anchor · 可结合释经资料回答，点下面试试'
-                  : '可结合释经资料回答；点下面试试，需要联网',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.inkSoft, fontSize: 13),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '小爱',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.inkFaint,
+              letterSpacing: 0.4,
             ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: _demos
-                  .map(
-                    (d) => _QuickPill(
-                      label: d.$1,
-                      onTap: onChip == null
-                          ? null
-                          : () => onChip!(d.$2, mode: d.$3),
-                    ),
-                  )
-                  .toList(),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '一起把经文聊明白',
+            style: TextStyle(
+              color: AppColors.ink,
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              height: 1.25,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            hasAnchor
+                ? '已锚定 $anchor · 结合释经资料回答'
+                : '结合释经资料回答 · 点下面试试（需联网）',
+            style: const TextStyle(
+              color: AppColors.inkSoft,
+              fontSize: 12.5,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _demos
+                .map(
+                  (d) => _QuickPill(
+                    label: d.$1,
+                    onTap: onChip == null
+                        ? null
+                        : () => onChip!(d.$2, mode: d.$3),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
       ),
     );
   }
@@ -1246,7 +1287,7 @@ class _ComposerState extends State<_Composer> {
                 ),
               ),
             if (chips.isNotEmpty) const SizedBox(height: 8),
-            // 键盘/语音切换按钮放在输入框内部右侧；回车即发送，无独立发送按钮。
+            // 输入框 + 发送按钮（部分 Android 键盘不触发 IME send）
             _voiceMode
                 ? GestureDetector(
                     onLongPressStart: _startVoice,
@@ -1305,44 +1346,79 @@ class _ComposerState extends State<_Composer> {
                       ),
                     ),
                   )
-                : TextField(
-                    controller: widget.controller,
-                    enabled: !widget.disabled,
-                    minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted:
-                        widget.disabled ? null : (_) => widget.onSend(),
-                    decoration: InputDecoration(
-                      hintText: widget.disabled ? '今日次数已用完' : '问小爱…',
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      contentPadding:
-                          const EdgeInsets.fromLTRB(4, 10, 4, 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: const BorderSide(color: AppColors.line),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: const BorderSide(color: AppColors.line),
-                      ),
-                      prefixIcon: widget.onPickKnowledgeBase == null
-                          ? null
-                          : IconButton(
-                              tooltip: '平台知识库',
-                              icon: const Icon(
-                                Icons.layers_outlined,
-                                color: AppColors.inkSoft,
-                              ),
-                              onPressed: widget.disabled
-                                  ? null
-                                  : widget.onPickKnowledgeBase,
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: widget.controller,
+                          enabled: !widget.disabled,
+                          minLines: 1,
+                          maxLines: 4,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: widget.disabled || widget.streaming
+                              ? null
+                              : (_) => widget.onSend(),
+                          decoration: InputDecoration(
+                            hintText:
+                                widget.disabled ? '今日次数已用完' : '问小爱…',
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            contentPadding:
+                                const EdgeInsets.fromLTRB(4, 10, 4, 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(22),
+                              borderSide:
+                                  const BorderSide(color: AppColors.line),
                             ),
-                      suffixIcon: _modeToggle(),
-                      suffixIconConstraints:
-                          const BoxConstraints(minWidth: 44, minHeight: 44),
-                    ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(22),
+                              borderSide:
+                                  const BorderSide(color: AppColors.line),
+                            ),
+                            prefixIcon: widget.onPickKnowledgeBase == null
+                                ? null
+                                : IconButton(
+                                    tooltip: '知识库',
+                                    icon: const Icon(
+                                      Icons.layers_outlined,
+                                      color: AppColors.inkSoft,
+                                    ),
+                                    onPressed: widget.disabled
+                                        ? null
+                                        : widget.onPickKnowledgeBase,
+                                  ),
+                            suffixIcon: _modeToggle(),
+                            suffixIconConstraints: const BoxConstraints(
+                                minWidth: 44, minHeight: 44),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton.filled(
+                        style: IconButton.styleFrom(
+                          backgroundColor: widget.disabled || widget.streaming
+                              ? AppColors.line
+                              : AppColors.accentDeep,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: AppColors.line,
+                        ),
+                        tooltip: '发送',
+                        onPressed: widget.disabled || widget.streaming
+                            ? null
+                            : widget.onSend,
+                        icon: widget.streaming
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.arrow_upward, size: 20),
+                      ),
+                    ],
                   ),
           ],
         ),

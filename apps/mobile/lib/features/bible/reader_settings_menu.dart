@@ -1,46 +1,19 @@
-/// 阅读器三点设置菜单 + 完整设置面板。
+/// 阅读设置（对齐 PWA ⋮ 一步入设置）。
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'reader_experience.dart';
 import 'reader_preferences.dart';
 
-void showReaderMoreMenu(BuildContext context, WidgetRef ref) {
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.text_fields_outlined),
-            title: const Text('阅读设置'),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.inkFaint),
-            onTap: () {
-              Navigator.pop(ctx);
-              showReaderSettingsSheet(context, ref);
-            },
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.close),
-            title: const Text('取消'),
-            onTap: () => Navigator.pop(ctx),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-Future<void> showReaderSettingsSheet(BuildContext context, WidgetRef ref) async {
+Future<void> showReaderSettingsSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  void Function(String? mainId, String? compareId, String label)? onLayoutApplied,
+}) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -56,6 +29,9 @@ Future<void> showReaderSettingsSheet(BuildContext context, WidgetRef ref) async 
         final fontFamily = ref.watch(readerFontFamilyProvider);
         final pageTurn = ref.watch(readerPageTurnProvider);
         final toggles = ref.watch(readerFeatureTogglesProvider);
+        final mode = ref.watch(readingModeProvider);
+        final layout = ref.watch(readingLayoutProvider);
+        final tipOn = ref.watch(chapterCompleteTipOnProvider);
         return SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
@@ -67,6 +43,56 @@ Future<void> showReaderSettingsSheet(BuildContext context, WidgetRef ref) async 
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
                         color: AppColors.ink)),
+                _section('阅读模式'),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: ReadingMode.values.map((m) {
+                    return ChoiceChip(
+                      label: Text(m.label),
+                      selected: m == mode,
+                      onSelected: (_) =>
+                          ref.read(readingModeProvider.notifier).set(m),
+                    );
+                  }).toList(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(mode.hint,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.inkFaint)),
+                ),
+                _section('布局'),
+                Wrap(
+                  spacing: 8,
+                  children: ReadingLayout.values.map((l) {
+                    return ChoiceChip(
+                      label: Text(l.label),
+                      selected: l == layout,
+                      onSelected: (_) async {
+                        await ref
+                            .read(readingLayoutProvider.notifier)
+                            .set(l);
+                        final prefs = ref.read(prefsProvider);
+                        if (l == ReadingLayout.parallel) {
+                          final compare =
+                              prefs.getString('reader_parallel_version') ??
+                                  'cnv';
+                          await prefs.setString(
+                              'reader_parallel_version', compare);
+                          onLayoutApplied?.call(
+                            null,
+                            compare,
+                            '和合本 · ${_verLabel(compare)}',
+                          );
+                        } else {
+                          await prefs.remove('reader_parallel_version');
+                          onLayoutApplied?.call(null, null, '和合本');
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
                 _section('字体大小'),
                 Wrap(
                   spacing: 8,
@@ -110,8 +136,9 @@ Future<void> showReaderSettingsSheet(BuildContext context, WidgetRef ref) async 
                     return ChoiceChip(
                       label: Text(t.label),
                       selected: t == theme,
-                      onSelected: (_) =>
-                          ref.read(readerExperienceThemeProvider.notifier).set(t),
+                      onSelected: (_) => ref
+                          .read(readerExperienceThemeProvider.notifier)
+                          .set(t),
                     );
                   }).toList(),
                 ),
@@ -126,8 +153,9 @@ Future<void> showReaderSettingsSheet(BuildContext context, WidgetRef ref) async 
                     return ChoiceChip(
                       label: Text(e.$1),
                       selected: e.$2 == verseNo,
-                      onSelected: (_) =>
-                          ref.read(readerVerseNumberProvider.notifier).set(e.$2),
+                      onSelected: (_) => ref
+                          .read(readerVerseNumberProvider.notifier)
+                          .set(e.$2),
                     );
                   }).toList(),
                 ),
@@ -150,6 +178,23 @@ Future<void> showReaderSettingsSheet(BuildContext context, WidgetRef ref) async 
                       .read(readerFeatureTogglesProvider.notifier)
                       .setThoughts(v),
                 ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('读完提示'),
+                  subtitle: const Text('滑到章末时轻提示写想法 / 下一章'),
+                  value: tipOn,
+                  onChanged: (v) => ref
+                      .read(chapterCompleteTipOnProvider.notifier)
+                      .set(v),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('对照标差'),
+                  subtitle: const Text('译本对照时标出措辞差异（查经模式）'),
+                  value: ref.watch(parallelDiffOnProvider),
+                  onChanged: (v) =>
+                      ref.read(parallelDiffOnProvider.notifier).set(v),
+                ),
               ],
             ),
           ),
@@ -157,6 +202,21 @@ Future<void> showReaderSettingsSheet(BuildContext context, WidgetRef ref) async 
       },
     ),
   );
+}
+
+String _verLabel(String id) {
+  switch (id.toLowerCase()) {
+    case 'cuvs':
+      return '和合本';
+    case 'cnv':
+      return '新译本';
+    case 'contemporary':
+      return '当代译本';
+    case 'kjv':
+      return 'King James Version';
+    default:
+      return id.toUpperCase();
+  }
 }
 
 Widget _section(String title) => Padding(

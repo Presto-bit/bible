@@ -60,9 +60,9 @@ class HomeTodayPanel extends StatelessWidget {
         const Text(
           '今日推荐',
           style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: AppColors.ink,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.inkSoft,
             letterSpacing: 0.2,
           ),
         ),
@@ -184,64 +184,40 @@ class _PrimaryCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
+                    // 尽量单行：过长标题用略小字号+省略
                     Text(
                       slot.title,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        height: 1.25,
+                        fontSize: slot.title.length > 12 ? 13.5 : 15,
+                        height: 1.2,
                       ),
                     ),
                     if (slot.sub.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         slot.sub,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.82),
-                          fontSize: 12,
+                          fontSize: 11.5,
+                          height: 1.2,
                         ),
                       ),
                     ],
-                    if (slot.progressPct != null && slot.progressPct! > 0) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: (slot.progressPct!.clamp(0, 100)) / 100,
-                                minHeight: 4,
-                                backgroundColor:
-                                    Colors.white.withValues(alpha: 0.22),
-                                color: Colors.white.withValues(alpha: 0.92),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${slot.progressPct}%',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                     if (slot.cta != null) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         slot.cta!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.95),
-                          fontSize: 12,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -249,9 +225,53 @@ class _PrimaryCard extends StatelessWidget {
                   ],
                 ),
               ),
+              // 对齐 PWA HomeTodayProgressRing：右下角环
+              if (slot.progressPct != null && slot.progressPct! > 0)
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: _TodayProgressRing(pct: slot.progressPct!),
+                ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _TodayProgressRing extends StatelessWidget {
+  const _TodayProgressRing({required this.pct});
+  final int pct;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = (pct.clamp(0, 100)) / 100.0;
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 36,
+            height: 36,
+            child: CircularProgressIndicator(
+              value: value,
+              strokeWidth: 3,
+              backgroundColor: Colors.white.withValues(alpha: 0.28),
+              color: Colors.white.withValues(alpha: 0.95),
+            ),
+          ),
+          Text(
+            '${pct.clamp(0, 100)}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

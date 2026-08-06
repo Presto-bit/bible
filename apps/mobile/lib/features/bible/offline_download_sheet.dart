@@ -1,6 +1,8 @@
 /// 离线经包下载管理（圣经 + 资料分包 Tab）。
-/// 关闭 BottomSheet 不中断已开始的下载。
+/// 关闭 BottomSheet 不中断已开始的下载。主本：和合本 cuvs。
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,12 +41,14 @@ class _OfflineDownloadBody extends ConsumerStatefulWidget {
 class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
   int _tab = 0;
   late final OfflineBibleService _svc;
+  final Map<String, bool> _installed = {};
 
   @override
   void initState() {
     super.initState();
     _svc = ref.read(offlineBibleProvider);
     _svc.addDownloadListener(_onDownloadTick);
+    unawaited(_refreshInstalled());
   }
 
   @override
@@ -57,11 +61,21 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _refreshInstalled() async {
+    for (final item in offlineCatalog.where((e) => e.tab == 'bible')) {
+      _installed[item.id] = await _svc.checkInstalled(item.id);
+    }
+    if (mounted) setState(() {});
+  }
+
+  bool _downloadable(String id) =>
+      const {'cuvs', 'cnv', 'contemporary', 'kjv'}.contains(id);
+
   @override
   Widget build(BuildContext context) {
     final svc = ref.watch(offlineBibleProvider);
-    final installed = ref.watch(offlineInstalledProvider);
-    final meta = svc.loadMeta();
+    final meta = svc.loadMeta(kPrimaryOfflineTranslation) ??
+        svc.loadMeta('cnv');
     final items = offlineCatalog
         .where((e) => e.tab == (_tab == 0 ? 'bible' : 'materials'))
         .toList();
@@ -80,7 +94,7 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
                   fontSize: 17,
                   color: AppColors.ink)),
           const SizedBox(height: 8),
-          const Text('关闭本页不会中断下载',
+          const Text('主译本为和合本；关闭本页不会中断下载',
               style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
           const SizedBox(height: 12),
           Row(
@@ -103,13 +117,15 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
           if (meta != null) ...[
             const SizedBox(height: 8),
             Text('经库版本 ${meta.version}',
-                style: const TextStyle(fontSize: 12, color: AppColors.accentDeep)),
+                style:
+                    const TextStyle(fontSize: 12, color: AppColors.accentDeep)),
           ],
           if (busy && progress != null) ...[
             const SizedBox(height: 12),
             LinearProgressIndicator(value: progress),
             const SizedBox(height: 6),
-            Text('正在后台下载… ${(progress * 100).clamp(0, 100).toStringAsFixed(0)}%',
+            Text(
+                '正在下载 ${svc.downloadingId ?? ''}… ${(progress * 100).clamp(0, 100).toStringAsFixed(0)}%',
                 style: const TextStyle(fontSize: 12, color: AppColors.inkFaint)),
           ],
           if (error != null)
@@ -119,14 +135,16 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
             ),
           const SizedBox(height: 12),
           ...items.map((item) {
-            final ready = installed.maybeWhen(
-              data: (v) => v && item.id == 'cnv',
-              orElse: () => false,
-            );
+            final ready = _installed[item.id] == true;
+            final isDl = _downloadable(item.id);
+            final thisBusy = busy && svc.downloadingId == item.id;
             return ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(item.name),
-              trailing: busy && item.id == 'cnv'
+              subtitle: item.id == kPrimaryOfflineTranslation
+                  ? const Text('主译本', style: TextStyle(fontSize: 11))
+                  : null,
+              trailing: thisBusy
                   ? const SizedBox(
                       width: 20,
                       height: 20,
@@ -134,26 +152,34 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
                   : Text(
                       ready
                           ? '已安装'
-                          : item.kind == 'bundle'
-                              ? '随经包'
-                              : '下载',
+                          : isDl
+                              ? '下载'
+                              : '随经包',
                       style: TextStyle(
                           fontSize: 12,
                           color: ready
                               ? AppColors.accentDeep
                               : AppColors.inkFaint),
                     ),
-              onTap: item.id == 'cnv' && !ready && !busy
-                  ? () => _downloadCnv()
+              onTap: isDl && !ready && !busy
+                  ? () => _download(item.id)
                   : null,
             );
           }),
-          if (_tab == 0 && installed.maybeWhen(data: (v) => v, orElse: () => false))
+          if (_tab == 0 &&
+              (_installed[kPrimaryOfflineTranslation] == true ||
+                  _installed['cnv'] == true))
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: OutlinedButton(
-                onPressed: busy ? null : () => _delete(),
-                child: const Text('删除 CNV 离线包'),
+                onPressed: busy
+                    ? null
+                    : () => _delete(
+                          _installed[kPrimaryOfflineTranslation] == true
+                              ? kPrimaryOfflineTranslation
+                              : 'cnv',
+                        ),
+                child: const Text('删除已装主离线包'),
               ),
             ),
         ],
@@ -161,32 +187,30 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
     );
   }
 
-  Future<void> _downloadCnv() async {
+  Future<void> _download(String id) async {
     final svc = ref.read(offlineBibleProvider);
-    // 不 await 到结束再 pop：关闭 Sheet 后 Service 仍继续下载
-    final future = svc.downloadPack();
+    final future = svc.downloadPack(translationId: id);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已开始下载，关闭页面后仍会继续')),
+        SnackBar(content: Text('已开始下载（$id），关闭页面后仍会继续')),
       );
     }
     try {
       await future;
+      await _refreshInstalled();
       ref.invalidate(offlineInstalledProvider);
-      // 同步清除 dismiss 状态，阅读器卡片也能立刻隐藏
       ref.read(offlineCardDismissedProvider.notifier).clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('离线经包已就绪')),
         );
       }
-    } catch (_) {
-      // 错误由 svc.downloadError + listener 展示
-    }
+    } catch (_) {}
   }
 
-  Future<void> _delete() async {
-    await ref.read(offlineBibleProvider).deletePack();
+  Future<void> _delete(String id) async {
+    await ref.read(offlineBibleProvider).deletePack(id);
+    await _refreshInstalled();
     ref.invalidate(offlineInstalledProvider);
     if (mounted) {
       setState(() {});
