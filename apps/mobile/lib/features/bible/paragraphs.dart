@@ -21,10 +21,10 @@ const _poetryBooks = {
 };
 
 bool _endsSentence(String text) {
+  // 对齐 PWA paragraphs.ts：句末可跟引号/括号再结
   final t = text.trim();
   if (t.isEmpty) return false;
-  final last = t[t.length - 1];
-  return '。！？；…'.contains(last) || '.!?;:'.contains(last);
+  return RegExp(r'[。！？；….!?;:]["\x27」』)]*$').hasMatch(t);
 }
 
 List<VerseParagraph> groupVersesIntoParagraphs(

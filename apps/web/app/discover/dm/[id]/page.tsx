@@ -111,6 +111,7 @@ function DmThreadPageInner() {
   const [text, setText] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
   const [replyTo, setReplyTo] = useState<{
@@ -470,6 +471,8 @@ function DmThreadPageInner() {
   const sendBody = useCallback(
     async (body: string, replyId?: string, replaceTempId?: string): Promise<boolean> => {
       if (!online || !threadId || !uid) return false;
+      if (sendingRef.current) return false;
+      sendingRef.current = true;
       setSending(true);
       const tempId = replaceTempId || `temp-${Date.now()}`;
       if (!replaceTempId) {
@@ -483,6 +486,7 @@ function DmThreadPageInner() {
             reply_to_id: replyId || null,
             created_at: new Date().toISOString(),
             pending: true,
+            mine: true,
             retryText: body,
           },
         ]);
@@ -496,7 +500,12 @@ function DmThreadPageInner() {
         );
       }
       try {
-        await api.sendDm(threadId, { body, kind: 'chat', reply_to_id: replyId });
+        await api.sendDm(threadId, {
+          body,
+          kind: 'chat',
+          reply_to_id: replyId,
+          client_msg_id: tempId,
+        });
         dequeueFailedText(tempId);
         await reload();
         return true;
@@ -518,6 +527,7 @@ function DmThreadPageInner() {
         setErr(errorMessage(e, '发送失败'));
         return false;
       } finally {
+        sendingRef.current = false;
         setSending(false);
       }
     },
@@ -532,7 +542,7 @@ function DmThreadPageInner() {
       return;
     }
     const body = text.trim();
-    if (!body || sending || uploading) return;
+    if (!body || sending || sendingRef.current || uploading) return;
     const replyId = replyTo?.id;
     const ok = await sendBody(body, replyId);
     if (ok) {
@@ -578,6 +588,7 @@ function DmThreadPageInner() {
         url: uploaded.url,
         body: caption,
         reply_to_id: replyId,
+        client_msg_id: tempId,
       });
       takeMediaFile(tempId);
       dequeueFailedMediaMeta(tempId);
@@ -718,6 +729,7 @@ function DmThreadPageInner() {
           url: meta.url,
           body: meta.body,
           reply_to_id: replyToId,
+          client_msg_id: m.id,
         });
         dequeueFailedMediaMeta(m.id);
         takeMediaFile(m.id);
@@ -765,6 +777,7 @@ function DmThreadPageInner() {
         url: uploaded.url,
         body: caption,
         reply_to_id: replyId,
+        client_msg_id: tempId,
       });
       takeMediaFile(tempId);
       dequeueFailedMediaMeta(tempId);
@@ -855,6 +868,7 @@ function DmThreadPageInner() {
         reply_to_id: replyId || null,
         created_at: new Date().toISOString(),
         pending: true,
+        mine: true,
       },
     ]);
     let uploaded: Awaited<ReturnType<typeof api.uploadSocialMedia>> | null = null;
@@ -870,6 +884,7 @@ function DmThreadPageInner() {
         url: uploaded.url,
         body: caption,
         reply_to_id: replyId,
+        client_msg_id: tempId,
       });
       takeMediaFile(tempId);
       dequeueFailedMediaMeta(tempId);

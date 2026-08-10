@@ -731,6 +731,7 @@ function GroupPageInner() {
       await api.sendGroupChat(gid, body, {
         mentions: opts?.mentions,
         replyToId: opts?.replyToId,
+        clientMsgId: tempId,
       });
       dequeueFailedText(tempId);
       setReplyTarget(null);
@@ -825,6 +826,7 @@ function GroupPageInner() {
         await api.sendGroupChat(gid, m.body, {
           replyToId: m.reply_to_id || undefined,
           mentions: m.mentions,
+          clientMsgId: m.id,
         });
         dequeueFailedText(m.id);
         setFeed((prev) => prev.filter((x) => x.id !== m.id));

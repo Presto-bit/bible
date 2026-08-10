@@ -303,7 +303,7 @@ HomeTodaySlot _prayerSlot(HomeTodayInput input) {
       tag: '祷告',
       title: '开始祷告',
       sub: '',
-      href: '/plans',
+      href: '/pray',
       cta: '去祷告',
     );
   }
@@ -312,7 +312,7 @@ HomeTodaySlot _prayerSlot(HomeTodayInput input) {
     tag: '祷告',
     title: _trimSide(day),
     sub: '',
-    href: '/plans',
+    href: '/pray',
     cta: '去祷告',
   );
 }

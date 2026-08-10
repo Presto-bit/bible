@@ -7,6 +7,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../profile_avatar.dart';
+
 class AvatarPalette {
   const AvatarPalette({
     required this.name,
@@ -205,6 +207,34 @@ class AvatarBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isCustomAvatarId(id)) {
+      final src = customAvatarSrc(id);
+      return ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: src.startsWith('data:')
+              ? Image.memory(
+                  Uri.parse(src).data!.contentAsBytes(),
+                  fit: BoxFit.cover,
+                  width: size,
+                  height: size,
+                  errorBuilder: (_, __, ___) => _presetFallback(),
+                )
+              : Image.network(
+                  src,
+                  fit: BoxFit.cover,
+                  width: size,
+                  height: size,
+                  errorBuilder: (_, __, ___) => _presetFallback(),
+                ),
+        ),
+      );
+    }
+    return _presetFallback();
+  }
+
+  Widget _presetFallback() {
     final a = presetAvatars.firstWhere(
       (x) => x.id == id,
       orElse: () => presetAvatars.first,

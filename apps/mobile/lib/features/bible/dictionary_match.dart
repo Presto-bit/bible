@@ -106,3 +106,60 @@ String entitySummaryText(DictEntity e) {
   }
   return s;
 }
+
+class DictSpanHit {
+  const DictSpanHit({
+    required this.start,
+    required this.end,
+    required this.entity,
+    required this.name,
+  });
+  final int start;
+  final int end;
+  final DictEntity entity;
+  final String name;
+}
+
+/// 整节最长匹配后的跨度（对齐 PWA dictionary_match 贪心）。
+List<DictSpanHit> dictSpansForText(
+  String text,
+  Map<String, List<DictEntity>> index,
+  List<String> sortedKeys,
+) {
+  if (text.isEmpty || sortedKeys.isEmpty) return const [];
+  final tokens = splitDictTokens(text, index, sortedKeys);
+  final out = <DictSpanHit>[];
+  var cursor = 0;
+  for (final t in tokens) {
+    final start = text.indexOf(t.text, cursor);
+    if (start < 0) {
+      cursor += t.text.length;
+      continue;
+    }
+    final end = start + t.text.length;
+    if (t.entity != null) {
+      out.add(DictSpanHit(
+        start: start,
+        end: end,
+        entity: t.entity!,
+        name: t.text,
+      ));
+    }
+    cursor = end;
+  }
+  return out;
+}
+
+/// 词块是否落在某词典跨度内（词级芯片点按打开词典）。
+(DictEntity, String)? matchDictSpanAt(
+  int start,
+  int end,
+  List<DictSpanHit> spans,
+) {
+  for (final s in spans) {
+    if (start < s.end && end > s.start) {
+      return (s.entity, s.name);
+    }
+  }
+  return null;
+}

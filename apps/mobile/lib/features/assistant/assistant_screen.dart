@@ -1,22 +1,32 @@
 /// 小爱问答页：流式释经 + 多轮 + 脚注引用 + 游客限额提示。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../app/app_shell.dart';
+import '../../core/config.dart';
 import '../../core/database/app_database.dart';
 import '../../core/badge_stats.dart';
+import '../../core/gamification.dart' show readingStreak;
 import '../../core/theme.dart';
+import '../bible/reading_repository.dart';
 import '../bible/thoughts_repository.dart';
 import 'answer_text.dart';
+import 'assistant_draft.dart';
 import 'assistant_format.dart';
+import 'assistant_personalize.dart';
 import 'assistant_scenes.dart';
 import 'assistant_seed.dart';
 import 'assistant_repository.dart';
+import 'assistant_thinking.dart';
+import 'citation_evidence_rail.dart';
 import 'models.dart';
 import 'session_repository.dart';
 
@@ -40,6 +50,11 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   AssistantScene? _scene;
   bool _streaming = false;
   ChatMeta? _lastMeta;
+  int _quotaUsed = 0;
+  int _quotaLimit = 0;
+  ThinkingPhase _streamPhase = ThinkingPhase.understanding;
+  bool _streamSlow = false;
+  Timer? _slowTimer;
   String? _anchorRef;
   String? _sessionId;
   String _knowledgeBaseId = 'platform';
@@ -51,6 +66,24 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     super.initState();
     _anchorRef = widget.seedRef;
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  Future<void> _prefetchQuota() async {
+    final q = await ref.read(assistantRepoProvider).fetchAiQuota();
+    if (!mounted || q == null) return;
+    setState(() {
+      _quotaUsed = q.used;
+      _quotaLimit = q.unlimited ? 0 : q.limit;
+    });
+  }
+
+  Future<void> _loadComposerDraft() async {
+    final draft = await loadComposerDraft();
+    if (!mounted || draft.isEmpty) return;
+    if (_input.text.isEmpty) {
+      _input.text = draft;
+      _input.selection = TextSelection.collapsed(offset: draft.length);
+    }
   }
 
   Future<void> _loadKnowledgeBases() async {
@@ -70,7 +103,12 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   }
 
   Future<void> _bootstrap() async {
-    await _loadKnowledgeBases();
+    await Future.wait([
+      _loadKnowledgeBases(),
+      _prefetchQuota(),
+      _loadComposerDraft(),
+    ]);
+    if (!mounted) return;
     final repo = ref.read(sessionRepoProvider);
     final hasSeed = (widget.seedRef ?? '').isNotEmpty ||
         (widget.seedQuestion ?? '').isNotEmpty;
@@ -206,6 +244,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
   @override
   void dispose() {
+    _slowTimer?.cancel();
+    // 不在异步间隙写已 dispose 的 controller；先取文字再 dispose。
+    final draft = _input.text;
+    unawaited(saveComposerDraft(draft));
     _input.dispose();
     _scroll.dispose();
     super.dispose();
@@ -251,7 +293,11 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       return;
     }
 
-    final activeScene = scene ?? _scene ?? resolveScene(mode: _mode.id);
+    // 用户显式要「争议/并列」且未指定 scene 时，走并列观点模板。
+    var activeScene = scene ?? resolveScene(mode: _mode.id);
+    if (scene == null && text.isNotEmpty && detectsViewpointsIntent(text)) {
+      activeScene = AssistantScene.chatViewpoints;
+    }
     _scene = activeScene;
     final modeFromScene =
         AssistantMode.fromId(activeScene.mode) ?? _mode;
@@ -262,6 +308,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     final sid = _sessionId!;
 
     _input.clear();
+    unawaited(clearComposerDraft());
     final history = _turns
         .where((t) => t.content.trim().isNotEmpty)
         .map(
@@ -290,12 +337,21 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       content: '',
       scene: activeScene.id,
     );
+    _slowTimer?.cancel();
     setState(() {
       _turns.add(reply);
       _streaming = true;
+      _streamPhase = ThinkingPhase.understanding;
+      _streamSlow = false;
+    });
+    _slowTimer = Timer(const Duration(seconds: 15), () {
+      if (mounted && _streaming && reply.content.isEmpty) {
+        setState(() => _streamSlow = true);
+      }
     });
     _autoScroll();
 
+    var gotDelta = false;
     final stream = ref.read(assistantRepoProvider).chat(
           ref: _turns.length <= 2 ? _anchorRef : null,
           question: text.isEmpty ? null : text,
@@ -313,9 +369,20 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             reply.meta = meta;
             reply.sceneLabel = meta.sceneLabel;
             _lastMeta = meta;
+            if (meta.quotaLimit > 0) {
+              _quotaUsed = meta.quotaUsed;
+              _quotaLimit = meta.quotaLimit;
+            }
+            _streamPhase = ThinkingPhase.refs;
           });
         case DeltaEvent(:final text):
-          setState(() => reply.content += text);
+          setState(() {
+            if (!gotDelta) {
+              gotDelta = true;
+              _streamPhase = ThinkingPhase.writing;
+            }
+            reply.content += text;
+          });
           _autoScroll();
         case FollowupsEvent(:final items):
           setState(() => reply.followups = items);
@@ -328,6 +395,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               reply.content.isEmpty ? message : '${reply.content}\n\n⚠️ $message');
       }
     }
+    _slowTimer?.cancel();
     if (reply.content.isEmpty) {
       setState(() => reply.content = '小爱暂时没有给出回答，请稍后再试。');
     }
@@ -335,26 +403,28 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       await repo.addMessage(sid, 'assistant', bodyText(reply.content),
           citations: reply.meta?.citations ?? const []);
     }
-    if (mounted) setState(() => _streaming = false);
+    if (mounted) {
+      setState(() {
+        _streaming = false;
+        _streamSlow = false;
+        _streamPhase = ThinkingPhase.understanding;
+      });
+    }
     _autoScroll();
   }
 
   Future<void> _sendChip(String text, {AssistantMode? mode, AssistantScene? scene}) async {
-    final s = scene ?? chipSceneForLabel(text);
     if (mode != null) setState(() => _mode = mode);
-    await _send(seedQuestion: text, scene: s);
+    await _send(seedQuestion: text, scene: scene);
   }
 
   bool get _quotaExhausted =>
-      _lastMeta != null &&
-      _lastMeta!.quotaLimit > 0 &&
-      _lastMeta!.quotaUsed >= _lastMeta!.quotaLimit;
+      _quotaLimit > 0 && _quotaUsed >= _quotaLimit;
 
   bool get _quotaLow =>
-      _lastMeta != null &&
-      _lastMeta!.quotaLimit > 0 &&
+      _quotaLimit > 0 &&
       !_quotaExhausted &&
-      _lastMeta!.quotaUsed >= _lastMeta!.quotaLimit - 2;
+      _quotaUsed >= _quotaLimit - 2;
 
   @override
   Widget build(BuildContext context) {
@@ -383,23 +453,64 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     });
 
     final anchorLabel = _anchorRef ?? widget.seedRef ?? '未锚定经文';
-    final intentChips = _turns.isEmpty
-        ? [
-            ('经文背景', AssistantMode.explain, chipUserQuestion('经文背景', ref: anchorLabel)),
-            ('解释经文', AssistantMode.explain, chipUserQuestion('解释经文', ref: anchorLabel)),
-            ('应用', AssistantMode.apply, chipUserQuestion('生活应用', ref: anchorLabel)),
-            ('预备查经', AssistantMode.understand, chipUserQuestion('预备查经', ref: anchorLabel)),
-            ('预备讲道', AssistantMode.preach, chipUserQuestion('讲道大纲', ref: anchorLabel)),
-            ('译本对照', AssistantMode.compare, chipUserQuestion('译本对照', ref: anchorLabel)),
-          ]
-        : [
-            ('经文背景', AssistantMode.explain, chipUserQuestion('经文背景', ref: anchorLabel)),
-            ('解释经文', AssistantMode.explain, chipUserQuestion('解释经文', ref: anchorLabel)),
-            ('应用', AssistantMode.apply, chipUserQuestion('生活应用', ref: anchorLabel)),
-            ('译本对照', AssistantMode.compare, chipUserQuestion('译本对照', ref: anchorLabel)),
-            ('和「信」的关系？', AssistantMode.explain, '和「信」有什么关系？'),
-            ('日常焦虑里？', AssistantMode.apply, '怎样用在日常焦虑里？'),
-          ];
+    final review = ref.watch(reviewDataProvider).asData?.value;
+    final streak = review != null ? readingStreak(review) : 0;
+    final hasLastRead =
+        ref.watch(readingProgressStreamProvider).asData?.value != null;
+    final List<(String, AssistantMode, String, AssistantScene?)> intentChips;
+    if (_turns.isEmpty) {
+      final personalized = personalizedAssistantChips(
+        ref: (_anchorRef ?? widget.seedRef)?.isNotEmpty == true
+            ? (_anchorRef ?? widget.seedRef)
+            : null,
+        streak: streak,
+        hasLastRead: hasLastRead,
+      );
+      intentChips = personalized
+          .map((c) => (c.label, c.assistantMode, c.q, c.scene))
+          .toList();
+    } else {
+      intentChips = [
+        (
+          '经文背景',
+          AssistantMode.explain,
+          chipUserQuestion('经文背景', ref: anchorLabel),
+          AssistantScene.chatExplain,
+        ),
+        (
+          '解释经文',
+          AssistantMode.explain,
+          chipUserQuestion('解释经文', ref: anchorLabel),
+          AssistantScene.chatExplain,
+        ),
+        (
+          '应用',
+          AssistantMode.apply,
+          chipUserQuestion('生活应用', ref: anchorLabel),
+          AssistantScene.chatApply,
+        ),
+        (
+          '译本对照',
+          AssistantMode.compare,
+          chipUserQuestion('译本对照', ref: anchorLabel),
+          AssistantScene.chatCompare,
+        ),
+        (
+          '和「信」的关系？',
+          AssistantMode.explain,
+          '和「信」有什么关系？',
+          AssistantScene.chatExplain,
+        ),
+        (
+          '日常焦虑里？',
+          AssistantMode.apply,
+          '怎样用在日常焦虑里？',
+          AssistantScene.chatApply,
+        ),
+      ];
+    }
+
+    final showQuota = _quotaLimit > 0;
 
     return Scaffold(
       body: SafeArea(
@@ -443,13 +554,13 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 ],
               ),
             ),
-            if (_lastMeta != null)
+            if (showQuota)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    '今日 ${_lastMeta!.quotaUsed}/${_lastMeta!.quotaLimit}',
+                    '今日 $_quotaUsed/$_quotaLimit',
                     style: const TextStyle(
                         color: AppColors.inkFaint, fontSize: 11),
                   ),
@@ -513,18 +624,30 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                   controller: _scroll,
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   itemCount: _turns.length,
-                  itemBuilder: (_, i) => _Bubble(
-                    turn: _turns[i],
-                    streaming: _streaming,
-                    anchorRef: _anchorRef,
-                    onFollowup: _quotaExhausted
-                        ? null
-                        : (q) => _sendChip(q, scene: AssistantScene.chatExplain),
-                    onSwitchToPlatform: () => setState(() {
-                      _knowledgeBaseId = 'platform';
-                      _knowledgeBaseName = '平台知识库';
-                    }),
-                  ),
+                  itemBuilder: (_, i) {
+                    final isLast = i == _turns.length - 1;
+                    final turn = _turns[i];
+                    final thinking = _streaming &&
+                        isLast &&
+                        turn.role == 'assistant' &&
+                        turn.content.isEmpty;
+                    return _Bubble(
+                      turn: turn,
+                      streaming: _streaming && isLast,
+                      thinkingPhase:
+                          thinking ? _streamPhase : null,
+                      streamSlow: thinking && _streamSlow,
+                      anchorRef: _anchorRef,
+                      onFollowup: _quotaExhausted
+                          ? null
+                          : (q) => _sendChip(q,
+                              scene: AssistantScene.chatExplain),
+                      onSwitchToPlatform: () => setState(() {
+                        _knowledgeBaseId = 'platform';
+                        _knowledgeBaseName = '平台知识库';
+                      }),
+                    );
+                  },
                 ),
               ),
               _Composer(
@@ -783,10 +906,71 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
     }
   }
 
+  Future<void> _delete(AiSession s) async {
+    await ref.read(sessionRepoProvider).delete(s);
+    await _loadOnce();
+  }
+
+  /// 按 anchorRef 分组；空锚点归「随问」，且「随问」置末。
+  List<MapEntry<String, List<AiSession>>> _grouped(List<AiSession> list) {
+    final map = <String, List<AiSession>>{};
+    for (final s in list) {
+      final key =
+          (s.anchorRef == null || s.anchorRef!.trim().isEmpty) ? '随问' : s.anchorRef!.trim();
+      map.putIfAbsent(key, () => []).add(s);
+    }
+    final entries = map.entries.toList()
+      ..sort((a, b) {
+        if (a.key == '随问') return 1;
+        if (b.key == '随问') return -1;
+        return a.key.compareTo(b.key);
+      });
+    return entries;
+  }
+
+  Widget _sessionTile(AiSession s) {
+    return Dismissible(
+      key: ValueKey('session-${s.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: Colors.red.shade400,
+        child: const Icon(Icons.delete_outline, color: Colors.white),
+      ),
+      onDismissed: (_) => _delete(s),
+      child: ListTile(
+        leading: const Icon(Icons.chat_bubble_outline,
+            color: AppColors.accentDeep),
+        title: Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: s.anchorRef != null && s.anchorRef!.trim().isNotEmpty
+            ? Text('锚定 ${s.anchorRef}',
+                style: const TextStyle(fontSize: 12))
+            : null,
+        trailing: PopupMenuButton<String>(
+          onSelected: (v) async {
+            if (v == 'rename') {
+              await _rename(s);
+            } else if (v == 'delete') {
+              await _delete(s);
+            }
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'rename', child: Text('重命名')),
+            PopupMenuItem(value: 'delete', child: Text('删除')),
+          ],
+        ),
+        onTap: () => Navigator.pop(context, s),
+        onLongPress: () => _rename(s),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final live = ref.watch(sessionsStreamProvider).asData?.value;
     final list = (live != null && live.isNotEmpty) ? live : _snapshot;
+    final groups = list == null ? null : _grouped(list);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 12, 8),
       child: Column(
@@ -815,9 +999,9 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
           ),
           const SizedBox(height: 4),
           Expanded(
-            child: list == null
+            child: groups == null
                 ? const Center(child: CircularProgressIndicator())
-                : list.isEmpty
+                : groups.isEmpty
                     ? Center(
                         child: Text(
                           _err != null ? '暂时无法加载会话' : '还没有会话',
@@ -825,37 +1009,31 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
                         ),
                       )
                     : ListView.builder(
-                        itemCount: list.length,
+                        itemCount: groups.length,
                         itemBuilder: (_, i) {
-                          final s = list[i];
-                          return ListTile(
-                            leading: const Icon(Icons.chat_bubble_outline,
-                                color: AppColors.accentDeep),
-                            title: Text(s.title,
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
-                            subtitle: s.anchorRef != null
-                                ? Text('锚定 ${s.anchorRef}',
-                                    style: const TextStyle(fontSize: 12))
-                                : null,
-                            trailing: PopupMenuButton<String>(
-                              onSelected: (v) async {
-                                if (v == 'rename') {
-                                  await _rename(s);
-                                } else if (v == 'delete') {
-                                  await ref
-                                      .read(sessionRepoProvider)
-                                      .delete(s);
-                                  await _loadOnce();
-                                }
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                    value: 'rename', child: Text('重命名')),
-                                PopupMenuItem(
-                                    value: 'delete', child: Text('删除')),
-                              ],
+                          final g = groups[i];
+                          final title =
+                              g.key == '随问' ? '随问' : '锚定 ${g.key}';
+                          return ExpansionTile(
+                            key: PageStorageKey('session-group-${g.key}'),
+                            initiallyExpanded: i == 0,
+                            title: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                            onTap: () => Navigator.pop(context, s),
+                            subtitle: Text(
+                              '${g.value.length} 个会话',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.inkFaint,
+                              ),
+                            ),
+                            children: [
+                              for (final s in g.value) _sessionTile(s),
+                            ],
                           );
                         },
                       ),
@@ -879,12 +1057,16 @@ class _Bubble extends ConsumerWidget {
   const _Bubble({
     required this.turn,
     this.streaming = false,
+    this.thinkingPhase,
+    this.streamSlow = false,
     this.anchorRef,
     this.onFollowup,
     this.onSwitchToPlatform,
   });
   final ChatTurn turn;
   final bool streaming;
+  final ThinkingPhase? thinkingPhase;
+  final bool streamSlow;
   final String? anchorRef;
   final void Function(String question)? onFollowup;
   final VoidCallback? onSwitchToPlatform;
@@ -900,6 +1082,7 @@ class _Bubble extends ConsumerWidget {
     final displayText =
         isUser ? turn.content : bodyText(turn.content);
     final showActions = !isUser && turn.content.isNotEmpty && !streaming;
+    final cites = turn.meta?.citations ?? const <Citation>[];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
@@ -916,9 +1099,11 @@ class _Bubble extends ConsumerWidget {
               border: Border.all(color: AppColors.line),
             ),
             child: turn.content.isEmpty
-                ? const Text('思考中…',
-                    style: TextStyle(
-                        height: 1.7, fontSize: 15, color: AppColors.inkFaint))
+                ? AssistantThinkingState(
+                    phase: thinkingPhase ?? ThinkingPhase.understanding,
+                    citeCount: cites.length,
+                    slow: streamSlow,
+                  )
                 : (isUser
                     ? Text(displayText,
                         style: const TextStyle(
@@ -928,7 +1113,7 @@ class _Bubble extends ConsumerWidget {
                         children: [
                           if (!displayText.startsWith('⚠️'))
                             _RagSourceStatus(
-                              count: turn.meta?.citations.length ?? 0,
+                              count: cites.length,
                               useRag: turn.meta?.useRag ??
                                   !(turn.scene?.startsWith('summary_') ?? false),
                               knowledgeBaseId: turn.meta?.knowledgeBaseId,
@@ -939,8 +1124,22 @@ class _Bubble extends ConsumerWidget {
                         ],
                       )),
           ),
-          if (!isUser && (turn.meta?.citations.isNotEmpty ?? false))
-            _Citations(citations: turn.meta!.citations),
+          if (!isUser && cites.isNotEmpty)
+            CitationEvidenceRail(
+              citations: cites,
+              onOpen: (n) {
+                final match = cites.where((c) => c.n == n);
+                if (match.isEmpty) return;
+                ref.read(badgeStatsRecorderProvider).recordCitationClick();
+                showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  showDragHandle: true,
+                  builder: (ctx) =>
+                      _CitationBilingualSheet(citation: match.first),
+                );
+              },
+            ),
           if (showActions && followups.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -975,8 +1174,11 @@ class _Bubble extends ConsumerWidget {
                   const SizedBox(width: 16),
                   _ActionText(
                     label: '分享',
-                    onTap: () => _copy(context, stripFollowups(turn.content),
-                        share: true),
+                    onTap: () => _share(
+                      context,
+                      ref,
+                      stripFollowups(turn.content),
+                    ),
                   ),
                 ],
               ),
@@ -1004,12 +1206,45 @@ class _Bubble extends ConsumerWidget {
     ));
   }
 
-  void _copy(BuildContext context, String text, {bool share = false}) {
+  void _copy(BuildContext context, String text) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(share ? '已复制，可粘贴分享到群或动态' : '已复制'),
-      duration: const Duration(milliseconds: 1500),
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('已复制'),
+      duration: Duration(milliseconds: 1500),
     ));
+  }
+
+  Future<void> _share(
+    BuildContext context,
+    WidgetRef ref,
+    String text,
+  ) async {
+    Clipboard.setData(ClipboardData(text: text));
+    var payload = text;
+    try {
+      final id = await ref
+          .read(assistantRepoProvider)
+          .createAnalysisShareSnapshot(
+            answerMarkdown: text,
+            refLabel: anchorRef,
+            refParam: anchorRef,
+          );
+      if (id != null && id.isNotEmpty) {
+        final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
+        payload = '$text\n$base/share/analysis/$id';
+      }
+    } catch (_) {
+      // 快照失败则纯文案分享
+    }
+    try {
+      await SharePlus.instance.share(ShareParams(text: payload));
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('已复制，可粘贴分享到群或动态'),
+        duration: Duration(milliseconds: 1500),
+      ));
+    }
   }
 }
 
@@ -1074,49 +1309,6 @@ class _RagSourceStatus extends StatelessWidget {
               child: const Text('换回平台库', style: TextStyle(fontSize: 12)),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _Citations extends ConsumerWidget {
-  const _Citations({required this.citations});
-  final List<Citation> citations;
-
-  Future<void> _openDetail(BuildContext context, WidgetRef ref, Citation c) async {
-    ref.read(badgeStatsRecorderProvider).recordCitationClick();
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (ctx) => _CitationBilingualSheet(citation: c),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6, left: 2),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        children: citations
-            .map((c) => InkWell(
-                  onTap: () => _openDetail(context, ref, c),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.goldWash,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text('[${c.n}] ${c.title}',
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.gold)),
-                  ),
-                ))
-            .toList(),
       ),
     );
   }
@@ -1252,7 +1444,7 @@ class _Composer extends StatefulWidget {
   final bool disabled;
   final bool docked;
   final VoidCallback onSend;
-  final List<(String, AssistantMode, String)> chips;
+  final List<(String, AssistantMode, String, AssistantScene?)> chips;
   final void Function(String text, {AssistantMode? mode, AssistantScene? scene})? onChip;
   final String? knowledgeBaseLabel;
   final VoidCallback? onPickKnowledgeBase;
@@ -1367,7 +1559,7 @@ class _ComposerState extends State<_Composer> {
                             : () => widget.onChip!(
                                   c.$3,
                                   mode: c.$2,
-                                  scene: chipSceneForLabel(c.$1),
+                                  scene: c.$4 ?? chipSceneForLabel(c.$1),
                                 ),
                         child: Container(
                           padding: const EdgeInsets.symmetric(

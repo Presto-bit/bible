@@ -16,17 +16,41 @@ const _thoughtsKey = 'verse_thoughts_v1';
 
 enum ThoughtVisibility { public, friends, private }
 
+/// 对齐 PWA `reader_thoughts.ts`：公开 / 共读 / 私密。
 String visibilityLabel(ThoughtVisibility v) => switch (v) {
       ThoughtVisibility.public => '公开',
-      ThoughtVisibility.friends => '好友',
-      ThoughtVisibility.private => '仅自己',
+      ThoughtVisibility.friends => '共读',
+      ThoughtVisibility.private => '私密',
     };
 
 String visibilityHint(ThoughtVisibility v) => switch (v) {
-      ThoughtVisibility.public => '公开给读同一节经文的人',
-      ThoughtVisibility.friends => '仅好友可见',
-      ThoughtVisibility.private => '仅自己可见，不上云分享',
+      ThoughtVisibility.public => '读同一节经文的任何人都可见',
+      ThoughtVisibility.friends => '仅你的好友可见',
+      ThoughtVisibility.private => '仅自己可见',
     };
+
+const _visPrefKey = 'thought_visibility_pref';
+
+/// 默认可见范围：记忆上次选择，否则公开。
+ThoughtVisibility getDefaultVisibility([String context = 'normal']) {
+  if (context == 'mark') return ThoughtVisibility.private;
+  return ThoughtVisibility.public;
+}
+
+ThoughtVisibility loadRememberedVisibility(SharedPreferences prefs) {
+  final raw = prefs.getString(_visPrefKey);
+  return switch (raw) {
+    'public' => ThoughtVisibility.public,
+    'friends' => ThoughtVisibility.friends,
+    'private' => ThoughtVisibility.private,
+    _ => ThoughtVisibility.public,
+  };
+}
+
+Future<void> rememberVisibility(
+    SharedPreferences prefs, ThoughtVisibility v) async {
+  await prefs.setString(_visPrefKey, v.name);
+}
 
 ThoughtVisibility _parseVisibility(dynamic raw, {bool? legacyShared}) {
   if (raw == 'public' || raw == 'friends' || raw == 'private') {
@@ -276,4 +300,6 @@ class ThoughtsRepository {
 
   bool isLikedByMe(VerseThoughtData thought) =>
       thought.likedBy.contains(_userId);
+
+  bool isMine(VerseThoughtData thought) => thought.authorId == _userId;
 }

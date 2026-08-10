@@ -11,6 +11,7 @@ enum AssistantScene {
   chatPreach('chat_preach', 'preach', 120000),
   chatCompare('chat_compare', 'compare', 90000),
   chatOriginal('chat_original', 'original', 90000),
+  chatViewpoints('chat_viewpoints', 'explain', 90000),
   summaryChapter('summary_chapter', 'explain', 60000),
   summaryBook('summary_book', 'explain', 60000);
 
@@ -28,6 +29,63 @@ const _modeToScene = <String, AssistantScene>{
   'original': AssistantScene.chatOriginal,
   'preach': AssistantScene.chatPreach,
 };
+
+/// 显式要求「并列观点 / 争议题」的短语。
+const _viewpointsExplicitPhrases = [
+  '并列观点',
+  '不同看法',
+  '不同观点',
+  '各家怎么说',
+  '各家怎么看',
+  '有争议吗',
+  '有没有争议',
+  '争议',
+  '两派',
+  '几种理解',
+  '多种理解',
+  '双方观点',
+  '正反两边',
+  '不同传统',
+  '不同教派',
+];
+
+/// 轻量争议主题词：命中后结合语气词建议走并列观点。
+const _viewpointsTopicHints = [
+  '预定论',
+  '拣选',
+  '一次得救',
+  '恩赐',
+  '方言',
+  '洗脚',
+  '离婚再婚',
+  '再婚',
+  '守安息日',
+  '洗礼方式',
+  '浸礼',
+  '圣餐',
+  '女性讲道',
+  '女人讲道',
+  '女人蒙头',
+  '创造论',
+  '进化',
+  '千禧年',
+  '被提',
+];
+
+final _viewpointsToneRe = RegExp(r'怎么看|怎么说|如何理解|哪[个种]|还是|争议|分歧|看法|观点');
+
+/// 检测用户是否显式要求「并列观点 / 争议题」作答。
+bool detectsViewpointsIntent(String question) {
+  final q = question.trim();
+  if (q.isEmpty) return false;
+  for (final p in _viewpointsExplicitPhrases) {
+    if (q.contains(p)) return true;
+  }
+  for (final t in _viewpointsTopicHints) {
+    if (q.contains(t) && _viewpointsToneRe.hasMatch(q)) return true;
+  }
+  return false;
+}
 
 AssistantScene resolveScene({String? scene, String? mode}) {
   if (scene != null) {
@@ -53,6 +111,9 @@ String chipUserQuestion(String label, {String? ref}) {
     return '请说明$anchor在圣经原文中的整句表达与含义，并对照不同译本的措辞差异。';
   }
   if (label == '讲道大纲') return '请为$anchor生成讲道大纲要点。';
+  if (label == '并列观点') {
+    return '请就$anchor相关常见争议，并列说明主要理解与各自依据，不要替我做教义裁决。';
+  }
   return '关于$anchor，请按「$label」作答。';
 }
 
@@ -67,6 +128,10 @@ AssistantScene chipSceneForLabel(String label) {
     '经文背景': AssistantScene.chatExplain,
     '应用': AssistantScene.chatApply,
     '预备讲道': AssistantScene.chatPreach,
+    '并列观点': AssistantScene.chatViewpoints,
+    '今日默想': AssistantScene.chatApply,
+    '信仰问答': AssistantScene.chatUnderstand,
+    '坚持鼓励': AssistantScene.chatApply,
   };
   return map[label] ?? AssistantScene.chatExplain;
 }

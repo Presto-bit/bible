@@ -1092,25 +1092,38 @@ export const api = {
   },
   sendDm: (
     threadId: string,
-    body: { body?: string; kind?: string; ref?: string; reply_to_id?: string },
+    body: {
+      body?: string;
+      kind?: string;
+      ref?: string;
+      reply_to_id?: string;
+      client_msg_id?: string;
+    },
   ) =>
-    authed<{ id: string; created_at?: string }>(`/social/dm/${threadId}/messages`, {
-      method: 'POST',
-      body,
-    }),
+    authed<{ id: string; created_at?: string; deduped?: boolean }>(
+      `/social/dm/${threadId}/messages`,
+      {
+        method: 'POST',
+        body,
+      },
+    ),
   sendGroupChat: (
     gid: string,
     body: string,
-    opts?: { replyToId?: string; mentions?: string[] },
+    opts?: { replyToId?: string; mentions?: string[]; clientMsgId?: string },
   ) =>
-    authed<{ id: string }>(`/social/groups/${gid}/chat`, {
-      method: 'POST',
-      body: {
-        body,
-        reply_to_id: opts?.replyToId,
-        mentions: opts?.mentions,
+    authed<{ id: string; created_at?: string; deduped?: boolean }>(
+      `/social/groups/${gid}/chat`,
+      {
+        method: 'POST',
+        body: {
+          body,
+          reply_to_id: opts?.replyToId,
+          mentions: opts?.mentions,
+          client_msg_id: opts?.clientMsgId,
+        },
       },
-    }),
+    ),
   sendGroupVerse: (
     gid: string,
     body: { ref: string; body?: string; reply_to_id?: string },
@@ -1271,12 +1284,16 @@ export const api = {
       url?: string;
       body?: string;
       reply_to_id?: string;
+      client_msg_id?: string;
     },
   ) =>
-    authed<{ id: string; kind: string }>(`/social/dm/${threadId}/media`, {
-      method: 'POST',
-      body,
-    }),
+    authed<{ id: string; kind: string; deduped?: boolean }>(
+      `/social/dm/${threadId}/media`,
+      {
+        method: 'POST',
+        body,
+      },
+    ),
   previewSocialMedia: async (storageKey: string) => {
     const res = await fetch(
       `${API_BASE}/social/media/preview?storage_key=${encodeURIComponent(storageKey)}`,

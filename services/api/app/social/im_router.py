@@ -452,6 +452,7 @@ class ChatIn(BaseModel):
     body: str = Field(..., min_length=1, max_length=2000)
     reply_to_id: str | None = None
     mentions: list[str] = Field(default_factory=list, max_length=20)
+    client_msg_id: str | None = Field(default=None, max_length=64)
 
 
 class DmIn(BaseModel):
@@ -459,6 +460,7 @@ class DmIn(BaseModel):
     kind: str = "chat"
     ref: str | None = None
     reply_to_id: str | None = None
+    client_msg_id: str | None = Field(default=None, max_length=64)
 
 
 class ConversationStateIn(BaseModel):
@@ -1297,6 +1299,9 @@ def send_dm(
             moderate_text(text)
         except ModerationError as e:
             raise HTTPException(400, e.reason) from e
+    client_id = (body.client_msg_id or "").strip() or None
+    if client_id and len(client_id) > 64:
+        raise HTTPException(400, "client_msg_id 过长")
     pool = get_pool()
     with pool.connection() as conn:
         _ensure_im_tables(conn)
@@ -1308,10 +1313,23 @@ def send_dm(
             raise HTTPException(404, "会话不存在")
         peer = str(t[1]) if str(t[0]) == user_id else str(t[0])
         _require_dm_allowed(conn, user_id, peer)
+        if client_id:
+            existing = conn.execute(
+                "SELECT id, created_at FROM direct_message "
+                "WHERE sender_id = %s AND client_msg_id = %s",
+                (user_id, client_id),
+            ).fetchone()
+            if existing:
+                return {
+                    "id": str(existing[0]),
+                    "created_at": existing[1].isoformat() if existing[1] else None,
+                    "deduped": True,
+                }
         row = conn.execute(
-            "INSERT INTO direct_message (thread_id, sender_id, kind, body, ref, reply_to_id) "
-            "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, created_at",
-            (thread_id, user_id, kind, text or None, body.ref, body.reply_to_id),
+            "INSERT INTO direct_message "
+            "(thread_id, sender_id, kind, body, ref, reply_to_id, client_msg_id) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id, created_at",
+            (thread_id, user_id, kind, text or None, body.ref, body.reply_to_id, client_id),
         ).fetchone()
         conn.commit()
     try:
@@ -1334,6 +1352,9 @@ def send_group_chat(
         moderate_text(text)
     except ModerationError as e:
         raise HTTPException(400, e.reason) from e
+    client_id = (body.client_msg_id or "").strip() or None
+    if client_id and len(client_id) > 64:
+        raise HTTPException(400, "client_msg_id 过长")
     pool = get_pool()
     with pool.connection() as conn:
         _ensure_im_tables(conn)
@@ -1343,16 +1364,30 @@ def send_group_chat(
         ).fetchone()
         if allow and allow[0] is False:
             raise HTTPException(403, "本群已关闭闲聊")
+        if client_id:
+            existing = conn.execute(
+                "SELECT id, created_at FROM group_message "
+                "WHERE user_id = %s AND client_msg_id = %s",
+                (user_id, client_id),
+            ).fetchone()
+            if existing:
+                return {
+                    "id": str(existing[0]),
+                    "created_at": existing[1].isoformat() if existing[1] else None,
+                    "deduped": True,
+                }
         mentions = body.mentions[:20]
         row = conn.execute(
-            "INSERT INTO group_message (group_id, user_id, kind, body, reply_to_id, mentions) "
-            "VALUES (%s, %s, 'chat', %s, %s, %s::jsonb) RETURNING id, created_at",
+            "INSERT INTO group_message "
+            "(group_id, user_id, kind, body, reply_to_id, mentions, client_msg_id) "
+            "VALUES (%s, %s, 'chat', %s, %s, %s::jsonb, %s) RETURNING id, created_at",
             (
                 gid,
                 user_id,
                 text,
                 body.reply_to_id,
                 __import__("json").dumps(mentions),
+                client_id,
             ),
         ).fetchone()
         conn.commit()
@@ -1698,6 +1733,7 @@ class MediaSendIn(BaseModel):
     body: str | None = Field(default=None, max_length=500)
     mentions: list[str] = Field(default_factory=list, max_length=20)
     reply_to_id: str | None = None
+    client_msg_id: str | None = Field(default=None, max_length=64)
 
 
 @router.post("/uploads")
@@ -2028,10 +2064,27 @@ def send_dm_media(
                 moderate_text(text)
             except ModerationError as e:
                 raise HTTPException(400, e.reason) from e
+        client_id = (body.client_msg_id or "").strip() or None
+        if client_id and len(client_id) > 64:
+            raise HTTPException(400, "client_msg_id 过长")
+        if client_id:
+            existing = conn.execute(
+                "SELECT id, created_at, kind FROM direct_message "
+                "WHERE sender_id = %s AND client_msg_id = %s",
+                (user_id, client_id),
+            ).fetchone()
+            if existing:
+                return {
+                    "id": str(existing[0]),
+                    "kind": existing[2],
+                    "created_at": existing[1].isoformat() if existing[1] else None,
+                    "deduped": True,
+                }
         row = conn.execute(
-            "INSERT INTO direct_message (thread_id, sender_id, kind, body, reply_to_id) "
-            "VALUES (%s, %s, %s, %s, %s) RETURNING id, created_at",
-            (thread_id, user_id, kind, text, body.reply_to_id),
+            "INSERT INTO direct_message "
+            "(thread_id, sender_id, kind, body, reply_to_id, client_msg_id) "
+            "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, created_at",
+            (thread_id, user_id, kind, text, body.reply_to_id, client_id),
         ).fetchone()
         conn.execute(
             "INSERT INTO message_attachment "

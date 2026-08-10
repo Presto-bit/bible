@@ -65,8 +65,7 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
             children: [
               if (widget.underlinesEnabled &&
                   widget.readingMode != ReadingMode.focus &&
-                  _markPaletteOpen &&
-                  !hasMark)
+                  _markPaletteOpen)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
                   child: Row(
@@ -89,12 +88,33 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
                                   color: chipColor(c),
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: AppColors.line,
-                                    width: 1,
+                                    color: hasMark &&
+                                            widget.currentMark?.color == c
+                                        ? AppColors.accentDeep
+                                        : AppColors.line,
+                                    width: hasMark &&
+                                            widget.currentMark?.color == c
+                                        ? 2
+                                        : 1,
                                   ),
                                 ),
                               ),
                             ),
+                          ),
+                        ),
+                      if (hasMark)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: ActionChip(
+                            label: const Text('取消',
+                                style: TextStyle(fontSize: 12)),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            onPressed: () {
+                              widget.onClearMark();
+                              setState(() => _markPaletteOpen = false);
+                            },
                           ),
                         ),
                     ],
@@ -115,17 +135,10 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
                     if (widget.underlinesEnabled &&
                         widget.readingMode != ReadingMode.focus)
                       _iconBtn(
-                        icon: hasMark
-                            ? Icons.format_color_reset_outlined
-                            : Icons.edit_outlined,
-                        label: hasMark ? '取消划线' : '划线',
+                        icon: Icons.edit_outlined,
+                        label: hasMark ? '改色' : '划线',
                         active: _markPaletteOpen || hasMark,
                         onTap: () {
-                          if (hasMark) {
-                            widget.onClearMark();
-                            setState(() => _markPaletteOpen = false);
-                            return;
-                          }
                           setState(() => _markPaletteOpen = !_markPaletteOpen);
                         },
                       ),

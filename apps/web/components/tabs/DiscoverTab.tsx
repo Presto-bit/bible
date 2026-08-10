@@ -31,6 +31,7 @@ import {
   usePrefersReducedMotion,
 } from '@/lib/use_home_pull_refresh';
 import { useToast } from '@/components/ui/ToastProvider';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
 import { notifyDiscoverUnreadChanged } from '@/lib/discover_unread';
 import { Pressable } from '@/components/ui/Pressable';
@@ -120,6 +121,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const pathname = usePathname();
   const online = useOnline();
   const toast = useToast();
+  const confirm = useConfirm();
   const account = useAccountReady();
   const uid = account.status === 'ready' ? account.uid : null;
   const [items, setItems] = useState<ConversationItem[]>([]);
@@ -696,14 +698,17 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                           label: '不显示',
                           tone: 'danger',
                           onClick: () => {
-                            if (
-                              !window.confirm(
-                                '从消息列表中不显示该会话？有新消息时会再次出现。',
-                              )
-                            ) {
-                              return;
-                            }
-                            void hideConversation(it);
+                            void (async () => {
+                              const ok = await confirm({
+                                title: '不显示会话',
+                                message:
+                                  '从消息列表中不显示该会话？有新消息时会再次出现。',
+                                confirmLabel: '不显示',
+                                danger: true,
+                              });
+                              if (!ok) return;
+                              void hideConversation(it);
+                            })();
                           },
                         },
                       ]}

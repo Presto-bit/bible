@@ -25,7 +25,10 @@ WordAnchor? wordAnchorAt(BuildContext context, Offset global) {
   return null;
 }
 
-/// 章列表外包：长按 420ms 选词；移动 >10px 拖选扩区（PWA touch 路径）。
+/// 章列表外包：长按 420ms 选词；武装后拖扩选区。
+///
+/// **刻意不对齐** PWA「未长按横扫选词」：短横滑交给 ListView 滚 / 翻章，
+/// 避免与垂直滚动、页翻 peek 打架。扩区仅在长按武装（或已拖选）后生效。
 class VerseSelectionSurface extends StatefulWidget {
   const VerseSelectionSurface({
     super.key,
@@ -121,7 +124,7 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         final anchor = _anchor;
         if (down == null) return;
         final dist = (e.position - down).distance;
-        // 未长按完成：移动即取消（让 ListView 滚）；不对齐「未长按横扫选」避免与滚冲突
+        // 未长按完成：移动即取消 LP（保护滚动手势）
         if (!_armed) {
           if (dist >= 10) {
             _clearLp();
@@ -131,7 +134,8 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
           return;
         }
         if (anchor == null) return;
-        if (!_dragging && dist < 6) return;
+        // 武装后低阈值跟手扩区（比 6px 更顺）
+        if (!_dragging && dist < 2) return;
         if (!_dragging) {
           _dragging = true;
         }
@@ -162,7 +166,7 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
   }
 }
 
-/// 词块芯片：MetaData 供命中测试；仅高亮外观，手势由外层 Surface 统一处理。
+/// 词块芯片：MetaData 供命中测试；选中底色用文字背景 + 横向阴影缝合（对齐 PWA `.verse-word.is-active`）。
 class SelectableWordChip extends StatelessWidget {
   const SelectableWordChip({
     super.key,
@@ -174,6 +178,7 @@ class SelectableWordChip extends StatelessWidget {
     this.edgeRight = false,
     this.onTap,
     this.onDictTap,
+    this.onDoubleTap,
   });
 
   final WordAnchor anchor;
@@ -184,19 +189,34 @@ class SelectableWordChip extends StatelessWidget {
   final bool edgeRight;
   final VoidCallback? onTap;
   final VoidCallback? onDictTap;
+  final VoidCallback? onDoubleTap;
+
+  static const _sel = Color(0x473390FF);
 
   @override
   Widget build(BuildContext context) {
+    // 连续蓝带：文字背景 + 左右阴影盖缝，端点轻圆角
     final radius = BorderRadius.horizontal(
-      left: edgeLeft ? const Radius.circular(4) : Radius.zero,
-      right: edgeRight ? const Radius.circular(4) : Radius.zero,
+      left: edgeLeft ? const Radius.circular(3) : Radius.zero,
+      right: edgeRight ? const Radius.circular(3) : Radius.zero,
     );
-    Widget child = Text(text, style: style);
+    final wordStyle = selected
+        ? style.copyWith(
+            backgroundColor: _sel,
+            // 略收紧高度，减少 WidgetSpan 缝
+            height: (style.height ?? 1.85) * 0.98,
+          )
+        : style;
+    Widget child = Text(text, style: wordStyle);
     if (selected) {
       child = DecoratedBox(
         decoration: BoxDecoration(
-          color: const Color(0x473390FF),
           borderRadius: radius,
+          boxShadow: const [
+            // 对齐 PWA box-shadow: 横向扩展缝合词间
+            BoxShadow(color: _sel, offset: Offset(2.2, 0), blurRadius: 0),
+            BoxShadow(color: _sel, offset: Offset(-2.2, 0), blurRadius: 0),
+          ],
         ),
         child: child,
       );
@@ -207,6 +227,7 @@ class SelectableWordChip extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: onDictTap ?? onTap,
+        onDoubleTap: onDoubleTap,
         child: child,
       ),
     );

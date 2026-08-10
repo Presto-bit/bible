@@ -6,10 +6,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../app/app_shell.dart' show navIndexProvider, readerImmersiveProvider;
 import '../../core/badge_stats.dart';
 import '../../core/api_client.dart' show prefsProvider;
+import '../../core/config.dart';
 import '../../core/gamification.dart' show maybeNotifyBookComplete;
 import '../../core/theme.dart';
 import '../assistant/answer_text.dart';
@@ -23,6 +25,7 @@ import '../plans/plan_navigation.dart';
 import '../plans/plan_reading.dart';
 import '../plans/plan_session.dart';
 import '../plans/plan_steps.dart';
+import '../plans/plans_repository.dart';
 import 'offline_notice.dart';
 import 'offline_bible.dart';
 import 'bible_repository.dart';
@@ -32,11 +35,14 @@ import 'reader_loc_popover.dart';
 import 'reader_preferences.dart';
 import 'reader_settings_menu.dart';
 import 'reader_sheet.dart';
+import 'reader_thoughts_sheet.dart';
 import 'summary_sheet.dart';
 import 'group_checkin_sheet.dart';
-import '../plans/plans_repository.dart';
 import 'reading_repository.dart';
 import '../../core/peiai_haptics.dart';
+
+/// 小爱半屏：同 ref 短时会话缓存（进程内，重新打开可恢复上次答案）。
+final Map<String, String> _xiaoAiHalfSheetCache = {};
 
 /// 阅读器跳转目标（串珠/词典点选后跳章）。
 class ReaderJumpNotifier extends Notifier<({String book, int chapter})?> {
@@ -322,6 +328,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                 _chapter = ch.clamp(1, b.chapterCount);
               });
             },
+            onEnableParallel: (id) {
+              final prefs = ref.read(prefsProvider);
+              setState(() {
+                _compareVersionId = id;
+                _versionLabel = '和合本 · ${_versionLabelFor(id)}';
+              });
+              prefs.setString('reader_parallel_version', id);
+            },
             onNav: _nav,
             onInteract: () {},
             onNextChapter: () => _nav(1),
@@ -358,7 +372,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       ),
       ),
       // 对齐 PWA：打卡小图标在小爱 FAB 上方；沉浸时打卡收进小爱旁微型
-      floatingActionButton: _book == null ? null : _readerFab(),
+      // 全屏沉浸：隐藏小爱 / 打卡 FAB（对齐 PWA 收 chrome 后只留正文）
+      floatingActionButton:
+          (_book == null || _chromeHidden) ? null : _readerFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -740,11 +756,13 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
   late final AssistantScene _scene;
   late final String _userQuestion;
   late final String _lockedQuestion;
+  late final String _cacheKey;
 
   String _answer = '';
   bool _busy = false;
   bool _copied = false;
   bool _expanded = false;
+  bool _fromCache = false;
   List<am.Citation> _citations = const [];
   StreamSubscription<am.ChatEvent>? _sub;
   String _pending = '';
@@ -768,12 +786,29 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
         ? _userQuestion
         : '$_userQuestion\n\n经文：$snippet';
     _expanded = !widget.explainOnly;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _ask());
+    _cacheKey =
+        '${widget.refStr}\u001e${widget.explainOnly}\u001e${snippet.hashCode}';
+    final cached = _xiaoAiHalfSheetCache[_cacheKey];
+    if (cached != null && cached.trim().isNotEmpty) {
+      _answer = cached;
+      _pending = cached;
+      _fromCache = true;
+      _busy = false;
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _ask());
+    }
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    final clean = bodyText(_answer).trim();
+    if (clean.isNotEmpty && !clean.startsWith('⚠️')) {
+      _xiaoAiHalfSheetCache[_cacheKey] = _answer;
+      if (_xiaoAiHalfSheetCache.length > 24) {
+        _xiaoAiHalfSheetCache.remove(_xiaoAiHalfSheetCache.keys.first);
+      }
+    }
     super.dispose();
   }
 
@@ -795,6 +830,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
       _answer = '';
       _pending = '';
       _busy = true;
+      _fromCache = false;
       _citations = const [];
     });
     final stream = ref.read(assistantRepoProvider).chat(
@@ -821,6 +857,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
             _answer = _pending;
             _busy = false;
           });
+          if (_pending.trim().isNotEmpty) {
+            _xiaoAiHalfSheetCache[_cacheKey] = _pending;
+          }
         default:
           break;
       }
@@ -868,6 +907,47 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
     Future.delayed(const Duration(milliseconds: 1800), () {
       if (mounted) setState(() => _copied = false);
     });
+  }
+
+  Future<void> _saveAsThought() async {
+    final text = bodyText(_answer).trim();
+    if (text.isEmpty || text.startsWith('⚠️')) return;
+    await showWriteThoughtSheet(
+      context,
+      ref,
+      refStr: widget.refStr,
+      refLabel: widget.refLabel,
+      verseText: widget.selectionText.trim().isEmpty
+          ? null
+          : widget.selectionText.trim(),
+    );
+  }
+
+  Future<void> _shareAnalysis() async {
+    final text = bodyText(_answer).trim();
+    if (text.isEmpty || text.startsWith('⚠️')) return;
+    var payload = text;
+    try {
+      final id = await ref.read(assistantRepoProvider).createAnalysisShareSnapshot(
+            answerMarkdown: text,
+            refLabel: widget.refLabel,
+            refParam: widget.refStr,
+          );
+      if (id != null && id.isNotEmpty) {
+        final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
+        payload = '$text\n$base/share/analysis/$id';
+      }
+    } catch (_) {/* 快照失败则纯文案 */}
+    try {
+      await SharePlus.instance.share(ShareParams(text: payload));
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: payload));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('已复制，可粘贴分享'),
+        duration: Duration(milliseconds: 1500),
+      ));
+    }
   }
 
   String get _cleanAnswer => bodyText(_answer);
@@ -995,7 +1075,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2)),
                         SizedBox(width: 10),
-                        Text('小爱正在解读…',
+                        Text('小爱正在思考…',
                             style: TextStyle(color: AppColors.inkFaint)),
                       ],
                     )
@@ -1092,6 +1172,44 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                   ),
                 ],
               ),
+                  if (!_busy &&
+                      _cleanAnswer.isNotEmpty &&
+                      !_cleanAnswer.startsWith('⚠️')) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _saveAsThought,
+                            child: const Text('存为想法'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _shareAnalysis,
+                            child: const Text('分享解读'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (_fromCache && !_busy)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Row(
+                        children: [
+                          const Text('已恢复上次解读',
+                              style: TextStyle(
+                                  fontSize: 11, color: AppColors.inkFaint)),
+                          TextButton(
+                            onPressed: _ask,
+                            child: const Text('重新生成',
+                                style: TextStyle(fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),

@@ -13,9 +13,38 @@ import '../../core/api_client.dart';
 import 'assistant_scenes.dart';
 import 'models.dart';
 
+class AiQuota {
+  const AiQuota({
+    required this.used,
+    required this.limit,
+    this.unlimited = false,
+  });
+  final int used;
+  final int limit;
+  final bool unlimited;
+
+  factory AiQuota.fromJson(Map<String, dynamic> j) => AiQuota(
+        used: (j['used'] ?? 0) as int,
+        limit: (j['limit'] ?? 0) as int,
+        unlimited: j['unlimited'] == true,
+      );
+}
+
 class AssistantRepository {
   AssistantRepository(this._dio);
   final Dio _dio;
+
+  /// GET /ai/quota → { used, limit, unlimited? }
+  Future<AiQuota?> fetchAiQuota() async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>('/ai/quota');
+      final data = res.data;
+      if (data == null) return null;
+      return AiQuota.fromJson(data);
+    } catch (_) {
+      return null;
+    }
+  }
 
   Stream<ChatEvent> chat({
     String? ref,
@@ -190,6 +219,31 @@ class AssistantRepository {
       },
     );
     return CitationExplain.fromJson(res.data ?? const {});
+  }
+
+  /// POST /ai/analysis-share → { id, path, lead, ref_label }
+  Future<String?> createAnalysisShareSnapshot({
+    required String answerMarkdown,
+    String? refLabel,
+    String? refParam,
+    String? lead,
+  }) async {
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/ai/analysis-share',
+        data: {
+          'answer_markdown': answerMarkdown,
+          if (refLabel != null && refLabel.isNotEmpty) 'ref_label': refLabel,
+          if (refParam != null && refParam.isNotEmpty) 'ref_param': refParam,
+          if (lead != null && lead.isNotEmpty) 'lead': lead,
+        },
+      );
+      final id = res.data?['id'] as String?;
+      if (id == null || id.isEmpty) return null;
+      return id;
+    } catch (_) {
+      return null;
+    }
   }
 }
 

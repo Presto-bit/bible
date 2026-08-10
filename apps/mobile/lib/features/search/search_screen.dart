@@ -1,5 +1,7 @@
-/// 全局搜索：经文 FTS + 人生主题 + 搜索历史（对齐 canvas SearchScreen）。
+/// 全局搜索：经文 FTS + 人生主题 + 搜索历史（对齐 PWA `app/search/page.tsx`）。
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,12 +17,22 @@ import '../notes/notes_repository.dart';
 
 const _themeTags = ['盼望', '焦虑', '祷告', '家庭', '工作', '悲伤', '信心', '宽恕'];
 const _historyKey = 'search_history';
+const _searchDebounceMs = 320;
+const _searchPageSize = 40;
 
 /// 含中文时单字即可搜，纯拉丁词需至少 2 字符。
 bool searchTooShort(String q) {
   final hasCjk = q.runes.any((r) => r >= 0x4e00 && r <= 0x9fff);
   return q.length < (hasCjk ? 1 : 2);
 }
+
+const _ntBookIds = {
+  'MAT', 'MRK', 'LUK', 'JHN', 'ACT', 'ROM', '1CO', '2CO', 'GAL', 'EPH',
+  'PHP', 'COL', '1TH', '2TH', '1TI', '2TI', 'TIT', 'PHM', 'HEB', 'JAS',
+  '1PE', '2PE', '1JN', '2JN', '3JN', 'JUD', 'REV',
+};
+
+enum _ScopeTab { all, ot, nt }
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -32,13 +44,28 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   String _query = '';
+  String _debounced = '';
+  Timer? _debounce;
   List<String> _history = [];
+  _ScopeTab _scope = _ScopeTab.all;
+  var _visibleCount = _searchPageSize;
 
   @override
   void initState() {
     super.initState();
     _loadHistory();
-    _controller.addListener(() => setState(() => _query = _controller.text));
+    _controller.addListener(() {
+      final q = _controller.text;
+      setState(() => _query = q);
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: _searchDebounceMs), () {
+        if (!mounted) return;
+        setState(() {
+          _debounced = q.trim();
+          _visibleCount = _searchPageSize;
+        });
+      });
+    });
   }
 
   void _loadHistory() {
@@ -49,13 +76,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Future<void> _saveHistory(String q) async {
     final trimmed = q.trim();
     if (trimmed.isEmpty) return;
-    final next = [trimmed, ..._history.where((h) => h != trimmed)].take(20).toList();
+    final next =
+        [trimmed, ..._history.where((h) => h != trimmed)].take(20).toList();
     await ref.read(prefsProvider).setStringList(_historyKey, next);
     setState(() => _history = next);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -63,7 +92,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void _openAssistant(String osis, String text) {
     ref.read(assistantSeedProvider.notifier).open(
           ref: osis,
-          question: '请解释：${text.length > 24 ? '${text.substring(0, 24)}…' : text}',
+          question:
+              '请解释：${text.length > 24 ? '${text.substring(0, 24)}…' : text}',
         );
     ref.read(navIndexProvider.notifier).set(2);
     Navigator.of(context).pop();
@@ -75,9 +105,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     Navigator.of(context).pop();
   }
 
+  List<String> _highlightTerms(String query) {
+    final raw = query
+        .replaceAll(RegExp(r'["""''「」]'), ' ')
+        .replaceAll(RegExp(r'(?:书卷|book)\s*[:：]\s*\S+', caseSensitive: false), ' ')
+        .replaceAll(RegExp(r'(?:^|\s)-\S+'), ' ')
+        .trim();
+    if (raw.isEmpty) return const [];
+    return raw.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toSet().toList();
+  }
+
+  List<BibleSearchHit> _filterScope(List<BibleSearchHit> list) {
+    switch (_scope) {
+      case _ScopeTab.all:
+        return list;
+      case _ScopeTab.ot:
+        return list
+            .where((h) => !_ntBookIds.contains(h.book.toUpperCase()))
+            .toList();
+      case _ScopeTab.nt:
+        return list
+            .where((h) => _ntBookIds.contains(h.book.toUpperCase()))
+            .toList();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hits = ref.watch(bibleSearchProvider(_query.trim()));
+    final searchQ = _debounced;
+    final hits = ref.watch(bibleSearchProvider(searchQ));
+    final terms = _highlightTerms(searchQ);
 
     return Scaffold(
       backgroundColor: AppColors.paper,
@@ -142,89 +199,123 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   .toList(),
             ),
           ],
-          if (!searchTooShort(_query.trim())) ...[
+          if (!searchTooShort(searchQ)) ...[
             const SizedBox(height: 18),
-            const Text('经文',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            Row(
+              children: [
+                const Text('经文',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                const Spacer(),
+                for (final tab in _ScopeTab.values)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: ChoiceChip(
+                      label: Text(
+                        switch (tab) {
+                          _ScopeTab.all => '全部',
+                          _ScopeTab.ot => '旧约',
+                          _ScopeTab.nt => '新约',
+                        },
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      selected: _scope == tab,
+                      visualDensity: VisualDensity.compact,
+                      onSelected: (_) => setState(() {
+                        _scope = tab;
+                        _visibleCount = _searchPageSize;
+                      }),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
             hits.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Text('搜索失败：$e',
                   style: const TextStyle(color: AppColors.inkFaint)),
               data: (list) {
-                if (list.isEmpty) {
+                final filtered = _filterScope(list);
+                if (filtered.isEmpty) {
                   return const Text('未找到匹配经文，试试下方人生主题',
-                      style: TextStyle(color: AppColors.inkFaint, fontSize: 13));
+                      style:
+                          TextStyle(color: AppColors.inkFaint, fontSize: 13));
                 }
+                final shown = filtered.take(_visibleCount).toList();
                 return Column(
-                  children: list
-                      .map((h) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: PaperCard(
-                              onTap: () {
-                                _saveHistory(_query);
-                                _openReader(h);
-                              },
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(h.ref,
+                  children: [
+                    ...shown.map((h) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: PaperCard(
+                            onTap: () {
+                              _saveHistory(searchQ);
+                              _openReader(h);
+                            },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(h.ref,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                              color: AppColors.accentDeep)),
+                                    ),
+                                    if (h.version != 'cnv')
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.accentWash,
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(h.version.toUpperCase(),
                                             style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 13,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
                                                 color: AppColors.accentDeep)),
                                       ),
-                                      if (h.version != 'cnv')
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.accentWash,
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                          ),
-                                          child: Text(h.version.toUpperCase(),
-                                              style: const TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: AppColors.accentDeep)),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(h.text,
-                                      maxLines: 3,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          color: AppColors.inkSoft,
-                                          height: 1.45,
-                                          fontSize: 13)),
-                                  const SizedBox(height: 8),
-                                  TextButton(
-                                    style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: Size.zero,
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap),
-                                    onPressed: () {
-                                      _saveHistory(_query);
-                                      _openAssistant(h.osis, h.text);
-                                    },
-                                    child: const Text('问小爱',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                _HighlightedText(
+                                  text: h.text,
+                                  terms: terms,
+                                  maxLines: 3,
+                                ),
+                                const SizedBox(height: 8),
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap),
+                                  onPressed: () {
+                                    _saveHistory(searchQ);
+                                    _openAssistant(h.osis, h.text);
+                                  },
+                                  child: const Text('问小爱',
+                                      style: TextStyle(fontSize: 12)),
+                                ),
+                              ],
                             ),
-                          ))
-                      .toList(),
+                          ),
+                        )),
+                    if (filtered.length > shown.length)
+                      TextButton(
+                        onPressed: () => setState(
+                            () => _visibleCount += _searchPageSize),
+                        child: Text(
+                            '加载更多（${filtered.length - shown.length}）'),
+                      ),
+                  ],
                 );
               },
             ),
-            _NotesGroup(query: _query.trim()),
+            _NotesGroup(query: searchQ),
           ],
           const SizedBox(height: 18),
           const Text('人生主题',
@@ -255,6 +346,56 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HighlightedText extends StatelessWidget {
+  const _HighlightedText({
+    required this.text,
+    required this.terms,
+    this.maxLines = 3,
+  });
+  final String text;
+  final List<String> terms;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = const TextStyle(
+      color: AppColors.inkSoft,
+      height: 1.45,
+      fontSize: 13,
+    );
+    if (terms.isEmpty) {
+      return Text(text,
+          maxLines: maxLines, overflow: TextOverflow.ellipsis, style: base);
+    }
+    final pattern = terms.map(RegExp.escape).join('|');
+    final re = RegExp('($pattern)', caseSensitive: false);
+    final spans = <TextSpan>[];
+    var start = 0;
+    for (final m in re.allMatches(text)) {
+      if (m.start > start) {
+        spans.add(TextSpan(text: text.substring(start, m.start)));
+      }
+      spans.add(TextSpan(
+        text: m.group(0),
+        style: base.copyWith(
+          backgroundColor: AppColors.accentWash,
+          color: AppColors.accentDeep,
+          fontWeight: FontWeight.w600,
+        ),
+      ));
+      start = m.end;
+    }
+    if (start < text.length) {
+      spans.add(TextSpan(text: text.substring(start)));
+    }
+    return Text.rich(
+      TextSpan(style: base, children: spans),
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
@@ -347,7 +488,8 @@ final bibleSearchProvider =
     FutureProvider.family<List<BibleSearchHit>, String>((ref, q) async {
   if (searchTooShort(q)) return [];
   final dio = ref.watch(dioProvider);
-  final res = await dio.get('/bible/search', queryParameters: {'q': q, 'limit': 100});
+  final res =
+      await dio.get('/bible/search', queryParameters: {'q': q, 'limit': 100});
   final hits = (res.data['hits'] ?? []) as List;
   return hits
       .map((e) => BibleSearchHit.fromJson(e as Map<String, dynamic>))

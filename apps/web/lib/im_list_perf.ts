@@ -10,6 +10,7 @@ type MsgLike = {
   pending?: boolean;
   sendFailed?: boolean;
   author?: string | null;
+  sender_id?: string | null;
   mentions?: string[] | null;
   reactions?: unknown;
   attachments?: Array<{ id?: string; url?: string | null }> | null;
@@ -80,16 +81,22 @@ export function mergeImMessageTail<T extends MsgLike>(prev: T[], incoming: T[]):
 
   const merged: T[] = [...history, ...incoming];
   for (const t of temps) {
-    const dup = merged.some(
-      (m) =>
-        Boolean(m.mine) === Boolean(t.mine)
-        && (m.kind || '') === (t.kind || '')
-        && (m.body || '') === (t.body || '')
-        && (m.ref || '') === (t.ref || '')
-        && Math.abs(
+    const dup = merged.some((m) => {
+      // 同侧：mine 一致，或 sender_id 一致（DM 乐观气泡曾漏设 mine）
+      const sameSide =
+        Boolean(m.mine) === Boolean(t.mine) ||
+        (!!t.sender_id && !!m.sender_id && m.sender_id === t.sender_id) ||
+        (t.mine === true && m.mine === true);
+      return (
+        sameSide &&
+        (m.kind || '') === (t.kind || '') &&
+        (m.body || '') === (t.body || '') &&
+        (m.ref || '') === (t.ref || '') &&
+        Math.abs(
           new Date(m.created_at || 0).getTime() - new Date(t.created_at || 0).getTime(),
-        ) < 120_000,
-    );
+        ) < 120_000
+      );
+    });
     if (!dup) merged.push(t);
   }
 

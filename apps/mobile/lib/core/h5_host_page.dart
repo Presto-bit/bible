@@ -314,6 +314,14 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         + '}'
         + 'html.android-flutter-h5 .dm-thread, html.android-flutter-h5 .group-chat-body {'
         + '  padding-bottom: calc(12px + var(--im-kb-inset, 0px));'
+        + '}'
+        // 左滑露出置顶/免打扰/不显示：允许横向手势，避免列表吞掉
+        + 'html.android-flutter-h5 .swipe-reveal-row,'
+        + 'html.android-flutter-h5 .swipe-reveal-content {'
+        + '  touch-action: pan-y pinch-zoom;'
+        + '}'
+        + 'html.android-flutter-h5 .discover-conv-li {'
+        + '  -webkit-user-select: none; user-select: none;'
         + '}';
       document.head.appendChild(style);
     }

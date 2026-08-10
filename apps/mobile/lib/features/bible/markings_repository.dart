@@ -49,7 +49,8 @@ class MarkingsRepository {
 
   Future<bool> toggleHighlight(String ref, {required String color}) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final existing = await _db.highlightByRef(syncRef(ref));
+    final key = ref.trim();
+    final existing = await _db.highlightByRef(key);
     if (existing != null && existing.color == color) {
       final tomb = existing.copyWith(
           deleted: true, version: existing.version + 1, updatedAtMs: now);
@@ -69,7 +70,7 @@ class MarkingsRepository {
     } else {
       final h = Highlight(
         id: _uuid.v4(),
-        ref: syncRef(ref),
+        ref: key,
         color: color,
         version: 1,
         deleted: false,
@@ -105,7 +106,7 @@ class MarkingsRepository {
   /// 删除指定经文划线（不切换，直接移除）。
   Future<void> removeHighlight(String ref) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final existing = await _db.highlightByRef(syncRef(ref));
+    final existing = await _db.highlightByRef(ref.trim());
     if (existing == null || existing.deleted) return;
     final tomb = existing.copyWith(
       deleted: true,

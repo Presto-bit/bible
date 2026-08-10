@@ -4,17 +4,42 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api_client.dart' show prefsProvider;
 import '../../core/theme.dart';
 import 'thoughts_repository.dart';
+
+const _draftPrefix = 'thought_draft_v1:';
 
 Future<void> showWriteThoughtSheet(
   BuildContext context,
   WidgetRef ref, {
   required String refStr,
   required String refLabel,
+  String? verseText,
 }) async {
-  final controller = TextEditingController();
-  var visibility = ThoughtVisibility.public;
+  final prefs = ref.read(prefsProvider);
+  final draftKey = '$_draftPrefix$refStr';
+  String initialBody = '';
+  var visibility = loadRememberedVisibility(prefs);
+  try {
+    final raw = prefs.getString(draftKey);
+    if (raw != null && raw.trim().isNotEmpty) {
+      final parts = raw.split('\u001e');
+      if (parts.isNotEmpty) initialBody = parts[0];
+      if (parts.length > 1) {
+        visibility = switch (parts[1]) {
+          'public' => ThoughtVisibility.public,
+          'friends' => ThoughtVisibility.friends,
+          'private' => ThoughtVisibility.private,
+          _ => visibility,
+        };
+      }
+    }
+  } catch (_) {/* ignore */}
+
+  final controller = TextEditingController(text: initialBody);
+  var currentVis = visibility;
+  final preview = verseText?.trim() ?? '';
 
   final result = await showModalBottomSheet<({String body, ThoughtVisibility vis})>(
     context: context,
@@ -28,6 +53,15 @@ Future<void> showWriteThoughtSheet(
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setLocal) {
+          void persistDraft() {
+            final body = controller.text;
+            if (body.trim().isEmpty) {
+              prefs.remove(draftKey);
+            } else {
+              prefs.setString(draftKey, '$body\u001e${currentVis.name}');
+            }
+          }
+
           return Padding(
             padding: EdgeInsets.only(
               left: 20,
@@ -55,9 +89,46 @@ Future<void> showWriteThoughtSheet(
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
                         color: AppColors.ink)),
+                if (preview.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.goldWash,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.line),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '所选经文',
+                          style: TextStyle(
+                              fontSize: 11, color: AppColors.inkFaint),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          preview,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.55,
+                            color: AppColors.ink,
+                            fontFamily: 'Songti SC',
+                            fontFamilyFallback: [
+                              'STSong',
+                              'Noto Serif SC',
+                              'serif'
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Text(
-                  visibilityHint(visibility),
+                  visibilityHint(currentVis),
                   style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
                 ),
                 const SizedBox(height: 10),
@@ -74,8 +145,11 @@ Future<void> showWriteThoughtSheet(
                         size: 16,
                       ),
                       label: Text(visibilityLabel(v)),
-                      selected: visibility == v,
-                      onSelected: (_) => setLocal(() => visibility = v),
+                      selected: currentVis == v,
+                      onSelected: (_) {
+                        setLocal(() => currentVis = v);
+                        persistDraft();
+                      },
                     );
                   }).toList(),
                 ),
@@ -84,6 +158,7 @@ Future<void> showWriteThoughtSheet(
                   controller: controller,
                   autofocus: true,
                   maxLines: 5,
+                  onChanged: (_) => persistDraft(),
                   decoration: const InputDecoration(
                     hintText: '写下你的领受、疑问或祷告…',
                     border: OutlineInputBorder(),
@@ -95,7 +170,7 @@ Future<void> showWriteThoughtSheet(
                   child: FilledButton(
                     onPressed: () => Navigator.pop(
                       ctx,
-                      (body: controller.text, vis: visibility),
+                      (body: controller.text, vis: currentVis),
                     ),
                     style: FilledButton.styleFrom(
                         backgroundColor: AppColors.accentDeep),
@@ -111,6 +186,8 @@ Future<void> showWriteThoughtSheet(
   );
   controller.dispose();
   if (result == null || result.body.trim().isEmpty) return;
+  await prefs.remove(draftKey);
+  await rememberVisibility(prefs, result.vis);
   await ref.read(thoughtsRepoProvider).addThought(
         refStr,
         result.body.trim(),
@@ -125,6 +202,65 @@ Future<void> showWriteThoughtSheet(
       ),
     );
   }
+}
+
+Future<void> _editThoughtSheet(
+  BuildContext context,
+  WidgetRef ref,
+  VerseThoughtData thought,
+) async {
+  final ctl = TextEditingController(text: thought.body);
+  final body = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        18,
+        20,
+        MediaQuery.viewInsetsOf(ctx).bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('编辑想法',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: AppColors.ink)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: ctl,
+            autofocus: true,
+            minLines: 4,
+            maxLines: 8,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: '写下你的领受…',
+            ),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accentDeep),
+              onPressed: () => Navigator.pop(ctx, ctl.text),
+              child: const Text('保存'),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+  ctl.dispose();
+  if (body == null || body.trim().isEmpty) return;
+  await ref.read(thoughtsRepoProvider).updateThought(thought.id, body.trim());
 }
 
 Future<void> showThoughtsListSheet(
@@ -194,7 +330,23 @@ Future<void> showThoughtsListSheet(
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton.tonal(
+                      onPressed: () async {
+                        await showWriteThoughtSheet(
+                          context,
+                          ref,
+                          refStr: refStr,
+                          refLabel: refLabel,
+                          verseText: verseText,
+                        );
+                      },
+                      child: const Text('写想法'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Text('${rows.length} 条想法',
                       style: const TextStyle(
                           fontWeight: FontWeight.w700, fontSize: 14)),
@@ -210,6 +362,7 @@ Future<void> showThoughtsListSheet(
                   else
                     ...rows.map((t) {
                       final liked = repo.isLikedByMe(t);
+                      final mine = repo.isMine(t);
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(12),
@@ -249,28 +402,76 @@ Future<void> showThoughtsListSheet(
                                     height: 1.65,
                                     color: AppColors.ink)),
                             const SizedBox(height: 8),
-                            InkWell(
-                              onTap: () =>
-                                  ref.read(thoughtsRepoProvider).toggleLike(t),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    liked
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    size: 16,
-                                    color: liked
-                                        ? const Color(0xFFB1554A)
-                                        : AppColors.inkFaint,
+                            Row(
+                              children: [
+                                InkWell(
+                                  onTap: () => ref
+                                      .read(thoughtsRepoProvider)
+                                      .toggleLike(t),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        liked
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        size: 16,
+                                        color: liked
+                                            ? const Color(0xFFB1554A)
+                                            : AppColors.inkFaint,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text('${t.likesCount}',
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.inkFaint)),
+                                    ],
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text('${t.likesCount}',
-                                      style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.inkFaint)),
+                                ),
+                                if (mine) ...[
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: () =>
+                                        _editThoughtSheet(context, ref, t),
+                                    child: const Text('编辑'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () async {
+                                      final ok = await showDialog<bool>(
+                                        context: context,
+                                        builder: (dCtx) => AlertDialog(
+                                          title: const Text('删除想法？'),
+                                          content: const Text(
+                                              '删除后无法恢复。这条想法只属于你。'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(dCtx, false),
+                                              child: const Text('取消'),
+                                            ),
+                                            FilledButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(dCtx, true),
+                                              style: FilledButton.styleFrom(
+                                                  backgroundColor:
+                                                      AppColors.accentDeep),
+                                              child: const Text('删除'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (ok == true) {
+                                        await ref
+                                            .read(thoughtsRepoProvider)
+                                            .deleteThought(t.id);
+                                      }
+                                    },
+                                    child: const Text('删除',
+                                        style: TextStyle(
+                                            color: Color(0xFFB1554A))),
+                                  ),
                                 ],
-                              ),
+                              ],
                             ),
                           ],
                         ),

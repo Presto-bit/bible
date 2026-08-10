@@ -14,6 +14,7 @@ import '../../core/daily_verse_engagement.dart';
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/gamification.dart';
 import '../../core/home_greeting.dart';
+import '../../core/campaign_nav.dart';
 import '../../core/open_h5.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
@@ -380,7 +381,7 @@ class HomeScreen extends ConsumerWidget {
     ));
 
     void openSlot(HomeTodaySlot s) {
-      final href = s.href;
+      final href = s.href.trim();
       if (s.id == 'plan' && planOnTap != null) {
         planOnTap!();
         return;
@@ -401,27 +402,30 @@ class HomeScreen extends ConsumerWidget {
         goTab(3);
         return;
       }
-      if (s.id.startsWith('campaign-') ||
-          href.startsWith('/campaign') ||
-          href.startsWith('/campaigns')) {
-        final path = Uri.tryParse(href)?.path ?? href.split('?').first;
-        if (!openH5IfAllowed(context, path.startsWith('/') ? path : '/$path')) {
-          context.push(href.startsWith('/') ? href : '/$href');
-        }
-        return;
-      }
-      if (href.startsWith('/plans')) {
-        context.push('/plans');
-        return;
-      }
       if (s.id == 'prayer' || href.startsWith('/pray')) {
         openH5IfAllowed(context, '/pray');
         return;
       }
-      if (openH5IfAllowed(context, href.startsWith('/') ? href.split('?').first : '/$href')) {
+      if (href.startsWith('/plans')) {
+        // 对齐 PWA：创建/查看计划走原生计划页
+        context.push(href.contains('generate') ? '/plans/generate' : '/plans');
         return;
       }
-      context.push(href.startsWith('/') ? href : '/$href');
+      // 活动主卡（创世记 50 等外链）+ 站内 H5：对齐 campaign_nav
+      if (s.id.startsWith('campaign-') ||
+          looksLikeCampaignHref(href) ||
+          href.startsWith('/campaign') ||
+          href.startsWith('/campaigns') ||
+          href.startsWith('http')) {
+        openCampaignHref(context, href, title: s.title);
+        return;
+      }
+      if (openH5IfAllowed(
+          context, href.startsWith('/') ? href : '/$href',
+          title: s.title)) {
+        return;
+      }
+      openCampaignHref(context, href, title: s.title);
     }
 
     return Scaffold(
@@ -617,7 +621,7 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
         child: ListTile(
           leading: Icon(Icons.group_outlined, color: AppColors.accentDeep),
           title: Text('加入群'),
-          subtitle: Text('扫码 / 邀请', style: TextStyle(fontSize: 11)),
+          subtitle: Text('输入邀请码', style: TextStyle(fontSize: 11)),
           contentPadding: EdgeInsets.zero,
         ),
       ),
@@ -635,9 +639,9 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
         value: 'plans',
         child: ListTile(
           leading:
-              Icon(Icons.auto_awesome_outlined, color: AppColors.accentDeep),
-          title: Text('读经计划'),
-          subtitle: Text('热门计划 · 个性定制', style: TextStyle(fontSize: 11)),
+              Icon(Icons.calendar_month_outlined, color: AppColors.accentDeep),
+          title: Text('创建计划'),
+          subtitle: Text('定制读经计划', style: TextStyle(fontSize: 11)),
           contentPadding: EdgeInsets.zero,
         ),
       ),
@@ -654,6 +658,7 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
       case 'group':
         context.push('/group/create');
       case 'plans':
+        // 对齐 PWA PlusMenu：创建计划 → 计划页（可进定制）
         context.push('/plans');
     }
   });
@@ -1091,7 +1096,13 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   @override
   Widget build(BuildContext context) {
     final wall = dailyVerseWallpaperUrl(widget.day < 1 ? 1 : widget.day);
-    final h = homeHeroVerseHeight(context);
+    final displayText = widget.text.isEmpty
+        ? '内容加载失败，下拉重试'
+        : formatDailyVerseQuote(widget.text);
+    final textLen = displayText.characters.length;
+    final h = homeHeroVerseHeight(context, textLen: textLen);
+    final verseFs = homeHeroVerseFontSize(textLen);
+    final verseLines = homeHeroVerseMaxLines(textLen);
     final canRead = widget.book.isNotEmpty && widget.chapter > 0;
     return Material(
       color: Colors.transparent,
@@ -1158,20 +1169,19 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
                               ),
                             const SizedBox(height: 6),
                             Text(
-                              widget.text.isEmpty
-                                  ? '内容加载失败，下拉重试'
-                                  : formatDailyVerseQuote(widget.text),
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              displayText,
+                              maxLines: verseLines,
+                              overflow: TextOverflow.fade,
+                              softWrap: true,
+                              style: TextStyle(
                                 fontFamily: 'Songti SC',
-                                fontFamilyFallback: [
+                                fontFamilyFallback: const [
                                   'STSong',
                                   'Noto Serif SC',
                                   'serif'
                                 ],
-                                fontSize: 17,
-                                height: 1.55,
+                                fontSize: verseFs,
+                                height: 1.5,
                                 letterSpacing: 0.3,
                                 color: Colors.white,
                               ),

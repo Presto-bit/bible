@@ -6,12 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/api_client.dart';
 import '../core/config.dart';
 import '../core/gamification.dart';
+import '../core/profile_avatar.dart';
 import '../core/profile_footprint.dart';
 import '../core/theme.dart';
 import '../core/widgets/avatar_bubble.dart';
@@ -164,7 +166,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _pickAvatar(String current) async {
-    final h = MediaQuery.of(context).size.height * 0.55;
+    final h = MediaQuery.of(context).size.height * 0.62;
     final picked = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: AppColors.surface,
@@ -186,9 +188,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         fontSize: 16,
                         color: AppColors.ink)),
                 const SizedBox(height: 2),
-                Text('${presetAvatars.length} 款预设 · 圣经主题插画',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.inkFaint)),
+                Text(
+                  isCustomAvatarId(current)
+                      ? '当前：自定义'
+                      : '${presetAvatars.length} 款预设 · 也可从相册上传',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.inkFaint),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(ctx, '__album__'),
+                    icon: const Icon(Icons.photo_library_outlined, size: 18),
+                    label: const Text('从相册选择'),
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Expanded(
                   child: GridView.builder(
@@ -229,12 +244,66 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
     if (picked == null || !mounted) return;
-    // 先本地刷新，避免 prefs 写入后闪跳
+    if (picked == '__album__') {
+      await _uploadCustomAvatar();
+      return;
+    }
     setState(() => _avatarOverride = picked);
     await userPrefSetString(ref.read(prefsProvider), 'profile_avatar', picked);
     try {
       await ref.read(profileSyncProvider).pushAvatar(picked);
     } catch (_) {/* 静默；本地已更新 */}
+  }
+
+  Future<void> _uploadCustomAvatar() async {
+    try {
+      final picker = ImagePicker();
+      final x = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (x == null || !mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('正在上传头像…'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      final dio = ref.read(dioProvider);
+      final form = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          x.path,
+          filename: 'avatar.jpg',
+        ),
+      });
+      final res = await dio.post(
+        '/social/uploads/avatar',
+        data: form,
+        options: Options(contentType: 'multipart/form-data'),
+      );
+      final data = res.data as Map<String, dynamic>? ?? {};
+      final nextId = (data['avatar_id'] as String?)?.trim();
+      if (nextId == null || nextId.isEmpty) {
+        throw StateError('上传响应缺少 avatar_id');
+      }
+      if (!mounted) return;
+      setState(() => _avatarOverride = nextId);
+      await userPrefSetString(ref.read(prefsProvider), 'profile_avatar', nextId);
+      try {
+        await ref.read(profileSyncProvider).pushAvatar(nextId);
+      } catch (_) {/* 服务端已写 profile */}
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('头像已更新')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('头像上传失败：$e')),
+      );
+    }
   }
 
   Future<void> _editField({

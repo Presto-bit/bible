@@ -25,9 +25,10 @@ import '../notes/notes_for_chapter.dart';
 import '../notes/notes_repository.dart';
 import 'bible_repository.dart';
 import 'chapter_guide_tip.dart';
-import 'content_repository.dart';
+import 'content_repository.dart' hide SectionMark;
 import 'dictionary_match.dart';
 import 'entity_knowledge_sheet.dart';
+import 'group_checkin_sheet.dart';
 import 'markings_repository.dart';
 import 'models.dart';
 import 'outlines.dart';
@@ -45,6 +46,7 @@ import 'verse_diff.dart';
 import 'verse_selection_gesture.dart';
 import 'verse_words.dart';
 import '../../core/peiai_haptics.dart';
+import '../social/social_repository.dart' show myGroupsProvider;
 
 /// 阅读字号（对齐 H5 中/大/特大）。
 enum ReaderFontSize { medium, large, xlarge }
@@ -258,6 +260,7 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
     this.planMeta,
     this.onPlanMetaChange,
     this.onPlanJump,
+    this.onEnableParallel,
   });
 
   final BibleBook book;
@@ -274,6 +277,8 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
   final ValueChanged<PlanReadingMeta?>? onPlanMetaChange;
   final void Function(String bookId, int chapter)? onPlanJump;
   final VoidCallback? onNextChapter;
+  /// 从单节对照开启章节双语对照（写入 compareVersionId）。
+  final void Function(String versionId)? onEnableParallel;
 
   /// 打开小爱解读弹窗。explainOnly=true 时仅解释选中经文。
   final void Function(
@@ -727,6 +732,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   }
 
   Future<void> _promptMarkNote(String refStr) async {
+    final versePreview = _selectionText(_liveChapter ?? _cachedChapter).trim();
     final controller = TextEditingController();
     final body = await showModalBottomSheet<String>(
       context: context,
@@ -749,6 +755,39 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             Text('写灵修笔记 · $_refLabel',
                 style: const TextStyle(
                     fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.ink)),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.goldWash,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('所选经文',
+                      style: TextStyle(fontSize: 11, color: AppColors.inkFaint)),
+                  const SizedBox(height: 4),
+                  Text(
+                    versePreview.isNotEmpty ? versePreview : '（未选中具体经文内容）',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.55,
+                      color: AppColors.ink,
+                      fontFamily: 'Songti SC',
+                      fontFamilyFallback: ['STSong', 'Noto Serif SC', 'serif'],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              '笔记仅保存在本机，可随时在经文旁查看',
+              style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+            ),
             const SizedBox(height: 10),
             TextField(
               controller: controller,
@@ -841,6 +880,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
       ref,
       refStr: refStr,
       refLabel: _refLabel,
+      verseText: _selectionText(ch),
     );
     _clearSelection();
   }
@@ -944,7 +984,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     }
   }
 
-  Future<void> _completePlanDay() async {
+  Future<void> _completePlanDay({bool clearMeta = true}) async {
     final meta = widget.planMeta;
     if (meta == null) return;
     var session = meta.session;
@@ -974,11 +1014,133 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             status: 'active',
           );
     }
-    widget.onPlanMetaChange?.call(null);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('今日计划已完成，可继续自由阅读')),
+    if (clearMeta) widget.onPlanMetaChange?.call(null);
+  }
+
+  Future<void> _continueNextPlanDay() async {
+    final meta = widget.planMeta;
+    if (meta == null || meta.day >= meta.totalDays) return;
+    await _completePlanDay(clearMeta: false);
+    final next = await buildPlanReadingMeta(
+      ref,
+      ref.read(prefsProvider),
+      planId: meta.planId,
+      planTitle: meta.planTitle,
+      day: meta.day + 1,
+      totalDays: meta.totalDays,
+      source: meta.source,
     );
+    if (next == null || !mounted) {
+      widget.onPlanMetaChange?.call(null);
+      return;
+    }
+    widget.onPlanMetaChange?.call(next);
+    final step = next.steps[resumeStepIndex(next)];
+    widget.onPlanJump?.call(step.bookId, step.chapterStart);
+  }
+
+  Future<void> _showPlanDayCelebration() async {
+    final meta = widget.planMeta;
+    if (meta == null || !mounted) return;
+    final prog = sessionProgress(meta.steps, meta.session.stepsDone);
+    final hasGroups =
+        (ref.read(myGroupsProvider).value ?? const []).isNotEmpty;
+    final reflection = TextEditingController();
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '第 ${meta.day} 天已完成',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 17),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${prog.total}/${prog.total} 段已读完'
+                '${meta.day < meta.totalDays ? ' · 可以开始第 ${meta.day + 1} 天' : ' · 计划已全部完成'}',
+                style: const TextStyle(fontSize: 13, color: AppColors.inkSoft),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                '用一两句话记下今天的感动或应用（可选）',
+                style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: reflection,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: '今天神对我说…',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 14),
+              if (meta.day < meta.totalDays)
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, 'next'),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.accentDeep),
+                  child: Text('继续下一天 · 第 ${meta.day + 1} 天 ›'),
+                ),
+              if (meta.day < meta.totalDays) const SizedBox(height: 8),
+              if (hasGroups)
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, 'share'),
+                  child: const Text('分享到共读群'),
+                ),
+              if (hasGroups) const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, 'done'),
+                child: const Text('完成'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    final note = reflection.text.trim();
+    reflection.dispose();
+    if (note.isNotEmpty) {
+      await ref.read(thoughtsRepoProvider).addThought(
+            '${widget.book.id}.${widget.chapter}',
+            note,
+            visibility: ThoughtVisibility.private,
+          );
+    }
+    if (!mounted) return;
+    switch (action) {
+      case 'next':
+        await _continueNextPlanDay();
+      case 'share':
+        await _completePlanDay();
+        if (!mounted) return;
+        await showGroupCheckinSheet(
+          context,
+          ref,
+          bookId: widget.book.id,
+          bookName: widget.book.name,
+          chapter: widget.chapter,
+        );
+      case 'done':
+      default:
+        if (action != null) await _completePlanDay();
+    }
   }
 
   Widget? _planSegmentFooter() {
@@ -990,7 +1152,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
       if (!_planDayFinishScheduled) {
         _planDayFinishScheduled = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _completePlanDay();
+          if (mounted) _showPlanDayCelebration();
         });
       }
       return Container(
@@ -1001,9 +1163,19 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.line),
         ),
-        child: Text(
-          '🎉 今日 ${prog.total} 段全部读完',
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '今日 ${prog.total} 段全部读完',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _showPlanDayCelebration,
+              child: const Text('写下今日反思 ›'),
+            ),
+          ],
         ),
       );
     }
@@ -1046,6 +1218,155 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     );
   }
 
+  /// 相邻章（用于横滑翻页 peek）。
+  ({BibleBook book, int chapter})? _adjacentTarget(int delta) {
+    final books = widget.books;
+    final bi = books.indexWhere((b) => b.id == widget.book.id);
+    if (bi < 0) return null;
+    if (delta > 0) {
+      if (widget.chapter < widget.book.chapterCount) {
+        return (book: widget.book, chapter: widget.chapter + 1);
+      }
+      if (bi + 1 < books.length) {
+        return (book: books[bi + 1], chapter: 1);
+      }
+    } else if (delta < 0) {
+      if (widget.chapter > 1) {
+        return (book: widget.book, chapter: widget.chapter - 1);
+      }
+      if (bi > 0) {
+        final prev = books[bi - 1];
+        return (book: prev, chapter: prev.chapterCount);
+      }
+    }
+    return null;
+  }
+
+  Widget _pageTurnPeekOverlay(ReaderExperienceTheme theme) {
+    final goingNext = _pageDragDx < 0;
+    final target = _adjacentTarget(goingNext ? 1 : -1);
+    if (target == null) {
+      return Positioned(
+        top: 0,
+        bottom: 0,
+        left: goingNext ? null : 0,
+        right: goingNext ? 0 : null,
+        child: IgnorePointer(
+          child: Container(
+            width: 28,
+            alignment: Alignment.center,
+            color: theme.background.withValues(alpha: 0.55),
+            child: Icon(
+              goingNext ? Icons.chevron_right : Icons.chevron_left,
+              color: theme.ink.withValues(alpha: 0.35),
+              size: 22,
+            ),
+          ),
+        ),
+      );
+    }
+    final peekAsync = ref.watch(chapterProvider(
+        (book: target.book.id, chapter: target.chapter)));
+    final snippet = peekAsync.maybeWhen(
+      data: (ch) {
+        final verses = ch.verses
+            .take(2)
+            .map((v) => v.text.trim())
+            .where((t) => t.isNotEmpty);
+        final joined = verses.join(' ');
+        if (joined.isEmpty) return null;
+        return joined.length > 72 ? '${joined.substring(0, 72)}…' : joined;
+      },
+      orElse: () => null,
+    );
+    final loading = peekAsync.isLoading && snippet == null;
+    final width = (_pageDragDx.abs() * 1.15).clamp(72.0, 168.0);
+    return Positioned(
+      top: 0,
+      bottom: 0,
+      left: goingNext ? null : 0,
+      right: goingNext ? 0 : null,
+      child: IgnorePointer(
+        child: Opacity(
+          opacity: (_pageDragDx.abs() / 88).clamp(0.35, 0.92),
+          child: Container(
+            width: width,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: theme.background.withValues(alpha: 0.88),
+              border: Border(
+                left: goingNext
+                    ? BorderSide(color: theme.ink.withValues(alpha: 0.08))
+                    : BorderSide.none,
+                right: goingNext
+                    ? BorderSide.none
+                    : BorderSide(color: theme.ink.withValues(alpha: 0.08)),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  goingNext ? Icons.chevron_right : Icons.chevron_left,
+                  color: theme.ink.withValues(alpha: 0.4),
+                  size: 20,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  target.book.name,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: theme.ink.withValues(alpha: 0.75),
+                  ),
+                ),
+                Text(
+                  '第 ${target.chapter} 章',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.ink.withValues(alpha: 0.45),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (loading)
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: theme.ink.withValues(alpha: 0.35),
+                    ),
+                  )
+                else if (snippet != null)
+                  Text(
+                    snippet,
+                    textAlign: TextAlign.center,
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.45,
+                      color: theme.ink.withValues(alpha: 0.5),
+                      fontFamily: 'Songti SC',
+                      fontFamilyFallback: const [
+                        'STSong',
+                        'Noto Serif SC',
+                        'serif'
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = ref.watch(readerExperienceThemeProvider);
@@ -1072,9 +1393,17 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final dictKeys = dictSortedKeys(dictIndex);
     final outline = outlineFor(widget.book.id, widget.chapter);
     final sectionByVerse = {for (final s in outline) s.verse: s.title};
-    final progress = bookProgressInBible(
-        widget.books, widget.book.id, widget.chapter);
-    final ctx = chapterContextInfo(widget.book.id, widget.chapter);
+    // API 分段优先；本地 outlines 作兜底
+    final apiSections = ref
+        .watch(sectionTitlesProvider(
+            (book: widget.book.id, chapter: widget.chapter)))
+        .value;
+    if (apiSections != null) {
+      for (final s in apiSections) {
+        final t = s.title.trim();
+        if (t.isNotEmpty) sectionByVerse[s.verse] = t;
+      }
+    }
     final poetry = const {
       'PSA', 'PRO', 'ECC', 'SNG', 'LAM', 'AMO', 'MIC', 'HAB', 'ZEP', 'NAH',
       'HAG', 'ZEC', 'MAL', 'JOB',
@@ -1099,7 +1428,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             chapterProvider((book: widget.book.id, chapter: widget.chapter)))
         : null;
 
-    Widget buildBody(Chapter ch, Chapter? compareCh, Chapter? layoutCh) {
+    Widget buildBody(
+      Chapter ch,
+      Chapter? compareCh,
+      Chapter? layoutCh, {
+      String? compareStatus,
+    }) {
       _liveChapter = ch;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.onRead(widget.book.id, widget.chapter);
@@ -1120,10 +1454,11 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         dictKeys,
         highlights,
         sectionByVerse,
-        ctx,
+        null,
         poetry,
         layoutChapter: layoutCh ?? ch,
         compareChapter: compareCh,
+        compareStatus: compareStatus,
         notesByVerse: notesByVerse,
         underlinesEnabled: toggles.underlines,
         thoughtsEnabled: toggles.thoughts,
@@ -1141,15 +1476,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             top: 0,
             left: 0,
             right: 0,
-            // 沉浸时去掉进度横线（用户反馈与 PWA 一致：底栏/顶栏收起后不留硬线）
-            child: widget.chromeHidden
-                ? const SizedBox.shrink()
-                : LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 2,
-                    backgroundColor: Colors.transparent,
-                    color: AppColors.accentDeep.withValues(alpha: 0.45),
-                  ),
+            // 对齐 PWA：非沉浸也不显示顶栏下进度横线
+            child: const SizedBox.shrink(),
           ),
           Column(
             children: [
@@ -1165,7 +1493,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                         dictKeys,
                         highlights,
                         sectionByVerse,
-                        ctx,
+                        null,
                         poetry,
                         layoutChapter: _cachedChapter!,
                         compareChapter: null,
@@ -1179,8 +1507,18 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                     final layoutCh = layoutAsync?.asData?.value;
                     if (compareAsync == null) return buildBody(ch, null, layoutCh);
                     return compareAsync.when(
-                      loading: () => buildBody(ch, null, layoutCh),
-                      error: (_, _) => buildBody(ch, null, layoutCh),
+                      loading: () => buildBody(
+                        ch,
+                        null,
+                        layoutCh,
+                        compareStatus: 'loading',
+                      ),
+                      error: (_, _) => buildBody(
+                        ch,
+                        null,
+                        layoutCh,
+                        compareStatus: 'error',
+                      ),
                       data: (ch2) => buildBody(ch, ch2, layoutCh),
                     );
                   },
@@ -1188,6 +1526,46 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
               ),
             ],
           ),
+          // 沉浸：固定顶部章节信息（叠在列表之上）
+          if (widget.chromeHidden)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Material(
+                color: theme.background.withValues(alpha: 0.94),
+                elevation: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${widget.book.name} · 第 ${widget.chapter} 章',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: theme.ink.withValues(alpha: 0.88),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '点屏幕恢复',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.ink.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (_selected.isNotEmpty)
             Positioned(
               top: _focusBarTop ??
@@ -1242,6 +1620,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                     refParam: refParam,
                     refLabel: label,
                     selectionText: text,
+                    onOpenChapterParallel: () {
+                      widget.onEnableParallel
+                          ?.call(widget.compareVersionId ?? 'cnv');
+                    },
                   );
                 },
                 onPickColor: (c) {
@@ -1257,7 +1639,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             Positioned(
               left: 12,
               right: 12,
-              top: widget.chromeHidden ? 28 : 56,
+              top: widget.chromeHidden
+                  ? (MediaQuery.paddingOf(context).top + 44)
+                  : 56,
               child: _ChapterGuideTipBar(
                 bookName: widget.book.name,
                 chapter: widget.chapter,
@@ -1323,6 +1707,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     bool poetry, {
     required Chapter layoutChapter,
     Chapter? compareChapter,
+    String? compareStatus,
     Map<int, List<Note>> notesByVerse = const {},
     bool underlinesEnabled = true,
     bool thoughtsEnabled = true,
@@ -1330,7 +1715,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     ReaderPageTurn pageTurn = ReaderPageTurn.swipe,
     ReaderFontFamily fontFamily = ReaderFontFamily.serif,
   }) {
-    if (compareChapter != null) {
+    if (compareChapter != null || compareStatus != null) {
       return _buildParallelList(
         layoutChapter,
         ch,
@@ -1339,14 +1724,17 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         verseNo,
         ctx,
         poetry,
+        compareStatus: compareStatus,
+        sectionByVerse: sectionByVerse,
       );
     }
 
     final rows = <Object>[];
+    final breakVerses = sectionByVerse.keys.toList()..sort();
     final paras = groupVersesIntoParagraphs(
       widget.book.id,
       layoutChapter.verses,
-      outlineFor(widget.book.id, widget.chapter).map((s) => s.verse).toList(),
+      breakVerses,
     );
     for (final para in paras) {
       final t = sectionByVerse[para.startVerse];
@@ -1426,10 +1814,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         // 沉浸：scroll-bottom ≈ safe；非沉浸：清 FAB / 胶囊底栏边缘（对齐 PWA --reader-scroll-bottom）
         padding: EdgeInsets.fromLTRB(
           20,
-          12,
-          20,
           widget.chromeHidden
-              ? (MediaQuery.paddingOf(context).bottom + 20)
+              ? (MediaQuery.paddingOf(context).top + 40)
+              : 12,
+          20,
+          // 沉浸：仅安全区，勿再垫大块空白
+          widget.chromeHidden
+              ? (MediaQuery.paddingOf(context).bottom + 8)
               : (MediaQuery.paddingOf(context).bottom + 48),
         ),
         itemCount: rows.length + 1 + planHead + planTail,
@@ -1464,81 +1855,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             );
           }
           if (i == planHead) {
-            final era = ctx?.era;
-            final place = ctx?.place;
-            final summaryLine = ctx?.summary;
-            // 顶栏已有卷章时，正文内仅保留时代/概要，避免重复（对齐 PWA 沉浸 vs 展开）
-            final showTitle = widget.chromeHidden;
-            if (!showTitle &&
-                era == null &&
-                place == null &&
-                summaryLine == null) {
-              return const SizedBox(height: 4);
-            }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (showTitle)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        GestureDetector(
-                          onTap: () =>
-                              _showChapterSummary(initialTab: 'book'),
-                          child: Text(widget.book.name,
-                              style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: theme.ink,
-                                  fontFamily: fontFamily.fontFamily,
-                                  fontFamilyFallback:
-                                      fontFamily.fontFamilyFallback)),
-                        ),
-                        const SizedBox(width: 10),
-                        GestureDetector(
-                          onTap: () =>
-                              _showChapterSummary(initialTab: 'chapter'),
-                          child: Text('第 ${widget.chapter} 章',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  color:
-                                      theme.ink.withValues(alpha: 0.55))),
-                        ),
-                        const Spacer(),
-                      ],
-                    ),
-                  if (era != null || place != null || summaryLine != null) ...[
-                    if (showTitle) const SizedBox(height: 6),
-                    Text(
-                      [
-                        if (era != null) era,
-                        if (place != null) place,
-                      ].join(' · '),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.ink.withValues(alpha: 0.42),
-                        height: 1.35,
-                      ),
-                    ),
-                    if (summaryLine != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          summaryLine,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: theme.ink.withValues(alpha: 0.48),
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                  ],
-                ],
-              ),
-            );
+            // 不再展示「耶稣事工 · 加利利 / 登山宝训」等硬编码章情境摘要（对齐产品：去掉总结词）
+            return const SizedBox(height: 4);
           }
           if (planTail == 1 && i == rows.length + 1 + planHead) {
             return segmentFooter!;
@@ -1594,27 +1912,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         },
             ),
             ),
-            if (_pageDragDx.abs() > 12)
-              Positioned(
-                top: 0,
-                bottom: 0,
-                left: _pageDragDx > 0 ? 0 : null,
-                right: _pageDragDx < 0 ? 0 : null,
-                child: IgnorePointer(
-                  child: Container(
-                    width: 28,
-                    alignment: Alignment.center,
-                    color: theme.background.withValues(alpha: 0.55),
-                    child: Icon(
-                      _pageDragDx > 0
-                          ? Icons.chevron_left
-                          : Icons.chevron_right,
-                      color: theme.ink.withValues(alpha: 0.35),
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
+            if (_pageDragDx.abs() > 12) _pageTurnPeekOverlay(theme),
           ],
         ),
       ),
@@ -1624,31 +1922,41 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   Widget _buildParallelList(
     Chapter structure,
     Chapter primary,
-    Chapter compare,
+    Chapter? compare,
     ReaderExperienceTheme theme,
     ReaderVerseNumberMode verseNo,
     ChapterContextInfo? ctx,
-    bool poetry,
-  ) {
+    bool poetry, {
+    String? compareStatus,
+    Map<int, String>? sectionByVerse,
+  }) {
     final fontPx = ref.watch(readerFontProvider).px;
-    final showDiff = ref.watch(parallelDiffOnProvider) &&
+    final showDiff = compare != null &&
+        ref.watch(parallelDiffOnProvider) &&
         ref.watch(readingModeProvider) == ReadingMode.study;
-    final sectionByVerse = {
-      for (final s in outlineFor(widget.book.id, widget.chapter)) s.verse: s.title
-    };
+    final sections = sectionByVerse ??
+        {
+          for (final s in outlineFor(widget.book.id, widget.chapter))
+            s.verse: s.title
+        };
     final paras = groupVersesIntoParagraphs(
       widget.book.id,
       structure.verses,
-      outlineFor(widget.book.id, widget.chapter).map((s) => s.verse).toList(),
+      sections.keys.toList()..sort(),
     );
     final rows = <Object>[];
     for (final para in paras) {
-      final t = sectionByVerse[para.startVerse];
+      final t = sections[para.startVerse];
       if (t != null) rows.add(t);
       rows.add(para);
     }
 
-    String verseText(Chapter ch, int verseNum) {
+    String verseText(Chapter? ch, int verseNum) {
+      if (ch == null) {
+        if (compareStatus == 'loading') return '加载中…';
+        if (compareStatus == 'error') return '译本加载失败';
+        return '—';
+      }
       return ch.verses
           .where((x) => x.verse == verseNum)
           .map((x) => x.text)
@@ -1704,24 +2012,42 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
           if (i == 0) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () => _showChapterSummary(initialTab: 'book'),
-                    child: Text(widget.book.name,
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: theme.ink)),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => _showChapterSummary(initialTab: 'book'),
+                        child: Text(widget.book.name,
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: theme.ink)),
+                      ),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () =>
+                            _showChapterSummary(initialTab: 'chapter'),
+                        child: Text('第 ${widget.chapter} 章',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: theme.ink.withValues(alpha: 0.55))),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: () => _showChapterSummary(initialTab: 'chapter'),
-                    child: Text('第 ${widget.chapter} 章',
+                  if (compareStatus == 'loading') ...[
+                    const SizedBox(height: 8),
+                    const Text('对照译本加载中…',
                         style: TextStyle(
-                            fontSize: 13,
-                            color: theme.ink.withValues(alpha: 0.55))),
-                  ),
+                            fontSize: 13, color: AppColors.inkFaint)),
+                  ],
+                  if (compareStatus == 'error') ...[
+                    const SizedBox(height: 8),
+                    const Text('译本加载失败，请稍后重试',
+                        style: TextStyle(
+                            fontSize: 13, color: AppColors.inkSoft)),
+                  ],
                 ],
               ),
             );
@@ -2024,6 +2350,9 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
       }
 
       final words = sliceVerseWords(v.text);
+      final dictSpans = !selectionActive && widget.dictKeys.isNotEmpty
+          ? dictSpansForText(v.text, widget.dictIndex, widget.dictKeys)
+          : const <DictSpanHit>[];
       if (words.isEmpty) {
         final emptyRec = selectionActive
             ? (TapGestureRecognizer()
@@ -2063,9 +2392,9 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             );
           }
 
-          // 词典点名仅在未选时；整词精确命中
-          final dictHit = !selectionActive && widget.dictKeys.isNotEmpty
-              ? matchDictToken(w.text, widget.dictIndex, widget.dictKeys)
+          // 词典：整节最长匹配后的跨度命中（对齐 PWA dictionary_match）
+          final dictHit = !selectionActive
+              ? matchDictSpanAt(w.start, w.end, dictSpans)
               : null;
           if (dictHit != null) {
             wordStyle = wordStyle.copyWith(
@@ -2091,7 +2420,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               child: SizedBox(key: verseKey, width: 0, height: 0),
             ));
           }
-          // WidgetSpan 词块：MetaData 命中 + 蓝底圆角对齐 PWA .verse-word
+          // WidgetSpan 词块：连续蓝带选中 + 双击整节
           spans.add(WidgetSpan(
             alignment: PlaceholderAlignment.baseline,
             baseline: TextBaseline.alphabetic,
@@ -2108,6 +2437,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               onDictTap: dictHit != null
                   ? () => widget.onOpenDict(dictHit.$1, dictHit.$2)
                   : null,
+              onDoubleTap: () => widget.onStart(v.verse, v.text),
             ),
           ));
           cursor = w.end;
@@ -2234,63 +2564,68 @@ class _MarginVerseRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final v = verse;
     final mark = markInfo?.mark;
-    final words = sliceVerseWords(v.text);
-    final bodyChildren = <InlineSpan>[];
-    for (final w in words) {
-      final activeWord = wordRange != null &&
-          wordOverlapsRange(v.verse, w.start, w.end, wordRange!);
-      final edge = wordRange != null && activeWord
-          ? wordSelectionEdge(v.verse, w.start, w.end, wordRange!)
-          : (left: false, right: false);
-      final mi = markInfo;
-      final markOnWord = mark != null &&
-          (mi?.spanStart == null ||
-              (w.start < (mi!.spanEnd ?? 0) && w.end > (mi.spanStart ?? 0)));
-      var wordStyle = baseStyle;
-      if (!activeWord && markOnWord) {
-        wordStyle =
-            applyHighlightStyle(baseStyle, mark: mark!, disabled: false);
+      final words = sliceVerseWords(v.text);
+      final dictSpans = !selectionActive && dictKeys.isNotEmpty
+          ? dictSpansForText(v.text, dictIndex, dictKeys)
+          : const <DictSpanHit>[];
+      final bodyChildren = <InlineSpan>[];
+      for (final w in words) {
+        final activeWord = wordRange != null &&
+            wordOverlapsRange(v.verse, w.start, w.end, wordRange!);
+        final edge = wordRange != null && activeWord
+            ? wordSelectionEdge(v.verse, w.start, w.end, wordRange!)
+            : (left: false, right: false);
+        final mi = markInfo;
+        final markOnWord = mark != null &&
+            (mi?.spanStart == null ||
+                (w.start < (mi!.spanEnd ?? 0) && w.end > (mi.spanStart ?? 0)));
+        var wordStyle = baseStyle;
+        if (!activeWord && markOnWord) {
+          wordStyle =
+              applyHighlightStyle(baseStyle, mark: mark!, disabled: false);
+        }
+        if (resumeFlash && !activeWord) {
+          wordStyle = wordStyle.copyWith(
+            backgroundColor: AppColors.accent.withValues(alpha: 0.28),
+          );
+        }
+        final dictHit = !selectionActive
+            ? matchDictSpanAt(w.start, w.end, dictSpans)
+            : null;
+        if (dictHit != null) {
+          wordStyle = wordStyle.copyWith(
+            decoration: TextDecoration.underline,
+            decorationStyle: switch (dictHit.$1.type) {
+              'place' => TextDecorationStyle.dashed,
+              'person' => TextDecorationStyle.dotted,
+              _ => TextDecorationStyle.dotted,
+            },
+            decorationColor:
+                (wordStyle.color ?? AppColors.ink).withValues(alpha: 0.35),
+            decorationThickness: 1.2,
+          );
+        }
+        final a = WordAnchor(verse: v.verse, start: w.start, end: w.end);
+        bodyChildren.add(WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: SelectableWordChip(
+            anchor: a,
+            text: w.text,
+            style: wordStyle,
+            selected: activeWord,
+            edgeLeft: edge.left,
+            edgeRight: edge.right,
+            onTap: selectionActive
+                ? () => onWordExtend(v.verse, w.start, w.end)
+                : null,
+            onDictTap: dictHit != null
+                ? () => onOpenDict(dictHit.$1, dictHit.$2)
+                : null,
+            onDoubleTap: () => onStart(v.verse, v.text),
+          ),
+        ));
       }
-      if (resumeFlash && !activeWord) {
-        wordStyle = wordStyle.copyWith(
-          backgroundColor: AppColors.accent.withValues(alpha: 0.28),
-        );
-      }
-      final dictHit = !selectionActive && dictKeys.isNotEmpty
-          ? matchDictToken(w.text, dictIndex, dictKeys)
-          : null;
-      if (dictHit != null) {
-        wordStyle = wordStyle.copyWith(
-          decoration: TextDecoration.underline,
-          decorationStyle: switch (dictHit.$1.type) {
-            'place' => TextDecorationStyle.dashed,
-            'person' => TextDecorationStyle.dotted,
-            _ => TextDecorationStyle.dotted,
-          },
-          decorationColor:
-              (wordStyle.color ?? AppColors.ink).withValues(alpha: 0.35),
-          decorationThickness: 1.2,
-        );
-      }
-      final a = WordAnchor(verse: v.verse, start: w.start, end: w.end);
-      bodyChildren.add(WidgetSpan(
-        alignment: PlaceholderAlignment.baseline,
-        baseline: TextBaseline.alphabetic,
-        child: SelectableWordChip(
-          anchor: a,
-          text: w.text,
-          style: wordStyle,
-          selected: activeWord,
-          edgeLeft: edge.left,
-          edgeRight: edge.right,
-          onTap: selectionActive
-              ? () => onWordExtend(v.verse, w.start, w.end)
-              : null,
-          onDictTap:
-              dictHit != null ? () => onOpenDict(dictHit.$1, dictHit.$2) : null,
-        ),
-      ));
-    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -2355,7 +2690,7 @@ class _MarginVerseRow extends StatelessWidget {
   }
 }
 
-/// 简单词典词条命中：仅 **完全相等**（对齐 PWA 专名点划，避免 startsWith 泛化）。
+/// 简单词典词条命中（保留兼容：优先精确键）。
 (DictEntity, String)? matchDictToken(
   String text,
   Map<String, List<DictEntity>> index,
@@ -2365,7 +2700,6 @@ class _MarginVerseRow extends StatelessWidget {
   if (t.isEmpty || t.length < 2) return null;
   final list = index[t];
   if (list != null && list.isNotEmpty) return (list.first, t);
-  // 不再做前缀匹配，防止半词/常见字串被误划为专名
   return null;
 }
 
