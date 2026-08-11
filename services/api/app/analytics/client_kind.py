@@ -39,7 +39,7 @@ def normalize_client_kind(value: str | None) -> str | None:
         return "inapp"
     if raw in ("native_ios", "flutter_ios"):
         return "ios"
-    if raw in ("native_android", "flutter_android"):
+    if raw in ("native_android", "flutter_android", "android_flutter"):
         return "android"
     if raw in CLIENT_KINDS:
         return raw

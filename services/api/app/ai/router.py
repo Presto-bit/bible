@@ -75,16 +75,41 @@ def rag_status():
     return out
 
 
+def _is_android_native_client(
+    *,
+    x_client_kind: str | None = None,
+    surface: str | None = None,
+) -> bool:
+    """Flutter 安卓原生壳：产品侧不套用游客日限。"""
+    kind = (x_client_kind or "").strip().lower()
+    if kind in (
+        "android_flutter",
+        "flutter_android",
+        "native_android",
+        "android",
+    ):
+        return True
+    return (surface or "").strip().lower() == "mobile"
+
+
 @router.get("/quota")
 def ai_quota(
     x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
     x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    x_client_kind: str | None = Header(default=None, alias="X-Client-Kind"),
+    authorization: str | None = Header(default=None),
+    cookie: str | None = Header(default=None),
 ):
-    """当日 AI 额度（游客限流；登录用户 limit=0 表示不限）。"""
+    """当日 AI 额度（游客限流；登录用户 / 安卓原生 limit=0 表示不限）。"""
     settings = get_settings()
-    user = resolve_user_id(x_user_id=x_user_id, x_user_code=x_user_code)
-    if user:
+    user = resolve_user_id(
+        authorization=authorization,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    if user or _is_android_native_client(x_client_kind=x_client_kind):
         return {"used": 0, "limit": 0, "unlimited": True}
     limit = settings.ai_guest_daily_limit
     used, lim = peek_quota(x_guest_id, limit)
@@ -495,6 +520,7 @@ def chat(
     x_user_id: str | None = Header(default=None),
     x_user_code: str | None = Header(default=None, alias="X-User-Code"),
     cookie: str | None = Header(default=None),
+    x_client_kind: str | None = Header(default=None, alias="X-Client-Kind"),
 ):
     from ..rag.answer_cache import cache_key, get_answer, put_answer
 
@@ -518,9 +544,13 @@ def chat(
     cached = get_answer(key) if key else None
 
     logged_in = try_get_current_user(authorization, x_user_id, x_user_code, cookie)
+    android_native = _is_android_native_client(
+        x_client_kind=x_client_kind, surface=body.surface
+    )
+    unlimited = bool(logged_in) or android_native
     if cached:
         # 缓存命中不计额度
-        used, limit = (0, 0) if logged_in else peek_quota(
+        used, limit = (0, 0) if unlimited else peek_quota(
             x_guest_id, settings.ai_guest_daily_limit
         )
 
@@ -568,9 +598,10 @@ def chat(
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    if logged_in:
+    if unlimited:
         allowed, used, limit = True, 0, 0
-        record_ai_request(x_guest_id, logged_in)
+        if logged_in:
+            record_ai_request(x_guest_id, logged_in)
     else:
         allowed, used, limit = consume_quota(x_guest_id, settings.ai_guest_daily_limit)
     if not allowed:

@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
 import 'selection_range.dart';
 
@@ -20,6 +21,34 @@ WordAnchor? wordAnchorAt(BuildContext context, Offset global) {
     if (target is RenderMetaData) {
       final data = target.metaData;
       if (data is WordAnchor) return data;
+    }
+  }
+  return null;
+}
+
+/// 指针落在词缝时，环向采样找最近词，减少拖扩「丢字」。
+WordAnchor? wordAnchorNear(
+  BuildContext context,
+  Offset global, {
+  double maxRadius = 36,
+}) {
+  final direct = wordAnchorAt(context, global);
+  if (direct != null) return direct;
+  // 先横后纵：读经为主轴横扫选词
+  const dirs = <Offset>[
+    Offset(-1, 0),
+    Offset(1, 0),
+    Offset(0, -1),
+    Offset(0, 1),
+    Offset(-0.7, -0.7),
+    Offset(0.7, -0.7),
+    Offset(-0.7, 0.7),
+    Offset(0.7, 0.7),
+  ];
+  for (var r = 4.0; r <= maxRadius; r += 4) {
+    for (final d in dirs) {
+      final hit = wordAnchorAt(context, global + d * r);
+      if (hit != null) return hit;
     }
   }
   return null;
@@ -59,6 +88,7 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
   bool _armed = false;
   int? _pointer;
   Timer? _lp;
+  WordAnchor? _lastFocus;
 
   void _clearLp() {
     _lp?.cancel();
@@ -73,6 +103,7 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
     _dragging = false;
     _armed = false;
     _pointer = null;
+    _lastFocus = null;
     if (was) widget.onSelectionGestureChanged?.call(false);
   }
 
@@ -96,7 +127,7 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
           return;
         }
         if (_pointer != null) return;
-        final w = wordAnchorAt(context, e.position);
+        final w = wordAnchorNear(context, e.position, maxRadius: 12);
         if (w == null) {
           // 空白点：稍后 pointerup 清选
           _pointer = e.pointer;
@@ -109,13 +140,15 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         _anchor = w;
         _dragging = false;
         _armed = false;
+        _lastFocus = w;
         _clearLp();
-        // PWA: 420ms 未移动则选中该词
-        _lp = Timer(const Duration(milliseconds: 420), () {
+        // ~360ms 长按选词（略缩短，起选更跟手）
+        _lp = Timer(const Duration(milliseconds: 360), () {
           if (!mounted || _anchor == null || _dragging) return;
           _armed = true;
           _notifyGesture(true);
           widget.onApplyRange(_anchor!, _anchor!, commit: true);
+          HapticFeedback.selectionClick();
         });
       },
       onPointerMove: (e) {
@@ -124,9 +157,9 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         final anchor = _anchor;
         if (down == null) return;
         final dist = (e.position - down).distance;
-        // 未长按完成：移动即取消 LP（保护滚动手势）
+        // 未长按完成：较大移动才取消 LP，小抖动能稳住起选
         if (!_armed) {
-          if (dist >= 10) {
+          if (dist >= 14) {
             _clearLp();
             _anchor = null;
             // 保留 pointer 让 up 不再误清选
@@ -134,14 +167,21 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
           return;
         }
         if (anchor == null) return;
-        // 武装后低阈值跟手扩区（比 6px 更顺）
-        if (!_dragging && dist < 2) return;
+        // 武装后立刻跟手（几乎零阈值）
+        if (!_dragging && dist < 1) return;
         if (!_dragging) {
           _dragging = true;
         }
-        final focus = wordAnchorAt(context, e.position);
+        final focus = wordAnchorNear(context, e.position, maxRadius: 40);
         if (focus != null) {
-          widget.onApplyRange(anchor, focus, commit: false);
+          final same = _lastFocus != null &&
+              _lastFocus!.verse == focus.verse &&
+              _lastFocus!.start == focus.start &&
+              _lastFocus!.end == focus.end;
+          if (!same) {
+            _lastFocus = focus;
+            widget.onApplyRange(anchor, focus, commit: false);
+          }
         }
       },
       onPointerUp: (e) {
@@ -203,19 +243,24 @@ class SelectableWordChip extends StatelessWidget {
     final wordStyle = selected
         ? style.copyWith(
             backgroundColor: _sel,
-            // 略收紧高度，减少 WidgetSpan 缝
-            height: (style.height ?? 1.85) * 0.98,
+            height: style.height,
           )
         : style;
-    Widget child = Text(text, style: wordStyle);
+    Widget child = Text(
+      text,
+      style: wordStyle,
+      textHeightBehavior: const TextHeightBehavior(
+        applyHeightToFirstAscent: false,
+        applyHeightToLastDescent: false,
+      ),
+    );
     if (selected) {
       child = DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: radius,
           boxShadow: const [
-            // 对齐 PWA box-shadow: 横向扩展缝合词间
-            BoxShadow(color: _sel, offset: Offset(2.2, 0), blurRadius: 0),
-            BoxShadow(color: _sel, offset: Offset(-2.2, 0), blurRadius: 0),
+            BoxShadow(color: _sel, offset: Offset(3.5, 0), blurRadius: 0),
+            BoxShadow(color: _sel, offset: Offset(-3.5, 0), blurRadius: 0),
           ],
         ),
         child: child,

@@ -7,6 +7,7 @@ import {
   swipeRevealCloseActive,
   swipeRevealDeactivate,
 } from '@/lib/swipe_reveal_bus';
+import '@/styles/swipe_reveal.css';
 
 export type SwipeAction = {
   label: string;

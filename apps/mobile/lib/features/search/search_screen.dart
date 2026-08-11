@@ -8,10 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/app_shell.dart';
 import '../../core/api_client.dart';
+import '../../core/ref_label.dart' show formatGroupRefLabel;
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
 import '../knowledge/knowledge_explore.dart';
 import '../assistant/assistant_seed.dart';
+import '../bible/bible_repository.dart';
 import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../notes/notes_repository.dart';
 
@@ -49,11 +51,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   List<String> _history = [];
   _ScopeTab _scope = _ScopeTab.all;
   var _visibleCount = _searchPageSize;
+  String _searchVersion = 'cuvs';
 
   @override
   void initState() {
     super.initState();
     _loadHistory();
+    final main = ref.read(prefsProvider).getString('reader_main_version');
+    if (main != null && main.isNotEmpty) _searchVersion = main;
     _controller.addListener(() {
       final q = _controller.text;
       setState(() => _query = q);
@@ -133,8 +138,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final searchQ = _debounced;
-    final hits = ref.watch(bibleSearchProvider(searchQ));
+    final hits = ref.watch(
+      bibleSearchProvider((q: searchQ, version: _searchVersion)),
+    );
     final terms = _highlightTerms(searchQ);
+    final versionsAsync = ref.watch(bibleVersionsProvider);
+    final versionLabel = versionsAsync.maybeWhen(
+      data: (vs) {
+        final m = vs.where((v) => v.id == _searchVersion);
+        return m.isNotEmpty ? m.first.label : _searchVersion.toUpperCase();
+      },
+      orElse: () => _searchVersion.toUpperCase(),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.paper,
@@ -227,7 +242,72 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       }),
                     ),
                   ),
+                versionsAsync.maybeWhen(
+                  data: (vs) {
+                    if (vs.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: vs.any((v) => v.id == _searchVersion)
+                              ? _searchVersion
+                              : vs.first.id,
+                          isDense: true,
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.ink),
+                          items: vs
+                              .map((v) => DropdownMenuItem(
+                                    value: v.id,
+                                    child: Text(v.label.isNotEmpty
+                                        ? v.label
+                                        : v.id.toUpperCase()),
+                                  ))
+                              .toList(),
+                          onChanged: (id) {
+                            if (id == null) return;
+                            setState(() {
+                              _searchVersion = id;
+                              _visibleCount = _searchPageSize;
+                              _scope = _ScopeTab.all;
+                            });
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  orElse: () => const SizedBox.shrink(),
+                ),
               ],
+            ),
+            const SizedBox(height: 6),
+            hits.when(
+              loading: () => Text(
+                switch (_scope) {
+                  _ScopeTab.all => '全部 · $versionLabel · 搜索中…',
+                  _ScopeTab.ot => '旧约 · $versionLabel · 搜索中…',
+                  _ScopeTab.nt => '新约 · $versionLabel · 搜索中…',
+                },
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.inkFaint),
+              ),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (list) {
+                final filtered = _filterScope(list);
+                return Text(
+                  () {
+                    final scope = switch (_scope) {
+                      _ScopeTab.all => '全部',
+                      _ScopeTab.ot => '旧约',
+                      _ScopeTab.nt => '新约',
+                    };
+                    final shown =
+                        filtered.take(_visibleCount).length;
+                    return '$scope · $versionLabel · 已显示 $shown/${filtered.length}';
+                  }(),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.inkFaint),
+                );
+              },
             ),
             const SizedBox(height: 8),
             hits.when(
@@ -257,34 +337,40 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                 Row(
                                   children: [
                                     Expanded(
-                                      child: Text(h.ref,
+                                      child: Text(
+                                        formatGroupRefLabel(h.ref).isNotEmpty
+                                            ? formatGroupRefLabel(h.ref)
+                                            : h.ref,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                            color: AppColors.accentDeep),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accentWash,
+                                        borderRadius:
+                                            BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                          (h.version.isNotEmpty
+                                                  ? h.version
+                                                  : _searchVersion)
+                                              .toUpperCase(),
                                           style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 13,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
                                               color: AppColors.accentDeep)),
                                     ),
-                                    if (h.version != 'cnv')
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.accentWash,
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: Text(h.version.toUpperCase(),
-                                            style: const TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppColors.accentDeep)),
-                                      ),
                                   ],
                                 ),
                                 const SizedBox(height: 4),
                                 _HighlightedText(
                                   text: h.text,
                                   terms: terms,
-                                  maxLines: 3,
                                 ),
                                 const SizedBox(height: 8),
                                 TextButton(
@@ -354,22 +440,19 @@ class _HighlightedText extends StatelessWidget {
   const _HighlightedText({
     required this.text,
     required this.terms,
-    this.maxLines = 3,
   });
   final String text;
   final List<String> terms;
-  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
     final base = const TextStyle(
       color: AppColors.inkSoft,
-      height: 1.45,
-      fontSize: 13,
+      height: 1.55,
+      fontSize: 13.5,
     );
     if (terms.isEmpty) {
-      return Text(text,
-          maxLines: maxLines, overflow: TextOverflow.ellipsis, style: base);
+      return Text(text, style: base);
     }
     final pattern = terms.map(RegExp.escape).join('|');
     final re = RegExp('($pattern)', caseSensitive: false);
@@ -394,8 +477,6 @@ class _HighlightedText extends StatelessWidget {
     }
     return Text.rich(
       TextSpan(style: base, children: spans),
-      maxLines: maxLines,
-      overflow: TextOverflow.ellipsis,
     );
   }
 }
@@ -484,12 +565,15 @@ class BibleSearchHit {
       );
 }
 
-final bibleSearchProvider =
-    FutureProvider.family<List<BibleSearchHit>, String>((ref, q) async {
-  if (searchTooShort(q)) return [];
+final bibleSearchProvider = FutureProvider.family<List<BibleSearchHit>,
+    ({String q, String version})>((ref, key) async {
+  if (searchTooShort(key.q)) return [];
   final dio = ref.watch(dioProvider);
-  final res =
-      await dio.get('/bible/search', queryParameters: {'q': q, 'limit': 100});
+  final res = await dio.get('/bible/search', queryParameters: {
+    'q': key.q,
+    'limit': 100,
+    'version': key.version,
+  });
   final hits = (res.data['hits'] ?? []) as List;
   return hits
       .map((e) => BibleSearchHit.fromJson(e as Map<String, dynamic>))

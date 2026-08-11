@@ -58,7 +58,7 @@ extension ReaderFontSizeX on ReaderFontSize {
         ReaderFontSize.xlarge => '特大',
       };
   double get px => switch (this) {
-        ReaderFontSize.medium => 17,
+        ReaderFontSize.medium => 18,
         ReaderFontSize.large => 20,
         ReaderFontSize.xlarge => 24,
       };
@@ -1553,13 +1553,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Text(
-                          '点屏幕恢复',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.ink.withValues(alpha: 0.4),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -2094,11 +2087,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 : const VerseDiffResult(main: [], parallel: [], heavy: false);
             if (verseNo != ReaderVerseNumberMode.hidden) {
               primarySpans.add(TextSpan(
-                text: '${v.verse} ',
+                text: '${v.verse}\u2009',
                 style: TextStyle(
                   color: AppColors.accentDeep,
                   fontSize: fontPx * 0.65,
                   fontWeight: FontWeight.w700,
+                  height: 1.0,
                   background: isSel ? selBg : null,
                 ),
               ));
@@ -2256,10 +2250,12 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     final fontPx = ref.watch(readerFontProvider).px;
     final selectionActive = widget.selected.isNotEmpty;
     // 选中节高亮即可；不压暗其他节（对齐 PWA，避免「白蒙层」观感）
+    // PWA 晨光/护眼：line-height 2.05 + letter-spacing 0.015em
     final baseStyle = TextStyle(
       color: AppColors.ink,
       fontSize: fontPx,
-      height: widget.poetry ? 2.1 : 1.85,
+      height: widget.poetry ? 2.1 : 2.05,
+      letterSpacing: fontPx * 0.015,
       fontFamily: widget.fontFamily.fontFamily,
       fontFamilyFallback: widget.fontFamily.fontFamilyFallback,
     );
@@ -2329,23 +2325,42 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               ? widget.resumeAnchorKey
               : null;
 
-      // 节号：inline 内嵌；margin 在 _MarginVerseRow；hidden 不画
+      // 节号：inline 真上标（对齐 PWA .verse-sup：0.65em + super + 0.25em）
       if (widget.verseNo == ReaderVerseNumberMode.inline) {
-        final noRec = selectionActive
-            ? (TapGestureRecognizer()
-              ..onTap = () => widget.onToggle(v.verse, v.text))
-            : (LongPressGestureRecognizer()
-              ..onLongPress = () => widget.onStart(v.verse, v.text));
-        _recognizers.add(noRec);
-        spans.add(TextSpan(
-          text: '${v.verse} ',
-          recognizer: noRec,
-          style: baseStyle.copyWith(
-            color: verseInSel ? AppColors.ink : AppColors.accentDeep,
-            fontWeight: FontWeight.w600,
-            fontSize: fontPx * 0.78,
-            backgroundColor: verseInSel ? selBg : null,
+        spans.add(WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: Transform.translate(
+            offset: Offset(0, -fontPx * 0.32),
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: selectionActive
+                  ? () => widget.onToggle(v.verse, v.text)
+                  : null,
+              onLongPress: selectionActive
+                  ? null
+                  : () => widget.onStart(v.verse, v.text),
+              child: Text(
+                '${v.verse}',
+                style: TextStyle(
+                  color: verseInSel ? AppColors.ink : AppColors.accentDeep,
+                  fontWeight: FontWeight.w700,
+                  fontSize: fontPx * 0.65,
+                  height: 1.0,
+                  letterSpacing: 0,
+                  backgroundColor: verseInSel ? selBg : null,
+                  fontFamily: widget.fontFamily.fontFamily,
+                  fontFamilyFallback: widget.fontFamily.fontFamilyFallback,
+                ),
+              ),
+            ),
           ),
+        ));
+        // 紧间距，避免完整半角空格 + WidgetSpan 缝过大
+        spans.add(WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: SizedBox(width: fontPx * 0.22),
         ));
       }
 
@@ -2506,7 +2521,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
   }
 }
 
-/// 行首节号（margin 模式）：左 28px 节号 + 右正文。
+/// 行首节号（margin 模式）：左约 1.8em 节号 + 0.35em 间距 + 右正文（对齐 PWA）。
 class _MarginVerseRow extends StatelessWidget {
   const _MarginVerseRow({
     required this.verse,
@@ -2636,20 +2651,21 @@ class _MarginVerseRow extends StatelessWidget {
                 selectionActive ? null : () => onStart(v.verse, v.text),
             onTap: selectionActive ? () => onToggle(v.verse, v.text) : null,
             child: SizedBox(
-              width: 28,
+              width: fontPx * 1.8,
               child: Text(
                 '${v.verse}',
                 textAlign: TextAlign.right,
                 style: baseStyle.copyWith(
-                  fontSize: fontPx * 0.72,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.accentDeep.withValues(alpha: 0.75),
-                  height: baseStyle.height,
+                  fontSize: fontPx * 0.65,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.accentDeep.withValues(alpha: 0.85),
+                  height: 1.0,
+                  letterSpacing: 0,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: fontPx * 0.35),
           Expanded(
             child: GestureDetector(
               onLongPress: selectionActive

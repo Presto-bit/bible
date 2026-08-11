@@ -74,6 +74,28 @@ class SessionRepository {
     }
   }
 
+  /// 首条用户消息截断，作历史预览（对齐 PWA session.preview）。
+  Future<String?> previewOf(String sid) async {
+    final msgs = await (_db.select(_db.chatMessages)
+          ..where((t) => t.sessionId.equals(sid))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAtMs)])
+          ..limit(12))
+        .get();
+    for (final m in msgs) {
+      if (m.role == 'user' && m.content.trim().isNotEmpty) {
+        final t = m.content.trim().replaceAll(RegExp(r'\s+'), ' ');
+        return t.length > 48 ? '${t.substring(0, 48)}…' : t;
+      }
+    }
+    for (final m in msgs) {
+      if (m.role == 'assistant' && m.content.trim().isNotEmpty) {
+        final t = m.content.trim().replaceAll(RegExp(r'\s+'), ' ');
+        return t.length > 48 ? '${t.substring(0, 48)}…' : t;
+      }
+    }
+    return null;
+  }
+
   Future<void> addMessage(
     String sid,
     String role,

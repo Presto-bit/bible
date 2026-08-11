@@ -15,6 +15,7 @@ import '../../core/config.dart';
 import '../../core/database/app_database.dart';
 import '../../core/badge_stats.dart';
 import '../../core/gamification.dart' show readingStreak;
+import '../../core/ref_label.dart' show refToChineseLabel;
 import '../../core/theme.dart';
 import '../bible/reading_repository.dart';
 import '../bible/thoughts_repository.dart';
@@ -69,11 +70,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   }
 
   Future<void> _prefetchQuota() async {
-    final q = await ref.read(assistantRepoProvider).fetchAiQuota();
-    if (!mounted || q == null) return;
+    // 安卓原生壳不展示/不拦截游客日限（与服务端 X-Client-Kind 免配额对齐）。
     setState(() {
-      _quotaUsed = q.used;
-      _quotaLimit = q.unlimited ? 0 : q.limit;
+      _quotaUsed = 0;
+      _quotaLimit = 0;
     });
   }
 
@@ -211,16 +211,16 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   }
 
   Future<void> _openHistory() async {
-    // 从左往右弹出抽屉，覆盖约 30% 屏宽。
+    // 对齐 PWA：约 82% 屏宽左抽屉
     final selected = await showGeneralDialog<AiSession>(
       context: context,
       barrierDismissible: true,
       barrierLabel: '历史会话',
-      barrierColor: Colors.black.withValues(alpha: 0.35),
+      barrierColor: Colors.black.withValues(alpha: 0.4),
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (_, __, ___) {
         final w = MediaQuery.of(context).size.width;
-        final drawerW = (w * 0.3).clamp(240.0, 360.0);
+        final drawerW = (w * 0.82).clamp(260.0, 340.0);
         return Align(
           alignment: Alignment.centerLeft,
           child: SizedBox(
@@ -228,7 +228,13 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             height: double.infinity,
             child: Material(
               color: AppColors.surface,
-              child: SafeArea(child: _SessionListSheet(onNew: _newSession)),
+              elevation: 8,
+              child: SafeArea(
+                child: _SessionListSheet(
+                  onNew: _newSession,
+                  activeId: _sessionId,
+                ),
+              ),
             ),
           ),
         );
@@ -370,8 +376,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             reply.sceneLabel = meta.sceneLabel;
             _lastMeta = meta;
             if (meta.quotaLimit > 0) {
-              _quotaUsed = meta.quotaUsed;
-              _quotaLimit = meta.quotaLimit;
+              // 忽略游客限流 meta：安卓原生不套用 10 次
+              _quotaUsed = 0;
+              _quotaLimit = 0;
             }
             _streamPhase = ThinkingPhase.refs;
           });
@@ -608,8 +615,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                       streaming: _streaming,
                       disabled: _quotaExhausted,
                       docked: true,
-                      chips: intentChips,
-                      onChip: _quotaExhausted ? null : _sendChip,
+                      // 空态已有 demo pill，composer 内不重复 chips（对齐 PWA）
+                      chips: const [],
+                      onChip: null,
                       onSend: () => _send(),
                       knowledgeBaseLabel: _knowledgeBaseName,
                       onPickKnowledgeBase:
@@ -846,8 +854,9 @@ class _AnchorChip extends StatelessWidget {
 }
 
 class _SessionListSheet extends ConsumerStatefulWidget {
-  const _SessionListSheet({this.onNew});
+  const _SessionListSheet({this.onNew, this.activeId});
   final VoidCallback? onNew;
+  final String? activeId;
 
   @override
   ConsumerState<_SessionListSheet> createState() => _SessionListSheetState();
@@ -855,6 +864,8 @@ class _SessionListSheet extends ConsumerStatefulWidget {
 
 class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
   List<AiSession>? _snapshot;
+  final Map<String, String> _previews = {};
+  final Set<String> _collapsed = {};
   Object? _err;
 
   @override
@@ -870,10 +881,20 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
                 const Duration(seconds: 4),
                 onTimeout: () => const <AiSession>[],
               );
-      if (mounted) setState(() {
-        _snapshot = list;
-        _err = null;
-      });
+      final previews = <String, String>{};
+      for (final s in list) {
+        final p = await ref.read(sessionRepoProvider).previewOf(s.id);
+        if (p != null && p.isNotEmpty) previews[s.id] = p;
+      }
+      if (mounted) {
+        setState(() {
+          _snapshot = list;
+          _previews
+            ..clear()
+            ..addAll(previews);
+          _err = null;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -916,7 +937,9 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
     final map = <String, List<AiSession>>{};
     for (final s in list) {
       final key =
-          (s.anchorRef == null || s.anchorRef!.trim().isEmpty) ? '随问' : s.anchorRef!.trim();
+          (s.anchorRef == null || s.anchorRef!.trim().isEmpty)
+              ? '随问'
+              : s.anchorRef!.trim();
       map.putIfAbsent(key, () => []).add(s);
     }
     final entries = map.entries.toList()
@@ -928,40 +951,129 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
     return entries;
   }
 
-  Widget _sessionTile(AiSession s) {
+  String _timeLabel(int ms) {
+    final now = DateTime.now();
+    final today0 = DateTime(now.year, now.month, now.day);
+    final day0 = DateTime.fromMillisecondsSinceEpoch(ms);
+    final d0 = DateTime(day0.year, day0.month, day0.day);
+    final diff = today0.difference(d0).inDays;
+    if (diff <= 0) return '今天';
+    if (diff == 1) return '昨天';
+    if (diff < 7) return '本周';
+    return '${day0.year}-${day0.month.toString().padLeft(2, '0')}-${day0.day.toString().padLeft(2, '0')}';
+  }
+
+  Widget _sessionCard(AiSession s) {
+    final active = widget.activeId == s.id;
+    final cnRef = refToChineseLabel(s.anchorRef);
+    final preview = _previews[s.id];
     return Dismissible(
       key: ValueKey('session-${s.id}'),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        color: Colors.red.shade400,
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      ),
-      onDismissed: (_) => _delete(s),
-      child: ListTile(
-        leading: const Icon(Icons.chat_bubble_outline,
-            color: AppColors.accentDeep),
-        title: Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: s.anchorRef != null && s.anchorRef!.trim().isNotEmpty
-            ? Text('锚定 ${s.anchorRef}',
-                style: const TextStyle(fontSize: 12))
-            : null,
-        trailing: PopupMenuButton<String>(
-          onSelected: (v) async {
-            if (v == 'rename') {
-              await _rename(s);
-            } else if (v == 'delete') {
-              await _delete(s);
-            }
-          },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'rename', child: Text('重命名')),
-            PopupMenuItem(value: 'delete', child: Text('删除')),
-          ],
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFC45C5C),
+          borderRadius: BorderRadius.circular(12),
         ),
-        onTap: () => Navigator.pop(context, s),
-        onLongPress: () => _rename(s),
+        child: const Text('删除',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+      ),
+      confirmDismiss: (_) async {
+        await _delete(s);
+        return false;
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Material(
+          color: active
+              ? AppColors.accent.withValues(alpha: 0.08)
+              : AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: active
+                  ? AppColors.accent.withValues(alpha: 0.55)
+                  : AppColors.line,
+              width: active ? 1.5 : 1,
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => Navigator.pop(context, s),
+            onLongPress: () => _rename(s),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          s.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _timeLabel(s.updatedAtMs),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.inkFaint),
+                      ),
+                      PopupMenuButton<String>(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.more_horiz,
+                            size: 18, color: AppColors.inkFaint),
+                        onSelected: (v) async {
+                          if (v == 'rename') await _rename(s);
+                          if (v == 'delete') await _delete(s);
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'rename', child: Text('重命名')),
+                          PopupMenuItem(value: 'delete', child: Text('删除')),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (cnRef != null && cnRef.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        cnRef,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.accentDeep,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  if (preview != null && preview.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        preview,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: AppColors.inkFaint,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -972,7 +1084,7 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
     final list = (live != null && live.isNotEmpty) ? live : _snapshot;
     final groups = list == null ? null : _grouped(list);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 12, 8),
+      padding: const EdgeInsets.fromLTRB(14, 14, 12, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -981,19 +1093,19 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
               const Text('历史会话',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const Spacer(),
-              IconButton(
-                tooltip: '刷新',
-                icon: const Icon(Icons.refresh, size: 20),
-                onPressed: _loadOnce,
-              ),
-              IconButton(
-                tooltip: '新会话',
-                icon: const Icon(Icons.add_comment_outlined,
-                    color: AppColors.accentDeep),
+              TextButton(
                 onPressed: () {
                   Navigator.pop(context);
                   widget.onNew?.call();
                 },
+                child: const Text('+ 新会话',
+                    style: TextStyle(
+                        fontSize: 13, color: AppColors.accentDeep)),
+              ),
+              IconButton(
+                tooltip: '关闭',
+                icon: const Icon(Icons.close, size: 22),
+                onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
@@ -1004,35 +1116,71 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
                 : groups.isEmpty
                     ? Center(
                         child: Text(
-                          _err != null ? '暂时无法加载会话' : '还没有会话',
+                          _err != null
+                              ? '暂时无法加载会话'
+                              : '暂无历史会话，开始提问后会自动保存。',
                           style: const TextStyle(color: AppColors.inkFaint),
+                          textAlign: TextAlign.center,
                         ),
                       )
                     : ListView.builder(
                         itemCount: groups.length,
                         itemBuilder: (_, i) {
                           final g = groups[i];
-                          final title =
-                              g.key == '随问' ? '随问' : '锚定 ${g.key}';
-                          return ExpansionTile(
-                            key: PageStorageKey('session-group-${g.key}'),
-                            initiallyExpanded: i == 0,
-                            title: Text(
-                              title,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${g.value.length} 个会话',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.inkFaint,
-                              ),
-                            ),
+                          // 首组默认展开；其他默认折叠
+                          final isCollapsed = i == 0
+                              ? _collapsed.contains(g.key)
+                              : !_collapsed.contains('open:${g.key}');
+                          final headLabel = g.key == '随问'
+                              ? '随问'
+                              : (refToChineseLabel(g.key) ?? g.key);
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              for (final s in g.value) _sessionTile(s),
+                              InkWell(
+                                onTap: () => setState(() {
+                                  if (i == 0) {
+                                    if (_collapsed.contains(g.key)) {
+                                      _collapsed.remove(g.key);
+                                    } else {
+                                      _collapsed.add(g.key);
+                                    }
+                                  } else {
+                                    final k = 'open:${g.key}';
+                                    if (_collapsed.contains(k)) {
+                                      _collapsed.remove(k);
+                                    } else {
+                                      _collapsed.add(k);
+                                    }
+                                  }
+                                }),
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(2, 10, 2, 6),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          headLabel,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        '${g.value.length} 条 · ${isCollapsed ? '展开' : '收起'}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.inkFaint,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (!isCollapsed)
+                                for (final s in g.value) _sessionCard(s),
                             ],
                           );
                         },
@@ -1089,41 +1237,47 @@ class _Bubble extends ConsumerWidget {
         crossAxisAlignment:
             isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          Container(
-            constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.82),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            decoration: BoxDecoration(
-              color: isUser ? AppColors.accentWash : AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.line),
+          if (isUser)
+            Container(
+              constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.82),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: AppColors.accentWash,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: Text(displayText,
+                  style: const TextStyle(
+                      height: 1.7, fontSize: 15, color: AppColors.ink)),
+            )
+          else
+            // 助手答文：无外框全宽，对齐 PWA .assistant-answer
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: turn.content.isEmpty
+                  ? AssistantThinkingState(
+                      phase: thinkingPhase ?? ThinkingPhase.understanding,
+                      citeCount: cites.length,
+                      slow: streamSlow,
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (!displayText.startsWith('⚠️'))
+                          _RagSourceStatus(
+                            count: cites.length,
+                            useRag: turn.meta?.useRag ??
+                                !(turn.scene?.startsWith('summary_') ?? false),
+                            knowledgeBaseId: turn.meta?.knowledgeBaseId,
+                            knowledgeBaseName: turn.meta?.knowledgeBaseName,
+                            onSwitchToPlatform: onSwitchToPlatform,
+                          ),
+                        AnswerText(text: displayText),
+                      ],
+                    ),
             ),
-            child: turn.content.isEmpty
-                ? AssistantThinkingState(
-                    phase: thinkingPhase ?? ThinkingPhase.understanding,
-                    citeCount: cites.length,
-                    slow: streamSlow,
-                  )
-                : (isUser
-                    ? Text(displayText,
-                        style: const TextStyle(
-                            height: 1.7, fontSize: 15, color: AppColors.ink))
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (!displayText.startsWith('⚠️'))
-                            _RagSourceStatus(
-                              count: cites.length,
-                              useRag: turn.meta?.useRag ??
-                                  !(turn.scene?.startsWith('summary_') ?? false),
-                              knowledgeBaseId: turn.meta?.knowledgeBaseId,
-                              knowledgeBaseName: turn.meta?.knowledgeBaseName,
-                              onSwitchToPlatform: onSwitchToPlatform,
-                            ),
-                          AnswerText(text: displayText),
-                        ],
-                      )),
-          ),
           if (!isUser && cites.isNotEmpty)
             CitationEvidenceRail(
               citations: cites,
@@ -1541,46 +1695,51 @@ class _ComposerState extends State<_Composer> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (chips.isNotEmpty)
-              SizedBox(
-                height: 36,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: chips.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 6),
-                  itemBuilder: (_, i) {
-                    final c = chips[i];
-                    return Material(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(999),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(999),
-                        onTap: widget.disabled || widget.onChip == null
-                            ? null
-                            : () => widget.onChip!(
-                                  c.$3,
-                                  mode: c.$2,
-                                  scene: c.$4 ?? chipSceneForLabel(c.$1),
-                                ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    for (var i = 0; i < chips.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 6),
+                      Builder(builder: (_) {
+                        final c = chips[i];
+                        return Material(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(999),
+                          child: InkWell(
                             borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: AppColors.line),
-                          ),
-                          child: Text(
-                            c.$1,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: widget.disabled
-                                  ? AppColors.inkFaint
-                                  : AppColors.ink,
+                            onTap: widget.disabled || widget.onChip == null
+                                ? null
+                                : () => widget.onChip!(
+                                      c.$3,
+                                      mode: c.$2,
+                                      scene: c.$4 ?? chipSceneForLabel(c.$1),
+                                    ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: AppColors.line),
+                              ),
+                              child: Text(
+                                c.$1,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.3,
+                                  color: widget.disabled
+                                      ? AppColors.inkFaint
+                                      : AppColors.ink,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
+                        );
+                      }),
+                    ],
+                  ],
                 ),
               ),
             if (chips.isNotEmpty) const SizedBox(height: 8),
