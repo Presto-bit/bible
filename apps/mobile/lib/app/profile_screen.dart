@@ -10,9 +10,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'app_shell.dart' show navIndexProvider;
 import '../core/api_client.dart';
 import '../core/config.dart';
 import '../core/gamification.dart';
+import '../core/h5_bridge_channel.dart' show discoverH5PathProvider;
+import '../core/open_h5.dart';
 import '../core/profile_avatar.dart';
 import '../core/profile_footprint.dart';
 import '../core/theme.dart';
@@ -638,11 +641,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            // 同行主卡
+            // 同行主卡（§5.5 · soft card 同构首页）
             PaperCard(
               tier: 2,
-              padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
-              onTap: () => context.push('/report'),
+              tint: AppColors.accent,
+              padding: const EdgeInsets.fromLTRB(18, 20, 16, 20),
+              onTap: () {
+                if (!openH5IfAllowed(context, '/report')) {
+                  context.push('/report');
+                }
+              },
               child: Row(
                 children: [
                   Expanded(
@@ -653,9 +661,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           const Text(
                             '已同行',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.inkFaint,
+                              color: AppColors.inkSoft,
                               letterSpacing: 0.4,
                             ),
                           ),
@@ -669,6 +677,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     fontSize: 36,
                                     fontWeight: FontWeight.w700,
                                     height: 1.05,
+                                    letterSpacing: -0.4,
                                     color: AppColors.ink,
                                   ),
                                 ),
@@ -687,16 +696,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           const Text(
                             '开始同行读经',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 22,
                               fontWeight: FontWeight.w700,
+                              letterSpacing: -0.3,
                             ),
                           ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           '今日 $mins 分钟 · 本周 $weekMins 分钟',
                           style: const TextStyle(
                             color: AppColors.inkFaint,
                             fontSize: 13,
+                            height: 1.35,
                           ),
                         ),
                       ],
@@ -955,6 +966,7 @@ class _FootprintCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PaperCard(
+      tier: 2,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       onTap: onTap,
       child: Column(
@@ -1370,25 +1382,49 @@ class _SettingsSheet extends ConsumerWidget {
               const SizedBox(height: 8),
               _row('数据与来源许可', '经文与资料出处', onTap: () {
                 Navigator.pop(context);
-                context.push('/profile/licenses');
+                if (!openH5IfAllowed(context, '/profile/licenses')) {
+                  context.push('/profile/licenses');
+                }
+              }),
+              const SizedBox(height: 8),
+              _row('帮助中心', '使用说明与常见问题', onTap: () {
+                Navigator.pop(context);
+                if (!openH5IfAllowed(context, '/help')) {
+                  context.push('/help');
+                }
+              }),
+              const SizedBox(height: 8),
+              _row('隐私政策', '', onTap: () {
+                Navigator.pop(context);
+                openH5IfAllowed(context, '/privacy');
+              }),
+              const SizedBox(height: 8),
+              _row('用户协议', '', onTap: () {
+                Navigator.pop(context);
+                openH5IfAllowed(context, '/terms');
               }),
               const SizedBox(height: 8),
               _row('提醒设置', '读经提醒', onTap: () {
                 Navigator.pop(context);
-                context.push('/profile/reminders');
+                if (!openH5IfAllowed(context, '/profile/reminders')) {
+                  context.push('/profile/reminders');
+                }
               }),
               const SizedBox(height: 8),
-              _row('帮助与反馈', '官方客服', onTap: () async {
+              _row('帮助与反馈', '官方客服私信', onTap: () async {
                 Navigator.pop(context);
                 try {
                   final tid = await ref
                       .read(socialRepoProvider)
                       .openDm(kOfficialSupportUserCode);
                   if (!context.mounted) return;
-                  context.push('/discover/dm/$tid');
+                  ref.read(navIndexProvider.notifier).set(3);
+                  ref
+                      .read(discoverH5PathProvider.notifier)
+                      .go('/discover/dm/$tid');
                 } catch (_) {
                   if (!context.mounted) return;
-                  context.push('/discover');
+                  ref.read(navIndexProvider.notifier).set(3);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('暂时无法直达客服，已打开消息页')),
                   );

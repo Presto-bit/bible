@@ -6,14 +6,18 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../app/app_shell.dart';
 import '../../core/api_client.dart';
+import '../../core/daily_clock.dart';
+import '../../core/daily_themes.dart';
 import '../../core/daily_verse_engagement.dart';
+import '../../core/daily_verse_share.dart';
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/gamification.dart';
+import '../../core/home_bootstrap_cache.dart';
 import '../../core/home_greeting.dart';
+import '../../core/home_liveness.dart';
 import '../../core/campaign_nav.dart';
 import '../../core/open_h5.dart';
 import '../../core/theme.dart';
@@ -28,8 +32,10 @@ import '../bible/reader_screen.dart' show readerJumpProvider;
 import 'daily_verse_react_sheet.dart';
 import 'daily_verse_wallpaper_screen.dart';
 import 'hero_b_campaign.dart';
+import 'home_growth_cards.dart';
 import 'home_hero_carousel.dart';
 import 'home_hero_metrics.dart';
+import 'home_onboarding_banner.dart';
 import 'home_today_builder.dart';
 import 'home_today_panel.dart';
 import '../search/search_screen.dart';
@@ -129,24 +135,15 @@ final homeBootstrapProvider = FutureProvider<HomeBootstrap>((ref) async {
   final Dio dio = ref.watch(dioProvider);
   final session = ref.watch(sessionProvider);
   final prefs = ref.watch(prefsProvider);
-  final today = DateTime.now();
-  final ymd =
-      '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-  try {
-    final res =
-        await dio.get('/content/home/bootstrap', queryParameters: {'_d': ymd});
-    final data = res.data as Map<String, dynamic>;
+  final ymd = chinaTodayYmd();
+  final cache = HomeBootstrapCache(prefs);
+
+  HomeBootstrap parse(Map<String, dynamic> data) {
     final v = DailyVerse.fromJson(data['dailyVerse'] as Map<String, dynamic>);
-    if (v.day > 0) {
-      await writeLocalDailyVerseLike(prefs, session, v.day, v.liked);
-    }
     HeroBCampaign? campaign;
     final raw = data['heroBCampaign'];
-    if (raw is Map<String, dynamic> && '${raw['id'] ?? ''}'.isNotEmpty) {
-      campaign = HeroBCampaign.fromJson(raw);
-      await writeCachedHeroBCampaign(prefs, campaign);
-    } else {
-      await writeCachedHeroBCampaign(prefs, null);
+    if (raw is Map && '${raw['id'] ?? ''}'.isNotEmpty) {
+      campaign = HeroBCampaign.fromJson(Map<String, dynamic>.from(raw));
     }
     final rails = <HomeTodayCampaign>[];
     final rc = data['railCampaigns'];
@@ -164,8 +161,53 @@ final homeBootstrapProvider = FutureProvider<HomeBootstrap>((ref) async {
       heroBCampaign: campaign,
       railCampaigns: rails,
     );
+  }
+
+  // TTL 内命中本地缓存则跳过网络（手动下拉会 invalidate + force 写回）
+  final force = ref.watch(_homeBootstrapForceProvider);
+  if (!shouldFetchHomeNetwork(
+    lastAtMs: cache.lastFetchedAtMs,
+    ttlMs: homeBootstrapTtlMs,
+    force: force,
+  )) {
+    final cached = cache.readJson(todayYmd: ymd);
+    if (cached != null && cached['dailyVerse'] is Map) {
+      try {
+        final boot = parse(cached);
+        if (boot.dailyVerse.day > 0) {
+          await writeLocalDailyVerseLike(
+              prefs, session, boot.dailyVerse.day, boot.dailyVerse.liked);
+        }
+        if (boot.heroBCampaign != null) {
+          await writeCachedHeroBCampaign(prefs, boot.heroBCampaign);
+        }
+        return boot;
+      } catch (_) {/* fall through to network */}
+    }
+  }
+
+  try {
+    final res =
+        await dio.get('/content/home/bootstrap', queryParameters: {'_d': ymd});
+    final data = Map<String, dynamic>.from(res.data as Map);
+    final boot = parse(data);
+    if (boot.dailyVerse.day > 0) {
+      await writeLocalDailyVerseLike(
+          prefs, session, boot.dailyVerse.day, boot.dailyVerse.liked);
+    }
+    await writeCachedHeroBCampaign(prefs, boot.heroBCampaign);
+    await cache.writeJson(data, todayYmd: ymd);
+    // 重置 force
+    ref.read(_homeBootstrapForceProvider.notifier).set(false);
+    return boot;
   } on DioException catch (e) {
-    // 弱网诚实：向上抛，UI 展示可重试文案，不静默假数据
+    // 弱网：尽量回落当日缓存
+    final cached = cache.readJson(todayYmd: ymd);
+    if (cached != null && cached['dailyVerse'] is Map) {
+      try {
+        return parse(cached);
+      } catch (_) {}
+    }
     throw Exception(
       e.type == DioExceptionType.connectionError ||
               e.type == DioExceptionType.connectionTimeout
@@ -174,6 +216,17 @@ final homeBootstrapProvider = FutureProvider<HomeBootstrap>((ref) async {
     );
   }
 });
+
+/// 下拉刷新时置 true，强制打网。
+class _HomeBootstrapForceNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool v) => state = v;
+}
+
+final _homeBootstrapForceProvider =
+    NotifierProvider<_HomeBootstrapForceNotifier, bool>(
+        _HomeBootstrapForceNotifier.new);
 
 /// 今日祷告（ACTS 计划）。
 class PrayerToday {
@@ -303,40 +356,39 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    final today = DateTime.now();
-    final ymd =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final todayYmd = chinaTodayYmd();
+    final prefs = ref.watch(prefsProvider);
     int todayMins = 0;
     int monthDays = 0;
     bool readToday = false;
     bool welcomeBack = false;
     review.whenData((d) {
-      todayMins = d.minutesByDay[ymd] ?? 0;
-      readToday = todayMins > 0 || (d.chaptersByDay[ymd] ?? 0) > 0;
-      final monthStart = DateTime(today.year, today.month, 1);
-      final monthEnd = DateTime(today.year, today.month + 1, 1);
+      todayMins = d.minutesByDay[todayYmd] ?? 0;
+      readToday = todayMins > 0 || (d.chaptersByDay[todayYmd] ?? 0) > 0;
+      final now = DateTime.now();
+      final monthStart = DateTime(now.year, now.month, 1);
+      final monthEnd = DateTime(now.year, now.month + 1, 1);
       monthDays = d
           .rangeStats(
             monthStart.millisecondsSinceEpoch,
             monthEnd.millisecondsSinceEpoch,
           )
           .days;
-      // 近 3 天无读且历史上读过 → 欢迎回来
-      var gap = 0;
-      var cursor = today;
-      for (var i = 0; i < 3; i++) {
-        final k =
-            '${cursor.year}-${cursor.month.toString().padLeft(2, '0')}-${cursor.day.toString().padLeft(2, '0')}';
-        if ((d.minutesByDay[k] ?? 0) > 0 || (d.chaptersByDay[k] ?? 0) > 0) {
-          gap = 0;
-          break;
-        }
-        gap++;
-        cursor = cursor.subtract(const Duration(days: 1));
-      }
-      final hadHistory = d.minutesByDay.values.any((m) => m > 0);
-      welcomeBack = gap >= 3 && hadHistory;
+      final activeYmds = <String>{
+        ...d.minutesByDay.entries
+            .where((e) => e.value > 0)
+            .map((e) => e.key),
+        ...d.chaptersByDay.entries
+            .where((e) => e.value > 0)
+            .map((e) => e.key),
+      };
+      welcomeBack = isWelcomeBackGap(recentActiveYmds: activeYmds);
     });
+
+    // 计划完成回首页触觉（一次性）
+    if (consumePlanDoneHomeHaptic(prefs)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => peiaiHapticSuccess());
+    }
 
     final groups = ref.watch(myGroupsProvider).maybeWhen(
           data: (g) => g,
@@ -376,6 +428,7 @@ class HomeScreen extends ConsumerWidget {
       groupTitle: groupTitle,
       groupSub: groupSub,
       campaigns: rails,
+      planDoneToday: isPlanDayDoneToday(prefs),
       readToday: readToday,
       welcomeBack: welcomeBack,
     ));
@@ -432,12 +485,33 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
+            ref.read(_homeBootstrapForceProvider.notifier).set(true);
             ref.invalidate(homeBootstrapProvider);
             ref.invalidate(prayerTodayProvider);
             ref.invalidate(myGroupsProvider);
             try {
               await ref.read(homeBootstrapProvider.future);
-            } catch (_) {}
+              peiaiHapticLight();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('已更新今日'),
+                    duration: Duration(milliseconds: 1400),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            } catch (_) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('刷新失败，请检查网络'),
+                    duration: Duration(milliseconds: 1800),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            }
           },
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -516,6 +590,7 @@ class HomeScreen extends ConsumerWidget {
                     verseStart: v.verseStart,
                     initialLiked: v.liked,
                     initialLikeCount: v.likesCount,
+                    initialSharesCount: v.sharesCount,
                     initialMyReact: v.myReact,
                     initialReactsCount: v.reactsCount,
                     initialTopPresets: v.topPresets,
@@ -540,19 +615,42 @@ class HomeScreen extends ConsumerWidget {
                 onSideBottom: () => openSlot(panel.prayer),
               ),
               const SizedBox(height: 14),
+              const HomeOnboardingBanner(),
               // 成长区：媒体行（摘要 + 功能），对齐 PWA HomeGrowthStack 节奏
               _GrowthStack(
-                todayMins: todayMins,
-                monthDays: monthDays,
-                planTitle: planTitle,
-                planSub: planSub,
-                planOccupied: panel.primary.id == 'plan' ||
-                    panel.group.id == 'plan' ||
-                    panel.prayer.id == 'plan',
-                prayerOccupied: panel.primary.id == 'prayer' ||
-                    panel.group.id == 'prayer' ||
-                    panel.prayer.id == 'prayer',
-                prayerTitle: prayerTitle,
+                model: buildHomeGrowthModel(
+                  todayMin: todayMins,
+                  monthDays: monthDays,
+                  occupied: occupiedFromIds([
+                    panel.primary.id,
+                    panel.group.id,
+                    panel.prayer.id,
+                  ]),
+                  plan: HomeGrowthFeatureInput(
+                    title: planTitle ?? '选一个读经计划',
+                    detail: planSub ?? '按日程读完一卷书',
+                    href: '/plans',
+                  ),
+                  prayer: HomeGrowthFeatureInput(
+                    title: (prayerTitle ?? '').isNotEmpty
+                        ? prayerTitle!
+                        : '开始祷告',
+                    detail: '安静片刻，向神说话',
+                    href: '/pray',
+                  ),
+                  theme: () {
+                    final themes = ref.watch(dailyThemesProvider).maybeWhen(
+                          data: (d) => d,
+                          orElse: () => null,
+                        );
+                    final n = themes?.count ?? themes?.themes.length ?? 0;
+                    return HomeGrowthFeatureInput(
+                      title: '探索经文主题',
+                      detail: n > 0 ? '$n 个主题 · 去搜索' : '按主题找经文',
+                      href: '/search',
+                    );
+                  }(),
+                ),
                 onReport: () {
                   if (!openH5IfAllowed(context, '/report')) {
                     context.push('/report');
@@ -889,6 +987,7 @@ class _VerseCard extends ConsumerStatefulWidget {
     required this.verseStart,
     required this.initialLiked,
     required this.initialLikeCount,
+    this.initialSharesCount = 0,
     this.initialMyReact,
     this.initialReactsCount = 0,
     this.initialTopPresets = const [],
@@ -902,6 +1001,7 @@ class _VerseCard extends ConsumerStatefulWidget {
   final int verseStart;
   final bool initialLiked;
   final int initialLikeCount;
+  final int initialSharesCount;
   final DailyVerseReactPreset? initialMyReact;
   final int initialReactsCount;
   final List<DailyVerseReactPreset> initialTopPresets;
@@ -913,7 +1013,9 @@ class _VerseCard extends ConsumerStatefulWidget {
 class _VerseCardState extends ConsumerState<_VerseCard> {
   late bool _liked;
   late int _likeCount;
+  late int _sharesCount;
   bool _likeBusy = false;
+  bool _shareBusy = false;
   bool _holdLocalEngagement = false;
   DailyVerseReactPreset? _myReact;
   int _reactsCount = 0;
@@ -924,6 +1026,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     super.initState();
     _liked = widget.initialLiked;
     _likeCount = widget.initialLikeCount;
+    _sharesCount = widget.initialSharesCount;
     _myReact = widget.initialMyReact;
     _reactsCount = widget.initialReactsCount;
     _topPresets = widget.initialTopPresets;
@@ -935,6 +1038,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     if (oldWidget.day != widget.day) {
       _liked = widget.initialLiked;
       _likeCount = widget.initialLikeCount;
+      _sharesCount = widget.initialSharesCount;
       _holdLocalEngagement = false;
       _myReact = widget.initialMyReact;
       _reactsCount = widget.initialReactsCount;
@@ -969,6 +1073,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     final prevCount = _likeCount;
     final nextLiked = !prevLiked;
     final nextCount = (prevCount + (nextLiked ? 1 : -1)).clamp(0, 1 << 30);
+    peiaiHapticLight();
     setState(() {
       _likeBusy = true;
       _holdLocalEngagement = true;
@@ -1067,10 +1172,33 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   }
 
   Future<void> _share() async {
-    final body = widget.ref.isEmpty
-        ? '「${widget.text}」\n—— 彼爱'
-        : '「${widget.text}」\n—— ${widget.ref}\n彼爱 · 安静读经';
-    await Share.share(body);
+    if (_shareBusy) return;
+    setState(() => _shareBusy = true);
+    try {
+      final ok = await shareDailyVerseCard(
+        context,
+        ref: widget.ref,
+        text: widget.text,
+        day: widget.day < 1 ? 1 : widget.day,
+      );
+      if (!ok || widget.day < 1) return;
+      try {
+        final dio = ref.read(dioProvider);
+        final res =
+            await dio.post('/content/daily-verse/share?day=${widget.day}');
+        final data = res.data is Map
+            ? Map<String, dynamic>.from(res.data as Map)
+            : <String, dynamic>{};
+        final count = (data['shares_count'] is num)
+            ? (data['shares_count'] as num).toInt()
+            : _sharesCount + 1;
+        if (mounted) setState(() => _sharesCount = count);
+      } catch (_) {
+        if (mounted) setState(() => _sharesCount = _sharesCount + 1);
+      }
+    } finally {
+      if (mounted) setState(() => _shareBusy = false);
+    }
   }
 
   Future<void> _openReact() async {
@@ -1220,7 +1348,8 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
                             const SizedBox(width: 4),
                             _HeroAction(
                               icon: Icons.ios_share_outlined,
-                              onTap: () => _share(),
+                              label: _sharesCount > 0 ? '$_sharesCount' : null,
+                              onTap: _shareBusy ? null : () => _share(),
                             ),
                           ],
                         ),
@@ -1284,97 +1413,55 @@ class _HeroAction extends StatelessWidget {
 
 class _GrowthStack extends StatelessWidget {
   const _GrowthStack({
-    required this.todayMins,
-    required this.monthDays,
-    this.planTitle,
-    this.planSub,
-    this.prayerTitle,
-    required this.planOccupied,
-    required this.prayerOccupied,
+    required this.model,
     required this.onReport,
     required this.onPlan,
     required this.onTheme,
     required this.onPrayer,
   });
 
-  final int todayMins;
-  final int monthDays;
-  final String? planTitle;
-  final String? planSub;
-  final String? prayerTitle;
-  final bool planOccupied;
-  final bool prayerOccupied;
+  final HomeGrowthModel model;
   final VoidCallback onReport;
   final VoidCallback onPlan;
   final VoidCallback onTheme;
   final VoidCallback onPrayer;
 
+  IconData _icon(String name) => switch (name) {
+        'schedule' => Icons.schedule,
+        'menu_book' => Icons.menu_book_outlined,
+        'prayer' => Icons.volunteer_activism_outlined,
+        _ => Icons.explore_outlined,
+      };
+
+  VoidCallback? _onTap(String id) => switch (id) {
+        'summary' => onReport,
+        'plan' => onPlan,
+        'theme' => onTheme,
+        'prayer' => onPrayer,
+        _ => null,
+      };
+
   @override
   Widget build(BuildContext context) {
-    // 对齐 PWA buildHomeGrowthModel：摘要 → 计划 → 主题 → 祷告
-    final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final monthPct = daysInMonth <= 0
-        ? 0
-        : ((monthDays / daysInMonth) * 100).round().clamp(0, 100);
-
-    final rows = <Widget>[
-      _MediaGrowthRow(
-        tag: '今日',
-        title: '今日 $todayMins 分钟',
-        detail: '本月已读 $monthDays 天',
-        metricValue: '$todayMins',
-        metricPrefix: '今日',
-        metricSuffix: '分钟',
-        imageUrl: null,
-        icon: Icons.schedule,
-        progressPct: monthPct > 0 ? monthPct : null,
-        onTap: onReport,
-      ),
-    ];
-    if (!planOccupied) {
-      rows.add(
-        _MediaGrowthRow(
-          tag: '计划',
-          title: planTitle ?? '选一个读经计划',
-          detail: planSub ?? '按日程读完一卷书',
-          imageUrl: dailyVerseWallpaperUrl(8),
-          icon: Icons.menu_book_outlined,
-          onTap: onPlan,
-        ),
-      );
-    }
-    rows.add(
-      _MediaGrowthRow(
-        tag: '主题',
-        title: '探索经文主题',
-        detail: '按主题找经文',
-        imageUrl: dailyVerseWallpaperUrl(21),
-        icon: Icons.explore_outlined,
-        onTap: onTheme,
-      ),
-    );
-    if (!prayerOccupied) {
-      rows.add(
-        _MediaGrowthRow(
-          tag: '祷告',
-          title: prayerTitle != null && prayerTitle!.isNotEmpty
-              ? prayerTitle!
-              : '开始祷告',
-          detail: '安静片刻，向神说话',
-          imageUrl: dailyVerseWallpaperUrl(14),
-          icon: Icons.volunteer_activism_outlined,
-          onTap: onPrayer,
-        ),
-      );
-    }
-
+    final cards = model.cards;
+    if (cards.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 0; i < rows.length; i++) ...[
+        for (var i = 0; i < cards.length; i++) ...[
           if (i > 0) const SizedBox(height: 24),
-          rows[i],
+          _MediaGrowthRow(
+            tag: cards[i].tag,
+            title: cards[i].title,
+            detail: cards[i].detail ?? '',
+            metricValue: cards[i].metricValue,
+            metricPrefix: cards[i].metricPrefix,
+            metricSuffix: cards[i].metricSuffix,
+            imageUrl: cards[i].imageUrl,
+            icon: _icon(cards[i].iconName),
+            progressPct: cards[i].progressPct,
+            onTap: _onTap(cards[i].id),
+          ),
         ],
       ],
     );
@@ -1400,7 +1487,7 @@ class _MediaGrowthRow extends StatelessWidget {
   final String title;
   final String detail;
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final String? imageUrl;
   final String? metricValue;
   final String? metricPrefix;

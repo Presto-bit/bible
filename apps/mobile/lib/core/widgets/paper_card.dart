@@ -1,10 +1,12 @@
-/// 质感系统卡片 —— 对齐 canvas demo 的「柔光纸感分层」。
+/// 质感系统卡片 —— 对齐 Web soft card / `--home-card-radius` / `--home-shadow`。
 ///
-/// 三级 elevation：长柔阴影 + 顶部高光（用渐变叠层模拟 inset highlight）+
-/// 可选主题色调染（tonalWash）。tier1 列表 / tier2 操作 / tier3 hero。
+/// 三级 elevation：长柔阴影 + 顶部高光 + 可选主题色调染。
+/// tier1 列表 / tier2 操作·身份主卡 / tier3 hero。
 library;
 
 import 'package:flutter/material.dart';
+
+import '../theme.dart';
 
 class PaperCard extends StatelessWidget {
   const PaperCard({
@@ -19,7 +21,7 @@ class PaperCard extends StatelessWidget {
     this.backgroundLayer,
   }) : assert(tier >= 1 && tier <= 3);
 
-  /// 1 列表 / 2 操作 / 3 hero。
+  /// 1 列表 / 2 操作·同行主卡 / 3 hero。
   final int tier;
 
   /// 主题色调（用于 hero/强调卡的渐变染与描边）。
@@ -35,41 +37,40 @@ class PaperCard extends StatelessWidget {
   final Widget? backgroundLayer;
   final Widget child;
 
-  double get _radius => tier == 3
-      ? 18
-      : tier == 2
-          ? 14
-          : 12;
+  /// 对齐 Web `--home-card-radius: 24px`（tier2/3）；列表略小。
+  double get _radius => tier == 1 ? 14 : 24;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final radius = BorderRadius.circular(_radius);
+    final dark = theme.brightness == Brightness.dark;
     final line = theme.dividerColor;
     final surface = theme.colorScheme.surface;
     final primary = theme.colorScheme.primary;
+    // 对齐 --soft-card-edge：ink-faint 混入 line
+    final softEdge = Color.lerp(AppColors.inkFaint, line, 0.68)!
+        .withValues(alpha: dark ? 0.55 : 0.9);
     final borderColor =
-        tint != null ? tint!.withValues(alpha: 0.22) : line;
+        tint != null ? tint!.withValues(alpha: 0.22) : softEdge;
 
     final base = surface;
 
     final wash = tint != null
         ? LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
-              tint!.withValues(alpha: 0.12),
-              tint!.withValues(alpha: 0.03),
-              Colors.transparent,
+              Color.lerp(tint!, surface, 0.89)!,
+              surface,
             ],
-            stops: const [0, 0.6, 1],
+            stops: const [0, 0.58],
           )
         : LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.white.withValues(
-                  alpha: theme.brightness == Brightness.dark ? 0.06 : 0.4),
+              Colors.white.withValues(alpha: dark ? 0.06 : 0.4),
               Colors.transparent,
             ],
             stops: const [0, 0.55],
@@ -81,13 +82,14 @@ class PaperCard extends StatelessWidget {
         color: base,
         borderRadius: radius,
         border: Border.all(color: borderColor),
-        boxShadow: _shadow(tier, theme.brightness == Brightness.dark),
+        boxShadow: _shadow(tier, dark),
       ),
       child: ClipRRect(
         borderRadius: radius,
         child: Stack(
           children: [
-            if (backgroundLayer != null) Positioned.fill(child: backgroundLayer!),
+            if (backgroundLayer != null)
+              Positioned.fill(child: backgroundLayer!),
             Positioned.fill(
               child: DecoratedBox(decoration: BoxDecoration(gradient: wash)),
             ),
@@ -123,32 +125,41 @@ class PaperCard extends StatelessWidget {
     return margin == null ? card : Padding(padding: margin!, child: card);
   }
 
+  /// 对齐 Web `--home-shadow` / `--home-shadow-lift`。
   static List<BoxShadow> _shadow(int tier, bool dark) {
-    final ink = dark ? const Color(0xFF000000) : const Color(0xFF2C2825);
+    final ink = dark ? const Color(0xFF000000) : const Color(0xFF0F172A);
     switch (tier) {
       case 3:
         return [
           BoxShadow(
-            color: ink.withValues(alpha: dark ? 0.4 : 0.18),
-            blurRadius: 36,
-            spreadRadius: -14,
-            offset: const Offset(0, 16),
+            color: ink.withValues(alpha: dark ? 0.35 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: ink.withValues(alpha: dark ? 0.45 : 0.12),
+            blurRadius: 40,
+            offset: const Offset(0, 12),
           ),
         ];
       case 2:
         return [
           BoxShadow(
-            color: ink.withValues(alpha: dark ? 0.28 : 0.12),
-            blurRadius: 16,
-            spreadRadius: -6,
-            offset: const Offset(0, 4),
+            color: ink.withValues(alpha: dark ? 0.28 : 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+          BoxShadow(
+            color: ink.withValues(alpha: dark ? 0.36 : 0.1),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ];
       default:
         return [
           BoxShadow(
-            color: ink.withValues(alpha: dark ? 0.2 : 0.05),
-            blurRadius: 2,
+            color: ink.withValues(alpha: dark ? 0.22 : 0.05),
+            blurRadius: 6,
             offset: const Offset(0, 1),
           ),
         ];

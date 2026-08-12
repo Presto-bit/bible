@@ -22,6 +22,8 @@ import 'h5_session_bridge.dart';
 import 'h5_whitelist.dart';
 import 'theme_ext.dart';
 
+// discoverH5PathProvider 来自 h5_bridge_channel.dart
+
 class H5HostPage extends ConsumerStatefulWidget {
   const H5HostPage({
     super.key,
@@ -57,14 +59,18 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   var _hadFirstPaint = false;
   String? _error;
   var _canGoBack = false;
+  late String _activePath;
 
   /// 视图可见高度（键盘弹起时收小），同步给 H5 --im-kb / vv
   double? _viewHeight;
   double? _viewBottomInset;
+  /// 无键盘时宿主高度基线（部分机型 adjustResize 下 viewInsets 为 0）
+  double? _baselineHostH;
 
   @override
   void initState() {
     super.initState();
+    _activePath = widget.path.startsWith('/') ? widget.path : '/${widget.path}';
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
   }
@@ -142,8 +148,19 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final hostH = (box != null && box.hasSize)
         ? box.size.height
         : mq.size.height;
-    final kb = mq.viewInsets.bottom;
-    final vv = (hostH - kb).clamp(120.0, 4000.0);
+    final insetKb = mq.viewInsets.bottom;
+    // 部分机型 inset=0 但宿主被顶矮 → 仍视为键盘开
+    if (insetKb <= 0) {
+      _baselineHostH ??= hostH;
+    }
+    final shrinkKb = (_baselineHostH != null && hostH < _baselineHostH! - 80)
+        ? (_baselineHostH! - hostH)
+        : 0.0;
+    final kb = insetKb > 0 ? insetKb : shrinkKb;
+    if (insetKb <= 0 && shrinkKb <= 0) {
+      _baselineHostH = hostH;
+    }
+    final vv = (hostH - (insetKb > 0 ? insetKb : 0)).clamp(120.0, 4000.0);
     await c.runJavaScript('''
 (function(){
   try {
@@ -169,7 +186,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       });
       return;
     }
-    final path = widget.path.startsWith('/') ? widget.path : '/${widget.path}';
+    final path = _activePath.startsWith('/') ? _activePath : '/$_activePath';
     final pathOnly = path.split('?').first;
     if (!H5Whitelist.allows(pathOnly)) {
       setState(() {
@@ -261,7 +278,12 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       );
 
     if (!mounted) return;
-    attachPeiaiJsChannel(controller, ref: ref, context: context);
+    attachPeiaiJsChannel(
+      controller,
+      ref: ref,
+      context: context,
+      onGoBack: _onWillPop,
+    );
 
     final platform = controller.platform;
     if (platform is AndroidWebViewController) {
@@ -288,6 +310,33 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       _controller = controller;
       _error = null;
     });
+  }
+
+  /// 常驻 WebView 内跳转到 `_activePath`（深链/open_path）。
+  Future<void> _navigateActivePath() async {
+    final c = _controller;
+    if (c == null) {
+      await _bootstrap();
+      return;
+    }
+    final path = _activePath.startsWith('/') ? _activePath : '/$_activePath';
+    final pathOnly = path.split('?').first;
+    if (!H5Whitelist.allows(pathOnly)) return;
+    final themeId = ref.read(appThemeProvider);
+    final padTop = MediaQuery.paddingOf(context).top;
+    final token = await ref.read(sessionProvider).token();
+    if (!mounted) return;
+    final uri = AppConfig.h5Uri(
+      path,
+      token: token,
+      themeId: themeId.storageKey,
+      shellInsetTop: widget.showAppBar ? 0 : padTop,
+    );
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    await c.loadRequest(uri);
   }
 
   /// IM 细节：输入栏、软键盘、禁止双 Tab 未读角标误伤宿主。
@@ -488,7 +537,17 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     if (body) body.classList.add('android-flutter-h5', 'pwa-standalone');
     try { sessionStorage.setItem('peiai_client_kind', 'android_h5_tab'); } catch (e) {}
     var t = $tokenJs;
-    if (t) { try { localStorage.setItem('presto_session_token', t); } catch (e) {} }
+    if (t) {
+      try { localStorage.setItem('presto_session_token', t); } catch (e) {}
+    } else {
+      try {
+        localStorage.removeItem('presto_session_token');
+        localStorage.removeItem('peiai_ft_token');
+      } catch (e) {}
+      try {
+        window.dispatchEvent(new CustomEvent('peiai-flutter-logout'));
+      } catch (e) {}
+    }
     root.setAttribute('data-peiai-theme', '$theme');
     root.setAttribute('data-peiai-client', 'android_h5_tab');
     root.setAttribute('data-theme', '$theme');
@@ -520,10 +579,46 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     return "'${s.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll('\n', r'\n')}'";
   }
 
-  /// 返回 true = 可离开本页（无 Web 历史）
+  /// §24.6：先关 H5 半屏 → Web 历史 → 再交给 Flutter。
+  /// 返回 true = 可离开本页。
   Future<bool> _onWillPop() async {
     final c = _controller;
-    if (c != null && await c.canGoBack()) {
+    if (c == null) return true;
+
+    // 1) 关掉 portal / sheet（对齐 Web dismissPortaledOverlays）
+    try {
+      final dismissed = await c.runJavaScriptReturningResult('''
+(function(){
+  try {
+    if (typeof window.__PEIAI_DISMISS_OVERLAYS__ === 'function') {
+      window.__PEIAI_DISMISS_OVERLAYS__();
+      return '1';
+    }
+    var sels = [
+      '.sheet-backdrop',
+      '.reader-sheet-backdrop',
+      '[data-dismiss-on-tab-nav].sheet-backdrop',
+      '.modal-backdrop',
+      '[role="dialog"] .sheet-backdrop'
+    ];
+    for (var i = 0; i < sels.length; i++) {
+      var el = document.querySelector(sels[i]);
+      if (el) { el.click(); return '1'; }
+    }
+    return '0';
+  } catch (e) { return '0'; }
+})();
+''');
+      final raw = '$dismissed'.replaceAll('"', '');
+      if (raw == '1' || raw == 'true') {
+        final back = await c.canGoBack();
+        if (mounted) setState(() => _canGoBack = back);
+        return false;
+      }
+    } catch (_) {}
+
+    // 2) Web 历史
+    if (await c.canGoBack()) {
       await c.goBack();
       final back = await c.canGoBack();
       if (mounted) setState(() => _canGoBack = back);
@@ -550,6 +645,21 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         unawaited(_reinjectSession());
         if (widget.forceOffline) return;
         // 若曾失败且此刻可能已联网，不自动刷（避免打断会话）；仅 reinject
+      });
+    }
+
+    // 深链 / open_path：发现子路径喂进常驻 WebView
+    if (widget.embedInTab && widget.tabIndex == 3) {
+      ref.listen(discoverH5PathProvider, (prev, next) {
+        if (next == null || next.isEmpty) return;
+        ref.read(discoverH5PathProvider.notifier).consume();
+        final path = next.startsWith('/') ? next : '/$next';
+        if (path.split('?').first == _activePath.split('?').first &&
+            path == _activePath) {
+          return;
+        }
+        _activePath = path;
+        unawaited(_navigateActivePath());
       });
     }
 

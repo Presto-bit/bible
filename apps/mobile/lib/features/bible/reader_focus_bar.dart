@@ -1,4 +1,4 @@
-/// 选中经文工具条：对齐 PWA（想法 / 划线 / 复制 / 金句卡 / 对照 / 小爱）。
+/// 选中经文工具条：笔记 / 划线 / 复制 / 金句卡 / 对照 / 小爱（安卓与 PWA 一致）。
 /// 纸感：低 elevation + 细边线，贴选区不抢正文。
 library;
 
@@ -129,17 +129,23 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
                         widget.readingMode != ReadingMode.focus)
                       _iconBtn(
                         icon: Icons.lightbulb_outline,
-                        label: '想法',
+                        label: '笔记',
                         onTap: widget.onThought,
                       ),
                     if (widget.underlinesEnabled &&
                         widget.readingMode != ReadingMode.focus)
                       _iconBtn(
                         icon: Icons.edit_outlined,
-                        label: hasMark ? '改色' : '划线',
+                        label: hasMark ? '取消划线' : '划线',
                         active: _markPaletteOpen || hasMark,
                         onTap: () {
-                          setState(() => _markPaletteOpen = !_markPaletteOpen);
+                          if (hasMark) {
+                            widget.onClearMark();
+                            setState(() => _markPaletteOpen = false);
+                            return;
+                          }
+                          setState(
+                              () => _markPaletteOpen = !_markPaletteOpen);
                         },
                       ),
                     _iconBtn(

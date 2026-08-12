@@ -20,6 +20,7 @@ import '../assistant/assistant_repository.dart';
 import '../assistant/assistant_scenes.dart';
 import '../assistant/assistant_seed.dart';
 import '../assistant/models.dart' as am;
+import '../assistant/models.dart' show Citation;
 import '../search/search_screen.dart';
 import '../plans/plan_navigation.dart';
 import '../plans/plan_reading.dart';
@@ -891,9 +892,27 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
 
   void _goAssistant() {
     Navigator.of(context).pop();
+    final clean = bodyText(_answer).trim();
+    final seeds = <AssistantSeedMessage>[];
+    if (clean.isNotEmpty && !clean.startsWith('⚠️')) {
+      seeds.add(AssistantSeedMessage(role: 'user', text: _userQuestion));
+      seeds.add(AssistantSeedMessage(
+        role: 'assistant',
+        text: clean,
+        citations: _citations
+            .map((c) => Citation(
+                  n: c.n,
+                  title: c.title,
+                  score: c.score,
+                  snippet: c.snippet,
+                ))
+            .toList(),
+      ));
+    }
     ref.read(assistantSeedProvider.notifier).open(
           ref: widget.refStr,
-          question: _userQuestion,
+          question: seeds.isEmpty ? _userQuestion : null,
+          seedMessages: seeds,
         );
     ref.read(navIndexProvider.notifier).set(2);
   }

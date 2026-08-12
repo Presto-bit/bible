@@ -124,6 +124,39 @@ class SessionRepository {
           .write(AiSessionsCompanion(updatedAtMs: Value(now)));
     }
   }
+
+  /// 同锚点 · 中国当天续用（PRODUCT §5.3）；否则 null → 新建。
+  Future<AiSession?> findResumableSession(String? anchorRef) async {
+    final key = (anchorRef ?? '').trim();
+    if (key.isEmpty) return null;
+    final today = _chinaTodayYmd();
+    final list = await _db.watchSessions().first;
+    for (final s in list) {
+      if (s.deleted) continue;
+      final a = (s.anchorRef ?? '').trim();
+      if (a != key) continue;
+      final day = _ymdFromMs(s.updatedAtMs);
+      if (day == today) return s;
+    }
+    return null;
+  }
+
+  static String _chinaTodayYmd() {
+    final cn = DateTime.now().toUtc().add(const Duration(hours: 8));
+    final y = cn.year.toString().padLeft(4, '0');
+    final m = cn.month.toString().padLeft(2, '0');
+    final d = cn.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  static String _ymdFromMs(int ms) {
+    final cn = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true)
+        .add(const Duration(hours: 8));
+    final y = cn.year.toString().padLeft(4, '0');
+    final m = cn.month.toString().padLeft(2, '0');
+    final d = cn.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
 }
 
 final sessionRepoProvider = Provider<SessionRepository>((ref) =>

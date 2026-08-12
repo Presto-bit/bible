@@ -1,5 +1,5 @@
 /// 小爱输出的轻量富文本渲染：支持 【小标题】/ ## 标题 / **加粗** / 列表 / > 引用，
-/// 增强可读性与视觉效果（对齐 H5 的 AnswerText）。
+/// 以及脚标上标 [n] / ［n］（对齐 H5 linkifyCitations）。
 library;
 
 import 'package:flutter/material.dart';
@@ -7,9 +7,16 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 
 class AnswerText extends StatelessWidget {
-  const AnswerText({super.key, required this.text, this.fontSize = 15});
+  const AnswerText({
+    super.key,
+    required this.text,
+    this.fontSize = 15,
+    this.onCitationTap,
+  });
+
   final String text;
   final double fontSize;
+  final void Function(int n)? onCitationTap;
 
   static final _labelRe = RegExp(r'^【([^】]+)】\s*(.*)$');
   static final _headingRe = RegExp(r'^#{1,4}\s+(.*)$');
@@ -17,21 +24,76 @@ class AnswerText extends StatelessWidget {
   static final _numberedRe = RegExp(r'^\s*\d+[.、)]\s+(.*)$');
   static final _quoteRe = RegExp(r'^>\s?(.*)$');
   static final _boldRe = RegExp(r'\*\*([^*]+)\*\*');
+  /// ［n］|【n】|（n）|[n] 脚标（n 为 1–2 位数字）
+  static final _citeRe = RegExp(r'［(\d{1,2})］|【(\d{1,2})】|（(\d{1,2})）|\[(\d{1,2})\]');
 
   List<InlineSpan> _inline(String s, TextStyle base) {
+    // 先拆脚标，再在纯文本段内拆加粗
     final spans = <InlineSpan>[];
     var last = 0;
-    for (final m in _boldRe.allMatches(s)) {
-      if (m.start > last) spans.add(TextSpan(text: s.substring(last, m.start)));
-      spans.add(TextSpan(
-        text: m.group(1),
-        style: const TextStyle(
-            fontWeight: FontWeight.w700, color: AppColors.accentDeep),
+    for (final m in _citeRe.allMatches(s)) {
+      if (m.start > last) {
+        spans.addAll(_boldSpans(s.substring(last, m.start), base));
+      }
+      final nStr = m.group(1) ?? m.group(2) ?? m.group(3) ?? m.group(4) ?? '';
+      final n = int.tryParse(nStr) ?? 0;
+      spans.add(WidgetSpan(
+        alignment: PlaceholderAlignment.aboveBaseline,
+        baseline: TextBaseline.alphabetic,
+        child: GestureDetector(
+          onTap: onCitationTap != null && n > 0
+              ? () => onCitationTap!(n)
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 1, right: 1),
+            child: Text(
+              '[$n]',
+              style: TextStyle(
+                fontSize: fontSize * 0.72,
+                height: 1,
+                fontWeight: FontWeight.w700,
+                color: AppColors.accentDeep,
+                decoration: onCitationTap != null
+                    ? TextDecoration.underline
+                    : TextDecoration.none,
+                decorationColor: AppColors.accent.withValues(alpha: 0.45),
+              ),
+            ),
+          ),
+        ),
       ));
       last = m.end;
     }
-    if (last < s.length) spans.add(TextSpan(text: s.substring(last)));
+    if (last < s.length) {
+      spans.addAll(_boldSpans(s.substring(last), base));
+    }
+    if (spans.isEmpty) {
+      return [TextSpan(style: base, text: s)];
+    }
     return [TextSpan(style: base, children: spans)];
+  }
+
+  List<InlineSpan> _boldSpans(String s, TextStyle base) {
+    if (s.isEmpty) return const [];
+    final spans = <InlineSpan>[];
+    var last = 0;
+    for (final m in _boldRe.allMatches(s)) {
+      if (m.start > last) {
+        spans.add(TextSpan(text: s.substring(last, m.start), style: base));
+      }
+      spans.add(TextSpan(
+        text: m.group(1),
+        style: base.copyWith(
+          fontWeight: FontWeight.w700,
+          color: AppColors.accentDeep,
+        ),
+      ));
+      last = m.end;
+    }
+    if (last < s.length) {
+      spans.add(TextSpan(text: s.substring(last), style: base));
+    }
+    return spans;
   }
 
   @override

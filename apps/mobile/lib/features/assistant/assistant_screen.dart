@@ -28,6 +28,7 @@ import 'assistant_seed.dart';
 import 'assistant_repository.dart';
 import 'assistant_thinking.dart';
 import 'citation_evidence_rail.dart';
+import 'history_session_swipe_row.dart';
 import 'models.dart';
 import 'session_repository.dart';
 
@@ -110,19 +111,90 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     ]);
     if (!mounted) return;
     final repo = ref.read(sessionRepoProvider);
+
+    // 跨 Tab seed（半屏接力 / 深链）优先
+    final seed = ref.read(assistantSeedProvider);
+    if (seed != null) {
+      ref.read(assistantSeedProvider.notifier).consume();
+      await _applySeed(seed);
+      return;
+    }
+
     final hasSeed = (widget.seedRef ?? '').isNotEmpty ||
         (widget.seedQuestion ?? '').isNotEmpty;
     if (hasSeed) {
-      // 经文页进入：开一个锚定新会话并直接提问。
-      _sessionId = await repo.createSession(anchorRef: widget.seedRef);
-      if (!mounted) return;
-      await _send(seedQuestion: widget.seedQuestion);
+      await _applySeed(AssistantSeed(
+        ref: widget.seedRef,
+        question: widget.seedQuestion,
+      ));
       return;
     }
     // Tab 进入：续接最近一个会话（若有）。
     final sessions = await repo.watchSessions().first;
     if (sessions.isNotEmpty) {
       await _loadSession(sessions.first);
+    }
+  }
+
+  Future<void> _applySeed(AssistantSeed seed) async {
+    final repo = ref.read(sessionRepoProvider);
+    if ((seed.knowledgeBaseId ?? '').isNotEmpty) {
+      _knowledgeBaseId = seed.knowledgeBaseId!;
+      final match = _kbs.where((k) => k.id == _knowledgeBaseId);
+      if (match.isNotEmpty) {
+        _knowledgeBaseName = match.first.name;
+      }
+    }
+    setState(() {
+      _anchorRef = seed.ref;
+      _turns.clear();
+      _lastMeta = null;
+    });
+
+    // 同日同锚点续用
+    final resumed = await repo.findResumableSession(seed.ref);
+    if (resumed != null) {
+      await _loadSession(resumed);
+      if (!mounted) return;
+      // 已有当日会话：不再重复灌半屏种子 / 首问
+      if (_turns.isNotEmpty) {
+        _autoScroll();
+        return;
+      }
+    } else {
+      _sessionId = await repo.createSession(anchorRef: seed.ref);
+    }
+    if (!mounted) return;
+
+    if (seed.seedMessages.isNotEmpty) {
+      for (final m in seed.seedMessages) {
+        final turn = ChatTurn(role: m.role, content: m.text);
+        if (m.citations.isNotEmpty) {
+          turn.meta = ChatMeta(
+            mode: 'explain',
+            modeLabel: '释经解释',
+            display: 'half_sheet',
+            citations: m.citations,
+            quotaUsed: 0,
+            quotaLimit: 0,
+          );
+        }
+        _turns.add(turn);
+        if (_sessionId != null) {
+          await repo.addMessage(
+            _sessionId!,
+            m.role,
+            m.text,
+            citations: m.citations,
+          );
+        }
+      }
+      if (mounted) setState(() {});
+      _autoScroll();
+      return;
+    }
+    if ((seed.question ?? '').isNotEmpty) {
+      await _send(seedQuestion: seed.question);
     }
   }
 
@@ -438,25 +510,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     ref.listen(assistantSeedProvider, (prev, next) async {
       if (next == null) return;
       ref.read(assistantSeedProvider.notifier).consume();
-      setState(() {
-        _sessionId = null;
-        _anchorRef = next.ref;
-        _turns.clear();
-        _lastMeta = null;
-        if ((next.knowledgeBaseId ?? '').isNotEmpty) {
-          _knowledgeBaseId = next.knowledgeBaseId!;
-          final match = _kbs.where((k) => k.id == _knowledgeBaseId);
-          if (match.isNotEmpty) {
-            _knowledgeBaseName = match.first.name;
-          }
-        }
-      });
-      if (next.question != null && next.question!.isNotEmpty) {
-        await _send(seedQuestion: next.question);
-      } else if ((next.ref ?? '').isNotEmpty) {
-        _sessionId = await ref.read(sessionRepoProvider).createSession(
-            anchorRef: next.ref);
-      }
+      await _applySeed(next);
     });
 
     final anchorLabel = _anchorRef ?? widget.seedRef ?? '未锚定经文';
@@ -967,113 +1021,86 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
     final active = widget.activeId == s.id;
     final cnRef = refToChineseLabel(s.anchorRef);
     final preview = _previews[s.id];
-    return Dismissible(
-      key: ValueKey('session-${s.id}'),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFC45C5C),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Text('删除',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-      ),
-      confirmDismiss: (_) async {
-        await _delete(s);
-        return false;
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Material(
+    final card = Material(
+      color: active
+          ? AppColors.accent.withValues(alpha: 0.08)
+          : AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
           color: active
-              ? AppColors.accent.withValues(alpha: 0.08)
-              : AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: active
-                  ? AppColors.accent.withValues(alpha: 0.55)
-                  : AppColors.line,
-              width: active ? 1.5 : 1,
-            ),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => Navigator.pop(context, s),
-            onLongPress: () => _rename(s),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              ? AppColors.accent.withValues(alpha: 0.55)
+              : AppColors.line,
+          width: active ? 1.5 : 1,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.pop(context, s),
+        onLongPress: () => _rename(s),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          s.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: AppColors.ink,
-                          ),
-                        ),
+                  Expanded(
+                    child: Text(
+                      s.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: AppColors.ink,
                       ),
-                      Text(
-                        _timeLabel(s.updatedAtMs),
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.inkFaint),
-                      ),
-                      PopupMenuButton<String>(
-                        padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.more_horiz,
-                            size: 18, color: AppColors.inkFaint),
-                        onSelected: (v) async {
-                          if (v == 'rename') await _rename(s);
-                          if (v == 'delete') await _delete(s);
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'rename', child: Text('重命名')),
-                          PopupMenuItem(value: 'delete', child: Text('删除')),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
-                  if (cnRef != null && cnRef.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        cnRef,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.accentDeep,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  if (preview != null && preview.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        preview,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          height: 1.4,
-                          color: AppColors.inkFaint,
-                        ),
-                      ),
-                    ),
+                  Text(
+                    _timeLabel(s.updatedAtMs),
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.inkFaint),
+                  ),
                 ],
               ),
-            ),
+              if (cnRef != null && cnRef.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    cnRef,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.accentDeep,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              if (preview != null && preview.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    preview,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: AppColors.inkFaint,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: HistorySessionSwipeRow(
+        onRename: () => _rename(s),
+        onDelete: () => _delete(s),
+        child: card,
       ),
     );
   }
@@ -1274,7 +1301,24 @@ class _Bubble extends ConsumerWidget {
                             knowledgeBaseName: turn.meta?.knowledgeBaseName,
                             onSwitchToPlatform: onSwitchToPlatform,
                           ),
-                        AnswerText(text: displayText),
+                        AnswerText(
+                          text: displayText,
+                          onCitationTap: cites.isEmpty
+                              ? null
+                              : (n) {
+                                  final match =
+                                      cites.where((c) => c.n == n).toList();
+                                  if (match.isEmpty) return;
+                                  showModalBottomSheet<void>(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (_) =>
+                                        _CitationBilingualSheet(
+                                            citation: match.first),
+                                  );
+                                },
+                        ),
                       ],
                     ),
             ),

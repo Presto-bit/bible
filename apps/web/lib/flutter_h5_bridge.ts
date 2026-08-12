@@ -38,6 +38,40 @@ export function markFlutterH5Chrome(): void {
   } catch {
     /* ignore */
   }
+  // 系统返回：Flutter 先调此函数关半屏（§24.6）
+  try {
+    // 动态 import 避免循环；失败则点 backdrop
+    void import('@/lib/sheet_overlay').then((m) => {
+      (window as Window & { __PEIAI_DISMISS_OVERLAYS__?: () => void })
+        .__PEIAI_DISMISS_OVERLAYS__ = () => {
+          try {
+            m.dismissPortaledOverlays();
+            m.dismissOrphanBodySheetBackdrops();
+          } catch {
+            /* ignore */
+          }
+        };
+    }).catch(() => {
+      (window as Window & { __PEIAI_DISMISS_OVERLAYS__?: () => void })
+        .__PEIAI_DISMISS_OVERLAYS__ = () => {
+          try {
+            document.querySelectorAll(
+              '.sheet-backdrop, .reader-sheet-backdrop',
+            ).forEach((el) => {
+              try {
+                (el as HTMLElement).click();
+              } catch {
+                /* ignore */
+              }
+            });
+          } catch {
+            /* ignore */
+          }
+        };
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 /** 从 URL query 应用主题 / 安全区（首帧、JS bridge 未跑到之前）。 */

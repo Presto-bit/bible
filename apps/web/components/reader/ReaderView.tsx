@@ -3151,6 +3151,7 @@ export default function ReaderView({
           onPointerUp={(e) => e.stopPropagation()}
           onTouchEnd={(e) => e.stopPropagation()}
         >
+
           {underlinesOn && markPaletteOpen && !currentMark && (
             <div className="reader-focus-row reader-focus-row-mark" role="group" aria-label="划线颜色">
               {MARK_COLORS.map((c) => (
@@ -3170,6 +3171,7 @@ export default function ReaderView({
             </div>
           )}
           <div className="reader-focus-row reader-focus-row-actions">
+            {/* 主条：笔记 · 划线 · 复制 · 金句卡 · 对照 · 小爱（与安卓一致） */}
             {thoughtsOn && readingMode !== 'focus' && (
               <button
                 type="button"
@@ -3190,7 +3192,7 @@ export default function ReaderView({
                     <path d="M10 19h4M11 22h2" />
                   </svg>
                 </span>
-                <span className="vsb-label">想法</span>
+                <span className="vsb-label">笔记</span>
               </button>
             )}
             {underlinesOn && readingMode !== 'focus' && (
@@ -3228,7 +3230,6 @@ export default function ReaderView({
                     finishToolbarAction();
                     flashToast(englishUI ? 'Copied' : '已复制');
                   };
-                  // 先写入剪贴板，再清选区，避免蓝底残留；失败也收起选区
                   void navigator.clipboard.writeText(text).then(done, done);
                 },
               })}
@@ -3269,7 +3270,6 @@ export default function ReaderView({
                     const pinnedText = selectionPinRef.current || effSelectionText;
                     selectionPinRef.current = pinnedText;
                     setMarkPaletteOpen(false);
-                    // 必须在 clearSelection 前锁定到节 ref；否则会变成「卷.章」触发 compare 400
                     const pinnedRef = hasSel
                       ? `${book.id}.${chapter}.${minV}`
                       : effRefParam;
@@ -3306,7 +3306,6 @@ export default function ReaderView({
                     selectionPinRef.current = effSelectionText;
                   },
                   onTap: () => {
-                    // 必须在 selection 被 WebView 收起、工具条卸载前打开
                     const pinnedText = selectionPinRef.current || effSelectionText;
                     selectionPinRef.current = pinnedText;
                     setMarkPaletteOpen(false);
