@@ -72,7 +72,7 @@ class VerseSelectionSurface extends StatefulWidget {
   final Widget child;
   final bool enabled;
   final void Function(WordAnchor anchor, WordAnchor focus, {bool commit})
-      onApplyRange;
+  onApplyRange;
   final void Function() onCommitRange;
   final VoidCallback? onClearIfEmptyTap;
   final ValueChanged<bool>? onSelectionGestureChanged;
@@ -174,7 +174,8 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         }
         final focus = wordAnchorNear(context, e.position, maxRadius: 40);
         if (focus != null) {
-          final same = _lastFocus != null &&
+          final same =
+              _lastFocus != null &&
               _lastFocus!.verse == focus.verse &&
               _lastFocus!.start == focus.start &&
               _lastFocus!.end == focus.end;
@@ -191,9 +192,7 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         if (hadDrag) {
           widget.onCommitRange();
         }
-        if (blank &&
-            _down != null &&
-            (e.position - _down!).distance < 8) {
+        if (blank && _down != null && (e.position - _down!).distance < 8) {
           widget.onClearIfEmptyTap?.call();
         }
         _resetPointer();
@@ -240,12 +239,9 @@ class SelectableWordChip extends StatelessWidget {
       left: edgeLeft ? const Radius.circular(3) : Radius.zero,
       right: edgeRight ? const Radius.circular(3) : Radius.zero,
     );
-    final wordStyle = selected
-        ? style.copyWith(
-            backgroundColor: _sel,
-            height: style.height,
-          )
-        : style;
+    // 底色由外层 DecoratedBox 统一绘制；不要同时给 TextStyle 设
+    // backgroundColor，否则同一经文会叠成深浅两条选区底色。
+    final wordStyle = style;
     Widget child = Text(
       text,
       style: wordStyle,
@@ -255,14 +251,9 @@ class SelectableWordChip extends StatelessWidget {
       ),
     );
     if (selected) {
+      // 单层底色；不再用左右 shadow 叠缝，避免与间隙/节号叠出双层蓝带
       child = DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          boxShadow: const [
-            BoxShadow(color: _sel, offset: Offset(3.5, 0), blurRadius: 0),
-            BoxShadow(color: _sel, offset: Offset(-3.5, 0), blurRadius: 0),
-          ],
-        ),
+        decoration: BoxDecoration(color: _sel, borderRadius: radius),
         child: child,
       );
     }

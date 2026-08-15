@@ -23,7 +23,8 @@ import '../core/widgets/avatar_bubble.dart';
 import '../core/widgets/sync_migrate_sheet.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/auth/login_screen.dart';
-import '../features/bible/reader_experience.dart' show readerFontProvider, ReaderFontSize, ReaderFontSizeX;
+import '../features/bible/reader_experience.dart'
+    show readerFontProvider, ReaderFontSize, ReaderFontSizeX;
 import '../features/bible/bible_repository.dart';
 import '../features/bible/markings_repository.dart';
 import '../features/bible/thoughts_repository.dart';
@@ -52,7 +53,6 @@ final healthProvider = FutureProvider<bool>((ref) async {
   }
 });
 
-
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -75,89 +75,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    // 名称+密码只在欢迎页一次完成（对齐 PWA：不再强制账号门闸）。
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _maybeOnboard();
       if (mounted) await maybeShowSyncMigrateSheet(context, ref);
     });
-  }
-
-  Future<void> _maybeOnboard() async {
-    final auth = ref.read(authControllerProvider.notifier);
-    if (auth.isOnboarded) return;
-    if (!mounted) return;
-    final gid = ref.read(sessionProvider).guestId;
-    final nameCtl = TextEditingController(
-        text: userPrefGetString(ref.read(prefsProvider), 'onboarding_name') ?? '');
-    final pwdCtl = TextEditingController();
-    String? err;
-    final result = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: const Text('设置你的名称和密码'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('免注册即用，你的用户ID 是 $gid。设置用户名（不可重复）与密码后，可在其它设备用「用户名 + 密码」登录。',
-                  style: const TextStyle(fontSize: 12, color: AppColors.inkFaint)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nameCtl,
-                decoration: const InputDecoration(
-                    labelText: '用户名（≥2 字，不可重复）',
-                    border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: pwdCtl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                    labelText: '密码（≥6 位）', border: OutlineInputBorder()),
-              ),
-              if (err != null) ...[
-                const SizedBox(height: 8),
-                Text(err!, style: const TextStyle(color: Color(0xFFB1554A), fontSize: 12)),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, 'skip'),
-                child: const Text('暂时跳过')),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.accentDeep),
-              onPressed: () async {
-                final u = nameCtl.text.trim();
-                if (u.length < 2) {
-                  setLocal(() => err = '名称至少 2 个字');
-                  return;
-                }
-                if (pwdCtl.text.length < 6) {
-                  setLocal(() => err = '密码至少 6 位');
-                  return;
-                }
-                final ok = await auth.usernameAvailable(u);
-                if (!ok) {
-                  setLocal(() => err = '该用户名已被占用，请换一个');
-                  return;
-                }
-                if (ctx.mounted) Navigator.pop(ctx, 'ok');
-              },
-              child: const Text('保存并继续'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (result == 'ok') {
-      await auth.setCredentials(
-          username: nameCtl.text.trim(), password: pwdCtl.text);
-      if (mounted) setState(() {});
-    } else {
-      await auth.setCredentials(username: '', password: '');
-      await auth.markOnboarded();
-    }
   }
 
   Future<void> _copyId(String id) async {
@@ -185,18 +106,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('选择头像',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        color: AppColors.ink)),
+                const Text(
+                  '选择头像',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: AppColors.ink,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   isCustomAvatarId(current)
                       ? '当前：自定义'
                       : '${presetAvatars.length} 款预设 · 也可从相册上传',
                   style: const TextStyle(
-                      fontSize: 12, color: AppColors.inkFaint),
+                    fontSize: 12,
+                    color: AppColors.inkFaint,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
@@ -212,10 +138,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: GridView.builder(
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 5,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                    ),
+                          crossAxisCount: 5,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                        ),
                     itemCount: presetAvatars.length,
                     itemBuilder: (_, i) {
                       final a = presetAvatars[i];
@@ -255,7 +181,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     await userPrefSetString(ref.read(prefsProvider), 'profile_avatar', picked);
     try {
       await ref.read(profileSyncProvider).pushAvatar(picked);
-    } catch (_) {/* 静默；本地已更新 */}
+    } catch (_) {
+      /* 静默；本地已更新 */
+    }
   }
 
   Future<void> _uploadCustomAvatar() async {
@@ -276,10 +204,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
       final dio = ref.read(dioProvider);
       final form = FormData.fromMap({
-        'file': await MultipartFile.fromFile(
-          x.path,
-          filename: 'avatar.jpg',
-        ),
+        'file': await MultipartFile.fromFile(x.path, filename: 'avatar.jpg'),
       });
       final res = await dio.post(
         '/social/uploads/avatar',
@@ -293,19 +218,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
       if (!mounted) return;
       setState(() => _avatarOverride = nextId);
-      await userPrefSetString(ref.read(prefsProvider), 'profile_avatar', nextId);
+      await userPrefSetString(
+        ref.read(prefsProvider),
+        'profile_avatar',
+        nextId,
+      );
       try {
         await ref.read(profileSyncProvider).pushAvatar(nextId);
-      } catch (_) {/* 服务端已写 profile */}
+      } catch (_) {
+        /* 服务端已写 profile */
+      }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('头像已更新')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('头像已更新')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('头像上传失败：$e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('头像上传失败：$e')));
     }
   }
 
@@ -330,13 +261,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
           FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accentDeep),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('保存')),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accentDeep,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('保存'),
+          ),
         ],
       ),
     );
@@ -390,13 +324,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
           FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accentDeep),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('保存')),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accentDeep,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('保存'),
+          ),
         ],
       ),
     );
@@ -407,14 +344,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           newPassword: newCtl.text.trim(),
         );
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('密码已更新')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('密码已更新')));
           setState(() {});
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('$e')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('$e')));
         }
       }
     }
@@ -427,16 +366,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _openSupport() async {
     try {
-      final tid =
-          await ref.read(socialRepoProvider).openDm(kOfficialSupportUserCode);
+      final tid = await ref
+          .read(socialRepoProvider)
+          .openDm(kOfficialSupportUserCode);
       if (!mounted) return;
       context.push('/discover/dm/$tid');
     } catch (_) {
       if (!mounted) return;
       context.push('/discover');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('暂时无法直达客服，已打开消息页')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('暂时无法直达客服，已打开消息页')));
     }
   }
 
@@ -449,21 +389,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final review = ref.watch(reviewDataProvider);
     final books = ref.watch(booksProvider).value ?? const <BibleBook>[];
     final thoughts = ref.watch(myThoughtsProvider);
-    final highlights = ref.watch(highlightListProvider).maybeWhen(
-          data: (h) => h.length,
-          orElse: () => 0,
-        );
-    final badgeCount = ref.watch(badgesProvider).maybeWhen(
-          data: (b) => b.where((x) => x.done).length,
-          orElse: () => 0,
-        );
+    final highlights = ref
+        .watch(highlightListProvider)
+        .maybeWhen(data: (h) => h.length, orElse: () => 0);
+    final badgeCount = ref
+        .watch(badgesProvider)
+        .maybeWhen(data: (b) => b.where((x) => x.done).length, orElse: () => 0);
 
-    final name = userPrefGetString(prefs, 'onboarding_name') ??
+    final name =
+        userPrefGetString(prefs, 'onboarding_name') ??
         auth.displayName ??
         '读经伙伴';
     final bio = userPrefGetString(prefs, 'profile_bio') ?? '愿日日亲近主话';
     final userId = session.userId ?? session.guestId;
-    final avatarId = _avatarOverride ??
+    final avatarId =
+        _avatarOverride ??
         userPrefGetString(prefs, 'profile_avatar') ??
         defaultAvatarId(userId);
 
@@ -488,31 +428,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     review.whenData((d) {
       final now = DateTime.now();
       final startW = now.subtract(Duration(days: now.weekday - 1));
-      final startMs = DateTime(startW.year, startW.month, startW.day)
-          .millisecondsSinceEpoch;
-      final endMs = DateTime(now.year, now.month, now.day, 23, 59)
-          .millisecondsSinceEpoch;
+      final startMs = DateTime(
+        startW.year,
+        startW.month,
+        startW.day,
+      ).millisecondsSinceEpoch;
+      final endMs = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        23,
+        59,
+      ).millisecondsSinceEpoch;
       weekMins = d.rangeStats(startMs, endMs).minutes;
     });
 
-    final thoughtPreview =
-        thoughts.isNotEmpty ? thoughts.first.body.trim() : '';
+    final thoughtPreview = thoughts.isNotEmpty
+        ? thoughts.first.body.trim()
+        : '';
     String markPreview = '';
-    final hl = ref.watch(highlightListProvider).maybeWhen(
-          data: (list) => list,
-          orElse: () => const [],
-        );
+    final hl = ref
+        .watch(highlightListProvider)
+        .maybeWhen(data: (list) => list, orElse: () => const []);
     if (hl.isNotEmpty) {
       markPreview = hl.first.ref;
     }
-    final doneBadges = ref.watch(badgesProvider).maybeWhen(
+    final doneBadges = ref
+        .watch(badgesProvider)
+        .maybeWhen(
           data: (b) => b.where((x) => x.done).take(3).toList(),
           orElse: () => const <BadgeDef>[],
         );
 
     final seen = readFootprintSeen(prefs);
-    final thoughtNew =
-        footprintHasNew(seen, 'thoughts', thoughts.length);
+    final thoughtNew = footprintHasNew(seen, 'thoughts', thoughts.length);
     final markNew = footprintHasNew(seen, 'marks', highlights);
     final badgeNew = footprintHasNew(seen, 'badges', badgeCount);
 
@@ -551,9 +500,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 GestureDetector(
                   onTap: () => _pickAvatar(avatarId),
-                  child: ClipOval(
-                    child: AvatarBubble(id: avatarId, size: 72),
-                  ),
+                  child: ClipOval(child: AvatarBubble(id: avatarId, size: 72)),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -585,9 +532,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           maxLength: 15,
                         ),
                         child: Text(
-                          bio.isEmpty || bio == '愿日日亲近主话'
-                              ? '点击添加签名'
-                              : bio,
+                          bio.isEmpty || bio == '愿日日亲近主话' ? '点击添加签名' : bio,
                           style: TextStyle(
                             color: AppColors.inkFaint,
                             fontSize: 14,
@@ -624,15 +569,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: Text(
                         '建议设置密码，换机更方便',
                         style: TextStyle(
-                            color: AppColors.inkSoft, fontSize: 13),
+                          color: AppColors.inkSoft,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     FilledButton(
                       style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.accentDeep),
+                        backgroundColor: AppColors.accentDeep,
+                      ),
                       onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const LoginScreen()),
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
                       ),
                       child: const Text('账号安全'),
                     ),
@@ -720,8 +667,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             if (milestone != null) ...[
               const SizedBox(height: 10),
               PaperCard(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -732,9 +681,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     TextButton(
                       onPressed: () async {
-                        Share.share(
-                          '我在彼爱已同行读经 $milestone 天。愿话语继续同行。',
-                        );
+                        Share.share('我在彼爱已同行读经 $milestone 天。愿话语继续同行。');
                         await markStreakMilestoneShared(prefs, milestone!);
                         if (mounted) setState(() {});
                       },
@@ -770,8 +717,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   empty: thoughtPreview.isEmpty,
                   isNew: thoughtNew,
                   onTap: () async {
-                    await markFootprintSeen(
-                        prefs, 'thoughts', thoughts.length);
+                    await markFootprintSeen(prefs, 'thoughts', thoughts.length);
                     if (!context.mounted) return;
                     context.push('/notes');
                   },
@@ -806,9 +752,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _FootprintCell(
                   kind: '旅程',
                   count: 0,
-                  value: journeyPct > 0
-                      ? '通读 $journeyPct% · 继续'
-                      : '开始通读计划',
+                  value: journeyPct > 0 ? '通读 $journeyPct% · 继续' : '开始通读计划',
                   empty: journeyPct == 0,
                   onTap: () => context.push('/plans'),
                 ),
@@ -834,8 +778,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   context: context,
                   backgroundColor: AppColors.paper,
                   shape: const RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
                   ),
                   builder: (_) => SafeArea(
                     child: Padding(
@@ -844,9 +789,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('提醒与勿扰',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 16)),
+                          const Text(
+                            '提醒与勿扰',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           _ReminderRow(prefs: prefs),
                         ],
@@ -1059,8 +1008,9 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
   @override
   Widget build(BuildContext context) {
     final prefs = ref.watch(prefsProvider);
-    final installed =
-        ref.watch(offlineInstalledProvider).maybeWhen(data: (v) => v, orElse: () => false);
+    final installed = ref
+        .watch(offlineInstalledProvider)
+        .maybeWhen(data: (v) => v, orElse: () => false);
     final remindOn = NotifPrefs.dailyEnabled(prefs);
     final hour = NotifPrefs.dailyHour(prefs);
     final minute = NotifPrefs.dailyMinute(prefs);
@@ -1126,7 +1076,8 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
                   children: [
                     FilledButton(
                       style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.accentDeep),
+                        backgroundColor: AppColors.accentDeep,
+                      ),
                       onPressed: widget.onWarmup,
                       child: const Text('开始温习'),
                     ),
@@ -1141,19 +1092,25 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
                 Text(
                   remindOn ? '每日 $timeLabel 提醒你读经' : '读经提醒默认关闭',
                   style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 15),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   remindOn ? '轻声提醒，不制造落后感' : '需要时再打开，可随时关闭',
-                  style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.inkFaint,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     FilledButton(
                       style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.accentDeep),
+                        backgroundColor: AppColors.accentDeep,
+                      ),
                       onPressed: widget.onRemind,
                       child: Text(remindOn ? '管理提醒' : '开启提醒'),
                     ),
@@ -1168,19 +1125,23 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
                 Text(
                   installed ? '离线圣经已就绪' : '离线圣经未下载',
                   style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 15),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  installed
-                      ? '可在无网时继续读经；也可管理译本与资料'
-                      : '下载后无网也能读；资料包可按需管理',
-                  style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                  installed ? '可在无网时继续读经；也可管理译本与资料' : '下载后无网也能读；资料包可按需管理',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.inkFaint,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 FilledButton(
                   style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.accentDeep),
+                    backgroundColor: AppColors.accentDeep,
+                  ),
                   onPressed: widget.onOffline,
                   child: Text(installed ? '管理离线包' : '下载离线包'),
                 ),
@@ -1246,7 +1207,8 @@ class _SettingsSheet extends ConsumerWidget {
     required String current,
     int maxLines,
     int? maxLength,
-  }) onEditField;
+  })
+  onEditField;
   final Future<void> Function() onChangePassword;
   final Future<void> Function(String id) onCopyId;
 
@@ -1263,7 +1225,8 @@ class _SettingsSheet extends ConsumerWidget {
     return SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.88),
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
         child: ListView(
           shrinkWrap: true,
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -1273,46 +1236,68 @@ class _SettingsSheet extends ConsumerWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: AppColors.line,
-                    borderRadius: BorderRadius.circular(2)),
+                  color: AppColors.line,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             const SizedBox(height: 12),
-            const Text('设置',
-                style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    color: AppColors.ink)),
+            const Text(
+              '设置',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                color: AppColors.ink,
+              ),
+            ),
             const SizedBox(height: 16),
             _section('个人资料', [
-              _row('昵称', name,
-                  onTap: () => onEditField(
-                      title: '昵称', key: 'onboarding_name', current: name)),
+              _row(
+                '昵称',
+                name,
+                onTap: () => onEditField(
+                  title: '昵称',
+                  key: 'onboarding_name',
+                  current: name,
+                ),
+              ),
             ]),
             const SizedBox(height: 12),
-            _section('提醒', [
-              _ReminderRow(prefs: prefs),
-            ]),
+            _section('提醒', [_ReminderRow(prefs: prefs)]),
             const SizedBox(height: 12),
             _section('阅读', [
-              _row('外观', '主题与翻页', onTap: () {
-                Navigator.pop(context);
-                context.push('/profile/appearance');
-              }),
-              _row('知识库', '平台与专题资料', onTap: () {
-                Navigator.pop(context);
-                context.push('/knowledge-bases');
-              }),
-              _row('离线圣经', '下载和合本经包', onTap: () {
-                Navigator.pop(context);
-                showOfflineDownloadSheet(context, ref);
-              }),
+              _row(
+                '外观',
+                '主题与翻页',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/profile/appearance');
+                },
+              ),
+              _row(
+                '知识库',
+                '平台与专题资料',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/knowledge-bases');
+                },
+              ),
+              _row(
+                '离线圣经',
+                '下载和合本经包',
+                onTap: () {
+                  Navigator.pop(context);
+                  showOfflineDownloadSheet(context, ref);
+                },
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
                   children: [
-                    const Text('字号',
-                        style: TextStyle(color: AppColors.inkSoft)),
+                    const Text(
+                      '字号',
+                      style: TextStyle(color: AppColors.inkSoft),
+                    ),
                     const Spacer(),
                     ...ReaderFontSize.values.map((s) {
                       final active = s == font;
@@ -1323,24 +1308,30 @@ class _SettingsSheet extends ConsumerWidget {
                               ref.read(readerFontProvider.notifier).set(s),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: active
                                   ? AppColors.accentWash
                                   : AppColors.surface,
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
-                                  color: active
-                                      ? AppColors.accent
-                                      : AppColors.line),
+                                color: active
+                                    ? AppColors.accent
+                                    : AppColors.line,
+                              ),
                             ),
-                            child: Text(s.label,
-                                style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: active
-                                        ? AppColors.accentDeep
-                                        : AppColors.inkSoft)),
+                            child: Text(
+                              s.label,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: active
+                                    ? AppColors.accentDeep
+                                    : AppColors.inkSoft,
+                              ),
+                            ),
                           ),
                         ),
                       );
@@ -1353,12 +1344,15 @@ class _SettingsSheet extends ConsumerWidget {
             _section('账号', [
               Row(
                 children: [
-                  const Text('用户 ID',
-                      style: TextStyle(color: AppColors.inkSoft)),
+                  const Text(
+                    '用户 ID',
+                    style: TextStyle(color: AppColors.inkSoft),
+                  ),
                   const Spacer(),
-                  Text(userId,
-                      style: const TextStyle(
-                          color: AppColors.ink, fontSize: 13)),
+                  Text(
+                    userId,
+                    style: const TextStyle(color: AppColors.ink, fontSize: 13),
+                  ),
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.copy, size: 16),
@@ -1368,11 +1362,13 @@ class _SettingsSheet extends ConsumerWidget {
               ),
               _row('修改密码', '', onTap: onChangePassword),
               if (auth.signedIn)
-                _row('退出登录', '',
-                    danger: true,
-                    onTap: () => ref
-                        .read(authControllerProvider.notifier)
-                        .logout()),
+                _row(
+                  '退出登录',
+                  '',
+                  danger: true,
+                  onTap: () =>
+                      ref.read(authControllerProvider.notifier).logout(),
+                ),
             ]),
             const SizedBox(height: 12),
             _section('关于', [
@@ -1380,56 +1376,80 @@ class _SettingsSheet extends ConsumerWidget {
               const SizedBox(height: 8),
               _InfoTile(label: '后端地址', value: AppConfig.baseUrl),
               const SizedBox(height: 8),
-              _row('数据与来源许可', '经文与资料出处', onTap: () {
-                Navigator.pop(context);
-                if (!openH5IfAllowed(context, '/profile/licenses')) {
-                  context.push('/profile/licenses');
-                }
-              }),
+              _row(
+                '数据与来源许可',
+                '经文与资料出处',
+                onTap: () {
+                  Navigator.pop(context);
+                  if (!openH5IfAllowed(context, '/profile/licenses')) {
+                    context.push('/profile/licenses');
+                  }
+                },
+              ),
               const SizedBox(height: 8),
-              _row('帮助中心', '使用说明与常见问题', onTap: () {
-                Navigator.pop(context);
-                if (!openH5IfAllowed(context, '/help')) {
-                  context.push('/help');
-                }
-              }),
+              _row(
+                '帮助中心',
+                '使用说明与常见问题',
+                onTap: () {
+                  Navigator.pop(context);
+                  if (!openH5IfAllowed(context, '/help')) {
+                    context.push('/help');
+                  }
+                },
+              ),
               const SizedBox(height: 8),
-              _row('隐私政策', '', onTap: () {
-                Navigator.pop(context);
-                openH5IfAllowed(context, '/privacy');
-              }),
+              _row(
+                '隐私政策',
+                '',
+                onTap: () {
+                  Navigator.pop(context);
+                  openH5IfAllowed(context, '/privacy');
+                },
+              ),
               const SizedBox(height: 8),
-              _row('用户协议', '', onTap: () {
-                Navigator.pop(context);
-                openH5IfAllowed(context, '/terms');
-              }),
+              _row(
+                '用户协议',
+                '',
+                onTap: () {
+                  Navigator.pop(context);
+                  openH5IfAllowed(context, '/terms');
+                },
+              ),
               const SizedBox(height: 8),
-              _row('提醒设置', '读经提醒', onTap: () {
-                Navigator.pop(context);
-                if (!openH5IfAllowed(context, '/profile/reminders')) {
-                  context.push('/profile/reminders');
-                }
-              }),
+              _row(
+                '提醒设置',
+                '读经提醒',
+                onTap: () {
+                  Navigator.pop(context);
+                  if (!openH5IfAllowed(context, '/profile/reminders')) {
+                    context.push('/profile/reminders');
+                  }
+                },
+              ),
               const SizedBox(height: 8),
-              _row('帮助与反馈', '官方客服私信', onTap: () async {
-                Navigator.pop(context);
-                try {
-                  final tid = await ref
-                      .read(socialRepoProvider)
-                      .openDm(kOfficialSupportUserCode);
-                  if (!context.mounted) return;
-                  ref.read(navIndexProvider.notifier).set(3);
-                  ref
-                      .read(discoverH5PathProvider.notifier)
-                      .go('/discover/dm/$tid');
-                } catch (_) {
-                  if (!context.mounted) return;
-                  ref.read(navIndexProvider.notifier).set(3);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('暂时无法直达客服，已打开消息页')),
-                  );
-                }
-              }),
+              _row(
+                '帮助与反馈',
+                '官方客服私信',
+                onTap: () async {
+                  Navigator.pop(context);
+                  try {
+                    final tid = await ref
+                        .read(socialRepoProvider)
+                        .openDm(kOfficialSupportUserCode);
+                    if (!context.mounted) return;
+                    ref.read(navIndexProvider.notifier).set(3);
+                    ref
+                        .read(discoverH5PathProvider.notifier)
+                        .go('/discover/dm/$tid');
+                  } catch (_) {
+                    if (!context.mounted) return;
+                    ref.read(navIndexProvider.notifier).set(3);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('暂时无法直达客服，已打开消息页')),
+                    );
+                  }
+                },
+              ),
               const SizedBox(height: 8),
               OutlinedButton(
                 onPressed: () => ref.refresh(healthProvider),
@@ -1453,11 +1473,14 @@ class _SettingsSheet extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkFaint)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.inkFaint,
+            ),
+          ),
           const SizedBox(height: 4),
           ...children,
         ],
@@ -1465,31 +1488,45 @@ class _SettingsSheet extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, String value,
-      {VoidCallback? onTap, bool danger = false}) {
+  Widget _row(
+    String label,
+    String value, {
+    VoidCallback? onTap,
+    bool danger = false,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            Text(label,
-                style: TextStyle(
-                    color: danger ? const Color(0xFFB1554A) : AppColors.ink)),
+            Text(
+              label,
+              style: TextStyle(
+                color: danger ? const Color(0xFFB1554A) : AppColors.ink,
+              ),
+            ),
             const Spacer(),
             if (value.isNotEmpty)
               Flexible(
-                child: Text(value,
-                    textAlign: TextAlign.right,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: AppColors.inkFaint, fontSize: 13)),
+                child: Text(
+                  value,
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.inkFaint,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             if (onTap != null && !danger)
               const Padding(
                 padding: EdgeInsets.only(left: 4),
-                child: Icon(Icons.chevron_right,
-                    size: 18, color: AppColors.inkFaint),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: AppColors.inkFaint,
+                ),
               ),
           ],
         ),
@@ -1526,16 +1563,19 @@ class _ReminderRowState extends State<_ReminderRow> {
     if (on) {
       final ok = await NotificationService.instance.requestPermission();
       if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('请在系统设置中允许通知')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('请在系统设置中允许通知')));
         return;
       }
     }
     setState(() => _enabled = on);
     await NotifPrefs.setDailyEnabled(widget.prefs, on);
     if (on) {
-      await NotificationService.instance.scheduleDaily(_time.hour, _time.minute);
+      await NotificationService.instance.scheduleDaily(
+        _time.hour,
+        _time.minute,
+      );
     } else {
       await NotificationService.instance.cancelDaily();
     }
@@ -1556,7 +1596,10 @@ class _ReminderRowState extends State<_ReminderRow> {
       minute: picked.minute,
     );
     if (_enabled) {
-      await NotificationService.instance.scheduleDaily(picked.hour, picked.minute);
+      await NotificationService.instance.scheduleDaily(
+        picked.hour,
+        picked.minute,
+      );
     }
   }
 
@@ -1668,12 +1711,20 @@ class _BadgeGallerySheetState extends ConsumerState<_BadgeGallerySheet> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Text('成就徽章',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700, color: AppColors.ink)),
-                Text('已收集 $earned / ${widget.badges.length}',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.inkFaint)),
+                Text(
+                  '成就徽章',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+                Text(
+                  '已收集 $earned / ${widget.badges.length}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.inkFaint,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -1699,11 +1750,11 @@ class _BadgeGallerySheetState extends ConsumerState<_BadgeGallerySheet> {
                     controller: scroll,
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 14,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 0.72,
-                    ),
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: 0.72,
+                        ),
                     itemCount: filtered.length,
                     itemBuilder: (_, i) {
                       final b = filtered[i];
@@ -1723,41 +1774,58 @@ class _BadgeGallerySheetState extends ConsumerState<_BadgeGallerySheet> {
                                 ),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                    color: b.done
-                                        ? AppColors.accentDeep
-                                        : AppColors.line),
+                                  color: b.done
+                                      ? AppColors.accentDeep
+                                      : AppColors.line,
+                                ),
                               ),
                               child: Center(
-                                child: Text(b.icon,
-                                    style: const TextStyle(fontSize: 20)),
+                                child: Text(
+                                  b.icon,
+                                  style: const TextStyle(fontSize: 20),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 6),
-                            Text(b.label,
+                            Text(
+                              b.label,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            Text(
+                              b.desc,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.inkFaint,
+                              ),
+                            ),
+                            if (!b.done) ...[
+                              Text(
+                                b.hint,
                                 textAlign: TextAlign.center,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.ink)),
-                            Text(b.desc,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                                  fontSize: 9,
+                                  color: AppColors.accentDeep,
+                                ),
+                              ),
+                              Text(
+                                b.progress,
                                 style: const TextStyle(
-                                    fontSize: 10, color: AppColors.inkFaint)),
-                            if (!b.done) ...[
-                              Text(b.hint,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontSize: 9, color: AppColors.accentDeep)),
-                              Text(b.progress,
-                                  style: const TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.inkFaint)),
+                                  fontSize: 10,
+                                  color: AppColors.inkFaint,
+                                ),
+                              ),
                             ],
                           ],
                         ),
@@ -1797,13 +1865,17 @@ class _BadgeTab extends StatelessWidget {
             color: active ? AppColors.accentWash : AppColors.paper,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: active ? AppColors.accentDeep : AppColors.line),
+              color: active ? AppColors.accentDeep : AppColors.line,
+            ),
           ),
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                  color: active ? AppColors.accentDeep : AppColors.inkSoft)),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              color: active ? AppColors.accentDeep : AppColors.inkSoft,
+            ),
+          ),
         ),
       ),
     );

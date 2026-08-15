@@ -8,9 +8,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
+import '../auth/auth_controller.dart';
 
 const onboardingDoneKey = 'onboarding_done';
 const onboardingNameKey = 'onboarding_name';
+
 /// 历史键：旧版可能写过目标，读取方仍可兼容；新引导不再写入。
 const onboardingGoalKey = 'onboarding_goal';
 
@@ -24,8 +26,10 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _controller = PageController();
   final _name = TextEditingController();
+  final _password = TextEditingController();
   int _page = 0;
   bool _finishing = false;
+  String? _error;
 
   static const _pageCount = 2;
 
@@ -33,26 +37,57 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void dispose() {
     _controller.dispose();
     _name.dispose();
+    _password.dispose();
     super.dispose();
   }
 
-  Future<void> _finish() async {
+  Future<void> _finish({bool skip = false}) async {
     if (_finishing) return;
-    _finishing = true;
-    final prefs = ref.read(prefsProvider);
-    await prefs.setBool(onboardingDoneKey, true);
-    if (_name.text.trim().isNotEmpty) {
-      await prefs.setString(onboardingNameKey, _name.text.trim());
+    final username = _name.text.trim();
+    final password = _password.text;
+    if (!skip) {
+      if (username.length < 2) {
+        setState(() => _error = '名称至少 2 个字');
+        return;
+      }
+      if (password.length < 6) {
+        setState(() => _error = '密码至少 6 位');
+        return;
+      }
     }
-    if (!mounted) return;
-    // 必须离开 /onboarding，否则同一 location 不会重建 AppShell
-    context.go('/');
+    _finishing = true;
+    try {
+      final auth = ref.read(authControllerProvider.notifier);
+      if (skip) {
+        await auth.setCredentials(username: '', password: '');
+      } else {
+        final available = await auth.usernameAvailable(username);
+        if (!available) {
+          if (mounted) setState(() => _error = '该用户名已被占用，请换一个');
+          return;
+        }
+        // 此处调用服务端注册并落库 username/password，同时写入本地会话。
+        await auth.setCredentials(username: username, password: password);
+      }
+      final prefs = ref.read(prefsProvider);
+      await prefs.setBool(onboardingDoneKey, true);
+      await auth.markOnboarded();
+      if (!mounted) return;
+      // 必须离开 /onboarding，否则同一 location 不会重建 AppShell
+      context.go('/');
+    } catch (_) {
+      if (mounted) setState(() => _error = '保存失败，请检查网络后重试');
+    } finally {
+      if (mounted) setState(() => _finishing = false);
+    }
   }
 
   void _next() {
     if (_page < _pageCount - 1) {
       _controller.nextPage(
-          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
     } else {
       _finish();
     }
@@ -69,7 +104,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: _finish,
+                onPressed: _finishing ? null : () => _finish(skip: true),
                 child: const Text('跳过'),
               ),
             ),
@@ -84,7 +119,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     body: '安静读经，在话语中相遇。\n小爱随时为你解经、陪你默想。',
                   ),
                   _NameSlide(
-                    controller: _name,
+                    nameController: _name,
+                    passwordController: _password,
+                    error: _error,
                     onSubmit: _finish,
                   ),
                 ],
@@ -110,9 +147,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               padding: const EdgeInsets.all(24),
               child: FilledButton(
                 style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accentDeep,
-                    minimumSize: const Size.fromHeight(50)),
-                onPressed: _next,
+                  backgroundColor: AppColors.accentDeep,
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                onPressed: _finishing ? null : _next,
                 child: Text(onNamePage ? '进入' : '下一步'),
               ),
             ),
@@ -137,17 +175,25 @@ class _Slide extends StatelessWidget {
         children: [
           Icon(icon, size: 72, color: AppColors.accentDeep),
           const SizedBox(height: 28),
-          Text(title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.ink)),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: AppColors.ink,
+            ),
+          ),
           const SizedBox(height: 14),
-          Text(body,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: AppColors.inkSoft, height: 1.7, fontSize: 15)),
+          Text(
+            body,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.inkSoft,
+              height: 1.7,
+              fontSize: 15,
+            ),
+          ),
         ],
       ),
     );
@@ -155,8 +201,15 @@ class _Slide extends StatelessWidget {
 }
 
 class _NameSlide extends StatelessWidget {
-  const _NameSlide({required this.controller, this.onSubmit});
-  final TextEditingController controller;
+  const _NameSlide({
+    required this.nameController,
+    required this.passwordController,
+    this.error,
+    this.onSubmit,
+  });
+  final TextEditingController nameController;
+  final TextEditingController passwordController;
+  final String? error;
   final VoidCallback? onSubmit;
   @override
   Widget build(BuildContext context) {
@@ -165,26 +218,49 @@ class _NameSlide extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('怎么称呼你？',
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.ink)),
+          const Text(
+            '设置你的名称和密码',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
-          const Text('用于首页问候，可随时在「我的」修改。',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.inkFaint)),
+          const Text(
+            '用于首页问候，也可在其它设备用名称和密码登录。',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.inkFaint),
+          ),
           const SizedBox(height: 24),
           TextField(
-            controller: controller,
+            controller: nameController,
+            textAlign: TextAlign.center,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              hintText: '名称（至少 2 个字）',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: passwordController,
+            obscureText: true,
             textAlign: TextAlign.center,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => onSubmit?.call(),
             decoration: const InputDecoration(
-              hintText: '你的昵称',
+              hintText: '密码（至少 6 位）',
               border: OutlineInputBorder(),
             ),
           ),
+          if (error != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              error!,
+              style: const TextStyle(color: Color(0xFFB1554A), fontSize: 12),
+            ),
+          ],
         ],
       ),
     );

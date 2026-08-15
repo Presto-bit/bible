@@ -3,6 +3,7 @@ library;
 
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,9 +30,33 @@ bool searchTooShort(String q) {
 }
 
 const _ntBookIds = {
-  'MAT', 'MRK', 'LUK', 'JHN', 'ACT', 'ROM', '1CO', '2CO', 'GAL', 'EPH',
-  'PHP', 'COL', '1TH', '2TH', '1TI', '2TI', 'TIT', 'PHM', 'HEB', 'JAS',
-  '1PE', '2PE', '1JN', '2JN', '3JN', 'JUD', 'REV',
+  'MAT',
+  'MRK',
+  'LUK',
+  'JHN',
+  'ACT',
+  'ROM',
+  '1CO',
+  '2CO',
+  'GAL',
+  'EPH',
+  'PHP',
+  'COL',
+  '1TH',
+  '2TH',
+  '1TI',
+  '2TI',
+  'TIT',
+  'PHM',
+  'HEB',
+  'JAS',
+  '1PE',
+  '2PE',
+  '1JN',
+  '2JN',
+  '3JN',
+  'JUD',
+  'REV',
 };
 
 enum _ScopeTab { all, ot, nt }
@@ -50,8 +75,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Timer? _debounce;
   List<String> _history = [];
   _ScopeTab _scope = _ScopeTab.all;
-  var _visibleCount = _searchPageSize;
   String _searchVersion = 'cuvs';
+
+  List<BibleSearchHit> _hits = [];
+  int _total = 0;
+  int _totalOt = 0;
+  int _totalNt = 0;
+  bool _hasMore = false;
+  bool _loading = false;
+  bool _loadingMore = false;
+  Object? _error;
+  int _searchGen = 0;
 
   @override
   void initState() {
@@ -65,10 +99,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _debounce?.cancel();
       _debounce = Timer(const Duration(milliseconds: _searchDebounceMs), () {
         if (!mounted) return;
-        setState(() {
-          _debounced = q.trim();
-          _visibleCount = _searchPageSize;
-        });
+        final next = q.trim();
+        if (next == _debounced) return;
+        setState(() => _debounced = next);
+        unawaited(_runSearch(reset: true));
       });
     });
   }
@@ -81,10 +115,106 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Future<void> _saveHistory(String q) async {
     final trimmed = q.trim();
     if (trimmed.isEmpty) return;
-    final next =
-        [trimmed, ..._history.where((h) => h != trimmed)].take(20).toList();
+    final next = [
+      trimmed,
+      ..._history.where((h) => h != trimmed),
+    ].take(20).toList();
     await ref.read(prefsProvider).setStringList(_historyKey, next);
     setState(() => _history = next);
+  }
+
+  String? get _testamentParam => switch (_scope) {
+    _ScopeTab.all => null,
+    _ScopeTab.ot => 'OT',
+    _ScopeTab.nt => 'NT',
+  };
+
+  Future<BibleSearchPage> _fetchPage({required int offset}) async {
+    final dio = ref.read(dioProvider);
+    final qp = <String, dynamic>{
+      'q': _debounced,
+      'limit': _searchPageSize,
+      'offset': offset,
+      'version': _searchVersion,
+    };
+    final testament = _testamentParam;
+    if (testament != null) qp['testament'] = testament;
+    final res = await dio.get<Map<String, dynamic>>(
+      '/bible/search',
+      queryParameters: qp,
+    );
+    return BibleSearchPage.fromJson(res.data ?? const {});
+  }
+
+  Future<void> _runSearch({required bool reset}) async {
+    final q = _debounced;
+    if (searchTooShort(q)) {
+      setState(() {
+        _hits = [];
+        _total = 0;
+        _totalOt = 0;
+        _totalNt = 0;
+        _hasMore = false;
+        _loading = false;
+        _loadingMore = false;
+        _error = null;
+      });
+      return;
+    }
+    final gen = ++_searchGen;
+    if (reset) {
+      setState(() {
+        _loading = true;
+        _error = null;
+        _hits = [];
+        _hasMore = false;
+      });
+    } else {
+      if (_loadingMore || !_hasMore) return;
+      setState(() => _loadingMore = true);
+    }
+    try {
+      final page = await _fetchPage(offset: reset ? 0 : _hits.length);
+      if (!mounted || gen != _searchGen) return;
+      setState(() {
+        if (reset) {
+          _hits = page.hits;
+        } else {
+          final seen = {for (final h in _hits) '${h.osis}|${h.version}'};
+          final merged = [..._hits];
+          for (final h in page.hits) {
+            final key = '${h.osis}|${h.version}';
+            if (seen.add(key)) merged.add(h);
+          }
+          _hits = merged;
+        }
+        _total = page.total;
+        _totalOt = page.totalOt;
+        _totalNt = page.totalNt;
+        _hasMore = page.hasMore;
+        _error = null;
+      });
+    } on DioException catch (e) {
+      if (!mounted || gen != _searchGen) return;
+      setState(() => _error = e.message ?? e);
+    } catch (e) {
+      if (!mounted || gen != _searchGen) return;
+      setState(() => _error = e);
+    } finally {
+      if (mounted && gen == _searchGen) {
+        setState(() {
+          _loading = false;
+          _loadingMore = false;
+        });
+      }
+    }
+  }
+
+  void _setScope(_ScopeTab tab) {
+    if (_scope == tab) return;
+    setState(() => _scope = tab);
+    // 约别走 API testament，避免「亚伯拉罕」等被旧约前 N 条截断后新约空白
+    unawaited(_runSearch(reset: true));
   }
 
   @override
@@ -95,7 +225,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _openAssistant(String osis, String text) {
-    ref.read(assistantSeedProvider.notifier).open(
+    ref
+        .read(assistantSeedProvider.notifier)
+        .open(
           ref: osis,
           question:
               '请解释：${text.length > 24 ? '${text.substring(0, 24)}…' : text}',
@@ -112,35 +244,35 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   List<String> _highlightTerms(String query) {
     final raw = query
-        .replaceAll(RegExp(r'["""''「」]'), ' ')
-        .replaceAll(RegExp(r'(?:书卷|book)\s*[:：]\s*\S+', caseSensitive: false), ' ')
+        .replaceAll(
+          RegExp(
+            r'["""'
+            '「」]',
+          ),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(r'(?:书卷|book)\s*[:：]\s*\S+', caseSensitive: false),
+          ' ',
+        )
         .replaceAll(RegExp(r'(?:^|\s)-\S+'), ' ')
         .trim();
     if (raw.isEmpty) return const [];
-    return raw.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toSet().toList();
+    return raw
+        .split(RegExp(r'\s+'))
+        .where((t) => t.isNotEmpty)
+        .toSet()
+        .toList();
   }
 
-  List<BibleSearchHit> _filterScope(List<BibleSearchHit> list) {
-    switch (_scope) {
-      case _ScopeTab.all:
-        return list;
-      case _ScopeTab.ot:
-        return list
-            .where((h) => !_ntBookIds.contains(h.book.toUpperCase()))
-            .toList();
-      case _ScopeTab.nt:
-        return list
-            .where((h) => _ntBookIds.contains(h.book.toUpperCase()))
-            .toList();
-    }
+  bool get _showNtHint {
+    if (_scope != _ScopeTab.all || _loading || _totalNt <= 0) return false;
+    return !_hits.any((h) => _ntBookIds.contains(h.book.toUpperCase()));
   }
 
   @override
   Widget build(BuildContext context) {
     final searchQ = _debounced;
-    final hits = ref.watch(
-      bibleSearchProvider((q: searchQ, version: _searchVersion)),
-    );
     final terms = _highlightTerms(searchQ);
     final versionsAsync = ref.watch(bibleVersionsProvider);
     final versionLabel = versionsAsync.maybeWhen(
@@ -150,6 +282,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       },
       orElse: () => _searchVersion.toUpperCase(),
     );
+    final scopeLabel = switch (_scope) {
+      _ScopeTab.all => '全部',
+      _ScopeTab.ot => '旧约',
+      _ScopeTab.nt => '新约',
+    };
 
     return Scaffold(
       backgroundColor: AppColors.paper,
@@ -184,11 +321,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             onSubmitted: _saveHistory,
           ),
           const SizedBox(height: 14),
-          const Text('知识探索',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: AppColors.ink)),
+          const Text(
+            '知识探索',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: AppColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
           const KnowledgeHub(),
           const SizedBox(height: 8),
@@ -202,15 +342,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               spacing: 8,
               runSpacing: 8,
               children: _history
-                  .map((h) => ActionChip(
-                        label: Text(h, style: const TextStyle(fontSize: 12)),
-                        backgroundColor: AppColors.surface,
-                        side: const BorderSide(color: AppColors.line),
-                        onPressed: () {
-                          _controller.text = h;
-                          _saveHistory(h);
-                        },
-                      ))
+                  .map(
+                    (h) => ActionChip(
+                      label: Text(h, style: const TextStyle(fontSize: 12)),
+                      backgroundColor: AppColors.surface,
+                      side: const BorderSide(color: AppColors.line),
+                      onPressed: () {
+                        _controller.text = h;
+                        _saveHistory(h);
+                      },
+                    ),
+                  )
                   .toList(),
             ),
           ],
@@ -218,28 +360,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             const SizedBox(height: 18),
             Row(
               children: [
-                const Text('经文',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                const Text(
+                  '经文',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                ),
                 const Spacer(),
                 for (final tab in _ScopeTab.values)
                   Padding(
                     padding: const EdgeInsets.only(left: 6),
                     child: ChoiceChip(
-                      label: Text(
-                        switch (tab) {
-                          _ScopeTab.all => '全部',
-                          _ScopeTab.ot => '旧约',
-                          _ScopeTab.nt => '新约',
-                        },
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      label: Text(switch (tab) {
+                        _ScopeTab.all => '全部',
+                        _ScopeTab.ot => '旧约',
+                        _ScopeTab.nt => '新约',
+                      }, style: const TextStyle(fontSize: 12)),
                       selected: _scope == tab,
                       visualDensity: VisualDensity.compact,
-                      onSelected: (_) => setState(() {
-                        _scope = tab;
-                        _visibleCount = _searchPageSize;
-                      }),
+                      onSelected: (_) => _setScope(tab),
                     ),
                   ),
                 versionsAsync.maybeWhen(
@@ -254,22 +391,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               : vs.first.id,
                           isDense: true,
                           style: const TextStyle(
-                              fontSize: 12, color: AppColors.ink),
+                            fontSize: 12,
+                            color: AppColors.ink,
+                          ),
                           items: vs
-                              .map((v) => DropdownMenuItem(
-                                    value: v.id,
-                                    child: Text(v.label.isNotEmpty
+                              .map(
+                                (v) => DropdownMenuItem(
+                                  value: v.id,
+                                  child: Text(
+                                    v.label.isNotEmpty
                                         ? v.label
-                                        : v.id.toUpperCase()),
-                                  ))
+                                        : v.id.toUpperCase(),
+                                  ),
+                                ),
+                              )
                               .toList(),
                           onChanged: (id) {
                             if (id == null) return;
                             setState(() {
                               _searchVersion = id;
-                              _visibleCount = _searchPageSize;
                               _scope = _ScopeTab.all;
                             });
+                            unawaited(_runSearch(reset: true));
                           },
                         ),
                       ),
@@ -280,132 +423,159 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ],
             ),
             const SizedBox(height: 6),
-            hits.when(
-              loading: () => Text(
-                switch (_scope) {
-                  _ScopeTab.all => '全部 · $versionLabel · 搜索中…',
-                  _ScopeTab.ot => '旧约 · $versionLabel · 搜索中…',
-                  _ScopeTab.nt => '新约 · $versionLabel · 搜索中…',
-                },
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.inkFaint),
-              ),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (list) {
-                final filtered = _filterScope(list);
-                return Text(
-                  () {
-                    final scope = switch (_scope) {
-                      _ScopeTab.all => '全部',
-                      _ScopeTab.ot => '旧约',
-                      _ScopeTab.nt => '新约',
-                    };
-                    final shown =
-                        filtered.take(_visibleCount).length;
-                    return '$scope · $versionLabel · 已显示 $shown/${filtered.length}';
-                  }(),
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.inkFaint),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            hits.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('搜索失败：$e',
-                  style: const TextStyle(color: AppColors.inkFaint)),
-              data: (list) {
-                final filtered = _filterScope(list);
-                if (filtered.isEmpty) {
-                  return const Text('未找到匹配经文，试试下方人生主题',
-                      style:
-                          TextStyle(color: AppColors.inkFaint, fontSize: 13));
+            Text(
+              () {
+                if (_loading) {
+                  return '$scopeLabel · $versionLabel · 搜索中…';
                 }
-                final shown = filtered.take(_visibleCount).toList();
-                return Column(
+                final buf = StringBuffer(
+                  '$scopeLabel · $versionLabel · 已显示 ${_hits.length}/$_total',
+                );
+                if (_scope == _ScopeTab.all && (_totalOt > 0 || _totalNt > 0)) {
+                  buf.write(' · 旧约 $_totalOt · 新约 $_totalNt');
+                }
+                return buf.toString();
+              }(),
+              style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+            ),
+            if (_showNtHint) ...[
+              const SizedBox(height: 4),
+              Text.rich(
+                TextSpan(
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.inkFaint,
+                    height: 1.4,
+                  ),
                   children: [
-                    ...shown.map((h) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: PaperCard(
-                            onTap: () {
-                              _saveHistory(searchQ);
-                              _openReader(h);
-                            },
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    const TextSpan(text: '当前结果偏靠前卷；新约另有 '),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: GestureDetector(
+                        onTap: () => _setScope(_ScopeTab.nt),
+                        child: Text(
+                          '$_totalNt 处',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.accentDeep,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const TextSpan(text: '，点「新约」可直接查看。'),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            if (_loading)
+              const Center(child: CircularProgressIndicator())
+            else if (_error != null)
+              Text(
+                '搜索失败：$_error',
+                style: const TextStyle(color: AppColors.inkFaint),
+              )
+            else if (_hits.isEmpty)
+              const Text(
+                '未找到匹配经文，试试下方人生主题',
+                style: TextStyle(color: AppColors.inkFaint, fontSize: 13),
+              )
+            else
+              Column(
+                children: [
+                  ..._hits.map(
+                    (h) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: PaperCard(
+                        onTap: () {
+                          _saveHistory(searchQ);
+                          _openReader(h);
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        formatGroupRefLabel(h.ref).isNotEmpty
-                                            ? formatGroupRefLabel(h.ref)
-                                            : h.ref,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13,
-                                            color: AppColors.accentDeep),
-                                      ),
+                                Expanded(
+                                  child: Text(
+                                    formatGroupRefLabel(h.ref).isNotEmpty
+                                        ? formatGroupRefLabel(h.ref)
+                                        : h.ref,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      color: AppColors.accentDeep,
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.accentWash,
-                                        borderRadius:
-                                            BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                          (h.version.isNotEmpty
-                                                  ? h.version
-                                                  : _searchVersion)
-                                              .toUpperCase(),
-                                          style: const TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.accentDeep)),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentWash,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    (h.version.isNotEmpty
+                                            ? h.version
+                                            : _searchVersion)
+                                        .toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.accentDeep,
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                _HighlightedText(
-                                  text: h.text,
-                                  terms: terms,
-                                ),
-                                const SizedBox(height: 8),
-                                TextButton(
-                                  style: TextButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap),
-                                  onPressed: () {
-                                    _saveHistory(searchQ);
-                                    _openAssistant(h.osis, h.text);
-                                  },
-                                  child: const Text('问小爱',
-                                      style: TextStyle(fontSize: 12)),
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                        )),
-                    if (filtered.length > shown.length)
-                      TextButton(
-                        onPressed: () => setState(
-                            () => _visibleCount += _searchPageSize),
-                        child: Text(
-                            '加载更多（${filtered.length - shown.length}）'),
+                            const SizedBox(height: 4),
+                            _HighlightedText(text: h.text, terms: terms),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () {
+                                _saveHistory(searchQ);
+                                _openAssistant(h.osis, h.text);
+                              },
+                              child: const Text(
+                                '问小爱',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                  ],
-                );
-              },
-            ),
+                    ),
+                  ),
+                  if (_hasMore)
+                    TextButton(
+                      onPressed: _loadingMore
+                          ? null
+                          : () => unawaited(_runSearch(reset: false)),
+                      child: Text(
+                        _loadingMore
+                            ? '加载中…'
+                            : '加载更多（${_total - _hits.length}）',
+                      ),
+                    ),
+                ],
+              ),
             _NotesGroup(query: searchQ),
           ],
           const SizedBox(height: 18),
-          const Text('人生主题',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          const Text(
+            '人生主题',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+          ),
           const SizedBox(height: 10),
           GridView.count(
             crossAxisCount: 2,
@@ -415,19 +585,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             crossAxisSpacing: 10,
             childAspectRatio: 2.4,
             children: _themeTags
-                .map((t) => PaperCard(
-                      tier: 2,
-                      onTap: () {
-                        _controller.text = t;
-                        _saveHistory(t);
-                      },
-                      child: Center(
-                        child: Text(t,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.ink)),
+                .map(
+                  (t) => PaperCard(
+                    tier: 2,
+                    onTap: () {
+                      _controller.text = t;
+                      _saveHistory(t);
+                    },
+                    child: Center(
+                      child: Text(
+                        t,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink,
+                        ),
                       ),
-                    ))
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         ],
@@ -437,10 +612,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 }
 
 class _HighlightedText extends StatelessWidget {
-  const _HighlightedText({
-    required this.text,
-    required this.terms,
-  });
+  const _HighlightedText({required this.text, required this.terms});
   final String text;
   final List<String> terms;
 
@@ -462,22 +634,22 @@ class _HighlightedText extends StatelessWidget {
       if (m.start > start) {
         spans.add(TextSpan(text: text.substring(start, m.start)));
       }
-      spans.add(TextSpan(
-        text: m.group(0),
-        style: base.copyWith(
-          backgroundColor: AppColors.accentWash,
-          color: AppColors.accentDeep,
-          fontWeight: FontWeight.w600,
+      spans.add(
+        TextSpan(
+          text: m.group(0),
+          style: base.copyWith(
+            backgroundColor: AppColors.accentWash,
+            color: AppColors.accentDeep,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ));
+      );
       start = m.end;
     }
     if (start < text.length) {
       spans.add(TextSpan(text: text.substring(start)));
     }
-    return Text.rich(
-      TextSpan(style: base, children: spans),
-    );
+    return Text.rich(TextSpan(style: base, children: spans));
   }
 }
 
@@ -493,9 +665,11 @@ class _NotesGroup extends ConsumerWidget {
       data: (list) {
         final q = query.toLowerCase();
         return list
-            .where((n) =>
-                n.body.toLowerCase().contains(q) ||
-                (n.ref ?? '').toLowerCase().contains(q))
+            .where(
+              (n) =>
+                  n.body.toLowerCase().contains(q) ||
+                  (n.ref ?? '').toLowerCase().contains(q),
+            )
             .take(10)
             .toList();
       },
@@ -506,31 +680,43 @@ class _NotesGroup extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 18),
-        Text('笔记 · ${notes.length}',
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        Text(
+          '笔记 · ${notes.length}',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+        ),
         const SizedBox(height: 8),
-        ...notes.map((n) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: PaperCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if ((n.ref ?? '').isNotEmpty)
-                      Text(n.ref!,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                              color: AppColors.gold)),
-                    if ((n.ref ?? '').isNotEmpty) const SizedBox(height: 4),
-                    Text(n.body,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: AppColors.ink, height: 1.5, fontSize: 13)),
-                  ],
-                ),
+        ...notes.map(
+          (n) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: PaperCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if ((n.ref ?? '').isNotEmpty)
+                    Text(
+                      n.ref!,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        color: AppColors.gold,
+                      ),
+                    ),
+                  if ((n.ref ?? '').isNotEmpty) const SizedBox(height: 4),
+                  Text(
+                    n.body,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      height: 1.5,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
               ),
-            )),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -555,27 +741,44 @@ class BibleSearchHit {
   final String version;
 
   factory BibleSearchHit.fromJson(Map<String, dynamic> j) => BibleSearchHit(
-        book: j['book'] as String,
-        ref: j['ref'] as String,
-        osis: j['osis'] as String,
-        text: j['text'] as String,
-        chapter: j['chapter'] as int,
-        verse: j['verse'] as int,
-        version: (j['version'] as String?) ?? 'cnv',
-      );
+    book: j['book'] as String,
+    ref: j['ref'] as String,
+    osis: j['osis'] as String,
+    text: j['text'] as String,
+    chapter: j['chapter'] as int,
+    verse: j['verse'] as int,
+    version: (j['version'] as String?) ?? 'cnv',
+  );
 }
 
-final bibleSearchProvider = FutureProvider.family<List<BibleSearchHit>,
-    ({String q, String version})>((ref, key) async {
-  if (searchTooShort(key.q)) return [];
-  final dio = ref.watch(dioProvider);
-  final res = await dio.get('/bible/search', queryParameters: {
-    'q': key.q,
-    'limit': 100,
-    'version': key.version,
+class BibleSearchPage {
+  const BibleSearchPage({
+    required this.hits,
+    required this.total,
+    required this.totalOt,
+    required this.totalNt,
+    required this.hasMore,
   });
-  final hits = (res.data['hits'] ?? []) as List;
-  return hits
-      .map((e) => BibleSearchHit.fromJson(e as Map<String, dynamic>))
-      .toList();
-});
+
+  final List<BibleSearchHit> hits;
+  final int total;
+  final int totalOt;
+  final int totalNt;
+  final bool hasMore;
+
+  factory BibleSearchPage.fromJson(Map<String, dynamic> j) {
+    final hits = ((j['hits'] ?? []) as List)
+        .map((e) => BibleSearchHit.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final total = (j['total'] as int?) ?? hits.length;
+    final offset = (j['offset'] as int?) ?? 0;
+    final hasMore = j['has_more'] == true || offset + hits.length < total;
+    return BibleSearchPage(
+      hits: hits,
+      total: total,
+      totalOt: (j['total_ot'] as int?) ?? 0,
+      totalNt: (j['total_nt'] as int?) ?? 0,
+      hasMore: hasMore,
+    );
+  }
+}

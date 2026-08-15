@@ -78,12 +78,19 @@ class AuthApi {
       if (username != null && username.isNotEmpty) {
         await userPrefSetString(_session.prefs, _kName, username);
       }
-      await userPrefSetBool(_session.prefs, _kHasPwd, d['has_password'] == true);
+      await userPrefSetBool(
+        _session.prefs,
+        _kHasPwd,
+        d['has_password'] == true,
+      );
     } on DioException {
       /* 离线可用 */
     }
     try {
-      await _dio.post('/auth/merge-guest', options: Options(headers: _deviceHeaders()));
+      await _dio.post(
+        '/auth/merge-guest',
+        options: Options(headers: _deviceHeaders()),
+      );
     } on DioException {
       /* 忽略 */
     }
@@ -93,7 +100,10 @@ class AuthApi {
     final u = username.trim();
     if (u.isEmpty) return false;
     try {
-      final res = await _dio.get('/auth/username-available', queryParameters: {'u': u});
+      final res = await _dio.get(
+        '/auth/username-available',
+        queryParameters: {'u': u},
+      );
       return res.data['available'] == true;
     } on DioException {
       return true;
@@ -106,10 +116,8 @@ class AuthApi {
   }) async {
     final code = _session.effectiveUserCode;
     final u = username.trim();
-    if (u.isNotEmpty) {
-      await userPrefSetString(_session.prefs, _kName, u);
-    }
-    await userPrefSetBool(_session.prefs, _kOnboarded, true);
+    // 先由服务端校验并持久化；不能在请求前仅本地写入名称，否则断网失败
+    // 会留下“已设置”的假状态并导致欢迎页/资料页出现重复提示。
     final res = await _dio.post(
       '/auth/register',
       data: {
@@ -128,9 +136,20 @@ class AuthApi {
     } else {
       await _session.devSignIn(serverCode);
     }
+    final savedUsername = (d['username'] as String?)?.trim();
+    if (savedUsername != null && savedUsername.isNotEmpty) {
+      await userPrefSetString(_session.prefs, _kName, savedUsername);
+    } else if (u.isNotEmpty) {
+      // 兼容旧服务端未回传 username，但仅在注册成功后再落本地。
+      await userPrefSetString(_session.prefs, _kName, u);
+    }
     await userPrefSetBool(_session.prefs, _kHasPwd, d['has_password'] == true);
+    await userPrefSetBool(_session.prefs, _kOnboarded, true);
     try {
-      await _dio.post('/auth/merge-guest', options: Options(headers: _deviceHeaders()));
+      await _dio.post(
+        '/auth/merge-guest',
+        options: Options(headers: _deviceHeaders()),
+      );
     } on DioException {
       /* 忽略 */
     }
@@ -141,10 +160,7 @@ class AuthApi {
     if (idf.isEmpty) throw Exception('请输入用户ID或用户名');
     final res = await _dio.post(
       '/auth/login',
-      data: {
-        'identifier': idf,
-        'password': password.isEmpty ? null : password,
-      },
+      data: {'identifier': idf, 'password': password.isEmpty ? null : password},
       options: Options(headers: _deviceHeaders()),
     );
     final d = res.data as Map<String, dynamic>;
@@ -163,7 +179,10 @@ class AuthApi {
     await userPrefSetBool(_session.prefs, _kHasPwd, d['has_password'] == true);
     await userPrefSetBool(_session.prefs, _kOnboarded, true);
     try {
-      await _dio.post('/auth/merge-guest', options: Options(headers: _deviceHeaders()));
+      await _dio.post(
+        '/auth/merge-guest',
+        options: Options(headers: _deviceHeaders()),
+      );
     } on DioException {
       /* 忽略 */
     }
