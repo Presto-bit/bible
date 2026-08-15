@@ -848,13 +848,48 @@
 }
 
 .reader-settings-sheet {
-  max-height: min(85dvh, calc(100dvh - var(--safe-top, 0px) - 8px));
+  display: flex;
+  flex-direction: column;
+  /* 留出上方遮罩区：可点关 + 视觉上可下拉 */
+  height: min(72dvh, calc(100dvh - var(--safe-top, 0px) - 56px));
+  max-height: min(72dvh, calc(100dvh - var(--safe-top, 0px) - 56px));
+  overflow: hidden;
+  padding: 10px 20px 0;
+  padding-bottom: 0;
+  touch-action: pan-y;
+  will-change: transform;
+  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.reader-settings-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+
+.reader-settings-sheet-title {
+  min-width: 0;
+  flex: 1;
+}
+
+.reader-settings-sheet-title h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.reader-settings-sheet-body {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  padding-bottom: max(12px, var(--safe-bottom, 0px));
+  padding-bottom: max(16px, var(--safe-bottom, 0px));
 }
 
 /* z-index 由 portal 层内 absolute 规则接管，勿再压到 110 */

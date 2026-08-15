@@ -3399,8 +3399,8 @@ export default function ReaderView({
         <ReaderSheetPortal
           onClose={() => setShowSettings(false)}
           sheetClassName="sheet card reader-settings-sheet"
+          title={<h3>{ui.settings}</h3>}
         >
-          <h3 style={{ marginTop: 0 }}>{ui.settings}</h3>
             <p className="muted" style={{ fontSize: 12 }}>阅读模式</p>
             <div className="font-pills">
               {READING_MODES.map((m) => (
