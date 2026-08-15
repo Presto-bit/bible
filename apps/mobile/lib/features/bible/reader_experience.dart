@@ -2462,8 +2462,9 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                     height: 1.0,
                     letterSpacing: 0,
                     // 词级选中时节号不再单独铺底，避免与词块叠成双层
-                    backgroundColor:
-                        verseInSel && widget.wordRange == null ? selBg : null,
+                    backgroundColor: verseInSel && widget.wordRange == null
+                        ? selBg
+                        : null,
                     fontFamily: widget.fontFamily.fontFamily,
                     fontFamilyFallback: widget.fontFamily.fontFamilyFallback,
                   ),
@@ -2501,8 +2502,8 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           final wr = widget.wordRange;
           if (w.start > cursor) {
             final gap = v.text.substring(cursor, w.start);
-            final gapInSel = wr != null &&
-                wordOverlapsRange(v.verse, cursor, w.start, wr);
+            final gapInSel =
+                wr != null && wordOverlapsRange(v.verse, cursor, w.start, wr);
             spans.addAll(
               readerGapSpans(
                 gap,
@@ -2597,7 +2598,8 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         if (cursor < v.text.length) {
           final gap = v.text.substring(cursor);
           final wrTail = widget.wordRange;
-          final gapInSel = wrTail != null &&
+          final gapInSel =
+              wrTail != null &&
               wordOverlapsRange(v.verse, cursor, v.text.length, wrTail);
           spans.addAll(
             readerGapSpans(
@@ -2753,7 +2755,8 @@ class _MarginVerseRow extends StatelessWidget {
     for (final w in words) {
       if (w.start > cursor) {
         final gap = v.text.substring(cursor, w.start);
-        final gapInSel = wordRange != null &&
+        final gapInSel =
+            wordRange != null &&
             wordOverlapsRange(v.verse, cursor, w.start, wordRange!);
         bodyChildren.addAll(
           readerGapSpans(
@@ -2822,10 +2825,10 @@ class _MarginVerseRow extends StatelessWidget {
                 : null,
             onDictTap: dictHit != null
                 ? () => onOpenDict(
-                      dictHit.$1,
-                      dictHit.$2,
-                      dictIndex[dictHit.$2] ?? [dictHit.$1],
-                    )
+                    dictHit.$1,
+                    dictHit.$2,
+                    dictIndex[dictHit.$2] ?? [dictHit.$1],
+                  )
                 : null,
             onDoubleTap: () => onStart(v.verse, v.text),
           ),
@@ -2835,7 +2838,8 @@ class _MarginVerseRow extends StatelessWidget {
     }
     if (cursor < v.text.length) {
       final gap = v.text.substring(cursor);
-      final gapInSel = wordRange != null &&
+      final gapInSel =
+          wordRange != null &&
           wordOverlapsRange(v.verse, cursor, v.text.length, wordRange!);
       bodyChildren.addAll(
         readerGapSpans(
@@ -2949,10 +2953,8 @@ List<InlineSpan> readerGapSpans(
           baseline: TextBaseline.alphabetic,
           child: SizedBox(
             width: w,
-            child: DecoratedBox(
-              decoration: BoxDecoration(color: highlight),
-              child: const SizedBox.expand(),
-            ),
+            height: fontPx,
+            child: highlight == null ? null : ColoredBox(color: highlight),
           ),
         ),
       );
