@@ -711,7 +711,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               childAspectRatio: 1.28,
               children: [
                 _FootprintCell(
-                  kind: '想法',
+                  // 足迹入口统一用用户可理解的「笔记」；底层仍复用经文想法数据。
+                  kind: '笔记',
                   count: thoughts.length,
                   value: thoughtPreview.isEmpty ? '写下第一句' : thoughtPreview,
                   empty: thoughtPreview.isEmpty,

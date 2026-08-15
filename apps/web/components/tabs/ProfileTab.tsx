@@ -1274,7 +1274,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       <p className="section-label tab-section-label profile-block-label">我的足迹</p>
       <div className="profile-footprint-grid" role="list">
         <FootprintCell
-          kind="想法"
+          // 足迹入口统一用用户可理解的「笔记」；底层仍复用经文想法数据。
+          kind="笔记"
           tone="thought"
           count={thoughtCount}
           value={thoughtPreview || '写下第一句'}
