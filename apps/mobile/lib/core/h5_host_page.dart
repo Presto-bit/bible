@@ -20,6 +20,7 @@ import 'config.dart';
 import 'h5_bridge_channel.dart';
 import 'h5_session_bridge.dart';
 import 'h5_whitelist.dart';
+import 'notif_prefs.dart';
 import 'theme_ext.dart';
 
 // discoverH5PathProvider 来自 h5_bridge_channel.dart
@@ -527,6 +528,11 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final varJs = vars.entries
         .map((e) => "root.style.setProperty('${e.key}','${e.value}');")
         .join('');
+    final prefs = ref.read(prefsProvider);
+    final readingDnd = NotifPrefs.readingDnd(prefs);
+    final nav = ref.read(navIndexProvider);
+    const hostTabs = ['home', 'bible', 'assistant', 'discover', 'profile'];
+    final hostTab = (nav >= 0 && nav < hostTabs.length) ? hostTabs[nav] : 'home';
 
     await c.runJavaScript('''
 (function(){
@@ -548,8 +554,21 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         window.dispatchEvent(new CustomEvent('peiai-flutter-logout'));
       } catch (e) {}
     }
+    // 读经勿扰：与 Flutter SharedPreferences 对齐，写入 Web notif_prefs
+    try {
+      var np = {};
+      try { np = JSON.parse(localStorage.getItem('presto_notif_prefs_v1') || '{}') || {}; } catch (e) {}
+      np.readingDnd = ${readingDnd ? 'true' : 'false'};
+      localStorage.setItem('presto_notif_prefs_v1', JSON.stringify(np));
+      localStorage.setItem('presto_reminder_extra', JSON.stringify({
+        group: np.socialDigest !== false,
+        streak: !!np.streakRecall,
+        reading_dnd: ${readingDnd ? 'true' : 'false'}
+      }));
+    } catch (e) {}
     root.setAttribute('data-peiai-theme', '$theme');
     root.setAttribute('data-peiai-client', 'android_h5_tab');
+    root.setAttribute('data-peiai-host-tab', '$hostTab');
     root.setAttribute('data-theme', '$theme');
     root.setAttribute('data-app-theme', '${themeId.storageKey}');
     $varJs
@@ -560,6 +579,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     window.__PEIAI_FLUTTER__ = {
       client: 'android_h5_tab',
       theme: '${themeId.storageKey}',
+      hostTab: '$hostTab',
       openNative: function(payload) {
         try {
           if (window.PeiaiFlutter && window.PeiaiFlutter.postMessage) {
@@ -637,14 +657,18 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       unawaited(ref.read(sessionProvider).token().then((t) => _runBridgeJs(c, t)));
     });
 
-    // 发现等 Tab：从读经/小爱切回时重灌登录态与软键盘量度
+    // 发现等 Tab：切 Tab / 勿扰变更时回写 hostTab + readingDnd（读经勿扰）
     if (widget.tabIndex != null) {
       ref.listen(navIndexProvider, (prev, next) {
-        if (next != widget.tabIndex) return;
         if (prev == next) return;
         unawaited(_reinjectSession());
+        if (next != widget.tabIndex) return;
         if (widget.forceOffline) return;
         // 若曾失败且此刻可能已联网，不自动刷（避免打断会话）；仅 reinject
+      });
+      ref.listen(readingDndEpochProvider, (prev, next) {
+        if (prev == next) return;
+        unawaited(_reinjectSession());
       });
     }
 

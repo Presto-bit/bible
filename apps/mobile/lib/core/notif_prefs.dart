@@ -4,6 +4,7 @@
 /// - 读经勿扰：默认 **开**（圣经 Tab 不弹社交提示）
 library;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class NotifPrefs {
@@ -41,3 +42,13 @@ class NotifPrefs {
   static Future<void> setReadingDnd(SharedPreferences p, bool v) =>
       p.setBool(readingDndKey, v);
 }
+
+/// 读经勿扰偏好变更计数：H5 宿主监听后回写 localStorage。
+class ReadingDndEpochNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+  void bump() => state++;
+}
+
+final readingDndEpochProvider =
+    NotifierProvider<ReadingDndEpochNotifier, int>(ReadingDndEpochNotifier.new);

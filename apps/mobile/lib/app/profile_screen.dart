@@ -1536,15 +1536,15 @@ class _SettingsSheet extends ConsumerWidget {
   }
 }
 
-class _ReminderRow extends StatefulWidget {
+class _ReminderRow extends ConsumerStatefulWidget {
   const _ReminderRow({required this.prefs});
   final SharedPreferences prefs;
 
   @override
-  State<_ReminderRow> createState() => _ReminderRowState();
+  ConsumerState<_ReminderRow> createState() => _ReminderRowState();
 }
 
-class _ReminderRowState extends State<_ReminderRow> {
+class _ReminderRowState extends ConsumerState<_ReminderRow> {
   late bool _enabled;
   late bool _dnd;
   late TimeOfDay _time;
@@ -1585,6 +1585,7 @@ class _ReminderRowState extends State<_ReminderRow> {
   Future<void> _toggleDnd(bool on) async {
     setState(() => _dnd = on);
     await NotifPrefs.setReadingDnd(widget.prefs, on);
+    ref.read(readingDndEpochProvider.notifier).bump();
   }
 
   Future<void> _pickTime() async {

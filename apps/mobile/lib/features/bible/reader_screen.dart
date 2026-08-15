@@ -31,8 +31,8 @@ import 'offline_notice.dart';
 import 'offline_bible.dart';
 import 'bible_repository.dart';
 import 'models.dart';
+import 'reader_catalog_view.dart';
 import 'reader_experience.dart';
-import 'reader_loc_popover.dart';
 import 'reader_preferences.dart';
 import 'reader_settings_menu.dart';
 import 'reader_sheet.dart';
@@ -84,6 +84,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   bool _seeded = false;
   Timer? _timer;
   bool _chromeHidden = false;
+  bool _hasSelection = false;
+  bool _catalogOverlay = false;
   String _versionLabel = '和合本';
   String? _compareVersionId;
   String? _mainVersionId;
@@ -284,28 +286,70 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        // 对齐 PWA：点按切换 chrome，无 idle 自动藏
-        onTap: _toggleChrome,
+        // 对齐 PWA：点按切换 chrome，无 idle 自动藏；目录态不藏栏。
+        onTap: _book == null || _catalogOverlay ? null : _toggleChrome,
         child: booksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorView(message: '$e', onRetry: () => ref.refresh(booksProvider)),
         data: (books) {
+          final progressAsync = ref.watch(readingProgressStreamProvider);
           if (!_seeded) {
-            var target = widget.initialBook ?? 'JHN';
-            if (widget.initialBook == null && widget.initialChapter == null) {
-              final saved = ref.read(readingProgressStreamProvider).value;
+            if (widget.initialBook != null) {
+              final target = widget.initialBook!;
+              _book = books.firstWhere(
+                (b) => b.id == target.toUpperCase() || b.name == target,
+                orElse: () => books.firstWhere((b) => b.id == 'JHN',
+                    orElse: () => books.first),
+              );
+              _seeded = true;
+            } else if (progressAsync.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            } else {
+              final saved = progressAsync.asData?.value;
               if (saved != null) {
-                target = saved.book;
-                _chapter = saved.chapter;
+                _book = books.firstWhere(
+                  (b) =>
+                      b.id == saved.book.toUpperCase() ||
+                      b.name == saved.book,
+                  orElse: () => books.firstWhere((b) => b.id == 'JHN',
+                      orElse: () => books.first),
+                );
+                _chapter = saved.chapter.clamp(1, _book!.chapterCount);
               }
+              // 无进度：保持 _book == null → 全屏目录（对齐 PWA）
+              _seeded = true;
             }
-            _book = books.firstWhere(
-              (b) => b.id == target.toUpperCase() || b.name == target,
-              orElse: () => books.firstWhere((b) => b.id == 'JHN',
-                  orElse: () => books.first),
-            );
-            _seeded = true;
           }
+
+          if (_book == null || _catalogOverlay) {
+            final saved = progressAsync.asData?.value;
+            return Column(
+              children: [
+                const OfflineBibleCard(),
+                Expanded(
+                  child: ReaderCatalogView(
+                    books: books,
+                    showBack: _catalogOverlay && _book != null,
+                    onBack: () => setState(() => _catalogOverlay = false),
+                    resumeBookId: _book?.id ?? saved?.book,
+                    resumeChapter: _book != null ? _chapter : saved?.chapter,
+                    planSteps: _planMeta?.steps,
+                    onPickChapter: (b, ch) {
+                      setState(() {
+                        _book = b;
+                        _chapter = ch.clamp(1, b.chapterCount);
+                        _catalogOverlay = false;
+                        _hasSelection = false;
+                        _seeded = true;
+                      });
+                      ref.read(readingRepoProvider).record(b.id, ch);
+                    },
+                  ),
+                ),
+              ],
+            );
+          }
+
           return Column(
             children: [
               const OfflineBibleCard(),
@@ -327,6 +371,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               setState(() {
                 _book = b;
                 _chapter = ch.clamp(1, b.chapterCount);
+                _hasSelection = false;
               });
             },
             onEnableParallel: (id) {
@@ -339,6 +384,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             },
             onNav: _nav,
             onInteract: () {},
+            onSelectionChanged: (has) {
+              if (_hasSelection == has) return;
+              setState(() => _hasSelection = has);
+            },
             onNextChapter: () => _nav(1),
             onAskAi: (refStr, refLabel, selectionText, explainOnly) {
               _onOpenOverlay();
@@ -372,10 +421,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         },
       ),
       ),
-      // 全屏 / 专注阅读时仅保留正文，打卡和小爱均不浮在经文上。
+      // 全屏 / 专注 / 选中经文时隐藏打卡与小爱（对齐 PWA hasSel）。
       floatingActionButton:
           (_book == null ||
+                  _catalogOverlay ||
                   _chromeHidden ||
+                  _hasSelection ||
                   ref.watch(readingModeProvider) == ReadingMode.focus)
               ? null
               : _readerFab(),
@@ -461,17 +512,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               child: const Icon(Icons.groups_outlined, size: 20),
             ),
           ),
-          FloatingActionButton(
+          FloatingActionButton.extended(
             heroTag: 'reader-xiaoai',
             backgroundColor: AppColors.accentDeep,
             foregroundColor: Colors.white,
             elevation: 3,
+            tooltip: '问小爱',
+            icon: const Icon(Icons.auto_awesome, size: 20),
+            label: const Text('小爱', style: TextStyle(fontWeight: FontWeight.w700)),
             onPressed: () {
               peiaiHapticLight(context);
               _onOpenOverlay();
               _openXiaoAiSheet(context);
             },
-            child: const Icon(Icons.auto_awesome, size: 22),
           ),
         ],
       ),
@@ -600,9 +653,47 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       return;
     }
 
-    final next = _chapter + delta;
-    if (next < 1 || next > b.chapterCount) return;
-    setState(() => _chapter = next);
+    // 对齐 PWA resolveChapterNav：章末/章首横滑可跨卷。
+    final bi = books.indexWhere((x) => x.id == b.id);
+    if (bi < 0 || delta == 0) return;
+    var bookIdx = bi;
+    var chapter = _chapter + delta;
+    if (chapter > books[bookIdx].chapterCount) {
+      if (bookIdx >= books.length - 1) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('已到尽头'),
+              duration: Duration(milliseconds: 1200),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+      bookIdx += 1;
+      chapter = 1;
+    } else if (chapter < 1) {
+      if (bookIdx <= 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('已到开头'),
+              duration: Duration(milliseconds: 1200),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+      bookIdx -= 1;
+      chapter = books[bookIdx].chapterCount;
+    }
+    setState(() {
+      _book = books[bookIdx];
+      _chapter = chapter;
+      _hasSelection = false;
+    });
   }
 
   Future<void> _continuePlanSegmentTo(String bookId, int chapter) async {
@@ -668,22 +759,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   Future<void> _pickBookChapter(BuildContext context) async {
     final books = ref.read(booksProvider).value;
-    final book = _book;
-    if (books == null || book == null) return;
-    final picked = await showReaderLocPopover(
-      context,
-      anchorKey: _locKey,
-      books: books,
-      currentBook: book,
-      currentChapter: _chapter,
-      planSteps: _planMeta?.steps,
-    );
-    if (picked != null && mounted) {
-      setState(() {
-        _book = picked.book;
-        _chapter = picked.chapter;
-      });
-    }
+    if (books == null) return;
+    // 对齐 PWA：用全屏目录（含继续条），而非仅锚点弹层。
+    setState(() {
+      _catalogOverlay = true;
+      _chromeHidden = false;
+      _hasSelection = false;
+    });
+    ref.read(readerImmersiveProvider.notifier).set(false);
   }
 }
 
@@ -1195,6 +1278,13 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('继续读'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: OutlinedButton(
                             onPressed: _saveAsThought,

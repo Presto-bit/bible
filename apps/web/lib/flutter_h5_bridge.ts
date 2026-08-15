@@ -21,6 +21,9 @@ declare global {
     PeiaiFlutter?: { postMessage: (msg: string) => void };
     __PEIAI_FLUTTER__?: {
       client: string;
+      theme?: string;
+      /** Flutter 壳当前主 Tab：home|bible|assistant|discover|profile */
+      hostTab?: string;
       openNative: (payload: PeiaiNativePayload | string) => void;
     };
   }

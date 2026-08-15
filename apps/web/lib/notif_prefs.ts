@@ -77,6 +77,12 @@ export function isReadingDndEnabled(): boolean {
 
 /** 当前是否在圣经阅读相关路径（勿扰时抑制社交前台通知） */
 export function isBibleReadingPath(pathname?: string): boolean {
+  if (typeof window !== 'undefined') {
+    const hostTab =
+      window.__PEIAI_FLUTTER__?.hostTab
+      || document.documentElement.getAttribute('data-peiai-host-tab');
+    if (hostTab === 'bible') return true;
+  }
   const p = pathname || (typeof window !== 'undefined' ? window.location.pathname : '');
   return (
     /\/bible(\/|$)/.test(p)

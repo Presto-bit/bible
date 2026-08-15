@@ -262,6 +262,7 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
     required this.onRead,
     required this.onAskAi,
     this.onNextChapter,
+    this.onSelectionChanged,
     this.compareVersionId,
     this.mainVersionId,
     this.planMeta,
@@ -285,6 +286,9 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
   final ValueChanged<PlanReadingMeta?>? onPlanMetaChange;
   final void Function(String bookId, int chapter)? onPlanJump;
   final VoidCallback? onNextChapter;
+
+  /// 选区变化：用于父级隐藏 FAB（对齐 PWA hasSel）。
+  final ValueChanged<bool>? onSelectionChanged;
 
   /// 从单节对照开启章节双语对照（写入 compareVersionId）。
   final void Function(String versionId)? onEnableParallel;
@@ -363,6 +367,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
           widget.chapter,
         );
       });
+      _notifySelection();
       _guideDwellTimer?.cancel();
       _scheduleGuideTips(
         fromSwipe: fromSwipe,
@@ -541,6 +546,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         .record(widget.book.id, widget.chapter, verse: verse);
   }
 
+  void _notifySelection() {
+    widget.onSelectionChanged?.call(_selected.isNotEmpty);
+  }
+
   // 长按：进入选中（整节）。
   void _startSelect(int verse, String text) {
     widget.onInteract();
@@ -550,6 +559,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
       _wordRange = range;
       _selected = {verse};
     });
+    _notifySelection();
     _markRead(verse);
     _scheduleFocusBarLayout();
   }
@@ -573,6 +583,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
       _wordRange = range;
       _selected = picked;
     });
+    _notifySelection();
     if (commit) {
       for (final v in picked) {
         _markRead(v);
@@ -624,15 +635,19 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         focus: WordAnchor(verse: end, start: 0, end: text.length),
       );
     });
+    _notifySelection();
     _markRead(verse);
     _scheduleFocusBarLayout();
   }
 
-  void _clearSelection() => setState(() {
-    _selected.clear();
-    _wordRange = null;
-    _focusBarTop = null;
-  });
+  void _clearSelection() {
+    setState(() {
+      _selected.clear();
+      _wordRange = null;
+      _focusBarTop = null;
+    });
+    _notifySelection();
+  }
 
   int? get _selectionAnchorVerse {
     final sel = _sortedSel;
@@ -1600,39 +1615,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
               ),
             ],
           ),
-          // 沉浸：固定顶部章节信息（叠在列表之上）
-          if (widget.chromeHidden)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Material(
-                color: theme.background.withValues(alpha: 0.94),
-                elevation: 0,
-                child: SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${widget.book.name} · 第 ${widget.chapter} 章',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: theme.ink.withValues(alpha: 0.88),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
           if (_selected.isNotEmpty)
             Positioned(
               top:
