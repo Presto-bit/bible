@@ -38,7 +38,7 @@ import { shellTapProps } from '@/lib/shell_tap';
 import { unlockReaderSurface } from '@/lib/reader_chrome';
 import CatalogView from '@/components/reader/CatalogView';
 import ReaderView from '@/components/reader/ReaderView';
-import { EntityKnowledgeSheet } from '@/components/knowledge/EntityKnowledgeSheet';
+import { DictEntrySheet } from '@/components/dictionary/DictEntrySheet';
 
 /** Sheet 仍动态加载；目录/阅读器、词典弹层静态导入，避免慢网/WebView 下 chunk 不到位时点了没反应 */
 const VersePreviewSheet = dynamic(
@@ -180,15 +180,6 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
       });
     },
     [properNounRe, dictIndex, handleNameClick],
-  );
-
-  const handleNodeClick = useCallback(
-    (entityId: string) => {
-      const ent = dict.find((e) => (e.id ?? e.name) === entityId);
-      if (!ent || !dictPopup) return;
-      openEntity(ent, dictPopup.name, dictPopup.ctx, dictPopup.candidates, true);
-    },
-    [dict, dictPopup, openEntity],
   );
 
   const handlePlanJump = useCallback(
@@ -562,9 +553,8 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         paneActive={paneActive}
       />
       {dictPopup && (
-        <EntityKnowledgeSheet
+        <DictEntrySheet
           entity={dictPopup.entity}
-          name={dictPopup.name}
           candidates={dictPopup.candidates}
           ctx={dictPopup.ctx}
           onClose={() => {
@@ -574,7 +564,6 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
           }}
           onPickEntity={(e, remember) => openEntity(e, dictPopup.name, dictPopup.ctx, dictPopup.candidates, remember)}
           onRefPreview={(osis, label) => setDictRefPreview({ osis, label })}
-          onNodeClick={handleNodeClick}
         />
       )}
       {dictRefPreview && (

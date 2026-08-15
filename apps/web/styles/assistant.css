@@ -69,19 +69,23 @@ body.assistant-active .assistant-page {
 /* 键盘：只在聚焦时加强锁滚动/高度，平时底栏与其他 Tab 同位 */
 body.assistant-keyboard.assistant-active {
   overflow: hidden !important;
+  overflow-x: hidden !important;
   overscroll-behavior: none;
 }
 html:has(body.assistant-keyboard.assistant-active) {
   overflow: hidden !important;
+  overflow-x: hidden !important;
   overscroll-behavior: none;
 }
 body.assistant-keyboard.assistant-active .app-body {
   overflow: hidden !important;
+  overflow-x: hidden !important;
   overscroll-behavior: none;
 }
 body.assistant-keyboard.assistant-active .tab-keep-pane-active .assistant-page,
 body.assistant-keyboard.assistant-active .assistant-page {
   touch-action: none;
+  overflow-x: hidden;
 }
 /* 聚焦藏底栏后：高度改由 --assistant-page-h（已含「不扣 tabbar」），只调底距 */
 body.assistant-keyboard.assistant-active .assistant-page {
@@ -95,7 +99,7 @@ body.assistant-keyboard.assistant-active .assistant-body .assistant-composer {
 }
 /*
  * 确认键盘后：固定贴 visualViewport（与 IM im-vv-shell 同策略）。
- * layout 卡住时若仍用文档流高度，输入会沉在键盘下面。
+ * 保持 max-width + 水平居中，避免从相对布局切到 fixed 时左右横跳。
  */
 body.assistant-keyboard-vv.assistant-active .tab-keep-pane-active .assistant-page,
 body.assistant-keyboard-vv.assistant-active .assistant-page {
@@ -104,9 +108,12 @@ body.assistant-keyboard-vv.assistant-active .assistant-page {
   left: 0;
   right: 0;
   width: 100%;
+  max-width: min(720px, 100%);
   height: var(--assistant-vv-h, var(--assistant-page-h, 100%));
   max-height: var(--assistant-vv-h, var(--assistant-page-h, 100%));
-  margin: 0;
+  margin-left: auto;
+  margin-right: auto;
+  overflow-x: hidden;
   z-index: 40;
   box-sizing: border-box;
 }
@@ -158,11 +165,11 @@ body.assistant-keyboard.assistant-active .tabbar {
   margin-bottom: 10px;
   padding-right: 2px;
 }
-/* 空态：线程不可滑（避免欢迎区橡皮筋带动整页） */
+/* 空态：线程不可滑（避免欢迎区橡皮筋带动整页）——细则见下方 .is-empty 块 */
 .assistant-body.is-empty .assistant-thread {
   overflow: hidden !important;
   overscroll-behavior: none;
-  touch-action: manipulation;
+  touch-action: none;
   -webkit-overflow-scrolling: auto;
 }
 .assistant-scroll-jump {
@@ -376,22 +383,28 @@ body.assistant-keyboard.assistant-active .tabbar {
 .assistant-body:not(.is-empty) {
   justify-content: flex-start;
 }
-/* 空态：欢迎 + 输入垂直居中；不可滑动 */
+/* 空态：欢迎 + 输入垂直居中；整页固定不可滑动 */
 .assistant-body.is-empty {
   justify-content: center;
   gap: 16px;
-  overflow: hidden;
+  overflow: hidden !important;
   overscroll-behavior: none;
+  touch-action: none;
 }
 .assistant-body.is-empty .assistant-thread-wrap {
   flex: 0 1 auto;
   min-height: 0;
   max-height: 46%;
-  overflow: hidden;
+  overflow: hidden !important;
+  touch-action: none;
 }
 .assistant-body.is-empty .assistant-thread {
   flex: 0 1 auto;
   margin-bottom: 0;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-overflow-scrolling: auto;
 }
 .assistant-body.is-empty .assistant-composer {
   /* 勿依赖 sticky：安卓 WebView flex + overflow 下 sticky 常失效 */
@@ -405,6 +418,7 @@ body.assistant-keyboard.assistant-active .tabbar {
   padding-top: 4px;
   padding-bottom: 8px;
   width: 100%;
+  touch-action: manipulation;
 }
 /* 覆盖通用顶部分隔线，空态更干净 */
 .assistant-body.is-empty .assistant-composer.assistant-composer {
@@ -428,9 +442,27 @@ body.assistant-keyboard.assistant-active .assistant-body.is-empty .assistant-com
   background: var(--paper);
   padding-bottom: 4px;
 }
-/* 空闲空态：整页禁止纵向拖滑（按钮仍可点） */
-body.assistant-active:not(.assistant-keyboard):has(.assistant-body.is-empty) .assistant-page {
+/* 空闲空态：整页禁止纵向/横向拖滑（按钮与输入仍可点） */
+body.assistant-active:has(.assistant-body.is-empty) .assistant-page.container,
+body.assistant-active:has(.assistant-body.is-empty) .assistant-page {
+  overflow: hidden !important;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+body.assistant-active:has(.assistant-body.is-empty) .assistant-head,
+body.assistant-active:has(.assistant-body.is-empty) .assistant-composer,
+body.assistant-active:has(.assistant-body.is-empty) .font-pill,
+body.assistant-active:has(.assistant-body.is-empty) button,
+body.assistant-active:has(.assistant-body.is-empty) textarea,
+body.assistant-active:has(.assistant-body.is-empty) input {
   touch-action: manipulation;
+}
+body.assistant-active:has(.assistant-body.is-empty) {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+body.assistant-active:has(.assistant-body.is-empty) .app-body {
+  overflow: hidden !important;
   overscroll-behavior: none;
 }
 /* 空态 empty-hint 已有推荐 pill，composer 内 chip 行去重 */
@@ -1360,9 +1392,10 @@ body.assistant-active .assistant-page {
   max-height: 100% !important;
 }
 .drawer-left {
-  width: min(82vw, 340px);
-  min-width: 260px;
-  max-width: 340px;
+  /* 恢复早期侧栏比例：勿用 82vw，否则手机上挤占大半屏、列表反而显得局促 */
+  width: 30%;
+  min-width: 240px;
+  max-width: 360px;
   height: 100%;
   max-height: 100%;
   box-sizing: border-box;

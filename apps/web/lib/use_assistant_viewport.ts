@@ -6,7 +6,8 @@ import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 /**
  * 与 IM（use_im_composer_keyboard）同源：
  * - 空闲：page-h = layout − 底栏占位 − 呼吸（保证输入在浮动 Tab 上方）
- * - 聚焦：立刻进 vv-shell（藏底栏），page-h 跟 layout 收缩或 visualViewport，输入贴键盘顶
+ * - 聚焦：立刻进 vv-shell（藏底栏），page-h 跟 layout 收缩或 visualViewport
+ * - 高度写入去抖；勿在 sync 里 scrollIntoView，避免键盘动画期横跳/抖动
  */
 const GAP_FLOOR = 40;
 const LAYOUT_SHRINK_FLOOR = 40;
@@ -14,6 +15,8 @@ const LAYOUT_SHRINK_FLOOR = 40;
 const KB_PAD_PX = 10;
 /** 输入区底边与浮动 Tab 顶之间的呼吸（空闲态） */
 const TAB_BREATH_PX = 24;
+/** 高度变化小于此值不写 CSS，减少 reflow 抖动 */
+const HEIGHT_EPSILON_PX = 2;
 
 function pinDocScroll() {
   window.scrollTo(0, 0);
@@ -55,25 +58,6 @@ function isComposerFieldFocused(): boolean {
   return ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT';
 }
 
-function ensureComposerVisible() {
-  const field = document.activeElement;
-  if (!(field instanceof HTMLElement)) return;
-  if (!field.closest('.assistant-composer')) return;
-  try {
-    field.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  } catch {
-    /* ignore */
-  }
-  const bar = field.closest('.assistant-composer');
-  if (bar instanceof HTMLElement) {
-    try {
-      bar.scrollIntoView({ block: 'end', inline: 'nearest' });
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
 /** 清掉小爱页高度 / 键盘相关 class 与 CSS 变量（离开 Tab 必调） */
 export function clearAssistantViewportChrome() {
   if (typeof document === 'undefined') return;
@@ -101,6 +85,8 @@ export function useAssistantViewport(
   setComposerFocused: (v: boolean) => void,
 ) {
   const baselineRef = useRef(0);
+  const lastIdleHRef = useRef(-1);
+  const lastKbHRef = useRef(-1);
   const focusedRef = useRef(composerFocused);
   focusedRef.current = composerFocused;
 
@@ -130,6 +116,15 @@ export function useAssistantViewport(
     const writeIdleHeight = (shellH: number) => {
       const reserve = readTabbarReservePx();
       const pageH = Math.max(200, Math.round(shellH) - reserve - TAB_BREATH_PX);
+      if (Math.abs(pageH - lastIdleHRef.current) < HEIGHT_EPSILON_PX) {
+        body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
+        root.style.removeProperty('--assistant-vv-h');
+        root.style.removeProperty('--assistant-vv-top');
+        root.style.removeProperty('--assistant-kb-inset');
+        return;
+      }
+      lastIdleHRef.current = pageH;
+      lastKbHRef.current = -1;
       root.style.setProperty('--assistant-page-h', `${pageH}px`);
       root.style.setProperty('--assistant-overlay-h', `${Math.round(shellH)}px`);
       root.style.removeProperty('--assistant-vv-h');
@@ -140,15 +135,19 @@ export function useAssistantViewport(
 
     const writeKeyboardHeight = (pageH: number) => {
       const h = Math.max(160, Math.round(pageH));
+      body.classList.add('assistant-keyboard', 'assistant-keyboard-vv');
+      if (Math.abs(h - lastKbHRef.current) < HEIGHT_EPSILON_PX) return;
+      lastKbHRef.current = h;
+      lastIdleHRef.current = -1;
       root.style.setProperty('--assistant-page-h', `${h}px`);
       root.style.setProperty(
         '--assistant-overlay-h',
         `${Math.max(h, baselineRef.current || h, Math.round(window.innerHeight || h))}px`,
       );
+      // top 固定 0：跟 IM 一样，避免 offsetTop 把壳顶飞造成横跳
       root.style.setProperty('--assistant-vv-h', `${h}px`);
       root.style.setProperty('--assistant-vv-top', '0px');
       root.style.setProperty('--assistant-kb-inset', `${KB_PAD_PX}px`);
-      body.classList.add('assistant-keyboard', 'assistant-keyboard-vv');
     };
 
     const syncViewport = () => {
@@ -174,14 +173,13 @@ export function useAssistantViewport(
       const vvOccluded = base - vvBottom > GAP_FLOOR || base - vvH > GAP_FLOOR;
       const keyboardUp = layoutShrunk || vvOccluded;
 
-      // 聚焦即进 vv 壳（藏底栏）；有键盘跟收缩后的高，未确认前铺当前可视高
+      // layout 已收缩跟 layout；卡住则跟 vv（勿再减 LIFT、勿跟 offsetTop）
       const pageH = keyboardUp
         ? layoutShrunk
           ? Math.max(160, layoutH)
           : Math.max(160, vvH)
-        : Math.max(160, Math.min(layoutH > 0 ? layoutH : vvH, vvH));
+        : Math.max(160, layoutH > 0 ? layoutH : vvH);
       writeKeyboardHeight(pageH);
-      ensureComposerVisible();
 
       if (!keyboardUp && isPeiaiAndroidShell()) {
         window.setTimeout(() => {
@@ -204,12 +202,8 @@ export function useAssistantViewport(
       setComposerFocused(true);
       pinDocScroll();
       syncViewport();
-      window.setTimeout(syncViewport, 80);
-      window.setTimeout(() => {
-        syncViewport();
-        ensureComposerVisible();
-      }, 220);
-      window.setTimeout(syncViewport, 420);
+      // 键盘动画中途再同步一次即可，过多会抖
+      window.setTimeout(syncViewport, 180);
     };
 
     const onFocusOut = (e: FocusEvent) => {
@@ -228,9 +222,8 @@ export function useAssistantViewport(
 
     syncViewport();
     const t = window.setTimeout(syncViewport, 120);
-    const t2 = window.setTimeout(syncViewport, 400);
     vv?.addEventListener('resize', onViewport);
-    vv?.addEventListener('scroll', onViewport);
+    // 不跟 vv scroll：iOS 键盘动画期 offsetTop 抖动，易造成横跳
     window.addEventListener('resize', onViewport);
     window.addEventListener('orientationchange', onViewport);
     window.addEventListener('focusin', onFocusIn);
@@ -247,10 +240,8 @@ export function useAssistantViewport(
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(t);
-      window.clearTimeout(t2);
       ro?.disconnect();
       vv?.removeEventListener('resize', onViewport);
-      vv?.removeEventListener('scroll', onViewport);
       window.removeEventListener('resize', onViewport);
       window.removeEventListener('orientationchange', onViewport);
       window.removeEventListener('focusin', onFocusIn);

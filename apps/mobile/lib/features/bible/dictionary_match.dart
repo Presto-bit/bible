@@ -96,6 +96,12 @@ String entityTypeLabel(String type) {
   }
 }
 
+String entityDisplayName(DictEntity e) {
+  final d = e.disambiguation?.trim();
+  if (d == null || d.isEmpty) return e.name;
+  return '${e.name}（$d）';
+}
+
 String entitySummaryText(DictEntity e) {
   final s = e.summary.trim();
   if (s.isEmpty) return '暂无简介';

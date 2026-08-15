@@ -349,6 +349,40 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     return () => el.removeEventListener('scroll', pin);
   }, [msgs.length, paneActive]);
 
+  /** 空态：拦截页面橡皮筋拖滑（输入/按钮除外） */
+  useEffect(() => {
+    if (!paneActive || msgs.length > 0) return;
+    const page = document.querySelector('.assistant-page');
+    if (!(page instanceof HTMLElement)) return;
+
+    const allowTouch = (t: EventTarget | null) => {
+      if (!(t instanceof Element)) return false;
+      return Boolean(
+        t.closest(
+          'textarea, input, button, a, .font-pill, .assistant-composer, .assistant-head',
+        ),
+      );
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (allowTouch(e.target)) return;
+      e.preventDefault();
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (allowTouch(e.target)) return;
+      e.preventDefault();
+    };
+
+    page.addEventListener('touchmove', onTouchMove, { passive: false });
+    page.addEventListener('wheel', onWheel, { passive: false });
+    window.scrollTo(0, 0);
+    return () => {
+      page.removeEventListener('touchmove', onTouchMove);
+      page.removeEventListener('wheel', onWheel);
+    };
+  }, [msgs.length, paneActive]);
+
   /** 有输出后重测一次高度，避免输入仍落在底栏下 */
   useEffect(() => {
     if (!paneActive || msgs.length === 0) return;

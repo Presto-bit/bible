@@ -3087,7 +3087,7 @@ export default function ReaderView({
         </div>
       </div>
 
-      {paneActive ? (
+      {paneActive && !chromeHidden && readingMode !== 'focus' ? (
       <div
         className={`reader-fab-stack${hasSel ? ' is-hidden' : ''}`}
         aria-hidden={hasSel}

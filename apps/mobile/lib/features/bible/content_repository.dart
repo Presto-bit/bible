@@ -69,6 +69,50 @@ class DictEntity {
   }
 }
 
+/// 词典词条详情；与 PWA `EntityKnowledgeSheet` 复用同一接口。
+class EntityKnowledge {
+  EntityKnowledge({
+    required this.entity,
+    this.graph,
+    this.place,
+    this.mapTours = const [],
+    this.diagrams = const [],
+  });
+
+  final DictEntity entity;
+  final GraphData? graph;
+  final GeoPlace? place;
+  final List<MapTour> mapTours;
+  final List<DiagramItem> diagrams;
+
+  factory EntityKnowledge.fromJson(Map<String, dynamic> json) {
+    final rawEntity = json['entity'];
+    final rawGraph = json['graph'];
+    final rawPlace = json['place'];
+    return EntityKnowledge(
+      entity: DictEntity.fromJson(
+        rawEntity is Map<String, dynamic>
+            ? rawEntity
+            : <String, dynamic>{},
+      ),
+      graph: rawGraph is Map<String, dynamic>
+          ? GraphData.fromJson(rawGraph)
+          : null,
+      place: rawPlace is Map<String, dynamic>
+          ? GeoPlace.fromJson(rawPlace)
+          : null,
+      mapTours: ((json['map_tours'] ?? []) as List)
+          .whereType<Map<String, dynamic>>()
+          .map(MapTour.fromJson)
+          .toList(),
+      diagrams: ((json['diagrams'] ?? []) as List)
+          .whereType<Map<String, dynamic>>()
+          .map(DiagramItem.fromJson)
+          .toList(),
+    );
+  }
+}
+
 class ContentRepository {
   ContentRepository(this._dio);
   final Dio _dio;
@@ -88,6 +132,13 @@ class ContentRepository {
     return ((res.data['entities'] ?? []) as List)
         .map((e) => DictEntity.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<EntityKnowledge> entityKnowledge(String entityId) async {
+    final res = await _dio.get(
+      '/content/entities/${Uri.encodeComponent(entityId)}/knowledge',
+    );
+    return EntityKnowledge.fromJson(res.data as Map<String, dynamic>);
   }
 
   Future<List<StrongsWord>> strongs(String ref) async {
@@ -253,6 +304,11 @@ final crossrefsProvider = FutureProvider.family<CrossrefResult, String>(
 
 final dictionaryProvider = FutureProvider.family<List<DictEntity>, String>(
     (ref, term) => ref.watch(contentRepoProvider).dictionary(term: term));
+
+final entityKnowledgeProvider = FutureProvider.family<EntityKnowledge, String>(
+  (ref, entityId) =>
+      ref.watch(contentRepoProvider).entityKnowledge(entityId),
+);
 
 final strongsProvider = FutureProvider.family<List<StrongsWord>, String>(
     (ref, refStr) => ref.watch(contentRepoProvider).strongs(refStr));

@@ -372,10 +372,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         },
       ),
       ),
-      // 对齐 PWA：打卡小图标在小爱 FAB 上方；沉浸时打卡收进小爱旁微型
-      // 全屏沉浸：隐藏小爱 / 打卡 FAB（对齐 PWA 收 chrome 后只留正文）
+      // 全屏 / 专注阅读时仅保留正文，打卡和小爱均不浮在经文上。
       floatingActionButton:
-          (_book == null || _chromeHidden) ? null : _readerFab(),
+          (_book == null ||
+                  _chromeHidden ||
+                  ref.watch(readingModeProvider) == ReadingMode.focus)
+              ? null
+              : _readerFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -421,19 +424,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 
   Widget _readerFab() {
-    final mode = ref.watch(readingModeProvider);
-    final focusQuiet = mode == ReadingMode.focus || _chromeHidden;
     return Padding(
       padding: EdgeInsets.only(
-        // 沉浸时底栏已收，FAB 贴安全区即可，勿再垫一颗 tabbar 高度
-        bottom: focusQuiet ? 2 : 4,
+        bottom: 4,
         right: 4,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!focusQuiet && _planMeta != null)
+          if (_planMeta != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: FloatingActionButton.small(
@@ -449,25 +449,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               ),
             ),
           // 打卡在小爱上方（对齐 PWA check-in 按钮栈）
-          if (!focusQuiet)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: FloatingActionButton.small(
-                heroTag: 'reader-checkin',
-                backgroundColor: AppColors.paper,
-                foregroundColor: AppColors.accentDeep,
-                elevation: 1.5,
-                tooltip: '打卡到共读群',
-                onPressed: _openCheckin,
-                child: const Icon(Icons.groups_outlined, size: 20),
-              ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: FloatingActionButton.small(
+              heroTag: 'reader-checkin',
+              backgroundColor: AppColors.paper,
+              foregroundColor: AppColors.accentDeep,
+              elevation: 1.5,
+              tooltip: '打卡到共读群',
+              onPressed: _openCheckin,
+              child: const Icon(Icons.groups_outlined, size: 20),
             ),
+          ),
           FloatingActionButton(
             heroTag: 'reader-xiaoai',
-            mini: focusQuiet,
             backgroundColor: AppColors.accentDeep,
             foregroundColor: Colors.white,
-            elevation: focusQuiet ? 1.5 : 3,
+            elevation: 3,
             onPressed: () {
               peiaiHapticLight(context);
               _onOpenOverlay();
