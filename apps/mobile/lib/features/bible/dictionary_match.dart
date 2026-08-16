@@ -126,12 +126,72 @@ class DictSpanHit {
   final String name;
 }
 
+int _scoreEntityForContext(
+  DictEntity entity, {
+  required String bookId,
+  required int chapter,
+  required int verse,
+}) {
+  var score = 0;
+  final normalizedBook = bookId.toUpperCase();
+  for (final rawRef in entity.refs) {
+    final m = RegExp(
+      r'^([A-Za-z0-9]+)[.\s]+(\d+)(?:[:.\s]+(\d+))?',
+    ).firstMatch(rawRef.trim());
+    if (m == null) continue;
+    final refBook = m.group(1)!.toUpperCase();
+    final refChapter = int.tryParse(m.group(2)!);
+    final refVerse = int.tryParse(m.group(3) ?? '');
+    if (refBook != normalizedBook) continue;
+    score += 30;
+    if (refChapter == chapter) {
+      score += 20;
+      if (refVerse != null) {
+        score += (15 - (refVerse - verse).abs()).clamp(0, 15);
+      }
+    }
+  }
+  final blob =
+      '${entity.disambiguation ?? ''} ${entity.summary} ${entity.aliases.join(' ')}';
+  if (normalizedBook == 'JHN' && RegExp(r'使徒|所爱的门徒|福音作者|启示录').hasMatch(blob)) {
+    score += 100;
+  }
+  return score;
+}
+
+List<DictEntity> rankDictCandidates(
+  List<DictEntity> candidates, {
+  required String bookId,
+  required int chapter,
+  required int verse,
+}) {
+  return [...candidates]..sort(
+    (a, b) =>
+        _scoreEntityForContext(
+          b,
+          bookId: bookId,
+          chapter: chapter,
+          verse: verse,
+        ).compareTo(
+          _scoreEntityForContext(
+            a,
+            bookId: bookId,
+            chapter: chapter,
+            verse: verse,
+          ),
+        ),
+  );
+}
+
 /// 整节最长匹配后的跨度（对齐 PWA dictionary_match 贪心）。
 List<DictSpanHit> dictSpansForText(
   String text,
   Map<String, List<DictEntity>> index,
-  List<String> sortedKeys,
-) {
+  List<String> sortedKeys, {
+  required String bookId,
+  required int chapter,
+  required int verse,
+}) {
   if (text.isEmpty || sortedKeys.isEmpty) return const [];
   final tokens = splitDictTokens(text, index, sortedKeys);
   final out = <DictSpanHit>[];
@@ -144,12 +204,15 @@ List<DictSpanHit> dictSpansForText(
     }
     final end = start + t.text.length;
     if (t.entity != null) {
-      out.add(DictSpanHit(
-        start: start,
-        end: end,
-        entity: t.entity!,
-        name: t.text,
-      ));
+      final ranked = rankDictCandidates(
+        index[t.text] ?? [t.entity!],
+        bookId: bookId,
+        chapter: chapter,
+        verse: verse,
+      );
+      out.add(
+        DictSpanHit(start: start, end: end, entity: ranked.first, name: t.text),
+      );
     }
     cursor = end;
   }

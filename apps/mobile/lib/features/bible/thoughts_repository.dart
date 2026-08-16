@@ -18,16 +18,16 @@ enum ThoughtVisibility { public, friends, private }
 
 /// 对齐 PWA `reader_thoughts.ts`：公开 / 共读 / 私密。
 String visibilityLabel(ThoughtVisibility v) => switch (v) {
-      ThoughtVisibility.public => '公开',
-      ThoughtVisibility.friends => '共读',
-      ThoughtVisibility.private => '私密',
-    };
+  ThoughtVisibility.public => '公开',
+  ThoughtVisibility.friends => '共读',
+  ThoughtVisibility.private => '私密',
+};
 
 String visibilityHint(ThoughtVisibility v) => switch (v) {
-      ThoughtVisibility.public => '读同一节经文的任何人都可见',
-      ThoughtVisibility.friends => '仅你的好友可见',
-      ThoughtVisibility.private => '仅自己可见',
-    };
+  ThoughtVisibility.public => '读同一节经文的任何人都可见',
+  ThoughtVisibility.friends => '仅你的好友可见',
+  ThoughtVisibility.private => '仅自己可见',
+};
 
 const _visPrefKey = 'thought_visibility_pref';
 
@@ -48,7 +48,9 @@ ThoughtVisibility loadRememberedVisibility(SharedPreferences prefs) {
 }
 
 Future<void> rememberVisibility(
-    SharedPreferences prefs, ThoughtVisibility v) async {
+  SharedPreferences prefs,
+  ThoughtVisibility v,
+) async {
   await prefs.setString(_visPrefKey, v.name);
 }
 
@@ -89,32 +91,31 @@ class VerseThoughtData {
     int? likesCount,
     List<String>? likedBy,
     ThoughtVisibility? visibility,
-  }) =>
-      VerseThoughtData(
-        id: id,
-        ref: ref,
-        body: body,
-        authorId: authorId,
-        authorName: authorName,
-        likesCount: likesCount ?? this.likesCount,
-        likedBy: likedBy ?? this.likedBy,
-        isShared: isShared,
-        visibility: visibility ?? this.visibility,
-        createdAtMs: createdAtMs,
-      );
+  }) => VerseThoughtData(
+    id: id,
+    ref: ref,
+    body: body,
+    authorId: authorId,
+    authorName: authorName,
+    likesCount: likesCount ?? this.likesCount,
+    likedBy: likedBy ?? this.likedBy,
+    isShared: isShared,
+    visibility: visibility ?? this.visibility,
+    createdAtMs: createdAtMs,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'ref': ref,
-        'body': body,
-        'authorId': authorId,
-        'authorName': authorName,
-        'likesCount': likesCount,
-        'likedBy': likedBy,
-        'isShared': visibility != ThoughtVisibility.private,
-        'visibility': visibility.name,
-        'createdAtMs': createdAtMs,
-      };
+    'id': id,
+    'ref': ref,
+    'body': body,
+    'authorId': authorId,
+    'authorName': authorName,
+    'likesCount': likesCount,
+    'likedBy': likedBy,
+    'isShared': visibility != ThoughtVisibility.private,
+    'visibility': visibility.name,
+    'createdAtMs': createdAtMs,
+  };
 
   factory VerseThoughtData.fromJson(Map<String, dynamic> j) {
     final vis = _parseVisibility(
@@ -149,8 +150,14 @@ List<VerseThoughtData> _readAll(SharedPreferences prefs) {
 }
 
 Future<void> _writeAll(
-    SharedPreferences prefs, List<VerseThoughtData> rows) async {
-  await userPrefSetString(prefs, _thoughtsKey, jsonEncode(rows.map((e) => e.toJson()).toList()));
+  SharedPreferences prefs,
+  List<VerseThoughtData> rows,
+) async {
+  await userPrefSetString(
+    prefs,
+    _thoughtsKey,
+    jsonEncode(rows.map((e) => e.toJson()).toList()),
+  );
 }
 
 int? verseFromRef(String ref, int chapter) {
@@ -163,7 +170,9 @@ int? verseFromRef(String ref, int chapter) {
 }
 
 final thoughtsRevisionProvider =
-    NotifierProvider<ThoughtsRevisionNotifier, int>(ThoughtsRevisionNotifier.new);
+    NotifierProvider<ThoughtsRevisionNotifier, int>(
+      ThoughtsRevisionNotifier.new,
+    );
 
 class ThoughtsRevisionNotifier extends Notifier<int> {
   @override
@@ -173,17 +182,32 @@ class ThoughtsRevisionNotifier extends Notifier<int> {
 
 final thoughtsByChapterProvider =
     Provider.family<Map<int, int>, ({String book, int chapter})>((ref, key) {
-  ref.watch(thoughtsRevisionProvider);
-  final prefs = ref.watch(prefsProvider);
-  final prefix = '${key.book.toUpperCase()}.${key.chapter}.';
-  final map = <int, int>{};
-  for (final t in _readAll(prefs)) {
-    if (!t.ref.startsWith(prefix)) continue;
-    final v = verseFromRef(t.ref, key.chapter);
-    if (v != null) map[v] = (map[v] ?? 0) + 1;
-  }
-  return map;
-});
+      ref.watch(thoughtsRevisionProvider);
+      final prefs = ref.watch(prefsProvider);
+      final prefix = '${key.book.toUpperCase()}.${key.chapter}.';
+      final map = <int, int>{};
+      for (final t in _readAll(prefs)) {
+        if (!t.ref.startsWith(prefix)) continue;
+        final v = verseFromRef(t.ref, key.chapter);
+        if (v != null) map[v] = (map[v] ?? 0) + 1;
+      }
+      return map;
+    });
+
+/// 当前用户的想法数：读经正文将「我的」想法加深为与 PWA 一致的虚线。
+final myThoughtsByChapterProvider =
+    Provider.family<Map<int, int>, ({String book, int chapter})>((ref, key) {
+      ref.watch(thoughtsRevisionProvider);
+      final repo = ref.watch(thoughtsRepoProvider);
+      final prefix = '${key.book.toUpperCase()}.${key.chapter}.';
+      final map = <int, int>{};
+      for (final t in repo.listMine()) {
+        if (!t.ref.startsWith(prefix)) continue;
+        final v = verseFromRef(t.ref, key.chapter);
+        if (v != null) map[v] = (map[v] ?? 0) + 1;
+      }
+      return map;
+    });
 
 /// 当前用户全部想法（随 revision 刷新）。
 final myThoughtsProvider = Provider<List<VerseThoughtData>>((ref) {
@@ -263,7 +287,8 @@ class ThoughtsRepository {
     ThoughtVisibility? visibility,
   }) async {
     final rows = _readAll(_prefs);
-    final vis = visibility ??
+    final vis =
+        visibility ??
         (shared ? ThoughtVisibility.public : ThoughtVisibility.private);
     final row = VerseThoughtData(
       id: _uuid.v4(),

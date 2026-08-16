@@ -10,35 +10,39 @@ enum ReaderFontFamily { serif, sans }
 
 extension ReaderFontFamilyX on ReaderFontFamily {
   String get label => switch (this) {
-        ReaderFontFamily.serif => '衬线',
-        ReaderFontFamily.sans => '黑体',
-      };
+    ReaderFontFamily.serif => '衬线',
+    ReaderFontFamily.sans => '黑体',
+  };
   String? get fontFamily => switch (this) {
-        // 中文衬线优先 Noto/宋体，无则回落 Georgia（英文衬线）
-        ReaderFontFamily.serif => 'Noto Serif SC',
-        ReaderFontFamily.sans => null,
-      };
+    // 中文衬线优先 Noto/宋体，无则回落 Georgia（英文衬线）
+    ReaderFontFamily.serif => 'Noto Serif SC',
+    ReaderFontFamily.sans => null,
+  };
 
   /// fontFamilyFallback 给 TextStyle 用。
   List<String> get fontFamilyFallback => switch (this) {
-        ReaderFontFamily.serif => const [
-            'Source Han Serif SC',
-            'Songti SC',
-            'Noto Serif',
-            'Georgia',
-            'serif',
-          ],
-        ReaderFontFamily.sans => const ['Noto Sans SC', 'PingFang SC', 'sans-serif'],
-      };
+    ReaderFontFamily.serif => const [
+      'Source Han Serif SC',
+      'Songti SC',
+      'Noto Serif',
+      'Georgia',
+      'serif',
+    ],
+    ReaderFontFamily.sans => const [
+      'Noto Sans SC',
+      'PingFang SC',
+      'sans-serif',
+    ],
+  };
 }
 
 enum ReaderPageTurn { swipe, scroll }
 
 extension ReaderPageTurnX on ReaderPageTurn {
   String get label => switch (this) {
-        ReaderPageTurn.swipe => '左右滑动',
-        ReaderPageTurn.scroll => '上下滚动',
-      };
+    ReaderPageTurn.swipe => '左右滑动',
+    ReaderPageTurn.scroll => '上下滚动',
+  };
 }
 
 /// 专注=少干扰；默想=读后留痕；查经=工具齐全（默认）。对齐 Web `ReadingMode`。
@@ -46,15 +50,15 @@ enum ReadingMode { focus, meditate, study }
 
 extension ReadingModeX on ReadingMode {
   String get label => switch (this) {
-        ReadingMode.focus => '专注',
-        ReadingMode.meditate => '默想',
-        ReadingMode.study => '查经',
-      };
+    ReadingMode.focus => '专注',
+    ReadingMode.meditate => '默想',
+    ReadingMode.study => '查经',
+  };
   String get hint => switch (this) {
-        ReadingMode.focus => '少干扰，适合连续读',
-        ReadingMode.meditate => '读后留一句回应',
-        ReadingMode.study => '工具齐全（默认）',
-      };
+    ReadingMode.focus => '少干扰，适合连续读',
+    ReadingMode.meditate => '读后留一句回应',
+    ReadingMode.study => '工具齐全（默认）',
+  };
 }
 
 /// 单栏 / 译本对照。对齐 Web `reader_layout`。
@@ -62,9 +66,9 @@ enum ReadingLayout { single, parallel }
 
 extension ReadingLayoutX on ReadingLayout {
   String get label => switch (this) {
-        ReadingLayout.single => '单栏',
-        ReadingLayout.parallel => '译本对照',
-      };
+    ReadingLayout.single => '单栏',
+    ReadingLayout.parallel => '译本对照',
+  };
 }
 
 const _fontFamilyKey = 'reader_font_family';
@@ -82,17 +86,17 @@ class ReaderPreferences {
   final SharedPreferences _prefs;
 
   ReaderFontFamily get fontFamily => ReaderFontFamily.values.firstWhere(
-        (e) => e.name == _prefs.getString(_fontFamilyKey),
-        orElse: () => ReaderFontFamily.serif,
-      );
+    (e) => e.name == _prefs.getString(_fontFamilyKey),
+    orElse: () => ReaderFontFamily.serif,
+  );
 
   Future<void> setFontFamily(ReaderFontFamily v) =>
       _prefs.setString(_fontFamilyKey, v.name);
 
   ReaderPageTurn get pageTurn => ReaderPageTurn.values.firstWhere(
-        (e) => e.name == _prefs.getString(_pageTurnKey),
-        orElse: () => ReaderPageTurn.swipe,
-      );
+    (e) => e.name == _prefs.getString(_pageTurnKey),
+    orElse: () => ReaderPageTurn.swipe,
+  );
 
   Future<void> setPageTurn(ReaderPageTurn v) =>
       _prefs.setString(_pageTurnKey, v.name);
@@ -142,7 +146,9 @@ class ReaderPreferences {
 
   Future<void> markChapterCompleteTipShown(String bookId, int chapter) async {
     final key = '${bookId.toUpperCase()}.$chapter';
-    final raw = List<String>.from(_prefs.getStringList(_chapterTipShownKey) ?? const <String>[]);
+    final raw = List<String>.from(
+      _prefs.getStringList(_chapterTipShownKey) ?? const <String>[],
+    );
     if (raw.contains(key)) return;
     raw.add(key);
     // 控制增长：只留最近 120 条
@@ -152,8 +158,8 @@ class ReaderPreferences {
     await _prefs.setStringList(_chapterTipShownKey, raw);
   }
 
-  /// 对照阅读时标示措辞差（默认开）。
-  bool get parallelDiffOn => !(_prefs.getBool(_parallelDiffOffKey) ?? false);
+  /// 对照阅读时标示措辞差（默认关，对齐 PWA；仅查经模式可开启）。
+  bool get parallelDiffOn => !(_prefs.getBool(_parallelDiffOffKey) ?? true);
 
   Future<void> setParallelDiffOn(bool v) =>
       _prefs.setBool(_parallelDiffOffKey, !v);
@@ -165,8 +171,7 @@ final readerPreferencesProvider = Provider<ReaderPreferences>(
 
 class ReaderFontFamilyNotifier extends Notifier<ReaderFontFamily> {
   @override
-  ReaderFontFamily build() =>
-      ref.read(readerPreferencesProvider).fontFamily;
+  ReaderFontFamily build() => ref.read(readerPreferencesProvider).fontFamily;
 
   Future<void> set(ReaderFontFamily v) async {
     state = v;
@@ -176,7 +181,8 @@ class ReaderFontFamilyNotifier extends Notifier<ReaderFontFamily> {
 
 final readerFontFamilyProvider =
     NotifierProvider<ReaderFontFamilyNotifier, ReaderFontFamily>(
-        ReaderFontFamilyNotifier.new);
+      ReaderFontFamilyNotifier.new,
+    );
 
 class ReaderPageTurnNotifier extends Notifier<ReaderPageTurn> {
   @override
@@ -190,7 +196,8 @@ class ReaderPageTurnNotifier extends Notifier<ReaderPageTurn> {
 
 final readerPageTurnProvider =
     NotifierProvider<ReaderPageTurnNotifier, ReaderPageTurn>(
-        ReaderPageTurnNotifier.new);
+      ReaderPageTurnNotifier.new,
+    );
 
 class ReaderFeatureTogglesNotifier
     extends Notifier<({bool underlines, bool thoughts})> {
@@ -211,10 +218,11 @@ class ReaderFeatureTogglesNotifier
   }
 }
 
-final readerFeatureTogglesProvider = NotifierProvider<
-    ReaderFeatureTogglesNotifier, ({bool underlines, bool thoughts})>(
-  ReaderFeatureTogglesNotifier.new,
-);
+final readerFeatureTogglesProvider =
+    NotifierProvider<
+      ReaderFeatureTogglesNotifier,
+      ({bool underlines, bool thoughts})
+    >(ReaderFeatureTogglesNotifier.new);
 
 class ReadingModeNotifier extends Notifier<ReadingMode> {
   @override
@@ -226,8 +234,9 @@ class ReadingModeNotifier extends Notifier<ReadingMode> {
   }
 }
 
-final readingModeProvider =
-    NotifierProvider<ReadingModeNotifier, ReadingMode>(ReadingModeNotifier.new);
+final readingModeProvider = NotifierProvider<ReadingModeNotifier, ReadingMode>(
+  ReadingModeNotifier.new,
+);
 
 class ReadingLayoutNotifier extends Notifier<ReadingLayout> {
   @override
@@ -241,7 +250,8 @@ class ReadingLayoutNotifier extends Notifier<ReadingLayout> {
 
 final readingLayoutProvider =
     NotifierProvider<ReadingLayoutNotifier, ReadingLayout>(
-        ReadingLayoutNotifier.new);
+      ReadingLayoutNotifier.new,
+    );
 
 class ChapterCompleteTipToggleNotifier extends Notifier<bool> {
   @override
@@ -255,7 +265,8 @@ class ChapterCompleteTipToggleNotifier extends Notifier<bool> {
 
 final chapterCompleteTipOnProvider =
     NotifierProvider<ChapterCompleteTipToggleNotifier, bool>(
-        ChapterCompleteTipToggleNotifier.new);
+      ChapterCompleteTipToggleNotifier.new,
+    );
 
 class ParallelDiffToggleNotifier extends Notifier<bool> {
   @override
@@ -269,4 +280,5 @@ class ParallelDiffToggleNotifier extends Notifier<bool> {
 
 final parallelDiffOnProvider =
     NotifierProvider<ParallelDiffToggleNotifier, bool>(
-        ParallelDiffToggleNotifier.new);
+      ParallelDiffToggleNotifier.new,
+    );

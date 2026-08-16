@@ -1502,6 +1502,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         chapter: widget.chapter,
       )),
     );
+    final myThoughtsByVerse = ref.watch(
+      myThoughtsByChapterProvider((
+        book: widget.book.id,
+        chapter: widget.chapter,
+      )),
+    );
     final dictList = ref.watch(dictionaryProvider('')).value ?? const [];
     final dictIndex = buildDictIndex(dictList);
     final dictKeys = dictSortedKeys(dictIndex);
@@ -1602,6 +1608,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         underlinesEnabled: toggles.underlines,
         thoughtsEnabled: toggles.thoughts,
         thoughtsByVerse: thoughtsByVerse,
+        myThoughtsByVerse: myThoughtsByVerse,
         pageTurn: pageTurn,
         fontFamily: fontFamily,
       );
@@ -1813,6 +1820,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     bool underlinesEnabled = true,
     bool thoughtsEnabled = true,
     Map<int, int> thoughtsByVerse = const {},
+    Map<int, int> myThoughtsByVerse = const {},
     ReaderPageTurn pageTurn = ReaderPageTurn.swipe,
     ReaderFontFamily fontFamily = ReaderFontFamily.serif,
   }) {
@@ -1982,6 +1990,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                     underlinesEnabled: underlinesEnabled,
                     thoughtsEnabled: thoughtsEnabled,
                     thoughtsByVerse: thoughtsByVerse,
+                    myThoughtsByVerse: myThoughtsByVerse,
                     notesByVerse: notesByVerse,
                     fontFamily: fontFamily,
                     dictIndex: dictIndex,
@@ -2028,6 +2037,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     Map<int, String>? sectionByVerse,
   }) {
     final fontPx = ref.watch(readerFontProvider).px;
+    final fontFamily = ref.watch(readerFontFamilyProvider);
     final showDiff =
         compare != null &&
         ref.watch(parallelDiffOnProvider) &&
@@ -2169,14 +2179,20 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
           final mainBase = TextStyle(
             color: theme.ink,
             fontSize: fontPx,
-            height: poetry ? 2.0 : 1.85,
-            fontFamily: 'Georgia',
+            // 对齐 PWA 单栏：诗体 2.1，散文 2.05；不在对照模式硬编码 Georgia。
+            height: poetry ? 2.1 : 2.05,
+            letterSpacing: fontPx * 0.015,
+            fontFamily: fontFamily.fontFamily,
+            fontFamilyFallback: fontFamily.fontFamilyFallback,
           );
           final parallelBase = TextStyle(
             color: theme.ink.withValues(alpha: 0.55),
             fontSize: fontPx * 0.92,
-            height: 1.75,
-            fontFamily: 'Georgia',
+            // PWA `.reader-parallel-secondary` 使用 0.92em / 1.55。
+            height: 1.55,
+            letterSpacing: fontPx * 0.015,
+            fontFamily: fontFamily.fontFamily,
+            fontFamilyFallback: fontFamily.fontFamilyFallback,
           );
           for (final v in para.verses) {
             final isSel = _selected.contains(v.verse);
@@ -2296,6 +2312,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     required this.underlinesEnabled,
     required this.thoughtsEnabled,
     required this.thoughtsByVerse,
+    required this.myThoughtsByVerse,
     required this.notesByVerse,
     required this.fontFamily,
     required this.dictIndex,
@@ -2324,6 +2341,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final bool underlinesEnabled;
   final bool thoughtsEnabled;
   final Map<int, int> thoughtsByVerse;
+  final Map<int, int> myThoughtsByVerse;
   final Map<int, List<Note>> notesByVerse;
   final ReaderFontFamily fontFamily;
   final Map<String, List<DictEntity>> dictIndex;
@@ -2416,6 +2434,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               dictKeys: widget.dictKeys,
               notes: widget.notesByVerse[v.verse],
               thoughtsCount: widget.thoughtsByVerse[v.verse] ?? 0,
+              hasMyThought: (widget.myThoughtsByVerse[v.verse] ?? 0) > 0,
               thoughtsEnabled: widget.thoughtsEnabled,
               onStart: widget.onStart,
               onToggle: widget.onToggle,
@@ -2430,7 +2449,6 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     }
 
     final spans = <InlineSpan>[];
-    var hasThoughtLine = false;
     for (final v in widget.paragraph.verses) {
       final markInfo = widget.underlinesEnabled
           ? markForVerse(
@@ -2441,10 +2459,9 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             )
           : null;
       final mark = markInfo?.mark;
-      if (widget.thoughtsEnabled &&
-          (widget.thoughtsByVerse[v.verse] ?? 0) > 0) {
-        hasThoughtLine = true;
-      }
+      final hasThought =
+          widget.thoughtsEnabled && (widget.thoughtsByVerse[v.verse] ?? 0) > 0;
+      final hasMyThought = (widget.myThoughtsByVerse[v.verse] ?? 0) > 0;
 
       final verseInSel = widget.selected.contains(v.verse);
       final resumeFlash = widget.resumeFlashVerse == v.verse;
@@ -2502,7 +2519,14 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
 
       final words = sliceVerseWords(v.text);
       final dictSpans = !selectionActive && widget.dictKeys.isNotEmpty
-          ? dictSpansForText(v.text, widget.dictIndex, widget.dictKeys)
+          ? dictSpansForText(
+              v.text,
+              widget.dictIndex,
+              widget.dictKeys,
+              bookId: widget.book.id,
+              chapter: widget.chapter,
+              verse: v.verse,
+            )
           : const <DictSpanHit>[];
       if (words.isEmpty) {
         final emptyRec = selectionActive
@@ -2553,6 +2577,18 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               backgroundColor: AppColors.accent.withValues(alpha: 0.28),
             );
           }
+          // 对齐 PWA `.verse-has-thought`：想法直接标在对应经文下方；
+          // 自己写的想法使用更深的强调色。
+          if (hasThought && !activeWord) {
+            wordStyle = wordStyle.copyWith(
+              decoration: TextDecoration.underline,
+              decorationStyle: TextDecorationStyle.dashed,
+              decorationColor: AppColors.accentDeep.withValues(
+                alpha: hasMyThought ? 1 : 0.5,
+              ),
+              decorationThickness: 1.5,
+            );
+          }
 
           // 词典：整节最长匹配后的跨度命中（对齐 PWA dictionary_match）
           final dictHit = !selectionActive
@@ -2564,6 +2600,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               decorationStyle: switch (dictHit.$1.type) {
                 'place' => TextDecorationStyle.dashed,
                 'person' => TextDecorationStyle.dotted,
+                'artifact' => TextDecorationStyle.wavy,
                 _ => TextDecorationStyle.dotted,
               },
               decorationColor: (wordStyle.color ?? AppColors.ink).withValues(
@@ -2676,25 +2713,6 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             ),
           ),
         ),
-        if (widget.thoughtsEnabled && hasThoughtLine)
-          GestureDetector(
-            onTap: () {
-              final v = widget.paragraph.verses.firstWhere(
-                (x) => (widget.thoughtsByVerse[x.verse] ?? 0) > 0,
-                orElse: () => widget.paragraph.verses.first,
-              );
-              widget.onOpenThoughts(v.verse, v.text);
-            },
-            child: Padding(
-              padding: const EdgeInsets.only(left: 4, right: 4, bottom: 6),
-              child: CustomPaint(
-                painter: _DashedLinePainter(
-                  color: AppColors.accentDeep.withValues(alpha: 0.45),
-                ),
-                child: const SizedBox(height: 1, width: double.infinity),
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -2719,6 +2737,7 @@ class _MarginVerseRow extends StatelessWidget {
     required this.dictKeys,
     required this.notes,
     required this.thoughtsCount,
+    required this.hasMyThought,
     required this.thoughtsEnabled,
     required this.onStart,
     required this.onToggle,
@@ -2745,6 +2764,7 @@ class _MarginVerseRow extends StatelessWidget {
   final List<String> dictKeys;
   final List<Note>? notes;
   final int thoughtsCount;
+  final bool hasMyThought;
   final bool thoughtsEnabled;
   final void Function(int verse, String text) onStart;
   final void Function(int verse, String text) onToggle;
@@ -2765,7 +2785,14 @@ class _MarginVerseRow extends StatelessWidget {
     final mark = markInfo?.mark;
     final words = sliceVerseWords(v.text);
     final dictSpans = !selectionActive && dictKeys.isNotEmpty
-        ? dictSpansForText(v.text, dictIndex, dictKeys)
+        ? dictSpansForText(
+            v.text,
+            dictIndex,
+            dictKeys,
+            bookId: book.id,
+            chapter: chapter,
+            verse: v.verse,
+          )
         : const <DictSpanHit>[];
     final bodyChildren = <InlineSpan>[];
     var cursor = 0;
@@ -2808,6 +2835,16 @@ class _MarginVerseRow extends StatelessWidget {
           backgroundColor: AppColors.accent.withValues(alpha: 0.28),
         );
       }
+      if (thoughtsEnabled && thoughtsCount > 0 && !activeWord) {
+        wordStyle = wordStyle.copyWith(
+          decoration: TextDecoration.underline,
+          decorationStyle: TextDecorationStyle.dashed,
+          decorationColor: AppColors.accentDeep.withValues(
+            alpha: hasMyThought ? 1 : 0.5,
+          ),
+          decorationThickness: 1.5,
+        );
+      }
       final dictHit = !selectionActive
           ? matchDictSpanAt(w.start, w.end, dictSpans)
           : null;
@@ -2817,6 +2854,7 @@ class _MarginVerseRow extends StatelessWidget {
           decorationStyle: switch (dictHit.$1.type) {
             'place' => TextDecorationStyle.dashed,
             'person' => TextDecorationStyle.dotted,
+            'artifact' => TextDecorationStyle.wavy,
             _ => TextDecorationStyle.dotted,
           },
           decorationColor: (wordStyle.color ?? AppColors.ink).withValues(
@@ -2994,29 +3032,6 @@ List<InlineSpan> readerGapSpans(
   final list = index[t];
   if (list != null && list.isNotEmpty) return (list.first, t);
   return null;
-}
-
-class _DashedLinePainter extends CustomPainter {
-  _DashedLinePainter({required this.color});
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const dash = 5.0;
-    const gap = 4.0;
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.2;
-    var x = 0.0;
-    while (x < size.width) {
-      canvas.drawLine(Offset(x, 0), Offset(x + dash, 0), paint);
-      x += dash + gap;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedLinePainter oldDelegate) =>
-      oldDelegate.color != color;
 }
 
 /// 章首导读轻条（对齐 PWA ChapterGuideTip）。
