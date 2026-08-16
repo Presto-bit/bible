@@ -6,6 +6,7 @@ import {
   androidTwaMetaUrl,
   type AndroidTwaMeta,
 } from '@/lib/android_twa';
+import { getPeiaiFlutterH5Version, isPeiaiFlutterH5Host } from '@/lib/android_host';
 import {
   detectInstallPlatform,
   isAndroid,
@@ -16,6 +17,7 @@ import {
 export type AppPackageAction =
   | 'install_sheet'
   | 'download_apk'
+  | 'flutter_update'
   | 'noop';
 
 export type AppPackageRow = {
@@ -169,6 +171,35 @@ export function resolveAppPackageRow(opts?: {
   const latest = meta?.versionName?.trim() || undefined;
   const latestCode = typeof meta?.versionCode === 'number' ? meta.versionCode : undefined;
   const latestLabel = latest ? `官网 ${latest}` : '官网安装包';
+
+  // Flutter 原生 App 内嵌 H5：不可再提示「下载彼爱 App」；
+  // 显示当前 APK 与官网版本，并交原生通道执行更新。
+  if (isPeiaiFlutterH5Host()) {
+    const local = getPeiaiFlutterH5Version();
+    const updateAvailable = isAndroidShellUpdateAvailable({
+      latestName: latest,
+      latestCode,
+      localName: local.versionName,
+      localCode: local.versionCode,
+    });
+    const current = local.versionName
+      ? `当前 ${local.versionName}${local.versionCode != null ? ` (${local.versionCode})` : ''}`
+      : '当前版本';
+    return {
+      title: updateAvailable ? '更新彼爱 App' : '彼爱 App',
+      hint: updateAvailable
+        ? `${current} · 可更新至 ${latest || '?'}${latestCode != null ? ` (${latestCode})` : ''}`
+        : latest
+          ? `${current} · 已是最新版本`
+          : `${current} · 暂无法检查更新`,
+      action: 'flutter_update',
+      latestVersion: latest,
+      shellVersion: local.versionName ?? undefined,
+      latestVersionCode: latestCode,
+      shellVersionCode: local.versionCode ?? undefined,
+      updateAvailable,
+    };
+  }
 
   // 安卓 WebView 壳
   if (isPeiaiAndroidShell() || shellVersion) {

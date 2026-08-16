@@ -636,7 +636,7 @@ a.license-row-name:hover {
 /* 微读式段落排版（阅读区字号/行高独立于 UI） */
 .verse-paragraph {
   margin-bottom: 14px;
-  text-align: left;
+  text-align: justify;
   font-size: var(--reader-font-size);
   line-height: 1.9;
 }
@@ -648,7 +648,7 @@ a.license-row-name:hover {
 .reader-turn-panel-active .reader-turn-peek .verse-paragraph,
 .reader-turn-panel-peek .reader-turn-peek .verse-paragraph {
   font-size: var(--reader-font-size);
-  text-align: left;
+  text-align: justify;
 }
 .verse-inline {
   margin-right: 0.15em;
@@ -820,7 +820,7 @@ body.reader-overlay-open .reader-page {
   color: var(--reader-ink);
 }
 .reader-theme-morning .verse-paragraph {
-  line-height: 1.9 !important;
+  line-height: 2.05 !important;
   letter-spacing: 0.015em;
 }
 .reader-theme-morning .reader-prose .verse-paragraph {
@@ -834,7 +834,7 @@ body.reader-overlay-open .reader-page {
   color: var(--reader-ink);
 }
 .reader-theme-sepia .verse-paragraph {
-  line-height: 1.9 !important;
+  line-height: 2.05 !important;
   letter-spacing: 0.015em;
 }
 .reader-theme-night {

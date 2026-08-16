@@ -15,6 +15,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../app/app_shell.dart';
 import 'api_client.dart';
+import 'app_update.dart';
 import 'app_theme.dart';
 import 'config.dart';
 import 'h5_bridge_channel.dart';
@@ -332,8 +333,10 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
 
     try {
       final ua = await controller.getUserAgent();
+      final version = await const AppUpdateService().installedVersion();
       await controller.setUserAgent(
-        '${ua ?? ''} PeiaiFlutter/3.0 android_h5_tab'.trim(),
+        '${ua ?? ''} PeiaiFlutter/${version.name} (vc${version.code}) android_h5_tab'
+            .trim(),
       );
     } catch (_) {}
 

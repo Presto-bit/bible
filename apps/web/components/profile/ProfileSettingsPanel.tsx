@@ -39,6 +39,7 @@ import {
 import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_status';
 import { isSyncRequiresPasswordError, syncNow } from '@/lib/sync';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
+import { peiaiOpenNative } from '@/lib/flutter_h5_bridge';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 
@@ -240,6 +241,12 @@ export default function ProfileSettingsPanel() {
 
   const handleAppPackageClick = () => {
     if (packageBusy || packageRow.action === 'noop') return;
+    if (packageRow.action === 'flutter_update') {
+      if (!peiaiOpenNative({ type: 'check_app_update' })) {
+        toast('暂时无法检查新版本，请稍后再试');
+      }
+      return;
+    }
     if (packageRow.action === 'download_apk') {
       setPackageBusy(true);
       try {

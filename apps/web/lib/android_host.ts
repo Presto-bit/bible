@@ -47,6 +47,29 @@ export function isPeiaiAndroidWebViewShell(): boolean {
   return /PeiaiAndroidShell\//i.test(navigator.userAgent);
 }
 
+/** Flutter 原生 App 内嵌 H5（非旧 WebView 壳）。 */
+export function isPeiaiFlutterH5Host(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /\bPeiaiFlutter\/[0-9A-Za-z.+-]+/i.test(navigator.userAgent);
+}
+
+export function getPeiaiFlutterH5Version(): {
+  versionName: string | null;
+  versionCode: number | null;
+} {
+  if (!isPeiaiFlutterH5Host()) {
+    return { versionName: null, versionCode: null };
+  }
+  const match = navigator.userAgent.match(
+    /\bPeiaiFlutter\/([0-9A-Za-z.+-]+)(?:\s*\(vc(\d+)\))?/i,
+  );
+  const code = match?.[2] ? parseInt(match[2], 10) : NaN;
+  return {
+    versionName: match?.[1] || null,
+    versionCode: Number.isFinite(code) ? code : null,
+  };
+}
+
 /** Chrome-hosted 官网包（query 标记或已持久化） */
 export function isPeiaiAndroidChromeHost(): boolean {
   const info = readAndroidHostInfo();

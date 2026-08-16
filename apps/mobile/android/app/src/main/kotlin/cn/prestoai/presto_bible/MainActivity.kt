@@ -33,7 +33,7 @@ class MainActivity : FlutterFragmentActivity() {
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, updateChannel)
       .setMethodCallHandler { call, result ->
         when (call.method) {
-          "versionCode" -> {
+          "versionInfo" -> {
             @Suppress("DEPRECATION")
             val info = packageManager.getPackageInfo(packageName, 0)
             val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -42,7 +42,12 @@ class MainActivity : FlutterFragmentActivity() {
               @Suppress("DEPRECATION")
               info.versionCode
             }
-            result.success(versionCode)
+            result.success(
+              mapOf(
+                "versionName" to (info.versionName ?: ""),
+                "versionCode" to versionCode,
+              ),
+            )
           }
           "promptInstall" -> {
             val path = call.argument<String>("path")

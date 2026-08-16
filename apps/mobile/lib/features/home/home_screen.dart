@@ -1153,15 +1153,25 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     }
   }
 
-  void _openReader() {
+  Future<void> _openReader() async {
     final book = widget.book.trim().toUpperCase();
     final ch = widget.chapter;
     if (book.isEmpty || ch < 1) return;
     final verse = widget.verseStart > 0 ? widget.verseStart : 1;
-    // 写入进度 → 阅读页轻闪定位
-    ref.read(readingRepoProvider).record(book, ch, verse: verse);
+    // 先写入目标节，阅读页才会稳定地滚至并轻闪该节。
+    await ref.read(readingRepoProvider).record(book, ch, verse: verse);
+    if (!mounted) return;
     ref.read(readerJumpProvider.notifier).jump(book, ch);
     ref.read(navIndexProvider.notifier).set(1);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('已打开 ${widget.ref.isNotEmpty ? widget.ref : '$book $ch:$verse'}'),
+          duration: const Duration(milliseconds: 1800),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   void _openWallpaper() {
@@ -1344,21 +1354,18 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
                               overflow: TextOverflow.fade,
                               softWrap: true,
                               style: TextStyle(
-                                // 与 PWA `--font-reader` 一致：Noto 衬线优先。
-                                fontFamily: 'Noto Serif SC',
+                                // 对齐 PWA --font-reader：英文 Georgia，中文回落宋体。
+                                fontFamily: 'Georgia',
                                 fontFamilyFallback: const [
-                                  'Noto Serif CJK SC',
-                                  'Source Han Serif SC',
                                   'Songti SC',
                                   'STSong',
-                                  'Georgia',
+                                  'Noto Serif SC',
                                   'serif',
                                 ],
                                 fontSize: verseFs,
                                 height: 1.65,
                                 letterSpacing: verseFs * 0.02,
-                                // PWA 自托管衬线仅提供 400 / 600；避免安卓合成 500。
-                                fontWeight: FontWeight.w400,
+                                fontWeight: FontWeight.w500,
                                 color: Colors.white,
                               ),
                             ),

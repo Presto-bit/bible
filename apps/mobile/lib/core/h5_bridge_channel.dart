@@ -11,6 +11,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../app/app_shell.dart';
 import '../features/assistant/assistant_seed.dart';
+import 'app_update.dart';
 
 const kPeiaiJsChannel = 'PeiaiFlutter';
 
@@ -64,6 +65,94 @@ void attachPeiaiJsChannel(
           ref.read(navIndexProvider.notifier).set(1);
           Future.microtask(() {
             if (context.mounted) context.push(loc);
+          });
+        } else if (type == 'check_app_update') {
+          Future.microtask(() async {
+            final status = await const AppUpdateService().status();
+            if (!context.mounted) return;
+            if (status.checkFailed) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('暂时无法检查新版本，请稍后再试')),
+              );
+              return;
+            }
+            final update = status.update;
+            if (update == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('彼爱 ${status.currentVersionName} 已是最新版本'),
+                ),
+              );
+              return;
+            }
+            await showDialog<void>(
+              context: context,
+              builder: (dialogContext) {
+                var downloading = false;
+                var progress = 0.0;
+                return StatefulBuilder(
+                  builder: (_, setDialogState) => AlertDialog(
+                    title: const Text('发现新版本'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '当前 ${status.currentVersionName}，可更新至 ${update.versionName}。',
+                        ),
+                        if (downloading) ...[
+                          const SizedBox(height: 18),
+                          LinearProgressIndicator(
+                            value: progress == 0 ? null : progress,
+                          ),
+                        ],
+                      ],
+                    ),
+                    actions: [
+                      if (!downloading)
+                        TextButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          child: const Text('以后再说'),
+                        ),
+                      FilledButton(
+                        onPressed: downloading
+                            ? null
+                            : () async {
+                                setDialogState(() => downloading = true);
+                                try {
+                                  await const AppUpdateService()
+                                      .downloadAndPromptInstall(
+                                        update,
+                                        onProgress: (value) {
+                                          if (dialogContext.mounted) {
+                                            setDialogState(
+                                              () => progress = value,
+                                            );
+                                          }
+                                        },
+                                      );
+                                  if (dialogContext.mounted) {
+                                    Navigator.of(dialogContext).pop();
+                                  }
+                                } catch (_) {
+                                  if (!dialogContext.mounted) return;
+                                  setDialogState(() => downloading = false);
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('新版本下载失败，请稍后重试'),
+                                    ),
+                                  );
+                                }
+                              },
+                        child: const Text('立即更新'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
           });
         } else if (type == 'close_h5') {
           if (context.mounted && context.canPop()) context.pop();
