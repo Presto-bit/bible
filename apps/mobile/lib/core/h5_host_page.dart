@@ -81,7 +81,33 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final c = _controller;
     if (c != null) H5SessionBridge.unregister(c);
     WidgetsBinding.instance.removeObserver(this);
+    // 发现 Tab 销毁时清沉浸，避免底栏卡隐藏
+    if (widget.tabIndex == 3) {
+      try {
+        ref.read(discoverImmersiveProvider.notifier).set(false);
+      } catch (_) {}
+    }
     super.dispose();
+  }
+
+  void _syncDiscoverImmersive([String? urlOrPath]) {
+    if (widget.tabIndex != 3) return;
+    final raw = (urlOrPath ?? _activePath).trim();
+    if (raw.isEmpty) return;
+    String pathOnly;
+    final parsed = Uri.tryParse(raw);
+    if (parsed != null &&
+        parsed.hasScheme &&
+        (parsed.scheme == 'http' || parsed.scheme == 'https')) {
+      pathOnly = parsed.path.isEmpty ? '/' : parsed.path;
+      _activePath =
+          '$pathOnly${parsed.hasQuery ? '?${parsed.query}' : ''}';
+    } else {
+      final path = raw.startsWith('/') ? raw : '/$raw';
+      pathOnly = path.split('?').first;
+      _activePath = path;
+    }
+    syncDiscoverChromeFromPath(ref, _activePath);
   }
 
   @override
@@ -215,13 +241,20 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       ..setBackgroundColor(peiaiPaperFor(themeId))
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) {
+          onPageStarted: (url) {
             if (mounted) setState(() => _loading = true);
             // 尽早再推一次 chrome 类，压 Web 双底栏闪现
             unawaited(_runEarlyChrome(controller, token, themeId));
+            if (mounted) _syncDiscoverImmersive(url);
           },
-          onPageFinished: (_) async {
+          onUrlChange: (change) {
+            final url = change.url;
+            if (url == null || !mounted) return;
+            _syncDiscoverImmersive(url);
+          },
+          onPageFinished: (url) async {
             if (!mounted) return;
+            _syncDiscoverImmersive(url);
             final c = _controller;
             if (c != null) {
               final back = await c.canGoBack();
@@ -270,6 +303,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
                   p.isEmpty ||
                   p.startsWith('/_next') ||
                   p.startsWith('/api')) {
+                if (mounted) _syncDiscoverImmersive(req.url);
                 return NavigationDecision.navigate;
               }
             }
@@ -590,6 +624,37 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         } catch (e) {}
       }
     };
+    // SPA 路由同步：私聊/群聊时让壳隐藏原生五 Tab
+    try {
+      if (!window.__PEIAI_PATH_HOOK__) {
+        window.__PEIAI_PATH_HOOK__ = true;
+        var notifyPath = function() {
+          try {
+            var p = (location.pathname || '/') + (location.search || '');
+            if (window.PeiaiFlutter && window.PeiaiFlutter.postMessage) {
+              window.PeiaiFlutter.postMessage(JSON.stringify({
+                type: 'path_changed',
+                path: p
+              }));
+            }
+          } catch (e) {}
+        };
+        var _ps = history.pushState;
+        var _rs = history.replaceState;
+        history.pushState = function() {
+          var r = _ps.apply(this, arguments);
+          notifyPath();
+          return r;
+        };
+        history.replaceState = function() {
+          var r = _rs.apply(this, arguments);
+          notifyPath();
+          return r;
+        };
+        window.addEventListener('popstate', notifyPath);
+        notifyPath();
+      }
+    } catch (e) {}
   } catch (e) {}
 })();
 ''');
@@ -662,6 +727,15 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       ref.listen(navIndexProvider, (prev, next) {
         if (prev == next) return;
         unawaited(_reinjectSession());
+        if (widget.tabIndex == 3) {
+          if (next == 3) {
+            final loc = ref.read(discoverH5LocationProvider);
+            _activePath = loc;
+            _syncDiscoverImmersive(loc);
+          } else if (prev == 3) {
+            ref.read(discoverImmersiveProvider.notifier).set(false);
+          }
+        }
         if (next != widget.tabIndex) return;
         if (widget.forceOffline) return;
         // 若曾失败且此刻可能已联网，不自动刷（避免打断会话）；仅 reinject
@@ -683,6 +757,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
           return;
         }
         _activePath = path;
+        _syncDiscoverImmersive(path);
         unawaited(_navigateActivePath());
       });
     }

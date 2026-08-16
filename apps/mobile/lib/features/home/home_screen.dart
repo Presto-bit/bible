@@ -675,6 +675,11 @@ class HomeScreen extends ConsumerWidget {
 }
 
 void _openHeroB(BuildContext context, WidgetRef ref, String href) {
+  // 创世记 50 / 真外链：走鉴权内嵌浏览器（勿把外站 URL 收成站内 path）
+  if (looksLikeCampaignHref(href) || isGenesis50Href(href)) {
+    openCampaignHref(context, href, title: isGenesis50Href(href) ? '创世记 50 天' : null);
+    return;
+  }
   final tab = heroBTabIndex(href);
   if (tab != null) {
     ref.read(navIndexProvider.notifier).set(tab);

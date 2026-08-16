@@ -107,6 +107,11 @@ void attachPeiaiJsChannel(
           Future.microtask(() {
             if (context.mounted) context.push(path);
           });
+        } else if (type == 'path_changed' || type == 'h5_path') {
+          // SPA 路由：发现私聊/群聊 → 壳隐藏底栏（勿走 discoverH5Path，避免整页重载）
+          final path = '${data['path'] ?? ''}'.trim();
+          if (path.isEmpty) return;
+          syncDiscoverChromeFromPath(ref, path);
         }
       } catch (e) {
         if (kDebugMode) debugPrint('PeiaiFlutter channel: $e');

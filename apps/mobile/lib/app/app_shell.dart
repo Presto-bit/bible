@@ -35,6 +35,55 @@ final readerImmersiveProvider =
     NotifierProvider<ReaderImmersiveNotifier, bool>(
         ReaderImmersiveNotifier.new);
 
+/// 发现 Tab：私聊 / 群聊全屏时隐藏壳底栏（对齐 iOS PWA 聊天页无底栏）。
+class DiscoverImmersiveNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool v) {
+    if (state == v) return;
+    state = v;
+  }
+}
+
+final discoverImmersiveProvider =
+    NotifierProvider<DiscoverImmersiveNotifier, bool>(
+  DiscoverImmersiveNotifier.new,
+);
+
+/// 发现 Tab 当前 H5 路径（SPA 与 WebView URL 同步，用于切回 Tab 恢复沉浸）。
+class DiscoverH5LocationNotifier extends Notifier<String> {
+  @override
+  String build() => '/discover';
+  void set(String path) {
+    final p = path.trim().isEmpty
+        ? '/discover'
+        : (path.startsWith('/') ? path : '/$path');
+    if (state == p) return;
+    state = p;
+  }
+}
+
+final discoverH5LocationProvider =
+    NotifierProvider<DiscoverH5LocationNotifier, String>(
+  DiscoverH5LocationNotifier.new,
+);
+
+/// 是否为发现私聊 / 群聊路径（隐藏 Flutter 五 Tab）。
+bool isDiscoverChatPath(String path) {
+  final p = path.split('?').first;
+  return p.startsWith('/discover/dm/') || p.startsWith('/discover/group/');
+}
+
+void syncDiscoverChromeFromPath(WidgetRef ref, String path) {
+  final raw = path.trim().isEmpty
+      ? '/discover'
+      : (path.startsWith('/') ? path : '/$path');
+  ref.read(discoverH5LocationProvider.notifier).set(raw);
+  ref
+      .read(discoverImmersiveProvider.notifier)
+      .set(isDiscoverChatPath(raw.split('?').first));
+}
+
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
@@ -54,7 +103,10 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final index = ref.watch(navIndexProvider);
-    final immersive = ref.watch(readerImmersiveProvider) && index == 1;
+    final readerImmersive = ref.watch(readerImmersiveProvider) && index == 1;
+    final discoverImmersive =
+        ref.watch(discoverImmersiveProvider) && index == 3;
+    final immersive = readerImmersive || discoverImmersive;
     final theme = Theme.of(context);
     final bg = theme.scaffoldBackgroundColor;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
@@ -85,30 +137,23 @@ class _AppShellState extends ConsumerState<AppShell> {
               ),
             ],
           ),
-          bottomNavigationBar: AnimatedSlide(
-            duration: const Duration(milliseconds: 320),
-            curve: Curves.easeInOutCubic,
-            offset: immersive ? const Offset(0, 1.2) : Offset.zero,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOut,
-              opacity: immersive ? 0 : 1,
-              child: IgnorePointer(
-                ignoring: immersive,
-                child: _PeiaiCapsuleTabBar(
+          // 读经 / 发现私聊群聊沉浸：移除底栏，WebView 占满高度。
+          bottomNavigationBar: immersive
+              ? null
+              : _PeiaiCapsuleTabBar(
                   index: index,
                   bottomPadding: barBottomPad,
                   onSelect: (i) {
-                    // 切走圣经时清沉浸，避免返回仍是 hidden
+                    // 切走圣经 / 发现时清沉浸，避免返回仍是 hidden
                     if (i != 1) {
                       ref.read(readerImmersiveProvider.notifier).set(false);
+                    }
+                    if (i != 3) {
+                      ref.read(discoverImmersiveProvider.notifier).set(false);
                     }
                     ref.read(navIndexProvider.notifier).set(i);
                   },
                 ),
-              ),
-            ),
-          ),
         ),
       ),
     );
