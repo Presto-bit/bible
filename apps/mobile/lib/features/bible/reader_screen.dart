@@ -1052,6 +1052,16 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
 
   String get _cleanAnswer => bodyText(_answer);
 
+  void _openCitation(am.Citation citation) {
+    ref.read(badgeStatsRecorderProvider).recordCitationClick();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _HalfSheetCitationDetail(citation: citation),
+    );
+  }
+
   String? get _summary {
     final m = RegExp(r'【摘要】\s*([^\n【]+)').firstMatch(_cleanAnswer);
     return m?.group(1)?.trim();
@@ -1144,34 +1154,37 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                   child: ConstrainedBox(
                     constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                      // 提问应始终从内容区顶部开始；此前 end 会在短回答时把
+                      // 用户气泡推到屏幕下方，看起来像没有显示输入内容。
+                      mainAxisAlignment: MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                  if (widget.selectionText.trim().isNotEmpty)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.goldWash.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.line),
-                      ),
-                      child: Text(
-                        '「${widget.selectionText.trim()}」',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.55,
-                          color: AppColors.inkSoft,
-                          fontFamily: 'Songti SC',
-                          fontFamilyFallback: [
-                            'STSong',
-                            'Noto Serif SC',
-                            'serif'
-                          ],
-                        ),
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.goldWash.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.line),
+                    ),
+                    child: Text(
+                      widget.selectionText.trim().isEmpty
+                          ? _userQuestion
+                          : '「${widget.selectionText.trim()}」',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 1.55,
+                        color: AppColors.inkSoft,
+                        fontFamily: 'Songti SC',
+                        fontFamilyFallback: [
+                          'STSong',
+                          'Noto Serif SC',
+                          'serif'
+                        ],
                       ),
                     ),
+                  ),
                   if (_answer.isEmpty && _busy)
                     const Row(
                       children: [
@@ -1205,10 +1218,17 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                     )
                   else
                     AnswerText(
-                        text: _cleanAnswer.isEmpty
-                            ? (_busy ? '' : '暂无内容')
-                            : _cleanAnswer,
-                        fontSize: 16),
+                      text: _cleanAnswer.isEmpty
+                          ? (_busy ? '' : '暂无内容')
+                          : _cleanAnswer,
+                      fontSize: 16,
+                      onCitationTap: (n) {
+                        final citation = _citations
+                            .where((item) => item.n == n)
+                            .firstOrNull;
+                        if (citation != null) _openCitation(citation);
+                      },
+                    ),
                   // 引用轨：有 meta 即展示（流式中途也显示，对齐 PWA CitationEvidenceRail）
                   if (_citations.isNotEmpty &&
                       !_cleanAnswer.startsWith('⚠️'))
@@ -1350,7 +1370,7 @@ class _HalfSheetCitations extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 88,
+          height: 72,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: citations.length,
@@ -1370,8 +1390,8 @@ class _HalfSheetCitations extends ConsumerWidget {
                 },
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  width: 168,
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                  width: 144,
+                  padding: const EdgeInsets.fromLTRB(9, 7, 9, 7),
                   decoration: BoxDecoration(
                     color: AppColors.goldWash,
                     borderRadius: BorderRadius.circular(10),
@@ -1381,17 +1401,17 @@ class _HalfSheetCitations extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('[${c.n}] ${c.title}',
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: AppColors.gold)),
                       if (snip.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          snip.length > 48 ? '${snip.substring(0, 48)}…' : snip,
-                          maxLines: 2,
+                          snip.length > 36 ? '${snip.substring(0, 36)}…' : snip,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 11, height: 1.3, color: AppColors.inkSoft),
@@ -1443,10 +1463,18 @@ class _HalfSheetCitationDetailState
       return;
     }
     try {
-      final res = await ref.read(assistantRepoProvider).explainCitation(
+      var res = await ref.read(assistantRepoProvider).explainCitation(
             snippet: snip,
             title: widget.citation.title,
           );
+      // 首次生成偶有网关超时；再尝试一次，避免用户只看到空的中文释义。
+      if (res.explainZh.trim().isEmpty && res.error != null) {
+        res = await ref.read(assistantRepoProvider).explainCitation(
+              snippet: snip,
+              title: widget.citation.title,
+              force: true,
+            );
+      }
       if (!mounted) return;
       setState(() {
         _explain = res.explainZh;

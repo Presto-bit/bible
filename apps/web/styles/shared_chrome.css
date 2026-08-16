@@ -221,14 +221,18 @@
   padding: 12px 16px;
 }
 
-/* 读经半屏小爱：短答贴底向上长 */
+/* 读经半屏小爱：提问固定从顶部开始，回答卡占满其余空间。 */
 .reader-ai-half-sheet .half-sheet-body {
   display: flex;
   flex-direction: column;
 }
 
 .reader-ai-half-sheet .half-sheet-body > .half-sheet-user-bubble {
-  margin-top: auto;
+  margin-top: 0;
+}
+
+.reader-ai-half-sheet .half-sheet-body > .half-sheet-answer {
+  flex: 1 0 auto;
 }
 
 .half-sheet-verse {

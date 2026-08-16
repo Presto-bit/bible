@@ -212,12 +212,14 @@ class AssistantRepository {
   Future<CitationExplain> explainCitation({
     required String snippet,
     String? title,
+    bool force = false,
   }) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/ai/citations/explain',
       data: {
         'snippet': snippet,
         if (title != null && title.isNotEmpty) 'title': title,
+        if (force) 'force': true,
       },
     );
     return CitationExplain.fromJson(res.data ?? const {});

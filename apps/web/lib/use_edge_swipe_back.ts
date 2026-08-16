@@ -123,7 +123,7 @@ export const BACK_PATH_LABELS: Record<string, string> = {
   '/search/timeline': '时间轴',
   '/search/diagrams': '图鉴馆',
   '/dictionary': '词典',
-  '/notes': '我的想法',
+  '/notes': '我的笔记',
   '/report': '读经回顾',
 };
 

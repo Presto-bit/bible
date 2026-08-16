@@ -1,4 +1,4 @@
-/// 「我的想法」：想法 / 划线（无书签、无笔记）。
+/// 「我的笔记」：想法 / 划线（无书签、无笔记）。
 /// 想法：书卷分组下钻 + 新建自定义；划线：色点筛选。
 library;
 
@@ -115,7 +115,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的想法'),
+        title: const Text('我的笔记'),
         leading: _thoughtDetail != null || _thoughtGroup != null
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -133,7 +133,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: '新建想法',
+            tooltip: '新建笔记',
             onPressed: _openCreate,
           ),
         ],
@@ -144,7 +144,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
               decoration: InputDecoration(
-                hintText: '搜索想法或划线…',
+                hintText: '搜索笔记或划线…',
                 prefixIcon: const Icon(Icons.search, size: 20),
                 isDense: true,
                 filled: true,
@@ -162,7 +162,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
             child: _SegTabs(
               index: _tab,
               labels: [
-                '想法${thoughts.isNotEmpty ? ' · ${thoughts.length}' : ''}',
+                '笔记${thoughts.isNotEmpty ? ' · ${thoughts.length}' : ''}',
                 '划线${highlights.maybeWhen(data: (l) => l.isNotEmpty ? ' · ${l.length}' : '', orElse: () => '')}',
               ],
               onChanged: (i) => setState(() {
@@ -400,7 +400,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
           if (_creating) _inlineComposer(),
           Expanded(
             child: items.isEmpty
-                ? const _Empty(text: '该分组暂无想法。')
+                ? const _Empty(text: '该分组暂无笔记。')
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: items.length,
@@ -468,8 +468,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     if (filtered.isEmpty && !_creating) {
       return _Empty(
           text: q.isEmpty
-              ? '还没有想法。点右上角 + 新建，或在小爱回答里存想法。'
-              : '没有匹配的想法。');
+              ? '还没有笔记。点右上角 + 新建，或在小爱回答里存为笔记。'
+              : '没有匹配的笔记。');
     }
 
     if (filtered.isEmpty && _creating) {
@@ -525,7 +525,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                         const SizedBox(height: 4),
                         Text(
                           preview.isEmpty
-                              ? '查看想法'
+                              ? '查看笔记'
                               : (preview.length > 28
                                   ? '${preview.substring(0, 28)}…'
                                   : preview),
@@ -595,7 +595,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('编辑想法',
+            const Text('编辑笔记',
                 style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
@@ -880,7 +880,7 @@ class _HighlightCard extends StatelessWidget {
                     style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         visualDensity: VisualDensity.compact),
-                    child: const Text('加想法')),
+                    child: const Text('加笔记')),
               if (onShare != null)
                 TextButton(
                     onPressed: onShare,

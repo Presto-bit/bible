@@ -53,7 +53,7 @@ class CitationEvidenceRail extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 118,
+            height: 82,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: citations.length,
@@ -61,18 +61,21 @@ class CitationEvidenceRail extends StatelessWidget {
               itemBuilder: (_, i) {
                 final c = citations[i];
                 final title = formatCitationTitle(c.title, bookName: bookName);
-                var snip = (c.snippet ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+                var snip = (c.snippet ?? '')
+                    .replaceAll(RegExp(r'\s+'), ' ')
+                    .trim();
                 if (snip.length > 48) snip = '${snip.substring(0, 48)}…';
                 return Material(
-                  color: Color.lerp(AppColors.goldWash, Colors.white, 0.45) ??
+                  color:
+                      Color.lerp(AppColors.goldWash, Colors.white, 0.45) ??
                       AppColors.goldWash,
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: onOpen == null ? null : () => onOpen!(c.n),
                     child: Container(
-                      width: 200,
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      width: 154,
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
@@ -93,10 +96,10 @@ class CitationEvidenceRail extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             title,
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               height: 1.35,
                               color: AppColors.ink,
@@ -106,7 +109,7 @@ class CitationEvidenceRail extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               snip,
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 11,

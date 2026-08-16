@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_update.dart';
 import '../core/sync/sync_controller.dart';
 import '../features/assistant/assistant_screen.dart';
 import '../features/bible/reader_screen.dart';
@@ -22,8 +23,9 @@ class NavIndexNotifier extends Notifier<int> {
   void set(int i) => state = i;
 }
 
-final navIndexProvider =
-    NotifierProvider<NavIndexNotifier, int>(NavIndexNotifier.new);
+final navIndexProvider = NotifierProvider<NavIndexNotifier, int>(
+  NavIndexNotifier.new,
+);
 
 class ReaderImmersiveNotifier extends Notifier<bool> {
   @override
@@ -31,9 +33,9 @@ class ReaderImmersiveNotifier extends Notifier<bool> {
   void set(bool v) => state = v;
 }
 
-final readerImmersiveProvider =
-    NotifierProvider<ReaderImmersiveNotifier, bool>(
-        ReaderImmersiveNotifier.new);
+final readerImmersiveProvider = NotifierProvider<ReaderImmersiveNotifier, bool>(
+  ReaderImmersiveNotifier.new,
+);
 
 /// 发现 Tab：私聊 / 群聊全屏时隐藏壳底栏（对齐 iOS PWA 聊天页无底栏）。
 class DiscoverImmersiveNotifier extends Notifier<bool> {
@@ -101,6 +103,94 @@ class _AppShellState extends ConsumerState<AppShell> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForAppUpdate());
+  }
+
+  Future<void> _checkForAppUpdate() async {
+    try {
+      final update = await const AppUpdateService().check();
+      if (!mounted || update == null) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (dialogContext) {
+          var downloading = false;
+          var progress = 0.0;
+          return StatefulBuilder(
+            builder: (context, setDialogState) => AlertDialog(
+              title: const Text('发现新版本'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('彼爱 ${update.versionName} 已准备好。'),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '下载完成后会打开系统安装提示；你也可以关闭，稍后再更新。',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  if (downloading) ...[
+                    const SizedBox(height: 18),
+                    LinearProgressIndicator(
+                      value: progress == 0 ? null : progress,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      progress == 0
+                          ? '正在准备下载…'
+                          : '正在下载 ${(progress * 100).round()}%',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                if (!downloading)
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('以后再说'),
+                  ),
+                FilledButton(
+                  onPressed: downloading
+                      ? null
+                      : () async {
+                          setDialogState(() => downloading = true);
+                          try {
+                            await const AppUpdateService()
+                                .downloadAndPromptInstall(
+                                  update,
+                                  onProgress: (value) {
+                                    if (context.mounted) {
+                                      setDialogState(() => progress = value);
+                                    }
+                                  },
+                                );
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                            }
+                          } catch (_) {
+                            if (!context.mounted) return;
+                            setDialogState(() => downloading = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('新版本下载失败，请稍后重试')),
+                            );
+                          }
+                        },
+                  child: const Text('立即更新'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (_) {
+      // 静默失败：更新检查不应打断读经。
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final index = ref.watch(navIndexProvider);
     final readerImmersive = ref.watch(readerImmersiveProvider) && index == 1;
@@ -137,7 +227,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               ),
             ],
           ),
-          // 读经 / 发现私聊群聊沉浸：移除底栏，WebView 占满高度。
+          // 沉浸读经时直接移除底栏，不保留 Scaffold 的底部高度，也不做滑出动画。
           bottomNavigationBar: immersive
               ? null
               : _PeiaiCapsuleTabBar(
@@ -186,7 +276,9 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
     final ink = theme.colorScheme.onSurface;
     final faint = ink.withValues(alpha: 0.45);
     final accent = theme.colorScheme.primary;
-    final fill = theme.colorScheme.surface.withValues(alpha: isDark ? 0.72 : 0.78);
+    final fill = theme.colorScheme.surface.withValues(
+      alpha: isDark ? 0.72 : 0.78,
+    );
 
     return Material(
       color: Colors.transparent,

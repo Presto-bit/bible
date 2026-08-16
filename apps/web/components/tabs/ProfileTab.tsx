@@ -991,13 +991,13 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     if (!thoughtPreview) return;
     const shareUrl = inviteShareUrl(effectiveId());
     const result = await shareCardOutbound({
-      title: '我的想法',
+      title: '我的笔记',
       subtitle: displayName,
       body: thoughtPreview,
       footer: `${BRAND_NAME} · ${BRAND_TAGLINE}`,
-      badge: '想法',
+      badge: '笔记',
       day: 5,
-      shareTitle: `我的想法｜${BRAND_NAME}`,
+      shareTitle: `我的笔记｜${BRAND_NAME}`,
       shareText: thoughtPreview,
       shareUrl,
       allowDownload: false,

@@ -58,16 +58,28 @@ export function CitationBar({
       return;
     }
     let cancelled = false;
+    const title = detail.title;
+    const snippet = detail.snippet;
     setExplainLoading(true);
     setExplainZh('');
     setExplainErr('');
     setSnippetExpanded(false);
-    void explainCitation({ title: detail.title, snippet: detail.snippet })
-      .then((res) => {
+    void explainCitation({ title, snippet })
+      .then(async (res) => {
         if (cancelled) return;
-        setExplainZh(res.explain_zh || '');
-        setDisclaimer(res.disclaimer || DISCLAIMER);
-        if (res.error) setExplainErr(res.error);
+        // 单次生成可能受短暂网关超时影响，自动再试一次。
+        const resolved =
+          !res.explain_zh && res.error
+            ? await explainCitation({
+                title,
+                snippet,
+                force: true,
+              })
+            : res;
+        if (cancelled) return;
+        setExplainZh(resolved.explain_zh || '');
+        setDisclaimer(resolved.disclaimer || DISCLAIMER);
+        if (resolved.error) setExplainErr(resolved.error);
       })
       .catch(() => {
         if (!cancelled) setExplainErr('暂无法生成中文释义');
@@ -159,7 +171,9 @@ export function CitationBar({
                       {explainZh}
                     </p>
                   ) : (
-                    <p className="muted">{explainErr || '暂无法生成中文释义'}</p>
+                    <p className="muted">
+                      {explainErr || (snip ? '暂无法生成中文释义' : '该来源未提供可显示的摘录')}
+                    </p>
                   )}
                   <p className="citation-bilingual-label muted" style={{ margin: '14px 0 6px', fontSize: 12 }}>
                     原文摘录

@@ -307,12 +307,12 @@ body.assistant-keyboard.assistant-active .tabbar {
   scrollbar-width: thin;
 }
 .citation-evidence-card {
-  flex: 0 0 min(72%, 220px);
+  flex: 0 0 min(58%, 164px);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 10px 12px;
+  gap: 3px;
+  padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--ink-faint) 22%, var(--line));
   background: color-mix(in srgb, var(--wash, #f7f4ef) 55%, #fff);
@@ -326,11 +326,11 @@ body.assistant-keyboard.assistant-active .tabbar {
   color: var(--accent-deep, #3d6b5a);
 }
 .citation-evidence-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -339,7 +339,7 @@ body.assistant-keyboard.assistant-active .tabbar {
   line-height: 1.4;
   color: var(--muted, #64748b);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

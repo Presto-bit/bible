@@ -128,8 +128,8 @@ function NotesInner() {
 
   const removeThought = async (id: string) => {
     const ok = await confirm({
-      title: '删除想法',
-      message: '确定删除这条想法？',
+      title: '删除笔记',
+      message: '确定删除这条笔记？',
       confirmLabel: '删除',
       danger: true,
     });
@@ -201,7 +201,7 @@ function NotesInner() {
   }, [markDetails, colorFilter, q]);
 
   const tabs: { id: Tab; label: string; count: number }[] = [
-    { id: 'thoughts', label: '想法', count: thoughts.length },
+    { id: 'thoughts', label: '笔记', count: thoughts.length },
     { id: 'highlights', label: '划线', count: highlights.length },
   ];
 
@@ -239,13 +239,13 @@ function NotesInner() {
     <main className="container">
       <header className="page-head">
         <PageBackBar href="/profile" label="我的" onClick={() => markRouteNavigation()} />
-        <h2 className="page-head-title">我的想法</h2>
+        <h2 className="page-head-title">我的笔记</h2>
         <div className="page-head-actions">
           <button
             type="button"
             className="icon-btn"
-            aria-label="新建想法"
-            title="新建想法"
+            aria-label="新建笔记"
+            title="新建笔记"
             onClick={openCreate}
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -258,7 +258,7 @@ function NotesInner() {
       <div className="search-bar" style={{ marginBottom: 12 }}>
         <input
           className="search-input"
-          placeholder="搜索想法或划线…"
+          placeholder="搜索笔记或划线…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -433,7 +433,7 @@ function NotesInner() {
                 </span>
               </h3>
               {groupThoughts.length === 0 ? (
-                <p className="muted">该分组暂无想法。</p>
+                <p className="muted">该分组暂无笔记。</p>
               ) : (
                 groupThoughts.map((t) => (
                   <button
@@ -465,8 +465,8 @@ function NotesInner() {
           ) : filteredThoughts.length === 0 ? (
             <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
               {query
-                ? '没有匹配的想法。'
-                : '写下第一句。点右上角 +，或在小爱回答里存想法。'}
+                ? '没有匹配的笔记。'
+                : '写下第一句。点右上角 +，或在小爱回答里存为笔记。'}
             </p>
           ) : (
             thoughtGroups.map((g) => (
@@ -479,7 +479,7 @@ function NotesInner() {
                 <span className="notes-group-main">
                   <strong>{g.label}</strong>
                   <span className="muted" style={{ fontSize: 12 }}>
-                    {plainThoughtPreview(g.items[0]?.body || '', 28) || '查看想法'}
+                    {plainThoughtPreview(g.items[0]?.body || '', 28) || '查看笔记'}
                   </span>
                   {formatDateTimeMs(g.items[0]?.createdAtMs || 0) ? (
                     <span className="muted notes-item-time">
@@ -540,7 +540,7 @@ function NotesInner() {
                       跳转经文
                     </Link>
                     <button type="button" className="text-link" onClick={() => openHighlightEdit(h.ref)}>
-                      {note?.body ? '编辑想法' : '加想法'}
+                      {note?.body ? '编辑笔记' : '加笔记'}
                     </button>
                     <button
                       type="button"
