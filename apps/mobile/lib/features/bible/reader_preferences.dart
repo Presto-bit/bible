@@ -14,18 +14,19 @@ extension ReaderFontFamilyX on ReaderFontFamily {
     ReaderFontFamily.sans => '黑体',
   };
   String? get fontFamily => switch (this) {
-    // 中文衬线优先 Noto/宋体，无则回落 Georgia（英文衬线）
-    ReaderFontFamily.serif => 'Noto Serif SC',
+    // 与 PWA `Georgia, Songti SC, STSong, serif` 顺序一致。
+    ReaderFontFamily.serif => 'Georgia',
     ReaderFontFamily.sans => null,
   };
 
   /// fontFamilyFallback 给 TextStyle 用。
   List<String> get fontFamilyFallback => switch (this) {
     ReaderFontFamily.serif => const [
-      'Source Han Serif SC',
       'Songti SC',
+      'STSong',
+      'Noto Serif SC',
+      'Source Han Serif SC',
       'Noto Serif',
-      'Georgia',
       'serif',
     ],
     ReaderFontFamily.sans => const [

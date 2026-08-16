@@ -2517,7 +2517,6 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         );
       }
 
-      final words = sliceVerseWords(v.text);
       final dictSpans = !selectionActive && widget.dictKeys.isNotEmpty
           ? dictSpansForText(
               v.text,
@@ -2528,6 +2527,10 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               verse: v.verse,
             )
           : const <DictSpanHit>[];
+      final words = sliceVerseWords(
+        v.text,
+        splitOffsets: dictSpans.expand((span) => [span.start, span.end]),
+      );
       if (words.isEmpty) {
         final emptyRec = selectionActive
             ? (TapGestureRecognizer()
@@ -2783,7 +2786,6 @@ class _MarginVerseRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final v = verse;
     final mark = markInfo?.mark;
-    final words = sliceVerseWords(v.text);
     final dictSpans = !selectionActive && dictKeys.isNotEmpty
         ? dictSpansForText(
             v.text,
@@ -2794,6 +2796,10 @@ class _MarginVerseRow extends StatelessWidget {
             verse: v.verse,
           )
         : const <DictSpanHit>[];
+    final words = sliceVerseWords(
+      v.text,
+      splitOffsets: dictSpans.expand((span) => [span.start, span.end]),
+    );
     final bodyChildren = <InlineSpan>[];
     var cursor = 0;
     for (final w in words) {

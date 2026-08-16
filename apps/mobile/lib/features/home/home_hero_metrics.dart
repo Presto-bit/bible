@@ -13,13 +13,10 @@ double homeHeroVerseHeight(BuildContext context, {int textLen = 0}) {
   return base;
 }
 
-/// 经文字号：字多则略缩小，利于一屏展全（仍保可读）。
-double homeHeroVerseFontSize(int textLen) {
-  if (textLen > 110) return 13.5;
-  if (textLen > 85) return 14.5;
-  if (textLen > 55) return 15.5;
-  return 17;
-}
+/// 每日经文与 PWA Hero 一致：固定 16px，不随字数缩小。
+///
+/// 卡片高度会随长经文增加，避免以牺牲可读性来换取一屏塞下。
+double homeHeroVerseFontSize(int textLen) => 16;
 
 /// 最大行数：宁多行展全，不用省略号吃字（全屏壁纸另有完整文）。
 int homeHeroVerseMaxLines(int textLen) {

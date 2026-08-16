@@ -998,12 +998,19 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
   List<AiSession>? _snapshot;
   final Map<String, String> _previews = {};
   final Set<String> _collapsed = {};
+  final _swipeController = HistorySessionSwipeController();
   Object? _err;
 
   @override
   void initState() {
     super.initState();
     _loadOnce();
+  }
+
+  @override
+  void dispose() {
+    _swipeController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadOnce() async {
@@ -1120,7 +1127,6 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () => Navigator.pop(context, s),
-        onLongPress: () => _rename(s),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           child: Column(
@@ -1183,6 +1189,8 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: HistorySessionSwipeRow(
+        id: s.id,
+        controller: _swipeController,
         onRename: () => _rename(s),
         onDelete: () => _delete(s),
         child: card,
@@ -1226,77 +1234,81 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
           ),
           const SizedBox(height: 4),
           Expanded(
-            child: groups == null
-                ? const Center(child: CircularProgressIndicator())
-                : groups.isEmpty
-                ? Center(
-                    child: Text(
-                      _err != null ? '暂时无法加载会话' : '暂无历史会话，开始提问后会自动保存。',
-                      style: const TextStyle(color: AppColors.inkFaint),
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: groups.length,
-                    itemBuilder: (_, i) {
-                      final g = groups[i];
-                      // 首组默认展开；其他默认折叠
-                      final isCollapsed = i == 0
-                          ? _collapsed.contains(g.key)
-                          : !_collapsed.contains('open:${g.key}');
-                      final headLabel = g.key == '随问'
-                          ? '随问'
-                          : (refToChineseLabel(g.key) ?? g.key);
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          InkWell(
-                            onTap: () => setState(() {
-                              if (i == 0) {
-                                if (_collapsed.contains(g.key)) {
-                                  _collapsed.remove(g.key);
+            child: Listener(
+              // 改名/删除只随左滑露出；点抽屉任意空白或另一行即收起。
+              onPointerDown: (_) => _swipeController.close(),
+              child: groups == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : groups.isEmpty
+                  ? Center(
+                      child: Text(
+                        _err != null ? '暂时无法加载会话' : '暂无历史会话，开始提问后会自动保存。',
+                        style: const TextStyle(color: AppColors.inkFaint),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: groups.length,
+                      itemBuilder: (_, i) {
+                        final g = groups[i];
+                        // 首组默认展开；其他默认折叠
+                        final isCollapsed = i == 0
+                            ? _collapsed.contains(g.key)
+                            : !_collapsed.contains('open:${g.key}');
+                        final headLabel = g.key == '随问'
+                            ? '随问'
+                            : (refToChineseLabel(g.key) ?? g.key);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            InkWell(
+                              onTap: () => setState(() {
+                                if (i == 0) {
+                                  if (_collapsed.contains(g.key)) {
+                                    _collapsed.remove(g.key);
+                                  } else {
+                                    _collapsed.add(g.key);
+                                  }
                                 } else {
-                                  _collapsed.add(g.key);
+                                  final k = 'open:${g.key}';
+                                  if (_collapsed.contains(k)) {
+                                    _collapsed.remove(k);
+                                  } else {
+                                    _collapsed.add(k);
+                                  }
                                 }
-                              } else {
-                                final k = 'open:${g.key}';
-                                if (_collapsed.contains(k)) {
-                                  _collapsed.remove(k);
-                                } else {
-                                  _collapsed.add(k);
-                                }
-                              }
-                            }),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(2, 10, 2, 6),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      headLabel,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                              }),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(2, 10, 2, 6),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        headLabel,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  Text(
-                                    '${g.value.length} 条 · ${isCollapsed ? '展开' : '收起'}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.inkFaint,
+                                    Text(
+                                      '${g.value.length} 条 · ${isCollapsed ? '展开' : '收起'}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.inkFaint,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          if (!isCollapsed)
-                            for (final s in g.value) _sessionCard(s),
-                        ],
-                      );
-                    },
-                  ),
+                            if (!isCollapsed)
+                              for (final s in g.value) _sessionCard(s),
+                          ],
+                        );
+                      },
+                    ),
+            ),
           ),
           const Padding(
             padding: EdgeInsets.fromLTRB(4, 10, 4, 4),

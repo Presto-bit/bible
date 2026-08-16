@@ -88,7 +88,8 @@ class DailyVerse {
       for (final e in tp) {
         if (e is Map) {
           final p = DailyVerseReactPreset.fromJson(
-              Map<String, dynamic>.from(e));
+            Map<String, dynamic>.from(e),
+          );
           if (p.id.isNotEmpty) tops.add(p);
         }
       }
@@ -151,8 +152,7 @@ final homeBootstrapProvider = FutureProvider<HomeBootstrap>((ref) async {
     if (rc is List) {
       for (final e in rc) {
         if (e is Map) {
-          final c =
-              HomeTodayCampaign.fromJson(Map<String, dynamic>.from(e));
+          final c = HomeTodayCampaign.fromJson(Map<String, dynamic>.from(e));
           if (c.id.isNotEmpty && c.title.isNotEmpty) rails.add(c);
         }
       }
@@ -177,24 +177,36 @@ final homeBootstrapProvider = FutureProvider<HomeBootstrap>((ref) async {
         final boot = parse(cached);
         if (boot.dailyVerse.day > 0) {
           await writeLocalDailyVerseLike(
-              prefs, session, boot.dailyVerse.day, boot.dailyVerse.liked);
+            prefs,
+            session,
+            boot.dailyVerse.day,
+            boot.dailyVerse.liked,
+          );
         }
         if (boot.heroBCampaign != null) {
           await writeCachedHeroBCampaign(prefs, boot.heroBCampaign);
         }
         return boot;
-      } catch (_) {/* fall through to network */}
+      } catch (_) {
+        /* fall through to network */
+      }
     }
   }
 
   try {
-    final res =
-        await dio.get('/content/home/bootstrap', queryParameters: {'_d': ymd});
+    final res = await dio.get(
+      '/content/home/bootstrap',
+      queryParameters: {'_d': ymd},
+    );
     final data = Map<String, dynamic>.from(res.data as Map);
     final boot = parse(data);
     if (boot.dailyVerse.day > 0) {
       await writeLocalDailyVerseLike(
-          prefs, session, boot.dailyVerse.day, boot.dailyVerse.liked);
+        prefs,
+        session,
+        boot.dailyVerse.day,
+        boot.dailyVerse.liked,
+      );
     }
     await writeCachedHeroBCampaign(prefs, boot.heroBCampaign);
     await cache.writeJson(data, todayYmd: ymd);
@@ -227,7 +239,8 @@ class _HomeBootstrapForceNotifier extends Notifier<bool> {
 
 final _homeBootstrapForceProvider =
     NotifierProvider<_HomeBootstrapForceNotifier, bool>(
-        _HomeBootstrapForceNotifier.new);
+      _HomeBootstrapForceNotifier.new,
+    );
 
 /// 今日祷告（ACTS 计划）。
 class PrayerToday {
@@ -285,10 +298,11 @@ class HomeScreen extends ConsumerWidget {
     int? planPct;
     int? planDay;
     String? planId;
-    final activeEntry = progress.entries
-        .where((e) => e.value.status == 'active' && e.value.day > 0)
-        .toList()
-      ..sort((a, b) => b.value.updatedAtMs.compareTo(a.value.updatedAtMs));
+    final activeEntry =
+        progress.entries
+            .where((e) => e.value.status == 'active' && e.value.day > 0)
+            .toList()
+          ..sort((a, b) => b.value.updatedAtMs.compareTo(a.value.updatedAtMs));
     VoidCallback? planOnTap;
     if (activeEntry.isNotEmpty) {
       final activeId = activeEntry.first.key;
@@ -306,15 +320,15 @@ class HomeScreen extends ConsumerWidget {
             ? ((planDay! / featured.days) * 100).round().clamp(0, 100)
             : null;
         planOnTap = () => openPlanReading(
-              context,
-              ref,
-              ref.read(prefsProvider),
-              planId: featured.planId,
-              planTitle: featured.title,
-              day: planDay!,
-              totalDays: featured.days,
-              source: 'featured',
-            );
+          context,
+          ref,
+          ref.read(prefsProvider),
+          planId: featured.planId,
+          planTitle: featured.title,
+          day: planDay!,
+          totalDays: featured.days,
+          source: 'featured',
+        );
       } else if (gen != null) {
         planTitle = gen.title;
         planSub = '第 $planDay 天';
@@ -322,23 +336,22 @@ class HomeScreen extends ConsumerWidget {
             ? ((planDay! / gen.daysCount) * 100).round().clamp(0, 100)
             : null;
         planOnTap = () => openPlanReading(
-              context,
-              ref,
-              ref.read(prefsProvider),
-              planId: gen.id,
-              planTitle: gen.title,
-              day: planDay!,
-              totalDays: gen.daysCount,
-              source: 'generated',
-            );
+          context,
+          ref,
+          ref.read(prefsProvider),
+          planId: gen.id,
+          planTitle: gen.title,
+          day: planDay!,
+          totalDays: gen.daysCount,
+          source: 'generated',
+        );
       }
     }
 
     final reading = ref.watch(readingProgressStreamProvider).value;
-    final books = ref.watch(booksProvider).maybeWhen(
-          data: (b) => b,
-          orElse: () => const <BibleBook>[],
-        );
+    final books = ref
+        .watch(booksProvider)
+        .maybeWhen(data: (b) => b, orElse: () => const <BibleBook>[]);
     String? resumeTitle;
     String? resumeBookId;
     int? resumeChapter;
@@ -376,12 +389,8 @@ class HomeScreen extends ConsumerWidget {
           )
           .days;
       final activeYmds = <String>{
-        ...d.minutesByDay.entries
-            .where((e) => e.value > 0)
-            .map((e) => e.key),
-        ...d.chaptersByDay.entries
-            .where((e) => e.value > 0)
-            .map((e) => e.key),
+        ...d.minutesByDay.entries.where((e) => e.value > 0).map((e) => e.key),
+        ...d.chaptersByDay.entries.where((e) => e.value > 0).map((e) => e.key),
       };
       welcomeBack = isWelcomeBackGap(recentActiveYmds: activeYmds);
     });
@@ -391,10 +400,9 @@ class HomeScreen extends ConsumerWidget {
       WidgetsBinding.instance.addPostFrameCallback((_) => peiaiHapticSuccess());
     }
 
-    final groups = ref.watch(myGroupsProvider).maybeWhen(
-          data: (g) => g,
-          orElse: () => const <Group>[],
-        );
+    final groups = ref
+        .watch(myGroupsProvider)
+        .maybeWhen(data: (g) => g, orElse: () => const <Group>[]);
     String? groupTitle;
     String? groupSub;
     if (groups.isEmpty) {
@@ -406,7 +414,8 @@ class HomeScreen extends ConsumerWidget {
     }
 
     final prayerTitle = prayerToday.maybeWhen(
-      data: (p) => p.day > 0 ? '第 ${p.day} 天' : (p.title.isNotEmpty ? p.title : null),
+      data: (p) =>
+          p.day > 0 ? '第 ${p.day} 天' : (p.title.isNotEmpty ? p.title : null),
       orElse: () => null,
     );
 
@@ -415,24 +424,26 @@ class HomeScreen extends ConsumerWidget {
       orElse: () => const <HomeTodayCampaign>[],
     );
 
-    final panel = buildHomeTodayPanel(HomeTodayInput(
-      resumeTitle: resumeTitle,
-      resumeSub: '继续阅读',
-      resumeBookId: resumeBookId,
-      resumeChapter: resumeChapter,
-      planTitle: planTitle,
-      planSub: planSub,
-      planProgressPct: planPct,
-      planBookId: planId,
-      planChapter: planDay,
-      prayerTitle: prayerTitle,
-      groupTitle: groupTitle,
-      groupSub: groupSub,
-      campaigns: rails,
-      planDoneToday: isPlanDayDoneToday(prefs),
-      readToday: readToday,
-      welcomeBack: welcomeBack,
-    ));
+    final panel = buildHomeTodayPanel(
+      HomeTodayInput(
+        resumeTitle: resumeTitle,
+        resumeSub: '继续阅读',
+        resumeBookId: resumeBookId,
+        resumeChapter: resumeChapter,
+        planTitle: planTitle,
+        planSub: planSub,
+        planProgressPct: planPct,
+        planBookId: planId,
+        planChapter: planDay,
+        prayerTitle: prayerTitle,
+        groupTitle: groupTitle,
+        groupSub: groupSub,
+        campaigns: rails,
+        planDoneToday: isPlanDayDoneToday(prefs),
+        readToday: readToday,
+        welcomeBack: welcomeBack,
+      ),
+    );
 
     void openSlot(HomeTodaySlot s) {
       final href = s.href.trim();
@@ -441,8 +452,12 @@ class HomeScreen extends ConsumerWidget {
         return;
       }
       if (s.id == 'resume' || s.id == 'suggest' || href.startsWith('/reader')) {
-        if (resumeBookId != null && resumeChapter != null && s.id != 'suggest') {
-          ref.read(readerJumpProvider.notifier).jump(resumeBookId!, resumeChapter!);
+        if (resumeBookId != null &&
+            resumeChapter != null &&
+            s.id != 'suggest') {
+          ref
+              .read(readerJumpProvider.notifier)
+              .jump(resumeBookId!, resumeChapter!);
         } else if (s.id == 'suggest' || href.contains('book=')) {
           final u = Uri.tryParse(href);
           final book = u?.queryParameters['book'] ?? 'JHN';
@@ -475,8 +490,10 @@ class HomeScreen extends ConsumerWidget {
         return;
       }
       if (openH5IfAllowed(
-          context, href.startsWith('/') ? href : '/$href',
-          title: s.title)) {
+        context,
+        href.startsWith('/') ? href : '/$href',
+        title: s.title,
+      )) {
         return;
       }
       openCampaignHref(context, href, title: s.title);
@@ -519,47 +536,60 @@ class HomeScreen extends ConsumerWidget {
             children: [
               _GreetingHeader(
                 welcomeBack: welcomeBack,
-                onSearch: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SearchScreen()),
-                ),
+                onSearch: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const SearchScreen())),
               ),
-              Builder(builder: (context) {
-                final events = currentSeasonalEvents();
-                if (events.isEmpty) return const SizedBox.shrink();
-                final ev = events.first;
-                return Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: PaperCard(
-                    onTap: () {
-                      final path = ev.href.startsWith('/') ? ev.href : '/${ev.href}';
-                      if (!openH5IfAllowed(context, path.split('?').first)) {
-                        context.push(path);
-                      }
-                    },
-                    child: Row(
-                      children: [
-                        _Pill(ev.badge ?? '活动', active: true),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(ev.title,
+              Builder(
+                builder: (context) {
+                  final events = currentSeasonalEvents();
+                  if (events.isEmpty) return const SizedBox.shrink();
+                  final ev = events.first;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: PaperCard(
+                      onTap: () {
+                        final path = ev.href.startsWith('/')
+                            ? ev.href
+                            : '/${ev.href}';
+                        if (!openH5IfAllowed(context, path.split('?').first)) {
+                          context.push(path);
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          _Pill(ev.badge ?? '活动', active: true),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  ev.title,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.w600)),
-                              Text(ev.subtitle,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  ev.subtitle,
                                   style: const TextStyle(
-                                      fontSize: 12, color: AppColors.inkFaint)),
-                            ],
+                                    fontSize: 12,
+                                    color: AppColors.inkFaint,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const Text('›',
-                            style: TextStyle(color: AppColors.inkFaint)),
-                      ],
+                          const Text(
+                            '›',
+                            style: TextStyle(color: AppColors.inkFaint),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                },
+              ),
               const SizedBox(height: 14),
               boot.when(
                 loading: () => const _VerseCardSkeleton(),
@@ -640,10 +670,9 @@ class HomeScreen extends ConsumerWidget {
                     href: '/pray',
                   ),
                   theme: () {
-                    final themes = ref.watch(dailyThemesProvider).maybeWhen(
-                          data: (d) => d,
-                          orElse: () => null,
-                        );
+                    final themes = ref
+                        .watch(dailyThemesProvider)
+                        .maybeWhen(data: (d) => d, orElse: () => null);
                     final n = themes?.count ?? themes?.themes.length ?? 0;
                     return HomeGrowthFeatureInput(
                       title: '探索经文主题',
@@ -713,8 +742,10 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
       PopupMenuItem(
         value: 'friend',
         child: ListTile(
-          leading: Icon(Icons.person_add_alt_1_outlined,
-              color: AppColors.accentDeep),
+          leading: Icon(
+            Icons.person_add_alt_1_outlined,
+            color: AppColors.accentDeep,
+          ),
           title: Text('加好友'),
           subtitle: Text('搜索 ID / 用户名', style: TextStyle(fontSize: 11)),
           contentPadding: EdgeInsets.zero,
@@ -732,8 +763,7 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
       PopupMenuItem(
         value: 'group',
         child: ListTile(
-          leading:
-              Icon(Icons.group_add_outlined, color: AppColors.accentDeep),
+          leading: Icon(Icons.group_add_outlined, color: AppColors.accentDeep),
           title: Text('创建群'),
           subtitle: Text('发起共读群', style: TextStyle(fontSize: 11)),
           contentPadding: EdgeInsets.zero,
@@ -742,8 +772,10 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
       PopupMenuItem(
         value: 'plans',
         child: ListTile(
-          leading:
-              Icon(Icons.calendar_month_outlined, color: AppColors.accentDeep),
+          leading: Icon(
+            Icons.calendar_month_outlined,
+            color: AppColors.accentDeep,
+          ),
           title: Text('创建计划'),
           subtitle: Text('定制读经计划', style: TextStyle(fontSize: 11)),
           contentPadding: EdgeInsets.zero,
@@ -769,10 +801,7 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
 }
 
 class _GreetingHeader extends ConsumerStatefulWidget {
-  const _GreetingHeader({
-    required this.onSearch,
-    this.welcomeBack = false,
-  });
+  const _GreetingHeader({required this.onSearch, this.welcomeBack = false});
   final VoidCallback onSearch;
   final bool welcomeBack;
 
@@ -789,8 +818,9 @@ class _GreetingHeaderState extends ConsumerState<_GreetingHeader> {
     final raw = ref.watch(prefsProvider).getString('onboarding_name')?.trim();
     final fullName = (raw != null && raw.isNotEmpty) ? raw : '读经伙伴';
     // 对齐 PWA HomeGreetStreak：名称截断 6 字 + 问候同一行
-    final displayName =
-        fullName.length <= 6 ? fullName : '${fullName.substring(0, 6)}…';
+    final displayName = fullName.length <= 6
+        ? fullName
+        : '${fullName.substring(0, 6)}…';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -825,11 +855,7 @@ class _GreetingHeaderState extends ConsumerState<_GreetingHeader> {
             ],
           ),
         ),
-        _IconCircle(
-          icon: Icons.search,
-          tooltip: '搜索',
-          onTap: widget.onSearch,
-        ),
+        _IconCircle(icon: Icons.search, tooltip: '搜索', onTap: widget.onSearch),
         const SizedBox(width: 6),
         _IconCircle(
           key: _plusKey,
@@ -892,21 +918,20 @@ class _Pill extends StatelessWidget {
         color: active ? AppColors.accentDeep : AppColors.accentWash,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: active ? Colors.white : AppColors.accentDeep)),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: active ? Colors.white : AppColors.accentDeep,
+        ),
+      ),
     );
   }
 }
 
-
 class _BelowFold extends ConsumerWidget {
-  const _BelowFold({
-    required this.onOpenDiscover,
-    required this.onOpenReview,
-  });
+  const _BelowFold({required this.onOpenDiscover, required this.onOpenReview});
   final VoidCallback onOpenDiscover;
   final VoidCallback onOpenReview;
 
@@ -929,11 +954,15 @@ class _BelowFold extends ConsumerWidget {
                 const _Pill('回顾', active: true),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('${now.month} 月回顾可生成',
-                      style: const TextStyle(fontSize: 13, color: AppColors.ink)),
+                  child: Text(
+                    '${now.month} 月回顾可生成',
+                    style: const TextStyle(fontSize: 13, color: AppColors.ink),
+                  ),
                 ),
-                const Text('看看 ›',
-                    style: TextStyle(color: AppColors.inkFaint, fontSize: 12)),
+                const Text(
+                  '看看 ›',
+                  style: TextStyle(color: AppColors.inkFaint, fontSize: 12),
+                ),
               ],
             ),
           )
@@ -945,11 +974,15 @@ class _BelowFold extends ConsumerWidget {
                 const _Pill('年度', active: true),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('${now.year} 年度回顾',
-                      style: const TextStyle(fontSize: 13, color: AppColors.ink)),
+                  child: Text(
+                    '${now.year} 年度回顾',
+                    style: const TextStyle(fontSize: 13, color: AppColors.ink),
+                  ),
                 ),
-                const Text('生成 ›',
-                    style: TextStyle(color: AppColors.inkFaint, fontSize: 12)),
+                const Text(
+                  '生成 ›',
+                  style: TextStyle(color: AppColors.inkFaint, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -1052,9 +1085,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       return;
     }
     if (_likeBusy || _holdLocalEngagement) {
-      if (_holdLocalEngagement &&
-          !_likeBusy &&
-          widget.initialLiked == _liked) {
+      if (_holdLocalEngagement && !_likeBusy && widget.initialLiked == _liked) {
         _likeCount = widget.initialLikeCount;
         _holdLocalEngagement = false;
       }
@@ -1169,10 +1200,8 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
         : '请简要解读这节经文（$r），先抓住核心信息，再给一点今日应用。';
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AssistantScreen(
-          seedRef: r.isEmpty ? null : r,
-          seedQuestion: q,
-        ),
+        builder: (_) =>
+            AssistantScreen(seedRef: r.isEmpty ? null : r, seedQuestion: q),
       ),
     );
   }
@@ -1190,8 +1219,9 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       if (!ok || widget.day < 1) return;
       try {
         final dio = ref.read(dioProvider);
-        final res =
-            await dio.post('/content/daily-verse/share?day=${widget.day}');
+        final res = await dio.post(
+          '/content/daily-verse/share?day=${widget.day}',
+        );
         final data = res.data is Map
             ? Map<String, dynamic>.from(res.data as Map)
             : <String, dynamic>{};
@@ -1310,15 +1340,18 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
                               overflow: TextOverflow.fade,
                               softWrap: true,
                               style: TextStyle(
-                                fontFamily: 'Songti SC',
+                                // 对齐 PWA --font-reader：英文 Georgia，中文回落宋体。
+                                fontFamily: 'Georgia',
                                 fontFamilyFallback: const [
+                                  'Songti SC',
                                   'STSong',
                                   'Noto Serif SC',
-                                  'serif'
+                                  'serif',
                                 ],
                                 fontSize: verseFs,
-                                height: 1.5,
-                                letterSpacing: 0.3,
+                                height: 1.65,
+                                letterSpacing: verseFs * 0.02,
+                                fontWeight: FontWeight.w500,
                                 color: Colors.white,
                               ),
                             ),
@@ -1435,19 +1468,19 @@ class _GrowthStack extends StatelessWidget {
   final VoidCallback onPrayer;
 
   IconData _icon(String name) => switch (name) {
-        'schedule' => Icons.schedule,
-        'menu_book' => Icons.menu_book_outlined,
-        'prayer' => Icons.volunteer_activism_outlined,
-        _ => Icons.explore_outlined,
-      };
+    'schedule' => Icons.schedule,
+    'menu_book' => Icons.menu_book_outlined,
+    'prayer' => Icons.volunteer_activism_outlined,
+    _ => Icons.explore_outlined,
+  };
 
   VoidCallback? _onTap(String id) => switch (id) {
-        'summary' => onReport,
-        'plan' => onPlan,
-        'theme' => onTheme,
-        'prayer' => onPrayer,
-        _ => null,
-      };
+    'summary' => onReport,
+    'plan' => onPlan,
+    'theme' => onTheme,
+    'prayer' => onPrayer,
+    _ => null,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -1534,13 +1567,19 @@ class _MediaGrowthRow extends StatelessWidget {
                                   height: _thumb,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => Center(
-                                    child: Icon(icon,
-                                        color: AppColors.accentDeep, size: 22),
+                                    child: Icon(
+                                      icon,
+                                      color: AppColors.accentDeep,
+                                      size: 22,
+                                    ),
                                   ),
                                 )
                               : Center(
-                                  child: Icon(icon,
-                                      color: AppColors.accentDeep, size: 22),
+                                  child: Icon(
+                                    icon,
+                                    color: AppColors.accentDeep,
+                                    size: 22,
+                                  ),
                                 ),
                         ),
                       ),
@@ -1555,8 +1594,11 @@ class _MediaGrowthRow extends StatelessWidget {
                               color: Colors.white.withValues(alpha: 0.92),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(icon,
-                                size: 12, color: AppColors.accentDeep),
+                            child: Icon(
+                              icon,
+                              size: 12,
+                              color: AppColors.accentDeep,
+                            ),
                           ),
                         ),
                       if (progressPct != null && progressPct! > 0)
@@ -1647,8 +1689,11 @@ class _MediaGrowthRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right,
-                    color: AppColors.inkFaint, size: 18),
+                const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.inkFaint,
+                  size: 18,
+                ),
               ],
             ),
           ),
