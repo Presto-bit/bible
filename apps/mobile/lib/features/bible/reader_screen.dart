@@ -431,6 +431,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               ? null
               : _readerFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
     );
   }
 

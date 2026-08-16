@@ -706,7 +706,11 @@ class HomeScreen extends ConsumerWidget {
 void _openHeroB(BuildContext context, WidgetRef ref, String href) {
   // 创世记 50 / 真外链：走鉴权内嵌浏览器（勿把外站 URL 收成站内 path）
   if (looksLikeCampaignHref(href) || isGenesis50Href(href)) {
-    openCampaignHref(context, href, title: isGenesis50Href(href) ? '创世记 50 天' : null);
+    openCampaignHref(
+      context,
+      href,
+      title: isGenesis50Href(href) ? '创世记 50 天' : null,
+    );
     return;
   }
   final tab = heroBTabIndex(href);
@@ -1340,18 +1344,21 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
                               overflow: TextOverflow.fade,
                               softWrap: true,
                               style: TextStyle(
-                                // 对齐 PWA --font-reader：英文 Georgia，中文回落宋体。
-                                fontFamily: 'Georgia',
+                                // 与 PWA `--font-reader` 一致：Noto 衬线优先。
+                                fontFamily: 'Noto Serif SC',
                                 fontFamilyFallback: const [
+                                  'Noto Serif CJK SC',
+                                  'Source Han Serif SC',
                                   'Songti SC',
                                   'STSong',
-                                  'Noto Serif SC',
+                                  'Georgia',
                                   'serif',
                                 ],
                                 fontSize: verseFs,
                                 height: 1.65,
                                 letterSpacing: verseFs * 0.02,
-                                fontWeight: FontWeight.w500,
+                                // PWA 自托管衬线仅提供 400 / 600；避免安卓合成 500。
+                                fontWeight: FontWeight.w400,
                                 color: Colors.white,
                               ),
                             ),

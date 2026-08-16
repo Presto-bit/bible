@@ -2179,8 +2179,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
           final mainBase = TextStyle(
             color: theme.ink,
             fontSize: fontPx,
-            // 对齐 PWA 单栏：诗体 2.1，散文 2.05；不在对照模式硬编码 Georgia。
-            height: poetry ? 2.1 : 2.05,
+            // 诗体保留舒展；散文收至 1.9，与 PWA 统一，减少每节的空白感。
+            height: poetry ? 2.1 : 1.9,
             letterSpacing: fontPx * 0.015,
             fontFamily: fontFamily.fontFamily,
             fontFamilyFallback: fontFamily.fontFamilyFallback,
@@ -2282,12 +2282,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 RichText(
-                  textAlign: TextAlign.justify,
+                  textAlign: TextAlign.start,
                   text: TextSpan(style: mainBase, children: primarySpans),
                 ),
                 const SizedBox(height: 6),
                 RichText(
-                  textAlign: TextAlign.justify,
+                  textAlign: TextAlign.start,
                   text: TextSpan(style: parallelBase, children: compareSpans),
                 ),
               ],
@@ -2389,11 +2389,11 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     final fontPx = ref.watch(readerFontProvider).px;
     final selectionActive = widget.selected.isNotEmpty;
     // 选中节高亮即可；不压暗其他节（对齐 PWA，避免「白蒙层」观感）
-    // PWA 晨光/护眼：line-height 2.05 + letter-spacing 0.015em
+    // PWA 散文：line-height 1.9 + letter-spacing 0.015em。
     final baseStyle = TextStyle(
       color: AppColors.ink,
       fontSize: fontPx,
-      height: widget.poetry ? 2.1 : 2.05,
+      height: widget.poetry ? 2.1 : 1.9,
       letterSpacing: fontPx * 0.015,
       fontFamily: widget.fontFamily.fontFamily,
       fontFamilyFallback: widget.fontFamily.fontFamilyFallback,
@@ -2667,7 +2667,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             ),
           );
         }
-        // 节间薄缝：定宽，避免半角空格被 justify 拉宽或软断行
+        // 节间薄缝：定宽，避免半角空格过宽或软断行。
         spans.addAll(
           readerGapSpans(
             ' ',
@@ -2711,7 +2711,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: SelectionContainer.disabled(
             child: RichText(
-              textAlign: TextAlign.justify,
+              textAlign: TextAlign.start,
               text: TextSpan(style: baseStyle, children: spans),
             ),
           ),
@@ -2947,7 +2947,7 @@ class _MarginVerseRow extends StatelessWidget {
                 key: anchorKey,
                 padding: const EdgeInsets.only(right: 4),
                 child: RichText(
-                  textAlign: TextAlign.justify,
+                  textAlign: TextAlign.start,
                   text: TextSpan(style: baseStyle, children: bodyChildren),
                 ),
               ),

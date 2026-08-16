@@ -26,7 +26,8 @@ function isAndroidUa(): boolean {
 }
 
 export const FONT_FAMILIES: { id: ReaderFontFamily; label: string; css: string }[] = [
-  { id: 'serif', label: '衬线', css: "Georgia, 'Songti SC', 'STSong', serif" },
+  // 与 Android 默认的 Noto Serif CJK SC 对齐；Web 优先使用自托管同源字形。
+  { id: 'serif', label: '衬线', css: 'var(--font-reader)' },
   { id: 'sans', label: '黑体', css: "system-ui, -apple-system, 'PingFang SC', sans-serif" },
 ];
 
