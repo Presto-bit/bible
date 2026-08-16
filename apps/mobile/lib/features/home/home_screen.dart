@@ -16,6 +16,7 @@ import '../../core/daily_verse_share.dart';
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/gamification.dart';
 import '../../core/home_bootstrap_cache.dart';
+import '../../core/home_day_wallpaper_cache.dart';
 import '../../core/home_greeting.dart';
 import '../../core/home_liveness.dart';
 import '../../core/campaign_nav.dart';
@@ -1244,9 +1245,11 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.network(
-                  wall,
+                HomeDayNetworkImage(
+                  url: wall,
                   fit: BoxFit.cover,
+                  cacheWidth: 900,
+                  cacheHeight: 600,
                   errorBuilder: (_, __, ___) => const _DawnScene(),
                 ),
                 DecoratedBox(

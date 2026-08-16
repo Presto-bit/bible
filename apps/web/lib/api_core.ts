@@ -1117,100 +1117,150 @@ export interface ChatCallbacks {
 export async function chatStream(
   body: ChatStreamBody,
   cb: ChatCallbacks,
-  opts?: { signal?: AbortSignal },
+  opts?: { signal?: AbortSignal; retryOnZeroDelta?: boolean },
 ): Promise<void> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...authHeaders(),
   };
+  const clientRequestId =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  headers['X-Client-Request-Id'] = clientRequestId;
+  headers['Idempotency-Key'] = clientRequestId;
 
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}/ai/chat`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal: opts?.signal,
-    });
-  } catch (e) {
-    if (opts?.signal?.aborted) {
-      cb.onError?.('请求超时，请重试或前往小爱 Tab 继续对话');
-    } else {
-      cb.onError?.('网络异常，请检查连接后重试');
-    }
-    return;
-  }
-  if (res.status === 429) {
-    cb.onError?.(
-      currentUserId()
-        ? '今日 AI 使用已达上限，请明日再试'
-        : '今日免费次数已用完，明日继续',
-    );
-    return;
-  }
-  if (!res.ok || !res.body) {
-    let detail = `请求失败 ${res.status}`;
+  const runOnce = async (signal?: AbortSignal): Promise<'ok' | 'retry' | 'fail'> => {
+    let res: Response;
     try {
-      const d = (await res.json()) as { detail?: unknown; error?: string };
-      if (typeof d.detail === 'string' && d.detail.trim()) detail = d.detail;
-      else if (typeof d.error === 'string' && d.error.trim()) detail = d.error;
-    } catch {
-      /* ignore */
+      res = await fetch(`${API_BASE}/ai/chat`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (e) {
+      if (signal?.aborted) {
+        cb.onError?.('请求超时，请重试或前往小爱 Tab 继续对话');
+        return 'fail';
+      }
+      if (opts?.retryOnZeroDelta === false) {
+        cb.onError?.('网络异常，请检查连接后重试');
+        return 'fail';
+      }
+      return 'retry';
     }
-    cb.onError?.(detail);
-    return;
-  }
+    if (res.status === 429) {
+      cb.onError?.(
+        currentUserId()
+          ? '今日 AI 使用已达上限，请明日再试'
+          : '今日免费次数已用完，明日继续',
+      );
+      return 'fail';
+    }
+    if (!res.ok || !res.body) {
+      let detail = `请求失败 ${res.status}`;
+      try {
+        const d = (await res.json()) as { detail?: unknown; error?: string };
+        if (typeof d.detail === 'string' && d.detail.trim()) detail = d.detail;
+        else if (typeof d.error === 'string' && d.error.trim()) detail = d.error;
+      } catch {
+        /* ignore */
+      }
+      cb.onError?.(detail);
+      return 'fail';
+    }
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = '';
-  let event = '';
-  let gotDelta = false;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let event = '';
+    let dataLines: string[] = [];
+    let gotDelta = false;
+    let sawDone = false;
 
-  const processLine = (line: string) => {
-    if (line.startsWith('event:')) {
-      event = line.slice(6).trim();
-    } else if (line.startsWith('data:')) {
-      const json = line.slice(5).trim();
+    const flushFrame = () => {
+      if (!event) {
+        dataLines = [];
+        return;
+      }
+      const json = dataLines.join('\n').trim();
+      dataLines = [];
+      const ev = event;
+      event = '';
       if (!json) return;
       try {
         const d = JSON.parse(json);
-        if (event === 'meta') cb.onMeta?.(d);
-        else if (event === 'delta') {
+        if (ev === 'meta') cb.onMeta?.(d);
+        else if (ev === 'delta') {
           gotDelta = true;
           cb.onDelta?.(d.text ?? '');
-        } else if (event === 'followups') {
+        } else if (ev === 'followups') {
           const items = Array.isArray(d.items) ? (d.items as string[]) : [];
           if (items.length) cb.onFollowups?.(items);
-        } else if (event === 'error') cb.onError?.(d.message ?? '出错了');
-        else if (event === 'done') cb.onDone?.(d as ChatDonePayload);
+        } else if (ev === 'error') {
+          cb.onError?.(d.message ?? '出错了');
+        } else if (ev === 'done') {
+          sawDone = true;
+          cb.onDone?.(d as ChatDonePayload);
+        }
       } catch {
         /* 跳过不完整片段 */
       }
+    };
+
+    const processLine = (line: string) => {
+      const raw = line.replace(/\r$/, '');
+      if (!raw) {
+        flushFrame();
+        return;
+      }
+      if (raw.startsWith(':')) return; // heartbeat comment
+      if (raw.startsWith('event:')) {
+        event = raw.slice(6).trim();
+      } else if (raw.startsWith('data:')) {
+        dataLines.push(raw.slice(5).trim());
+      }
+    };
+
+    try {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (value) buf += decoder.decode(value, { stream: true });
+        if (done) buf += decoder.decode();
+
+        const lines = buf.split('\n');
+        buf = done ? '' : (lines.pop() ?? '');
+        for (const line of lines) processLine(line);
+        if (done) {
+          if (buf.trim()) processLine(buf);
+          flushFrame();
+          break;
+        }
+      }
+    } catch (e) {
+      if (signal?.aborted) {
+        cb.onError?.('请求超时，请重试或前往小爱 Tab 继续对话');
+        return 'fail';
+      }
+      if (!gotDelta) return 'retry';
+      cb.onError?.('生成中断，请重试');
+      return 'fail';
     }
+    if (!sawDone) cb.onDone?.();
+    if (!gotDelta && !sawDone) return 'retry';
+    return 'ok';
   };
 
-  try {
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const { done, value } = await reader.read();
-      if (value) buf += decoder.decode(value, { stream: true });
-      if (done) buf += decoder.decode();
-
-      const lines = buf.split('\n');
-      buf = done ? '' : (lines.pop() ?? '');
-      for (const line of lines) processLine(line);
-      if (done) break;
-    }
-  } catch (e) {
-    if (opts?.signal?.aborted) {
-      cb.onError?.('请求超时，请重试或前往小爱 Tab 继续对话');
-    } else if (!gotDelta) {
-      cb.onError?.('连接中断，请重试');
-    }
+  const allowRetry = opts?.retryOnZeroDelta !== false;
+  const first = await runOnce(opts?.signal);
+  if (first === 'retry' && allowRetry && !opts?.signal?.aborted) {
+    const second = await runOnce(opts?.signal);
+    if (second === 'retry') cb.onError?.('连接中断，请重试');
     return;
   }
-  cb.onDone?.();
+  if (first === 'retry') cb.onError?.('连接中断，请重试');
 }
 
 // ── 带认证头的请求（会话令牌 + 设备头；用户码头仅作兼容展示） ──

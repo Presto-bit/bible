@@ -38,7 +38,7 @@ import { shellTapProps } from '@/lib/shell_tap';
 import { unlockReaderSurface } from '@/lib/reader_chrome';
 import CatalogView from '@/components/reader/CatalogView';
 import ReaderView from '@/components/reader/ReaderView';
-import { DictEntrySheet } from '@/components/dictionary/DictEntrySheet';
+import { EntityKnowledgeSheet } from '@/components/knowledge/EntityKnowledgeSheet';
 
 /** Sheet 仍动态加载；目录/阅读器、词典弹层静态导入，避免慢网/WebView 下 chunk 不到位时点了没反应 */
 const VersePreviewSheet = dynamic(
@@ -553,8 +553,9 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         paneActive={paneActive}
       />
       {dictPopup && (
-        <DictEntrySheet
+        <EntityKnowledgeSheet
           entity={dictPopup.entity}
+          name={dictPopup.name}
           candidates={dictPopup.candidates}
           ctx={dictPopup.ctx}
           onClose={() => {

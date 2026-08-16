@@ -92,6 +92,8 @@ class AssistantRepository {
         options: Options(
           responseType: ResponseType.stream,
           headers: {'Accept': 'text/event-stream'},
+          receiveTimeout: const Duration(seconds: 150),
+          sendTimeout: const Duration(seconds: 30),
           validateStatus: (s) => s != null && s < 500,
         ),
       );

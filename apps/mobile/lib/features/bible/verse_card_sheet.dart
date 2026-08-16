@@ -250,7 +250,7 @@ class _VerseCardSheetState extends ConsumerState<_VerseCardSheet> {
                                     ),
                                   const SizedBox(height: 10),
                                   Text(
-                                    _quote.isEmpty ? '（无经文）' : _quote,
+                                    _quote.isEmpty ? '经文加载中' : _quote,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontFamily: 'Songti SC',

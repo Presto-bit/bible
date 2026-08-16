@@ -614,18 +614,41 @@ def chat(
             },
         )
 
-    prep = prepare(
-        ref_raw=body.ref,
-        question=body.question,
-        mode=body.mode,
-        scene=body.scene,
-        history=history,
-        surface=body.surface,
-        reader_context=body.reader_context,
-        knowledge_base_id=body.knowledge_base_id,
-    )
-
     def gen():
+        # 尽早推送 meta，避免 prepare/RAG 阻塞首包导致客户端超时
+        yield _sse(
+            "meta",
+            {
+                "scene": body.scene,
+                "mode": body.mode,
+                "citations_pending": True,
+                "quota": {"used": used, "limit": limit},
+            },
+        )
+        try:
+            prep = prepare(
+                ref_raw=body.ref,
+                question=body.question,
+                mode=body.mode,
+                scene=body.scene,
+                history=history,
+                surface=body.surface,
+                reader_context=body.reader_context,
+                knowledge_base_id=body.knowledge_base_id,
+            )
+        except Exception as exc:
+            logger.exception("ai chat prepare failed")
+            log_ai_request(
+                device_id=x_guest_id,
+                user_id=logged_in,
+                scene=body.scene,
+                mode=body.mode,
+                surface=body.surface,
+                status="error",
+            )
+            yield _sse("error", {"message": f"小爱暂时无法回应：{exc}", "retryable": True})
+            return
+
         yield _sse("meta", {**prep["meta"], "quota": {"used": used, "limit": limit}})
         full = []
         scene = prep["meta"].get("scene")
@@ -667,7 +690,14 @@ def chat(
                 surface=body.surface,
                 status="error",
             )
-            yield _sse("error", {"message": f"小爱暂时无法回应：{exc}"})
+            yield _sse(
+                "error",
+                {
+                    "message": f"小爱暂时无法回应：{exc}",
+                    "retryable": not bool(full),
+                    "delta_count": len(full),
+                },
+            )
             return
         text = "".join(full)
         body_text, followups = split_body_and_followups(text)
@@ -706,5 +736,5 @@ def chat(
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
     )

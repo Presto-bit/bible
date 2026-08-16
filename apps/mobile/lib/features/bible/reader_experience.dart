@@ -28,6 +28,7 @@ import 'chapter_guide_tip.dart';
 import 'content_repository.dart' hide SectionMark;
 import 'dictionary_match.dart';
 import 'entity_knowledge_sheet.dart';
+import 'inline_ref.dart';
 import 'group_checkin_sheet.dart';
 import 'markings_repository.dart';
 import 'models.dart';
@@ -703,6 +704,52 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         .where((v) => _selected.contains(v.verse))
         .map((v) => v.text)
         .join();
+  }
+
+  Widget _sectionTitle(String title) {
+    final muted = _selected.isNotEmpty;
+    final baseColor = muted
+        ? AppColors.inkFaint.withValues(alpha: 0.45)
+        : AppColors.accentDeep;
+    final style = TextStyle(
+      fontSize: 14.5,
+      fontWeight: FontWeight.w700,
+      color: baseColor,
+    );
+    final parts = splitInlineRefs(title);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 16, 0, 4),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            for (final p in parts)
+              if (p.kind == InlineRefKind.ref && p.osis != null)
+                TextSpan(
+                  text: p.value,
+                  style: style.copyWith(
+                    decoration: TextDecoration.underline,
+                    decorationColor: baseColor,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () {
+                      final m = RegExp(
+                        r'^([A-Za-z0-9]+)\.(\d+)',
+                      ).firstMatch(p.osis!);
+                      if (m == null) return;
+                      showInlineVersePreview(
+                        context,
+                        label: p.value,
+                        bookId: m.group(1)!,
+                        chapter: int.parse(m.group(2)!),
+                      );
+                    },
+                )
+              else
+                TextSpan(text: p.value, style: style),
+          ],
+        ),
+      ),
+    );
   }
 
   String get _selectionRefStr {
@@ -1651,7 +1698,18 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                   _clearSelection();
                 },
                 onVerseCard: () {
-                  final t = _selectionText(async.value);
+                  final t = _selectionText(
+                    _liveChapter ?? _cachedChapter ?? async.value,
+                  ).trim();
+                  if (t.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('经文加载中'),
+                        duration: Duration(milliseconds: 1200),
+                      ),
+                    );
+                    return;
+                  }
                   final label = _refLabel;
                   _clearSelection();
                   showVerseCardSheet(context, refLabel: label, text: t);
@@ -1909,19 +1967,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                   }
                   final r = rows[i - 1 - planHead];
                   if (r is String) {
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 16, 0, 4),
-                      child: Text(
-                        r,
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: _selected.isNotEmpty
-                              ? AppColors.inkFaint.withValues(alpha: 0.45)
-                              : AppColors.accentDeep,
-                        ),
-                      ),
-                    );
+                    return _sectionTitle(r);
                   }
                   final para = r as VerseParagraph;
                   return _ParagraphBlock(
@@ -1953,6 +1999,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                     onOpenDict: (entity, name, candidates) {
                       showEntityKnowledgeSheet(
                         context,
+                        ref,
                         entity: entity,
                         displayName: name,
                         candidates: candidates,
@@ -2113,19 +2160,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
           }
           final r = rows[i - 1];
           if (r is String) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(0, 16, 0, 4),
-              child: Text(
-                r,
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: _selected.isNotEmpty
-                      ? AppColors.inkFaint.withValues(alpha: 0.45)
-                      : AppColors.accentDeep,
-                ),
-              ),
-            );
+            return _sectionTitle(r);
           }
           final para = r as VerseParagraph;
           final primarySpans = <InlineSpan>[];

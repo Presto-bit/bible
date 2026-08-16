@@ -2,8 +2,8 @@
 library;
 
 enum AssistantScene {
-  verseQuick('verse_quick', 'explain', 45000),
-  verseFull('verse_full', 'explain', 90000),
+  verseQuick('verse_quick', 'explain', 90000),
+  verseFull('verse_full', 'explain', 150000),
   chatExplain('chat_explain', 'explain', 90000),
   chatUnderstand('chat_understand', 'understand', 90000),
   chatApply('chat_apply', 'apply', 90000),

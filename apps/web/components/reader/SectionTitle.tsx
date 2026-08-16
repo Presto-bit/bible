@@ -16,17 +16,24 @@ export function SectionTitle({
         if (p.kind === 'text') return <span key={i}>{p.value}</span>;
         if (!p.osis) return <span key={i}>{p.value}</span>;
         return (
-          <button
+          <span
             key={i}
-            type="button"
+            role="button"
+            tabIndex={0}
             className="inline-ref-link"
             onClick={(e) => {
               e.stopPropagation();
               onRefClick(p.osis!, p.value);
             }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return;
+              e.preventDefault();
+              e.stopPropagation();
+              onRefClick(p.osis!, p.value);
+            }}
           >
             {p.value}
-          </button>
+          </span>
         );
       })}
     </div>

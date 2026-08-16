@@ -437,6 +437,23 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     _autoScroll();
 
     var gotDelta = false;
+    var pendingDelta = '';
+    Timer? deltaFlush;
+    void flushDelta({bool force = false}) {
+      if (pendingDelta.isEmpty && !force) return;
+      final chunk = pendingDelta;
+      pendingDelta = '';
+      if (!mounted) return;
+      setState(() {
+        if (!gotDelta && chunk.isNotEmpty) {
+          gotDelta = true;
+          _streamPhase = ThinkingPhase.writing;
+        }
+        if (chunk.isNotEmpty) reply.content += chunk;
+      });
+      _autoScroll();
+    }
+
     final stream = ref
         .read(assistantRepoProvider)
         .chat(
@@ -464,21 +481,24 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             _streamPhase = ThinkingPhase.refs;
           });
         case DeltaEvent(:final text):
-          setState(() {
-            if (!gotDelta) {
-              gotDelta = true;
-              _streamPhase = ThinkingPhase.writing;
+          pendingDelta += text;
+          deltaFlush ??= Timer.periodic(const Duration(milliseconds: 100), (_) {
+            flushDelta();
+            if (pendingDelta.isEmpty) {
+              deltaFlush?.cancel();
+              deltaFlush = null;
             }
-            reply.content += text;
           });
-          _autoScroll();
         case FollowupsEvent(:final items):
+          flushDelta(force: true);
           setState(() => reply.followups = items);
         case DoneEvent(:final followups):
+          flushDelta(force: true);
           if (followups.isNotEmpty) {
             setState(() => reply.followups = followups);
           }
         case ErrorEvent(:final message):
+          flushDelta(force: true);
           setState(
             () => reply.content = reply.content.isEmpty
                 ? message
@@ -486,6 +506,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           );
       }
     }
+    deltaFlush?.cancel();
+    flushDelta(force: true);
     _slowTimer?.cancel();
     if (reply.content.isEmpty) {
       setState(() => reply.content = '小爱暂时没有给出回答，请稍后再试。');

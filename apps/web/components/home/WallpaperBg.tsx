@@ -202,6 +202,24 @@ export function WallpaperBg({
       });
 
     void (async () => {
+      // 当日磁盘/Cache Storage 优先
+      try {
+        const { getCachedHomeWallpaperUrl, ensureHomeDayWallpapers } = await import(
+          '@/lib/home_day_wallpaper_cache'
+        );
+        const cached = await getCachedHomeWallpaperUrl(src);
+        if (!cancelled && gen === genRef.current && cached) {
+          blobRef.current = cached;
+          setDisplaySrc(cached);
+          markReady(cached);
+          void ensureHomeDayWallpapers([src]);
+          return;
+        }
+        void ensureHomeDayWallpapers([src]);
+      } catch {
+        /* ignore */
+      }
+
       // 先并行试所有网络候选，提升弱网成功率
       for (const url of candidates) {
         if (cancelled || gen !== genRef.current || readyRef.current) return;

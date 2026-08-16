@@ -50,7 +50,7 @@ final dioProvider = Provider<Dio>((ref) {
     BaseOptions(
       baseUrl: AppConfig.baseUrl,
       connectTimeout: const Duration(seconds: 8),
-      receiveTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 150),
       headers: {'Accept': 'application/json'},
     ),
   );

@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../core/daily_verse_wallpaper.dart';
+import '../../core/home_day_wallpaper_cache.dart';
 import '../../core/theme.dart';
 
 class HomeTodaySlot {
@@ -137,9 +138,11 @@ class _PrimaryCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                src,
+              HomeDayNetworkImage(
+                url: src,
                 fit: BoxFit.cover,
+                cacheWidth: 800,
+                cacheHeight: 600,
                 errorBuilder: (_, __, ___) => Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(

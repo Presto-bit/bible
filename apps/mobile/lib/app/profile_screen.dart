@@ -408,7 +408,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         defaultAvatarId(userId);
 
     final mins = todayMin.maybeWhen(data: (m) => m, orElse: () => 0);
-    final streak = review.maybeWhen(
+    final report = ref.watch(readingReportProvider);
+    final monthDays = report.maybeWhen(
+      data: (d) => d.monthDays,
+      orElse: () => 0,
+    );
+    final streakForMilestone = review.maybeWhen(
       data: (d) => readingStreak(d),
       orElse: () => 0,
     );
@@ -465,7 +470,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final markNew = footprintHasNew(seen, 'marks', highlights);
     final badgeNew = footprintHasNew(seen, 'badges', badgeCount);
 
-    final milestone = pendingStreakMilestone(prefs, streak);
+    final milestone = pendingStreakMilestone(prefs, streakForMilestone);
 
     return Scaffold(
       body: SafeArea(
@@ -604,9 +609,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (streak > 0) ...[
+                        if (monthDays > 0) ...[
                           const Text(
-                            '已同行',
+                            '本月已读',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -619,7 +624,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             TextSpan(
                               children: [
                                 TextSpan(
-                                  text: '$streak',
+                                  text: '$monthDays',
                                   style: const TextStyle(
                                     fontSize: 36,
                                     fontWeight: FontWeight.w700,

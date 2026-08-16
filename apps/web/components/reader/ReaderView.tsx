@@ -403,6 +403,11 @@ export default function ReaderView({
   const [chapterCompleteTipOn, setChapterCompleteTipOn] = useState(true);
   const [chapterCompleteVisible, setChapterCompleteVisible] = useState(false);
   const [verseCardOpen, setVerseCardOpen] = useState(false);
+  const [verseCardSnapshot, setVerseCardSnapshot] = useState<{
+    refLabel: string;
+    text: string;
+    versionLabel: string;
+  } | null>(null);
   const [parallelDiffMap, setParallelDiffMap] = useState<Record<number, VerseDiffResult>>({});
   const [fontFamily, setFontFamilyState] = useState<ReaderFontFamily>('serif');
   const [pageTurn, setPageTurnState] = useState<PageTurnMode>('swipe');
@@ -1015,6 +1020,7 @@ export default function ReaderView({
     setBookCelebrate(false);
     setVerseShareOpen(false);
     setVerseCardOpen(false);
+    setVerseCardSnapshot(null);
     setMarkPaletteOpen(false);
     setPlanOverlayOpen(false);
   }, [paneActive]);
@@ -1069,8 +1075,9 @@ export default function ReaderView({
 
   // 半屏面板打开时显示顶栏与底部 Tab。
   useEffect(() => {
-    if (overlayOpen) setChromeHidden(false);
-  }, [overlayOpen]);
+    if (externalOverlayOpen) setChromeHidden(true);
+    else if (overlayOpen) setChromeHidden(false);
+  }, [externalOverlayOpen, overlayOpen]);
 
   useEffect(() => {
     setVerseNo(getVerseNumberMode());
@@ -3248,7 +3255,17 @@ export default function ReaderView({
                 className="vsb-icon-btn"
                 {...shellTapProps({
                   onTap: () => {
+                    const text = (effSelectionText || '').trim();
+                    if (!text) {
+                      flashToast(englishUI ? 'Verse still loading' : '经文加载中');
+                      return;
+                    }
                     setMarkPaletteOpen(false);
+                    setVerseCardSnapshot({
+                      refLabel: effRefLabel,
+                      text,
+                      versionLabel,
+                    });
                     setVerseCardOpen(true);
                   },
                 })}
@@ -3647,13 +3664,14 @@ export default function ReaderView({
         />
       )}
 
-      {verseCardOpen && (
+      {verseCardOpen && verseCardSnapshot && (
         <VerseCardSheet
-          refLabel={effRefLabel}
-          text={effSelectionText || ''}
-          versionLabel={versionLabel}
+          refLabel={verseCardSnapshot.refLabel}
+          text={verseCardSnapshot.text}
+          versionLabel={verseCardSnapshot.versionLabel}
           onClose={() => {
             setVerseCardOpen(false);
+            setVerseCardSnapshot(null);
             clearSelection();
           }}
           onDone={(msg) => flashToast(msg)}

@@ -128,7 +128,7 @@ export function HomeTodayPanel({
               src={coverSrc}
               className="home-today-primary-bg-img"
               objectPosition="center 28%"
-              fetchPriority="high"
+              fetchPriority="auto"
               onReady={() => setCoverReady(true)}
               onFail={() => setCoverReady(false)}
             />

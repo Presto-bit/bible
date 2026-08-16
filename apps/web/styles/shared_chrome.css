@@ -221,6 +221,16 @@
   padding: 12px 16px;
 }
 
+/* 读经半屏小爱：短答贴底向上长 */
+.reader-ai-half-sheet .half-sheet-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.reader-ai-half-sheet .half-sheet-body > .half-sheet-user-bubble {
+  margin-top: auto;
+}
+
 .half-sheet-verse {
   padding: 10px 12px;
   border-radius: 10px;

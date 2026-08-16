@@ -33,7 +33,7 @@ import {
 } from '@/lib/offline_download_job';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
 import AppBodyPortal from '@/components/AppBodyPortal';
-import { todayMinutes, dailyMinutes, bookProgressMap } from '@/lib/reading';
+import { todayMinutes, dailyMinutes, bookProgressMap, buildReport } from '@/lib/reading';
 import { readingStreak } from '@/lib/gamification';
 import type { BadgeDef } from '@/lib/badges';
 import { computeBadgesWithUnlock, profilePreviewBadges } from '@/lib/badge_unlock';
@@ -576,7 +576,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setBio(userLsGet(BIO_KEY) || '');
       setMins(todayMinutes());
       setWeekMins(weekMinutesTotal());
-      setStreak(readingStreak());
+      setStreak(buildReport().monthDays);
       setAccountComplete(isAccountComplete());
       setFootprintSeen(readFootprintSeen());
       setMilestone(pendingStreakMilestone(readingStreak()));
@@ -657,7 +657,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     const refreshReading = () => {
       setMins(todayMinutes());
       setWeekMins(weekMinutesTotal());
-      setStreak(readingStreak());
+      setStreak(buildReport().monthDays);
       setName(getDisplayName());
       setBio(userLsGet(BIO_KEY) || '');
       refreshFootprintLocal(bookNamesRef.current);
@@ -1187,14 +1187,14 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           onClick={() => markRouteNavigation()}
           aria-label={
             streak > 0
-              ? `已同行 ${streak} 天，今日 ${mins} 分钟，通读 ${journeyPct}%，打开同行读经`
+              ? `本月已读 ${streak} 天，今日 ${mins} 分钟，通读 ${journeyPct}%，打开同行读经`
               : `开始同行读经，今日 ${mins} 分钟，通读 ${journeyPct}%`
           }
         >
           <div className="profile-companion-main">
             {streak > 0 ? (
               <strong className="profile-companion-title">
-                <span className="profile-companion-kicker">已同行</span>
+                <span className="profile-companion-kicker">本月已读</span>
                 <span className="profile-companion-days">
                   <span className="profile-companion-num">{streak}</span>
                   <span className="profile-companion-unit">天</span>

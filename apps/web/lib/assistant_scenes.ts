@@ -28,14 +28,14 @@ export const SCENES: Record<AssistantScene, SceneConfig> = {
     id: 'verse_quick',
     mode: 'explain',
     label: '快读解释',
-    timeoutMs: 45_000,
+    timeoutMs: 90_000,
     wantsFollowups: false,
   },
   verse_full: {
     id: 'verse_full',
     mode: 'explain',
     label: '综合解读',
-    timeoutMs: 90_000,
+    timeoutMs: 150_000,
     wantsFollowups: false,
   },
   chat_explain: {

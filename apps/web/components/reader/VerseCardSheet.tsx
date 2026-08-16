@@ -121,7 +121,7 @@ export default function VerseCardSheet({
               </div>
               <div className="verse-card-preview-body">
                 <p className="verse-card-preview-ref">{refLabel}</p>
-                <p className="verse-card-preview-quote">{quote || '（无经文）'}</p>
+                <p className="verse-card-preview-quote">{quote || '经文加载中'}</p>
                 {note.trim() ? (
                   <p className="verse-card-preview-note">{note.trim()}</p>
                 ) : null}

@@ -1137,11 +1137,16 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
           ),
           const Divider(height: 1, color: AppColors.line),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                   if (widget.selectionText.trim().isNotEmpty)
                     Container(
                       width: double.infinity,
@@ -1226,8 +1231,11 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                 child: const Text('重试'),
               ),
             ),
-                ],
-              ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           SafeArea(
