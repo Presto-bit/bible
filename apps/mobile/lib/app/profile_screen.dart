@@ -483,6 +483,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const Spacer(),
                 IconButton(
                   tooltip: '分享彼爱',
+                  constraints: const BoxConstraints.tightFor(
+                    width: 40,
+                    height: 40,
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  visualDensity: VisualDensity.compact,
                   onPressed: () {
                     Share.share(
                       '彼爱 · 安静读经，在话语中相遇\nhttps://2sc.prestoai.cn',
@@ -493,6 +499,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 IconButton(
                   tooltip: '设置',
+                  constraints: const BoxConstraints.tightFor(
+                    width: 40,
+                    height: 40,
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  visualDensity: VisualDensity.compact,
                   onPressed: _openSettings,
                   icon: const Icon(Icons.settings_outlined, size: 22),
                 ),
@@ -718,6 +730,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _FootprintCell(
                   // 足迹入口统一用用户可理解的「笔记」；底层仍复用经文想法数据。
                   kind: '笔记',
+                  tone: _FootprintTone.thought,
                   count: thoughts.length,
                   value: thoughtPreview.isEmpty ? '写下第一句' : thoughtPreview,
                   empty: thoughtPreview.isEmpty,
@@ -730,6 +743,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 _FootprintCell(
                   kind: '划线',
+                  tone: _FootprintTone.mark,
                   count: highlights,
                   value: markPreview.isEmpty ? '去读经划线' : markPreview,
                   empty: markPreview.isEmpty,
@@ -742,6 +756,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 _FootprintCell(
                   kind: '成就',
+                  tone: _FootprintTone.badge,
                   count: badgeCount,
                   value: badgeCount == 0 ? '去解锁第一枚' : '',
                   empty: badgeCount == 0,
@@ -757,6 +772,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 _FootprintCell(
                   kind: '旅程',
+                  tone: _FootprintTone.journey,
                   count: 0,
                   value: journeyPct > 0 ? '通读 $journeyPct% · 继续' : '开始通读计划',
                   empty: journeyPct == 0,
@@ -900,6 +916,7 @@ class _JourneyRing extends StatelessWidget {
 class _FootprintCell extends StatelessWidget {
   const _FootprintCell({
     required this.kind,
+    required this.tone,
     required this.count,
     required this.value,
     required this.empty,
@@ -910,6 +927,7 @@ class _FootprintCell extends StatelessWidget {
   });
 
   final String kind;
+  final _FootprintTone tone;
   final int count;
   final String value;
   final bool empty;
@@ -921,7 +939,8 @@ class _FootprintCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PaperCard(
-      tier: 2,
+      tier: 1,
+      tint: tone.tint,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       onTap: onTap,
       child: Column(
@@ -929,12 +948,14 @@ class _FootprintCell extends StatelessWidget {
         children: [
           Row(
             children: [
+              Icon(tone.icon, size: 17, color: tone.ink),
+              const SizedBox(width: 7),
               Text(
                 kind,
                 style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.inkFaint,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.inkSoft,
                 ),
               ),
               if (isNew) ...[
@@ -942,8 +963,8 @@ class _FootprintCell extends StatelessWidget {
                 Container(
                   width: 7,
                   height: 7,
-                  decoration: const BoxDecoration(
-                    color: AppColors.accentDeep,
+                  decoration: BoxDecoration(
+                    color: tone.ink,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -977,7 +998,7 @@ class _FootprintCell extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: empty ? 13 : 14,
+                fontSize: empty ? 13 : 15,
                 height: 1.35,
                 fontWeight: empty ? FontWeight.w500 : FontWeight.w600,
                 fontStyle: empty ? FontStyle.italic : FontStyle.normal,
@@ -988,6 +1009,31 @@ class _FootprintCell extends StatelessWidget {
       ),
     );
   }
+}
+
+enum _FootprintTone { thought, mark, badge, journey }
+
+extension on _FootprintTone {
+  Color get tint => switch (this) {
+    _FootprintTone.thought => AppColors.accent,
+    _FootprintTone.mark => const Color(0xFFC4A574),
+    _FootprintTone.badge => const Color(0xFFD4A017),
+    _FootprintTone.journey => const Color(0xFF6B8CAE),
+  };
+
+  Color get ink => switch (this) {
+    _FootprintTone.thought => AppColors.accentDeep,
+    _FootprintTone.mark => const Color(0xFFA67C52),
+    _FootprintTone.badge => const Color(0xFFB8860B),
+    _FootprintTone.journey => const Color(0xFF5A7A9A),
+  };
+
+  IconData get icon => switch (this) {
+    _FootprintTone.thought => Icons.chat_bubble_outline,
+    _FootprintTone.mark => Icons.bookmark_border,
+    _FootprintTone.badge => Icons.workspace_premium_outlined,
+    _FootprintTone.journey => Icons.north_east_rounded,
+  };
 }
 
 class _ShortcutTabs extends ConsumerStatefulWidget {
@@ -1037,6 +1083,8 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
               Expanded(
                 child: _ShortcutTabItem(
                   label: '今日温习',
+                  icon: Icons.emoji_events_outlined,
+                  tone: const Color(0xFF4A8060),
                   active: _tab == 'challenge',
                   onTap: () => setState(() => _tab = 'challenge'),
                 ),
@@ -1045,6 +1093,8 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
               Expanded(
                 child: _ShortcutTabItem(
                   label: '提醒',
+                  icon: Icons.notifications_none_rounded,
+                  tone: const Color(0xFF5A7A9A),
                   active: _tab == 'remind',
                   onTap: () => setState(() => _tab = 'remind'),
                   onLongPress: widget.onRemindLongPress,
@@ -1054,6 +1104,8 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
               Expanded(
                 child: _ShortcutTabItem(
                   label: '离线',
+                  icon: Icons.menu_book_outlined,
+                  tone: const Color(0xFF666666),
                   active: _tab == 'offline',
                   onTap: () => setState(() => _tab = 'offline'),
                 ),
@@ -1063,6 +1115,11 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
         ),
         const SizedBox(height: 10),
         PaperCard(
+          tint: _tab == 'challenge'
+              ? AppColors.accent
+              : (_tab == 'remind'
+                    ? const Color(0xFF6B8CAE)
+                    : const Color(0xFF8A8A8A)),
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1163,11 +1220,15 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
 class _ShortcutTabItem extends StatelessWidget {
   const _ShortcutTabItem({
     required this.label,
+    required this.icon,
+    required this.tone,
     required this.onTap,
     this.onLongPress,
     this.active = false,
   });
   final String label;
+  final IconData icon;
+  final Color tone;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final bool active;
@@ -1179,20 +1240,25 @@ class _ShortcutTabItem extends StatelessWidget {
       onLongPress: onLongPress,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           color: active ? AppColors.accentWash.withValues(alpha: 0.55) : null,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: active ? AppColors.accentDeep : AppColors.ink,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: active ? tone : AppColors.inkFaint),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: active ? AppColors.ink : AppColors.inkSoft,
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

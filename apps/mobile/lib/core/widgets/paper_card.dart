@@ -49,10 +49,12 @@ class PaperCard extends StatelessWidget {
     final surface = theme.colorScheme.surface;
     final primary = theme.colorScheme.primary;
     // 对齐 --soft-card-edge：ink-faint 混入 line
-    final softEdge = Color.lerp(AppColors.inkFaint, line, 0.68)!
-        .withValues(alpha: dark ? 0.55 : 0.9);
-    final borderColor =
-        tint != null ? tint!.withValues(alpha: 0.22) : softEdge;
+    final softEdge = Color.lerp(
+      AppColors.inkFaint,
+      line,
+      0.68,
+    )!.withValues(alpha: dark ? 0.55 : 0.9);
+    final borderColor = tint != null ? tint!.withValues(alpha: 0.22) : softEdge;
 
     final base = surface;
 
@@ -60,10 +62,7 @@ class PaperCard extends StatelessWidget {
         ? LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color.lerp(tint!, surface, 0.89)!,
-              surface,
-            ],
+            colors: [Color.lerp(tint!, surface, 0.89)!, surface],
             stops: const [0, 0.58],
           )
         : LinearGradient(
@@ -113,14 +112,7 @@ class PaperCard extends StatelessWidget {
 
     final card = onTap == null
         ? content
-        : Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: radius,
-              onTap: onTap,
-              child: content,
-            ),
-          );
+        : _PaperCardTapSurface(radius: radius, onTap: onTap!, child: content);
 
     return margin == null ? card : Padding(padding: margin!, child: card);
   }
@@ -164,5 +156,47 @@ class PaperCard extends StatelessWidget {
           ),
         ];
     }
+  }
+}
+
+/// 与 PWA soft card 一致的轻按压：仅交互卡启用，减少「静态方块」感。
+class _PaperCardTapSurface extends StatefulWidget {
+  const _PaperCardTapSurface({
+    required this.radius,
+    required this.onTap,
+    required this.child,
+  });
+
+  final BorderRadius radius;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_PaperCardTapSurface> createState() => _PaperCardTapSurfaceState();
+}
+
+class _PaperCardTapSurfaceState extends State<_PaperCardTapSurface> {
+  var _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed != value && mounted) setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      duration: const Duration(milliseconds: 110),
+      curve: Curves.easeOut,
+      scale: _pressed ? 0.985 : 1,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: widget.radius,
+          onTap: widget.onTap,
+          onHighlightChanged: _setPressed,
+          child: widget.child,
+        ),
+      ),
+    );
   }
 }
