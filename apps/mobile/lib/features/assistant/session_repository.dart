@@ -127,18 +127,25 @@ class SessionRepository {
 
   /// 同锚点 · 中国当天续用（PRODUCT §5.3）；否则 null → 新建。
   Future<AiSession?> findResumableSession(String? anchorRef) async {
-    final key = (anchorRef ?? '').trim();
+    final key = normalizeSessionRef(anchorRef);
     if (key.isEmpty) return null;
     final today = _chinaTodayYmd();
     final list = await _db.watchSessions().first;
     for (final s in list) {
       if (s.deleted) continue;
-      final a = (s.anchorRef ?? '').trim();
-      if (a != key) continue;
+      if (normalizeSessionRef(s.anchorRef) != key) continue;
       final day = _ymdFromMs(s.updatedAtMs);
       if (day == today) return s;
     }
     return null;
+  }
+
+  /// 对齐 PWA `normalizeSessionRef`：大写、去掉 @译本后缀。
+  static String normalizeSessionRef(String? ref) {
+    final t = (ref ?? '').trim().toUpperCase();
+    if (t.isEmpty) return '';
+    final at = t.indexOf('@');
+    return at < 0 ? t : t.substring(0, at);
   }
 
   static String _chinaTodayYmd() {

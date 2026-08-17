@@ -1105,20 +1105,25 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
     await _loadOnce();
   }
 
-  /// 按 anchorRef 分组；空锚点归「随问」，且「随问」置末。
+  /// 按经节锚点分组（无锚点归「随问」）；组内/组间按最近更新降序；「随问」置末。
+  /// 对齐 PWA `groupSessionsByRef`。
   List<MapEntry<String, List<AiSession>>> _grouped(List<AiSession> list) {
     final map = <String, List<AiSession>>{};
     for (final s in list) {
-      final key = (s.anchorRef == null || s.anchorRef!.trim().isEmpty)
-          ? '随问'
-          : s.anchorRef!.trim();
-      map.putIfAbsent(key, () => []).add(s);
+      final key = SessionRepository.normalizeSessionRef(s.anchorRef);
+      final label = key.isEmpty ? '随问' : key;
+      map.putIfAbsent(label, () => []).add(s);
+    }
+    for (final e in map.entries) {
+      e.value.sort((a, b) => b.updatedAtMs.compareTo(a.updatedAtMs));
     }
     final entries = map.entries.toList()
       ..sort((a, b) {
         if (a.key == '随问') return 1;
         if (b.key == '随问') return -1;
-        return a.key.compareTo(b.key);
+        final ta = a.value.isEmpty ? 0 : a.value.first.updatedAtMs;
+        final tb = b.value.isEmpty ? 0 : b.value.first.updatedAtMs;
+        return tb.compareTo(ta);
       });
     return entries;
   }
