@@ -391,6 +391,16 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   /// 划词手势中：禁止横滑翻章（对齐 PWA swipeIgnore）
   bool _selectionGestureActive = false;
 
+  /// 跟手翻页指针态（对齐 PWA useReaderPageTurn 轴锁，避免与竖滚抢手势）
+  int? _pagePointerId;
+  Offset? _pagePointerStart;
+  String? _pagePointerAxis;
+  double _pagePointerVelocity = 0;
+  int _pagePointerLastMoveMs = 0;
+
+  static const _pageAxisMinPx = 8.0;
+  static const _pageAxisRatio = 1.15;
+
   @override
   void initState() {
     super.initState();
@@ -438,6 +448,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         _pageTurnPrefetched = false;
         _pageDragAxis = null;
         _selectionGestureActive = false;
+        _resetPagePointer();
         _cachedChapter = readChapterCache(
           ref.read(prefsProvider),
           widget.book.id,
@@ -1530,6 +1541,76 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _pageTurnPrefetched = false;
     _pageDragAxis = null;
     _pageTurnAnimating = false;
+    _resetPagePointer();
+  }
+
+  void _resetPagePointer() {
+    _pagePointerId = null;
+    _pagePointerStart = null;
+    _pagePointerAxis = null;
+    _pagePointerVelocity = 0;
+    _pagePointerLastMoveMs = 0;
+  }
+
+  bool _pagePointerAllowed(PointerEvent e) =>
+      e.kind == PointerDeviceKind.touch ||
+      e.kind == PointerDeviceKind.mouse ||
+      e.kind == PointerDeviceKind.stylus;
+
+  void _onPagePointerDown(PointerDownEvent e, {required bool swipeOn}) {
+    if (!swipeOn || _pageTurnAnimating || _selectionGestureActive) return;
+    if (!_pagePointerAllowed(e)) return;
+    if (_pagePointerId != null) return;
+    _pagePointerId = e.pointer;
+    _pagePointerStart = e.position;
+    _pagePointerAxis = null;
+    _pagePointerVelocity = 0;
+    _pagePointerLastMoveMs = 0;
+  }
+
+  void _onPagePointerMove(PointerMoveEvent e, {required bool swipeOn}) {
+    if (e.pointer != _pagePointerId || !swipeOn || _pageTurnAnimating) return;
+    final start = _pagePointerStart;
+    if (start == null) return;
+
+    final totalDx = e.position.dx - start.dx;
+    final totalDy = e.position.dy - start.dy;
+    if (_pagePointerAxis == null) {
+      if (totalDx.abs() < _pageAxisMinPx && totalDy.abs() < _pageAxisMinPx) {
+        return;
+      }
+      if (totalDy.abs() > totalDx.abs() * _pageAxisRatio) {
+        _pagePointerAxis = 'y';
+        return;
+      }
+      _pagePointerAxis = 'x';
+      _pageDragAxis = 'x';
+    }
+    if (_pagePointerAxis != 'x') return;
+
+    _onPageDragUpdate(e.delta.dx);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (_pagePointerLastMoveMs > 0) {
+      final dt = (now - _pagePointerLastMoveMs) / 1000.0;
+      if (dt > 0.001) _pagePointerVelocity = e.delta.dx / dt;
+    }
+    _pagePointerLastMoveMs = now;
+  }
+
+  void _onPagePointerEnd(PointerEvent e, {required bool swipeOn}) {
+    if (e.pointer != _pagePointerId) return;
+    if (_pagePointerAxis == 'x' &&
+        swipeOn &&
+        (_pageDragRaw != 0 || _pageDragDx != 0)) {
+      unawaited(_finishPageTurn(velocityPxPerSec: _pagePointerVelocity));
+    } else if (_pageDragDx != 0 || _pageDragRaw != 0) {
+      if (_pageTurnAnimating) {
+        setState(_resetPageDrag);
+      } else {
+        _resetPageDrag();
+      }
+    }
+    _resetPagePointer();
   }
 
   void _onPageDragUpdate(double deltaDx) {
@@ -1574,13 +1655,16 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     await _pageTurnController.forward(from: 0);
   }
 
-  Future<void> _finishPageTurn(DragEndDetails d) async {
+  Future<void> _finishPageTurn({
+    DragEndDetails? details,
+    double? velocityPxPerSec,
+  }) async {
     if (_pageTurnAnimating) return;
     widget.onInteract();
     final width = MediaQuery.sizeOf(context).width;
     // 用原始位移判定方向/阈值，避免边界阻力压扁后永远翻不过去
     final dx = _pageDragRaw;
-    final v = d.primaryVelocity ?? 0;
+    final v = velocityPxPerSec ?? details?.primaryVelocity ?? 0;
     final goingNext = dx < 0 || (dx == 0 && v < 0);
     final can = _adjacentTarget(goingNext ? 1 : -1) != null;
     final ratio = width > 0 ? dx.abs() / width : 0.0;
@@ -1647,62 +1731,11 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final fontPx = watchRef.watch(readerFontProvider).px;
     final fontFamily = watchRef.watch(readerFontFamilyProvider);
     final verseNo = watchRef.watch(readerVerseNumberProvider);
-    final highlights = watchRef.watch(highlightMapProvider).value ?? const {};
-    final toggles = watchRef.watch(readerFeatureTogglesProvider);
-    // 词典/想法/笔记与主文取自同一数据源，预览才能画出同样的下划线与图标。
-    final dictList = watchRef.watch(dictionaryProvider('')).value ?? const [];
-    final dictIndex = buildDictIndex(dictList);
-    final dictKeys = dictSortedKeys(dictIndex);
-    final dictRev = dictListRevision(dictList);
-    final thoughtsByVerse = watchRef.watch(
-      thoughtsByChapterProvider((
-        book: target.book.id,
-        chapter: target.chapter,
-      )),
-    );
-    final myThoughtsByVerse = watchRef.watch(
-      myThoughtsByChapterProvider((
-        book: target.book.id,
-        chapter: target.chapter,
-      )),
-    );
-    final notesByVerse = watchRef
-        .watch(notesStreamProvider)
-        .maybeWhen(
-          data: (list) => notesForChapter(list, target.book.id, target.chapter),
-          orElse: () => const <int, List<Note>>{},
-        );
-    final planMeta = widget.planMeta;
-    final peekPlanBar = planMeta == null
-        ? null
-        : IgnorePointer(
-            child: PlanReadingBar(
-              planTitle: planMeta.planTitle,
-              day: planMeta.day,
-              totalDays: planMeta.totalDays,
-              steps: planMeta.steps,
-              session: planMeta.session,
-              onJumpStep: (_) {},
-              onOpenSheet: () {},
-            ),
-          );
-    final compareId = widget.mainVersionId == null
-        ? widget.compareVersionId
-        : null;
     final layoutAsync = widget.mainVersionId != null
         ? watchRef.watch(
             chapterProvider((book: target.book.id, chapter: target.chapter)),
           )
         : null;
-    final compareAsync = compareId == null
-        ? null
-        : watchRef.watch(
-            chapterVersionProvider((
-              book: target.book.id,
-              chapter: target.chapter,
-              version: compareId,
-            )),
-          );
     final outline = outlineFor(target.book.id, target.chapter);
     final sectionByVerse = {for (final s in outline) s.verse: s.title};
     final apiSections = watchRef
@@ -1723,7 +1756,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     return ColoredBox(
       color: theme.background,
       child: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SizedBox.shrink(),
         error: (_, _) => Center(
           child: Text(
             '加载失败',
@@ -1731,34 +1764,34 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           ),
         ),
         data: (ch) {
-          // 有独立译本时须等默认布局章就绪，避免用译本经文做分段导致预览标题/段落错位。
           if (widget.mainVersionId != null &&
               (layoutAsync == null || !layoutAsync.hasValue)) {
-            return const Center(child: CircularProgressIndicator());
+            return const SizedBox.shrink();
           }
           return _ChapterPeekContent(
             book: target.book,
             chapter: target.chapter,
             primary: ch,
             structure: layoutAsync?.value ?? ch,
-            parallel: compareAsync?.value,
+            parallel: null,
             sectionByVerse: sectionByVerse,
             verseNo: verseNo,
             fontPx: fontPx,
             fontFamily: fontFamily,
-            highlights: highlights,
-            underlinesEnabled: toggles.underlines,
-            dictIndex: dictIndex,
-            dictKeys: dictKeys,
-            dictRev: dictRev,
-            thoughtsEnabled: toggles.thoughts,
-            thoughtsByVerse: thoughtsByVerse,
-            myThoughtsByVerse: myThoughtsByVerse,
-            notesByVerse: notesByVerse,
-            headerBar: peekPlanBar,
-            selectionActive: _selected.isNotEmpty,
+            highlights: const {},
+            underlinesEnabled: false,
+            dictIndex: const {},
+            dictKeys: const [],
+            dictRev: 0,
+            thoughtsEnabled: false,
+            thoughtsByVerse: const {},
+            myThoughtsByVerse: const {},
+            notesByVerse: const {},
+            headerBar: null,
+            selectionActive: false,
             theme: theme,
             topPad: topPad,
+            lite: true,
           );
         },
       ),
@@ -2194,7 +2227,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         physics: pageTurn == ReaderPageTurn.scroll
             ? const ClampingScrollPhysics()
             : _DragLockScrollPhysics(dx: _pageDragDxN),
-        scrollCacheExtent: const ScrollCacheExtent.pixels(640),
+        scrollCacheExtent: const ScrollCacheExtent.pixels(480),
+        addAutomaticKeepAlives: false,
+        addSemanticIndexes: false,
         // 沉浸：顶垫给固定卷章条；非沉浸：底垫对齐胶囊底栏（peiaiTabContentBottomPad）
         padding: EdgeInsets.fromLTRB(
           16,
@@ -2377,20 +2412,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       data: MediaQuery.of(
         context,
       ).copyWith(gestureSettings: const DeviceGestureSettings(touchSlop: 8)),
-      child: GestureDetector(
-        onHorizontalDragUpdate: swipeOn
-            ? (d) => _onPageDragUpdate(d.delta.dx)
-            : null,
-        onHorizontalDragEnd: swipeOn ? _finishPageTurn : null,
-        onHorizontalDragCancel: () {
-          if (_pageDragDx != 0 || _pageDragRaw != 0 || _pageDragAxis != null) {
-            if (_pageTurnAnimating) {
-              setState(_resetPageDrag);
-            } else {
-              _resetPageDrag();
-            }
-          }
-        },
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: swipeOn ? (e) => _onPagePointerDown(e, swipeOn: swipeOn) : null,
+        onPointerMove: swipeOn ? (e) => _onPagePointerMove(e, swipeOn: swipeOn) : null,
+        onPointerUp: swipeOn ? (e) => _onPagePointerEnd(e, swipeOn: swipeOn) : null,
+        onPointerCancel: swipeOn ? (e) => _onPagePointerEnd(e, swipeOn: swipeOn) : null,
         child: ValueListenableBuilder<double>(
           valueListenable: _pageDragDxN,
           builder: (context, dx, child) {
@@ -2401,12 +2428,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (dx < -2)
-                        Positioned(
-                          left: pageW + dx,
-                          top: 0,
-                          bottom: 0,
-                          width: pageW,
+                      Positioned(
+                        left: pageW + dx,
+                        top: 0,
+                        bottom: 0,
+                        width: pageW,
+                        child: RepaintBoundary(
                           child: Consumer(
                             builder: (context, watchRef, _) =>
                                 _chapterPeekPanel(
@@ -2417,12 +2444,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                                 ),
                           ),
                         ),
-                      if (dx > 2)
-                        Positioned(
-                          left: dx - pageW,
-                          top: 0,
-                          bottom: 0,
-                          width: pageW,
+                      ),
+                      Positioned(
+                        left: dx - pageW,
+                        top: 0,
+                        bottom: 0,
+                        width: pageW,
+                        child: RepaintBoundary(
                           child: Consumer(
                             builder: (context, watchRef, _) =>
                                 _chapterPeekPanel(
@@ -2433,6 +2461,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                                 ),
                           ),
                         ),
+                      ),
                       Transform.translate(offset: Offset(dx, 0), child: child),
                     ],
                   ),
@@ -2544,7 +2573,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       physics: pageTurn == ReaderPageTurn.scroll
           ? const ClampingScrollPhysics()
           : _DragLockScrollPhysics(dx: _pageDragDxN),
-      scrollCacheExtent: const ScrollCacheExtent.pixels(640),
+      scrollCacheExtent: const ScrollCacheExtent.pixels(480),
+      addAutomaticKeepAlives: false,
+      addSemanticIndexes: false,
       // 对照模式同样沿用 PWA 的 16px 阅读边距，并垫开胶囊底栏。
       padding: EdgeInsets.fromLTRB(
         16,
@@ -2738,6 +2769,7 @@ class _ChapterPeekContent extends StatelessWidget {
     required this.selectionActive,
     required this.theme,
     required this.topPad,
+    this.lite = false,
   });
 
   final BibleBook book;
@@ -2766,6 +2798,7 @@ class _ChapterPeekContent extends StatelessWidget {
   final bool selectionActive;
   final ReaderExperienceTheme theme;
   final double topPad;
+  final bool lite;
 
   bool get _poetry => const {
     'PSA',
@@ -2801,6 +2834,32 @@ class _ChapterPeekContent extends StatelessWidget {
 
   String _textFor(Chapter source, int verse) =>
       source.verses.where((v) => v.verse == verse).firstOrNull?.text ?? '—';
+
+  /// 横滑预览轻量渲染：整节 TextSpan，避免逐词 WidgetSpan 拖慢跟手。
+  List<InlineSpan> _verseSpansLite(
+    Verse verse, {
+    required TextStyle style,
+    required bool showNumber,
+  }) {
+    final spans = <InlineSpan>[];
+    if (showNumber && verseNo != ReaderVerseNumberMode.hidden) {
+      spans.add(
+        TextSpan(
+          text: '${verse.verse} ',
+          style: style.copyWith(
+            color: AppColors.accentDeep,
+            fontSize: fontPx * 0.65,
+            fontWeight: FontWeight.w700,
+            height: 1.0,
+            letterSpacing: 0,
+          ),
+        ),
+      );
+    }
+    spans.add(TextSpan(text: verse.text, style: style));
+    spans.add(const TextSpan(text: ' '));
+    return spans;
+  }
 
   /// 与主文 `_ParagraphBlock` 同构：同样切词、同样逐词 WidgetSpan、同样下划线与
   /// 定宽间隙。预览若退化成整段 TextSpan，落地时断行会整体重排，观感就是「页面波动」。
@@ -2968,6 +3027,58 @@ class _ChapterPeekContent extends StatelessWidget {
     final display = para.verses
         .map((v) => Verse(verse: v.verse, text: _textFor(primary, v.verse)))
         .toList();
+    if (lite) {
+      if (verseNo == ReaderVerseNumberMode.margin) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final verse in display)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: fontPx * 1.8,
+                      child: Text(
+                        '${verse.verse}',
+                        textAlign: TextAlign.right,
+                        style: _mainStyle.copyWith(
+                          fontSize: fontPx * 0.65,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.accentDeep.withValues(alpha: 0.85),
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: fontPx * 0.35),
+                    Expanded(
+                      child: Text(verse.text, style: _mainStyle),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      }
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: RichText(
+          textAlign: TextAlign.justify,
+          text: TextSpan(
+            style: _mainStyle,
+            children: [
+              for (final verse in display)
+                ..._verseSpansLite(
+                  verse,
+                  style: _mainStyle,
+                  showNumber: verseNo != ReaderVerseNumberMode.margin,
+                ),
+            ],
+          ),
+        ),
+      );
+    }
     if (verseNo == ReaderVerseNumberMode.margin) {
       // 与主文 `_MarginVerseRow` 同构：每节上下 3px、节号列宽/字重/间距一致，
       // 段落本身不再额外留 14px，否则落地时整段会向上跳。
@@ -3103,21 +3214,23 @@ class _ChapterPeekContent extends StatelessWidget {
       if (title != null && title.trim().isNotEmpty) rows.add(title.trim());
       rows.add(paragraph);
     }
+    final itemCount = rows.length.clamp(0, 24);
     return ExcludeSemantics(
-      child: ListView(
+      child: ListView.builder(
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(16, topPad, 20, 24),
-        // 预览与 PWA ReaderChapterPeek 一致：不显示卷/章头，只渲经文。
-        // 取够铺满一屏的段落数：短段（诗篇等）12 段撑不满，落地补齐时会露出空白。
-        children: [
-          ?headerBar,
-          for (final row in rows.take(24))
-            row is String
-                ? _sectionTitle(row)
-                : parallel == null
-                ? _proseParagraph(row as VerseParagraph)
-                : _parallelParagraph(row as VerseParagraph),
-        ],
+        addAutomaticKeepAlives: false,
+        addSemanticIndexes: false,
+        itemCount: itemCount + (headerBar != null ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (headerBar != null && i == 0) return headerBar!;
+          final row = rows[i - (headerBar != null ? 1 : 0)];
+          return row is String
+              ? _sectionTitle(row)
+              : lite || parallel == null
+              ? _proseParagraph(row as VerseParagraph)
+              : _parallelParagraph(row as VerseParagraph);
+        },
       ),
     );
   }
