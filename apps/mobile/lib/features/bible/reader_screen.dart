@@ -513,19 +513,40 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               child: const Icon(Icons.groups_outlined, size: 20),
             ),
           ),
-          FloatingActionButton.extended(
-            heroTag: 'reader-xiaoai',
-            backgroundColor: AppColors.accentDeep,
-            foregroundColor: Colors.white,
-            elevation: 3,
-            tooltip: '问小爱',
-            icon: const Icon(Icons.auto_awesome, size: 20),
-            label: const Text('小爱', style: TextStyle(fontWeight: FontWeight.w700)),
-            onPressed: () {
-              peiaiHapticLight(context);
-              _onOpenOverlay();
-              _openXiaoAiSheet(context);
-            },
+          // 对齐 PWA `.reader-fab`：高 48、字 14、✦ 小爱（勿用 Material extended≈56）
+          Tooltip(
+            message: '问小爱',
+            child: Material(
+              color: AppColors.accentDeep,
+              elevation: 3,
+              shadowColor: const Color(0x2E000000),
+              borderRadius: BorderRadius.circular(24),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: () {
+                  peiaiHapticLight(context);
+                  _onOpenOverlay();
+                  _openXiaoAiSheet(context);
+                },
+                child: const SizedBox(
+                  height: 48,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14),
+                    child: Center(
+                      child: Text(
+                        '✦ 小爱',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),

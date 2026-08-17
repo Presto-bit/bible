@@ -161,6 +161,14 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
       debugShowCheckedModeBanner: false,
       theme: theme,
       routerConfig: ref.watch(routerProvider),
+      // 对齐 PWA `text-size-adjust: 100%`：经文以 App 内 Aa 为准，不跟系统字体放大。
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(textScaler: TextScaler.noScaling),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }
