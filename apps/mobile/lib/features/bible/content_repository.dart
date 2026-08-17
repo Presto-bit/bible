@@ -11,9 +11,9 @@ class RelatedVerse {
   final String ref; // 如 "JHN 3:17"
   final String text;
   factory RelatedVerse.fromJson(Map<String, dynamic> j) => RelatedVerse(
-        ref: (j['ref'] ?? '') as String,
-        text: (j['text'] ?? '') as String,
-      );
+    ref: (j['ref'] ?? '') as String,
+    text: (j['text'] ?? '') as String,
+  );
 
   /// 解析为 (bookId, chapter)，失败返回 null。
   ({String book, int chapter})? get target {
@@ -28,11 +28,11 @@ class CrossrefResult {
   final String label;
   final List<RelatedVerse> related;
   factory CrossrefResult.fromJson(Map<String, dynamic> j) => CrossrefResult(
-        label: (j['label'] ?? j['ref'] ?? '') as String,
-        related: ((j['related'] ?? []) as List)
-            .map((e) => RelatedVerse.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    label: (j['label'] ?? j['ref'] ?? '') as String,
+    related: ((j['related'] ?? []) as List)
+        .map((e) => RelatedVerse.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class DictEntity {
@@ -91,23 +91,25 @@ class EntityKnowledge {
     final rawPlace = json['place'];
     return EntityKnowledge(
       entity: DictEntity.fromJson(
-        rawEntity is Map<String, dynamic>
-            ? rawEntity
+        rawEntity is Map
+            ? Map<String, dynamic>.from(rawEntity)
             : <String, dynamic>{},
       ),
-      graph: rawGraph is Map<String, dynamic>
-          ? GraphData.fromJson(rawGraph)
+      // Dio 解码的嵌套 JSON 在部分 Android 运行时只保证 `Map`；
+      // 显式转换避免地点 / 关系数据因泛型不匹配被当成空数据。
+      graph: rawGraph is Map
+          ? GraphData.fromJson(Map<String, dynamic>.from(rawGraph))
           : null,
-      place: rawPlace is Map<String, dynamic>
-          ? GeoPlace.fromJson(rawPlace)
+      place: rawPlace is Map
+          ? GeoPlace.fromJson(Map<String, dynamic>.from(rawPlace))
           : null,
       mapTours: ((json['map_tours'] ?? []) as List)
-          .whereType<Map<String, dynamic>>()
-          .map(MapTour.fromJson)
+          .whereType<Map>()
+          .map((e) => MapTour.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
       diagrams: ((json['diagrams'] ?? []) as List)
-          .whereType<Map<String, dynamic>>()
-          .map(DiagramItem.fromJson)
+          .whereType<Map>()
+          .map((e) => DiagramItem.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
     );
   }
@@ -118,17 +120,21 @@ class ContentRepository {
   final Dio _dio;
 
   Future<CrossrefResult> crossrefs(String ref) async {
-    final res = await _dio.get('/content/crossrefs',
-        queryParameters: {'ref': ref});
+    final res = await _dio.get(
+      '/content/crossrefs',
+      queryParameters: {'ref': ref},
+    );
     return CrossrefResult.fromJson(res.data as Map<String, dynamic>);
   }
 
   Future<List<DictEntity>> dictionary({String? term, String? ref}) async {
-    final res = await _dio.get('/content/dictionary',
-        queryParameters: {
-          if (term != null && term.isNotEmpty) 'term': term,
-          if (ref != null && ref.isNotEmpty) 'ref': ref,
-        });
+    final res = await _dio.get(
+      '/content/dictionary',
+      queryParameters: {
+        if (term != null && term.isNotEmpty) 'term': term,
+        if (ref != null && ref.isNotEmpty) 'ref': ref,
+      },
+    );
     return ((res.data['entities'] ?? []) as List)
         .map((e) => DictEntity.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -142,15 +148,20 @@ class ContentRepository {
   }
 
   Future<List<StrongsWord>> strongs(String ref) async {
-    final res = await _dio.get('/content/strongs', queryParameters: {'ref': ref});
+    final res = await _dio.get(
+      '/content/strongs',
+      queryParameters: {'ref': ref},
+    );
     return ((res.data['words'] ?? []) as List)
         .map((e) => StrongsWord.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
   Future<List<SectionMark>> sectionTitles(String book, int chapter) async {
-    final res = await _dio.get('/content/sections',
-        queryParameters: {'book': book, 'chapter': chapter});
+    final res = await _dio.get(
+      '/content/sections',
+      queryParameters: {'book': book, 'chapter': chapter},
+    );
     return ((res.data['sections'] ?? []) as List)
         .map((e) => SectionMark.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -189,12 +200,14 @@ class ContentRepository {
 
   /// 本章时间线（SummarySheet「本章背景」）。
   Future<TimelineChapterRow?> timelineForChapter(
-      String book, int chapter) async {
+    String book,
+    int chapter,
+  ) async {
     try {
-      final res = await _dio.get('/content/timeline', queryParameters: {
-        'book': book,
-        'chapter': chapter,
-      });
+      final res = await _dio.get(
+        '/content/timeline',
+        queryParameters: {'book': book, 'chapter': chapter},
+      );
       final row = res.data['timeline'];
       if (row is Map<String, dynamic>) {
         return TimelineChapterRow.fromJson(row);
@@ -208,10 +221,10 @@ class ContentRepository {
   /// 本章相关地点。
   Future<List<GeoPlace>> geographyForChapter(String book, int chapter) async {
     try {
-      final res = await _dio.get('/content/geography', queryParameters: {
-        'book': book,
-        'chapter': chapter,
-      });
+      final res = await _dio.get(
+        '/content/geography',
+        queryParameters: {'book': book, 'chapter': chapter},
+      );
       return ((res.data['places'] ?? []) as List)
           .map((e) => GeoPlace.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -265,13 +278,13 @@ class StrongsWord {
   final String? gloss;
   final String? morphology;
   factory StrongsWord.fromJson(Map<String, dynamic> j) => StrongsWord(
-        position: (j['position'] as num?)?.toInt() ?? 0,
-        word: j['word'] as String?,
-        strongs: j['strongs'] as String?,
-        lemma: j['lemma'] as String?,
-        gloss: j['gloss'] as String?,
-        morphology: j['morphology'] as String?,
-      );
+    position: (j['position'] as num?)?.toInt() ?? 0,
+    word: j['word'] as String?,
+    strongs: j['strongs'] as String?,
+    lemma: j['lemma'] as String?,
+    gloss: j['gloss'] as String?,
+    morphology: j['morphology'] as String?,
+  );
 }
 
 class SectionMark {
@@ -279,9 +292,9 @@ class SectionMark {
   final int verse;
   final String title;
   factory SectionMark.fromJson(Map<String, dynamic> j) => SectionMark(
-        verse: (j['verse'] as num?)?.toInt() ?? 1,
-        title: (j['title'] ?? '') as String,
-      );
+    verse: (j['verse'] as num?)?.toInt() ?? 1,
+    title: (j['title'] ?? '') as String,
+  );
 }
 
 class TopicEntry {
@@ -290,37 +303,41 @@ class TopicEntry {
   final String name;
   final List<String> refs;
   factory TopicEntry.fromJson(Map<String, dynamic> j) => TopicEntry(
-        id: (j['id'] ?? j['name'] ?? '') as String,
-        name: (j['name'] ?? '') as String,
-        refs: ((j['refs'] ?? []) as List).map((e) => '$e').toList(),
-      );
+    id: (j['id'] ?? j['name'] ?? '') as String,
+    name: (j['name'] ?? '') as String,
+    refs: ((j['refs'] ?? []) as List).map((e) => '$e').toList(),
+  );
 }
 
-final contentRepoProvider =
-    Provider<ContentRepository>((ref) => ContentRepository(ref.watch(dioProvider)));
+final contentRepoProvider = Provider<ContentRepository>(
+  (ref) => ContentRepository(ref.watch(dioProvider)),
+);
 
 final crossrefsProvider = FutureProvider.family<CrossrefResult, String>(
-    (ref, refStr) => ref.watch(contentRepoProvider).crossrefs(refStr));
+  (ref, refStr) => ref.watch(contentRepoProvider).crossrefs(refStr),
+);
 
 final dictionaryProvider = FutureProvider.family<List<DictEntity>, String>(
-    (ref, term) => ref.watch(contentRepoProvider).dictionary(term: term));
+  (ref, term) => ref.watch(contentRepoProvider).dictionary(term: term),
+);
 
 final entityKnowledgeProvider = FutureProvider.family<EntityKnowledge, String>(
-  (ref, entityId) =>
-      ref.watch(contentRepoProvider).entityKnowledge(entityId),
+  (ref, entityId) => ref.watch(contentRepoProvider).entityKnowledge(entityId),
 );
 
 final strongsProvider = FutureProvider.family<List<StrongsWord>, String>(
-    (ref, refStr) => ref.watch(contentRepoProvider).strongs(refStr));
+  (ref, refStr) => ref.watch(contentRepoProvider).strongs(refStr),
+);
 
 final sectionTitlesProvider =
     FutureProvider.family<List<SectionMark>, ({String book, int chapter})>(
-        (ref, args) => ref
-            .watch(contentRepoProvider)
-            .sectionTitles(args.book, args.chapter));
+      (ref, args) =>
+          ref.watch(contentRepoProvider).sectionTitles(args.book, args.chapter),
+    );
 
 final topicsProvider = FutureProvider<List<TopicEntry>>(
-    (ref) => ref.watch(contentRepoProvider).topics());
+  (ref) => ref.watch(contentRepoProvider).topics(),
+);
 
 class TourStop {
   TourStop({required this.order, required this.label, this.ref, this.note});
@@ -329,11 +346,11 @@ class TourStop {
   final String? ref;
   final String? note;
   factory TourStop.fromJson(Map<String, dynamic> j) => TourStop(
-        order: (j['order'] as num?)?.toInt() ?? 0,
-        label: (j['label'] ?? '') as String,
-        ref: j['ref'] as String?,
-        note: j['note'] as String?,
-      );
+    order: (j['order'] as num?)?.toInt() ?? 0,
+    label: (j['label'] ?? '') as String,
+    ref: j['ref'] as String?,
+    note: j['note'] as String?,
+  );
 }
 
 class MapTour {
@@ -350,14 +367,14 @@ class MapTour {
   final String? description;
   final List<TourStop> stops;
   factory MapTour.fromJson(Map<String, dynamic> j) => MapTour(
-        id: (j['id'] ?? '') as String,
-        title: (j['title'] ?? '') as String,
-        subtitle: j['subtitle'] as String?,
-        description: j['description'] as String?,
-        stops: ((j['stops'] ?? []) as List)
-            .map((e) => TourStop.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    id: (j['id'] ?? '') as String,
+    title: (j['title'] ?? '') as String,
+    subtitle: j['subtitle'] as String?,
+    description: j['description'] as String?,
+    stops: ((j['stops'] ?? []) as List)
+        .map((e) => TourStop.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class TimelineEvent {
@@ -367,20 +384,16 @@ class TimelineEvent {
   final String? ref;
   final String? era;
   factory TimelineEvent.fromJson(Map<String, dynamic> j) => TimelineEvent(
-        order: (j['order'] as num?)?.toInt() ?? 0,
-        label: (j['label'] ?? j['title'] ?? '') as String,
-        ref: j['ref'] as String?,
-        era: j['era'] as String?,
-      );
+    order: (j['order'] as num?)?.toInt() ?? 0,
+    label: (j['label'] ?? j['title'] ?? '') as String,
+    ref: j['ref'] as String?,
+    era: j['era'] as String?,
+  );
 }
 
 /// 章级时间轴条目（/content/timeline?book&chapter）。
 class TimelineChapterRow {
-  TimelineChapterRow({
-    this.yearDisplay,
-    this.era,
-    this.year,
-  });
+  TimelineChapterRow({this.yearDisplay, this.era, this.year});
   final String? yearDisplay;
   final String? era;
   final int? year;
@@ -405,15 +418,31 @@ class TimelineChapterRow {
 }
 
 class GeoPlace {
-  GeoPlace({required this.id, required this.name, this.modernName});
+  GeoPlace({
+    required this.id,
+    required this.name,
+    this.modernName,
+    this.type,
+    this.latitude,
+    this.longitude,
+    this.refs = const [],
+  });
   final String id;
   final String name;
   final String? modernName;
+  final String? type;
+  final double? latitude;
+  final double? longitude;
+  final List<String> refs;
   factory GeoPlace.fromJson(Map<String, dynamic> j) => GeoPlace(
-        id: '${j['id'] ?? j['name'] ?? ''}',
-        name: (j['name'] ?? j['title'] ?? '') as String,
-        modernName: j['modern_name'] as String? ?? j['modern'] as String?,
-      );
+    id: '${j['id'] ?? j['name'] ?? ''}',
+    name: (j['name'] ?? j['title'] ?? '') as String,
+    modernName: j['modern_name'] as String? ?? j['modern'] as String?,
+    type: j['type'] as String?,
+    latitude: (j['latitude'] as num?)?.toDouble(),
+    longitude: (j['longitude'] as num?)?.toDouble(),
+    refs: ((j['refs'] ?? []) as List).map((e) => '$e').toList(),
+  );
 }
 
 class TimelineTour {
@@ -430,14 +459,14 @@ class TimelineTour {
   final String? description;
   final List<TimelineEvent> events;
   factory TimelineTour.fromJson(Map<String, dynamic> j) => TimelineTour(
-        id: (j['id'] ?? '') as String,
-        title: (j['title'] ?? '') as String,
-        subtitle: j['subtitle'] as String?,
-        description: j['description'] as String?,
-        events: ((j['events'] ?? j['stops'] ?? []) as List)
-            .map((e) => TimelineEvent.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    id: (j['id'] ?? '') as String,
+    title: (j['title'] ?? '') as String,
+    subtitle: j['subtitle'] as String?,
+    description: j['description'] as String?,
+    events: ((j['events'] ?? j['stops'] ?? []) as List)
+        .map((e) => TimelineEvent.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class DiagramHotspot {
@@ -454,12 +483,12 @@ class DiagramHotspot {
   final double x;
   final double y;
   factory DiagramHotspot.fromJson(Map<String, dynamic> j) => DiagramHotspot(
-        id: (j['id'] ?? '') as String,
-        label: (j['label'] ?? '') as String,
-        ref: j['ref'] as String?,
-        x: (j['x'] as num?)?.toDouble() ?? 0.5,
-        y: (j['y'] as num?)?.toDouble() ?? 0.5,
-      );
+    id: (j['id'] ?? '') as String,
+    label: (j['label'] ?? '') as String,
+    ref: j['ref'] as String?,
+    x: (j['x'] as num?)?.toDouble() ?? 0.5,
+    y: (j['y'] as num?)?.toDouble() ?? 0.5,
+  );
 }
 
 class DiagramItem {
@@ -476,33 +505,39 @@ class DiagramItem {
   final String? file;
   final List<DiagramHotspot> hotspots;
   factory DiagramItem.fromJson(Map<String, dynamic> j) => DiagramItem(
-        id: (j['id'] ?? '') as String,
-        title: (j['title'] ?? '') as String,
-        summary: j['summary'] as String?,
-        file: j['file'] as String?,
-        hotspots: ((j['hotspots'] ?? []) as List)
-            .map((e) => DiagramHotspot.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    id: (j['id'] ?? '') as String,
+    title: (j['title'] ?? '') as String,
+    summary: j['summary'] as String?,
+    file: j['file'] as String?,
+    hotspots: ((j['hotspots'] ?? []) as List)
+        .map((e) => DiagramHotspot.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
-final mapToursProvider =
-    FutureProvider<List<MapTour>>((ref) => ref.watch(contentRepoProvider).mapTours());
+final mapToursProvider = FutureProvider<List<MapTour>>(
+  (ref) => ref.watch(contentRepoProvider).mapTours(),
+);
 
 final mapTourProvider = FutureProvider.family<MapTour, String>(
-    (ref, id) => ref.watch(contentRepoProvider).mapTour(id));
+  (ref, id) => ref.watch(contentRepoProvider).mapTour(id),
+);
 
 final timelineToursProvider = FutureProvider<List<TimelineTour>>(
-    (ref) => ref.watch(contentRepoProvider).timelineTours());
+  (ref) => ref.watch(contentRepoProvider).timelineTours(),
+);
 
 final timelineTourProvider = FutureProvider.family<TimelineTour, String>(
-    (ref, id) => ref.watch(contentRepoProvider).timelineTour(id));
+  (ref, id) => ref.watch(contentRepoProvider).timelineTour(id),
+);
 
-final diagramsProvider =
-    FutureProvider<List<DiagramItem>>((ref) => ref.watch(contentRepoProvider).diagrams());
+final diagramsProvider = FutureProvider<List<DiagramItem>>(
+  (ref) => ref.watch(contentRepoProvider).diagrams(),
+);
 
 final diagramProvider = FutureProvider.family<DiagramItem, String>(
-    (ref, id) => ref.watch(contentRepoProvider).diagram(id));
+  (ref, id) => ref.watch(contentRepoProvider).diagram(id),
+);
 
 class GraphTopic {
   GraphTopic({
@@ -516,11 +551,11 @@ class GraphTopic {
   final String? subtitle;
   final List<String> entityIds;
   factory GraphTopic.fromJson(Map<String, dynamic> j) => GraphTopic(
-        id: (j['id'] ?? '') as String,
-        title: (j['title'] ?? '') as String,
-        subtitle: j['subtitle'] as String?,
-        entityIds: ((j['entity_ids'] ?? []) as List).map((e) => '$e').toList(),
-      );
+    id: (j['id'] ?? '') as String,
+    title: (j['title'] ?? '') as String,
+    subtitle: j['subtitle'] as String?,
+    entityIds: ((j['entity_ids'] ?? []) as List).map((e) => '$e').toList(),
+  );
 }
 
 class GraphNode {
@@ -529,24 +564,35 @@ class GraphNode {
   final String name;
   final String? type;
   factory GraphNode.fromJson(Map<String, dynamic> j) => GraphNode(
-        id: (j['id'] ?? '') as String,
-        name: (j['name'] ?? '') as String,
-        type: j['type'] as String?,
-      );
+    id: (j['id'] ?? '') as String,
+    name: (j['name'] ?? '') as String,
+    type: j['type'] as String?,
+  );
 }
 
 class GraphEdge {
-  GraphEdge({required this.from, required this.to, this.type, this.label});
+  GraphEdge({
+    required this.from,
+    required this.to,
+    this.type,
+    this.label,
+    this.peerId,
+    this.peerName,
+  });
   final String from;
   final String to;
   final String? type;
   final String? label;
+  final String? peerId;
+  final String? peerName;
   factory GraphEdge.fromJson(Map<String, dynamic> j) => GraphEdge(
-        from: (j['from'] ?? '') as String,
-        to: (j['to'] ?? '') as String,
-        type: j['type'] as String?,
-        label: j['label'] as String?,
-      );
+    from: (j['from'] ?? '') as String,
+    to: (j['to'] ?? '') as String,
+    type: j['type'] as String?,
+    label: j['label'] as String?,
+    peerId: j['peer_id'] as String?,
+    peerName: j['peer_name'] as String?,
+  );
 }
 
 class GraphData {
@@ -554,17 +600,20 @@ class GraphData {
   final List<GraphNode> nodes;
   final List<GraphEdge> edges;
   factory GraphData.fromJson(Map<String, dynamic> j) => GraphData(
-        nodes: ((j['nodes'] ?? []) as List)
-            .map((e) => GraphNode.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        edges: ((j['edges'] ?? []) as List)
-            .map((e) => GraphEdge.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    nodes: ((j['nodes'] ?? []) as List)
+        .map((e) => GraphNode.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    edges: ((j['edges'] ?? []) as List)
+        .map((e) => GraphEdge.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
-final graphTopicsProvider =
-    FutureProvider<List<GraphTopic>>((ref) => ref.watch(contentRepoProvider).graphTopics());
+final graphTopicsProvider = FutureProvider<List<GraphTopic>>(
+  (ref) => ref.watch(contentRepoProvider).graphTopics(),
+);
 
-final graphTopicProvider = FutureProvider.family<({GraphTopic topic, GraphData graph}), String>(
-    (ref, id) => ref.watch(contentRepoProvider).graphTopic(id));
+final graphTopicProvider =
+    FutureProvider.family<({GraphTopic topic, GraphData graph}), String>(
+      (ref, id) => ref.watch(contentRepoProvider).graphTopic(id),
+    );

@@ -711,14 +711,18 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final baseColor = muted
         ? AppColors.inkFaint.withValues(alpha: 0.45)
         : AppColors.accentDeep;
+    // 对齐 PWA `--reader-section-font-size`：随正文「中 / 大 / 特大」
+    // 同步缩放，默认正文 18px 时为 16px。
+    final readerPx = ref.read(readerFontProvider).px;
     final style = TextStyle(
-      fontSize: 14.5,
+      fontSize: (readerPx * 0.88).roundToDouble().clamp(13, 32),
       fontWeight: FontWeight.w700,
       color: baseColor,
     );
     final parts = splitInlineRefs(title);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 16, 0, 4),
+      // PWA `.section-title` 为 `margin: 16px 0 4px; padding-left: 2px`。
+      padding: const EdgeInsets.fromLTRB(2, 16, 0, 4),
       child: Text.rich(
         TextSpan(
           children: [
@@ -1968,8 +1972,38 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                     );
                   }
                   if (i == planHead) {
-                    // 不再展示「耶稣事工 · 加利利 / 登山宝训」等硬编码章情境摘要（对齐产品：去掉总结词）
-                    return const SizedBox(height: 4);
+                    // 对齐 PWA：沉浸藏顶栏后，正文首行仍保留卷章（非硬编码章情境摘要）
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12, top: 4),
+                      child: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () =>
+                                _showChapterSummary(initialTab: 'book'),
+                            child: Text(
+                              widget.book.name,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: theme.ink,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: () =>
+                                _showChapterSummary(initialTab: 'chapter'),
+                            child: Text(
+                              '第 ${widget.chapter} 章',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: theme.ink.withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   }
                   if (planTail == 1 && i == rows.length + 1 + planHead) {
                     return segmentFooter!;

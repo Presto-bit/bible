@@ -8,7 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../app/app_shell.dart' show navIndexProvider, readerImmersiveProvider;
+import '../../app/app_shell.dart'
+    show navIndexProvider, readerImmersiveProvider;
 import '../../core/badge_stats.dart';
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/config.dart';
@@ -56,7 +57,8 @@ class ReaderJumpNotifier extends Notifier<({String book, int chapter})?> {
 
 final readerJumpProvider =
     NotifierProvider<ReaderJumpNotifier, ({String book, int chapter})?>(
-        ReaderJumpNotifier.new);
+      ReaderJumpNotifier.new,
+    );
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({
@@ -205,231 +207,246 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       appBar: _chromeHidden
           ? null
           : AppBar(
-        titleSpacing: 8,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            InkWell(
-              onTap: () {
-                _onOpenOverlay();
-                _pickVersions(context);
-              },
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-                child: Text(_versionLabel,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.inkSoft)),
+              titleSpacing: 8,
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      _onOpenOverlay();
+                      _pickVersions(context);
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                      child: Text(
+                        _versionLabel,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(width: 1, height: 14, color: AppColors.line),
+                  InkWell(
+                    key: _locKey,
+                    onTap: () {
+                      _onOpenOverlay();
+                      _pickBookChapter(context);
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                      child: Text(
+                        _book == null
+                            ? '选择经卷'
+                            : '${bibleBookAbbr(_book!.name)} $_chapter',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(width: 1, height: 14, color: AppColors.line),
+                  InkWell(
+                    onTap: () {
+                      _onOpenOverlay();
+                      _openChapterSummary();
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: const Padding(
+                      padding: EdgeInsets.fromLTRB(8, 4, 4, 4),
+                      child: Text(
+                        '概要',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            Container(width: 1, height: 14, color: AppColors.line),
-            InkWell(
-              key: _locKey,
-              onTap: () {
-                _onOpenOverlay();
-                _pickBookChapter(context);
-              },
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-                child: Text(
-                  _book == null
-                      ? '选择经卷'
-                      : '${bibleBookAbbr(_book!.name)} $_chapter',
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600),
+              actions: [
+                IconButton(
+                  tooltip: '搜索',
+                  icon: const Icon(Icons.search),
+                  onPressed: () {
+                    _onOpenOverlay();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SearchScreen()),
+                    );
+                  },
                 ),
-              ),
-            ),
-            Container(width: 1, height: 14, color: AppColors.line),
-            InkWell(
-              onTap: () {
-                _onOpenOverlay();
-                _openChapterSummary();
-              },
-              borderRadius: BorderRadius.circular(6),
-              child: const Padding(
-                padding: EdgeInsets.fromLTRB(8, 4, 4, 4),
-                child: Text(
-                  '概要',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.inkSoft),
+                IconButton(
+                  tooltip: '阅读设置',
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () {
+                    _onOpenOverlay();
+                    _openReaderSettings(context);
+                  },
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: '搜索',
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              _onOpenOverlay();
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SearchScreen()),
-              );
-            },
-          ),
-          IconButton(
-            tooltip: '阅读设置',
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {
-              _onOpenOverlay();
-              _openReaderSettings(context);
-            },
-          ),
-        ],
-      ),
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
         // 对齐 PWA：点按切换 chrome，无 idle 自动藏；目录态不藏栏。
         onTap: _book == null || _catalogOverlay ? null : _toggleChrome,
         child: booksAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorView(message: '$e', onRetry: () => ref.refresh(booksProvider)),
-        data: (books) {
-          final progressAsync = ref.watch(readingProgressStreamProvider);
-          if (!_seeded) {
-            if (widget.initialBook != null) {
-              final target = widget.initialBook!;
-              _book = books.firstWhere(
-                (b) => b.id == target.toUpperCase() || b.name == target,
-                orElse: () => books.firstWhere((b) => b.id == 'JHN',
-                    orElse: () => books.first),
-              );
-              _seeded = true;
-            } else if (progressAsync.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            } else {
-              final saved = progressAsync.asData?.value;
-              if (saved != null) {
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => _ErrorView(
+            message: '$e',
+            onRetry: () => ref.refresh(booksProvider),
+          ),
+          data: (books) {
+            final progressAsync = ref.watch(readingProgressStreamProvider);
+            if (!_seeded) {
+              if (widget.initialBook != null) {
+                final target = widget.initialBook!;
                 _book = books.firstWhere(
-                  (b) =>
-                      b.id == saved.book.toUpperCase() ||
-                      b.name == saved.book,
-                  orElse: () => books.firstWhere((b) => b.id == 'JHN',
-                      orElse: () => books.first),
+                  (b) => b.id == target.toUpperCase() || b.name == target,
+                  orElse: () => books.firstWhere(
+                    (b) => b.id == 'JHN',
+                    orElse: () => books.first,
+                  ),
                 );
-                _chapter = saved.chapter.clamp(1, _book!.chapterCount);
+                _seeded = true;
+              } else if (progressAsync.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              } else {
+                final saved = progressAsync.asData?.value;
+                if (saved != null) {
+                  _book = books.firstWhere(
+                    (b) =>
+                        b.id == saved.book.toUpperCase() ||
+                        b.name == saved.book,
+                    orElse: () => books.firstWhere(
+                      (b) => b.id == 'JHN',
+                      orElse: () => books.first,
+                    ),
+                  );
+                  _chapter = saved.chapter.clamp(1, _book!.chapterCount);
+                }
+                // 无进度：保持 _book == null → 全屏目录（对齐 PWA）
+                _seeded = true;
               }
-              // 无进度：保持 _book == null → 全屏目录（对齐 PWA）
-              _seeded = true;
             }
-          }
 
-          if (_book == null || _catalogOverlay) {
-            final saved = progressAsync.asData?.value;
+            if (_book == null || _catalogOverlay) {
+              final saved = progressAsync.asData?.value;
+              return Column(
+                children: [
+                  const OfflineBibleCard(),
+                  Expanded(
+                    child: ReaderCatalogView(
+                      books: books,
+                      showBack: _catalogOverlay && _book != null,
+                      onBack: () => setState(() => _catalogOverlay = false),
+                      resumeBookId: _book?.id ?? saved?.book,
+                      resumeChapter: _book != null ? _chapter : saved?.chapter,
+                      planSteps: _planMeta?.steps,
+                      onPickChapter: (b, ch) {
+                        setState(() {
+                          _book = b;
+                          _chapter = ch.clamp(1, b.chapterCount);
+                          _catalogOverlay = false;
+                          _hasSelection = false;
+                          _seeded = true;
+                        });
+                        ref.read(readingRepoProvider).record(b.id, ch);
+                      },
+                    ),
+                  ),
+                ],
+              );
+            }
+
             return Column(
               children: [
                 const OfflineBibleCard(),
                 Expanded(
-                  child: ReaderCatalogView(
+                  child: ReaderChapterBody(
+                    book: _book!,
+                    chapter: _chapter,
                     books: books,
-                    showBack: _catalogOverlay && _book != null,
-                    onBack: () => setState(() => _catalogOverlay = false),
-                    resumeBookId: _book?.id ?? saved?.book,
-                    resumeChapter: _book != null ? _chapter : saved?.chapter,
-                    planSteps: _planMeta?.steps,
-                    onPickChapter: (b, ch) {
+                    compareVersionId: _compareVersionId,
+                    mainVersionId: _mainVersionId,
+                    chromeHidden: _chromeHidden,
+                    planMeta: _planMeta,
+                    onPlanMetaChange: (m) => setState(() => _planMeta = m),
+                    onPlanJump: (bookId, ch) {
+                      final b = books.firstWhere(
+                        (x) => x.id == bookId.toUpperCase(),
+                        orElse: () => _book!,
+                      );
                       setState(() {
                         _book = b;
                         _chapter = ch.clamp(1, b.chapterCount);
-                        _catalogOverlay = false;
                         _hasSelection = false;
-                        _seeded = true;
                       });
-                      ref.read(readingRepoProvider).record(b.id, ch);
+                    },
+                    onEnableParallel: (id) {
+                      final prefs = ref.read(prefsProvider);
+                      setState(() {
+                        _compareVersionId = id;
+                        _versionLabel = '和合本 · ${_versionLabelFor(id)}';
+                      });
+                      prefs.setString('reader_parallel_version', id);
+                    },
+                    onNav: _nav,
+                    onInteract: () {},
+                    onSelectionChanged: (has) {
+                      if (_hasSelection == has) return;
+                      setState(() => _hasSelection = has);
+                    },
+                    onNextChapter: () => _nav(1),
+                    onAskAi: (refStr, refLabel, selectionText, explainOnly) {
+                      _onOpenOverlay();
+                      _openXiaoAiSheet(
+                        context,
+                        refStr: refStr,
+                        refLabel: refLabel,
+                        selectionText: selectionText,
+                        explainOnly: explainOnly,
+                      );
+                    },
+                    onRead: (b, c) {
+                      ref.read(readingRepoProvider).record(b, c);
+                      if (_compareVersionId != null) {
+                        ref
+                            .read(badgeStatsRecorderProvider)
+                            .recordParallelChapter();
+                      }
+                      final book = _book;
+                      if (book != null && book.id == b) {
+                        maybeNotifyBookComplete(
+                          ref.read(prefsProvider),
+                          b,
+                          book.name,
+                          book.chapterCount,
+                        );
+                      }
                     },
                   ),
                 ),
               ],
             );
-          }
-
-          return Column(
-            children: [
-              const OfflineBibleCard(),
-              Expanded(
-                child: ReaderChapterBody(
-            book: _book!,
-            chapter: _chapter,
-            books: books,
-            compareVersionId: _compareVersionId,
-            mainVersionId: _mainVersionId,
-            chromeHidden: _chromeHidden,
-            planMeta: _planMeta,
-            onPlanMetaChange: (m) => setState(() => _planMeta = m),
-            onPlanJump: (bookId, ch) {
-              final b = books.firstWhere(
-                (x) => x.id == bookId.toUpperCase(),
-                orElse: () => _book!,
-              );
-              setState(() {
-                _book = b;
-                _chapter = ch.clamp(1, b.chapterCount);
-                _hasSelection = false;
-              });
-            },
-            onEnableParallel: (id) {
-              final prefs = ref.read(prefsProvider);
-              setState(() {
-                _compareVersionId = id;
-                _versionLabel = '和合本 · ${_versionLabelFor(id)}';
-              });
-              prefs.setString('reader_parallel_version', id);
-            },
-            onNav: _nav,
-            onInteract: () {},
-            onSelectionChanged: (has) {
-              if (_hasSelection == has) return;
-              setState(() => _hasSelection = has);
-            },
-            onNextChapter: () => _nav(1),
-            onAskAi: (refStr, refLabel, selectionText, explainOnly) {
-              _onOpenOverlay();
-              _openXiaoAiSheet(
-                context,
-                refStr: refStr,
-                refLabel: refLabel,
-                selectionText: selectionText,
-                explainOnly: explainOnly,
-              );
-            },
-            onRead: (b, c) {
-              ref.read(readingRepoProvider).record(b, c);
-              if (_compareVersionId != null) {
-                ref.read(badgeStatsRecorderProvider).recordParallelChapter();
-              }
-              final book = _book;
-              if (book != null && book.id == b) {
-                maybeNotifyBookComplete(
-                  ref.read(prefsProvider),
-                  b,
-                  book.name,
-                  book.chapterCount,
-                );
-              }
-            },
-          ),
-              ),
-            ],
-          );
-        },
-      ),
+          },
+        ),
       ),
       // 全屏 / 专注 / 选中经文时隐藏打卡与小爱（对齐 PWA hasSel）。
       floatingActionButton:
           (_book == null ||
-                  _catalogOverlay ||
-                  _chromeHidden ||
-                  _hasSelection ||
-                  ref.watch(readingModeProvider) == ReadingMode.focus)
-              ? null
-              : _readerFab(),
+              _catalogOverlay ||
+              _chromeHidden ||
+              _hasSelection ||
+              ref.watch(readingModeProvider) == ReadingMode.focus)
+          ? null
+          : _readerFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
     );
@@ -477,10 +494,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   Widget _readerFab() {
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: 4,
-        right: 4,
-      ),
+      padding: EdgeInsets.only(bottom: 4, right: 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -503,49 +517,51 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           // 打卡在小爱上方（对齐 PWA check-in 按钮栈）
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: FloatingActionButton.small(
-              heroTag: 'reader-checkin',
-              backgroundColor: AppColors.paper,
-              foregroundColor: AppColors.accentDeep,
-              elevation: 1.5,
-              tooltip: '打卡到共读群',
-              onPressed: _openCheckin,
-              child: const Icon(Icons.groups_outlined, size: 20),
-            ),
-          ),
-          // 对齐 PWA `.reader-fab`：高 48、字 14、✦ 小爱（勿用 Material extended≈56）
-          Tooltip(
-            message: '问小爱',
-            child: Material(
-              color: AppColors.accentDeep,
-              elevation: 3,
-              shadowColor: const Color(0x2E000000),
-              borderRadius: BorderRadius.circular(24),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(24),
-                onTap: () {
-                  peiaiHapticLight(context);
-                  _onOpenOverlay();
-                  _openXiaoAiSheet(context);
-                },
-                child: const SizedBox(
-                  height: 48,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14),
-                    child: Center(
-                      child: Text(
-                        '✦ 小爱',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          height: 1,
+            child: Tooltip(
+              message: '打卡到共读群',
+              child: Material(
+                color: AppColors.paper,
+                elevation: 1.5,
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: _openCheckin,
+                  child: const SizedBox(
+                    height: 40,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 13),
+                      child: Center(
+                        child: Text(
+                          '打卡',
+                          style: TextStyle(
+                            color: AppColors.accentDeep,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            height: 1,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
+            ),
+          ),
+          // 与打卡控件同为小型操作入口；保留小爱绿色样式。
+          Tooltip(
+            message: '问小爱',
+            child: FloatingActionButton.small(
+              heroTag: 'reader-xiaoai',
+              backgroundColor: AppColors.accentDeep,
+              foregroundColor: Colors.white,
+              elevation: 3,
+              tooltip: '问小爱',
+              onPressed: () {
+                peiaiHapticLight(context);
+                _onOpenOverlay();
+                _openXiaoAiSheet(context);
+              },
+              child: const Icon(Icons.auto_awesome, size: 20),
             ),
           ),
         ],
@@ -588,14 +604,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         alignment: Alignment.topLeft,
         child: Container(
           margin: EdgeInsets.only(
-              top: MediaQuery.of(ctx).padding.top + 52, left: 12),
+            top: MediaQuery.of(ctx).padding.top + 52,
+            left: 12,
+          ),
           constraints: const BoxConstraints(maxWidth: 320, maxHeight: 460),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
             boxShadow: const [
               BoxShadow(
-                  color: Color(0x29000000), blurRadius: 32, offset: Offset(0, 12)),
+                color: Color(0x29000000),
+                blurRadius: 32,
+                offset: Offset(0, 12),
+              ),
             ],
           ),
           child: Material(
@@ -758,12 +779,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final meta = _planMeta;
     if (meta == null) return;
     await savePlanSession(ref.read(prefsProvider), session);
-    await ref.read(planProgressRepoProvider).mark(
-          meta.planId,
-          meta.day,
-          status: 'active',
-          session: session,
-        );
+    await ref
+        .read(planProgressRepoProvider)
+        .mark(meta.planId, meta.day, status: 'active', session: session);
     if (!mounted) return;
     setState(() {
       _planMeta = PlanReadingMeta(
@@ -778,35 +796,136 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     });
   }
 
-
   Future<void> _pickBookChapter(BuildContext context) async {
     final books = ref.read(booksProvider).value;
     if (books == null) return;
-    // 对齐 PWA：用全屏目录（含继续条），而非仅锚点弹层。
-    setState(() {
-      _catalogOverlay = true;
-      _chromeHidden = false;
-      _hasSelection = false;
-    });
-    ref.read(readerImmersiveProvider.notifier).set(false);
+    final currentBook = _book;
+    // 对齐 PWA ReaderLocPopover：从顶栏附近弹出卷 / 章选择，
+    // 不再切走整页阅读器或露出首页式「继续阅读」目录。
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '选择经卷与章节',
+      barrierColor: Colors.black.withValues(alpha: 0.18),
+      transitionDuration: const Duration(milliseconds: 160),
+      pageBuilder: (dialogContext, _, _) => SafeArea(
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(8, 48, 8, 0),
+            constraints: BoxConstraints(
+              maxWidth: 340,
+              maxHeight: MediaQuery.sizeOf(dialogContext).height - 72,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x29000000),
+                  blurRadius: 32,
+                  offset: Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: ReaderCatalogView(
+                books: books,
+                resumeBookId: currentBook?.id,
+                resumeChapter: _chapter,
+                planSteps: _planMeta?.steps,
+                compact: true,
+                initialTab: 'chapters',
+                onPickChapter: (book, chapter) {
+                  setState(() {
+                    _book = book;
+                    _chapter = chapter.clamp(1, book.chapterCount);
+                    _hasSelection = false;
+                    _seeded = true;
+                  });
+                  ref.read(readingRepoProvider).record(book.id, _chapter);
+                  Navigator.of(dialogContext).pop();
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
 /// 书卷简称（对齐 canvas BOOK_ABBR）。
 const Map<String, String> _kBookAbbr = {
-  '创世记': '创', '出埃及记': '出', '利未记': '利', '民数记': '民', '申命记': '申',
-  '约书亚记': '书', '士师记': '士', '路得记': '得', '撒母耳记上': '撒上', '撒母耳记下': '撒下',
-  '列王纪上': '王上', '列王纪下': '王下', '历代志上': '代上', '历代志下': '代下', '以斯拉记': '拉',
-  '尼希米记': '尼', '以斯帖记': '斯', '约伯记': '伯', '诗篇': '诗', '箴言': '箴', '传道书': '传', '雅歌': '歌',
-  '以赛亚书': '赛', '耶利米书': '耶', '耶利米哀歌': '哀', '以西结书': '结', '但以理书': '但',
-  '何西阿书': '何', '约珥书': '珥', '阿摩司书': '摩', '俄巴底亚书': '俄', '约拿书': '拿', '弥迦书': '弥',
-  '那鸿书': '鸿', '哈巴谷书': '哈', '西番雅书': '番', '哈该书': '该', '撒迦利亚书': '亚', '玛拉基书': '玛',
-  '马太福音': '太', '马可福音': '可', '路加福音': '路', '约翰福音': '约', '使徒行传': '徒',
-  '罗马书': '罗', '哥林多前书': '林前', '哥林多后书': '林后', '加拉太书': '加', '以弗所书': '弗',
-  '腓立比书': '腓', '歌罗西书': '西', '帖撒罗尼迦前书': '帖前', '帖撒罗尼迦后书': '帖后',
-  '提摩太前书': '提前', '提摩太后书': '提后', '提多书': '多', '腓利门书': '门', '希伯来书': '来',
-  '雅各书': '雅', '彼得前书': '彼前', '彼得后书': '彼后', '约翰一书': '约一', '约翰二书': '约二',
-  '约翰三书': '约三', '犹大书': '犹', '启示录': '启',
+  '创世记': '创',
+  '出埃及记': '出',
+  '利未记': '利',
+  '民数记': '民',
+  '申命记': '申',
+  '约书亚记': '书',
+  '士师记': '士',
+  '路得记': '得',
+  '撒母耳记上': '撒上',
+  '撒母耳记下': '撒下',
+  '列王纪上': '王上',
+  '列王纪下': '王下',
+  '历代志上': '代上',
+  '历代志下': '代下',
+  '以斯拉记': '拉',
+  '尼希米记': '尼',
+  '以斯帖记': '斯',
+  '约伯记': '伯',
+  '诗篇': '诗',
+  '箴言': '箴',
+  '传道书': '传',
+  '雅歌': '歌',
+  '以赛亚书': '赛',
+  '耶利米书': '耶',
+  '耶利米哀歌': '哀',
+  '以西结书': '结',
+  '但以理书': '但',
+  '何西阿书': '何',
+  '约珥书': '珥',
+  '阿摩司书': '摩',
+  '俄巴底亚书': '俄',
+  '约拿书': '拿',
+  '弥迦书': '弥',
+  '那鸿书': '鸿',
+  '哈巴谷书': '哈',
+  '西番雅书': '番',
+  '哈该书': '该',
+  '撒迦利亚书': '亚',
+  '玛拉基书': '玛',
+  '马太福音': '太',
+  '马可福音': '可',
+  '路加福音': '路',
+  '约翰福音': '约',
+  '使徒行传': '徒',
+  '罗马书': '罗',
+  '哥林多前书': '林前',
+  '哥林多后书': '林后',
+  '加拉太书': '加',
+  '以弗所书': '弗',
+  '腓立比书': '腓',
+  '歌罗西书': '西',
+  '帖撒罗尼迦前书': '帖前',
+  '帖撒罗尼迦后书': '帖后',
+  '提摩太前书': '提前',
+  '提摩太后书': '提后',
+  '提多书': '多',
+  '腓利门书': '门',
+  '希伯来书': '来',
+  '雅各书': '雅',
+  '彼得前书': '彼前',
+  '彼得后书': '彼后',
+  '约翰一书': '约一',
+  '约翰二书': '约二',
+  '约翰三书': '约三',
+  '犹大书': '犹',
+  '启示录': '启',
 };
 
 String bibleBookAbbr(String name) =>
@@ -827,9 +946,11 @@ class _ErrorView extends StatelessWidget {
           children: [
             const Icon(Icons.cloud_off, color: AppColors.inkFaint, size: 40),
             const SizedBox(height: 12),
-            Text('加载失败\n$message',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.inkFaint)),
+            Text(
+              '加载失败\n$message',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.inkFaint),
+            ),
             const SizedBox(height: 16),
             FilledButton.tonal(onPressed: onRetry, child: const Text('重试')),
           ],
@@ -880,8 +1001,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
         : AssistantScene.verseFull;
     final snippet = widget.selectionText.trim();
     if (snippet.isNotEmpty) {
-      final short =
-          snippet.length > 80 ? '${snippet.substring(0, 80)}…' : snippet;
+      final short = snippet.length > 80
+          ? '${snippet.substring(0, 80)}…'
+          : snippet;
       _userQuestion = '请解读：${widget.refLabel}\n「$short」';
     } else {
       _userQuestion = '请解读：${widget.refLabel}';
@@ -937,48 +1059,54 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
       _fromCache = false;
       _citations = const [];
     });
-    final stream = ref.read(assistantRepoProvider).chat(
+    final stream = ref
+        .read(assistantRepoProvider)
+        .chat(
           ref: widget.refStr,
           question: _lockedQuestion,
           mode: am.AssistantMode.explain,
           scene: _scene,
         );
-    _sub = stream.listen((evt) {
-      if (!mounted) return;
-      switch (evt) {
-        case am.MetaEvent(:final meta):
-          setState(() => _citations = meta.citations);
-        case am.DeltaEvent(:final text):
-          _pending += text;
-          _schedule();
-        case am.ErrorEvent(:final message):
+    _sub = stream.listen(
+      (evt) {
+        if (!mounted) return;
+        switch (evt) {
+          case am.MetaEvent(:final meta):
+            setState(() => _citations = meta.citations);
+          case am.DeltaEvent(:final text):
+            _pending += text;
+            _schedule();
+          case am.ErrorEvent(:final message):
+            setState(() {
+              _answer = _pending.isEmpty ? '⚠️ $message' : _pending;
+              _busy = false;
+            });
+          case am.DoneEvent():
+            setState(() {
+              _answer = _pending;
+              _busy = false;
+            });
+            if (_pending.trim().isNotEmpty) {
+              _xiaoAiHalfSheetCache[_cacheKey] = _pending;
+            }
+          default:
+            break;
+        }
+      },
+      onDone: () {
+        if (mounted) setState(() => _busy = false);
+      },
+      onError: (_) {
+        if (mounted) {
           setState(() {
-            _answer = _pending.isEmpty ? '⚠️ $message' : _pending;
+            if (_answer.isEmpty && _pending.isEmpty) {
+              _answer = '⚠️ 请求超时，请重试或前往小爱 Tab 继续对话';
+            }
             _busy = false;
           });
-        case am.DoneEvent():
-          setState(() {
-            _answer = _pending;
-            _busy = false;
-          });
-          if (_pending.trim().isNotEmpty) {
-            _xiaoAiHalfSheetCache[_cacheKey] = _pending;
-          }
-        default:
-          break;
-      }
-    }, onDone: () {
-      if (mounted) setState(() => _busy = false);
-    }, onError: (_) {
-      if (mounted) {
-        setState(() {
-          if (_answer.isEmpty && _pending.isEmpty) {
-            _answer = '⚠️ 请求超时，请重试或前往小爱 Tab 继续对话';
-          }
-          _busy = false;
-        });
-      }
-    });
+        }
+      },
+    );
     Future.delayed(Duration(milliseconds: _scene.timeoutMs), () {
       if (!mounted || !_busy) return;
       _sub?.cancel();
@@ -999,20 +1127,26 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
     final seeds = <AssistantSeedMessage>[];
     if (clean.isNotEmpty && !clean.startsWith('⚠️')) {
       seeds.add(AssistantSeedMessage(role: 'user', text: _userQuestion));
-      seeds.add(AssistantSeedMessage(
-        role: 'assistant',
-        text: clean,
-        citations: _citations
-            .map((c) => Citation(
+      seeds.add(
+        AssistantSeedMessage(
+          role: 'assistant',
+          text: clean,
+          citations: _citations
+              .map(
+                (c) => Citation(
                   n: c.n,
                   title: c.title,
                   score: c.score,
                   snippet: c.snippet,
-                ))
-            .toList(),
-      ));
+                ),
+              )
+              .toList(),
+        ),
+      );
     }
-    ref.read(assistantSeedProvider.notifier).open(
+    ref
+        .read(assistantSeedProvider.notifier)
+        .open(
           ref: widget.refStr,
           question: seeds.isEmpty ? _userQuestion : null,
           seedMessages: seeds,
@@ -1050,7 +1184,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
     if (text.isEmpty || text.startsWith('⚠️')) return;
     var payload = text;
     try {
-      final id = await ref.read(assistantRepoProvider).createAnalysisShareSnapshot(
+      final id = await ref
+          .read(assistantRepoProvider)
+          .createAnalysisShareSnapshot(
             answerMarkdown: text,
             refLabel: widget.refLabel,
             refParam: widget.refStr,
@@ -1059,16 +1195,20 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
         final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
         payload = '$text\n$base/share/analysis/$id';
       }
-    } catch (_) {/* 快照失败则纯文案 */}
+    } catch (_) {
+      /* 快照失败则纯文案 */
+    }
     try {
       await SharePlus.instance.share(ShareParams(text: payload));
     } catch (_) {
       await Clipboard.setData(ClipboardData(text: payload));
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('已复制，可粘贴分享'),
-        duration: Duration(milliseconds: 1500),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已复制，可粘贴分享'),
+          duration: Duration(milliseconds: 1500),
+        ),
+      );
     }
   }
 
@@ -1112,35 +1252,47 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: AppColors.line,
-                  borderRadius: BorderRadius.circular(2)),
+                color: AppColors.line,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
             child: Row(
               children: [
-                const Icon(Icons.auto_awesome,
-                    size: 18, color: AppColors.accentDeep),
+                const Icon(
+                  Icons.auto_awesome,
+                  size: 18,
+                  color: AppColors.accentDeep,
+                ),
                 const SizedBox(width: 8),
-                const Text('小爱解经',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        color: AppColors.ink)),
+                const Text(
+                  '小爱解经',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: AppColors.ink,
+                  ),
+                ),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.accentWash,
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(widget.refLabel,
-                      style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.accentDeep)),
+                  child: Text(
+                    widget.refLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.accentDeep,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1150,20 +1302,22 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.goldWash,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                    widget.explainOnly
-                        ? '已预读选中经文 · 即时解释'
-                        : '已预读这节 · 背景·经文解释',
-                    style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.accentDeep)),
+                  widget.explainOnly ? '已预读选中经文 · 即时解释' : '已预读这节 · 背景·经文解释',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.accentDeep,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1174,105 +1328,119 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                 return SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 32,
+                    ),
                     child: Column(
                       // 提问应始终从内容区顶部开始；此前 end 会在短回答时把
                       // 用户气泡推到屏幕下方，看起来像没有显示输入内容。
                       mainAxisAlignment: MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.goldWash.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.line),
-                    ),
-                    child: Text(
-                      widget.selectionText.trim().isEmpty
-                          ? _userQuestion
-                          : '「${widget.selectionText.trim()}」',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        height: 1.55,
-                        color: AppColors.inkSoft,
-                        fontFamily: 'Songti SC',
-                        fontFamilyFallback: [
-                          'STSong',
-                          'Noto Serif SC',
-                          'serif'
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (_answer.isEmpty && _busy)
-                    const Row(
-                      children: [
-                        SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2)),
-                        SizedBox(width: 10),
-                        Text('小爱正在思考…',
-                            style: TextStyle(color: AppColors.inkFaint)),
-                      ],
-                    )
-                  else if (_showCollapsed)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _summary!,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            height: 1.7,
-                            color: AppColors.ink,
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.goldWash.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.line),
+                          ),
+                          child: Text(
+                            widget.selectionText.trim().isEmpty
+                                ? _userQuestion
+                                : '「${widget.selectionText.trim()}」',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 1.55,
+                              color: AppColors.inkSoft,
+                              fontFamily: 'Songti SC',
+                              fontFamilyFallback: [
+                                'STSong',
+                                'Noto Serif SC',
+                                'serif',
+                              ],
+                            ),
                           ),
                         ),
-                        TextButton(
-                          onPressed: () => setState(() => _expanded = true),
-                          child: const Text('展开完整解读'),
-                        ),
-                      ],
-                    )
-                  else
-                    AnswerText(
-                      text: _cleanAnswer.isEmpty
-                          ? (_busy ? '' : '暂无内容')
-                          : _cleanAnswer,
-                      fontSize: 16,
-                      onCitationTap: (n) {
-                        final citation = _citations
-                            .where((item) => item.n == n)
-                            .firstOrNull;
-                        if (citation != null) _openCitation(citation);
-                      },
-                    ),
-                  // 引用轨：有 meta 即展示（流式中途也显示，对齐 PWA CitationEvidenceRail）
-                  if (_citations.isNotEmpty &&
-                      !_cleanAnswer.startsWith('⚠️'))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: _HalfSheetCitations(citations: _citations),
-                    ),
-          if (!_busy && _cleanAnswer.isNotEmpty && !_cleanAnswer.startsWith('⚠️'))
-            const Padding(
-              padding: EdgeInsets.only(top: 10),
-              child: Text('内容由 AI 生成，请以圣经原文为准。请用下方「复制」按钮。',
-                  style: TextStyle(
-                      fontSize: 12, color: AppColors.inkFaint)),
-            ),
-          if (_cleanAnswer.startsWith('⚠️'))
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: OutlinedButton(
-                onPressed: _ask,
-                child: const Text('重试'),
-              ),
-            ),
+                        if (_answer.isEmpty && _busy)
+                          const Row(
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                '小爱正在思考…',
+                                style: TextStyle(color: AppColors.inkFaint),
+                              ),
+                            ],
+                          )
+                        else if (_showCollapsed)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _summary!,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.7,
+                                  color: AppColors.ink,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    setState(() => _expanded = true),
+                                child: const Text('展开完整解读'),
+                              ),
+                            ],
+                          )
+                        else
+                          AnswerText(
+                            text: _cleanAnswer.isEmpty
+                                ? (_busy ? '' : '暂无内容')
+                                : _cleanAnswer,
+                            fontSize: 16,
+                            onCitationTap: (n) {
+                              final citation = _citations
+                                  .where((item) => item.n == n)
+                                  .firstOrNull;
+                              if (citation != null) _openCitation(citation);
+                            },
+                          ),
+                        // 引用轨：有 meta 即展示（流式中途也显示，对齐 PWA CitationEvidenceRail）
+                        if (_citations.isNotEmpty &&
+                            !_cleanAnswer.startsWith('⚠️'))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: _HalfSheetCitations(citations: _citations),
+                          ),
+                        if (!_busy &&
+                            _cleanAnswer.isNotEmpty &&
+                            !_cleanAnswer.startsWith('⚠️'))
+                          const Padding(
+                            padding: EdgeInsets.only(top: 10),
+                            child: Text(
+                              '内容由 AI 生成，请以圣经原文为准。请用下方「复制」按钮。',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.inkFaint,
+                              ),
+                            ),
+                          ),
+                        if (_cleanAnswer.startsWith('⚠️'))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: OutlinedButton(
+                              onPressed: _ask,
+                              child: const Text('重试'),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -1295,33 +1463,41 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                       child: Text(
                         '已结束 · 参考 ${_citations.length} 条来源',
                         style: const TextStyle(
-                            fontSize: 11, color: AppColors.inkFaint),
+                          fontSize: 11,
+                          color: AppColors.inkFaint,
+                        ),
                       ),
                     ),
                   Row(
-                children: [
-                  if (!_busy && _cleanAnswer.isNotEmpty && !_cleanAnswer.startsWith('⚠️'))
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _copyAnswer,
-                        child: Text(_copied ? '已复制' : '复制'),
+                    children: [
+                      if (!_busy &&
+                          _cleanAnswer.isNotEmpty &&
+                          !_cleanAnswer.startsWith('⚠️'))
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _copyAnswer,
+                            child: Text(_copied ? '已复制' : '复制'),
+                          ),
+                        ),
+                      if (!_busy &&
+                          _cleanAnswer.isNotEmpty &&
+                          !_cleanAnswer.startsWith('⚠️'))
+                        const SizedBox(width: 10),
+                      Expanded(
+                        flex: 1,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.accentDeep,
+                          ),
+                          onPressed: _goAssistant,
+                          child: const Text(
+                            '与小爱继续聊',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
                       ),
-                    ),
-                  if (!_busy && _cleanAnswer.isNotEmpty && !_cleanAnswer.startsWith('⚠️'))
-                    const SizedBox(width: 10),
-                  Expanded(
-                    flex: 1,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.accentDeep,
-                      ),
-                      onPressed: _goAssistant,
-                      child: const Text('与小爱继续聊',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
-                    ),
+                    ],
                   ),
-                ],
-              ),
                   if (!_busy &&
                       _cleanAnswer.isNotEmpty &&
                       !_cleanAnswer.startsWith('⚠️')) ...[
@@ -1356,13 +1532,19 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                       padding: const EdgeInsets.only(top: 6),
                       child: Row(
                         children: [
-                          const Text('已恢复上次解读',
-                              style: TextStyle(
-                                  fontSize: 11, color: AppColors.inkFaint)),
+                          const Text(
+                            '已恢复上次解读',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.inkFaint,
+                            ),
+                          ),
                           TextButton(
                             onPressed: _ask,
-                            child: const Text('重新生成',
-                                style: TextStyle(fontSize: 12)),
+                            child: const Text(
+                              '重新生成',
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
                         ],
                       ),
@@ -1399,7 +1581,9 @@ class _HalfSheetCitations extends ConsumerWidget {
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (_, i) {
               final c = citations[i];
-              final snip = (c.snippet ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+              final snip = (c.snippet ?? '')
+                  .replaceAll(RegExp(r'\s+'), ' ')
+                  .trim();
               return InkWell(
                 onTap: () {
                   ref.read(badgeStatsRecorderProvider).recordCitationClick();
@@ -1422,13 +1606,16 @@ class _HalfSheetCitations extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('[${c.n}] ${c.title}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.gold)),
+                      Text(
+                        '[${c.n}] ${c.title}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.gold,
+                        ),
+                      ),
                       if (snip.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
@@ -1436,7 +1623,10 @@ class _HalfSheetCitations extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 11, height: 1.3, color: AppColors.inkSoft),
+                            fontSize: 11,
+                            height: 1.3,
+                            color: AppColors.inkSoft,
+                          ),
                         ),
                       ],
                     ],
@@ -1466,8 +1656,7 @@ class _HalfSheetCitationDetailState
   String? _err;
   bool _loading = true;
   bool _snipExpanded = false;
-  String _disclaimer =
-      '以下中文为便于阅读的释义，非官方译本；请以圣经与原文摘录为准。';
+  String _disclaimer = '以下中文为便于阅读的释义，非官方译本；请以圣经与原文摘录为准。';
 
   @override
   void initState() {
@@ -1485,13 +1674,14 @@ class _HalfSheetCitationDetailState
       return;
     }
     try {
-      var res = await ref.read(assistantRepoProvider).explainCitation(
-            snippet: snip,
-            title: widget.citation.title,
-          );
+      var res = await ref
+          .read(assistantRepoProvider)
+          .explainCitation(snippet: snip, title: widget.citation.title);
       // 首次生成偶有网关超时；再尝试一次，避免用户只看到空的中文释义。
       if (res.explainZh.trim().isEmpty && res.error != null) {
-        res = await ref.read(assistantRepoProvider).explainCitation(
+        res = await ref
+            .read(assistantRepoProvider)
+            .explainCitation(
               snippet: snip,
               title: widget.citation.title,
               force: true,
@@ -1523,28 +1713,45 @@ class _HalfSheetCitationDetailState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('[${widget.citation.n}] ${widget.citation.title}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 16)),
+              Text(
+                '[${widget.citation.n}] ${widget.citation.title}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
               const SizedBox(height: 14),
-              const Text('中文释义',
-                  style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+              const Text(
+                '中文释义',
+                style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+              ),
               const SizedBox(height: 6),
               if (_loading)
-                const Text('正在生成释义…',
-                    style: TextStyle(color: AppColors.inkFaint))
+                const Text(
+                  '正在生成释义…',
+                  style: TextStyle(color: AppColors.inkFaint),
+                )
               else if ((_explain ?? '').isNotEmpty)
-                Text(_explain!, style: const TextStyle(height: 1.6, fontSize: 15))
+                Text(
+                  _explain!,
+                  style: const TextStyle(height: 1.6, fontSize: 15),
+                )
               else
-                Text(_err ?? '暂无法生成中文释义',
-                    style: const TextStyle(color: AppColors.inkFaint)),
+                Text(
+                  _err ?? '暂无法生成中文释义',
+                  style: const TextStyle(color: AppColors.inkFaint),
+                ),
               const SizedBox(height: 14),
-              const Text('原文摘录',
-                  style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+              const Text(
+                '原文摘录',
+                style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+              ),
               const SizedBox(height: 6),
               if (snip.isEmpty)
-                const Text('暂无摘录内容',
-                    style: TextStyle(color: AppColors.inkFaint))
+                const Text(
+                  '暂无摘录内容',
+                  style: TextStyle(color: AppColors.inkFaint),
+                )
               else ...[
                 Text(
                   snip,
@@ -1562,9 +1769,14 @@ class _HalfSheetCitationDetailState
                   ),
               ],
               const SizedBox(height: 14),
-              Text(_disclaimer,
-                  style: const TextStyle(
-                      fontSize: 11, height: 1.45, color: AppColors.inkFaint)),
+              Text(
+                _disclaimer,
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 1.45,
+                  color: AppColors.inkFaint,
+                ),
+              ),
             ],
           ),
         ),
@@ -1584,7 +1796,8 @@ class _VersionPickerBody extends ConsumerStatefulWidget {
 
   final String? mainVersionId;
   final String? compareVersionId;
-  final void Function(String? mainId, String? compareId, String label) onApplied;
+  final void Function(String? mainId, String? compareId, String label)
+  onApplied;
   final VoidCallback onClose;
 
   @override
@@ -1630,7 +1843,9 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
   }
 
   bool _needsDownload(BibleVersion v) =>
-      _offlineable(v.id) && _offlineOk[v.id] != true;
+      // 在线可用译本可立即选读（与 PWA 一致）；离线包仅用于断网。
+      // 之前这里无条件要求下载，导致「选版本」实际只触发下载而未切换。
+      _offlineable(v.id) && _offlineOk[v.id] != true && !v.available;
 
   String _trailing(BibleVersion v, OfflineBibleService svc) {
     if (_offlineable(v.id)) {
@@ -1643,13 +1858,17 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
       }
       if (_failedId == v.id) return '重试';
       if (_offlineOk[v.id] == true) return '已下载';
-      if (v.available) return '下载离线';
+      // 在线可读；离线包是可选能力，不应拦截版本切换。
+      if (v.available) return '可用';
       return '下载';
     }
     return v.available ? '可用' : '暂不可用';
   }
 
-  Future<void> _downloadVersion(BibleVersion v, List<BibleVersion> versions) async {
+  Future<void> _downloadVersion(
+    BibleVersion v,
+    List<BibleVersion> versions,
+  ) async {
     setState(() => _failedId = null);
     final svc = ref.read(offlineBibleProvider);
     try {
@@ -1713,25 +1932,35 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('选择版本',
-                style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                    color: AppColors.ink)),
+            const Text(
+              '选择版本',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: AppColors.ink,
+              ),
+            ),
             const SizedBox(height: 4),
-            const Text('最多勾选 2 本译本；选 2 本时为对照阅读',
-                style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+            const Text(
+              '最多勾选 2 本译本；选 2 本时为对照阅读',
+              style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+            ),
             const SizedBox(height: 8),
             async.when(
               loading: () => const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Center(child: CircularProgressIndicator())),
+                padding: EdgeInsets.all(20),
+                child: Center(child: CircularProgressIndicator()),
+              ),
               error: (e, _) => Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Text('加载失败：$e',
-                      style: const TextStyle(color: AppColors.inkFaint))),
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  '加载失败：$e',
+                  style: const TextStyle(color: AppColors.inkFaint),
+                ),
+              ),
               data: (versions) {
-                final isParallel = widget.compareVersionId != null &&
+                final isParallel =
+                    widget.compareVersionId != null &&
                     widget.mainVersionId == null;
                 return Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1739,15 +1968,13 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                     final selectable = _selectable(v);
                     final downloading =
                         svc.isDownloading && svc.downloadingId == v.id;
-                    final needsDl =
-                        _needsDownload(v) || _failedId == v.id;
+                    final needsDl = _needsDownload(v) || _failedId == v.id;
                     final isMainDisplay = v.primary
                         ? widget.mainVersionId == null && !isParallel
                         : widget.mainVersionId == v.id;
                     final isCompare =
                         isParallel && widget.compareVersionId == v.id;
-                    final checked =
-                        selectable && (isMainDisplay || isCompare);
+                    final checked = selectable && (isMainDisplay || isCompare);
                     final trailing = _trailing(v, svc);
 
                     void handle() {
@@ -1764,15 +1991,15 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                         checked
                             ? Icons.check_circle
                             : (downloading
-                                ? Icons.downloading
-                                : (selectable
-                                    ? Icons.translate
-                                    : Icons.download_outlined)),
+                                  ? Icons.downloading
+                                  : (selectable
+                                        ? Icons.translate
+                                        : Icons.download_outlined)),
                         color: checked
                             ? AppColors.accentDeep
                             : (selectable
-                                ? AppColors.accent
-                                : AppColors.inkFaint),
+                                  ? AppColors.accent
+                                  : AppColors.inkFaint),
                       ),
                       title: Text(v.label),
                       trailing: TextButton(

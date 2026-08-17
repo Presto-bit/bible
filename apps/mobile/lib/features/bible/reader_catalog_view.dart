@@ -19,6 +19,8 @@ class ReaderCatalogView extends StatefulWidget {
     this.planSteps,
     this.showBack = false,
     this.onBack,
+    this.compact = false,
+    this.initialTab = 'books',
   });
 
   final List<BibleBook> books;
@@ -28,6 +30,10 @@ class ReaderCatalogView extends StatefulWidget {
   final List<PlanStep>? planSteps;
   final bool showBack;
   final VoidCallback? onBack;
+
+  /// 顶栏卷章弹窗使用：收起「继续阅读」与新手 CTA。
+  final bool compact;
+  final String initialTab;
 
   @override
   State<ReaderCatalogView> createState() => _ReaderCatalogViewState();
@@ -41,8 +47,9 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
   @override
   void initState() {
     super.initState();
-    _tab = 'books';
-    _selectedBookId = widget.resumeBookId ??
+    _tab = widget.initialTab == 'chapters' ? 'chapters' : 'books';
+    _selectedBookId =
+        widget.resumeBookId ??
         (widget.books.isEmpty ? '' : widget.books.first.id);
   }
 
@@ -86,9 +93,7 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
 
   void _tryPick(BibleBook b, int n) {
     final steps = widget.planSteps;
-    if (steps != null &&
-        steps.isNotEmpty &&
-        !isChapterInPlan(steps, b.id, n)) {
+    if (steps != null && steps.isNotEmpty && !isChapterInPlan(steps, b.id, n)) {
       setState(() => _warn = '该章节不在今日计划内，请从计划段列表选择');
       return;
     }
@@ -142,7 +147,10 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
               style: const TextStyle(fontSize: 12, color: Color(0xFFB1554A)),
             ),
           ),
-        if (resume != null && resumeCh != null && _tab == 'books')
+        if (!widget.compact &&
+            resume != null &&
+            resumeCh != null &&
+            _tab == 'books')
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Material(
@@ -150,7 +158,8 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
               borderRadius: BorderRadius.circular(14),
               child: InkWell(
                 borderRadius: BorderRadius.circular(14),
-                onTap: () => _tryPick(resume, resumeCh.clamp(1, resume.chapterCount)),
+                onTap: () =>
+                    _tryPick(resume, resumeCh.clamp(1, resume.chapterCount)),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
                   child: Row(
@@ -205,7 +214,7 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
               ),
             ),
           )
-        else if (!inPlan && _tab == 'books')
+        else if (!widget.compact && !inPlan && _tab == 'books')
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Column(
@@ -298,8 +307,7 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
                   itemCount: selected.chapterCount,
                   itemBuilder: (_, i) {
                     final n = i + 1;
-                    final isResume = resume?.id == selected.id &&
-                        resumeCh == n;
+                    final isResume = resume?.id == selected.id && resumeCh == n;
                     return Material(
                       color: isResume
                           ? AppColors.accentDeep
@@ -351,11 +359,7 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
 }
 
 class _Seg extends StatelessWidget {
-  const _Seg({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
+  const _Seg({required this.label, required this.active, required this.onTap});
   final String label;
   final bool active;
   final VoidCallback onTap;

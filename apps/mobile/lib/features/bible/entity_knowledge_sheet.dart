@@ -47,11 +47,8 @@ Future<void> showInlineVersePreview(
   return showReaderSheet<void>(
     context: context,
     heightFactor: 0.55,
-    builder: (_) => _VersePreviewSheet(
-      label: label,
-      bookId: bookId,
-      chapter: chapter,
-    ),
+    builder: (_) =>
+        _VersePreviewSheet(label: label, bookId: bookId, chapter: chapter),
   );
 }
 
@@ -89,8 +86,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     final typeLabel = entityTypeLabel(_entity.type);
     final bottom = MediaQuery.paddingOf(context).bottom;
     final showSenses = widget.candidates.length > 1;
-    final knowledgeAsync =
-        ref.watch(entityKnowledgeProvider(_entity.id));
+    final knowledgeAsync = ref.watch(entityKnowledgeProvider(_entity.id));
 
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 4, 16, 12 + bottom),
@@ -243,9 +239,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
         const SizedBox(height: 10),
         Expanded(
           child: loading
-              ? const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
               : SingleChildScrollView(
                   child: _tabBody(
                     tab: activeTab,
@@ -270,7 +264,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     switch (tab) {
       case 'map':
         if (place == null) {
-          return const Text('暂无地图资料', style: TextStyle(color: AppColors.inkFaint));
+          return const Text(
+            '暂无地图资料',
+            style: TextStyle(color: AppColors.inkFaint),
+          );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -279,6 +276,13 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
               place.name,
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
             ),
+            if ((place.type ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                _placeTypeLabel(place.type!),
+                style: const TextStyle(fontSize: 13, color: AppColors.inkSoft),
+              ),
+            ],
             if ((place.modernName ?? '').trim().isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
@@ -286,29 +290,88 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                 style: const TextStyle(height: 1.55, color: AppColors.inkSoft),
               ),
             ],
+            if (place.latitude != null && place.longitude != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '坐标：${place.latitude!.toStringAsFixed(4)}, '
+                '${place.longitude!.toStringAsFixed(4)}',
+                style: const TextStyle(fontSize: 13, color: AppColors.inkFaint),
+              ),
+            ],
+            if (place.refs.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final r in place.refs.take(12))
+                    ActionChip(
+                      label: Text(r, style: const TextStyle(fontSize: 12)),
+                      backgroundColor: AppColors.goldWash,
+                      side: BorderSide.none,
+                      onPressed: () => _openRefPreview(context, r),
+                    ),
+                ],
+              ),
+            ],
           ],
         );
       case 'graph':
         final nodes = graph?.nodes ?? const <GraphNode>[];
+        final edges = graph?.edges ?? const <GraphEdge>[];
         if (nodes.isEmpty) {
-          return const Text('暂无关系', style: TextStyle(color: AppColors.inkFaint));
+          return const Text(
+            '暂无关系',
+            style: TextStyle(color: AppColors.inkFaint),
+          );
         }
+        final nodeNames = {for (final node in nodes) node.id: node.name};
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final n in nodes.take(24))
+            // 优先渲染关系边，避免只有人名而看不出关系内容。
+            for (final edge in edges.take(24))
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  n.name.isNotEmpty ? n.name : n.id,
-                  style: const TextStyle(fontSize: 14, color: AppColors.inkSoft),
+                child: Text.rich(
+                  TextSpan(
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.inkSoft,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: (edge.label ?? edge.type ?? '相关').trim(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.accentDeep,
+                        ),
+                      ),
+                      TextSpan(text: ' · ${_edgePeerName(edge, nodeNames)}'),
+                    ],
+                  ),
                 ),
               ),
+            if (edges.isEmpty)
+              for (final n in nodes.take(24))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    n.name.isNotEmpty ? n.name : n.id,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.inkSoft,
+                    ),
+                  ),
+                ),
           ],
         );
       case 'diagrams':
         if (diagrams.isEmpty) {
-          return const Text('暂无图鉴', style: TextStyle(color: AppColors.inkFaint));
+          return const Text(
+            '暂无图鉴',
+            style: TextStyle(color: AppColors.inkFaint),
+          );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,7 +381,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   d.title,
-                  style: const TextStyle(fontSize: 14, color: AppColors.inkSoft),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.inkSoft,
+                  ),
                 ),
               ),
           ],
@@ -326,7 +392,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
       case 'refs':
       default:
         if (refs.isEmpty) {
-          return const Text('暂无参考经文', style: TextStyle(color: AppColors.inkFaint));
+          return const Text(
+            '暂无参考经文',
+            style: TextStyle(color: AppColors.inkFaint),
+          );
         }
         return Wrap(
           spacing: 8,
@@ -354,6 +423,29 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
         return '图鉴';
       default:
         return '经节';
+    }
+  }
+
+  String _edgePeerName(GraphEdge edge, Map<String, String> nodeNames) {
+    final peer = edge.peerName?.trim();
+    if (peer != null && peer.isNotEmpty) return peer;
+    final peerId =
+        edge.peerId ?? (edge.from == _entity.id ? edge.to : edge.from);
+    return nodeNames[peerId] ?? peerId;
+  }
+
+  String _placeTypeLabel(String type) {
+    switch (type.toLowerCase()) {
+      case 'city':
+        return '城邑';
+      case 'region':
+        return '地区';
+      case 'mountain':
+        return '山地';
+      case 'river':
+        return '河流';
+      default:
+        return type;
     }
   }
 
