@@ -326,8 +326,17 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   Chapter? _cachedChapter;
   Chapter? _liveChapter;
 
-  /// 横滑翻章 peek（0=中间，负=下一章预览感，正=上一章）
+  /// 横滑翻章视觉位移（已含边界阻力）
   double _pageDragDx = 0;
+
+  /// 横滑原始累计位移（未乘边界阻力；松手判定用）
+  double _pageDragRaw = 0;
+
+  /// 邻章是否已触发预取
+  bool _pageTurnPrefetched = false;
+
+  /// 横滑轴锁：null 未判定 / x 横翻（由 HorizontalDrag 手势识别器完成）
+  String? _pageDragAxis;
 
   /// 划词手势中：禁止横滑翻章（对齐 PWA swipeIgnore）
   bool _selectionGestureActive = false;
@@ -339,6 +348,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final prefs = ref.read(prefsProvider);
     _cachedChapter = readChapterCache(prefs, widget.book.id, widget.chapter);
     _scheduleGuideTips(fromSwipe: false, prevBookId: null, prevChapter: null);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _prefetchAdjacentChapters();
+    });
   }
 
   @override
@@ -362,6 +374,11 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         _planDayFinishScheduled = false;
         _resumeScheduled = false;
         _liveChapter = null;
+        _pageDragDx = 0;
+        _pageDragRaw = 0;
+        _pageTurnPrefetched = false;
+        _pageDragAxis = null;
+        _selectionGestureActive = false;
         _cachedChapter = readChapterCache(
           ref.read(prefsProvider),
           widget.book.id,
@@ -376,6 +393,11 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         prevChapter: oldWidget.chapter,
       );
       _persistPlanRef();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_scroll.hasClients) _scroll.jumpTo(0);
+        _prefetchAdjacentChapters();
+      });
     }
   }
 
@@ -1356,128 +1378,285 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     return null;
   }
 
-  Widget _pageTurnPeekOverlay(ReaderExperienceTheme theme) {
-    final goingNext = _pageDragDx < 0;
-    final target = _adjacentTarget(goingNext ? 1 : -1);
+  /// 与当前主文同译本预取邻章，避免 peek 空白/错译本。
+  void _prefetchAdjacentChapters() {
+    for (final delta in const [-1, 1]) {
+      final target = _adjacentTarget(delta);
+      if (target == null) continue;
+      // 默认 chapterProvider（布局/目录用）始终预热，保证段落分段一致。
+      unawaited(
+        ref
+            .read(
+              chapterProvider((
+                book: target.book.id,
+                chapter: target.chapter,
+              )).future,
+            )
+            .then((_) {}, onError: (_) {}),
+      );
+      if (widget.mainVersionId != null) {
+        unawaited(
+          ref
+              .read(
+                chapterVersionProvider((
+                  book: target.book.id,
+                  chapter: target.chapter,
+                  version: widget.mainVersionId!,
+                )).future,
+              )
+              .then((_) {}, onError: (_) {}),
+        );
+      }
+    }
+  }
+
+  double _clampPageDrag(double raw, double width) {
+    var o = raw.clamp(-width, width);
+    if (o < 0 && _adjacentTarget(1) == null) o *= 0.28;
+    if (o > 0 && _adjacentTarget(-1) == null) o *= 0.28;
+    return o;
+  }
+
+  void _resetPageDrag() {
+    _pageDragDx = 0;
+    _pageDragRaw = 0;
+    _pageTurnPrefetched = false;
+    _pageDragAxis = null;
+  }
+
+  void _onPageDragUpdate(double deltaDx) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width <= 0) return;
+    setState(() {
+      // HorizontalDragRecognizer 已完成横轴锁定；此处记录轴态供复位。
+      _pageDragAxis = 'x';
+      _pageDragRaw = (_pageDragRaw + deltaDx).clamp(-width, width);
+      _pageDragDx = _clampPageDrag(_pageDragRaw, width);
+    });
+    if (!_pageTurnPrefetched && _pageDragRaw.abs() / width >= 0.04) {
+      _pageTurnPrefetched = true;
+      _prefetchAdjacentChapters();
+    }
+  }
+
+  bool _shouldCommitPageTurn({
+    required double dx,
+    required double width,
+    required double velocityPxPerSec,
+  }) {
+    if (width <= 0) return false;
+    final ratio = dx.abs() / width;
+    final goingPrev = dx > 0;
+    final threshold = goingPrev ? 0.09 : 0.13;
+    final force = goingPrev ? 0.18 : 0.24;
+    // PWA：0.09–0.12 px/ms ≈ 90–120 px/s
+    final velMin = goingPrev ? 90.0 : 120.0;
+    final soft = goingPrev ? 0.07 : 0.09;
+    return ratio >= force ||
+        ratio >= threshold ||
+        (ratio >= soft && velocityPxPerSec.abs() >= velMin);
+  }
+
+  void _finishPageTurn(DragEndDetails d) {
+    widget.onInteract();
+    final width = MediaQuery.sizeOf(context).width;
+    // 用原始位移判定方向/阈值，避免边界阻力压扁后永远翻不过去
+    final dx = _pageDragRaw;
+    final v = d.primaryVelocity ?? 0;
+    final goingNext = dx < 0 || (dx == 0 && v < 0);
+    final can = _adjacentTarget(goingNext ? 1 : -1) != null;
+    final ratio = width > 0 ? dx.abs() / width : 0.0;
+    final commit = _shouldCommitPageTurn(
+      dx: dx,
+      width: width,
+      velocityPxPerSec: v,
+    );
+    setState(_resetPageDrag);
+    if (commit && can) {
+      peiaiHapticLight(context);
+      widget.onNav(goingNext ? 1 : -1);
+      return;
+    }
+    if (!can && ratio >= 0.1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(goingNext ? '已是最后一章' : '已是第一章'),
+          duration: const Duration(milliseconds: 1200),
+        ),
+      );
+    }
+  }
+
+  Widget _chapterPeekPanel({
+    required ReaderExperienceTheme theme,
+    required int delta,
+    required double width,
+  }) {
+    final target = _adjacentTarget(delta);
+    final topPad = widget.chromeHidden
+        ? (MediaQuery.paddingOf(context).top + 56)
+        : 12.0;
     if (target == null) {
-      return Positioned(
-        top: 0,
-        bottom: 0,
-        left: goingNext ? null : 0,
-        right: goingNext ? 0 : null,
-        child: IgnorePointer(
-          child: Container(
-            width: 28,
-            alignment: Alignment.center,
-            color: theme.background.withValues(alpha: 0.55),
-            child: Icon(
-              goingNext ? Icons.chevron_right : Icons.chevron_left,
-              color: theme.ink.withValues(alpha: 0.35),
-              size: 22,
+      return ColoredBox(
+        color: theme.background,
+        child: Center(
+          child: Text(
+            delta > 0 ? '已是最后一章' : '已是第一章',
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.ink.withValues(alpha: 0.45),
             ),
           ),
         ),
       );
     }
-    final peekAsync = ref.watch(
-      chapterProvider((book: target.book.id, chapter: target.chapter)),
-    );
-    final snippet = peekAsync.maybeWhen(
-      data: (ch) {
-        final verses = ch.verses
-            .take(2)
-            .map((v) => v.text.trim())
-            .where((t) => t.isNotEmpty);
-        final joined = verses.join(' ');
-        if (joined.isEmpty) return null;
-        return joined.length > 72 ? '${joined.substring(0, 72)}…' : joined;
-      },
-      orElse: () => null,
-    );
-    final loading = peekAsync.isLoading && snippet == null;
-    final width = (_pageDragDx.abs() * 1.15).clamp(72.0, 168.0);
-    return Positioned(
-      top: 0,
-      bottom: 0,
-      left: goingNext ? null : 0,
-      right: goingNext ? 0 : null,
-      child: IgnorePointer(
-        child: Opacity(
-          opacity: (_pageDragDx.abs() / 88).clamp(0.35, 0.92),
-          child: Container(
-            width: width,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: theme.background.withValues(alpha: 0.88),
-              border: Border(
-                left: goingNext
-                    ? BorderSide(color: theme.ink.withValues(alpha: 0.08))
-                    : BorderSide.none,
-                right: goingNext
-                    ? BorderSide.none
-                    : BorderSide(color: theme.ink.withValues(alpha: 0.08)),
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  goingNext ? Icons.chevron_right : Icons.chevron_left,
-                  color: theme.ink.withValues(alpha: 0.4),
-                  size: 20,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  target.book.name,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: theme.ink.withValues(alpha: 0.75),
-                  ),
-                ),
-                Text(
-                  '第 ${target.chapter} 章',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.ink.withValues(alpha: 0.45),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                if (loading)
-                  SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      color: theme.ink.withValues(alpha: 0.35),
-                    ),
-                  )
-                else if (snippet != null)
-                  Text(
-                    snippet,
-                    textAlign: TextAlign.center,
-                    maxLines: 5,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      height: 1.45,
-                      color: theme.ink.withValues(alpha: 0.5),
-                      fontFamily: 'Songti SC',
-                      fontFamilyFallback: const [
-                        'STSong',
-                        'Noto Serif SC',
-                        'serif',
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+    final async = widget.mainVersionId != null
+        ? ref.watch(
+            chapterVersionProvider((
+              book: target.book.id,
+              chapter: target.chapter,
+              version: widget.mainVersionId!,
+            )),
+          )
+        : ref.watch(
+            chapterProvider((
+              book: target.book.id,
+              chapter: target.chapter,
+            )),
+          );
+    final fontPx = ref.watch(readerFontProvider).px;
+    final fontFamily = ref.watch(readerFontFamilyProvider);
+    final verseNo = ref.watch(readerVerseNumberProvider);
+    final outline = outlineFor(target.book.id, target.chapter);
+    final sectionByVerse = {for (final s in outline) s.verse: s.title};
+    final apiSections = ref
+        .watch(
+          sectionTitlesProvider((
+            book: target.book.id,
+            chapter: target.chapter,
+          )),
+        )
+        .value;
+    if (apiSections != null) {
+      for (final s in apiSections) {
+        final t = s.title.trim();
+        if (t.isNotEmpty) sectionByVerse[s.verse] = t;
+      }
+    }
+
+    return ColoredBox(
+      color: theme.background,
+      child: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => Center(
+          child: Text(
+            '加载失败',
+            style: TextStyle(color: theme.ink.withValues(alpha: 0.45)),
           ),
         ),
+        data: (ch) {
+          final poetry = const {
+            'PSA',
+            'PRO',
+            'ECC',
+            'SNG',
+            'LAM',
+            'AMO',
+            'MIC',
+            'HAB',
+            'ZEP',
+            'NAH',
+            'HAG',
+            'ZEC',
+            'MAL',
+            'JOB',
+          }.contains(target.book.id.toUpperCase());
+          final sectionStarts = sectionByVerse.keys.toList()..sort();
+          final paras = groupVersesIntoParagraphs(
+            target.book.id,
+            ch.verses,
+            sectionStarts,
+          );
+          final rows = <Object>[];
+          for (final p in paras) {
+            final title = sectionByVerse[p.startVerse];
+            if (title != null && title.trim().isNotEmpty) {
+              rows.add(title.trim());
+            }
+            rows.add(p);
+          }
+          final bodyStyle = TextStyle(
+            fontSize: fontPx,
+            height: poetry ? 2.1 : 2.05,
+            letterSpacing: fontPx * 0.015,
+            color: theme.ink,
+            fontFamily: fontFamily.fontFamily,
+            fontFamilyFallback: fontFamily.fontFamilyFallback,
+          );
+          return ListView(
+            // 预览只读：不滚动、不写阅读记录、不打开词典
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(16, topPad, 20, 24),
+            children: [
+              Text(
+                target.book.name,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: theme.ink,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '第 ${target.chapter} 章',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: theme.ink.withValues(alpha: 0.55),
+                ),
+              ),
+              const SizedBox(height: 16),
+              for (final row in rows)
+                if (row is String)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 10, 0, 8),
+                    child: Text(
+                      row,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: theme.ink.withValues(alpha: 0.55),
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: EdgeInsets.only(bottom: poetry ? 6 : 12),
+                    child: Text.rich(
+                      TextSpan(
+                        style: bodyStyle,
+                        children: [
+                          for (final v in (row as VerseParagraph).verses) ...[
+                            if (verseNo != ReaderVerseNumberMode.hidden)
+                              TextSpan(
+                                text: '${v.verse}\u2009',
+                                style: TextStyle(
+                                  color: AppColors.accentDeep,
+                                  fontSize: fontPx * 0.65,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.0,
+                                ),
+                              ),
+                            TextSpan(text: '${v.text.trim()} '),
+                          ],
+                        ],
+                      ),
+                      textAlign: TextAlign.justify,
+                    ),
+                  ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1877,164 +2056,181 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final planHead = widget.planMeta != null ? 1 : 0;
     final planTail = segmentFooter != null ? 1 : 0;
     final reduceMotion = peiaiReduceMotion(context);
+    final pageW = MediaQuery.sizeOf(context).width;
+    final swipeOn =
+        pageTurn == ReaderPageTurn.swipe &&
+        !reduceMotion &&
+        !_selectionGestureActive;
+    final dx = _pageDragDx;
+
+    final listBody = VerseSelectionSurface(
+      enabled: true,
+      onApplyRange: (a, f, {commit = true}) =>
+          _applyWordRange(a, f, commit: commit),
+      onCommitRange: _commitWordRangeProgress,
+      onClearIfEmptyTap: _selected.isNotEmpty ? _clearSelection : null,
+      onSelectionGestureChanged: (on) {
+        if (_selectionGestureActive != on) {
+          setState(() => _selectionGestureActive = on);
+        }
+      },
+      child: ListView.builder(
+        controller: _scroll,
+        physics: dx.abs() > 8
+            ? const NeverScrollableScrollPhysics()
+            : null,
+        // 沉浸：顶垫给固定卷章条；非沉浸：正常章头在列表内
+        padding: EdgeInsets.fromLTRB(
+          16,
+          widget.chromeHidden
+              ? (MediaQuery.paddingOf(context).top + 56)
+              : 12,
+          20,
+          widget.chromeHidden
+              ? (MediaQuery.paddingOf(context).bottom + 8)
+              : (MediaQuery.paddingOf(context).bottom + 48),
+        ),
+        itemCount: rows.length + 1 + planHead + planTail,
+        itemBuilder: (_, i) {
+          if (planHead == 1 && i == 0) {
+            final meta = widget.planMeta!;
+            final stepIdx = stepForChapter(
+              meta.steps,
+              widget.book.id,
+              widget.chapter,
+            );
+            return PlanReadingBar(
+              planTitle: meta.planTitle,
+              day: meta.day,
+              totalDays: meta.totalDays,
+              steps: meta.steps,
+              session: meta.session,
+              onJumpStep: (index) {
+                final s = meta.steps[index];
+                widget.onPlanJump?.call(s.bookId, s.chapterStart);
+              },
+              onOpenSheet: () => showPlanDaySheet(
+                context,
+                day: meta.day,
+                steps: meta.steps,
+                session: meta.session,
+                currentStepIndex: stepIdx >= 0
+                    ? stepIdx
+                    : meta.session.currentStepIndex,
+                onJump: (index) {
+                  final s = meta.steps[index];
+                  widget.onPlanJump?.call(s.bookId, s.chapterStart);
+                },
+              ),
+            );
+          }
+          if (i == planHead) {
+            // 全屏时卷章固定在顶部叠层；非沉浸仍放正文首行（对齐对照模式）
+            if (widget.chromeHidden) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12, top: 4),
+              child: _chapterLocTitle(theme),
+            );
+          }
+          if (planTail == 1 && i == rows.length + 1 + planHead) {
+            return segmentFooter!;
+          }
+          final r = rows[i - 1 - planHead];
+          if (r is String) {
+            return _sectionTitle(r);
+          }
+          final para = r as VerseParagraph;
+          return _ParagraphBlock(
+            book: widget.book,
+            chapter: widget.chapter,
+            paragraph: displayPara(para),
+            verseNo: verseNo,
+            poetry: poetry,
+            selected: _selected,
+            wordRange: _wordRange,
+            highlightMarks: highlights,
+            underlinesEnabled: underlinesEnabled,
+            thoughtsEnabled: thoughtsEnabled,
+            thoughtsByVerse: thoughtsByVerse,
+            myThoughtsByVerse: myThoughtsByVerse,
+            notesByVerse: notesByVerse,
+            fontFamily: fontFamily,
+            dictIndex: dictIndex,
+            dictKeys: dictKeys,
+            selectionAnchorVerse: _selectionAnchorVerse,
+            selectionAnchorKey: _selectionAnchorKey,
+            resumeFlashVerse: _resumeFlashVerse,
+            resumeAnchorKey: _resumeAnchorKey,
+            onViewNote: _viewNote,
+            onStart: _startSelect,
+            onToggle: _toggleSelect,
+            onWordStart: _startWordSelect,
+            onWordExtend: _extendWordSelect,
+            onOpenThoughts: _openThoughtsForVerse,
+            onOpenDict: (entity, name, candidates) {
+              showEntityKnowledgeSheet(
+                context,
+                ref,
+                entity: entity,
+                displayName: name,
+                candidates: candidates,
+              );
+            },
+          );
+        },
+      ),
+    );
 
     return GestureDetector(
-      onHorizontalDragUpdate:
-          pageTurn == ReaderPageTurn.swipe &&
-              !reduceMotion &&
-              !_selectionGestureActive
-          ? (d) {
-              setState(() {
-                _pageDragDx = (_pageDragDx + d.delta.dx).clamp(-88.0, 88.0);
-              });
-            }
+      onHorizontalDragUpdate: swipeOn
+          ? (d) => _onPageDragUpdate(d.delta.dx)
           : null,
-      onHorizontalDragEnd:
-          pageTurn == ReaderPageTurn.swipe && !_selectionGestureActive
-          ? (d) {
-              widget.onInteract();
-              final v = d.primaryVelocity ?? 0;
-              final dx = _pageDragDx;
-              setState(() => _pageDragDx = 0);
-              if (v < -250 || dx < -48) {
-                peiaiHapticLight(context);
-                widget.onNav(1);
-              } else if (v > 250 || dx > 48) {
-                peiaiHapticLight(context);
-                widget.onNav(-1);
-              }
-            }
-          : null,
+      onHorizontalDragEnd: swipeOn ? _finishPageTurn : null,
       onHorizontalDragCancel: () {
-        if (_pageDragDx != 0) setState(() => _pageDragDx = 0);
+        if (_pageDragDx != 0 || _pageDragRaw != 0 || _pageDragAxis != null) {
+          setState(_resetPageDrag);
+        }
       },
       child: Stack(
-        clipBehavior: Clip.none,
+        clipBehavior: Clip.hardEdge,
         children: [
-          Transform.translate(
-            offset: Offset(_pageDragDx * 0.22, 0),
+          ClipRect(
             child: Stack(
-              clipBehavior: Clip.none,
+              fit: StackFit.expand,
               children: [
-                VerseSelectionSurface(
-                  enabled: true,
-                  onApplyRange: (a, f, {commit = true}) =>
-                      _applyWordRange(a, f, commit: commit),
-                  onCommitRange: _commitWordRangeProgress,
-                  onClearIfEmptyTap:
-                      _selected.isNotEmpty ? _clearSelection : null,
-                  onSelectionGestureChanged: (on) {
-                    if (_selectionGestureActive != on) {
-                      setState(() => _selectionGestureActive = on);
-                    }
-                  },
-                  child: ListView.builder(
-                    controller: _scroll,
-                    // 沉浸：顶垫给固定卷章条；非沉浸：正常章头在列表内
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      widget.chromeHidden
-                          ? (MediaQuery.paddingOf(context).top + 56)
-                          : 12,
-                      20,
-                      widget.chromeHidden
-                          ? (MediaQuery.paddingOf(context).bottom + 8)
-                          : (MediaQuery.paddingOf(context).bottom + 48),
+                if (dx < -2)
+                  Positioned(
+                    left: pageW + dx,
+                    top: 0,
+                    bottom: 0,
+                    width: pageW,
+                    child: _chapterPeekPanel(
+                      theme: theme,
+                      delta: 1,
+                      width: pageW,
                     ),
-                    itemCount: rows.length + 1 + planHead + planTail,
-                    itemBuilder: (_, i) {
-                      if (planHead == 1 && i == 0) {
-                        final meta = widget.planMeta!;
-                        final stepIdx = stepForChapter(
-                          meta.steps,
-                          widget.book.id,
-                          widget.chapter,
-                        );
-                        return PlanReadingBar(
-                          planTitle: meta.planTitle,
-                          day: meta.day,
-                          totalDays: meta.totalDays,
-                          steps: meta.steps,
-                          session: meta.session,
-                          onJumpStep: (index) {
-                            final s = meta.steps[index];
-                            widget.onPlanJump?.call(s.bookId, s.chapterStart);
-                          },
-                          onOpenSheet: () => showPlanDaySheet(
-                            context,
-                            day: meta.day,
-                            steps: meta.steps,
-                            session: meta.session,
-                            currentStepIndex: stepIdx >= 0
-                                ? stepIdx
-                                : meta.session.currentStepIndex,
-                            onJump: (index) {
-                              final s = meta.steps[index];
-                              widget.onPlanJump?.call(s.bookId, s.chapterStart);
-                            },
-                          ),
-                        );
-                      }
-                      if (i == planHead) {
-                        // 全屏时卷章固定在顶部叠层；非沉浸仍放正文首行（对齐对照模式）
-                        if (widget.chromeHidden) {
-                          return const SizedBox.shrink();
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12, top: 4),
-                          child: _chapterLocTitle(theme),
-                        );
-                      }
-                      if (planTail == 1 &&
-                          i == rows.length + 1 + planHead) {
-                        return segmentFooter!;
-                      }
-                      final r = rows[i - 1 - planHead];
-                      if (r is String) {
-                        return _sectionTitle(r);
-                      }
-                      final para = r as VerseParagraph;
-                      return _ParagraphBlock(
-                        book: widget.book,
-                        chapter: widget.chapter,
-                        paragraph: displayPara(para),
-                        verseNo: verseNo,
-                        poetry: poetry,
-                        selected: _selected,
-                        wordRange: _wordRange,
-                        highlightMarks: highlights,
-                        underlinesEnabled: underlinesEnabled,
-                        thoughtsEnabled: thoughtsEnabled,
-                        thoughtsByVerse: thoughtsByVerse,
-                        myThoughtsByVerse: myThoughtsByVerse,
-                        notesByVerse: notesByVerse,
-                        fontFamily: fontFamily,
-                        dictIndex: dictIndex,
-                        dictKeys: dictKeys,
-                        selectionAnchorVerse: _selectionAnchorVerse,
-                        selectionAnchorKey: _selectionAnchorKey,
-                        resumeFlashVerse: _resumeFlashVerse,
-                        resumeAnchorKey: _resumeAnchorKey,
-                        onViewNote: _viewNote,
-                        onStart: _startSelect,
-                        onToggle: _toggleSelect,
-                        onWordStart: _startWordSelect,
-                        onWordExtend: _extendWordSelect,
-                        onOpenThoughts: _openThoughtsForVerse,
-                        onOpenDict: (entity, name, candidates) {
-                          showEntityKnowledgeSheet(
-                            context,
-                            ref,
-                            entity: entity,
-                            displayName: name,
-                            candidates: candidates,
-                          );
-                        },
-                      );
-                    },
+                  ),
+                if (dx > 2)
+                  Positioned(
+                    left: dx - pageW,
+                    top: 0,
+                    bottom: 0,
+                    width: pageW,
+                    child: _chapterPeekPanel(
+                      theme: theme,
+                      delta: -1,
+                      width: pageW,
+                    ),
+                  ),
+                Transform.translate(
+                  offset: Offset(dx, 0),
+                  child: ColoredBox(
+                    color: theme.background,
+                    child: listBody,
                   ),
                 ),
-                if (_pageDragDx.abs() > 12) _pageTurnPeekOverlay(theme),
               ],
             ),
           ),
@@ -2171,184 +2367,243 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
       ];
     }
 
-    return GestureDetector(
-      onHorizontalDragEnd: (d) {
-        widget.onInteract();
-        final v = d.primaryVelocity ?? 0;
-        if (v < -250) widget.onNav(1);
-        if (v > 250) widget.onNav(-1);
-      },
-      child: Stack(
-        children: [
-          ListView.builder(
-            controller: _scroll,
-            // 对照模式同样沿用 PWA 的 16px 阅读边距。
-            padding: EdgeInsets.fromLTRB(
-              16,
-              widget.chromeHidden
-                  ? (MediaQuery.paddingOf(context).top + 56)
-                  : 12,
-              16,
-              12,
-            ),
-            itemCount: rows.length + 1,
-            itemBuilder: (_, i) {
-              if (i == 0) {
-                if (widget.chromeHidden) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _chapterLocTitle(theme),
-                      if (compareStatus == 'loading') ...[
-                        const SizedBox(height: 8),
-                        const Text(
-                          '对照译本加载中…',
-                          style: TextStyle(
-                              fontSize: 13, color: AppColors.inkFaint),
-                        ),
-                      ],
-                      if (compareStatus == 'error') ...[
-                        const SizedBox(height: 8),
-                        const Text(
-                          '译本加载失败，请稍后重试',
-                          style:
-                              TextStyle(fontSize: 13, color: AppColors.inkSoft),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              }
-              final r = rows[i - 1];
-              if (r is String) {
-                return _sectionTitle(r);
-              }
-              final para = r as VerseParagraph;
-              final primarySpans = <InlineSpan>[];
-              final compareSpans = <InlineSpan>[];
-              final selBg = Paint()..color = AppColors.accentWash;
-              final mainBase = TextStyle(
-                color: theme.ink,
-            fontSize: fontPx,
-            // 对齐 PWA 单栏：诗体 2.1，散文 2.05；不在对照模式硬编码 Georgia。
-            height: poetry ? 2.1 : 2.05,
-            letterSpacing: fontPx * 0.015,
-            fontFamily: fontFamily.fontFamily,
-            fontFamilyFallback: fontFamily.fontFamilyFallback,
-          );
-          final parallelBase = TextStyle(
-            color: theme.ink.withValues(alpha: 0.55),
-            fontSize: fontPx * 0.92,
-            // PWA `.reader-parallel-secondary` 使用 0.92em / 1.55。
-            height: 1.55,
-            letterSpacing: fontPx * 0.015,
-            fontFamily: fontFamily.fontFamily,
-            fontFamilyFallback: fontFamily.fontFamilyFallback,
-          );
-          for (final v in para.verses) {
-            final isSel = _selected.contains(v.verse);
-            final mainT = verseText(primary, v.verse);
-            final parallelT = verseText(compare, v.verse);
-            final diff = showDiff && sameScriptRoughly(mainT, parallelT)
-                ? cachedVerseDiff(
-                    '${widget.book.id}.${widget.chapter}.${v.verse}',
-                    mainT,
-                    parallelT,
-                  )
-                : const VerseDiffResult(main: [], parallel: [], heavy: false);
-            if (verseNo != ReaderVerseNumberMode.hidden) {
-              primarySpans.add(
-                TextSpan(
-                  text: '${v.verse}\u2009',
-                  style: TextStyle(
-                    color: AppColors.accentDeep,
-                    fontSize: fontPx * 0.65,
-                    fontWeight: FontWeight.w700,
-                    height: 1.0,
-                    background: isSel ? selBg : null,
-                  ),
-                ),
-              );
-            }
-            if (diff.heavy) {
-              primarySpans.add(
-                TextSpan(
-                  text: '$mainT ',
-                  style: mainBase.copyWith(
-                    backgroundColor: isSel
-                        ? AppColors.accentWash
-                        : const Color(0x18B8860B),
-                  ),
-                ),
-              );
-            } else {
-              primarySpans.addAll(
-                textSpans(
-                  text: mainT,
-                  diffs: diff.main,
-                  base: mainBase,
-                  selected: isSel,
-                  selBg: selBg,
-                ),
-              );
-            }
-            if (verseNo != ReaderVerseNumberMode.hidden) {
-              compareSpans.add(
-                TextSpan(
-                  text: '${v.verse} ',
-                  style: TextStyle(
-                    color: AppColors.accentDeep.withValues(alpha: 0.55),
-                    fontSize: fontPx * 0.6,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              );
-            }
-            if (diff.heavy) {
-              compareSpans.add(
-                TextSpan(
-                  text: '$parallelT ',
-                  style: parallelBase.copyWith(
-                    backgroundColor: const Color(0x18B8860B),
-                  ),
-                ),
-              );
-            } else {
-              compareSpans.addAll(
-                textSpans(
-                  text: parallelT,
-                  diffs: diff.parallel,
-                  base: parallelBase,
-                  diffStyle: parallelBase.copyWith(
-                    backgroundColor: const Color(0x22C4A35A),
-                  ),
-                ),
-              );
-            }
+    final pageTurn = ref.watch(readerPageTurnProvider);
+    final reduceMotion = peiaiReduceMotion(context);
+    final swipeOn =
+        pageTurn == ReaderPageTurn.swipe &&
+        !reduceMotion &&
+        !_selectionGestureActive;
+    final pageW = MediaQuery.sizeOf(context).width;
+    final dx = _pageDragDx;
+
+    final listBody = ListView.builder(
+      controller: _scroll,
+      physics: dx.abs() > 8
+          ? const NeverScrollableScrollPhysics()
+          : null,
+      // 对照模式同样沿用 PWA 的 16px 阅读边距。
+      padding: EdgeInsets.fromLTRB(
+        16,
+        widget.chromeHidden
+            ? (MediaQuery.paddingOf(context).top + 56)
+            : 12,
+        16,
+        12,
+      ),
+      itemCount: rows.length + 1,
+      itemBuilder: (_, i) {
+        if (i == 0) {
+          if (widget.chromeHidden) {
+            return const SizedBox.shrink();
           }
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            padding: const EdgeInsets.symmetric(vertical: 6),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RichText(
-                  textAlign: TextAlign.justify,
-                  text: TextSpan(style: mainBase, children: primarySpans),
-                ),
-                const SizedBox(height: 6),
-                RichText(
-                  textAlign: TextAlign.justify,
-                  text: TextSpan(style: parallelBase, children: compareSpans),
-                ),
+                _chapterLocTitle(theme),
+                if (compareStatus == 'loading') ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    '对照译本加载中…',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.inkFaint,
+                    ),
+                  ),
+                ],
+                if (compareStatus == 'error') ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    '译本加载失败，请稍后重试',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.inkSoft,
+                    ),
+                  ),
+                ],
               ],
             ),
           );
-            },
+        }
+        final r = rows[i - 1];
+        if (r is String) {
+          return _sectionTitle(r);
+        }
+        final para = r as VerseParagraph;
+        final primarySpans = <InlineSpan>[];
+        final compareSpans = <InlineSpan>[];
+        final selBg = Paint()..color = AppColors.accentWash;
+        final mainBase = TextStyle(
+          color: theme.ink,
+          fontSize: fontPx,
+          // 对齐 PWA 单栏：诗体 2.1，散文 2.05；不在对照模式硬编码 Georgia。
+          height: poetry ? 2.1 : 2.05,
+          letterSpacing: fontPx * 0.015,
+          fontFamily: fontFamily.fontFamily,
+          fontFamilyFallback: fontFamily.fontFamilyFallback,
+        );
+        final parallelBase = TextStyle(
+          color: theme.ink.withValues(alpha: 0.55),
+          fontSize: fontPx * 0.92,
+          // PWA `.reader-parallel-secondary` 使用 0.92em / 1.55。
+          height: 1.55,
+          letterSpacing: fontPx * 0.015,
+          fontFamily: fontFamily.fontFamily,
+          fontFamilyFallback: fontFamily.fontFamilyFallback,
+        );
+        for (final v in para.verses) {
+          final isSel = _selected.contains(v.verse);
+          final mainT = verseText(primary, v.verse);
+          final parallelT = verseText(compare, v.verse);
+          final diff = showDiff && sameScriptRoughly(mainT, parallelT)
+              ? cachedVerseDiff(
+                  '${widget.book.id}.${widget.chapter}.${v.verse}',
+                  mainT,
+                  parallelT,
+                )
+              : const VerseDiffResult(main: [], parallel: [], heavy: false);
+          if (verseNo != ReaderVerseNumberMode.hidden) {
+            primarySpans.add(
+              TextSpan(
+                text: '${v.verse}\u2009',
+                style: TextStyle(
+                  color: AppColors.accentDeep,
+                  fontSize: fontPx * 0.65,
+                  fontWeight: FontWeight.w700,
+                  height: 1.0,
+                  background: isSel ? selBg : null,
+                ),
+              ),
+            );
+          }
+          if (diff.heavy) {
+            primarySpans.add(
+              TextSpan(
+                text: '$mainT ',
+                style: mainBase.copyWith(
+                  backgroundColor: isSel
+                      ? AppColors.accentWash
+                      : const Color(0x18B8860B),
+                ),
+              ),
+            );
+          } else {
+            primarySpans.addAll(
+              textSpans(
+                text: mainT,
+                diffs: diff.main,
+                base: mainBase,
+                selected: isSel,
+                selBg: selBg,
+              ),
+            );
+          }
+          if (verseNo != ReaderVerseNumberMode.hidden) {
+            compareSpans.add(
+              TextSpan(
+                text: '${v.verse} ',
+                style: TextStyle(
+                  color: AppColors.accentDeep.withValues(alpha: 0.55),
+                  fontSize: fontPx * 0.6,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            );
+          }
+          if (diff.heavy) {
+            compareSpans.add(
+              TextSpan(
+                text: '$parallelT ',
+                style: parallelBase.copyWith(
+                  backgroundColor: const Color(0x18B8860B),
+                ),
+              ),
+            );
+          } else {
+            compareSpans.addAll(
+              textSpans(
+                text: parallelT,
+                diffs: diff.parallel,
+                base: parallelBase,
+                diffStyle: parallelBase.copyWith(
+                  backgroundColor: const Color(0x22C4A35A),
+                ),
+              ),
+            );
+          }
+        }
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              RichText(
+                textAlign: TextAlign.justify,
+                text: TextSpan(style: mainBase, children: primarySpans),
+              ),
+              const SizedBox(height: 6),
+              RichText(
+                textAlign: TextAlign.justify,
+                text: TextSpan(style: parallelBase, children: compareSpans),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    return GestureDetector(
+      onHorizontalDragUpdate: swipeOn
+          ? (d) => _onPageDragUpdate(d.delta.dx)
+          : null,
+      onHorizontalDragEnd: swipeOn ? _finishPageTurn : null,
+      onHorizontalDragCancel: () {
+        if (_pageDragDx != 0 || _pageDragRaw != 0 || _pageDragAxis != null) {
+          setState(_resetPageDrag);
+        }
+      },
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          ClipRect(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (dx < -2)
+                  Positioned(
+                    left: pageW + dx,
+                    top: 0,
+                    bottom: 0,
+                    width: pageW,
+                    child: _chapterPeekPanel(
+                      theme: theme,
+                      delta: 1,
+                      width: pageW,
+                    ),
+                  ),
+                if (dx > 2)
+                  Positioned(
+                    left: dx - pageW,
+                    top: 0,
+                    bottom: 0,
+                    width: pageW,
+                    child: _chapterPeekPanel(
+                      theme: theme,
+                      delta: -1,
+                      width: pageW,
+                    ),
+                  ),
+                Transform.translate(
+                  offset: Offset(dx, 0),
+                  child: ColoredBox(
+                    color: theme.background,
+                    child: listBody,
+                  ),
+                ),
+              ],
+            ),
           ),
           if (widget.chromeHidden)
             Positioned(
