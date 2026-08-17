@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../core/widgets/paper_card.dart';
 import 'offline_bible.dart';
 import 'offline_catalog.dart';
 import 'offline_notice.dart' show offlineCardDismissedProvider;
@@ -74,8 +75,8 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
   @override
   Widget build(BuildContext context) {
     final svc = ref.watch(offlineBibleProvider);
-    final meta = svc.loadMeta(kPrimaryOfflineTranslation) ??
-        svc.loadMeta('cnv');
+    final meta =
+        svc.loadMeta(kPrimaryOfflineTranslation) ?? svc.loadMeta('cnv');
     final items = offlineCatalog
         .where((e) => e.tab == (_tab == 0 ? 'bible' : 'materials'))
         .toList();
@@ -88,14 +89,19 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
         controller: widget.scrollController,
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
-          const Text('离线下载',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 17,
-                  color: AppColors.ink)),
+          const Text(
+            '离线下载',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 17,
+              color: AppColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
-          const Text('主译本为和合本；关闭本页不会中断下载',
-              style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+          const Text(
+            '主译本为和合本；关闭本页不会中断下载',
+            style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -116,17 +122,19 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
           ),
           if (meta != null) ...[
             const SizedBox(height: 8),
-            Text('经库版本 ${meta.version}',
-                style:
-                    const TextStyle(fontSize: 12, color: AppColors.accentDeep)),
+            Text(
+              '经库版本 ${meta.version}',
+              style: const TextStyle(fontSize: 12, color: AppColors.accentDeep),
+            ),
           ],
           if (busy && progress != null) ...[
             const SizedBox(height: 12),
             LinearProgressIndicator(value: progress),
             const SizedBox(height: 6),
             Text(
-                '正在下载 ${svc.downloadingId ?? ''}… ${(progress * 100).clamp(0, 100).toStringAsFixed(0)}%',
-                style: const TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+              '正在下载 ${svc.downloadingId ?? ''}… ${(progress * 100).clamp(0, 100).toStringAsFixed(0)}%',
+              style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+            ),
           ],
           if (error != null)
             Padding(
@@ -138,32 +146,73 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
             final ready = _installed[item.id] == true;
             final isDl = _downloadable(item.id);
             final thisBusy = busy && svc.downloadingId == item.id;
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(item.name),
-              subtitle: item.id == kPrimaryOfflineTranslation
-                  ? const Text('主译本', style: TextStyle(fontSize: 11))
-                  : null,
-              trailing: thisBusy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text(
+            final canDownload = isDl && !ready && !busy;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: PaperCard(
+                tier: 1,
+                tint: ready ? AppColors.accent : null,
+                padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+                onTap: canDownload ? () => _download(item.id) : null,
+                child: Row(
+                  children: [
+                    Icon(
                       ready
-                          ? '已安装'
-                          : isDl
-                              ? '下载'
-                              : '随经包',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: ready
-                              ? AppColors.accentDeep
-                              : AppColors.inkFaint),
+                          ? Icons.check_circle_outline
+                          : (thisBusy
+                                ? Icons.downloading_outlined
+                                : Icons.menu_book_outlined),
+                      color: ready ? AppColors.accentDeep : AppColors.inkSoft,
                     ),
-              onTap: isDl && !ready && !busy
-                  ? () => _download(item.id)
-                  : null,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.name,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item.id == kPrimaryOfflineTranslation
+                                ? '主译本 · 无网时仍可继续读经'
+                                : (ready ? '已可离线使用' : '按需下载，随时可删除'),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.inkFaint,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    thisBusy
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            ready
+                                ? '已安装'
+                                : isDl
+                                ? '下载'
+                                : '随经包',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: ready
+                                  ? AppColors.accentDeep
+                                  : AppColors.inkFaint,
+                            ),
+                          ),
+                  ],
+                ),
+              ),
             );
           }),
           if (_tab == 0 &&
@@ -175,10 +224,10 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
                 onPressed: busy
                     ? null
                     : () => _delete(
-                          _installed[kPrimaryOfflineTranslation] == true
-                              ? kPrimaryOfflineTranslation
-                              : 'cnv',
-                        ),
+                        _installed[kPrimaryOfflineTranslation] == true
+                            ? kPrimaryOfflineTranslation
+                            : 'cnv',
+                      ),
                 child: const Text('删除已装主离线包'),
               ),
             ),
@@ -191,9 +240,9 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
     final svc = ref.read(offlineBibleProvider);
     final future = svc.downloadPack(translationId: id);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已开始下载（$id），关闭页面后仍会继续')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('已开始下载（$id），关闭页面后仍会继续')));
     }
     try {
       await future;
@@ -201,9 +250,9 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
       ref.invalidate(offlineInstalledProvider);
       ref.read(offlineCardDismissedProvider.notifier).clear();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('离线经包已就绪')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('离线经包已就绪')));
       }
     } catch (_) {}
   }

@@ -44,6 +44,7 @@ class HomeTodayPanel extends StatelessWidget {
     required this.onPrimary,
     required this.onSideTop,
     required this.onSideBottom,
+    this.groupFlash = false,
   });
 
   final HomeTodaySlot primary;
@@ -52,6 +53,7 @@ class HomeTodayPanel extends StatelessWidget {
   final VoidCallback onPrimary;
   final VoidCallback onSideTop;
   final VoidCallback onSideBottom;
+  final bool groupFlash;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +90,7 @@ class HomeTodayPanel extends StatelessWidget {
                         slot: sideTop,
                         onTap: onSideTop,
                         tone: _SideTone.group,
+                        flash: groupFlash,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -298,10 +301,12 @@ class _SideCard extends StatelessWidget {
     required this.slot,
     required this.onTap,
     required this.tone,
+    this.flash = false,
   });
   final HomeTodaySlot slot;
   final VoidCallback onTap;
   final _SideTone tone;
+  final bool flash;
 
   @override
   Widget build(BuildContext context) {
@@ -315,39 +320,60 @@ class _SideCard extends StatelessWidget {
 
     // 填满 Expanded，保证上下副卡等高（对齐 PWA SideCard flex:1）
     return SizedBox.expand(
-      child: Material(
-        color: muted ? base.withValues(alpha: 0.55) : base,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
-            decoration: BoxDecoration(
+      child: AnimatedScale(
+        scale: flash ? 1.02 : 1.0,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 280),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: flash
+                ? [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.28),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Material(
+            color: muted ? base.withValues(alpha: 0.55) : base,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: onTap,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: slot.pending
-                    ? accent.withValues(alpha: 0.35)
-                    : AppColors.line.withValues(alpha: 0.6),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        slot.tag,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: accent.withValues(alpha: muted ? 0.55 : 0.9),
-                        ),
-                      ),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: flash
+                        ? accent.withValues(alpha: 0.55)
+                        : slot.pending
+                        ? accent.withValues(alpha: 0.35)
+                        : AppColors.line.withValues(alpha: 0.6),
+                    width: flash ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            slot.tag,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: accent.withValues(alpha: muted ? 0.55 : 0.9),
+                            ),
+                          ),
                       const Spacer(),
                       Text(
                         slot.title,
@@ -416,6 +442,8 @@ class _SideCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
         ),
       ),
     );

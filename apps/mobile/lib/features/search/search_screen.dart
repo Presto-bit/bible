@@ -1,4 +1,4 @@
-/// 全局搜索：经文 FTS + 人生主题 + 搜索历史（对齐 PWA `app/search/page.tsx`）。
+/// 全局搜索：经文 FTS + 知识探索 + 搜索历史。
 library;
 
 import 'dart:async';
@@ -18,7 +18,6 @@ import '../bible/bible_repository.dart';
 import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../notes/notes_repository.dart';
 
-const _themeTags = ['盼望', '焦虑', '祷告', '家庭', '工作', '悲伤', '信心', '宽恕'];
 const _historyKey = 'search_history';
 const _searchDebounceMs = 320;
 const _searchPageSize = 40;
@@ -304,7 +303,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             controller: _controller,
             autofocus: true,
             decoration: InputDecoration(
-              hintText: '搜索经文、人生主题…',
+              hintText: '搜索经文…',
               filled: true,
               fillColor: AppColors.surface,
               border: OutlineInputBorder(
@@ -479,7 +478,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               )
             else if (_hits.isEmpty)
               const Text(
-                '未找到匹配经文，试试下方人生主题',
+                '未找到匹配经文',
                 style: TextStyle(color: AppColors.inkFaint, fontSize: 13),
               )
             else
@@ -571,40 +570,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             _NotesGroup(query: searchQ),
           ],
-          const SizedBox(height: 18),
-          const Text(
-            '人生主题',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-          ),
-          const SizedBox(height: 10),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 2.4,
-            children: _themeTags
-                .map(
-                  (t) => PaperCard(
-                    tier: 2,
-                    onTap: () {
-                      _controller.text = t;
-                      _saveHistory(t);
-                    },
-                    child: Center(
-                      child: Text(
-                        t,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
         ],
       ),
     );

@@ -8,6 +8,7 @@ import '../sync/sync_controller.dart';
 import '../sync/sync_migrate.dart';
 import '../theme.dart';
 import '../api_client.dart' show prefsProvider;
+import 'peiai_overlays.dart';
 import '../../features/notes/notes_repository.dart' show dbProvider;
 
 class SyncMigrateSheet extends ConsumerStatefulWidget {
@@ -30,14 +31,9 @@ class _SyncMigrateSheetState extends ConsumerState<SyncMigrateSheet> {
       future: hasLocalReadingDataAsync(prefs, db),
       builder: (context, snap) {
         final hasData = snap.data ?? false;
-        return AlertDialog(
-          backgroundColor: AppColors.surface,
+        return PeiaiDialog(
           title: const Text(
             '同步阅读记录',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: AppColors.ink,
-            ),
           ),
           content: Text(
             hasData
@@ -46,7 +42,6 @@ class _SyncMigrateSheetState extends ConsumerState<SyncMigrateSheet> {
             style: const TextStyle(
               fontSize: 15,
               height: 1.65,
-              color: AppColors.ink,
             ),
           ),
           actions: [

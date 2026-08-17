@@ -6,8 +6,6 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../theme.dart';
-
 class PaperCard extends StatelessWidget {
   const PaperCard({
     super.key,
@@ -16,6 +14,7 @@ class PaperCard extends StatelessWidget {
     this.tint,
     this.padding = const EdgeInsets.all(16),
     this.onTap,
+    this.onLongPress,
     this.margin,
     this.accent = false,
     this.backgroundLayer,
@@ -29,6 +28,7 @@ class PaperCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry? margin;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   /// 强调卡：左侧 3px 主题色竖条（对齐 canvas TappableCard accent）。
   final bool accent;
@@ -37,8 +37,8 @@ class PaperCard extends StatelessWidget {
   final Widget? backgroundLayer;
   final Widget child;
 
-  /// 对齐 Web `--home-card-radius: 24px`（tier2/3）；列表略小。
-  double get _radius => tier == 1 ? 14 : 24;
+  /// 对齐 PWA token：常规卡 12px，大卡 16px。
+  double get _radius => tier == 1 ? 12 : 16;
 
   @override
   Widget build(BuildContext context) {
@@ -48,11 +48,11 @@ class PaperCard extends StatelessWidget {
     final line = theme.dividerColor;
     final surface = theme.colorScheme.surface;
     final primary = theme.colorScheme.primary;
-    // 对齐 --soft-card-edge：ink-faint 混入 line
+    // 对齐 PWA 低对比边界，避免卡片在浅色主题显得厚重。
     final softEdge = Color.lerp(
-      AppColors.inkFaint,
+      theme.colorScheme.onSurface.withValues(alpha: 0.45),
       line,
-      0.68,
+      0.78,
     )!.withValues(alpha: dark ? 0.55 : 0.9);
     final borderColor = tint != null ? tint!.withValues(alpha: 0.22) : softEdge;
 
@@ -110,9 +110,14 @@ class PaperCard extends StatelessWidget {
       ),
     );
 
-    final card = onTap == null
+    final card = onTap == null && onLongPress == null
         ? content
-        : _PaperCardTapSurface(radius: radius, onTap: onTap!, child: content);
+        : _PaperCardTapSurface(
+            radius: radius,
+            onTap: onTap,
+            onLongPress: onLongPress,
+            child: content,
+          );
 
     return margin == null ? card : Padding(padding: margin!, child: card);
   }
@@ -124,27 +129,17 @@ class PaperCard extends StatelessWidget {
       case 3:
         return [
           BoxShadow(
-            color: ink.withValues(alpha: dark ? 0.35 : 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: ink.withValues(alpha: dark ? 0.45 : 0.12),
-            blurRadius: 40,
-            offset: const Offset(0, 12),
+            color: ink.withValues(alpha: dark ? 0.4 : 0.10),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ];
       case 2:
         return [
           BoxShadow(
-            color: ink.withValues(alpha: dark ? 0.28 : 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-          BoxShadow(
-            color: ink.withValues(alpha: dark ? 0.36 : 0.1),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: ink.withValues(alpha: dark ? 0.3 : 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ];
       default:
@@ -163,12 +158,14 @@ class PaperCard extends StatelessWidget {
 class _PaperCardTapSurface extends StatefulWidget {
   const _PaperCardTapSurface({
     required this.radius,
-    required this.onTap,
+    this.onTap,
+    this.onLongPress,
     required this.child,
   });
 
   final BorderRadius radius;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final Widget child;
 
   @override
@@ -193,6 +190,7 @@ class _PaperCardTapSurfaceState extends State<_PaperCardTapSurface> {
         child: InkWell(
           borderRadius: widget.radius,
           onTap: widget.onTap,
+          onLongPress: widget.onLongPress,
           onHighlightChanged: _setPressed,
           child: widget.child,
         ),

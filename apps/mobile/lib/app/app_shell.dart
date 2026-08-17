@@ -10,11 +10,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/app_update.dart';
 import '../core/sync/sync_controller.dart';
+import '../core/widgets/peiai_overlays.dart';
 import '../features/assistant/assistant_screen.dart';
+import '../features/bible/offline_notice.dart'
+    show OfflineStatusBar, networkOkProvider;
 import '../features/bible/reader_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/social/discover_screen.dart';
-import '../features/bible/offline_notice.dart';
 import 'profile_screen.dart';
 
 class NavIndexNotifier extends Notifier<int> {
@@ -70,6 +72,28 @@ final discoverH5LocationProvider =
   DiscoverH5LocationNotifier.new,
 );
 
+/// 浮动胶囊底栏占位（对齐 PWA `--tabbar-h`）。
+///
+/// [includeSafe] 为 false 时供已包 `SafeArea` 的原生 Tab 使用。
+double peiaiTabBarOverlayExtent(
+  BuildContext context, {
+  bool includeSafe = true,
+}) {
+  const inner = 56.0;
+  const floatGap = 12.0;
+  const breath = 4.0;
+  final safe = includeSafe ? MediaQuery.paddingOf(context).bottom : 0.0;
+  return inner + floatGap + safe + breath;
+}
+
+/// 内容区建议底边距：浮栏高度 + 呼吸。
+double peiaiTabContentBottomPad(
+  BuildContext context, {
+  bool includeSafe = true,
+}) {
+  return peiaiTabBarOverlayExtent(context, includeSafe: includeSafe) + 12;
+}
+
 /// 是否为发现私聊 / 群聊路径（隐藏 Flutter 五 Tab）。
 bool isDiscoverChatPath(String path) {
   final p = path.split('?').first;
@@ -119,7 +143,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           var downloading = false;
           var progress = 0.0;
           return StatefulBuilder(
-            builder: (context, setDialogState) => AlertDialog(
+            builder: (context, setDialogState) => PeiaiDialog(
               title: const Text('发现新版本'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -173,9 +197,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                           } catch (_) {
                             if (!context.mounted) return;
                             setDialogState(() => downloading = false);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('新版本下载失败，请稍后重试')),
-                            );
+                            showPeiaiToast(context, '新版本下载失败，请稍后重试');
                           }
                         },
                   child: const Text('立即更新'),
@@ -202,7 +224,11 @@ class _AppShellState extends ConsumerState<AppShell> {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     // 键盘弹起时不额外叠 safe（与 PWA vv 逻辑一致：优先 keyboard）
     final kb = MediaQuery.viewInsetsOf(context).bottom;
-    final barBottomPad = kb > 0 ? 8.0 : (8.0 + safeBottom);
+    final barBottomPad = kb > 0 ? 12.0 : (12.0 + safeBottom);
+    final online = ref.watch(networkOkProvider).maybeWhen(
+          data: (ok) => ok,
+          orElse: () => true,
+        );
 
     return SyncLifecycle(
       child: AnnotatedRegion<SystemUiOverlayStyle>(
@@ -217,6 +243,8 @@ class _AppShellState extends ConsumerState<AppShell> {
               ),
         child: Scaffold(
           backgroundColor: bg,
+          // 内容滚入毛玻璃底栏下方（对齐 PWA fixed tabbar）
+          extendBody: true,
           // 键盘由当前 Tab 内部处理；壳层不整体上推避免 IndexedStack 全动
           resizeToAvoidBottomInset: false,
           body: Column(
@@ -233,6 +261,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               : _PeiaiCapsuleTabBar(
                   index: index,
                   bottomPadding: barBottomPad,
+                  online: online,
                   onSelect: (i) {
                     // 切走圣经 / 发现时清沉浸，避免返回仍是 hidden
                     if (i != 1) {
@@ -255,11 +284,13 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
     required this.index,
     required this.onSelect,
     required this.bottomPadding,
+    required this.online,
   });
 
   final int index;
   final ValueChanged<int> onSelect;
   final double bottomPadding;
+  final bool online;
 
   static const _items = <(IconData, IconData, String)>[
     (Icons.home_outlined, Icons.home, '首页'),
@@ -275,7 +306,8 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final ink = theme.colorScheme.onSurface;
     final faint = ink.withValues(alpha: 0.45);
-    final accent = theme.colorScheme.primary;
+    // 对齐 PWA `.tab-active`：选中用 ink。
+    final active = ink;
     final fill = theme.colorScheme.surface.withValues(
       alpha: isDark ? 0.72 : 0.78,
     );
@@ -287,7 +319,7 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(28),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: fill,
@@ -306,7 +338,7 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
                 ],
               ),
               child: SizedBox(
-                height: 58,
+                height: 56,
                 child: Row(
                   children: [
                     for (var i = 0; i < _items.length; i++)
@@ -316,8 +348,9 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
                           filled: _items[i].$2,
                           label: _items[i].$3,
                           active: index == i,
-                          activeColor: accent,
+                          activeColor: active,
                           inactiveColor: faint,
+                          dimmed: !online && (i == 2 || i == 3),
                           onTap: () => onSelect(i),
                         ),
                       ),
@@ -341,6 +374,7 @@ class _TabItem extends StatelessWidget {
     required this.activeColor,
     required this.inactiveColor,
     required this.onTap,
+    this.dimmed = false,
   });
 
   final IconData outline;
@@ -350,34 +384,35 @@ class _TabItem extends StatelessWidget {
   final Color activeColor;
   final Color inactiveColor;
   final VoidCallback onTap;
+  final bool dimmed;
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? activeColor : inactiveColor;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      splashColor: activeColor.withValues(alpha: 0.08),
-      highlightColor: activeColor.withValues(alpha: 0.04),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedScale(
-            scale: active ? 1.05 : 1.0,
-            duration: const Duration(milliseconds: 180),
-            child: Icon(active ? filled : outline, size: 24, color: color),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              height: 1.1,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-              color: color,
+    final color = (active ? activeColor : inactiveColor)
+        .withValues(alpha: dimmed ? 0.38 : 1);
+    return Tooltip(
+      message: dimmed ? '当前离线，此功能需联网' : '',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        splashColor: activeColor.withValues(alpha: 0.08),
+        highlightColor: activeColor.withValues(alpha: 0.04),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(active ? filled : outline, size: 24, color: color),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.1,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                color: color,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

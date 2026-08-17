@@ -10,7 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'app_shell.dart' show navIndexProvider;
+import 'app_shell.dart' show navIndexProvider, peiaiTabContentBottomPad;
 import '../core/api_client.dart';
 import '../core/config.dart';
 import '../core/gamification.dart';
@@ -475,7 +475,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            8,
+            16,
+            peiaiTabContentBottomPad(context, includeSafe: false),
+          ),
           children: [
             // 顶栏：右侧 [分享][设置] 分组（分享在设置左边）
             Row(
@@ -735,6 +740,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   value: thoughtPreview.isEmpty ? '写下第一句' : thoughtPreview,
                   empty: thoughtPreview.isEmpty,
                   isNew: thoughtNew,
+                  onLongPress: thoughtPreview.isEmpty
+                      ? null
+                      : () => Share.share(
+                          '我在彼爱写下的一句感受：\n$thoughtPreview\n\n彼爱 · 安静读经，在话语中相遇',
+                          subject: '读经笔记',
+                        ),
                   onTap: () async {
                     await markFootprintSeen(prefs, 'thoughts', thoughts.length);
                     if (!context.mounted) return;
@@ -748,6 +759,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   value: markPreview.isEmpty ? '去读经划线' : markPreview,
                   empty: markPreview.isEmpty,
                   isNew: markNew,
+                  onLongPress: markPreview.isEmpty
+                      ? null
+                      : () => Share.share(
+                          '我在彼爱标记了一处经文：$markPreview\n\n彼爱 · 安静读经，在话语中相遇',
+                          subject: '经文划线',
+                        ),
                   onTap: () async {
                     await markFootprintSeen(prefs, 'marks', highlights);
                     if (!context.mounted) return;
@@ -921,6 +938,7 @@ class _FootprintCell extends StatelessWidget {
     required this.value,
     required this.empty,
     required this.onTap,
+    this.onLongPress,
     this.hideValue = false,
     this.isNew = false,
     this.badgeIcons = const [],
@@ -935,6 +953,7 @@ class _FootprintCell extends StatelessWidget {
   final bool isNew;
   final List<String> badgeIcons;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -943,6 +962,7 @@ class _FootprintCell extends StatelessWidget {
       tint: tone.tint,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

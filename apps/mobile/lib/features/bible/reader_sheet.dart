@@ -3,8 +3,6 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../core/theme.dart';
-
 Future<T?> showReaderSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -17,6 +15,7 @@ Future<T?> showReaderSheet<T>({
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.28),
     builder: (ctx) {
+      final theme = Theme.of(ctx);
       final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
       final maxH = MediaQuery.sizeOf(ctx).height * (heightFactor ?? 0.88);
       return Padding(
@@ -26,7 +25,7 @@ Future<T?> showReaderSheet<T>({
           child: ConstrainedBox(
             constraints: BoxConstraints(maxHeight: maxH),
             child: Material(
-              color: AppColors.surface,
+              color: theme.colorScheme.surface,
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(18)),
               clipBehavior: Clip.antiAlias,
@@ -38,7 +37,7 @@ Future<T?> showReaderSheet<T>({
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.line,
+                      color: theme.dividerColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

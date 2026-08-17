@@ -37,6 +37,15 @@ bool consumePlanDoneHomeHaptic(SharedPreferences prefs) {
   return true;
 }
 
+bool _homeStaggerPlayedThisProcess = false;
+
+/// 每进程首页错落入场一次（对齐 Web sessionStorage `shouldPlayHomeStagger`）。
+bool shouldPlayHomeStagger() {
+  if (_homeStaggerPlayedThisProcess) return false;
+  _homeStaggerPlayedThisProcess = true;
+  return true;
+}
+
 void peiaiHapticLight() {
   HapticFeedback.lightImpact();
 }

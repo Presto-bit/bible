@@ -86,6 +86,7 @@ class HomeDayNetworkImage extends StatefulWidget {
     this.cacheWidth,
     this.cacheHeight,
     this.errorBuilder,
+    this.onReady,
   });
 
   final String url;
@@ -93,6 +94,7 @@ class HomeDayNetworkImage extends StatefulWidget {
   final int? cacheWidth;
   final int? cacheHeight;
   final ImageErrorWidgetBuilder? errorBuilder;
+  final VoidCallback? onReady;
 
   @override
   State<HomeDayNetworkImage> createState() => _HomeDayNetworkImageState();
@@ -101,6 +103,13 @@ class HomeDayNetworkImage extends StatefulWidget {
 class _HomeDayNetworkImageState extends State<HomeDayNetworkImage> {
   File? _file;
   bool _ready = false;
+  bool _notified = false;
+
+  void _notifyReady() {
+    if (_notified) return;
+    _notified = true;
+    widget.onReady?.call();
+  }
 
   @override
   void initState() {
@@ -111,7 +120,10 @@ class _HomeDayNetworkImageState extends State<HomeDayNetworkImage> {
   @override
   void didUpdateWidget(covariant HomeDayNetworkImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url) _load();
+    if (oldWidget.url != widget.url) {
+      _notified = false;
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -122,6 +134,7 @@ class _HomeDayNetworkImageState extends State<HomeDayNetworkImage> {
         _file = cached;
         _ready = true;
       });
+      _notifyReady();
       return;
     }
     final got = await ensureHomeDayWallpaper(widget.url);
@@ -130,6 +143,7 @@ class _HomeDayNetworkImageState extends State<HomeDayNetworkImage> {
       _file = got;
       _ready = true;
     });
+    _notifyReady();
   }
 
   @override
@@ -141,6 +155,12 @@ class _HomeDayNetworkImageState extends State<HomeDayNetworkImage> {
         cacheWidth: widget.cacheWidth,
         cacheHeight: widget.cacheHeight,
         errorBuilder: widget.errorBuilder,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded || frame != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => _notifyReady());
+          }
+          return child;
+        },
       );
     }
     final f = _file;
@@ -157,6 +177,12 @@ class _HomeDayNetworkImageState extends State<HomeDayNetworkImage> {
                   cacheWidth: widget.cacheWidth,
                   cacheHeight: widget.cacheHeight,
                 ),
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded || frame != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => _notifyReady());
+          }
+          return child;
+        },
       );
     }
     return Image.network(
@@ -165,6 +191,12 @@ class _HomeDayNetworkImageState extends State<HomeDayNetworkImage> {
       cacheWidth: widget.cacheWidth,
       cacheHeight: widget.cacheHeight,
       errorBuilder: widget.errorBuilder,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded || frame != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _notifyReady());
+        }
+        return child;
+      },
     );
   }
 }

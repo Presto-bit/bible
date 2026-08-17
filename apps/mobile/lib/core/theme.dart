@@ -6,22 +6,22 @@ import 'package:flutter/material.dart';
 import 'app_theme.dart' show AppThemeId;
 
 class AppColors {
-  static const paper = Color(0xFFFFFCFA);
+  // 经典主题静态兜底值；新界面应优先读取 Theme / PeiaiThemeColors。
+  static const paper = Color(0xFFFFFFFF);
   static const surface = Color(0xFFFFFFFF);
-  static const surfaceSunken = Color(0xFFF5F5F7);
-  static const ink = Color(0xFF1C1C1E);
-  static const inkSoft = Color(0xFF48484A);
-  static const inkFaint = Color(0xFF8E8E93);
-  static const line = Color(0xFFE5E5EA);
+  static const surfaceSunken = Color(0xFFF7F7F7);
+  static const ink = Color(0xFF191919);
+  static const inkSoft = Color(0xFF666666);
+  static const inkFaint = Color(0xFF999999);
+  static const line = Color(0xFFEBEBEB);
 
-  // 主题强调：温润橄榄绿
-  static const accent = Color(0xFF6E8B6E);
-  static const accentDeep = Color(0xFF52684F);
-  static const accentWash = Color(0xFFEEF4F0);
+  // 经典主题强调色（与 PWA design_tokens.css 一致）。
+  static const accent = Color(0xFF07C160);
+  static const accentDeep = Color(0xFF06AE56);
+  static const accentWash = Color(0x1F07C160);
 
-  // 辅助：经文金棕（脚注/引用）
-  static const gold = Color(0xFFB08953);
-  static const goldWash = Color(0xFFF8F2E8);
+  static const gold = Color(0xFF07C160);
+  static const goldWash = Color(0xFFE8F8EF);
 }
 
 /// UI 字体阶梯（与 Web `--font-*` 对齐；阅读区单独用 readerBody）
@@ -87,8 +87,11 @@ class AppTheme {
         brightness: id == AppThemeId.dark ? Brightness.dark : Brightness.light,
         surface: palette.surface,
       ).copyWith(
-        primary: palette.accentDeep,
+        primary: palette.accent,
         secondary: palette.gold,
+        surface: palette.surface,
+        onSurface: palette.ink,
+        outline: palette.line,
       ),
     );
 
@@ -136,9 +139,21 @@ class AppTheme {
         color: palette.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
           side: BorderSide(color: palette.line),
         ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: palette.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: palette.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
     );
   }
@@ -170,36 +185,36 @@ _ThemePalette _palette(AppThemeId id) => switch (id) {
             paper: Color(0xFF12181C),
             surface: Color(0xFF1A2228),
             line: Color(0xFF2C353D),
-            ink: Color(0xFFD8E0E6),
-            accent: Color(0xFF6E8B6E),
-            accentDeep: Color(0xFF8FB08F),
-            gold: Color(0xFFB08953),
+            ink: Color(0xFFE8ECEF),
+            accent: Color(0xFF07C160),
+            accentDeep: Color(0xFF38CD7F),
+            gold: Color(0xFF07C160),
           ),
       AppThemeId.dawn => const _ThemePalette(
             paper: Color(0xFFFFF8F3),
             surface: Color(0xFFFFFFFF),
-            line: Color(0xFFE5E5EA),
+            line: Color(0xFFF0E4DC),
             ink: Color(0xFF1C1C1E),
-            accent: Color(0xFF6E8B6E),
-            accentDeep: Color(0xFF52684F),
-            gold: Color(0xFFB08953),
+            accent: Color(0xFF6A8F72),
+            accentDeep: Color(0xFF4A6B52),
+            gold: Color(0xFFD4A056),
           ),
       AppThemeId.sepia => const _ThemePalette(
             paper: Color(0xFFF5F0E1),
-            surface: Color(0xFFFAF6EA),
-            line: Color(0xFFE0D8C8),
-            ink: Color(0xFF2C2418),
-            accent: Color(0xFF6E8B6E),
-            accentDeep: Color(0xFF52684F),
-            gold: Color(0xFFB08953),
+            surface: Color(0xFFFAF6EB),
+            line: Color(0xFFDDD4C0),
+            ink: Color(0xFF3D3428),
+            accent: Color(0xFF07C160),
+            accentDeep: Color(0xFF06AE56),
+            gold: Color(0xFFC4956A),
           ),
       _ => const _ThemePalette(
-            paper: Color(0xFFFFFCFA),
+            paper: Color(0xFFFFFFFF),
             surface: Color(0xFFFFFFFF),
-            line: Color(0xFFE5E5EA),
-            ink: Color(0xFF1C1C1E),
-            accent: Color(0xFF6E8B6E),
-            accentDeep: Color(0xFF52684F),
-            gold: Color(0xFFB08953),
+            line: Color(0xFFEBEBEB),
+            ink: Color(0xFF191919),
+            accent: Color(0xFF07C160),
+            accentDeep: Color(0xFF06AE56),
+            gold: Color(0xFF07C160),
           ),
     };

@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/app_theme.dart';
-import '../../core/theme.dart';
+import '../../core/theme_ext.dart';
 import '../bible/reader_experience.dart';
 import '../bible/reader_preferences.dart';
 import '../bible/reader_settings_menu.dart';
@@ -39,12 +39,18 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          const Text('应用主题',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700, color: AppColors.ink)),
+          Text(
+            '应用主题',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: context.peiaiInk,
+            ),
+          ),
           const SizedBox(height: 4),
-          const Text('影响首页、群页、Tab 等全站界面',
-              style: TextStyle(fontSize: 13, color: AppColors.inkFaint)),
+          Text(
+            '影响首页、群页、Tab 等全站界面',
+            style: TextStyle(fontSize: 13, color: context.peiaiInkFaint),
+          ),
           const SizedBox(height: 12),
           GridView.count(
             crossAxisCount: 2,
@@ -64,7 +70,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
                     color: t.preview,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: active ? AppColors.accentDeep : AppColors.line,
+                      color: active ? context.peiaiAccentDeep : context.peiaiLine,
                       width: active ? 2 : 1,
                     ),
                   ),
@@ -76,14 +82,14 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
                               fontWeight: FontWeight.w700,
                               color: t == AppThemeId.dark
                                   ? Colors.white
-                                  : AppColors.ink)),
+                                  : context.peiaiInk)),
                       const SizedBox(height: 4),
                       Text(t.desc,
                           style: TextStyle(
                               fontSize: 11,
                               color: t == AppThemeId.dark
                                   ? Colors.white70
-                                  : AppColors.inkSoft)),
+                                  : context.peiaiInkSoft)),
                     ],
                   ),
                 ),
@@ -106,9 +112,13 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
             },
           ),
           const Divider(height: 28),
-          const Text('阅读主题',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700, color: AppColors.ink)),
+          Text(
+            '阅读主题',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: context.peiaiInk,
+            ),
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -121,7 +131,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
                   setReaderFollowsAppTheme(ref.read(prefsProvider), false);
                   ref.read(readerExperienceThemeProvider.notifier).set(t);
                 },
-                selectedColor: AppColors.accentWash,
+                selectedColor: context.peiaiAccentWash,
               );
             }).toList(),
           ),
@@ -129,7 +139,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('完整阅读设置'),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.inkFaint),
+            trailing: Icon(Icons.chevron_right, color: context.peiaiInkFaint),
             onTap: () => showReaderSettingsSheet(context, ref),
           ),
           Wrap(
@@ -140,7 +150,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
                 selected: fontFamily == f,
                 onSelected: (_) =>
                     ref.read(readerFontFamilyProvider.notifier).set(f),
-                selectedColor: AppColors.accentWash,
+                selectedColor: context.peiaiAccentWash,
               );
             }).toList(),
           ),
@@ -153,7 +163,7 @@ class _AppearanceScreenState extends ConsumerState<AppearanceScreen> {
                 selected: pageTurn == p,
                 onSelected: (_) =>
                     ref.read(readerPageTurnProvider.notifier).set(p),
-                selectedColor: AppColors.accentWash,
+                selectedColor: context.peiaiAccentWash,
               );
             }).toList(),
           ),

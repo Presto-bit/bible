@@ -23,6 +23,7 @@ import '../../core/campaign_nav.dart';
 import '../../core/open_h5.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
+import '../../core/widgets/peiai_overlays.dart';
 import '../assistant/assistant_screen.dart';
 import '../plans/plan_reading.dart';
 import '../plans/plans_repository.dart';
@@ -279,11 +280,46 @@ final prayerTodayProvider = FutureProvider<PrayerToday>((ref) async {
   return PrayerToday.fromJson(res.data as Map<String, dynamic>);
 });
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _stagger = false;
+  bool _groupFlash = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final prefs = ref.read(prefsProvider);
+      final reduce = MediaQuery.disableAnimationsOf(context);
+      final stagger = !reduce && shouldPlayHomeStagger();
+      final flash = consumeCheckinFlash(prefs);
+      if (flash) peiaiHapticLight();
+      setState(() {
+        _stagger = stagger;
+        _groupFlash = flash;
+      });
+      if (stagger) {
+        Future.delayed(const Duration(milliseconds: 700), () {
+          if (mounted) setState(() => _stagger = false);
+        });
+      }
+      if (flash) {
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (mounted) setState(() => _groupFlash = false);
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final boot = ref.watch(homeBootstrapProvider);
     final review = ref.watch(reviewDataProvider);
     final progress = ref.watch(planProgressMapProvider).value ?? const {};
@@ -511,34 +547,31 @@ class HomeScreen extends ConsumerWidget {
               await ref.read(homeBootstrapProvider.future);
               peiaiHapticLight();
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('已更新今日'),
-                    duration: Duration(milliseconds: 1400),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                showPeiaiToast(context, '已更新今日');
               }
             } catch (_) {
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('刷新失败，请检查网络'),
-                    duration: Duration(milliseconds: 1800),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                showPeiaiToast(context, '刷新失败，请检查网络');
               }
             }
           },
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            padding: EdgeInsets.fromLTRB(
+              20,
+              12,
+              20,
+              peiaiTabContentBottomPad(context, includeSafe: false),
+            ),
             children: [
-              _GreetingHeader(
+              _HomeStagger(
+                enabled: _stagger,
+                delayMs: 0,
+                child: _GreetingHeader(
                 welcomeBack: welcomeBack,
                 onSearch: () => Navigator.of(
                   context,
                 ).push(MaterialPageRoute(builder: (_) => const SearchScreen())),
+              ),
               ),
               Builder(
                 builder: (context) {
@@ -591,7 +624,10 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               const SizedBox(height: 14),
-              boot.when(
+              _HomeStagger(
+                enabled: _stagger,
+                delayMs: 40,
+                child: boot.when(
                 loading: () => const _VerseCardSkeleton(),
                 error: (e, _) => PaperCard(
                   child: Column(
@@ -636,14 +672,20 @@ class HomeScreen extends ConsumerWidget {
                   );
                 },
               ),
+              ),
               const SizedBox(height: 14),
-              HomeTodayPanel(
-                primary: panel.primary,
-                sideTop: panel.group,
-                sideBottom: panel.prayer,
-                onPrimary: () => openSlot(panel.primary),
-                onSideTop: () => openSlot(panel.group),
-                onSideBottom: () => openSlot(panel.prayer),
+              _HomeStagger(
+                enabled: _stagger,
+                delayMs: 80,
+                child: HomeTodayPanel(
+                  primary: panel.primary,
+                  sideTop: panel.group,
+                  sideBottom: panel.prayer,
+                  groupFlash: _groupFlash,
+                  onPrimary: () => openSlot(panel.primary),
+                  onSideTop: () => openSlot(panel.group),
+                  onSideBottom: () => openSlot(panel.prayer),
+                ),
               ),
               const SizedBox(height: 14),
               const HomeOnboardingBanner(),
@@ -1063,6 +1105,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   DailyVerseReactPreset? _myReact;
   int _reactsCount = 0;
   List<DailyVerseReactPreset> _topPresets = const [];
+  bool _artReady = false;
 
   @override
   void initState() {
@@ -1086,6 +1129,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       _myReact = widget.initialMyReact;
       _reactsCount = widget.initialReactsCount;
       _topPresets = widget.initialTopPresets;
+      _artReady = false;
       return;
     }
     if (_likeBusy || _holdLocalEngagement) {
@@ -1294,12 +1338,30 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                HomeDayNetworkImage(
-                  url: wall,
-                  fit: BoxFit.cover,
-                  cacheWidth: 900,
-                  cacheHeight: 600,
-                  errorBuilder: (_, __, ___) => const _DawnScene(),
+                // 暖灰占位，避免慢网露白底（对齐 PWA hero-verse-art-loading）
+                const ColoredBox(color: Color(0xFFE8E2DA)),
+                AnimatedOpacity(
+                  opacity: _artReady ? 1 : 0,
+                  duration: const Duration(milliseconds: 220),
+                  child: HomeDayNetworkImage(
+                    url: wall,
+                    fit: BoxFit.cover,
+                    cacheWidth: 900,
+                    cacheHeight: 600,
+                    onReady: () {
+                      if (mounted && !_artReady) {
+                        setState(() => _artReady = true);
+                      }
+                    },
+                    errorBuilder: (_, __, ___) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted && !_artReady) {
+                          setState(() => _artReady = true);
+                        }
+                      });
+                      return const _DawnScene();
+                    },
+                  ),
                 ),
                 DecoratedBox(
                   decoration: BoxDecoration(
@@ -1766,15 +1828,88 @@ class _DawnScene extends StatelessWidget {
 
 class _VerseCardSkeleton extends StatelessWidget {
   const _VerseCardSkeleton();
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: homeHeroVerseHeight(context),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSunken,
-        borderRadius: BorderRadius.circular(18),
+    return PaperCard(
+      tier: 3,
+      child: SizedBox(
+        height: 180,
+        child: Center(
+          child: CircularProgressIndicator(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+          ),
+        ),
       ),
-      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+    );
+  }
+}
+
+/// 首页区块错落入场（对齐 PWA `.home-stagger-*`）。
+class _HomeStagger extends StatefulWidget {
+  const _HomeStagger({
+    required this.enabled,
+    required this.delayMs,
+    required this.child,
+  });
+
+  final bool enabled;
+  final int delayMs;
+  final Widget child;
+
+  @override
+  State<_HomeStagger> createState() => _HomeStaggerState();
+}
+
+class _HomeStaggerState extends State<_HomeStagger>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _fade = CurvedAnimation(parent: _ctl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.04),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctl, curve: Curves.easeOut));
+    if (widget.enabled) {
+      Future.delayed(Duration(milliseconds: widget.delayMs), () {
+        if (mounted) _ctl.forward();
+      });
+    } else {
+      _ctl.value = 1;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeStagger oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.enabled && widget.enabled) {
+      _ctl.value = 0;
+      Future.delayed(Duration(milliseconds: widget.delayMs), () {
+        if (mounted) _ctl.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(position: _slide, child: widget.child),
     );
   }
 }

@@ -66,6 +66,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   /// 视图可见高度（键盘弹起时收小），同步给 H5 --im-kb / vv
   double? _viewHeight;
   double? _viewBottomInset;
+
   /// 无键盘时宿主高度基线（部分机型 adjustResize 下 viewInsets 为 0）
   double? _baselineHostH;
 
@@ -73,6 +74,15 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   void initState() {
     super.initState();
     _activePath = widget.path.startsWith('/') ? widget.path : '/${widget.path}';
+    // 冷启动 / 通知深链可能在发现 WebView 创建前已写入目标路径；
+    // `ref.listen` 不会回放旧值，故在此先消费一次，保证能直达私聊/群聊。
+    if (widget.embedInTab && widget.tabIndex == 3) {
+      final pending = ref.read(discoverH5PathProvider);
+      if (pending != null && pending.trim().isNotEmpty) {
+        _activePath = pending.startsWith('/') ? pending : '/$pending';
+        ref.read(discoverH5PathProvider.notifier).consume();
+      }
+    }
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
   }
@@ -101,14 +111,49 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         parsed.hasScheme &&
         (parsed.scheme == 'http' || parsed.scheme == 'https')) {
       pathOnly = parsed.path.isEmpty ? '/' : parsed.path;
-      _activePath =
-          '$pathOnly${parsed.hasQuery ? '?${parsed.query}' : ''}';
+      _activePath = '$pathOnly${parsed.hasQuery ? '?${parsed.query}' : ''}';
     } else {
       final path = raw.startsWith('/') ? raw : '/$raw';
       pathOnly = path.split('?').first;
       _activePath = path;
     }
     syncDiscoverChromeFromPath(ref, _activePath);
+  }
+
+  /// 宿主浮动底栏高度注入 H5（extendBody 后内容需自行垫底）。
+  String _tabBarCssJs() {
+    final chatImmersive =
+        widget.tabIndex == 3 && ref.read(discoverImmersiveProvider);
+    if (!widget.embedInTab || chatImmersive) {
+      return '''
+    root.style.setProperty('--shell-inset-bottom', '0px');
+    root.style.setProperty('--tabbar-inner', '0px');
+    root.style.setProperty('--tabbar-float-gap', '0px');
+    root.style.setProperty('--tabbar-safe', '0px');
+    root.style.setProperty('--tabbar-h', '0px');
+''';
+    }
+    final safe = MediaQuery.paddingOf(context).bottom;
+    final h = peiaiTabBarOverlayExtent(context, includeSafe: true);
+    return '''
+    root.style.setProperty('--shell-inset-bottom', '${safe.toStringAsFixed(1)}px');
+    root.style.setProperty('--tabbar-inner', '56px');
+    root.style.setProperty('--tabbar-float-gap', '12px');
+    root.style.setProperty('--tabbar-safe', '${safe.toStringAsFixed(1)}px');
+    root.style.setProperty('--tabbar-h', '${h.toStringAsFixed(1)}px');
+''';
+  }
+
+  Future<void> _injectTabBarMetrics(WebViewController c) async {
+    if (!mounted) return;
+    await c.runJavaScript('''
+(function(){
+  try {
+    var root = document.documentElement;
+    ${_tabBarCssJs()}
+  } catch (e) {}
+})();
+''');
   }
 
   @override
@@ -125,9 +170,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       if (!mounted) return;
       final mq = MediaQuery.of(context);
       final box = context.findRenderObject() as RenderBox?;
-      final h = (box != null && box.hasSize)
-          ? box.size.height
-          : mq.size.height;
+      final h = (box != null && box.hasSize) ? box.size.height : mq.size.height;
       final bottom = mq.viewInsets.bottom;
       if (_viewHeight == h && _viewBottomInset == bottom) return;
       _viewHeight = h;
@@ -158,7 +201,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   @override
   void didUpdateWidget(H5HostPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-  if (oldWidget.forceOffline && !widget.forceOffline) {
+    if (oldWidget.forceOffline && !widget.forceOffline) {
       setState(() {
         _error = null;
         _loading = true;
@@ -460,12 +503,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     root.setAttribute('data-peiai-theme', '${dark ? 'dark' : 'light'}');
     root.setAttribute('data-theme', '${dark ? 'dark' : 'light'}');
     root.style.setProperty('--shell-inset-top', '${top.toStringAsFixed(1)}px');
-    // 底栏由宿主限制 WebView 高度；补 token 防 100dvh 与浮动 Tab 缝
-    root.style.setProperty('--shell-inset-bottom', '0px');
-    root.style.setProperty('--tabbar-inner', '0px');
-    root.style.setProperty('--tabbar-float-gap', '0px');
-    root.style.setProperty('--tabbar-safe', '0px');
-    root.style.setProperty('--tabbar-h', '0px');
+    ${_tabBarCssJs()}
   } catch (e) {}
 })();
 ''');
@@ -500,18 +538,12 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
 
     if (p.startsWith('/assistant')) {
       ref.read(navIndexProvider.notifier).set(2);
-      context.push(Uri(
-        path: '/assistant',
-        queryParameters: qp,
-      ).toString());
+      context.push(Uri(path: '/assistant', queryParameters: qp).toString());
       return;
     }
     if (p.startsWith('/reader')) {
       ref.read(navIndexProvider.notifier).set(1);
-      context.push(Uri(
-        path: '/reader',
-        queryParameters: qp,
-      ).toString());
+      context.push(Uri(path: '/reader', queryParameters: qp).toString());
       return;
     }
     if (p == '/notes' || p.startsWith('/notes/')) {
@@ -519,19 +551,22 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       return;
     }
     if (p == '/plans' || p.startsWith('/plans/')) {
-      context.push(Uri(path: p, queryParameters: qp.isEmpty ? null : qp)
-          .toString());
+      context.push(
+        Uri(path: p, queryParameters: qp.isEmpty ? null : qp).toString(),
+      );
       return;
     }
     if (p == '/challenge' || p.startsWith('/challenge/')) {
-      context.push(Uri(path: p, queryParameters: qp.isEmpty ? null : qp)
-          .toString());
+      context.push(
+        Uri(path: p, queryParameters: qp.isEmpty ? null : qp).toString(),
+      );
       return;
     }
     if (p == '/search' ||
         (p.startsWith('/search/') && !p.startsWith('/search/series'))) {
-      context.push(Uri(path: p, queryParameters: qp.isEmpty ? null : qp)
-          .toString());
+      context.push(
+        Uri(path: p, queryParameters: qp.isEmpty ? null : qp).toString(),
+      );
       return;
     }
     if (p == '/dictionary' || p.startsWith('/dictionary/')) {
@@ -539,8 +574,12 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       return;
     }
     if (p == '/wrapped' || p.startsWith('/wrapped')) {
-      context.push(Uri(path: '/wrapped', queryParameters: qp.isEmpty ? null : qp)
-          .toString());
+      context.push(
+        Uri(
+          path: '/wrapped',
+          queryParameters: qp.isEmpty ? null : qp,
+        ).toString(),
+      );
       return;
     }
     if (p == '/profile/appearance') {
@@ -548,8 +587,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       return;
     }
     if (p == '/knowledge-bases' || p.startsWith('/knowledge-bases/')) {
-      context.push(Uri(path: p, queryParameters: qp.isEmpty ? null : qp)
-          .toString());
+      context.push(
+        Uri(path: p, queryParameters: qp.isEmpty ? null : qp).toString(),
+      );
     }
   }
 
@@ -569,7 +609,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final readingDnd = NotifPrefs.readingDnd(prefs);
     final nav = ref.read(navIndexProvider);
     const hostTabs = ['home', 'bible', 'assistant', 'discover', 'profile'];
-    final hostTab = (nav >= 0 && nav < hostTabs.length) ? hostTabs[nav] : 'home';
+    final hostTab = (nav >= 0 && nav < hostTabs.length)
+        ? hostTabs[nav]
+        : 'home';
 
     await c.runJavaScript('''
 (function(){
@@ -610,7 +652,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     root.setAttribute('data-app-theme', '${themeId.storageKey}');
     $varJs
     root.style.setProperty('--shell-inset-top', '${topInset.toStringAsFixed(1)}px');
-    root.style.setProperty('--shell-inset-bottom', '0px');
+    ${_tabBarCssJs()}
     root.style.setProperty('--shell-inset-left', '0px');
     root.style.setProperty('--shell-inset-right', '0px');
     window.__PEIAI_FLUTTER__ = {
@@ -722,8 +764,20 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       if (prev == next) return;
       final c = _controller;
       if (c == null) return;
-      unawaited(ref.read(sessionProvider).token().then((t) => _runBridgeJs(c, t)));
+      unawaited(
+        ref.read(sessionProvider).token().then((t) => _runBridgeJs(c, t)),
+      );
     });
+
+    // 聊天沉浸切换：同步浮动底栏 CSS 占位
+    if (widget.embedInTab) {
+      ref.listen(discoverImmersiveProvider, (prev, next) {
+        if (prev == next) return;
+        final c = _controller;
+        if (c == null) return;
+        unawaited(_injectTabBarMetrics(c));
+      });
+    }
 
     // 发现等 Tab：切 Tab / 勿扰变更时回写 hostTab + readingDnd（读经勿扰）
     if (widget.tabIndex != null) {
@@ -769,7 +823,8 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final bg = peiaiPaperFor(themeId);
     final inkFaint = context.peiaiInkFaint;
 
-    final isOfflineBanner = widget.forceOffline ||
+    final isOfflineBanner =
+        widget.forceOffline ||
         (_error != null &&
             (_error!.contains('网络') ||
                 _error!.contains('离线') ||
@@ -804,18 +859,18 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
                           : (_error ?? widget.offlineBody),
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: inkFaint,
-                            height: 1.45,
-                          ),
+                        color: inkFaint,
+                        height: 1.45,
+                      ),
                     ),
                     if (isOfflineBanner) ...[
                       const SizedBox(height: 8),
                       Text(
                         '圣经与本地笔记仍可用；共读消息需联网。',
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: inkFaint,
-                            ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: inkFaint),
                       ),
                     ],
                     const SizedBox(height: 16),
@@ -841,8 +896,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
             fit: StackFit.expand,
             children: [
               ColoredBox(color: bg),
-              if (_controller != null)
-                WebViewWidget(controller: _controller!),
+              if (_controller != null) WebViewWidget(controller: _controller!),
               if (_loading && !_hadFirstPaint)
                 ColoredBox(
                   color: bg,
@@ -852,10 +906,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
                       height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 1.8,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.45),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.45),
                       ),
                     ),
                   ),
@@ -868,10 +921,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
                   child: LinearProgressIndicator(
                     minHeight: 1.5,
                     backgroundColor: Colors.transparent,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.35),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.35),
                   ),
                 ),
             ],
