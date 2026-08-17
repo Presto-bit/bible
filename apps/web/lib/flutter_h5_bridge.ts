@@ -208,3 +208,46 @@ export function peiaiOpenNative(payload: PeiaiNativePayload): boolean {
   }
   return false;
 }
+
+export const APP_UPDATE_EVENT = 'peiai-app-update';
+
+export type AppUpdateSnapshot = {
+  phase: 'idle' | 'downloading' | 'prompting' | 'ready' | 'failed' | string;
+  progress: number;
+  error?: string | null;
+  versionCode?: number | null;
+  versionName?: string | null;
+};
+
+declare global {
+  interface Window {
+    __PEIAI_APP_UPDATE__?: AppUpdateSnapshot;
+  }
+}
+
+export function readAppUpdateSnapshot(): AppUpdateSnapshot | null {
+  if (typeof window === 'undefined') return null;
+  const snap = window.__PEIAI_APP_UPDATE__;
+  if (!snap || typeof snap !== 'object') return null;
+  return snap;
+}
+
+export function subscribeAppUpdate(
+  listener: (snap: AppUpdateSnapshot) => void,
+): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const onEvent = (ev: Event) => {
+    const detail = (ev as CustomEvent<AppUpdateSnapshot>).detail;
+    if (detail) listener(detail);
+  };
+  window.addEventListener(APP_UPDATE_EVENT, onEvent);
+  const existing = readAppUpdateSnapshot();
+  if (existing) {
+    try {
+      listener(existing);
+    } catch {
+      /* ignore */
+    }
+  }
+  return () => window.removeEventListener(APP_UPDATE_EVENT, onEvent);
+}

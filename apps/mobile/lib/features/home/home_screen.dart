@@ -567,11 +567,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 enabled: _stagger,
                 delayMs: 0,
                 child: _GreetingHeader(
-                welcomeBack: welcomeBack,
-                onSearch: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const SearchScreen())),
-              ),
+                  welcomeBack: welcomeBack,
+                  onSearch: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SearchScreen()),
+                  ),
+                ),
               ),
               Builder(
                 builder: (context) {
@@ -628,50 +628,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 enabled: _stagger,
                 delayMs: 40,
                 child: boot.when(
-                loading: () => const _VerseCardSkeleton(),
-                error: (e, _) => PaperCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        e.toString().replaceFirst('Exception: ', ''),
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: () => ref.invalidate(homeBootstrapProvider),
-                        child: const Text('重试'),
-                      ),
-                    ],
+                  loading: () => const _VerseCardSkeleton(),
+                  error: (e, _) => PaperCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          e.toString().replaceFirst('Exception: ', ''),
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () =>
+                              ref.invalidate(homeBootstrapProvider),
+                          child: const Text('重试'),
+                        ),
+                      ],
+                    ),
                   ),
+                  data: (b) {
+                    final v = b.dailyVerse;
+                    final verseCard = _VerseCard(
+                      day: v.day,
+                      theme: v.theme.isEmpty ? '每日经文' : v.theme,
+                      ref: v.ref,
+                      text: v.text,
+                      book: v.book,
+                      chapter: v.chapter,
+                      verseStart: v.verseStart,
+                      initialLiked: v.liked,
+                      initialLikeCount: v.likesCount,
+                      initialSharesCount: v.sharesCount,
+                      initialMyReact: v.myReact,
+                      initialReactsCount: v.reactsCount,
+                      initialTopPresets: v.topPresets,
+                    );
+                    return HomeHeroCarousel(
+                      verseSlide: verseCard,
+                      campaign: b.heroBCampaign,
+                      campaignReady: b.heroBCampaign != null,
+                      onCampaignTap: b.heroBCampaign == null
+                          ? null
+                          : () =>
+                                _openHeroB(context, ref, b.heroBCampaign!.href),
+                    );
+                  },
                 ),
-                data: (b) {
-                  final v = b.dailyVerse;
-                  final verseCard = _VerseCard(
-                    day: v.day,
-                    theme: v.theme.isEmpty ? '每日经文' : v.theme,
-                    ref: v.ref,
-                    text: v.text,
-                    book: v.book,
-                    chapter: v.chapter,
-                    verseStart: v.verseStart,
-                    initialLiked: v.liked,
-                    initialLikeCount: v.likesCount,
-                    initialSharesCount: v.sharesCount,
-                    initialMyReact: v.myReact,
-                    initialReactsCount: v.reactsCount,
-                    initialTopPresets: v.topPresets,
-                  );
-                  return HomeHeroCarousel(
-                    verseSlide: verseCard,
-                    campaign: b.heroBCampaign,
-                    campaignReady: b.heroBCampaign != null,
-                    onCampaignTap: b.heroBCampaign == null
-                        ? null
-                        : () => _openHeroB(context, ref, b.heroBCampaign!.href),
-                  );
-                },
-              ),
               ),
               const SizedBox(height: 14),
               _HomeStagger(
@@ -1211,7 +1213,9 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('已打开 ${widget.ref.isNotEmpty ? widget.ref : '$book $ch:$verse'}'),
+          content: Text(
+            '已打开 ${widget.ref.isNotEmpty ? widget.ref : '$book $ch:$verse'}',
+          ),
           duration: const Duration(milliseconds: 1800),
           behavior: SnackBarBehavior.floating,
         ),
@@ -1620,157 +1624,164 @@ class _MediaGrowthRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 88),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: _thumb,
-                  height: _thumb,
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: ColoredBox(
-                          color: AppColors.accentWash,
-                          child: hasImage
-                              ? Image.network(
-                                  imageUrl!,
-                                  width: _thumb,
-                                  height: _thumb,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Center(
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.ink.withValues(alpha: 0.12)),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 88),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 16, 14),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: _thumb,
+                    height: _thumb,
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: ColoredBox(
+                            color: AppColors.accentWash,
+                            child: hasImage
+                                ? Image.network(
+                                    imageUrl!,
+                                    width: _thumb,
+                                    height: _thumb,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Center(
+                                      child: Icon(
+                                        icon,
+                                        color: AppColors.accentDeep,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  )
+                                : Center(
                                     child: Icon(
                                       icon,
                                       color: AppColors.accentDeep,
                                       size: 22,
                                     ),
                                   ),
-                                )
-                              : Center(
-                                  child: Icon(
-                                    icon,
-                                    color: AppColors.accentDeep,
-                                    size: 22,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      if (hasImage)
-                        Positioned(
-                          left: 5,
-                          bottom: 5,
-                          child: Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.92),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              icon,
-                              size: 12,
-                              color: AppColors.accentDeep,
-                            ),
                           ),
                         ),
-                      if (progressPct != null && progressPct! > 0)
-                        Positioned(
-                          right: 2,
-                          top: 2,
-                          child: _MonthProgressBadge(pct: progressPct!),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        tag,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.2,
-                          color: AppColors.inkFaint,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      if (metricValue != null)
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              if (metricPrefix != null)
-                                TextSpan(
-                                  text: '$metricPrefix ',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.inkSoft,
-                                  ),
-                                ),
-                              TextSpan(
-                                text: metricValue,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.0,
-                                  letterSpacing: -0.3,
-                                  color: AppColors.ink,
-                                ),
+                        if (hasImage)
+                          Positioned(
+                            left: 5,
+                            bottom: 5,
+                            child: Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.92),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              if (metricSuffix != null)
+                              child: Icon(
+                                icon,
+                                size: 12,
+                                color: AppColors.accentDeep,
+                              ),
+                            ),
+                          ),
+                        if (progressPct != null && progressPct! > 0)
+                          Positioned(
+                            right: 2,
+                            top: 2,
+                            child: _MonthProgressBadge(pct: progressPct!),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          tag,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.2,
+                            color: AppColors.inkFaint,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        if (metricValue != null)
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                if (metricPrefix != null)
+                                  TextSpan(
+                                    text: '$metricPrefix ',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.inkSoft,
+                                    ),
+                                  ),
                                 TextSpan(
-                                  text: ' $metricSuffix',
+                                  text: metricValue,
                                   style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.inkSoft,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.0,
+                                    letterSpacing: -0.3,
+                                    color: AppColors.ink,
                                   ),
                                 ),
-                            ],
+                                if (metricSuffix != null)
+                                  TextSpan(
+                                    text: ' $metricSuffix',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.inkSoft,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        else
+                          Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              height: 1.3,
+                              color: AppColors.ink,
+                            ),
                           ),
+                        const SizedBox(height: 2),
+                        Text(
+                          detail,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                        )
-                      else
-                        Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            height: 1.3,
-                            color: AppColors.ink,
+                            fontSize: 12,
+                            height: 1.35,
+                            color: AppColors.inkFaint,
                           ),
                         ),
-                      const SizedBox(height: 2),
-                      Text(
-                        detail,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          height: 1.35,
-                          color: AppColors.inkFaint,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.inkFaint,
-                  size: 18,
-                ),
-              ],
+                  const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.inkFaint,
+                    size: 18,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

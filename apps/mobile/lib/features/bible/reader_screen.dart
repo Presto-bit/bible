@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../app/app_shell.dart'
-    show navIndexProvider, readerImmersiveProvider;
+    show navIndexProvider, peiaiTabBarOverlayExtent, readerImmersiveProvider;
 import '../../core/badge_stats.dart';
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/config.dart';
@@ -494,8 +494,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 
   Widget _readerFab() {
+    // extendBody 下子 Scaffold 的 padding.bottom 常为 0，改用 viewPadding + 壳层占位。
+    final bottom =
+        peiaiTabBarOverlayExtent(context, includeSafe: false) +
+        MediaQuery.viewPaddingOf(context).bottom +
+        8;
     return Padding(
-      padding: EdgeInsets.only(bottom: 4, right: 4),
+      padding: EdgeInsets.only(bottom: bottom, right: 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,

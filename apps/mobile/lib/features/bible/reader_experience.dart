@@ -1609,6 +1609,11 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           ),
         ),
         data: (ch) {
+          // 有独立译本时须等默认布局章就绪，避免用译本经文做分段导致预览标题/段落错位。
+          if (widget.mainVersionId != null &&
+              (layoutAsync == null || !layoutAsync.hasValue)) {
+            return const Center(child: CircularProgressIndicator());
+          }
           return _ChapterPeekContent(
             book: target.book,
             chapter: target.chapter,
@@ -2844,6 +2849,30 @@ class _ChapterPeekContent extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(16, topPad, 20, 24),
         children: [
+          // 预览页与落定后的正文均从卷章标题开始，避免滑到一半时缺少章节语境。
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12, top: 4),
+            child: Row(
+              children: [
+                Text(
+                  book.name,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: theme.ink,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  '第 $chapter 章',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.ink.withValues(alpha: 0.55),
+                  ),
+                ),
+              ],
+            ),
+          ),
           for (final row in rows)
             row is String
                 ? _sectionTitle(row)
@@ -3181,32 +3210,38 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               ),
             );
           }
-          // WidgetSpan 词块：连续蓝带选中 + 双击整节
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.baseline,
-              baseline: TextBaseline.alphabetic,
-              child: SelectableWordChip(
-                anchor: anchor,
-                text: w.text,
-                style: wordStyle,
-                selected: activeWord,
-                edgeLeft: edge.left,
-                edgeRight: edge.right,
-                onTap: selectionActive
-                    ? () => widget.onWordExtend(v.verse, w.start, w.end)
-                    : null,
-                onDictTap: dictHit != null
-                    ? () => widget.onOpenDict(
-                        dictHit.$1,
-                        dictHit.$2,
-                        widget.dictIndex[dictHit.$2] ?? [dictHit.$1],
-                      )
-                    : null,
-                onDoubleTap: () => widget.onStart(v.verse, v.text),
+          // 普通正文保持为 TextSpan，让 Flutter 像 PWA 一样连续断行/两端对齐。
+          // 仅词典命中或已进入逐词选择时保留 WidgetSpan 交互，避免上百个行内
+          // widget 造成孤立标点、行宽填不满及滚动掉帧。
+          if (dictHit == null && !selectionActive) {
+            spans.add(TextSpan(text: w.text, style: wordStyle));
+          } else {
+            spans.add(
+              WidgetSpan(
+                alignment: PlaceholderAlignment.baseline,
+                baseline: TextBaseline.alphabetic,
+                child: SelectableWordChip(
+                  anchor: anchor,
+                  text: w.text,
+                  style: wordStyle,
+                  selected: activeWord,
+                  edgeLeft: edge.left,
+                  edgeRight: edge.right,
+                  onTap: selectionActive
+                      ? () => widget.onWordExtend(v.verse, w.start, w.end)
+                      : null,
+                  onDictTap: dictHit != null
+                      ? () => widget.onOpenDict(
+                          dictHit.$1,
+                          dictHit.$2,
+                          widget.dictIndex[dictHit.$2] ?? [dictHit.$1],
+                        )
+                      : null,
+                  onDoubleTap: () => widget.onStart(v.verse, v.text),
+                ),
               ),
-            ),
-          );
+            );
+          }
           cursor = w.end;
         }
         if (cursor < v.text.length) {
@@ -3426,31 +3461,35 @@ class _MarginVerseRow extends StatelessWidget {
         );
       }
       final a = WordAnchor(verse: v.verse, start: w.start, end: w.end);
-      bodyChildren.add(
-        WidgetSpan(
-          alignment: PlaceholderAlignment.baseline,
-          baseline: TextBaseline.alphabetic,
-          child: SelectableWordChip(
-            anchor: a,
-            text: w.text,
-            style: wordStyle,
-            selected: activeWord,
-            edgeLeft: edge.left,
-            edgeRight: edge.right,
-            onTap: selectionActive
-                ? () => onWordExtend(v.verse, w.start, w.end)
-                : null,
-            onDictTap: dictHit != null
-                ? () => onOpenDict(
-                    dictHit.$1,
-                    dictHit.$2,
-                    dictIndex[dictHit.$2] ?? [dictHit.$1],
-                  )
-                : null,
-            onDoubleTap: () => onStart(v.verse, v.text),
+      if (dictHit == null && !selectionActive) {
+        bodyChildren.add(TextSpan(text: w.text, style: wordStyle));
+      } else {
+        bodyChildren.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: SelectableWordChip(
+              anchor: a,
+              text: w.text,
+              style: wordStyle,
+              selected: activeWord,
+              edgeLeft: edge.left,
+              edgeRight: edge.right,
+              onTap: selectionActive
+                  ? () => onWordExtend(v.verse, w.start, w.end)
+                  : null,
+              onDictTap: dictHit != null
+                  ? () => onOpenDict(
+                      dictHit.$1,
+                      dictHit.$2,
+                      dictIndex[dictHit.$2] ?? [dictHit.$1],
+                    )
+                  : null,
+              onDoubleTap: () => onStart(v.verse, v.text),
+            ),
           ),
-        ),
-      );
+        );
+      }
       cursor = w.end;
     }
     if (cursor < v.text.length) {

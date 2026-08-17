@@ -24,7 +24,7 @@ Future<void> showEntityKnowledgeSheet(
   try {
     await showReaderSheet<void>(
       context: context,
-      heightFactor: 0.82,
+      heightFactor: 0.56,
       builder: (_) => _EntityKnowledgeSheet(
         entity: entity,
         displayName: displayName,
@@ -237,9 +237,14 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
           ),
         ],
         const SizedBox(height: 10),
-        Expanded(
+        Flexible(
           child: loading
-              ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  height: 120,
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
               : SingleChildScrollView(
                   child: _tabBody(
                     tab: activeTab,

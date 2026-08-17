@@ -13,6 +13,7 @@ import '../app/app_shell.dart';
 import '../features/assistant/assistant_seed.dart';
 import '../features/bible/offline_download_sheet.dart';
 import 'app_update.dart';
+import 'app_update_dialog.dart';
 import 'campaign_nav.dart';
 import 'notifications.dart';
 
@@ -71,6 +72,13 @@ void attachPeiaiJsChannel(
           });
         } else if (type == 'check_app_update') {
           Future.microtask(() async {
+            final task = AppUpdateService.downloadState.value;
+            if (task.update != null &&
+                task.phase != AppUpdateDownloadPhase.idle) {
+              if (!context.mounted) return;
+              await showAppUpdateDialog(context: context, update: task.update!);
+              return;
+            }
             final status = await const AppUpdateService().status();
             if (!context.mounted) return;
             if (status.checkFailed) {
@@ -88,73 +96,10 @@ void attachPeiaiJsChannel(
               );
               return;
             }
-            await showDialog<void>(
+            await showAppUpdateDialog(
               context: context,
-              builder: (dialogContext) {
-                var downloading = false;
-                var progress = 0.0;
-                return StatefulBuilder(
-                  builder: (_, setDialogState) => AlertDialog(
-                    title: const Text('发现新版本'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '当前 ${status.currentVersionName}，可更新至 ${update.versionName}。',
-                        ),
-                        if (downloading) ...[
-                          const SizedBox(height: 18),
-                          LinearProgressIndicator(
-                            value: progress == 0 ? null : progress,
-                          ),
-                        ],
-                      ],
-                    ),
-                    actions: [
-                      if (!downloading)
-                        TextButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(),
-                          child: const Text('以后再说'),
-                        ),
-                      FilledButton(
-                        onPressed: downloading
-                            ? null
-                            : () async {
-                                setDialogState(() => downloading = true);
-                                try {
-                                  await const AppUpdateService()
-                                      .downloadAndPromptInstall(
-                                        update,
-                                        onProgress: (value) {
-                                          if (dialogContext.mounted) {
-                                            setDialogState(
-                                              () => progress = value,
-                                            );
-                                          }
-                                        },
-                                      );
-                                  if (dialogContext.mounted) {
-                                    Navigator.of(dialogContext).pop();
-                                  }
-                                } catch (_) {
-                                  if (!dialogContext.mounted) return;
-                                  setDialogState(() => downloading = false);
-                                  ScaffoldMessenger.of(
-                                    dialogContext,
-                                  ).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('新版本下载失败，请稍后重试'),
-                                    ),
-                                  );
-                                }
-                              },
-                        child: const Text('立即更新'),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              update: update,
+              currentVersionName: status.currentVersionName,
             );
           });
         } else if (type == 'open_external') {
@@ -222,7 +167,8 @@ void attachPeiaiJsChannel(
         } else if (type == 'show_im_notification') {
           final title = '${data['title'] ?? '彼爱'}'.trim();
           final body = '${data['body'] ?? ''}'.trim();
-          final path = '${data['path'] ?? data['openPath'] ?? '/discover'}'.trim();
+          final path = '${data['path'] ?? data['openPath'] ?? '/discover'}'
+              .trim();
           final tag = '${data['tag'] ?? ''}'.trim();
           if (body.isEmpty) return;
           Future.microtask(() async {

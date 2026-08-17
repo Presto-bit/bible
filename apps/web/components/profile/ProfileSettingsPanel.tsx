@@ -39,7 +39,7 @@ import {
 import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_status';
 import { isSyncRequiresPasswordError, syncNow } from '@/lib/sync';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
-import { isFlutterH5Host, peiaiOpenNative } from '@/lib/flutter_h5_bridge';
+import { isFlutterH5Host, peiaiOpenNative, subscribeAppUpdate, type AppUpdateSnapshot } from '@/lib/flutter_h5_bridge';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 
@@ -138,6 +138,7 @@ export default function ProfileSettingsPanel() {
       ? resolveAppPackageRow()
       : { title: '彼爱安装包', hint: '官网安装包', action: 'install_sheet' },
   );
+  const [updateTask, setUpdateTask] = useState<AppUpdateSnapshot | null>(null);
   const [packageBusy, setPackageBusy] = useState(false);
 
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
@@ -209,6 +210,11 @@ export default function ProfileSettingsPanel() {
   }, []);
 
   useEffect(() => {
+    if (!isFlutterH5Host()) return;
+    return subscribeAppUpdate((snap) => setUpdateTask(snap));
+  }, []);
+
+  useEffect(() => {
     const refreshSync = () => {
       setSyncLabel(canCloudSync() ? syncStateLabel(getSyncState()) : '需先设置密码');
     };
@@ -241,7 +247,8 @@ export default function ProfileSettingsPanel() {
 
   const handleAppPackageClick = () => {
     if (packageBusy || packageRow.action === 'noop') return;
-    if (packageRow.action === 'flutter_update') {
+    // Flutter 壳内一律走原生更新通道，禁止 location 跳 APK（会白屏/丢下载态）。
+    if (packageRow.action === 'flutter_update' || isFlutterH5Host()) {
       if (!peiaiOpenNative({ type: 'check_app_update' })) {
         toast('暂时无法检查新版本，请稍后再试');
       }
@@ -418,8 +425,28 @@ export default function ProfileSettingsPanel() {
             )}
           />
           <SettingsNavRow
-            title={packageBusy ? '准备下载…' : packageRow.title}
-            hint={packageRow.hint}
+            title={
+              packageBusy
+                ? '准备下载…'
+                : updateTask?.phase === 'downloading'
+                  ? '正在更新彼爱 App'
+                  : updateTask?.phase === 'ready' || updateTask?.phase === 'prompting'
+                    ? '可安装新版本'
+                    : packageRow.title
+            }
+            hint={
+              updateTask?.phase === 'downloading'
+                ? updateTask.progress > 0
+                  ? `正在下载 ${Math.round(updateTask.progress * 100)}% · 点此查看`
+                  : '正在准备下载… · 点此查看'
+                : updateTask?.phase === 'prompting'
+                  ? '正在打开系统安装…'
+                  : updateTask?.phase === 'ready'
+                    ? `彼爱 ${updateTask.versionName || ''} 已下载 · 点此安装`.trim()
+                    : updateTask?.phase === 'failed'
+                      ? updateTask.error || '下载失败 · 点此重试'
+                      : packageRow.hint
+            }
             disabled={packageBusy || packageRow.action === 'noop'}
             onClick={handleAppPackageClick}
             glyph={settingsGlyph(

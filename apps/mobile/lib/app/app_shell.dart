@@ -9,8 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/app_update.dart';
+import '../core/app_update_dialog.dart';
 import '../core/sync/sync_controller.dart';
-import '../core/widgets/peiai_overlays.dart';
 import '../features/assistant/assistant_screen.dart';
 import '../features/bible/offline_notice.dart'
     show OfflineStatusBar, networkOkProvider;
@@ -51,8 +51,8 @@ class DiscoverImmersiveNotifier extends Notifier<bool> {
 
 final discoverImmersiveProvider =
     NotifierProvider<DiscoverImmersiveNotifier, bool>(
-  DiscoverImmersiveNotifier.new,
-);
+      DiscoverImmersiveNotifier.new,
+    );
 
 /// 发现 Tab 当前 H5 路径（SPA 与 WebView URL 同步，用于切回 Tab 恢复沉浸）。
 class DiscoverH5LocationNotifier extends Notifier<String> {
@@ -69,8 +69,8 @@ class DiscoverH5LocationNotifier extends Notifier<String> {
 
 final discoverH5LocationProvider =
     NotifierProvider<DiscoverH5LocationNotifier, String>(
-  DiscoverH5LocationNotifier.new,
-);
+      DiscoverH5LocationNotifier.new,
+    );
 
 /// 浮动胶囊底栏占位（对齐 PWA `--tabbar-h`）。
 ///
@@ -136,77 +136,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     try {
       final update = await const AppUpdateService().check();
       if (!mounted || update == null) return;
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: true,
-        builder: (dialogContext) {
-          var downloading = false;
-          var progress = 0.0;
-          return StatefulBuilder(
-            builder: (context, setDialogState) => PeiaiDialog(
-              title: const Text('发现新版本'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('彼爱 ${update.versionName} 已准备好。'),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '下载完成后会打开系统安装提示；你也可以关闭，稍后再更新。',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                  if (downloading) ...[
-                    const SizedBox(height: 18),
-                    LinearProgressIndicator(
-                      value: progress == 0 ? null : progress,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      progress == 0
-                          ? '正在准备下载…'
-                          : '正在下载 ${(progress * 100).round()}%',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                if (!downloading)
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('以后再说'),
-                  ),
-                FilledButton(
-                  onPressed: downloading
-                      ? null
-                      : () async {
-                          setDialogState(() => downloading = true);
-                          try {
-                            await const AppUpdateService()
-                                .downloadAndPromptInstall(
-                                  update,
-                                  onProgress: (value) {
-                                    if (context.mounted) {
-                                      setDialogState(() => progress = value);
-                                    }
-                                  },
-                                );
-                            if (dialogContext.mounted) {
-                              Navigator.of(dialogContext).pop();
-                            }
-                          } catch (_) {
-                            if (!context.mounted) return;
-                            setDialogState(() => downloading = false);
-                            showPeiaiToast(context, '新版本下载失败，请稍后重试');
-                          }
-                        },
-                  child: const Text('立即更新'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
+      await showAppUpdateDialog(context: context, update: update);
     } catch (_) {
       // 静默失败：更新检查不应打断读经。
     }
@@ -225,10 +155,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     // 键盘弹起时不额外叠 safe（与 PWA vv 逻辑一致：优先 keyboard）
     final kb = MediaQuery.viewInsetsOf(context).bottom;
     final barBottomPad = kb > 0 ? 12.0 : (12.0 + safeBottom);
-    final online = ref.watch(networkOkProvider).maybeWhen(
-          data: (ok) => ok,
-          orElse: () => true,
-        );
+    final online = ref
+        .watch(networkOkProvider)
+        .maybeWhen(data: (ok) => ok, orElse: () => true);
 
     return SyncLifecycle(
       child: AnnotatedRegion<SystemUiOverlayStyle>(
@@ -388,8 +317,9 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = (active ? activeColor : inactiveColor)
-        .withValues(alpha: dimmed ? 0.38 : 1);
+    final color = (active ? activeColor : inactiveColor).withValues(
+      alpha: dimmed ? 0.38 : 1,
+    );
     return Tooltip(
       message: dimmed ? '当前离线，此功能需联网' : '',
       child: InkWell(

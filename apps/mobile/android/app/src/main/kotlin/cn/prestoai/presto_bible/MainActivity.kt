@@ -145,13 +145,21 @@ class MainActivity : FlutterFragmentActivity() {
   private fun installApk(apk: File) {
     try {
       val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apk)
-      startActivity(
-        Intent(Intent.ACTION_VIEW).apply {
-          setDataAndType(uri, "application/vnd.android.package-archive")
-          addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        },
-      )
+      val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, "application/vnd.android.package-archive")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      }
+      // 部分 OEM 仅靠 Intent flag 不够，需显式授权给解析到的安装器。
+      val resolvers = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+      for (info in resolvers) {
+        grantUriPermission(
+          info.activityInfo.packageName,
+          uri,
+          Intent.FLAG_GRANT_READ_URI_PERMISSION,
+        )
+      }
+      startActivity(intent)
     } catch (_: Exception) {
       toast("无法打开安装提示")
     }

@@ -49,25 +49,40 @@ export function isPeiaiAndroidWebViewShell(): boolean {
 
 /** Flutter 原生 App 内嵌 H5（非旧 WebView 壳）。 */
 export function isPeiaiFlutterH5Host(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (sessionStorage.getItem('peiai_client_kind') === 'android_h5_tab') return true;
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (document.documentElement.classList.contains('android-flutter-h5')) return true;
+  } catch {
+    /* ignore */
+  }
   if (typeof navigator === 'undefined') return false;
-  return /\bPeiaiFlutter\/[0-9A-Za-z.+-]+/i.test(navigator.userAgent);
+  return /\bPeiaiFlutter\b/i.test(navigator.userAgent || '');
 }
 
 export function getPeiaiFlutterH5Version(): {
   versionName: string | null;
   versionCode: number | null;
 } {
+  const match = (typeof navigator !== 'undefined' ? navigator.userAgent : '').match(
+    /\bPeiaiFlutter\/([0-9A-Za-z.+-]+)(?:\s*\(vc(\d+)\))?/i,
+  );
+  if (match) {
+    const code = match[2] ? parseInt(match[2], 10) : NaN;
+    return {
+      versionName: match[1] || null,
+      versionCode: Number.isFinite(code) ? code : null,
+    };
+  }
+  // UA 未带版本时仍可能是 Flutter H5（session / class 标记）。
   if (!isPeiaiFlutterH5Host()) {
     return { versionName: null, versionCode: null };
   }
-  const match = navigator.userAgent.match(
-    /\bPeiaiFlutter\/([0-9A-Za-z.+-]+)(?:\s*\(vc(\d+)\))?/i,
-  );
-  const code = match?.[2] ? parseInt(match[2], 10) : NaN;
-  return {
-    versionName: match?.[1] || null,
-    versionCode: Number.isFinite(code) ? code : null,
-  };
+  return { versionName: null, versionCode: null };
 }
 
 /** Chrome-hosted 官网包（query 标记或已持久化） */

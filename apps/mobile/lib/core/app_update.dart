@@ -4,10 +4,39 @@ library;
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'config.dart';
+
+enum AppUpdateDownloadPhase { idle, downloading, prompting, ready, failed }
+
+class AppUpdateDownloadState {
+  const AppUpdateDownloadState({
+    this.update,
+    this.phase = AppUpdateDownloadPhase.idle,
+    this.progress = 0,
+    this.error,
+  });
+
+  final AppUpdate? update;
+  final AppUpdateDownloadPhase phase;
+  final double progress;
+  final String? error;
+
+  bool get isBusy =>
+      phase == AppUpdateDownloadPhase.downloading ||
+      phase == AppUpdateDownloadPhase.prompting;
+
+  Map<String, dynamic> toJsMap() => {
+    'phase': phase.name,
+    'progress': progress,
+    'error': error,
+    'versionCode': update?.versionCode,
+    'versionName': update?.versionName,
+  };
+}
 
 class AppUpdate {
   const AppUpdate({
@@ -42,6 +71,9 @@ class AppUpdateService {
   const AppUpdateService();
 
   static const _channel = MethodChannel('cn.prestoai.peiai/app_update');
+  static final downloadState = ValueNotifier<AppUpdateDownloadState>(
+    const AppUpdateDownloadState(),
+  );
 
   Future<AppUpdateStatus> status() async {
     if (!Platform.isAndroid) {
@@ -101,20 +133,24 @@ class AppUpdateService {
   }
 
   Future<({String name, int code})> _currentVersion() async {
-    final info = await _channel.invokeMapMethod<String, dynamic>(
-      'versionInfo',
-    );
+    final info = await _channel.invokeMapMethod<String, dynamic>('versionInfo');
     final name = (info?['versionName'] as String?)?.trim();
     final code = (info?['versionCode'] as num?)?.toInt() ?? 0;
     return (name: name?.isNotEmpty == true ? name! : '$code', code: code);
   }
 
-  Future<void> downloadAndPromptInstall(
+  Future<File> downloadApk(
     AppUpdate update, {
     required void Function(double progress) onProgress,
   }) async {
-    final dir = await getTemporaryDirectory();
+    // 用应用 files 目录，避免 cache 被系统清理后安装器读不到包。
+    final dir = await getApplicationSupportDirectory();
     final output = File('${dir.path}/biai-${update.versionCode}.apk');
+    if (await output.exists()) {
+      try {
+        await output.delete();
+      } catch (_) {}
+    }
     await Dio().download(
       update.downloadUrl.toString(),
       output.path,
@@ -130,6 +166,70 @@ class AppUpdateService {
     if (!await output.exists() || await output.length() < 50 * 1024) {
       throw const FileSystemException('安装包下载不完整');
     }
-    await _channel.invokeMethod<void>('promptInstall', {'path': output.path});
+    return output;
+  }
+
+  Future<void> promptInstallFile(File apk) async {
+    if (!await apk.exists() || await apk.length() < 50 * 1024) {
+      throw const FileSystemException('安装包无效');
+    }
+    await _channel.invokeMethod<void>('promptInstall', {'path': apk.path});
+  }
+
+  /// 按 versionCode 定位已下载包并再次唤起安装器（弹窗「重新打开安装」）。
+  Future<void> promptInstall(AppUpdate update) async {
+    final dir = await getApplicationSupportDirectory();
+    final apk = File('${dir.path}/biai-${update.versionCode}.apk');
+    await promptInstallFile(apk);
+  }
+
+  Future<void> downloadAndPromptInstall(
+    AppUpdate update, {
+    required void Function(double progress) onProgress,
+    void Function()? onInstallPrompted,
+  }) async {
+    final apk = await downloadApk(update, onProgress: onProgress);
+    onInstallPrompted?.call();
+    await promptInstallFile(apk);
+  }
+
+  /// 下载任务归应用而非弹窗：用户可关掉弹窗，稍后从「更新彼爱 App」继续查看。
+  Future<void> startDownload(AppUpdate update) async {
+    final current = downloadState.value;
+    if (current.isBusy) return;
+    downloadState.value = AppUpdateDownloadState(
+      update: update,
+      phase: AppUpdateDownloadPhase.downloading,
+    );
+    try {
+      await downloadAndPromptInstall(
+        update,
+        onProgress: (value) {
+          downloadState.value = AppUpdateDownloadState(
+            update: update,
+            phase: AppUpdateDownloadPhase.downloading,
+            progress: value,
+          );
+        },
+        onInstallPrompted: () {
+          downloadState.value = AppUpdateDownloadState(
+            update: update,
+            phase: AppUpdateDownloadPhase.prompting,
+            progress: 1,
+          );
+        },
+      );
+      downloadState.value = AppUpdateDownloadState(
+        update: update,
+        phase: AppUpdateDownloadPhase.ready,
+        progress: 1,
+      );
+    } catch (_) {
+      downloadState.value = AppUpdateDownloadState(
+        update: update,
+        phase: AppUpdateDownloadPhase.failed,
+        error: '新版本下载或安装打开失败，请稍后重试',
+      );
+    }
   }
 }

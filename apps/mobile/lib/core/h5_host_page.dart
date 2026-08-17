@@ -17,6 +17,7 @@ import '../app/app_shell.dart';
 import '../features/assistant/assistant_seed.dart';
 import 'api_client.dart';
 import 'app_update.dart';
+import 'app_update_progress_hub.dart';
 import 'app_theme.dart';
 import 'config.dart';
 import 'h5_bridge_channel.dart';
@@ -93,7 +94,10 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   @override
   void dispose() {
     final c = _controller;
-    if (c != null) H5SessionBridge.unregister(c);
+    if (c != null) {
+      H5SessionBridge.unregister(c);
+      AppUpdateProgressHub.unregister(c);
+    }
     _viewportMetricsDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     // 发现 Tab 销毁时清沉浸，避免底栏卡隐藏
@@ -427,6 +431,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     } catch (_) {}
 
     H5SessionBridge.register(controller);
+    AppUpdateProgressHub.register(controller);
     await controller.loadRequest(uri);
 
     if (!mounted) return;
@@ -776,6 +781,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   } catch (e) {}
 })();
 ''');
+    AppUpdateProgressHub.register(c);
   }
 
   static String _jsStr(String s) {
