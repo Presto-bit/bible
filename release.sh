@@ -410,7 +410,7 @@ elif [[ -f "$RELEASE_SHA_FILE" ]]; then
         log "相对 $prev_sha 无文件变更，跳过构建"
       else
         if echo "$changed" | grep -qE \
-          '^(services/api/|infra/postgres/|scripts/(ensure_|post_deploy)|docker-compose\.prod\.yml|services/api/Dockerfile)'; then
+          '^(services/api/|infra/postgres/|scripts/(ensure_|post_deploy|import_relations|validate_relations|import_entities)|scripts/lib/|data/dictionary/|docker-compose\.prod\.yml|services/api/Dockerfile)'; then
           need_api=1
         fi
         if echo "$changed" | grep -qE \
@@ -503,6 +503,14 @@ fi
 log "Post-deploy：PG 迁移 / 内容 SQLite"
 if ! SKIP_API_WAIT=1 bash "$APP_DIR/scripts/post_deploy.sh"; then
   die "post_deploy 失败（PG 迁移或 API 不可用）"
+fi
+
+# 词典关系：在 API 容器内再跑一遍，确保发版后图数据可解析且通过校验
+# （ensure_content_data.sh 已含同一步骤；此处显式门禁，失败则中止发版）
+log "词典关系：python scripts/import_relations.py && python scripts/validate_relations.py"
+if ! "${compose[@]}" exec -T api bash -lc \
+  'cd /app && python scripts/import_relations.py && python scripts/validate_relations.py'; then
+  die "词典关系导入/校验失败"
 fi
 
 log "校验圣经译本"

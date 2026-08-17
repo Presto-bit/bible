@@ -227,4 +227,13 @@ do
   fi
 done
 
+# ── 词典关系（Gnosis 族谱 + 手工种子；断链/覆盖率校验）──
+if [[ -f "$ROOT/scripts/import_relations.py" && -f "$ROOT/scripts/validate_relations.py" ]]; then
+  log "导入并校验词典关系 …"
+  "$PY" "$ROOT/scripts/import_relations.py"
+  "$PY" "$ROOT/scripts/validate_relations.py"
+else
+  log "跳过词典关系（缺少 import/validate 脚本）"
+fi
+
 log "内容数据检查完成"

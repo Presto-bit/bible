@@ -27,6 +27,9 @@ COPY scripts/import_strongs.py /app/scripts/import_strongs.py
 COPY scripts/import_strongs_gnosis.py /app/scripts/import_strongs_gnosis.py
 COPY scripts/import_cuv.py /app/scripts/import_cuv.py
 COPY scripts/import_kjv_scrollmapper.py /app/scripts/import_kjv_scrollmapper.py
+COPY scripts/import_entities.py /app/scripts/import_entities.py
+COPY scripts/import_relations.py /app/scripts/import_relations.py
+COPY scripts/validate_relations.py /app/scripts/validate_relations.py
 COPY scripts/epub_to_verses.py /app/scripts/epub_to_verses.py
 COPY scripts/ensure_content_data.sh /app/scripts/ensure_content_data.sh
 
