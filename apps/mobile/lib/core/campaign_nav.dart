@@ -134,6 +134,7 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   Timer? _loadWatchdog;
   Timer? _inviteSkipProbe;
   var _hydrateAttempts = 0;
+  var _genesisSessionReloaded = false;
 
   @override
   void initState() {
@@ -178,17 +179,11 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
 
   void _armLoadWatchdog() {
     _loadWatchdog?.cancel();
-    // 创世记 SPA 首屏慢时不要盖死 WebView，只揭开 loading。
-    final softOnly = widget.genesis50;
-    _loadWatchdog = Timer(Duration(seconds: softOnly ? 28 : 18), () {
+    _loadWatchdog = Timer(Duration(seconds: widget.genesis50 ? 28 : 18), () {
       if (!mounted || !_loading || _error != null) return;
-      if (softOnly) {
-        setState(() => _loading = false);
-        return;
-      }
       setState(() {
         _loading = false;
-        _error = '页面打开较慢，请检查网络后重试';
+        _error = widget.genesis50 ? '活动未能完成加载，请检查网络后重试' : '页面打开较慢，请检查网络后重试';
       });
     });
   }
@@ -221,7 +216,9 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   void _scheduleInviteSkipProbe(WebViewController controller) {
     if (!widget.genesis50) return;
     _inviteSkipProbe?.cancel();
-    // SPA hydrate 后若仍停在邀请码页，再补一次 session。
+    // 若首屏仍是邀请码页，session 已写入同源 localStorage 后保留 query 重载
+    // 一次。这样对方 SPA 会在初始化前同时读到 URL 与 storage；绝不清 token
+    // query，避免此前 replaceState + reload 造成的白页。
     _inviteSkipProbe = Timer(const Duration(milliseconds: 1600), () async {
       if (!mounted || _controller != controller) return;
       try {
@@ -234,8 +231,11 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
 })();
 ''');
         final status = '$raw'.replaceAll('"', '');
-        if (status.contains('invite') && _hydrateAttempts < 2) {
+        if (status.contains('invite') && !_genesisSessionReloaded) {
           await _hydrateGenesis50Session(controller);
+          if (!mounted || _controller != controller) return;
+          _genesisSessionReloaded = true;
+          await controller.reload();
         }
       } catch (_) {}
     });
@@ -244,6 +244,7 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   Future<void> _startWebView(String url) async {
     _activeUrl = url;
     _hydrateAttempts = 0;
+    _genesisSessionReloaded = false;
     final controller = WebViewController();
     await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
     await controller.setBackgroundColor(AppColors.paper);
@@ -314,7 +315,6 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
       } catch (_) {}
     }
 
-    await controller.loadRequest(Uri.parse(url));
     if (!mounted) return;
     setState(() {
       _controller = controller;
@@ -322,6 +322,16 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
       _loading = true;
     });
     _armLoadWatchdog();
+    try {
+      await controller.loadRequest(Uri.parse(url));
+    } catch (_) {
+      _loadWatchdog?.cancel();
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = '页面加载失败，请检查网络后重试';
+      });
+    }
   }
 
   @override
