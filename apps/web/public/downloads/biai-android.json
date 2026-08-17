@@ -1,9 +1,9 @@
 {
   "packageId": "cn.prestoai.peiai",
-  "versionCode": 40,
-  "versionName": "3.0.10",
+  "versionCode": 41,
+  "versionName": "3.0.11",
   "bytes": 24209735,
-  "sha256": "f54d514025924a7bb232746f701b2d58e23d793ca8c5949ca744c104852dad7e",
+  "sha256": "4b10486138fb03cadc54df36d470105f661139afed0e3722e668930155cc9b1f",
   "downloadUrl": "/downloads/biai-android.apk",
   "iconUrl": "/downloads/biai-android-icon.png",
   "icon192Url": "/downloads/biai-android-icon-192.png",
