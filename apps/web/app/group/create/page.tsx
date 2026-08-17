@@ -9,6 +9,7 @@ import { markLocalDataCreated } from '@/lib/account_guide';
 import { stashCreatedGroup } from '@/lib/groups_refresh';
 import { recordGroupCreated } from '@/lib/badge_events';
 import { GROUP_INACTIVE_NOTICE } from '@/lib/group_policy';
+import { leaveFlutterH5ToDiscover } from '@/lib/flutter_h5_bridge';
 
 export default function CreateGroupPage() {
   useEdgeSwipeBack({ href: '/discover' });
@@ -41,7 +42,10 @@ export default function CreateGroupPage() {
         role: g.role || 'owner',
       });
       markLocalDataCreated();
-      router.replace(`/discover/group/${encodeURIComponent(g.id)}`);
+      const groupPath = `/discover/group/${encodeURIComponent(g.id)}`;
+      if (!leaveFlutterH5ToDiscover(groupPath)) {
+        router.replace(groupPath);
+      }
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       setMsg(

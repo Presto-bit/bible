@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/api_client.dart';
+import '../core/discover_h5_redirect.dart';
 import '../core/h5_host_page.dart';
 import '../features/assistant/assistant_screen.dart';
 import '../features/bible/reader_screen.dart';
@@ -19,7 +20,6 @@ import '../features/plans/plans_screen.dart';
 import '../features/social/discover_screen.dart';
 import '../features/bible/dictionary_screen.dart';
 import '../features/search/search_screen.dart';
-import '../features/bible/reading_report_screen.dart';
 import '../features/notes/notes_screen.dart';
 import '../features/settings/appearance_screen.dart';
 import '../features/knowledge/knowledge_explore.dart';
@@ -105,16 +105,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           builder: (context, state) => const DiscoverScreen()),
       GoRoute(
         path: '/discover/dm/:id',
-        builder: (context, state) => H5HostPage(
+        builder: (context, state) => DiscoverH5RedirectPage(
           path: '/discover/dm/${state.pathParameters['id']}',
         ),
       ),
       GoRoute(
-          path: '/report',
-          builder: (context, state) => const ReadingReportScreen()),
+        path: '/report',
+        builder: (context, state) => const H5HostPage(path: '/report'),
+      ),
       GoRoute(
         path: '/help',
-        builder: (context, state) => const H5HostPage(
+        builder: (context, state) => const DiscoverH5RedirectPage(
               path: '/help',
             ),
       ),
@@ -126,7 +127,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/feedback',
-        builder: (context, state) => const H5HostPage(
+        builder: (context, state) => const DiscoverH5RedirectPage(
               path: '/feedback',
             ),
       ),
@@ -217,7 +218,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/group/:id',
-        builder: (context, state) => H5HostPage(
+        builder: (context, state) => DiscoverH5RedirectPage(
           path: '/discover/group/${state.pathParameters['id']}',
         ),
       ),

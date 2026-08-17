@@ -52,6 +52,15 @@ export function getAppTheme(): AppThemeId {
 export function setAppTheme(id: AppThemeId) {
   localStorage.setItem(APP_THEME_KEY, id);
   applyAppTheme();
+  try {
+    void import('./flutter_h5_bridge').then((m) => {
+      if (m.isFlutterH5Host()) {
+        m.peiaiOpenNative({ type: 'set_theme', theme: id });
+      }
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 export function getReaderFollowApp(): boolean {

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { MouseEvent } from 'react';
-import { leaveFlutterH5IfNativeHref } from '@/lib/flutter_h5_bridge';
+import { leaveFlutterH5IfNativeHref, leaveFlutterH5ToDiscover } from '@/lib/flutter_h5_bridge';
 
 export type PageBackBarProps = {
   href?: string;
@@ -50,6 +50,10 @@ export default function PageBackBar({
         onClick={(e) => {
           onClick?.(e);
           if (e.defaultPrevented) return;
+          if (href === '/discover' || href.startsWith('/discover/')) {
+            if (leaveFlutterH5ToDiscover(href)) e.preventDefault();
+            return;
+          }
           if (leaveFlutterH5IfNativeHref(href)) e.preventDefault();
         }}
       >

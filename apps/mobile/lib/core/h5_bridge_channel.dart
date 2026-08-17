@@ -16,6 +16,7 @@ import 'app_update.dart';
 import 'app_update_dialog.dart';
 import 'campaign_nav.dart';
 import 'notifications.dart';
+import 'app_theme.dart';
 
 const kPeiaiJsChannel = 'PeiaiFlutter';
 
@@ -150,6 +151,11 @@ void attachPeiaiJsChannel(
           } else if (path.startsWith('/discover')) {
             ref.read(navIndexProvider.notifier).set(3);
             ref.read(discoverH5PathProvider.notifier).go(path);
+            Future.microtask(() {
+              if (!context.mounted) return;
+              // 叠层 H5 内 open_path：回主壳，由发现 Tab WebView 消费路径
+              if (context.canPop()) context.go('/');
+            });
             return;
           }
           Future.microtask(() {
@@ -208,6 +214,16 @@ void attachPeiaiJsChannel(
           final kind = '${data['kind'] ?? 'daily'}'.trim();
           Future.microtask(() async {
             await NotificationService.instance.cancelReminder(kind);
+          });
+        } else if (type == 'set_theme') {
+          final raw = '${data['theme'] ?? data['app_theme'] ?? ''}'.trim();
+          if (raw.isEmpty || !context.mounted) return;
+          final id = AppThemeId.values.firstWhere(
+            (e) => e.storageKey == raw,
+            orElse: () => AppThemeId.classic,
+          );
+          Future.microtask(() async {
+            await ref.read(appThemeProvider.notifier).set(id);
           });
         } else if (type == 'open_offline_download') {
           if (!context.mounted) return;

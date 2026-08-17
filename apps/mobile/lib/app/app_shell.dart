@@ -10,6 +10,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/background_digest_service.dart';
+import '../core/discover_warmup.dart';
+import '../core/api_client.dart';
 import '../core/app_update.dart';
 import '../core/app_update_dialog.dart';
 import '../core/sync/sync_controller.dart';
@@ -171,11 +174,19 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForAppUpdate());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForAppUpdate();
+      ref.read(backgroundDigestServiceProvider).attach();
+      Future<void>.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        unawaited(warmupDiscoverResources(ref.read(dioProvider)));
+      });
+    });
   }
 
   @override
   void dispose() {
+    ref.read(backgroundDigestServiceProvider).detach();
     _scrollIdle?.cancel();
     super.dispose();
   }

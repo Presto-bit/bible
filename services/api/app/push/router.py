@@ -45,6 +45,36 @@ def vapid_public_key() -> dict:
     return {"public_key": s.vapid_public_key}
 
 
+class FcmRegisterBody(BaseModel):
+    token: str
+    platform: str = "android_flutter"
+
+
+@router.post("/fcm-register")
+def fcm_register(body: FcmRegisterBody, user_id: str = Depends(get_current_user)) -> dict:
+    """登记 Android FCM token（endpoint=fcm:…）；服务端配置 FCM 后可投递杀进程推送。"""
+    token = body.token.strip()
+    if not token:
+        raise HTTPException(400, "token 不能为空")
+    endpoint = f"fcm:{token}"
+    pool = get_pool()
+    with pool.connection() as conn:
+        conn.execute(
+            "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
+            (user_id,),
+        )
+        conn.execute(
+            "INSERT INTO push_subscription "
+            "(user_id, endpoint, p256dh, auth, reminder_enabled, group_digest) "
+            "VALUES (%s, %s, %s, %s, false, true) "
+            "ON CONFLICT (user_id, endpoint) DO UPDATE SET "
+            "p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, group_digest = true",
+            (user_id, endpoint, body.platform, "fcm"),
+        )
+        conn.commit()
+    return {"ok": True}
+
+
 @router.post("/subscribe")
 def subscribe(body: SubscribeBody, user_id: str = Depends(get_current_user)) -> dict:
     if not body.endpoint.strip():

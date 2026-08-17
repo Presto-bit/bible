@@ -749,7 +749,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         );
                       }(),
                     ),
-                    onReport: () => context.push('/report'),
+                    onReport: () => openH5IfAllowed(context, '/report'),
                     onPlan: planOnTap ?? () => context.push('/plans'),
                     onTheme: () => context.push('/search'),
                     onPrayer: () => openH5IfAllowed(context, '/pray'),
@@ -757,7 +757,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 12),
                   _BelowFold(
                     onOpenDiscover: () => goTab(3),
-                    onOpenReview: () => context.push('/wrapped?period=month'),
+                    onOpenReview: () =>
+                        openH5IfAllowed(context, '/wrapped?period=month'),
                   ),
                 ],
               ),
@@ -1071,7 +1072,7 @@ class _BelowFold extends ConsumerWidget {
           )
         else if (yearReviewWindow)
           PaperCard(
-            onTap: () => context.push('/wrapped?period=year'),
+            onTap: () => openH5IfAllowed(context, '/wrapped?period=year'),
             child: Row(
               children: [
                 const _Pill('年度', active: true),
@@ -1152,7 +1153,8 @@ class _VerseCard extends ConsumerStatefulWidget {
   ConsumerState<_VerseCard> createState() => _VerseCardState();
 }
 
-class _VerseCardState extends ConsumerState<_VerseCard> {
+class _VerseCardState extends ConsumerState<_VerseCard>
+    with SingleTickerProviderStateMixin {
   late bool _liked;
   late int _likeCount;
   late int _sharesCount;
@@ -1163,16 +1165,37 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   int _reactsCount = 0;
   List<DailyVerseReactPreset> _topPresets = const [];
   bool _artReady = false;
+  late final AnimationController _likePopCtrl;
+  late final Animation<double> _likePopScale;
 
   @override
   void initState() {
     super.initState();
+    _likePopCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _likePopScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.22), weight: 45),
+      TweenSequenceItem(tween: Tween(begin: 1.22, end: 1.0), weight: 55),
+    ]).animate(CurvedAnimation(parent: _likePopCtrl, curve: Curves.easeOut));
     _liked = widget.initialLiked;
     _likeCount = widget.initialLikeCount;
     _sharesCount = widget.initialSharesCount;
     _myReact = widget.initialMyReact;
     _reactsCount = widget.initialReactsCount;
     _topPresets = widget.initialTopPresets;
+  }
+
+  @override
+  void dispose() {
+    _likePopCtrl.dispose();
+    super.dispose();
+  }
+
+  void _triggerLikePop() {
+    if (!mounted) return;
+    unawaited(_likePopCtrl.forward(from: 0));
   }
 
   @override
@@ -1242,6 +1265,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
         _likeCount = count;
         _holdLocalEngagement = true;
       });
+      if (liked && !prevLiked) _triggerLikePop();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -1494,6 +1518,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
                                   : Icons.favorite_border,
                               label: _likeCount > 0 ? '$_likeCount' : null,
                               active: _liked,
+                              popScale: _likePopScale,
                               onTap: _likeBusy ? null : _toggleLike,
                             ),
                             const SizedBox(width: 4),
@@ -1537,33 +1562,38 @@ class _HeroAction extends StatelessWidget {
     this.label,
     this.active = false,
     this.onTap,
+    this.popScale,
   });
   final IconData icon;
   final String? label;
   final bool active;
   final VoidCallback? onTap;
+  final Animation<double>? popScale;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    Widget child = Material(
       color: Colors.white.withValues(alpha: active ? 0.22 : 0.12),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(999),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          padding: EdgeInsets.symmetric(
+            horizontal: label != null ? 12 : 10,
+            vertical: 8,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 17, color: Colors.white),
-              if (label != null && label!.isNotEmpty) ...[
+              Icon(icon, size: 18, color: Colors.white),
+              if (label != null) ...[
                 const SizedBox(width: 4),
                 Text(
                   label!,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1573,6 +1603,10 @@ class _HeroAction extends StatelessWidget {
         ),
       ),
     );
+    if (popScale != null) {
+      child = ScaleTransition(scale: popScale!, child: child);
+    }
+    return child;
   }
 }
 

@@ -63,14 +63,31 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
   }
 
   Future<void> _refreshInstalled() async {
-    for (final item in offlineCatalog.where((e) => e.tab == 'bible')) {
-      _installed[item.id] = await _svc.checkInstalled(item.id);
+    for (final item in offlineCatalog) {
+      if (item.tab == 'bible') {
+        _installed[item.id] = await _svc.checkInstalled(item.id);
+      } else {
+        _installed[item.id] = await _svc.checkMaterialInstalled(item.id);
+      }
     }
     if (mounted) setState(() {});
   }
 
   bool _downloadable(String id) =>
-      const {'cuvs', 'cnv', 'contemporary', 'kjv'}.contains(id);
+      const {
+        'cuvs',
+        'cnv',
+        'contemporary',
+        'kjv',
+        'dictionary',
+        'crossrefs',
+        'daily',
+        'topics',
+        'plans',
+        'geography',
+        'strongs',
+        'illustrations',
+      }.contains(id);
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +197,9 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
                           Text(
                             item.id == kPrimaryOfflineTranslation
                                 ? '主译本 · 无网时仍可继续读经'
-                                : (ready ? '已可离线使用' : '按需下载，随时可删除'),
+                                : (item.tab == 'bible'
+                                    ? (ready ? '已可离线使用' : '按需下载，随时可删除')
+                                    : (ready ? '已可离线使用' : '按需下载资料包')),
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.inkFaint,
@@ -238,7 +257,10 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
 
   Future<void> _download(String id) async {
     final svc = ref.read(offlineBibleProvider);
-    final future = svc.downloadPack(translationId: id);
+    final item = offlineCatalog.firstWhere((e) => e.id == id);
+    final future = item.tab == 'bible'
+        ? svc.downloadPack(translationId: id)
+        : svc.downloadMaterialBundle(id);
     if (mounted) {
       ScaffoldMessenger.of(
         context,

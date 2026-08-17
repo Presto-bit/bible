@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { leaveFlutterH5IfNativeHref } from '@/lib/flutter_h5_bridge';
+import { leaveFlutterH5IfNativeHref, leaveFlutterH5ToDiscover } from '@/lib/flutter_h5_bridge';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 type EdgeSwipeBackOptions = {
@@ -46,6 +46,9 @@ export function useEdgeSwipeBack({
     if (!enabled) return;
 
     const goBack = () => {
+      if (href === '/discover' || href?.startsWith('/discover/')) {
+        if (leaveFlutterH5ToDiscover(href)) return;
+      }
       // 返回 Flutter 原生面（我的 / 回顾 / 首页）时关壳，避免 WebView 再开一套
       if (leaveFlutterH5IfNativeHref(href)) return;
       if (preferHistoryBack && typeof window !== 'undefined' && window.history.length > 1) {
@@ -142,6 +145,9 @@ export function useFlowBack(fallbackHref: string) {
   const router = useRouter();
 
   const goBack = useCallback(() => {
+    if (fallbackHref === '/discover' || fallbackHref.startsWith('/discover/')) {
+      if (leaveFlutterH5ToDiscover(fallbackHref)) return;
+    }
     if (leaveFlutterH5IfNativeHref(fallbackHref)) return;
     if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back();

@@ -2,9 +2,15 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'h5_whitelist.dart';
+import '../app/app_shell.dart';
+import 'discover_h5_redirect.dart';
+import 'h5_bridge_channel.dart';
+import 'overlay_h5.dart';
+import 'overlay_h5.dart';
 
 /// 解析 href / path，可打开则 push `/h5?path=…`，返回是否已处理。
 bool openH5IfAllowed(
@@ -26,11 +32,16 @@ bool openH5IfAllowed(
   }();
   final pathOnly = pathAndQuery.split('?').first;
   if (!H5Whitelist.allows(pathOnly)) return false;
-  final q = <String, String>{
-    'path': pathAndQuery,
-    if (title != null && title.isNotEmpty) 'title': title,
-  };
-  final loc = Uri(path: '/h5', queryParameters: q).toString();
-  context.push(loc);
+
+  // 发现 / IM / 帮助·反馈：进 Tab 常驻 WebView，勿叠层 /h5
+  if (isDiscoverTabH5Path(pathOnly)) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    container.read(navIndexProvider.notifier).set(3);
+    container.read(discoverH5PathProvider.notifier).go(pathAndQuery);
+    context.go('/');
+    return true;
+  }
+
+  openOverlayH5(context, pathAndQuery, title: title);
   return true;
 }

@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'daily_verse_wallpaper.dart';
 
+import 'config.dart';
 import 'home_greeting.dart' show formatDailyVerseQuote;
 
 String buildDailyVerseShareText({
@@ -205,22 +206,45 @@ class _DailyVerseSharePosterState extends State<_DailyVerseSharePoster> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    '彼爱',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '每日经文',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    children: [
+                      ClipOval(
+                        child: Image.network(
+                          '${AppConfig.webBaseUrl}/icon-512.png',
+                          width: 28,
+                          height: 28,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 28,
+                            height: 28,
+                            color: const Color(0xFFE32626),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '彼爱',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            '每日经文',
+                            style: TextStyle(
+                              color: Color(0xB8FFFFFF),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                   const Spacer(flex: 2),
                   if (widget.refLabel.isNotEmpty)

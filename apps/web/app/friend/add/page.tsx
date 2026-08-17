@@ -12,7 +12,7 @@ import {
   getUserName,
   isUserCode,
 } from '@/lib/api';
-import { leaveFlutterH5IfNativeHref } from '@/lib/flutter_h5_bridge';
+import { leaveFlutterH5IfNativeHref, leaveFlutterH5ToDiscover } from '@/lib/flutter_h5_bridge';
 import { needsSelfSetDisplayName } from '@/lib/system_username';
 
 export default function AddFriendPage() {
@@ -169,14 +169,24 @@ export default function AddFriendPage() {
       )}
       {ok ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-          <button type="button" className="btn" onClick={() => router.push('/discover')}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              if (!leaveFlutterH5ToDiscover('/discover')) router.push('/discover');
+            }}
+          >
             返回消息
           </button>
           {doneDm ? (
             <button
               type="button"
               className="btn btn-ghost"
-              onClick={() => router.push(`/discover/dm/${doneDm}`)}
+              onClick={() => {
+                if (!leaveFlutterH5ToDiscover(`/discover/dm/${doneDm}`)) {
+                  router.push(`/discover/dm/${doneDm}`);
+                }
+              }}
             >
               去私信
             </button>
@@ -184,7 +194,11 @@ export default function AddFriendPage() {
             <button
               type="button"
               className="btn btn-ghost"
-              onClick={() => router.push(`/discover/friends/${donePeer}`)}
+              onClick={() => {
+                if (!leaveFlutterH5ToDiscover(`/discover/friends/${donePeer}`)) {
+                  router.push(`/discover/friends/${donePeer}`);
+                }
+              }}
             >
               查看资料
             </button>

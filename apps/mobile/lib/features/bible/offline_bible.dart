@@ -18,6 +18,7 @@ import 'package:sqlite3/sqlite3.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../bible/models.dart';
+import 'offline_catalog.dart';
 
 /// 当前默认主离线译本（产品：和合本）。
 const kPrimaryOfflineTranslation = 'cuvs';
@@ -444,6 +445,169 @@ class OfflineBibleService {
       }
     }
     return null;
+  }
+
+  static const _itemsRegistryKey = 'presto_offline_items_v1';
+
+  Map<String, dynamic> _loadItemsRegistry() {
+    final raw = _prefs.getString(_itemsRegistryKey);
+    if (raw == null) return {};
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _saveItemsRegistry(Map<String, dynamic> registry) async {
+    await _prefs.setString(_itemsRegistryKey, jsonEncode(registry));
+  }
+
+  Future<Directory> _materialDir(String itemId) async {
+    final root = await getApplicationSupportDirectory();
+    final dir = Directory(p.join(root.path, 'offline_materials', itemId));
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    return dir;
+  }
+
+  OfflineCatalogItem? _catalogItem(String id) {
+    for (final item in offlineCatalog) {
+      if (item.id == id) return item;
+    }
+    return null;
+  }
+
+  List<Map<String, dynamic>> _manifestFilesForItem(
+    OfflineCatalogItem item,
+    Map<String, dynamic> manifest,
+  ) {
+    final files =
+        (manifest['files'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    if (item.paths.isNotEmpty) {
+      return files
+          .where((f) => item.paths.contains('${f['path']}'))
+          .toList();
+    }
+    final prefix = item.pathsPrefix;
+    if (prefix != null && prefix.isNotEmpty) {
+      return files
+          .where((f) => '${f['path']}'.startsWith(prefix))
+          .toList();
+    }
+    return [];
+  }
+
+  /// 资料分包是否已装（对齐 Web offline_items registry）。
+  Future<bool> checkMaterialInstalled(String itemId) async {
+    final reg = _loadItemsRegistry()[itemId];
+    if (reg is! Map) return false;
+    if (reg['hasFiles'] != true) return false;
+    final dir = await _materialDir(itemId);
+    return dir.listSync().isNotEmpty;
+  }
+
+  /// 下载资料分包（从 offline zip 提取 manifest 条目）。
+  Future<void> downloadMaterialBundle(String itemId) async {
+    if (_activeDownload != null) return _activeDownload!;
+    _downloadError = null;
+    _downloadProgress = 0;
+    _downloadingId = itemId;
+    _notifyDownload();
+    _activeDownload = _runMaterialDownload(itemId).whenComplete(() {
+      _activeDownload = null;
+      _downloadingId = null;
+      _notifyDownload();
+    });
+    return _activeDownload!;
+  }
+
+  Future<void> _runMaterialDownload(String itemId) async {
+    final item = _catalogItem(itemId);
+    if (item == null) throw StateError('未知下载项');
+    try {
+      final manifestRes = await _dio.get(
+        '$_base/offline/manifest.json',
+        options: Options(responseType: ResponseType.json),
+      );
+      final manifest = manifestRes.data as Map<String, dynamic>;
+      final version = (manifest['version'] ?? '') as String;
+      final manifestFiles = _manifestFilesForItem(item, manifest);
+      if (manifestFiles.isEmpty) {
+        throw StateError('清单中缺少 ${item.name}');
+      }
+      final zipName = (manifest['zip'] ?? 'bible_offline.zip') as String;
+      final zipRes = await _dio.get<List<int>>(
+        '$_base/offline/$zipName',
+        options: Options(responseType: ResponseType.bytes),
+        onReceiveProgress: (got, total) {
+          if (total > 0) {
+            _downloadProgress = got / total * 0.7;
+            _notifyDownload();
+          }
+        },
+      );
+      final zipBytes = zipRes.data;
+      if (zipBytes == null || zipBytes.isEmpty) {
+        throw StateError('离线包下载失败');
+      }
+      _downloadProgress = 0.75;
+      _notifyDownload();
+      final archive = ZipDecoder().decodeBytes(zipBytes);
+      final outDir = await _materialDir(itemId);
+      final fileHashes = <String, String>{};
+      var totalBytes = 0;
+      for (final mf in manifestFiles) {
+        final path = '${mf['path']}';
+        final base = path.split('/').last;
+        ArchiveFile? entry;
+        for (final f in archive) {
+          if (f.name == path || f.name.endsWith('/$base')) {
+            entry = f;
+            break;
+          }
+        }
+        if (entry == null) throw StateError('压缩包内缺少：$path');
+        final content = List<int>.from(entry.content as List<int>);
+        final hash = sha256.convert(content).toString();
+        final expected = '${mf['sha256'] ?? ''}';
+        if (expected.isNotEmpty && hash.toLowerCase() != expected.toLowerCase()) {
+          throw StateError('校验失败：$path');
+        }
+        fileHashes[path] = hash;
+        totalBytes += content.length;
+        final rel = path.replaceAll('/', p.separator);
+        final target = File(p.join(outDir.path, rel));
+        await target.parent.create(recursive: true);
+        await target.writeAsBytes(content, flush: true);
+      }
+      final registry = _loadItemsRegistry();
+      registry[itemId] = {
+        'manifestVersion': version,
+        'fileHashes': fileHashes,
+        'installedAt': DateTime.now().millisecondsSinceEpoch,
+        'bytes': totalBytes,
+        'hasFiles': true,
+      };
+      await _saveItemsRegistry(registry);
+      _downloadProgress = 1;
+      _downloadError = null;
+    } catch (e) {
+      _downloadError = '$e';
+      rethrow;
+    } finally {
+      _notifyDownload();
+    }
+  }
+
+  Future<void> deleteMaterialBundle(String itemId) async {
+    final dir = await _materialDir(itemId);
+    if (dir.existsSync()) await dir.delete(recursive: true);
+    final registry = _loadItemsRegistry();
+    final prev = registry[itemId];
+    if (prev is Map) {
+      registry[itemId] = {...Map<String, dynamic>.from(prev), 'hasFiles': false};
+      await _saveItemsRegistry(registry);
+    }
   }
 }
 

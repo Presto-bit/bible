@@ -683,7 +683,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               tier: 2,
               tint: AppColors.accent,
               padding: const EdgeInsets.fromLTRB(18, 20, 16, 20),
-              onTap: () => context.push('/report'),
+              onTap: () => openH5IfAllowed(context, '/report'),
               child: Row(
                 children: [
                   Expanded(

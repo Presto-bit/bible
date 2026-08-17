@@ -65,9 +65,9 @@ class DeepLink {
       return _h5(uri.replace(path: path));
     }
 
-    // 读经回顾：安卓走 Flutter 原生，勿嵌 H5
+    // 读经回顾：与 PWA 同套 H5 /report
     if (path == '/report' || path.startsWith('/report/')) {
-      return uri.hasQuery ? '$path?${uri.query}' : path;
+      return _h5(uri.replace(path: path));
     }
 
     // 白名单 H5（IM / 活动 / 协议 / 设置 / 祷告）
@@ -101,7 +101,6 @@ class DeepLink {
       '/challenge/ai',
       '/dictionary',
       '/search',
-      '/report',
       '/wrapped',
       '/knowledge-bases',
       '/profile/appearance',

@@ -8,6 +8,7 @@ class OfflineCatalogItem {
     required this.name,
     this.description,
     this.paths = const [],
+    this.pathsPrefix,
     this.kind = 'sqlite',
   });
   final String id;
@@ -15,6 +16,7 @@ class OfflineCatalogItem {
   final String name;
   final String? description;
   final List<String> paths;
+  final String? pathsPrefix;
   final String kind;
 }
 
@@ -73,10 +75,34 @@ const offlineCatalog = [
     kind: 'bundle',
   ),
   OfflineCatalogItem(
-    id: 'topics',
+    id: 'plans',
     tab: 'materials',
-    name: '人生主题',
-    paths: ['content/topics/topics.json'],
+    name: '读经计划',
+    pathsPrefix: 'content/plans/',
+    kind: 'bundle',
+  ),
+  OfflineCatalogItem(
+    id: 'geography',
+    tab: 'materials',
+    name: '地理与历史',
+    paths: [
+      'content/geography/places.json',
+      'content/geography/timeline.json',
+    ],
+    kind: 'bundle',
+  ),
+  OfflineCatalogItem(
+    id: 'strongs',
+    tab: 'materials',
+    name: '希腊文原文',
+    paths: ['content/strongs/strongs.sqlite'],
+    kind: 'bundle',
+  ),
+  OfflineCatalogItem(
+    id: 'illustrations',
+    tab: 'materials',
+    name: '主题插画',
+    pathsPrefix: 'content/illustrations/',
     kind: 'bundle',
   ),
 ];

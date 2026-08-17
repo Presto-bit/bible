@@ -1,4 +1,4 @@
-/// 注册活跃 H5 WebView，供登出时双清 session / client 标记。
+/// 登出：清 H5 localStorage token + client 标记，并广播 Web 侧监听。
 library;
 
 import 'package:webview_flutter/webview_flutter.dart';
@@ -21,6 +21,10 @@ class H5SessionBridge {
   } catch (e) {}
   try {
     sessionStorage.removeItem('peiai_client_kind');
+  } catch (e) {}
+  try {
+    window.dispatchEvent(new CustomEvent('peiai-flutter-logout'));
+    if (typeof window.__PEIAI_ON_LOGOUT__ === 'function') window.__PEIAI_ON_LOGOUT__();
   } catch (e) {}
 })();
 ''';

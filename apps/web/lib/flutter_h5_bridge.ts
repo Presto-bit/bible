@@ -38,7 +38,8 @@ type PeiaiNativePayload =
       path?: string;
       openPath?: string;
     }
-  | { type: 'cancel_reminder'; kind?: 'daily' | 'group' | string };
+  | { type: 'cancel_reminder'; kind?: 'daily' | 'group' | string }
+  | { type: 'set_theme'; theme?: string; app_theme?: string };
 
 declare global {
   interface Window {
@@ -213,6 +214,19 @@ export function leaveFlutterH5IfNativeHref(href?: string | null): boolean {
   if (!isFlutterH5Host()) return false;
   if (!isFlutterNativeBackHref(href)) return false;
   return peiaiOpenNative({ type: 'close_h5' });
+}
+
+/**
+ * 叠层 H5 内跳转发现/IM：切 Tab 3 并关壳；已在发现 Tab WebView 内则返回 false 走 SPA。
+ */
+export function leaveFlutterH5ToDiscover(path = '/discover'): boolean {
+  if (!isFlutterH5Host()) return false;
+  const tab = window.__PEIAI_FLUTTER__?.hostTab;
+  if (tab === 'discover') return false;
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  peiaiOpenNative({ type: 'open_path', path: normalized });
+  peiaiOpenNative({ type: 'close_h5' });
+  return true;
 }
 
 export function peiaiOpenNative(payload: PeiaiNativePayload): boolean {

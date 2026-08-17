@@ -302,7 +302,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     if (insetKb <= 0) {
       _baselineHostH ??= hostH;
     }
-    final shrinkKb = (_baselineHostH != null && hostH < _baselineHostH! - 80)
+    final shrinkKb = (_baselineHostH != null && hostH < _baselineHostH! - 48)
         ? (_baselineHostH! - hostH)
         : 0.0;
     if (insetKb <= 0 && shrinkKb <= 0) {
@@ -310,6 +310,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     }
     // 宿主已因键盘变矮时不再减 inset，避免双重扣除。
     final keyboardUp = insetKb > 0 || shrinkKb > 0;
+    final kbInset = insetKb > 0 ? insetKb : shrinkKb;
     final vv = (insetKb > 0 && shrinkKb <= 0)
         ? (hostH - insetKb).clamp(120.0, 4000.0)
         : hostH.clamp(120.0, 4000.0);
@@ -320,7 +321,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     ${_tabBarCssJs(keyboardUp: keyboardUp)}
     root.style.setProperty('--peiai-vv-h', '${vv.toStringAsFixed(1)}px');
     root.style.setProperty('--im-vv-h', '${vv.toStringAsFixed(1)}px');
-    root.style.setProperty('--im-kb-inset', '0px');
+    root.style.setProperty('--im-kb-inset', '${kbInset.toStringAsFixed(1)}px');
     if ($keyboardUp) {
       document.body && document.body.classList.add('im-keyboard', 'android-flutter-kb');
     } else {
@@ -556,59 +557,6 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         + '}'
         + 'html.android-flutter-h5 .discover-conv-li {'
         + '  -webkit-user-select: none; user-select: none;'
-        + '}'
-        // 故事回顾：用宿主像素高度铺满，并让内层接管纵向手势
-        + 'html.android-flutter-h5.wrapped-open,'
-        + 'html.android-flutter-h5.wrapped-open body {'
-        + '  height:var(--peiai-vv-h,100%) !important;'
-        + '  min-height:var(--peiai-vv-h,100%) !important;'
-        + '  overflow:hidden !important;'
-        + '}'
-        + 'html.android-flutter-h5 .wrapped-page-shell {'
-        + '  position:absolute !important; inset:0 !important;'
-        + '  width:100% !important; height:100% !important;'
-        + '  min-height:var(--peiai-vv-h,100%) !important;'
-        + '}'
-        + 'html.android-flutter-h5.wrapped-open .app-body,'
-        + 'html.android-flutter-h5 .app-body:has(.wrapped-page-shell) {'
-        + '  position:relative !important; padding:0 !important;'
-        + '  overflow:hidden !important;'
-        + '  height:var(--peiai-vv-h,100%) !important;'
-        + '  min-height:var(--peiai-vv-h,100%) !important;'
-        + '  touch-action:none !important;'
-        + '}'
-        + 'html.android-flutter-h5 .wrapped-story-scroller {'
-        + '  scroll-behavior:auto !important; scroll-snap-type:y mandatory !important;'
-        + '  touch-action:pan-y !important;'
-        + '}'
-        + 'html.android-flutter-h5 .wrapped-slide {'
-        + '  height:var(--peiai-vv-h,100%) !important;'
-        + '  min-height:var(--peiai-vv-h,100%) !important;'
-        + '  max-height:var(--peiai-vv-h,100%) !important;'
-        + '}'
-        + 'html.android-flutter-h5.story-album-lock,'
-        + 'html.android-flutter-h5.story-album-lock body,'
-        + 'html.android-flutter-h5.story-album-lock .app-body,'
-        + 'html.android-flutter-h5 .story-album-player {'
-        + '  height:var(--peiai-vv-h,100%) !important;'
-        + '  max-height:var(--peiai-vv-h,100%) !important;'
-        + '  min-height:var(--peiai-vv-h,100%) !important;'
-        + '  overflow:hidden !important;'
-        + '}'
-        + 'html.android-flutter-h5 .story-album-player-bar,'
-        + 'html.android-flutter-h5 .story-album-progress-bar { touch-action:manipulation !important; }'
-        + 'html.android-flutter-h5 .story-album-stage { touch-action:pan-x !important; }'
-        + 'html.android-flutter-h5.pray-session-open,'
-        + 'html.android-flutter-h5.pray-session-open body {'
-        + '  height:var(--peiai-vv-h,100%) !important;'
-        + '  min-height:var(--peiai-vv-h,100%) !important;'
-        + '  overflow:hidden !important;'
-        + '}'
-        + 'html.android-flutter-h5 .pray-session {'
-        + '  position:absolute !important; inset:0 !important;'
-        + '  height:100% !important;'
-        + '  min-height:var(--peiai-vv-h,100%) !important;'
-        + '  max-height:var(--peiai-vv-h,100%) !important;'
         + '}';
     // 左缘返回：通知可能的 SPA history（touch 可选，系统返回已走 goBack）
   } catch (e) {}
@@ -805,11 +753,11 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         .join('');
     final prefs = ref.read(prefsProvider);
     final readingDnd = NotifPrefs.readingDnd(prefs);
-    final nav = ref.read(navIndexProvider);
     const hostTabs = ['home', 'bible', 'assistant', 'discover', 'profile'];
-    final hostTab = (nav >= 0 && nav < hostTabs.length)
-        ? hostTabs[nav]
-        : 'home';
+    // 叠层 H5（加好友/祷告等）与 Tab 内 WebView 区分，便于 Web 侧决定是否 close_h5
+    final hostTab = widget.embedInTab
+        ? hostTabs[widget.tabIndex.clamp(0, hostTabs.length - 1)]
+        : 'overlay';
 
     await c.runJavaScript('''
 (function(){

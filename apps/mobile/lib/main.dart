@@ -13,8 +13,10 @@ import 'core/api_client.dart';
 import 'core/config.dart';
 import 'core/deep_link.dart';
 import 'core/device_id.dart';
+import 'core/discover_h5_redirect.dart';
 import 'core/h5_bridge_channel.dart' show discoverH5PathProvider;
 import 'core/notifications.dart';
+import 'core/remote_push_service.dart';
 import 'core/session.dart';
 import 'core/app_theme.dart';
 import 'core/theme.dart';
@@ -56,7 +58,10 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initDeepLinks());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initDeepLinks();
+      unawaited(ref.read(remotePushServiceProvider).init());
+    });
   }
 
   Future<void> _initDeepLinks() async {
@@ -73,15 +78,26 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
       final uri = Uri.tryParse(loc);
       final pathOnly = uri?.path ?? loc.split('?').first;
 
-      // 发现子路径：进常驻 Tab WebView，避免叠一层 /h5
+      // 发现 / 帮助 / 反馈：进常驻 Tab WebView，避免叠层 /h5
       if (pathOnly == '/h5') {
         final h5path = uri?.queryParameters['path'] ?? '';
-        if (h5path.startsWith('/discover')) {
+        if (isDiscoverTabH5Path(h5path)) {
           ref.read(navIndexProvider.notifier).set(3);
-          ref.read(discoverH5PathProvider.notifier).go(h5path);
+          ref.read(discoverH5PathProvider.notifier).go(
+                h5path.startsWith('/') ? h5path : '/$h5path',
+              );
           Future.microtask(() => router.go('/'));
           return;
         }
+      }
+
+      if (pathOnly == '/help' ||
+          pathOnly == '/feedback' ||
+          (pathOnly.startsWith('/discover/') && pathOnly != '/discover')) {
+        ref.read(navIndexProvider.notifier).set(3);
+        ref.read(discoverH5PathProvider.notifier).go(loc);
+        Future.microtask(() => router.go('/'));
+        return;
       }
 
       if (pathOnly == '/reader' || pathOnly.startsWith('/reader')) {
