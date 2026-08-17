@@ -39,7 +39,7 @@ import {
 import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_status';
 import { isSyncRequiresPasswordError, syncNow } from '@/lib/sync';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
-import { peiaiOpenNative } from '@/lib/flutter_h5_bridge';
+import { isFlutterH5Host, peiaiOpenNative } from '@/lib/flutter_h5_bridge';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 
@@ -357,7 +357,16 @@ export default function ProfileSettingsPanel() {
           <SettingsNavRow
             title="离线下载"
             hint={downloadHint || '圣经与资料'}
-            onClick={() => setDownloadOpen(true)}
+            onClick={() => {
+              // Flutter 壳：读经读 SQLite 原生包，禁止再走 Web IndexedDB 双轨
+              if (isFlutterH5Host()) {
+                if (!peiaiOpenNative({ type: 'open_offline_download' })) {
+                  toast('暂时无法打开离线下载，请从「我的 · 常用」进入');
+                }
+                return;
+              }
+              setDownloadOpen(true);
+            }}
             glyph={settingsGlyph(
               <>
                 <path d="M12 4v10" />

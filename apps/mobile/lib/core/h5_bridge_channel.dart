@@ -11,8 +11,10 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../app/app_shell.dart';
 import '../features/assistant/assistant_seed.dart';
+import '../features/bible/offline_download_sheet.dart';
 import 'app_update.dart';
 import 'campaign_nav.dart';
+import 'notifications.dart';
 
 const kPeiaiJsChannel = 'PeiaiFlutter';
 
@@ -26,7 +28,8 @@ class DiscoverH5PathNotifier extends Notifier<String?> {
 
 final discoverH5PathProvider =
     NotifierProvider<DiscoverH5PathNotifier, String?>(
-        DiscoverH5PathNotifier.new);
+      DiscoverH5PathNotifier.new,
+    );
 
 /// 注册 JS Channel；消息 JSON：`{ "type": "open_assistant", "ref": "…", "q": "…" }`
 void attachPeiaiJsChannel(
@@ -47,10 +50,9 @@ void attachPeiaiJsChannel(
           final q = '${data['q'] ?? data['question'] ?? ''}'.trim();
           if (!context.mounted) return;
           // 切 Tab + seed，避免再 push 一层小爱路由叠栈
-          ref.read(assistantSeedProvider.notifier).open(
-                ref: r.isEmpty ? null : r,
-                question: q.isEmpty ? null : q,
-              );
+          ref
+              .read(assistantSeedProvider.notifier)
+              .open(ref: r.isEmpty ? null : r, question: q.isEmpty ? null : q);
           ref.read(navIndexProvider.notifier).set(2);
         } else if (type == 'open_reader') {
           final book = '${data['book'] ?? ''}'.trim();
@@ -72,9 +74,9 @@ void attachPeiaiJsChannel(
             final status = await const AppUpdateService().status();
             if (!context.mounted) return;
             if (status.checkFailed) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('暂时无法检查新版本，请稍后再试')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('暂时无法检查新版本，请稍后再试')));
               return;
             }
             final update = status.update;
@@ -161,11 +163,7 @@ void attachPeiaiJsChannel(
           final title = '${data['title'] ?? ''}'.trim();
           Future.microtask(() {
             if (!context.mounted) return;
-            openCampaignHref(
-              context,
-              url,
-              title: title.isEmpty ? null : title,
-            );
+            openCampaignHref(context, url, title: title.isEmpty ? null : title);
           });
         } else if (type == 'close_h5') {
           if (context.mounted && context.canPop()) context.pop();
@@ -194,9 +192,12 @@ void attachPeiaiJsChannel(
             ref.read(navIndexProvider.notifier).set(2);
             final uri = Uri.tryParse(path);
             if (uri != null) {
-              ref.read(assistantSeedProvider.notifier).open(
+              ref
+                  .read(assistantSeedProvider.notifier)
+                  .open(
                     ref: uri.queryParameters['ref'],
-                    question: uri.queryParameters['q'] ??
+                    question:
+                        uri.queryParameters['q'] ??
                         uri.queryParameters['question'],
                   );
             }
@@ -214,6 +215,46 @@ void attachPeiaiJsChannel(
           final path = '${data['path'] ?? ''}'.trim();
           if (path.isEmpty) return;
           syncDiscoverChromeFromPath(ref, path);
+        } else if (type == 'request_notifications') {
+          Future.microtask(() async {
+            await NotificationService.instance.requestPermission();
+          });
+        } else if (type == 'schedule_reminder') {
+          final kind = '${data['kind'] ?? 'daily'}'.trim();
+          final enabledRaw = data['enabled'];
+          final enabled =
+              enabledRaw == true ||
+              enabledRaw == 1 ||
+              '$enabledRaw' == '1' ||
+              '$enabledRaw'.toLowerCase() == 'true';
+          Future.microtask(() async {
+            if (!enabled) {
+              await NotificationService.instance.cancelReminder(kind);
+              return;
+            }
+            await NotificationService.instance.requestPermission();
+            final hour = int.tryParse('${data['hour'] ?? ''}') ?? 8;
+            final minute = int.tryParse('${data['minute'] ?? ''}') ?? 0;
+            await NotificationService.instance.scheduleReminder(
+              kind: kind == 'group' ? 'group' : 'daily',
+              hour: hour,
+              minute: minute,
+              title: '${data['title'] ?? ''}',
+              body: '${data['body'] ?? ''}',
+              payload: '${data['path'] ?? data['openPath'] ?? ''}',
+            );
+          });
+        } else if (type == 'cancel_reminder') {
+          final kind = '${data['kind'] ?? 'daily'}'.trim();
+          Future.microtask(() async {
+            await NotificationService.instance.cancelReminder(kind);
+          });
+        } else if (type == 'open_offline_download') {
+          if (!context.mounted) return;
+          Future.microtask(() {
+            if (!context.mounted) return;
+            showOfflineDownloadSheet(context, ref);
+          });
         }
       } catch (e) {
         if (kDebugMode) debugPrint('PeiaiFlutter channel: $e');

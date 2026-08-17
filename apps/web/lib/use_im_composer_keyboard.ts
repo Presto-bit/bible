@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
+
 /**
  * iOS PWA IM 视口策略：
  *
@@ -84,7 +86,9 @@ export function clearImKeyboardLift() {
   const root = document.documentElement;
   const body = document.body;
   body.classList.remove('im-keyboard', 'im-keyboard-overlay');
-  root.style.removeProperty('--im-kb-inset');
+  if (!isFlutterH5Host()) {
+    root.style.removeProperty('--im-kb-inset');
+  }
   root.style.removeProperty('--im-vv-top');
   root.style.removeProperty('--im-vv-h');
   root.style.removeProperty('height');
@@ -105,7 +109,9 @@ export function teardownImViewportShell() {
   );
   root.style.removeProperty('--im-shell-top');
   root.style.removeProperty('--im-shell-h');
-  root.style.removeProperty('--im-kb-inset');
+  if (!isFlutterH5Host()) {
+    root.style.removeProperty('--im-kb-inset');
+  }
   root.style.removeProperty('--im-vv-top');
   root.style.removeProperty('--im-vv-h');
   root.style.removeProperty('height');
@@ -230,8 +236,11 @@ export function useImComposerKeyboard(
       }
       body.classList.toggle('im-keyboard', m.keyboardUp);
       body.classList.remove('im-keyboard-overlay');
-      root.style.setProperty('--im-kb-inset', '0px');
-      setInset(0);
+      // Flutter 壳已注入 --im-kb-inset / android-flutter-kb；勿清零以免输入栏与键盘脱节
+      if (!isFlutterH5Host()) {
+        root.style.setProperty('--im-kb-inset', '0px');
+        setInset(0);
+      }
       writeComposerHeight(measureComposerHeight());
       if (m.keyboardUp) {
         pinDocScroll();

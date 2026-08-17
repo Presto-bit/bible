@@ -14,6 +14,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../app/app_shell.dart';
+import '../features/assistant/assistant_seed.dart';
 import 'api_client.dart';
 import 'app_update.dart';
 import 'app_theme.dart';
@@ -21,6 +22,7 @@ import 'config.dart';
 import 'h5_bridge_channel.dart';
 import 'h5_session_bridge.dart';
 import 'h5_whitelist.dart';
+import 'native_permissions.dart';
 import 'notif_prefs.dart';
 import 'theme_ext.dart';
 
@@ -202,11 +204,16 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   void didUpdateWidget(H5HostPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.forceOffline && !widget.forceOffline) {
-      setState(() {
-        _error = null;
-        _loading = true;
-      });
-      unawaited(_bootstrap());
+      // 弱网恢复：已有 WebView 时只重灌 session，避免整页重载清空 IM
+      if (_controller != null) {
+        unawaited(_reinjectSession());
+      } else {
+        setState(() {
+          _error = null;
+          _loading = true;
+        });
+        unawaited(_bootstrap());
+      }
     }
   }
 
@@ -368,6 +375,19 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     if (platform is AndroidWebViewController) {
       await platform.setMediaPlaybackRequiresUserGesture(false);
       await platform.setOnShowFileSelector(_pickFiles);
+      await platform.setOnPlatformPermissionRequest((request) async {
+        final needsMic = request.types.contains(
+          WebViewPermissionResourceType.microphone,
+        );
+        if (needsMic) {
+          final ok = await NativePermissions.requestMicrophone();
+          if (!ok) {
+            await request.deny();
+            return;
+          }
+        }
+        await request.grant();
+      });
       // 私聊/群聊手势手感：允许内容中多点与垂直滚动
       try {
         await platform.setTextZoom(100);
@@ -464,9 +484,24 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   Future<List<String>> _pickFiles(FileSelectorParams params) async {
     try {
       final multi = params.mode == FileSelectorMode.openMultiple;
+      final accepts = params.acceptTypes
+          .map((e) => e.toLowerCase())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      final imageOnly =
+          accepts.isNotEmpty &&
+          accepts.every(
+            (t) =>
+                t.contains('image') ||
+                t.endsWith('.png') ||
+                t.endsWith('.jpg') ||
+                t.endsWith('.jpeg') ||
+                t.endsWith('.gif') ||
+                t.endsWith('.webp'),
+          );
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: multi,
-        type: FileType.any,
+        type: imageOnly ? FileType.image : FileType.any,
         withData: false,
       );
       if (result == null) return <String>[];
@@ -476,8 +511,18 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         if (path == null || path.isEmpty) continue;
         out.add(Uri.file(path).toString());
       }
+      if (out.isEmpty && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('未能选取图片，请重试或检查相册权限')));
+      }
       return out;
     } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('选图失败，请稍后重试')));
+      }
       return <String>[];
     }
   }
@@ -537,8 +582,13 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final qp = u.queryParameters;
 
     if (p.startsWith('/assistant')) {
+      ref
+          .read(assistantSeedProvider.notifier)
+          .open(
+            ref: qp['ref'] ?? qp['seed'] ?? qp['anchor'],
+            question: qp['q'] ?? qp['question'],
+          );
       ref.read(navIndexProvider.notifier).set(2);
-      context.push(Uri(path: '/assistant', queryParameters: qp).toString());
       return;
     }
     if (p.startsWith('/reader')) {
@@ -754,6 +804,16 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       if (mounted) setState(() => _canGoBack = back);
       return false;
     }
+
+    // 3) 深链直达私聊/群聊时常无历史：回发现列表，避免卡死聊天
+    if (widget.embedInTab &&
+        widget.tabIndex == 3 &&
+        isDiscoverChatPath(_activePath)) {
+      _activePath = '/discover';
+      syncDiscoverChromeFromPath(ref, _activePath);
+      await _navigateActivePath();
+      return false;
+    }
     return true;
   }
 
@@ -823,14 +883,76 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final bg = peiaiPaperFor(themeId);
     final inkFaint = context.peiaiInkFaint;
 
-    final isOfflineBanner =
-        widget.forceOffline ||
-        (_error != null &&
-            (_error!.contains('网络') ||
-                _error!.contains('离线') ||
-                _error == widget.offlineBody));
+    final isOfflineBanner = widget.forceOffline;
+    final showErrorPane = _error != null && _controller == null;
 
-    Widget body = (widget.forceOffline || _error != null)
+    Widget webStack = Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(color: bg),
+        if (_controller != null) WebViewWidget(controller: _controller!),
+        if (_loading && !_hadFirstPaint)
+          ColoredBox(
+            color: bg,
+            child: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.8,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.45),
+                ),
+              ),
+            ),
+          )
+        else if (_loading)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: LinearProgressIndicator(
+              minHeight: 1.5,
+              backgroundColor: Colors.transparent,
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.35),
+            ),
+          ),
+        if (isOfflineBanner)
+          Positioned(
+            left: 12,
+            right: 12,
+            top: 12,
+            child: Material(
+              elevation: 1,
+              borderRadius: BorderRadius.circular(12),
+              color: Theme.of(context).colorScheme.surface,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_off_outlined, size: 18, color: inkFaint),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        widget.offlineBody,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: inkFaint,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
+    Widget body = showErrorPane
         ? ColoredBox(
             color: bg,
             child: Center(
@@ -839,95 +961,40 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      isOfflineBanner
-                          ? Icons.cloud_off_outlined
-                          : Icons.error_outline,
-                      size: 36,
-                      color: inkFaint,
-                    ),
+                    Icon(Icons.error_outline, size: 36, color: inkFaint),
                     const SizedBox(height: 12),
                     Text(
-                      isOfflineBanner ? widget.offlineTitle : '无法打开页面',
+                      '无法打开页面',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      widget.forceOffline
-                          ? widget.offlineBody
-                          : (_error ?? widget.offlineBody),
+                      _error ?? widget.offlineBody,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: inkFaint,
                         height: 1.45,
                       ),
                     ),
-                    if (isOfflineBanner) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        '圣经与本地笔记仍可用；共读消息需联网。',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: inkFaint),
-                      ),
-                    ],
                     const SizedBox(height: 16),
                     FilledButton(
-                      onPressed: widget.forceOffline
-                          ? null
-                          : () {
-                              setState(() {
-                                _error = null;
-                                _loading = true;
-                                _hadFirstPaint = false;
-                              });
-                              _bootstrap();
-                            },
-                      child: Text(widget.forceOffline ? '等待网络…' : '重试'),
+                      onPressed: () {
+                        setState(() {
+                          _error = null;
+                          _loading = true;
+                          _hadFirstPaint = false;
+                        });
+                        _bootstrap();
+                      },
+                      child: const Text('重试'),
                     ),
                   ],
                 ),
               ),
             ),
           )
-        : Stack(
-            fit: StackFit.expand,
-            children: [
-              ColoredBox(color: bg),
-              if (_controller != null) WebViewWidget(controller: _controller!),
-              if (_loading && !_hadFirstPaint)
-                ColoredBox(
-                  color: bg,
-                  child: Center(
-                    child: SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.8,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(alpha: 0.45),
-                      ),
-                    ),
-                  ),
-                )
-              else if (_loading)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: LinearProgressIndicator(
-                    minHeight: 1.5,
-                    backgroundColor: Colors.transparent,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.35),
-                  ),
-                ),
-            ],
-          );
+        : webStack;
 
     // 键盘：resizeToAvoidBottomInset 默认 true，与 WebView 共用高度
     // LayoutBuilder 在约束变化时刷新 vv，避免 100dvh 误用设备全高

@@ -29,20 +29,26 @@ class DeepLink {
         return '/';
       case '/reader':
       case '/bible':
-        return Uri(path: '/reader', queryParameters: {
-          if (qp['book'] != null) 'book': qp['book']!,
-          if (qp['chapter'] != null) 'chapter': qp['chapter']!,
-          if (qp['verse'] != null) 'verse': qp['verse']!,
-        }).toString();
+        return Uri(
+          path: '/reader',
+          queryParameters: {
+            if (qp['book'] != null) 'book': qp['book']!,
+            if (qp['chapter'] != null) 'chapter': qp['chapter']!,
+            if (qp['verse'] != null) 'verse': qp['verse']!,
+          },
+        ).toString();
       case '/assistant':
       case '/ai':
       case '/xiaoai':
-        return Uri(path: '/assistant', queryParameters: {
-          if (qp['ref'] != null) 'ref': qp['ref']!,
-          if (qp['q'] != null) 'q': qp['q']!,
-          if (qp['seed'] != null) 'ref': qp['seed']!,
-          if (qp['anchor'] != null) 'ref': qp['anchor']!,
-        }).toString();
+        return Uri(
+          path: '/assistant',
+          queryParameters: {
+            if (qp['ref'] != null) 'ref': qp['ref']!,
+            if (qp['q'] != null) 'q': qp['q']!,
+            if (qp['seed'] != null) 'ref': qp['seed']!,
+            if (qp['anchor'] != null) 'ref': qp['anchor']!,
+          },
+        ).toString();
       case '/profile':
       case '/me':
         return 'peiai://tab/4';
@@ -77,6 +83,9 @@ class DeepLink {
     }
     if (path == '/help' || path == '/feedback') {
       return _h5(uri.replace(path: path));
+    }
+    if (path == '/privacy' || path == '/terms') {
+      return _h5(Uri(path: '/profile/licenses', queryParameters: qp));
     }
 
     // 已知原生
@@ -122,9 +131,6 @@ class DeepLink {
   static String _h5(Uri uri) {
     final path = uri.path.isEmpty ? '/' : uri.path;
     final full = uri.hasQuery ? '$path?${uri.query}' : path;
-    return Uri(
-      path: '/h5',
-      queryParameters: {'path': full},
-    ).toString();
+    return Uri(path: '/h5', queryParameters: {'path': full}).toString();
   }
 }

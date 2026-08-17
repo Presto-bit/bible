@@ -72,6 +72,13 @@ const nextConfig = {
     }
     return config;
   },
+  async redirects() {
+    return [
+      // 旧白名单空路由：协议类归入数据来源与许可
+      { source: '/privacy', destination: '/profile/licenses', permanent: false },
+      { source: '/terms', destination: '/profile/licenses', permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -12,7 +12,9 @@ import {
   isPeiaiAndroidCapabilityHost,
   isPeiaiAndroidChromeHost,
   isPeiaiAndroidWebViewShell,
+  isPeiaiFlutterH5Host,
 } from '@/lib/android_host';
+import { isFlutterH5Host, peiaiOpenNative } from '@/lib/flutter_h5_bridge';
 
 type PeiaiShellBridge = {
   requestNotifications?: () => void;
@@ -64,6 +66,10 @@ function enc(v: string): string {
 
 /** 打开提醒等场景：先申请系统通知权限（Android 13+） */
 export function requestAndroidShellNotifications(): void {
+  if (isFlutterH5Host() || isPeiaiFlutterH5Host()) {
+    peiaiOpenNative({ type: 'request_notifications' });
+    return;
+  }
   if (!isPeiaiAndroidCapabilityHost()) return;
   if (isPeiaiAndroidChromeHost()) {
     invokeAndroidCapability('v1/requestNotifications');
@@ -84,6 +90,7 @@ export function hasAndroidShellShare(): boolean {
 }
 
 export function hasAndroidShellReminder(): boolean {
+  if (isFlutterH5Host() || isPeiaiFlutterH5Host()) return true;
   if (isPeiaiAndroidChromeHost()) return true;
   if (!isPeiaiAndroidWebViewShell()) return false;
   const shell = getShell();
@@ -162,6 +169,20 @@ export function scheduleAndroidShellReminder(opts: {
   const hour = Math.max(0, Math.min(23, Math.floor(opts.hour)));
   const minute = Math.max(0, Math.min(59, Math.floor(opts.minute)));
 
+  if (isFlutterH5Host() || isPeiaiFlutterH5Host()) {
+    return peiaiOpenNative({
+      type: 'schedule_reminder',
+      kind: opts.kind,
+      enabled: opts.enabled ? 1 : 0,
+      hour,
+      minute,
+      title: opts.title || '',
+      body: opts.body || '',
+      path,
+      openPath: path,
+    });
+  }
+
   if (isPeiaiAndroidChromeHost()) {
     return invokeAndroidCapability(
       `v1/scheduleReminder?kind=${enc(opts.kind)}`
@@ -189,6 +210,10 @@ export function scheduleAndroidShellReminder(opts: {
 }
 
 export function cancelAndroidShellReminder(kind: 'daily' | 'group'): void {
+  if (isFlutterH5Host() || isPeiaiFlutterH5Host()) {
+    peiaiOpenNative({ type: 'cancel_reminder', kind });
+    return;
+  }
   if (!isPeiaiAndroidCapabilityHost()) return;
   if (isPeiaiAndroidChromeHost()) {
     invokeAndroidCapability(`v1/cancelReminder?kind=${enc(kind)}`);

@@ -19,6 +19,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   bool _ready = false;
   static const int _dailyId = 1001;
+  static const int _groupId = 1002;
   NotificationPayloadHandler? onPayload;
 
   bool get _supported =>
@@ -46,46 +47,87 @@ class NotificationService {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       final ok = await _plugin
           .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>()
+            IOSFlutterLocalNotificationsPlugin
+          >()
           ?.requestPermissions(alert: true, badge: true, sound: true);
       return ok ?? false;
     }
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     final ok = await android?.requestNotificationsPermission();
     return ok ?? true;
   }
 
   /// [payload] 为 go_router 可用 path，如 `/reader` 或 `/discover/dm/x`。
-  Future<void> scheduleDaily(int hour, int minute, {String payload = '/reader'}) async {
-    if (!_supported) return;
-    await _ensureInit();
-    await _plugin.cancel(_dailyId);
-    await _plugin.zonedSchedule(
-      _dailyId,
-      '今日读经',
-      '愿话语成为你脚前的灯，点开继续今天的阅读。',
-      _nextInstance(hour, minute),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'daily_reminder',
-          '每日读经提醒',
-          channelDescription: '每天固定时间提醒读经',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
+  Future<void> scheduleDaily(
+    int hour,
+    int minute, {
+    String payload = '/',
+  }) async {
+    await scheduleReminder(
+      kind: 'daily',
+      hour: hour,
+      minute: minute,
+      title: '彼爱 · 今日读经',
+      body: '愿话语成为你脚前的灯，点开继续今天的阅读。',
       payload: payload,
     );
   }
 
-  Future<void> cancelDaily() async {
+  Future<void> cancelDaily() => cancelReminder('daily');
+
+  /// H5 / 壳共用：`daily` 读经提醒，`group` 群晚间打卡。
+  Future<void> scheduleReminder({
+    required String kind,
+    required int hour,
+    required int minute,
+    String title = '',
+    String body = '',
+    String payload = '/',
+  }) async {
     if (!_supported) return;
     await _ensureInit();
-    await _plugin.cancel(_dailyId);
+    final id = kind == 'group' ? _groupId : _dailyId;
+    final channelId = kind == 'group' ? 'group_reminder' : 'daily_reminder';
+    final channelName = kind == 'group' ? '群打卡提醒' : '每日读经提醒';
+    final resolvedTitle = title.trim().isEmpty
+        ? (kind == 'group' ? '群打卡提醒' : '彼爱 · 今日读经')
+        : title.trim();
+    final resolvedBody = body.trim().isEmpty
+        ? (kind == 'group' ? '还在等你轻轻完成今天的打卡。' : '愿话语成为你脚前的灯，点开继续今天的阅读。')
+        : body.trim();
+    final resolvedPayload = payload.trim().isEmpty
+        ? (kind == 'group' ? '/discover' : '/')
+        : payload.trim();
+
+    await _plugin.cancel(id);
+    await _plugin.zonedSchedule(
+      id,
+      resolvedTitle,
+      resolvedBody,
+      _nextInstance(hour.clamp(0, 23), minute.clamp(0, 59)),
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          channelId,
+          channelName,
+          channelDescription: kind == 'group' ? '群晚间打卡本地提醒' : '每天固定时间提醒读经',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        iOS: const DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: resolvedPayload,
+    );
+  }
+
+  Future<void> cancelReminder(String kind) async {
+    if (!_supported) return;
+    await _ensureInit();
+    await _plugin.cancel(kind == 'group' ? _groupId : _dailyId);
   }
 
   /// 冷启动时检查是否从通知点开。
@@ -101,8 +143,14 @@ class NotificationService {
 
   tz.TZDateTime _nextInstance(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
-    var scheduled =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
     if (scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }

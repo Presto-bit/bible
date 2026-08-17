@@ -1480,35 +1480,6 @@ class _SettingsSheet extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               _row(
-                '帮助中心',
-                '使用说明与常见问题',
-                onTap: () {
-                  Navigator.pop(context);
-                  if (!openH5IfAllowed(context, '/help')) {
-                    context.push('/help');
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              _row(
-                '隐私政策',
-                '',
-                onTap: () {
-                  Navigator.pop(context);
-                  openH5IfAllowed(context, '/privacy');
-                },
-              ),
-              const SizedBox(height: 8),
-              _row(
-                '用户协议',
-                '',
-                onTap: () {
-                  Navigator.pop(context);
-                  openH5IfAllowed(context, '/terms');
-                },
-              ),
-              const SizedBox(height: 8),
-              _row(
                 '提醒设置',
                 '读经提醒',
                 onTap: () {

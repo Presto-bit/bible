@@ -16,7 +16,21 @@ type PeiaiNativePayload =
   | { type: 'open_external'; url: string; title?: string }
   | { type: 'check_app_update' }
   | { type: 'close_h5' }
-  | { type: 'go_back' };
+  | { type: 'go_back' }
+  | { type: 'open_offline_download' }
+  | { type: 'request_notifications' }
+  | {
+      type: 'schedule_reminder';
+      kind?: 'daily' | 'group' | string;
+      enabled?: boolean | number;
+      hour?: number;
+      minute?: number;
+      title?: string;
+      body?: string;
+      path?: string;
+      openPath?: string;
+    }
+  | { type: 'cancel_reminder'; kind?: 'daily' | 'group' | string };
 
 declare global {
   interface Window {
