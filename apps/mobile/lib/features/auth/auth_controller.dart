@@ -156,6 +156,16 @@ class AuthController extends Notifier<AuthState> {
       hasPassword: ref.read(authApiProvider).hasPassword,
     );
   }
+
+  /// SharedPreferences 中的昵称被别处写入后，刷新展示态（首页问候等）。
+  void refreshDisplayName() => _refresh();
+
+  Future<void> setDisplayName(String name) async {
+    final next = name.trim();
+    if (next.isEmpty) return;
+    await userPrefSetString(ref.read(prefsProvider), _kName, next);
+    _refresh();
+  }
 }
 
 final authControllerProvider =

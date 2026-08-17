@@ -289,6 +289,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         await sync.pushBio(text);
       } else if (key == 'onboarding_name') {
         await sync.pushUsername(text);
+        ref.read(authControllerProvider.notifier).refreshDisplayName();
       }
       if (mounted) setState(() {});
     }

@@ -22,9 +22,11 @@ import '../../core/home_liveness.dart';
 import '../../core/campaign_nav.dart';
 import '../../core/open_h5.dart';
 import '../../core/theme.dart';
+import '../../core/user_storage.dart';
 import '../../core/widgets/paper_card.dart';
 import '../../core/widgets/peiai_overlays.dart';
 import '../assistant/assistant_screen.dart';
+import '../auth/auth_controller.dart';
 import '../plans/plan_reading.dart';
 import '../plans/plans_repository.dart';
 import '../bible/bible_repository.dart';
@@ -863,7 +865,13 @@ class _GreetingHeaderState extends ConsumerState<_GreetingHeader> {
   @override
   Widget build(BuildContext context) {
     final greeting = homeGreeting(welcomeBack: widget.welcomeBack);
-    final raw = ref.watch(prefsProvider).getString('onboarding_name')?.trim();
+    // 与「我的」一致：读分桶键 onboarding_name:$userId，并监听 auth 以便改名后立刻刷新
+    final authName = ref.watch(authControllerProvider).displayName?.trim();
+    final prefsName =
+        userPrefGetString(ref.watch(prefsProvider), 'onboarding_name')?.trim();
+    final raw = (authName != null && authName.isNotEmpty)
+        ? authName
+        : prefsName;
     final fullName = (raw != null && raw.isNotEmpty) ? raw : '读经伙伴';
     // 对齐 PWA HomeGreetStreak：名称截断 6 字 + 问候同一行
     final displayName = fullName.length <= 6
