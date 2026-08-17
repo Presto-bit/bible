@@ -59,6 +59,25 @@ class MainActivity : FlutterFragmentActivity() {
               result.success(null)
             }
           }
+          "openExternal" -> {
+            val url = call.argument<String>("url")?.trim().orEmpty()
+            if (url.isEmpty) {
+              result.error("invalid_url", "链接无效", null)
+            } else {
+              try {
+                startActivity(
+                  Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                  },
+                )
+                result.success(null)
+              } catch (_: ActivityNotFoundException) {
+                result.error("no_browser", "未找到可用浏览器", null)
+              } catch (e: Exception) {
+                result.error("open_failed", e.message, null)
+              }
+            }
+          }
           else -> result.notImplemented()
         }
       }

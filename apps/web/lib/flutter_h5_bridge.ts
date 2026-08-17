@@ -13,6 +13,7 @@ type PeiaiNativePayload =
   | { type: 'open_assistant'; ref?: string; q?: string; question?: string }
   | { type: 'open_reader'; book?: string; chapter?: string | number }
   | { type: 'open_path'; path: string }
+  | { type: 'open_external'; url: string; title?: string }
   | { type: 'check_app_update' }
   | { type: 'close_h5' }
   | { type: 'go_back' };

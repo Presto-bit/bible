@@ -12,6 +12,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../app/app_shell.dart';
 import '../features/assistant/assistant_seed.dart';
 import 'app_update.dart';
+import 'campaign_nav.dart';
 
 const kPeiaiJsChannel = 'PeiaiFlutter';
 
@@ -152,6 +153,18 @@ void attachPeiaiJsChannel(
                   ),
                 );
               },
+            );
+          });
+        } else if (type == 'open_external') {
+          final url = '${data['url'] ?? ''}'.trim();
+          if (url.isEmpty || !context.mounted) return;
+          final title = '${data['title'] ?? ''}'.trim();
+          Future.microtask(() {
+            if (!context.mounted) return;
+            openCampaignHref(
+              context,
+              url,
+              title: title.isEmpty ? null : title,
             );
           });
         } else if (type == 'close_h5') {

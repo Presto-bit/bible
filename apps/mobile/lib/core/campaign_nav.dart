@@ -1,13 +1,18 @@
 /// 活动外链导航（对齐 `apps/web/lib/campaign_nav.ts`）。
 library;
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../features/auth/auth_controller.dart';
 import 'genesis50_auth.dart';
+import 'open_external.dart';
 import 'open_h5.dart';
 import 'theme.dart';
 
@@ -121,16 +126,25 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   var _loading = true;
   var _authPhase = false;
   String? _error;
+  String _activeUrl = '';
+  Timer? _loadWatchdog;
 
   @override
   void initState() {
     super.initState();
+    _activeUrl = widget.url;
     if (widget.genesis50) {
       _authPhase = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _openGenesis50());
     } else {
-      _startWebView(widget.url);
+      unawaited(_startWebView(widget.url));
     }
+  }
+
+  @override
+  void dispose() {
+    _loadWatchdog?.cancel();
+    super.dispose();
   }
 
   Future<void> _openGenesis50() async {
@@ -144,7 +158,7 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
       );
       if (!mounted) return;
       setState(() => _authPhase = false);
-      _startWebView(openUrl);
+      await _startWebView(openUrl);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -155,34 +169,124 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
     }
   }
 
-  void _startWebView(String url) {
-    final controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(AppColors.paper)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (_) {
-            if (mounted) setState(() => _loading = true);
-          },
-          onPageFinished: (_) {
-            if (mounted) setState(() => _loading = false);
-          },
-          onWebResourceError: (err) {
-            if (!(err.isForMainFrame ?? true)) return;
-            if (!mounted) return;
+  void _armLoadWatchdog() {
+    _loadWatchdog?.cancel();
+    _loadWatchdog = Timer(const Duration(seconds: 18), () {
+      if (!mounted || !_loading || _error != null) return;
+      setState(() {
+        _loading = false;
+        _error = '页面打开较慢或未显示内容，可重试或用浏览器打开';
+      });
+    });
+  }
+
+  Future<void> _startWebView(String url) async {
+    _activeUrl = url;
+    final controller = WebViewController();
+    await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+    await controller.setBackgroundColor(AppColors.paper);
+    await controller.setNavigationDelegate(
+      NavigationDelegate(
+        onPageStarted: (_) {
+          if (mounted) {
             setState(() {
-              _loading = false;
-              _error ??= '页面加载失败，请检查网络后重试';
+              _loading = true;
+              _error = null;
             });
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(url));
+          }
+          _armLoadWatchdog();
+        },
+        onPageFinished: (_) async {
+          _loadWatchdog?.cancel();
+          if (!mounted) return;
+          setState(() => _loading = false);
+          // 根节点长期空 → 当作白屏，提示兜底（部分机型 WebView 嵌 SPA 会空绘）
+          try {
+            final raw = await controller.runJavaScriptReturningResult(
+              "(function(){var r=document.getElementById('root');"
+              "return r&&r.childElementCount>0?'1':'0';})()",
+            );
+            final ok = '$raw'.contains('1');
+            if (!ok && mounted && _error == null) {
+              await Future<void>.delayed(const Duration(milliseconds: 900));
+              if (!mounted) return;
+              final raw2 = await controller.runJavaScriptReturningResult(
+                "(function(){var r=document.getElementById('root');"
+                "return r&&r.childElementCount>0?'1':'0';})()",
+              );
+              if (!'$raw2'.contains('1') && mounted && _error == null) {
+                setState(() {
+                  _error = '活动页未能正常显示，请用浏览器打开';
+                });
+              }
+            }
+          } catch (_) {
+            /* 非 SPA / 无 #root 时忽略 */
+          }
+        },
+        onWebResourceError: (err) {
+          if (!(err.isForMainFrame ?? true)) return;
+          _loadWatchdog?.cancel();
+          if (!mounted) return;
+          setState(() {
+            _loading = false;
+            _error ??= '页面加载失败，请检查网络后重试';
+          });
+        },
+        onHttpError: (err) {
+          final code = err.response?.statusCode;
+          if (code == null || code < 400) return;
+          _loadWatchdog?.cancel();
+          if (!mounted) return;
+          setState(() {
+            _loading = false;
+            _error ??= '页面打开失败（$code），请稍后重试';
+          });
+        },
+      ),
+    );
+
+    final platform = controller.platform;
+    if (platform is AndroidWebViewController) {
+      try {
+        final cookieMgr = WebViewCookieManager().platform;
+        if (cookieMgr is AndroidWebViewCookieManager) {
+          await cookieMgr.setAcceptThirdPartyCookies(platform, true);
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('external webview cookies: $e');
+      }
+      // 去掉 `; wv` 标记，降低被部分站点当成内嵌壳直接空页的概率
+      try {
+        final ua = await controller.getUserAgent();
+        final cleaned = (ua ?? '')
+            .replaceAll(RegExp(r';\s*wv\)'), ')')
+            .replaceAll('; wv', '');
+        if (cleaned.trim().isNotEmpty) {
+          await controller.setUserAgent(cleaned);
+        }
+      } catch (_) {}
+    }
+
+    await controller.loadRequest(Uri.parse(url));
+    if (!mounted) return;
     setState(() {
       _controller = controller;
       _error = null;
       _loading = true;
     });
+    _armLoadWatchdog();
+  }
+
+  Future<void> _openInBrowser() async {
+    final ok = await openSystemBrowser(
+      _activeUrl.isNotEmpty ? _activeUrl : widget.url,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('无法打开系统浏览器')),
+      );
+    }
   }
 
   @override
@@ -195,50 +299,73 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          TextButton(
+            onPressed: _openInBrowser,
+            child: const Text('浏览器打开'),
+          ),
+        ],
       ),
       body: Stack(
         children: [
           if (_controller != null) WebViewWidget(controller: _controller!),
           if (_error != null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () {
-                        setState(() {
-                          _error = null;
-                          _loading = true;
-                        });
-                        if (widget.genesis50) {
-                          setState(() => _authPhase = true);
-                          _openGenesis50();
-                        } else {
-                          _startWebView(widget.url);
-                        }
-                      },
-                      child: const Text('重试'),
-                    ),
-                  ],
+            ColoredBox(
+              color: AppColors.paper,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: () {
+                          setState(() {
+                            _error = null;
+                            _loading = true;
+                          });
+                          if (widget.genesis50) {
+                            setState(() => _authPhase = true);
+                            unawaited(_openGenesis50());
+                          } else {
+                            unawaited(_startWebView(widget.url));
+                          }
+                        },
+                        child: const Text('重试'),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: _openInBrowser,
+                        child: const Text('用浏览器打开'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             )
           else if (_authPhase || _loading)
-            const Align(
-              alignment: Alignment.topCenter,
-              child: LinearProgressIndicator(minHeight: 2),
-            ),
-          if (_authPhase)
-            const Center(
-              child: Text('正在进入活动…'),
+            const ColoredBox(
+              color: AppColors.paper,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    ),
+                    SizedBox(height: 14),
+                    Text('正在进入活动…'),
+                  ],
+                ),
+              ),
             ),
         ],
       ),
