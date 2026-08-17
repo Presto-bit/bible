@@ -16,6 +16,7 @@ class H5Whitelist {
     '/terms',
     '/privacy',
     '/report',
+    '/wrapped',
     '/profile/',
     '/settings',
     '/friend',

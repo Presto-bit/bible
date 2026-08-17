@@ -21,6 +21,7 @@ import {
 } from '@/lib/wrapped';
 import { renderWrappedSharePng } from '@/lib/wrapped_share';
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
+import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 
 function WrappedInner() {
   useEdgeSwipeBack({ href: '/report' });
@@ -33,7 +34,6 @@ function WrappedInner() {
   // 延迟重算：先让路由切页动画/layout 落定，避免安卓壳首屏卡死
   useEffect(() => {
     let cancelled = false;
-    let idleId: number | null = null;
     const run = () => {
       if (cancelled) return;
       const base = buildWrapped(period);
@@ -43,27 +43,10 @@ function WrappedInner() {
         if (!cancelled) setW(enriched);
       });
     };
-    const timer = window.setTimeout(() => {
-      const ric = (
-        window as Window & {
-          requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-        }
-      ).requestIdleCallback;
-      if (typeof ric === 'function') {
-        idleId = ric(run, { timeout: 220 });
-      } else {
-        run();
-      }
-    }, isPeiaiAndroidShell() ? 80 : 0);
+    const timer = window.setTimeout(run, isPeiaiAndroidShell() || isFlutterH5Host() ? 80 : 0);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
-      if (idleId != null) {
-        const cic = (
-          window as Window & { cancelIdleCallback?: (id: number) => void }
-        ).cancelIdleCallback;
-        cic?.(idleId);
-      }
     };
   }, [period]);
 

@@ -20,7 +20,6 @@ import '../features/social/discover_screen.dart';
 import '../features/bible/dictionary_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/bible/reading_report_screen.dart';
-import '../features/bible/wrapped_screen.dart';
 import '../features/notes/notes_screen.dart';
 import '../features/settings/appearance_screen.dart';
 import '../features/knowledge/knowledge_explore.dart';
@@ -192,10 +191,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             DiagramDetailScreen(diagramId: state.pathParameters['id']!),
       ),
       GoRoute(
-          path: '/wrapped',
-          builder: (context, state) => WrappedScreen(
-                initialPeriod: state.uri.queryParameters['period'] ?? 'month',
-              )),
+        path: '/wrapped',
+        builder: (context, state) {
+          final period = state.uri.queryParameters['period'];
+          final path = (period == 'year' || period == 'month')
+              ? '/wrapped?period=$period'
+              : '/wrapped';
+          return H5HostPage(path: path);
+        },
+      ),
       GoRoute(
           path: '/profile/appearance',
           builder: (context, state) => const AppearanceScreen()),

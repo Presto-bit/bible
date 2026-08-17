@@ -481,7 +481,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     if (!style) {
       style = document.createElement('style');
       style.id = 'peiai-flutter-im-polish';
-      style.textContent = ''
+      document.head.appendChild(style);
+    }
+    style.textContent = ''
         + 'html.android-flutter-h5 .bottom-tabs,'
         + 'html.android-flutter-h5 nav.app-tabbar,'
         + 'html.android-flutter-h5 .app-bottom-tabs { display:none !important; }'
@@ -499,9 +501,17 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         + '}'
         + 'html.android-flutter-h5 .discover-conv-li {'
         + '  -webkit-user-select: none; user-select: none;'
+        + '}'
+        // 故事回顾：fixed 全屏在裁切 WebView 内高度常为 0
+        + 'html.android-flutter-h5 .wrapped-page-shell {'
+        + '  position:absolute !important; inset:0 !important;'
+        + '  width:100% !important; height:100% !important;'
+        + '}'
+        + 'html.android-flutter-h5.wrapped-open .app-body,'
+        + 'html.android-flutter-h5 .app-body:has(.wrapped-page-shell) {'
+        + '  position:relative !important; padding:0 !important;'
+        + '  overflow:hidden !important;'
         + '}';
-      document.head.appendChild(style);
-    }
     // 左缘返回：通知可能的 SPA history（touch 可选，系统返回已走 goBack）
   } catch (e) {}
 })();
@@ -595,8 +605,6 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         (p.startsWith('/search/') && !p.startsWith('/search/series')) ||
         p == '/dictionary' ||
         p.startsWith('/dictionary/') ||
-        p == '/wrapped' ||
-        p.startsWith('/wrapped') ||
         p == '/notes' ||
         p.startsWith('/notes/') ||
         p == '/profile/appearance' ||
@@ -648,15 +656,6 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     }
     if (p == '/dictionary' || p.startsWith('/dictionary/')) {
       context.push('/dictionary');
-      return;
-    }
-    if (p == '/wrapped' || p.startsWith('/wrapped')) {
-      context.push(
-        Uri(
-          path: '/wrapped',
-          queryParameters: qp.isEmpty ? null : qp,
-        ).toString(),
-      );
       return;
     }
     if (p == '/profile/appearance') {

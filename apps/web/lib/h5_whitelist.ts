@@ -38,6 +38,7 @@ export const H5_WHITELIST: readonly H5WhitelistEntry[] = [
   { surface: 'legal_help', pathPrefix: '/terms', note: '用户协议（若独立路由）' },
   { surface: 'legal_help', pathPrefix: '/privacy', note: '隐私（若独立路由）' },
   { surface: 'profile_secondary', pathPrefix: '/report', note: '阅读报告等我的二级' },
+  { surface: 'profile_secondary', pathPrefix: '/wrapped', note: '故事回顾（我的二级）' },
   { surface: 'profile_secondary', pathPrefix: '/profile/', note: '我的二级子页' },
   { surface: 'settings_web', pathPrefix: '/settings', note: '说明型设置 Web 页' },
   { surface: 'friend_group', pathPrefix: '/friend', note: '加好友等' },

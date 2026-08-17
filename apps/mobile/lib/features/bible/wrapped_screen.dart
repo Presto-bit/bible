@@ -16,7 +16,7 @@ import 'wrapped.dart';
 
 final wrappedStatsProvider =
     FutureProvider.family<WrappedStats, String>((ref, period) async {
-  final review = await ref.watch(reviewDataProvider.future);
+  final review = await ref.read(reviewDataProvider.future);
 
   // 先拿当前缓存；再等短暂
   var notes = ref.read(notesStreamProvider).value ?? const <Note>[];

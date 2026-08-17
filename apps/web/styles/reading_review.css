@@ -319,6 +319,19 @@ a.report-tile-link .muted {
   left: 0;
   right: 0;
 }
+/* Flutter 嵌 H5：fixed 相对视觉视口在裁切 WebView 内常塌成 0 高；改贴 app-body */
+html.android-flutter-h5 .wrapped-page-shell {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+html.android-flutter-h5.wrapped-open .app-body,
+html.android-flutter-h5 .app-body:has(.wrapped-page-shell) {
+  position: relative;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
 .wrapped-page-head {
   position: absolute;
   top: 0;
