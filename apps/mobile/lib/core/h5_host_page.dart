@@ -71,6 +71,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
 
   /// 无键盘时宿主高度基线（部分机型 adjustResize 下 viewInsets 为 0）
   double? _baselineHostH;
+  Timer? _viewportMetricsDebounce;
 
   @override
   void initState() {
@@ -93,6 +94,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   void dispose() {
     final c = _controller;
     if (c != null) H5SessionBridge.unregister(c);
+    _viewportMetricsDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     // 发现 Tab 销毁时清沉浸，避免底栏卡隐藏
     if (widget.tabIndex == 3) {
@@ -177,8 +179,17 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       if (_viewHeight == h && _viewBottomInset == bottom) return;
       _viewHeight = h;
       _viewBottomInset = bottom;
-      _injectViewportMetrics();
+      _scheduleViewportMetrics();
     });
+  }
+
+  void _scheduleViewportMetrics() {
+    // 键盘动画会连续触发 metrics；合并跨 WebView JS 调用，取最后一帧高度。
+    _viewportMetricsDebounce?.cancel();
+    _viewportMetricsDebounce = Timer(
+      const Duration(milliseconds: 48),
+      () => unawaited(_injectViewportMetrics()),
+    );
   }
 
   Future<void> _reinjectSession() async {
@@ -195,6 +206,18 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     window.dispatchEvent(new CustomEvent('peiai-flutter-resume'));
     if (typeof window.__PEIAI_ON_RESUME__ === 'function') window.__PEIAI_ON_RESUME__();
   } catch (e) {}
+})();
+''');
+    } catch (_) {}
+  }
+
+  Future<void> _pauseDiscoverRealtime() async {
+    final c = _controller;
+    if (c == null || widget.tabIndex != 3) return;
+    try {
+      await c.runJavaScript('''
+(function(){
+  try { window.dispatchEvent(new CustomEvent('peiai-flutter-pause')); } catch (e) {}
 })();
 ''');
     } catch (_) {}
@@ -851,6 +874,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
             _syncDiscoverImmersive(loc);
           } else if (prev == 3) {
             ref.read(discoverImmersiveProvider.notifier).set(false);
+            unawaited(_pauseDiscoverRealtime());
           }
         }
         if (next != widget.tabIndex) return;
@@ -1004,7 +1028,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         if (_viewHeight != nextH && nextH > 0) {
           _viewHeight = nextH;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _injectViewportMetrics();
+            if (mounted) _scheduleViewportMetrics();
           });
         }
         return body;

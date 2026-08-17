@@ -342,11 +342,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   void _autoScroll() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
-        _scroll.animateTo(
-          _scroll.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-        );
+        // 流式输出会高频调用；jumpTo 避免叠加多个 animateTo 抢占滚动帧。
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
       }
     });
   }
@@ -490,7 +487,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 receivedDelta = true;
                 pendingDelta += text;
                 deltaFlush ??= Timer.periodic(
-                  const Duration(milliseconds: 100),
+                  const Duration(milliseconds: 150),
                   (_) {
                     flushDelta();
                     if (pendingDelta.isEmpty) {

@@ -370,10 +370,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           .read(socialRepoProvider)
           .openDm(kOfficialSupportUserCode);
       if (!mounted) return;
-      context.push('/discover/dm/$tid');
+      ref.read(navIndexProvider.notifier).set(3);
+      ref.read(discoverH5PathProvider.notifier).go('/discover/dm/$tid');
     } catch (_) {
       if (!mounted) return;
-      context.push('/discover');
+      ref.read(navIndexProvider.notifier).set(3);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('暂时无法直达客服，已打开消息页')));

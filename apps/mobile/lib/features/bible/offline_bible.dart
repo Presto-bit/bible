@@ -4,6 +4,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
@@ -23,6 +24,41 @@ const kPrimaryOfflineTranslation = 'cuvs';
 
 const _legacyCnvMetaKey = 'presto_offline_cnv_meta_v1';
 
+/// ZIP 校验与解压均为同步 CPU 工作，必须放到后台 isolate。
+List<int> _extractOfflineSqlite({
+  required List<int> zipBytes,
+  required String translationId,
+  required String? expectedSha,
+}) {
+  if (expectedSha != null && expectedSha.isNotEmpty) {
+    final got = sha256.convert(zipBytes).toString();
+    if (got.toLowerCase() != expectedSha.toLowerCase()) {
+      throw StateError('离线包校验失败，请重试');
+    }
+  }
+  final archive = ZipDecoder().decodeBytes(zipBytes);
+  final wantRel = 'bible_$translationId.sqlite';
+  ArchiveFile? entry;
+  for (final f in archive) {
+    if (f.name == wantRel || f.name.endsWith(wantRel)) {
+      entry = f;
+      break;
+    }
+  }
+  if (entry == null && translationId == 'cnv') {
+    for (final f in archive) {
+      if (f.name.endsWith('bible_cnv.sqlite')) {
+        entry = f;
+        break;
+      }
+    }
+  }
+  if (entry == null) {
+    throw StateError('离线包中未找到 $translationId 数据库');
+  }
+  return List<int>.from(entry.content as List<int>);
+}
+
 class OfflinePackMeta {
   OfflinePackMeta({
     required this.version,
@@ -34,16 +70,16 @@ class OfflinePackMeta {
   final String translationId;
 
   Map<String, dynamic> toJson() => {
-        'version': version,
-        'installedAt': installedAt,
-        'translationId': translationId,
-      };
+    'version': version,
+    'installedAt': installedAt,
+    'translationId': translationId,
+  };
 
   factory OfflinePackMeta.fromJson(Map<String, dynamic> j) => OfflinePackMeta(
-        version: (j['version'] ?? '') as String,
-        installedAt: (j['installedAt'] as num?)?.toInt() ?? 0,
-        translationId: (j['translationId'] ?? 'cuvs') as String,
-      );
+    version: (j['version'] ?? '') as String,
+    installedAt: (j['installedAt'] as num?)?.toInt() ?? 0,
+    translationId: (j['translationId'] ?? 'cuvs') as String,
+  );
 }
 
 class OfflineBibleService {
@@ -98,7 +134,9 @@ class OfflineBibleService {
     return File(p.join(dir.path, _fileName(translationId)));
   }
 
-  OfflinePackMeta? loadMeta([String translationId = kPrimaryOfflineTranslation]) {
+  OfflinePackMeta? loadMeta([
+    String translationId = kPrimaryOfflineTranslation,
+  ]) {
     var raw = _prefs.getString(_metaKey(translationId));
     if (raw == null && translationId == 'cnv') {
       raw = _prefs.getString(_legacyCnvMetaKey);
@@ -111,8 +149,9 @@ class OfflineBibleService {
     }
   }
 
-  Future<bool> checkInstalled(
-      [String translationId = kPrimaryOfflineTranslation]) async {
+  Future<bool> checkInstalled([
+    String translationId = kPrimaryOfflineTranslation,
+  ]) async {
     final meta = loadMeta(translationId);
     if (meta == null && translationId != 'cnv') {
       // 允许仅有文件也算装妥
@@ -155,14 +194,16 @@ class OfflineBibleService {
     }
   }
 
-  Future<Database?> db(
-      [String translationId = kPrimaryOfflineTranslation]) async {
+  Future<Database?> db([
+    String translationId = kPrimaryOfflineTranslation,
+  ]) async {
     final f = await _sqliteFile(translationId);
     return _openDb(translationId, f);
   }
 
-  Future<void> deletePack(
-      [String translationId = kPrimaryOfflineTranslation]) async {
+  Future<void> deletePack([
+    String translationId = kPrimaryOfflineTranslation,
+  ]) async {
     _closeId(translationId);
     final f = await _sqliteFile(translationId);
     if (f.existsSync()) await f.delete();
@@ -182,14 +223,15 @@ class OfflineBibleService {
     _downloadProgress = 0;
     _downloadingId = translationId;
     _notifyDownload();
-    _activeDownload = _runDownload(
-      translationId: translationId,
-      onProgress: onProgress,
-    ).whenComplete(() {
-      _activeDownload = null;
-      _downloadingId = null;
-      _notifyDownload();
-    });
+    _activeDownload =
+        _runDownload(
+          translationId: translationId,
+          onProgress: onProgress,
+        ).whenComplete(() {
+          _activeDownload = null;
+          _downloadingId = null;
+          _notifyDownload();
+        });
     return _activeDownload!;
   }
 
@@ -207,7 +249,8 @@ class OfflineBibleService {
 
       // 直链优先（对齐 web downloadOfflineItem）
       final directKey = '${translationId}_sqlite';
-      final directUrl = manifest[directKey] as String? ??
+      final directUrl =
+          manifest[directKey] as String? ??
           manifest['${translationId}_sqlite_url'] as String?;
 
       List<int>? bytes;
@@ -218,8 +261,8 @@ class OfflineBibleService {
           final url = raw.startsWith('http')
               ? raw
               : (raw.startsWith('/offline/')
-                  ? '$_base$raw'
-                  : '$_base/offline/${raw.replaceFirst(RegExp(r'^/+'), '')}');
+                    ? '$_base$raw'
+                    : '$_base/offline/${raw.replaceFirst(RegExp(r'^/+'), '')}');
           final res = await _dio.get<List<int>>(
             url,
             options: Options(responseType: ResponseType.bytes),
@@ -263,37 +306,16 @@ class OfflineBibleService {
 
       final expectedSha =
           (manifest['zip_sha256'] ?? manifest['zipSha256']) as String?;
-      if (expectedSha != null && expectedSha.isNotEmpty) {
-        final got = sha256.convert(bytes).toString();
-        if (got.toLowerCase() != expectedSha.toLowerCase()) {
-          throw StateError('离线包校验失败，请重试');
-        }
-      }
-
-      final archive = ZipDecoder().decodeBytes(bytes);
-      final wantRel = _zipRel(translationId);
-      ArchiveFile? entry;
-      for (final f in archive) {
-        if (f.name == wantRel || f.name.endsWith('bible_$translationId.sqlite')) {
-          entry = f;
-          break;
-        }
-      }
-      // 兼容旧包：仅有 CNV 时仍可装 CNV
-      if (entry == null && translationId == 'cnv') {
-        for (final f in archive) {
-          if (f.name.endsWith('bible_cnv.sqlite')) {
-            entry = f;
-            break;
-          }
-        }
-      }
-      if (entry == null) {
-        throw StateError('离线包中未找到 $translationId 数据库');
-      }
+      final sqliteBytes = await Isolate.run(
+        () => _extractOfflineSqlite(
+          zipBytes: bytes!,
+          translationId: translationId,
+          expectedSha: expectedSha,
+        ),
+      );
 
       final out = await _sqliteFile(translationId);
-      await out.writeAsBytes(entry.content as List<int>, flush: true);
+      await out.writeAsBytes(sqliteBytes, flush: true);
       await _saveMeta(translationId, version);
     } catch (e) {
       _downloadError = '$e';
@@ -307,11 +329,13 @@ class OfflineBibleService {
     _closeId(translationId);
     await _prefs.setString(
       _metaKey(translationId),
-      jsonEncode(OfflinePackMeta(
-        version: version,
-        installedAt: DateTime.now().millisecondsSinceEpoch,
-        translationId: translationId,
-      ).toJson()),
+      jsonEncode(
+        OfflinePackMeta(
+          version: version,
+          installedAt: DateTime.now().millisecondsSinceEpoch,
+          translationId: translationId,
+        ).toJson(),
+      ),
     );
     _downloadProgress = 1;
     _downloadError = null;
@@ -320,8 +344,9 @@ class OfflineBibleService {
     }
   }
 
-  Future<List<BibleBook>> listBooks(
-      [String translationId = kPrimaryOfflineTranslation]) async {
+  Future<List<BibleBook>> listBooks([
+    String translationId = kPrimaryOfflineTranslation,
+  ]) async {
     final database = await db(translationId);
     if (database == null) {
       // 主本缺失时尝试任意已装
@@ -342,13 +367,15 @@ class OfflineBibleService {
         'SELECT id, name, testament, chapter_count, sort_order FROM books ORDER BY sort_order',
       );
       return rs
-          .map((r) => BibleBook(
-                id: r['id'] as String,
-                name: r['name'] as String,
-                testament: (r['testament'] ?? '') as String,
-                sortOrder: (r['sort_order'] as int?) ?? 0,
-                chapterCount: (r['chapter_count'] as int?) ?? 0,
-              ))
+          .map(
+            (r) => BibleBook(
+              id: r['id'] as String,
+              name: r['name'] as String,
+              testament: (r['testament'] ?? '') as String,
+              sortOrder: (r['sort_order'] as int?) ?? 0,
+              chapterCount: (r['chapter_count'] as int?) ?? 0,
+            ),
+          )
           .toList();
     } catch (_) {
       return [];
@@ -377,7 +404,10 @@ class OfflineBibleService {
   }
 
   Future<Chapter?> _chapterFromDb(
-      String translationId, String bookId, int chapter) async {
+    String translationId,
+    String bookId,
+    int chapter,
+  ) async {
     final database = await db(translationId);
     if (database == null) return null;
     for (final id in [bookId, bookId.toUpperCase(), bookId.toLowerCase()]) {
@@ -388,10 +418,12 @@ class OfflineBibleService {
         );
         if (rs.isEmpty) continue;
         final verses = rs
-            .map((r) => Verse(
-                  verse: r['verse'] as int,
-                  text: (r['text'] ?? '') as String,
-                ))
+            .map(
+              (r) => Verse(
+                verse: r['verse'] as int,
+                text: (r['text'] ?? '') as String,
+              ),
+            )
             .toList();
         String bookName = id;
         final nameRs = database.select(
@@ -421,10 +453,13 @@ final offlineBibleProvider = Provider<OfflineBibleService>((ref) {
 
 /// 主本（和合本）是否已装。
 final offlineInstalledProvider = FutureProvider<bool>((ref) async {
-  return ref.watch(offlineBibleProvider).checkInstalled(kPrimaryOfflineTranslation);
+  return ref
+      .watch(offlineBibleProvider)
+      .checkInstalled(kPrimaryOfflineTranslation);
 });
 
-final offlineTranslationInstalledProvider =
-    FutureProvider.family<bool, String>((ref, id) async {
-  return ref.watch(offlineBibleProvider).checkInstalled(id);
-});
+final offlineTranslationInstalledProvider = FutureProvider.family<bool, String>(
+  (ref, id) async {
+    return ref.watch(offlineBibleProvider).checkInstalled(id);
+  },
+);

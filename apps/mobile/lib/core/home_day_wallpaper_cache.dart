@@ -7,6 +7,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 
+final _wallpaperInFlight = <String, Future<File?>>{};
+
 String homeWallpaperLocalYmd([DateTime? now]) {
   final d = now ?? DateTime.now();
   final m = d.month.toString().padLeft(2, '0');
@@ -57,11 +59,31 @@ Future<File?> ensureHomeDayWallpaper(
         }
       }
     }
-  } catch (_) {/* ignore */}
+  } catch (_) {
+    /* ignore */
+  }
 
   final f = File('${dir.path}/${_urlKey(url)}.img');
   if (await f.exists() && await f.length() > 200) return f;
 
+  final cacheKey = '$day:${_urlKey(url)}';
+  final running = _wallpaperInFlight[cacheKey];
+  if (running != null) return running;
+
+  final task = _downloadHomeWallpaper(url, f, dio);
+  _wallpaperInFlight[cacheKey] = task;
+  try {
+    return await task;
+  } finally {
+    _wallpaperInFlight.remove(cacheKey);
+  }
+}
+
+Future<File?> _downloadHomeWallpaper(
+  String url,
+  File destination,
+  Dio? dio,
+) async {
   try {
     final client = dio ?? Dio();
     final res = await client.get<List<int>>(
@@ -70,8 +92,8 @@ Future<File?> ensureHomeDayWallpaper(
     );
     final bytes = res.data;
     if (bytes == null || bytes.length < 200) return null;
-    await f.writeAsBytes(bytes, flush: true);
-    return f;
+    await destination.writeAsBytes(bytes, flush: true);
+    return destination;
   } catch (_) {
     return null;
   }
@@ -149,19 +171,8 @@ class _HomeDayNetworkImageState extends State<HomeDayNetworkImage> {
   @override
   Widget build(BuildContext context) {
     if (!_ready) {
-      return Image.network(
-        widget.url,
-        fit: widget.fit,
-        cacheWidth: widget.cacheWidth,
-        cacheHeight: widget.cacheHeight,
-        errorBuilder: widget.errorBuilder,
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded || frame != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) => _notifyReady());
-          }
-          return child;
-        },
-      );
+      // 磁盘缓存任务是唯一网络 source，避免 Image.network 与 Dio 双请求/双解码。
+      return const SizedBox.expand();
     }
     final f = _file;
     if (f != null) {
@@ -170,13 +181,14 @@ class _HomeDayNetworkImageState extends State<HomeDayNetworkImage> {
         fit: widget.fit,
         cacheWidth: widget.cacheWidth,
         cacheHeight: widget.cacheHeight,
-        errorBuilder: widget.errorBuilder ??
+        errorBuilder:
+            widget.errorBuilder ??
             (_, __, ___) => Image.network(
-                  widget.url,
-                  fit: widget.fit,
-                  cacheWidth: widget.cacheWidth,
-                  cacheHeight: widget.cacheHeight,
-                ),
+              widget.url,
+              fit: widget.fit,
+              cacheWidth: widget.cacheWidth,
+              cacheHeight: widget.cacheHeight,
+            ),
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
           if (wasSynchronouslyLoaded || frame != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) => _notifyReady());

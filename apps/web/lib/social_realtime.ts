@@ -24,6 +24,7 @@ const listeners = new Set<Listener>();
 let stopFn: (() => void) | null = null;
 let started = false;
 let loopAbort: AbortController | null = null;
+let flutterHostPaused = false;
 
 function emit(c: SocialCursor) {
   const g = c.group_max || '';
@@ -79,29 +80,50 @@ async function readSseStream(signal: AbortSignal): Promise<void> {
   }
 }
 
+function wait(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(resolve, ms);
+    signal.addEventListener(
+      'abort',
+      () => {
+        window.clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
 function startSseLoop(signal: AbortSignal): void {
   void (async () => {
+    let retry = 0;
     while (!signal.aborted) {
       // 普通 PWA / Chrome Host：后台休眠省电；仅旧 WebView 壳保持读流
       if (
+        flutterHostPaused
+        ||
         typeof document !== 'undefined'
         && document.visibilityState === 'hidden'
         && !isPeiaiAndroidWebViewShell()
       ) {
-        await new Promise((r) => setTimeout(r, 1500));
+        await wait(1500, signal);
         continue;
       }
       try {
         await readSseStream(signal);
+        retry = 0;
       } catch {
         if (signal.aborted) return;
+        // 弱网时避免固定 5 秒空转；最多 60 秒且有抖动。
+        retry = Math.min(retry + 1, 6);
         try {
           const c = await api.realtimeCursor();
           emit(c);
         } catch {
           /* ignore */
         }
-        await new Promise((r) => setTimeout(r, 5000));
+        const base = Math.min(60_000, 1_000 * 2 ** retry);
+        await wait(base + Math.floor(Math.random() * 700), signal);
       }
     }
   })();
@@ -134,10 +156,24 @@ function ensureStarted() {
     if (document.visibilityState === 'visible') kickRealtime(true);
   };
   const onResume = () => kickRealtime(true);
+  const onFlutterPause = () => {
+    flutterHostPaused = true;
+    try {
+      loopAbort?.abort();
+    } catch {
+      /* ignore */
+    }
+  };
+  const onFlutterResume = () => {
+    flutterHostPaused = false;
+    kickRealtime(true);
+  };
   const onOnline = () => kickRealtime(true);
 
   document.addEventListener('visibilitychange', onVis);
   window.addEventListener('peiai-shell-resume', onResume);
+  window.addEventListener('peiai-flutter-pause', onFlutterPause);
+  window.addEventListener('peiai-flutter-resume', onFlutterResume);
   window.addEventListener('online', onOnline);
 
   stopFn = () => {
@@ -149,6 +185,8 @@ function ensureStarted() {
     loopAbort = null;
     document.removeEventListener('visibilitychange', onVis);
     window.removeEventListener('peiai-shell-resume', onResume);
+    window.removeEventListener('peiai-flutter-pause', onFlutterPause);
+    window.removeEventListener('peiai-flutter-resume', onFlutterResume);
     window.removeEventListener('online', onOnline);
     started = false;
     stopFn = null;
