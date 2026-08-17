@@ -307,7 +307,8 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
   ConsumerState<ReaderChapterBody> createState() => _ReaderChapterBodyState();
 }
 
-class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
+class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
+    with SingleTickerProviderStateMixin {
   Set<int> _selected = {};
   WordRange? _wordRange;
   bool _bookDone = false;
@@ -338,12 +339,26 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   /// 横滑轴锁：null 未判定 / x 横翻（由 HorizontalDrag 手势识别器完成）
   String? _pageDragAxis;
 
+  /// 松手后把当前页送出或弹回；时长与 PWA reader-turn-track 一致。
+  late final AnimationController _pageTurnController;
+  late Animation<double> _pageTurnAnimation;
+  bool _pageTurnAnimating = false;
+
   /// 划词手势中：禁止横滑翻章（对齐 PWA swipeIgnore）
   bool _selectionGestureActive = false;
 
   @override
   void initState() {
     super.initState();
+    _pageTurnController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 280),
+        )..addListener(() {
+          if (!mounted) return;
+          setState(() => _pageDragDx = _pageTurnAnimation.value);
+        });
+    _pageTurnAnimation = const AlwaysStoppedAnimation(0);
     _scroll.addListener(_onScroll);
     final prefs = ref.read(prefsProvider);
     _cachedChapter = readChapterCache(prefs, widget.book.id, widget.chapter);
@@ -428,6 +443,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   @override
   void dispose() {
     _guideDwellTimer?.cancel();
+    _pageTurnController.dispose();
     _scroll.removeListener(_onScroll);
     _scroll.dispose();
     super.dispose();
@@ -1422,9 +1438,11 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     _pageDragRaw = 0;
     _pageTurnPrefetched = false;
     _pageDragAxis = null;
+    _pageTurnAnimating = false;
   }
 
   void _onPageDragUpdate(double deltaDx) {
+    if (_pageTurnAnimating) return;
     final width = MediaQuery.sizeOf(context).width;
     if (width <= 0) return;
     setState(() {
@@ -1457,7 +1475,18 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         (ratio >= soft && velocityPxPerSec.abs() >= velMin);
   }
 
-  void _finishPageTurn(DragEndDetails d) {
+  Future<void> _animatePageDragTo(double target) async {
+    final start = _pageDragDx;
+    if ((start - target).abs() < 0.5) return;
+    setState(() => _pageTurnAnimating = true);
+    _pageTurnAnimation = Tween<double>(begin: start, end: target).animate(
+      CurvedAnimation(parent: _pageTurnController, curve: Curves.easeOut),
+    );
+    await _pageTurnController.forward(from: 0);
+  }
+
+  Future<void> _finishPageTurn(DragEndDetails d) async {
+    if (_pageTurnAnimating) return;
     widget.onInteract();
     final width = MediaQuery.sizeOf(context).width;
     // 用原始位移判定方向/阈值，避免边界阻力压扁后永远翻不过去
@@ -1471,12 +1500,19 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
       width: width,
       velocityPxPerSec: v,
     );
-    setState(_resetPageDrag);
     if (commit && can) {
       peiaiHapticLight(context);
+      // 与 PWA 相同：先将相邻完整页补完 280ms，再替换章节并回到轨道中心。
+      await _animatePageDragTo(goingNext ? -width : width);
+      if (!mounted) return;
+      setState(_resetPageDrag);
       widget.onNav(goingNext ? 1 : -1);
       return;
     }
+    // 未提交或章节边界均回弹至当前页，避免松手瞬移。
+    await _animatePageDragTo(0);
+    if (!mounted) return;
+    setState(_resetPageDrag);
     if (!can && ratio >= 0.1) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1519,14 +1555,32 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             )),
           )
         : ref.watch(
-            chapterProvider((
-              book: target.book.id,
-              chapter: target.chapter,
-            )),
+            chapterProvider((book: target.book.id, chapter: target.chapter)),
           );
     final fontPx = ref.watch(readerFontProvider).px;
     final fontFamily = ref.watch(readerFontFamilyProvider);
     final verseNo = ref.watch(readerVerseNumberProvider);
+    final highlights = ref.watch(highlightMapProvider).value ?? const {};
+    final underlinesEnabled = ref
+        .watch(readerFeatureTogglesProvider)
+        .underlines;
+    final compareId = widget.mainVersionId == null
+        ? widget.compareVersionId
+        : null;
+    final layoutAsync = widget.mainVersionId != null
+        ? ref.watch(
+            chapterProvider((book: target.book.id, chapter: target.chapter)),
+          )
+        : null;
+    final compareAsync = compareId == null
+        ? null
+        : ref.watch(
+            chapterVersionProvider((
+              book: target.book.id,
+              chapter: target.chapter,
+              version: compareId,
+            )),
+          );
     final outline = outlineFor(target.book.id, target.chapter);
     final sectionByVerse = {for (final s in outline) s.verse: s.title};
     final apiSections = ref
@@ -1555,106 +1609,20 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
           ),
         ),
         data: (ch) {
-          final poetry = const {
-            'PSA',
-            'PRO',
-            'ECC',
-            'SNG',
-            'LAM',
-            'AMO',
-            'MIC',
-            'HAB',
-            'ZEP',
-            'NAH',
-            'HAG',
-            'ZEC',
-            'MAL',
-            'JOB',
-          }.contains(target.book.id.toUpperCase());
-          final sectionStarts = sectionByVerse.keys.toList()..sort();
-          final paras = groupVersesIntoParagraphs(
-            target.book.id,
-            ch.verses,
-            sectionStarts,
-          );
-          final rows = <Object>[];
-          for (final p in paras) {
-            final title = sectionByVerse[p.startVerse];
-            if (title != null && title.trim().isNotEmpty) {
-              rows.add(title.trim());
-            }
-            rows.add(p);
-          }
-          final bodyStyle = TextStyle(
-            fontSize: fontPx,
-            height: poetry ? 2.1 : 2.05,
-            letterSpacing: fontPx * 0.015,
-            color: theme.ink,
-            fontFamily: fontFamily.fontFamily,
-            fontFamilyFallback: fontFamily.fontFamilyFallback,
-          );
-          return ListView(
-            // 预览只读：不滚动、不写阅读记录、不打开词典
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(16, topPad, 20, 24),
-            children: [
-              Text(
-                target.book.name,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: theme.ink,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '第 ${target.chapter} 章',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: theme.ink.withValues(alpha: 0.55),
-                ),
-              ),
-              const SizedBox(height: 16),
-              for (final row in rows)
-                if (row is String)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 10, 0, 8),
-                    child: Text(
-                      row,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: theme.ink.withValues(alpha: 0.55),
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  )
-                else
-                  Padding(
-                    padding: EdgeInsets.only(bottom: poetry ? 6 : 12),
-                    child: Text.rich(
-                      TextSpan(
-                        style: bodyStyle,
-                        children: [
-                          for (final v in (row as VerseParagraph).verses) ...[
-                            if (verseNo != ReaderVerseNumberMode.hidden)
-                              TextSpan(
-                                text: '${v.verse}\u2009',
-                                style: TextStyle(
-                                  color: AppColors.accentDeep,
-                                  fontSize: fontPx * 0.65,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.0,
-                                ),
-                              ),
-                            TextSpan(text: '${v.text.trim()} '),
-                          ],
-                        ],
-                      ),
-                      textAlign: TextAlign.justify,
-                    ),
-                  ),
-            ],
+          return _ChapterPeekContent(
+            book: target.book,
+            chapter: target.chapter,
+            primary: ch,
+            structure: layoutAsync?.value ?? ch,
+            parallel: compareAsync?.value,
+            sectionByVerse: sectionByVerse,
+            verseNo: verseNo,
+            fontPx: fontPx,
+            fontFamily: fontFamily,
+            highlights: highlights,
+            underlinesEnabled: underlinesEnabled,
+            theme: theme,
+            topPad: topPad,
           );
         },
       ),
@@ -2060,6 +2028,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final swipeOn =
         pageTurn == ReaderPageTurn.swipe &&
         !reduceMotion &&
+        !_pageTurnAnimating &&
         !_selectionGestureActive;
     final dx = _pageDragDx;
 
@@ -2076,15 +2045,11 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
       },
       child: ListView.builder(
         controller: _scroll,
-        physics: dx.abs() > 8
-            ? const NeverScrollableScrollPhysics()
-            : null,
+        physics: dx.abs() > 8 ? const NeverScrollableScrollPhysics() : null,
         // 沉浸：顶垫给固定卷章条；非沉浸：正常章头在列表内
         padding: EdgeInsets.fromLTRB(
           16,
-          widget.chromeHidden
-              ? (MediaQuery.paddingOf(context).top + 56)
-              : 12,
+          widget.chromeHidden ? (MediaQuery.paddingOf(context).top + 56) : 12,
           20,
           widget.chromeHidden
               ? (MediaQuery.paddingOf(context).bottom + 8)
@@ -2226,9 +2191,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                   ),
                 Transform.translate(
                   offset: Offset(dx, 0),
-                  child: ColoredBox(
-                    color: theme.background,
-                    child: listBody,
+                  // 横滑轨道仅平移，正文单独合成层，避免每帧重复 raster 长章 RichText。
+                  child: RepaintBoundary(
+                    child: ColoredBox(color: theme.background, child: listBody),
                   ),
                 ),
               ],
@@ -2372,21 +2337,18 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final swipeOn =
         pageTurn == ReaderPageTurn.swipe &&
         !reduceMotion &&
+        !_pageTurnAnimating &&
         !_selectionGestureActive;
     final pageW = MediaQuery.sizeOf(context).width;
     final dx = _pageDragDx;
 
     final listBody = ListView.builder(
       controller: _scroll,
-      physics: dx.abs() > 8
-          ? const NeverScrollableScrollPhysics()
-          : null,
+      physics: dx.abs() > 8 ? const NeverScrollableScrollPhysics() : null,
       // 对照模式同样沿用 PWA 的 16px 阅读边距。
       padding: EdgeInsets.fromLTRB(
         16,
-        widget.chromeHidden
-            ? (MediaQuery.paddingOf(context).top + 56)
-            : 12,
+        widget.chromeHidden ? (MediaQuery.paddingOf(context).top + 56) : 12,
         16,
         12,
       ),
@@ -2406,20 +2368,14 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                   const SizedBox(height: 8),
                   const Text(
                     '对照译本加载中…',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.inkFaint,
-                    ),
+                    style: TextStyle(fontSize: 13, color: AppColors.inkFaint),
                   ),
                 ],
                 if (compareStatus == 'error') ...[
                   const SizedBox(height: 8),
                   const Text(
                     '译本加载失败，请稍后重试',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.inkSoft,
-                    ),
+                    style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
                   ),
                 ],
               ],
@@ -2597,9 +2553,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                   ),
                 Transform.translate(
                   offset: Offset(dx, 0),
-                  child: ColoredBox(
-                    color: theme.background,
-                    child: listBody,
+                  child: RepaintBoundary(
+                    child: ColoredBox(color: theme.background, child: listBody),
                   ),
                 ),
               ],
@@ -2623,6 +2578,278 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 邻章预览和 PWA `ReaderChapterPeek` 使用同一层级：分段、划线、节号、
+/// 对照译文均保留，但不承接选择、词典或阅读记录等交互。
+class _ChapterPeekContent extends StatelessWidget {
+  const _ChapterPeekContent({
+    required this.book,
+    required this.chapter,
+    required this.primary,
+    required this.structure,
+    required this.parallel,
+    required this.sectionByVerse,
+    required this.verseNo,
+    required this.fontPx,
+    required this.fontFamily,
+    required this.highlights,
+    required this.underlinesEnabled,
+    required this.theme,
+    required this.topPad,
+  });
+
+  final BibleBook book;
+  final int chapter;
+  final Chapter primary;
+  final Chapter structure;
+  final Chapter? parallel;
+  final Map<int, String> sectionByVerse;
+  final ReaderVerseNumberMode verseNo;
+  final double fontPx;
+  final ReaderFontFamily fontFamily;
+  final Map<String, HighlightMark> highlights;
+  final bool underlinesEnabled;
+  final ReaderExperienceTheme theme;
+  final double topPad;
+
+  bool get _poetry => const {
+    'PSA',
+    'PRO',
+    'ECC',
+    'SNG',
+    'LAM',
+    'AMO',
+    'MIC',
+    'HAB',
+    'ZEP',
+    'NAH',
+    'HAG',
+    'ZEC',
+    'MAL',
+    'JOB',
+  }.contains(book.id.toUpperCase());
+
+  TextStyle get _mainStyle => TextStyle(
+    color: theme.ink,
+    fontSize: fontPx,
+    height: _poetry ? 2.1 : 2.05,
+    letterSpacing: fontPx * 0.015,
+    fontFamily: fontFamily.fontFamily,
+    fontFamilyFallback: fontFamily.fontFamilyFallback,
+  );
+
+  TextStyle get _parallelStyle => _mainStyle.copyWith(
+    color: theme.ink.withValues(alpha: 0.55),
+    fontSize: fontPx * 0.92,
+    height: 1.55,
+  );
+
+  String _textFor(Chapter source, int verse) =>
+      source.verses.where((v) => v.verse == verse).firstOrNull?.text ?? '—';
+
+  List<InlineSpan> _verseSpans(
+    Verse verse, {
+    required TextStyle style,
+    required bool showNumber,
+  }) {
+    final spans = <InlineSpan>[];
+    if (showNumber && verseNo != ReaderVerseNumberMode.hidden) {
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: Transform.translate(
+            offset: Offset(0, -fontPx * 0.32),
+            child: Text(
+              '${verse.verse}',
+              style: TextStyle(
+                color: AppColors.accentDeep,
+                fontSize: fontPx * 0.65,
+                fontWeight: FontWeight.w700,
+                height: 1,
+                fontFamily: fontFamily.fontFamily,
+                fontFamilyFallback: fontFamily.fontFamilyFallback,
+              ),
+            ),
+          ),
+        ),
+      );
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: SizedBox(width: fontPx * 0.22),
+        ),
+      );
+    }
+
+    final mark = underlinesEnabled
+        ? markForVerse(highlights, book.id, chapter, verse.verse)
+        : null;
+    final text = verse.text;
+    final start = mark?.spanStart?.clamp(0, text.length);
+    final end = mark?.spanEnd?.clamp(0, text.length);
+    if (mark == null || start == null || end == null || start >= end) {
+      spans.add(
+        TextSpan(
+          text: '$text ',
+          style: applyHighlightStyle(style, mark: mark?.mark, disabled: false),
+        ),
+      );
+      return spans;
+    }
+    if (start > 0) {
+      spans.add(TextSpan(text: text.substring(0, start), style: style));
+    }
+    spans.add(
+      TextSpan(
+        text: text.substring(start, end),
+        style: applyHighlightStyle(style, mark: mark.mark, disabled: false),
+      ),
+    );
+    if (end < text.length) {
+      spans.add(TextSpan(text: text.substring(end), style: style));
+    }
+    spans.add(TextSpan(text: ' ', style: style));
+    return spans;
+  }
+
+  Widget _sectionTitle(String title) => Padding(
+    padding: const EdgeInsets.fromLTRB(0, 10, 0, 8),
+    child: Text(
+      title,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: theme.ink.withValues(alpha: 0.55),
+        letterSpacing: 0.4,
+      ),
+    ),
+  );
+
+  Widget _proseParagraph(VerseParagraph para) {
+    final display = para.verses
+        .map((v) => Verse(verse: v.verse, text: _textFor(primary, v.verse)))
+        .toList();
+    if (verseNo == ReaderVerseNumberMode.margin) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Column(
+          children: [
+            for (final verse in display)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: fontPx * 1.8,
+                    child: Text(
+                      '${verse.verse}',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: AppColors.accentDeep,
+                        fontSize: fontPx * 0.65,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: fontPx * 0.35),
+                  Expanded(
+                    child: RichText(
+                      textAlign: TextAlign.justify,
+                      text: TextSpan(
+                        style: _mainStyle,
+                        children: _verseSpans(
+                          verse,
+                          style: _mainStyle,
+                          showNumber: false,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: RichText(
+        textAlign: TextAlign.justify,
+        text: TextSpan(
+          style: _mainStyle,
+          children: [
+            for (final verse in display)
+              ..._verseSpans(verse, style: _mainStyle, showNumber: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _parallelParagraph(VerseParagraph para) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final layoutVerse in para.verses) ...[
+          RichText(
+            textAlign: TextAlign.justify,
+            text: TextSpan(
+              style: _mainStyle,
+              children: _verseSpans(
+                Verse(
+                  verse: layoutVerse.verse,
+                  text: _textFor(primary, layoutVerse.verse),
+                ),
+                style: _mainStyle,
+                showNumber: true,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          RichText(
+            textAlign: TextAlign.justify,
+            text: TextSpan(
+              style: _parallelStyle,
+              text: '${_textFor(parallel!, layoutVerse.verse)} ',
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Object>[];
+    final paragraphs = groupVersesIntoParagraphs(
+      book.id,
+      structure.verses,
+      sectionByVerse.keys.toList()..sort(),
+    );
+    for (final paragraph in paragraphs) {
+      final title = sectionByVerse[paragraph.startVerse];
+      if (title != null && title.trim().isNotEmpty) rows.add(title.trim());
+      rows.add(paragraph);
+    }
+    return ExcludeSemantics(
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16, topPad, 20, 24),
+        children: [
+          for (final row in rows)
+            row is String
+                ? _sectionTitle(row)
+                : parallel == null
+                ? _proseParagraph(row as VerseParagraph)
+                : _parallelParagraph(row as VerseParagraph),
         ],
       ),
     );

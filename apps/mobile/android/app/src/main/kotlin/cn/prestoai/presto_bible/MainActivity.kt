@@ -72,7 +72,7 @@ class MainActivity : FlutterFragmentActivity() {
           }
           "openExternal" -> {
             val url = call.argument<String>("url")?.trim().orEmpty()
-            if (url.isEmpty) {
+            if (url.isEmpty()) {
               result.error("invalid_url", "链接无效", null)
             } else {
               try {

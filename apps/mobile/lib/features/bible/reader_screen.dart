@@ -35,6 +35,7 @@ import 'models.dart';
 import 'reader_catalog_view.dart';
 import 'reader_experience.dart';
 import 'reader_loc_popover.dart';
+import 'reader_preferences.dart';
 import 'reader_settings_menu.dart';
 import 'reader_sheet.dart';
 import 'reader_thoughts_sheet.dart';
