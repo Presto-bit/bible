@@ -6,11 +6,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../app/app_shell.dart' show readerImmersiveProvider;
+import '../../app/app_shell.dart' show navIndexProvider, readerImmersiveProvider;
 import '../../core/badge_stats.dart';
 import '../../core/config.dart';
+import '../../core/ref_label.dart';
 import '../../core/theme.dart';
+import '../assistant/assistant_seed.dart';
 import 'bible_repository.dart';
 import 'content_repository.dart';
 import 'dictionary_match.dart';
@@ -28,7 +31,8 @@ Future<void> showEntityKnowledgeSheet(
   try {
     await showReaderSheet<void>(
       context: context,
-      heightFactor: 0.56,
+      // 对齐 PWA 的 max-height: 82vh，给关联资料留出阅读空间。
+      heightFactor: 0.82,
       builder: (_) => _EntityKnowledgeSheet(
         entity: entity,
         displayName: displayName,
@@ -112,12 +116,15 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
           ),
           data: (k) {
             final e = k.entity.id.isNotEmpty ? k.entity : _entity;
-            final tabs = <String>['refs'];
-            if (k.place != null) tabs.add('map');
+            // 对齐 PWA entityKnowledgeTabs：关系 → 经节 → 地图 → 图鉴。
+            // 首开仍为「经节」，与 PWA `useState('refs')` 一致。
+            final tabs = <String>[];
             if (k.graph != null && k.graph!.edges.isNotEmpty) {
               tabs.add('graph');
             }
-            if (k.diagrams.isNotEmpty) tabs.add('diagrams');
+            tabs.add('refs');
+            if (k.place != null || k.mapTours.isNotEmpty) tabs.add('map');
+            if (k.diagrams.isNotEmpty) tabs.add('diagram');
             final activeTab = tabs.contains(_tab) ? _tab : 'refs';
             if (activeTab != _tab) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -134,6 +141,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
               activeTab: activeTab,
               place: k.place,
               graph: k.graph,
+              mapTours: k.mapTours,
               diagrams: k.diagrams,
             );
           },
@@ -152,6 +160,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     String activeTab = 'refs',
     GeoPlace? place,
     GraphData? graph,
+    List<MapTour> mapTours = const [],
     List<DiagramItem> diagrams = const [],
   }) {
     return Column(
@@ -249,14 +258,34 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 12),
                   child: _tabBody(
                     tab: activeTab,
                     refs: refs,
                     place: place,
                     graph: graph,
+                    mapTours: mapTours,
                     diagrams: diagrams,
                   ),
                 ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _askAssistant,
+                child: const Text('问小爱'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton(
+                onPressed: _openDictionary,
+                child: const Text('全屏查看'),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -267,59 +296,44 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     required List<String> refs,
     GeoPlace? place,
     GraphData? graph,
+    List<MapTour> mapTours = const [],
     List<DiagramItem> diagrams = const [],
   }) {
     switch (tab) {
       case 'map':
-        if (place == null) {
+        if (place == null && mapTours.isEmpty) {
           return const Text(
-            '暂无地图资料',
+            '暂无地图坐标',
             style: TextStyle(color: AppColors.inkFaint),
           );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              place.name,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-            ),
-            if ((place.type ?? '').trim().isNotEmpty) ...[
+            if (place != null) ...[
+              _GeoMiniMapPreview(place: place),
               const SizedBox(height: 6),
-              Text(
-                _placeTypeLabel(place.type!),
-                style: const TextStyle(fontSize: 13, color: AppColors.inkSoft),
+              const Text(
+                '示意地图 · 非精确地理',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: AppColors.inkFaint),
               ),
             ],
-            if ((place.modernName ?? '').trim().isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                '今称：${place.modernName!.trim()}',
-                style: const TextStyle(height: 1.55, color: AppColors.inkSoft),
-              ),
-            ],
-            const SizedBox(height: 12),
-            _GeoMiniMapPreview(place: place),
-            const SizedBox(height: 6),
-            const Text(
-              '示意地图 · 非精确地理',
-              style: TextStyle(fontSize: 11, color: AppColors.inkFaint),
-            ),
-            if (place.refs.isNotEmpty) ...[
+            if (mapTours.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final r in place.refs.take(12))
-                    ActionChip(
-                      label: Text(r, style: const TextStyle(fontSize: 12)),
-                      backgroundColor: AppColors.goldWash,
-                      side: BorderSide.none,
-                      onPressed: () => _openRefPreview(context, r),
-                    ),
-                ],
+              const Text(
+                '所属路线',
+                style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
               ),
+              for (final tour in mapTours)
+                TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.only(top: 4, bottom: 4),
+                    alignment: Alignment.centerLeft,
+                  ),
+                  onPressed: () => context.push('/search/map/${tour.id}'),
+                  child: Text('${tour.title} ›'),
+                ),
             ],
           ],
         );
@@ -379,7 +393,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                 ),
           ],
         );
-      case 'diagrams':
+      case 'diagram':
         if (diagrams.isEmpty) {
           return const Text(
             '暂无图鉴',
@@ -390,7 +404,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final d in diagrams)
+            for (final d in diagrams.take(1))
               Padding(
                 padding: const EdgeInsets.only(bottom: 14),
                 child: Column(
@@ -458,7 +472,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
           children: [
             for (final r in refs.take(16))
               ActionChip(
-                label: Text(r, style: const TextStyle(fontSize: 12)),
+                label: Text(
+                  formatGroupRefLabel(r),
+                  style: const TextStyle(fontSize: 12),
+                ),
                 backgroundColor: AppColors.goldWash,
                 side: BorderSide.none,
                 onPressed: () => _openRefPreview(context, r),
@@ -474,7 +491,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
         return '地点';
       case 'graph':
         return '关系';
-      case 'diagrams':
+      case 'diagram':
         return '图鉴';
       default:
         return '经节';
@@ -487,21 +504,6 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     final peerId =
         edge.peerId ?? (edge.from == _entity.id ? edge.to : edge.from);
     return nodeNames[peerId] ?? peerId;
-  }
-
-  String _placeTypeLabel(String type) {
-    switch (type.toLowerCase()) {
-      case 'city':
-        return '城邑';
-      case 'region':
-        return '地区';
-      case 'mountain':
-        return '山地';
-      case 'river':
-        return '河流';
-      default:
-        return type;
-    }
   }
 
   String _senseLabel(DictEntity e) {
@@ -527,6 +529,27 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
       bookId: target.book,
       chapter: target.chapter,
     );
+  }
+
+  void _askAssistant() {
+    final refStr = _entity.refs.isNotEmpty ? _entity.refs.first : 'GEN.1.1';
+    final type = switch (_entity.type) {
+      'person' => '人物',
+      'place' => '地点',
+      _ => '词条',
+    };
+    ref.read(assistantSeedProvider.notifier).open(
+      ref: refStr,
+      question: '请介绍圣经中的$type「${_entity.name}」，包括其在经文中的主要角色与意义。',
+    );
+    Navigator.of(context).pop();
+    ref.read(navIndexProvider.notifier).set(2);
+  }
+
+  void _openDictionary() {
+    final router = GoRouter.of(context);
+    Navigator.of(context).pop();
+    router.push('/dictionary');
   }
 }
 
