@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../app/app_shell.dart'
-    show navIndexProvider, peiaiTabBarOverlayExtent, readerImmersiveProvider;
+    show navIndexProvider, readerImmersiveProvider;
 import '../../core/badge_stats.dart';
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/config.dart';
@@ -301,11 +301,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                 ),
               ],
             ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        // 对齐 PWA：点按切换 chrome，无 idle 自动藏；目录态不藏栏。
-        onTap: _book == null || _catalogOverlay ? null : _toggleChrome,
-        child: booksAsync.when(
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            // 对齐 PWA：点按切换 chrome，无 idle 自动藏；目录态不藏栏。
+            onTap: _book == null || _catalogOverlay ? null : _toggleChrome,
+            child: booksAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => _ErrorView(
             message: '$e',
@@ -452,19 +455,29 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             );
           },
         ),
+          ),
+          // 不用 Scaffold.floatingActionButton：父壳 extendBody 下会沉到胶囊底栏下。
+          if (_book != null &&
+              !_catalogOverlay &&
+              !_chromeHidden &&
+              !_hasSelection &&
+              ref.watch(readingModeProvider) != ReadingMode.focus)
+            Positioned(
+              right: 16,
+              bottom: _readerFabBottomInset(context),
+              child: _readerFab(),
+            ),
+        ],
       ),
-      // 全屏 / 专注 / 选中经文时隐藏打卡与小爱（对齐 PWA hasSel）。
-      floatingActionButton:
-          (_book == null ||
-              _catalogOverlay ||
-              _chromeHidden ||
-              _hasSelection ||
-              ref.watch(readingModeProvider) == ReadingMode.focus)
-          ? null
-          : _readerFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
     );
+  }
+
+  /// 对齐 AppShell 胶囊底栏真实高度：56 + 12 + safe + 8 呼吸。
+  double _readerFabBottomInset(BuildContext context) {
+    final safe = MediaQuery.viewPaddingOf(context).bottom;
+    const inner = 56.0;
+    const floatGap = 12.0;
+    return inner + floatGap + safe + 8;
   }
 
   /// ⋮ 直接打开阅读设置（可下滑/点遮罩关闭）；打卡走独立 FAB。
@@ -508,92 +521,60 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 
   Widget _readerFab() {
-    // 对齐 PWA：bottom = tabbar-h + 8；tabbar-h 已含 safe-bottom。
-    final bottom = peiaiTabBarOverlayExtent(context, includeSafe: true) + 8;
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottom, right: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (_planMeta != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Material(
-                color: AppColors.paper,
-                elevation: 1.5,
-                shape: StadiumBorder(
-                  side: BorderSide(color: AppColors.line),
-                ),
-                child: InkWell(
-                  customBorder: const StadiumBorder(),
-                  onTap: () {
-                    _revealChrome();
-                    setState(() => _planMeta = null);
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    child: Text(
-                      '退出计划',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.inkSoft,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          // 打卡在小爱上方，窄于小爱胶囊（对齐 PWA reader-fab-sm）
+    // bottom 由外层 Positioned(_readerFabBottomInset) 负责，避免被五 Tab 遮挡。
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (_planMeta != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: Tooltip(
-              message: '打卡到共读群',
-              child: Material(
-                color: const Color(0xFF4A6B52),
-                elevation: 1.5,
-                shape: const StadiumBorder(),
-                child: InkWell(
-                  customBorder: const StadiumBorder(),
-                  onTap: _openCheckin,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    child: Text(
-                      '打卡',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        height: 1,
-                      ),
+            child: Material(
+              color: AppColors.paper,
+              elevation: 1.5,
+              shape: StadiumBorder(
+                side: BorderSide(color: AppColors.line),
+              ),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: () {
+                  _revealChrome();
+                  setState(() => _planMeta = null);
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Text(
+                    '退出计划',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.inkSoft,
+                      height: 1,
                     ),
                   ),
                 ),
               ),
             ),
           ),
-          Tooltip(
-            message: '问小爱',
+        // 打卡在小爱上方，窄于小爱胶囊（对齐 PWA reader-fab-sm）
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Tooltip(
+            message: '打卡到共读群',
             child: Material(
-              color: AppColors.accentDeep,
-              elevation: 3,
+              color: const Color(0xFF4A6B52),
+              elevation: 1.5,
               shape: const StadiumBorder(),
               child: InkWell(
                 customBorder: const StadiumBorder(),
-                onTap: () {
-                  peiaiHapticLight(context);
-                  _onOpenOverlay();
-                  _openXiaoAiSheet(context);
-                },
+                onTap: _openCheckin,
                 child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   child: Text(
-                    '✦ 小爱',
+                    '打卡',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       height: 1,
                     ),
@@ -602,8 +583,36 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        Tooltip(
+          message: '问小爱',
+          child: Material(
+            color: AppColors.accentDeep,
+            elevation: 3,
+            shape: const StadiumBorder(),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: () {
+                peiaiHapticLight(context);
+                _onOpenOverlay();
+                _openXiaoAiSheet(context);
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                child: Text(
+                  '✦ 小爱',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
