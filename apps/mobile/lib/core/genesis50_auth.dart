@@ -205,13 +205,53 @@ String buildGenesis50FallbackUrl(String href, String code) {
   return u.replace(queryParameters: q).toString();
 }
 
+/// 已带 session query 时跳过重复鉴权（H5 桥二次打开等）。
+bool genesis50UrlHasSession(String href) {
+  try {
+    final q = Uri.parse(normalizeGenesis50Href(href)).queryParameters;
+    return (q['access_token'] ?? '').isNotEmpty &&
+        (q['refresh_token'] ?? '').isNotEmpty;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Supabase Web 本地会话键（对方站 project ref）。
+const genesis50AuthStorageKey = 'sb-ytiwfmufekvxdgyaokae-auth-token';
+
+/// 从已鉴权 URL 抽出 session，供 WebView 写入 localStorage 兜底。
+Map<String, dynamic>? genesis50SessionPayloadFromUrl(String href) {
+  try {
+    final q = Uri.parse(normalizeGenesis50Href(href)).queryParameters;
+    final access = (q['access_token'] ?? '').trim();
+    final refresh = (q['refresh_token'] ?? '').trim();
+    if (access.isEmpty || refresh.isEmpty) return null;
+    final expiresIn = int.tryParse(q['expires_in'] ?? '') ?? 3600;
+    final expiresAt =
+        int.tryParse(q['expires_at'] ?? '') ??
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000 + expiresIn);
+    return {
+      'access_token': access,
+      'refresh_token': refresh,
+      'expires_in': expiresIn,
+      'expires_at': expiresAt,
+      'token_type': (q['token_type'] ?? 'bearer').trim().isEmpty
+          ? 'bearer'
+          : (q['token_type'] ?? 'bearer'),
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
 /// 解析可打开的创世记 50 URL：优先带 session，失败则带邀请码兜底。
 Future<String> resolveGenesis50OpenUrl(
   String href, {
   String nickname = '同行者',
 }) async {
-  final code = resolveGenesis50InviteCode(href);
   final fallback = normalizeGenesis50Href(href);
+  if (genesis50UrlHasSession(fallback)) return fallback;
+  final code = resolveGenesis50InviteCode(href);
   try {
     final session = await obtainGenesis50Session(code, nickname: nickname);
     return buildGenesis50AuthedUrl(fallback, session);

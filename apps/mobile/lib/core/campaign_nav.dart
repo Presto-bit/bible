@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -125,11 +126,15 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   var _loading = true;
   var _authPhase = false;
   String? _error;
+  String _activeUrl = '';
   Timer? _loadWatchdog;
+  Timer? _inviteSkipProbe;
+  var _hydrateAttempts = 0;
 
   @override
   void initState() {
     super.initState();
+    _activeUrl = widget.url;
     if (widget.genesis50) {
       _authPhase = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _openGenesis50());
@@ -141,6 +146,7 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   @override
   void dispose() {
     _loadWatchdog?.cancel();
+    _inviteSkipProbe?.cancel();
     super.dispose();
   }
 
@@ -170,8 +176,14 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
 
   void _armLoadWatchdog() {
     _loadWatchdog?.cancel();
-    _loadWatchdog = Timer(const Duration(seconds: 18), () {
+    // 创世记 SPA 首屏慢时不要盖死 WebView，只揭开 loading。
+    final softOnly = widget.genesis50;
+    _loadWatchdog = Timer(Duration(seconds: softOnly ? 28 : 18), () {
       if (!mounted || !_loading || _error != null) return;
+      if (softOnly) {
+        setState(() => _loading = false);
+        return;
+      }
       setState(() {
         _loading = false;
         _error = '页面打开较慢，请检查网络后重试';
@@ -179,7 +191,65 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
     });
   }
 
+  /// 对方站若未及时读到 query session，把 token 写入 localStorage 并离开邀请码页。
+  Future<void> _hydrateGenesis50Session(WebViewController controller) async {
+    if (!widget.genesis50) return;
+    if (_hydrateAttempts >= 2) return;
+    final payload = genesis50SessionPayloadFromUrl(_activeUrl);
+    if (payload == null) return;
+    _hydrateAttempts += 1;
+    final json = jsonEncode(payload);
+    final key = genesis50AuthStorageKey;
+    final allowReload = _hydrateAttempts <= 1;
+    try {
+      await controller.runJavaScript('''
+(function(){
+  try {
+    var session = $json;
+    var key = ${jsonEncode(key)};
+    localStorage.setItem(key, JSON.stringify(session));
+    var body = (document.body && (document.body.innerText || '')) || '';
+    var onInvite = /邀请码/.test(body);
+    var qs = location.search || '';
+    var hasToken = /access_token=/.test(qs);
+    if ($allowReload && (onInvite || hasToken)) {
+      history.replaceState(null, '', location.pathname + (location.hash || ''));
+      location.reload();
+    }
+  } catch (e) {}
+})();
+''');
+    } catch (e) {
+      if (kDebugMode) debugPrint('genesis50 hydrate: $e');
+    }
+  }
+
+  void _scheduleInviteSkipProbe(WebViewController controller) {
+    if (!widget.genesis50) return;
+    _inviteSkipProbe?.cancel();
+    // SPA hydrate 后若仍停在邀请码页，再补一次 session。
+    _inviteSkipProbe = Timer(const Duration(milliseconds: 1600), () async {
+      if (!mounted || _controller != controller) return;
+      try {
+        final raw = await controller.runJavaScriptReturningResult('''
+(function(){
+  try {
+    var body = (document.body && (document.body.innerText || '')) || '';
+    return /邀请码进入|请输入点长/.test(body) ? 'invite' : 'ok';
+  } catch (e) { return 'ok'; }
+})();
+''');
+        final status = '$raw'.replaceAll('"', '');
+        if (status.contains('invite') && _hydrateAttempts < 2) {
+          await _hydrateGenesis50Session(controller);
+        }
+      } catch (_) {}
+    });
+  }
+
   Future<void> _startWebView(String url) async {
+    _activeUrl = url;
+    _hydrateAttempts = 0;
     final controller = WebViewController();
     await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
     await controller.setBackgroundColor(AppColors.paper);
@@ -198,6 +268,10 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
           _loadWatchdog?.cancel();
           if (!mounted) return;
           setState(() => _loading = false);
+          if (widget.genesis50) {
+            await _hydrateGenesis50Session(controller);
+            _scheduleInviteSkipProbe(controller);
+          }
         },
         onWebResourceError: (err) {
           if (!(err.isForMainFrame ?? true)) return;
@@ -231,6 +305,9 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
       } catch (e) {
         if (kDebugMode) debugPrint('external webview cookies: $e');
       }
+      try {
+        await platform.setMediaPlaybackRequiresUserGesture(false);
+      } catch (_) {}
       // 去掉 `; wv` 标记，降低被部分站点当成内嵌壳直接空页的概率
       try {
         final ua = await controller.getUserAgent();
@@ -303,9 +380,9 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
               ),
             )
           else if (_authPhase || _loading)
-            const ColoredBox(
-              color: AppColors.paper,
-              child: Center(
+            ColoredBox(
+              color: AppColors.paper.withValues(alpha: _controller == null ? 1 : 0.92),
+              child: const Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
