@@ -256,6 +256,16 @@ html.android-flutter-h5 .install-banner {
   display: none !important;
 }
 
+/* 加好友 / 建群：聚焦时输入行不被键盘挡住 */
+html.android-flutter-h5 .h5-form-page {
+  scroll-padding-bottom: 128px;
+  padding-bottom: 24px;
+}
+html.android-flutter-h5 .h5-form-page input,
+html.android-flutter-h5 .h5-form-page textarea {
+  scroll-margin-bottom: 96px;
+}
+
 /* Flutter 键盘：与 H5 壳高策略一致，勿再用 inset 抬输入栏 */
 html.android-flutter-h5 body.android-flutter-kb .im-composer-bar,
 html.android-flutter-h5 body.im-keyboard .im-composer-bar {

@@ -191,6 +191,30 @@ export function peiaiOpenNativeAssistant(opts: {
   });
 }
 
+/**
+ * 返回目标若是 Flutter 原生面（首页 / 我的 / 读经回顾等），关 H5 壳，勿在 WebView 里再开一套。
+ * `/profile/settings` 等二级仍留在 H5。
+ */
+export function isFlutterNativeBackHref(href?: string | null): boolean {
+  if (href == null || href === '') return true;
+  const path = href.split('?')[0] || '/';
+  if (path === '/' || path === '/home') return true;
+  if (path === '/profile' || path === '/me') return true;
+  if (path === '/report') return true;
+  if (path === '/reader' || path === '/bible') return true;
+  if (path === '/assistant' || path === '/ai') return true;
+  if (path === '/notes') return true;
+  if (path === '/search') return true;
+  return false;
+}
+
+/** Flutter 宿主且 href 指向原生面时关壳；成功则返回 true。 */
+export function leaveFlutterH5IfNativeHref(href?: string | null): boolean {
+  if (!isFlutterH5Host()) return false;
+  if (!isFlutterNativeBackHref(href)) return false;
+  return peiaiOpenNative({ type: 'close_h5' });
+}
+
 export function peiaiOpenNative(payload: PeiaiNativePayload): boolean {
   if (typeof window === 'undefined') return false;
   try {

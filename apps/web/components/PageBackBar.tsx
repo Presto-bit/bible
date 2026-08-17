@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { MouseEvent } from 'react';
+import { leaveFlutterH5IfNativeHref } from '@/lib/flutter_h5_bridge';
 
 export type PageBackBarProps = {
   href?: string;
@@ -42,7 +43,16 @@ export default function PageBackBar({
 
   if (href) {
     return (
-      <Link href={href} className={cls} aria-label={a11y} onClick={onClick}>
+      <Link
+        href={href}
+        className={cls}
+        aria-label={a11y}
+        onClick={(e) => {
+          onClick?.(e);
+          if (e.defaultPrevented) return;
+          if (leaveFlutterH5IfNativeHref(href)) e.preventDefault();
+        }}
+      >
         <BackContent label={label} />
       </Link>
     );

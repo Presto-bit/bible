@@ -749,11 +749,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         );
                       }(),
                     ),
-                    onReport: () {
-                      if (!openH5IfAllowed(context, '/report')) {
-                        context.push('/report');
-                      }
-                    },
+                    onReport: () => context.push('/report'),
                     onPlan: planOnTap ?? () => context.push('/plans'),
                     onTheme: () => context.push('/search'),
                     onPrayer: () => openH5IfAllowed(context, '/pray'),

@@ -152,7 +152,7 @@ export function ImImageLightbox({
         const dx = e.clientX - swipe.x;
         const dy = e.clientY - swipe.y;
         const dt = Date.now() - swipe.t;
-        if (dt < 500 && Math.abs(dy) > 80 && Math.abs(dy) > Math.abs(dx) * 1.2) {
+        if (dt < 500 && dy > 80 && dy > Math.abs(dx) * 1.2) {
           requestClose();
           return;
         }

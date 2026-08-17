@@ -65,6 +65,11 @@ class DeepLink {
       return _h5(uri.replace(path: path));
     }
 
+    // 读经回顾：安卓走 Flutter 原生，勿嵌 H5
+    if (path == '/report' || path.startsWith('/report/')) {
+      return uri.hasQuery ? '$path?${uri.query}' : path;
+    }
+
     // 白名单 H5（IM / 活动 / 协议 / 设置 / 祷告）
     if (H5Whitelist.allows(path)) {
       return _h5(uri.replace(path: path));
@@ -96,6 +101,7 @@ class DeepLink {
       '/challenge/ai',
       '/dictionary',
       '/search',
+      '/report',
       '/wrapped',
       '/knowledge-bases',
       '/profile/appearance',

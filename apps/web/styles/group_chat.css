@@ -3589,6 +3589,9 @@ body.im-keyboard .group-prayer-banner {
   transition:transform .05s linear;
   pointer-events:auto;
 }
+html.android-flutter-h5 .im-lightbox-img {
+  max-height: 100%;
+}
 .im-lightbox-broken{
   color:#fff;
   text-align:center;

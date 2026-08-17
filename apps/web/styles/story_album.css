@@ -137,6 +137,29 @@ html.story-album-lock .app-body {
   width: 100% !important;
   overflow: hidden !important;
 }
+/* Flutter 嵌层：100dvh 是设备全高，改贴宿主像素高度 */
+html.android-flutter-h5.story-album-lock,
+html.android-flutter-h5.story-album-lock body {
+  height: var(--peiai-vv-h, 100%) !important;
+  min-height: var(--peiai-vv-h, 100%) !important;
+  overflow: hidden !important;
+}
+html.android-flutter-h5.story-album-lock .app-body {
+  height: var(--peiai-vv-h, 100%) !important;
+  max-height: var(--peiai-vv-h, 100%) !important;
+  min-height: var(--peiai-vv-h, 100%) !important;
+}
+html.android-flutter-h5 .story-album-player {
+  height: var(--peiai-vv-h, 100%) !important;
+  max-height: var(--peiai-vv-h, 100%) !important;
+}
+html.android-flutter-h5 .story-album-player-bar,
+html.android-flutter-h5 .story-album-progress-bar {
+  touch-action: manipulation;
+}
+html.android-flutter-h5 .story-album-stage {
+  touch-action: pan-x;
+}
 html.story-album-lock .tabbar,
 html.story-album-lock .tabbar-compact-nav {
   display: none !important;

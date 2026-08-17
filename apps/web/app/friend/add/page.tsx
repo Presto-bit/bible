@@ -12,6 +12,7 @@ import {
   getUserName,
   isUserCode,
 } from '@/lib/api';
+import { leaveFlutterH5IfNativeHref } from '@/lib/flutter_h5_bridge';
 import { needsSelfSetDisplayName } from '@/lib/system_username';
 
 export default function AddFriendPage() {
@@ -114,7 +115,7 @@ export default function AddFriendPage() {
   };
 
   return (
-    <main className="container add-friend-page">
+    <main className="container add-friend-page h5-form-page">
       <header className="page-head">
         <PageBackBar href="/discover" label="发现" />
         <h2 className="page-head-title">加好友</h2>
@@ -129,7 +130,9 @@ export default function AddFriendPage() {
             type="button"
             className="text-link"
             style={{ marginLeft: 6 }}
-            onClick={() => router.push('/profile')}
+            onClick={() => {
+              if (!leaveFlutterH5IfNativeHref('/profile')) router.push('/profile');
+            }}
           >
             去设置
           </button>
@@ -140,6 +143,7 @@ export default function AddFriendPage() {
         placeholder="用户 ID 或用户名"
         value={handle}
         onChange={(e) => setHandle(e.target.value)}
+        onFocus={(e) => e.currentTarget.scrollIntoView({ block: 'center', behavior: 'smooth' })}
         onKeyDown={(e) => e.key === 'Enter' && void submit()}
       />
       <textarea
@@ -148,6 +152,7 @@ export default function AddFriendPage() {
         placeholder="申请附言（可选）"
         value={note}
         onChange={(e) => setNote(e.target.value)}
+        onFocus={(e) => e.currentTarget.scrollIntoView({ block: 'center', behavior: 'smooth' })}
         style={{ marginTop: 12 }}
       />
       <button

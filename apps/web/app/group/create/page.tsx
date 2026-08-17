@@ -55,18 +55,25 @@ export default function CreateGroupPage() {
   };
 
   return (
-    <main className="container">
+    <main className="container h5-form-page">
       <header className="page-head">
         <PageBackBar href="/discover" label="发现" />
         <h2 className="page-head-title">建群</h2>
       </header>
-      <input className="search-input" placeholder="群名称" value={name} onChange={(e) => setName(e.target.value)} />
+      <input
+        className="search-input"
+        placeholder="群名称"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onFocus={(e) => e.currentTarget.scrollIntoView({ block: 'center', behavior: 'smooth' })}
+      />
       <input
         className="search-input"
         style={{ marginTop: 10 }}
         placeholder="群简介（可选）"
         value={intro}
         onChange={(e) => setIntro(e.target.value)}
+        onFocus={(e) => e.currentTarget.scrollIntoView({ block: 'center', behavior: 'smooth' })}
       />
       <p className="muted" style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>
         {GROUP_INACTIVE_NOTICE}

@@ -10,6 +10,7 @@ import { CampaignLandingBlocks } from '@/components/campaigns/CampaignLandingBlo
 import { ensureLandingBlocks, normalizeBlocks } from '@/lib/campaign_blocks';
 import { resolveCampaignCoverUrl } from '@/lib/daily_verse_wallpaper';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { isFlutterH5Host, leaveFlutterH5IfNativeHref, peiaiOpenNative } from '@/lib/flutter_h5_bridge';
 
 export default function CampaignViewInner() {
   const params = useParams();
@@ -265,10 +266,25 @@ export default function CampaignViewInner() {
             正文不会向非成员展示。请登录后确认你已加入对应共读群，或联系群主邀请。
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link href="/discover" className="btn btn-primary">
+            <Link
+              href="/discover"
+              className="btn btn-primary"
+              onClick={(e) => {
+                if (!isFlutterH5Host()) return;
+                e.preventDefault();
+                peiaiOpenNative({ type: 'open_path', path: '/discover' });
+                peiaiOpenNative({ type: 'close_h5' });
+              }}
+            >
               去发现找群
             </Link>
-            <Link href="/" className="btn">
+            <Link
+              href="/"
+              className="btn"
+              onClick={(e) => {
+                if (leaveFlutterH5IfNativeHref('/')) e.preventDefault();
+              }}
+            >
               回首页
             </Link>
           </div>
@@ -281,7 +297,14 @@ export default function CampaignViewInner() {
     return (
       <main className="container">
         <p style={{ color: 'var(--danger, #b00)' }}>{err}</p>
-        <Link href="/">回首页</Link>
+        <Link
+          href="/"
+          onClick={(e) => {
+            if (leaveFlutterH5IfNativeHref('/')) e.preventDefault();
+          }}
+        >
+          回首页
+        </Link>
       </main>
     );
   }
@@ -637,7 +660,13 @@ export default function CampaignViewInner() {
           {camp.liked ? '已赞' : '点赞'} · {camp.likesCount || 0}
         </button>
       ) : null}
-      <Link href="/" className="btn">
+      <Link
+        href="/"
+        className="btn"
+        onClick={(e) => {
+          if (leaveFlutterH5IfNativeHref('/')) e.preventDefault();
+        }}
+      >
         回首页
       </Link>
     </div>
