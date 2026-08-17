@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { isFlutterH5Host, peiaiOpenNative } from '@/lib/flutter_h5_bridge';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 type EdgeSwipeBackOptions = {
@@ -45,6 +46,11 @@ export function useEdgeSwipeBack({
     if (!enabled) return;
 
     const goBack = () => {
+      // Flutter 壳内二级 H5（如祷告）返回首页 = 关壳，避免 WebView 内再加载首页白闪
+      if (isFlutterH5Host() && (href === '/' || href === '')) {
+        peiaiOpenNative({ type: 'close_h5' });
+        return;
+      }
       if (preferHistoryBack && typeof window !== 'undefined' && window.history.length > 1) {
         router.back();
         return;

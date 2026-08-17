@@ -76,6 +76,17 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   double? _baselineHostH;
   Timer? _viewportMetricsDebounce;
 
+  /// 祷告页表面色（对齐 `apps/web/styles/pray.css` / PraySession `PRAY_SURFACE`）
+  static const _praySurface = Color(0xFFF3EBE3);
+
+  bool get _isPraySurface {
+    final p = _activePath.split('?').first;
+    return p == '/pray' || p.startsWith('/pray/');
+  }
+
+  Color _surfaceBg(AppThemeId themeId) =>
+      _isPraySurface ? _praySurface : peiaiPaperFor(themeId);
+
   @override
   void initState() {
     super.initState();
@@ -345,7 +356,8 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final controller = WebViewController();
     controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(peiaiPaperFor(themeId))
+      // 祷告：立刻铺上 #f3ebe3，避免冷启 WebView 白底跳闪（对齐 PWA 同色表面）
+      ..setBackgroundColor(_surfaceBg(themeId))
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (url) {
@@ -496,6 +508,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       _loading = true;
       _error = null;
     });
+    try {
+      await c.setBackgroundColor(_surfaceBg(themeId));
+    } catch (_) {}
     await c.loadRequest(uri);
   }
 
@@ -602,6 +617,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final dark = themeId == AppThemeId.dark;
     final tokenJs = token != null && token.isNotEmpty ? _jsStr(token) : 'null';
     final top = widget.showAppBar ? 0.0 : MediaQuery.paddingOf(context).top;
+    final pray = _isPraySurface;
     await c.runJavaScript('''
 (function(){
   try {
@@ -617,6 +633,25 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     root.style.setProperty('--shell-inset-top', '${top.toStringAsFixed(1)}px');
     ${_tabBarCssJs()}
     $_readingHydrateJs
+    // 祷告：SPA hydrate 前先铺表面色，去掉「白屏一瞬」
+    if ($pray) {
+      root.classList.add('pray-session-open');
+      if (body) {
+        body.classList.add('pray-session-open');
+        body.style.background = '#f3ebe3';
+        body.style.overflow = 'hidden';
+      }
+      root.style.background = '#f3ebe3';
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', '#f3ebe3');
+      var style = document.getElementById('peiai-pray-boot');
+      if (!style) {
+        style = document.createElement('style');
+        style.id = 'peiai-pray-boot';
+        (document.head || document.documentElement).appendChild(style);
+      }
+      style.textContent = 'html,body,#root{background:#f3ebe3!important;min-height:100%}';
+    }
   } catch (e) {}
 })();
 ''');
@@ -941,8 +976,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     }
 
     final themeId = ref.watch(appThemeProvider);
-    final bg = peiaiPaperFor(themeId);
+    final bg = _surfaceBg(themeId);
     final inkFaint = context.peiaiInkFaint;
+    final praySurface = _isPraySurface;
 
     final isOfflineBanner = widget.forceOffline;
     final showErrorPane = _error != null && _controller == null;
@@ -952,21 +988,24 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       children: [
         ColoredBox(color: bg),
         if (_controller != null) WebViewWidget(controller: _controller!),
+        // 祷告：首屏只用同色底，不放转圈（对齐 PWA 即时表面，避免跳闪空白感）
         if (_loading && !_hadFirstPaint)
           ColoredBox(
             color: bg,
-            child: Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.8,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.45),
-                ),
-              ),
-            ),
+            child: praySurface
+                ? const SizedBox.expand()
+                : Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.8,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.45),
+                      ),
+                    ),
+                  ),
           )
         else if (_loading)
           Positioned(

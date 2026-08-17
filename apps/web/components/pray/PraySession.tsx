@@ -14,6 +14,7 @@ import { logPrayer } from '@/lib/reading';
 import { useToast } from '@/components/ui/ToastProvider';
 import { applyAppTheme } from '@/lib/app_theme';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { isFlutterH5Host, peiaiOpenNative } from '@/lib/flutter_h5_bridge';
 
 const PRAY_SURFACE = '#f3ebe3';
 
@@ -157,6 +158,10 @@ export default function PraySession() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         audioRef.current?.pause();
+        if (isFlutterH5Host()) {
+          peiaiOpenNative({ type: 'close_h5' });
+          return;
+        }
         router.push('/');
         return;
       }
@@ -207,6 +212,11 @@ export default function PraySession() {
 
   const leave = useCallback(() => {
     audioRef.current?.pause();
+    // 安卓 Flutter 壳：关 H5 页，勿在 WebView 内跳首页（会白屏闪一下）
+    if (isFlutterH5Host()) {
+      peiaiOpenNative({ type: 'close_h5' });
+      return;
+    }
     router.push('/');
   }, [router]);
 
@@ -227,7 +237,14 @@ export default function PraySession() {
     else goTo(stepIndex - 1);
   };
 
-  if (!mounted) return null;
+  if (!mounted) {
+    if (typeof document === 'undefined') return null;
+    // hydrate 前先铺同色壳，避免 #root 空窗白闪（PWA / Flutter 一致）
+    return createPortal(
+      <div className="pray-session" style={{ background: PRAY_SURFACE }} aria-hidden />,
+      document.body,
+    );
+  }
 
   return createPortal(
     <div
