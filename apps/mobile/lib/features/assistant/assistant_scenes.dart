@@ -11,6 +11,7 @@ enum AssistantScene {
   chatPreach('chat_preach', 'preach', 120000),
   chatCompare('chat_compare', 'compare', 90000),
   chatOriginal('chat_original', 'original', 90000),
+  chatGeneral('chat_general', 'explain', 90000),
   chatViewpoints('chat_viewpoints', 'explain', 90000),
   summaryChapter('summary_chapter', 'explain', 60000),
   summaryBook('summary_book', 'explain', 60000);
@@ -74,6 +75,26 @@ const _viewpointsTopicHints = [
 
 final _viewpointsToneRe = RegExp(r'怎么看|怎么说|如何理解|哪[个种]|还是|争议|分歧|看法|观点');
 
+/// 无经文锚点时降级为 `chat_general`（对齐 PWA / 后端 `REF_BOUND_SCENES`）。
+const _refBoundScenes = <AssistantScene>{
+  AssistantScene.verseQuick,
+  AssistantScene.verseFull,
+  AssistantScene.chatExplain,
+  AssistantScene.chatUnderstand,
+  AssistantScene.chatApply,
+  AssistantScene.chatStudy,
+  AssistantScene.chatPreach,
+  AssistantScene.chatCompare,
+  AssistantScene.chatOriginal,
+};
+
+/// 仅首轮 API 请求传递经文锚点（history 为空时）。对齐 PWA `refForChatTurn`。
+String? refForChatTurn(String? anchorRef, int historyLength) {
+  if (historyLength > 0) return null;
+  final r = (anchorRef ?? '').trim();
+  return r.isEmpty ? null : r;
+}
+
 /// 检测用户是否显式要求「并列观点 / 争议题」作答。
 bool detectsViewpointsIntent(String question) {
   final q = question.trim();
@@ -87,12 +108,26 @@ bool detectsViewpointsIntent(String question) {
   return false;
 }
 
-AssistantScene resolveScene({String? scene, String? mode}) {
-  if (scene != null) {
-    for (final s in AssistantScene.values) {
-      if (s.id == scene) return s;
-    }
+AssistantScene? _sceneById(String? id) {
+  if (id == null || id.isEmpty) return null;
+  for (final s in AssistantScene.values) {
+    if (s.id == id) return s;
   }
+  return null;
+}
+
+AssistantScene resolveScene({
+  String? scene,
+  String? mode,
+  bool hasRef = true,
+}) {
+  if (!hasRef) {
+    final named = _sceneById(scene);
+    if (named != null && !_refBoundScenes.contains(named)) return named;
+    return AssistantScene.chatGeneral;
+  }
+  final named = _sceneById(scene);
+  if (named != null) return named;
   if (mode != null && _modeToScene.containsKey(mode)) {
     return _modeToScene[mode]!;
   }
@@ -104,11 +139,10 @@ String chipUserQuestion(String label, {String? ref}) {
   if (label == '解释经文') return '请解释$anchor的原意与背景。';
   if (label == '生活应用') return '请把$anchor应用到今日生活，给出具体可行的建议。';
   if (label == '预备查经') return '请帮我预备关于$anchor的小组查经提纲。';
-  if (label == '译本对照') {
-    return '请说明$anchor在圣经原文中的整句表达与含义，并对照不同译本的措辞差异。';
-  }
-  if (label == '原文释义') {
-    return '请说明$anchor在圣经原文中的整句表达与含义，并对照不同译本的措辞差异。';
+  if (label == '译本对照' ||
+      label == '原文释义' ||
+      label == '原文（希伯来文对照解释）') {
+    return '请用白话帮助我理解$anchor：先一句话说清意思，再对比译本差异，并用一两个原文关键词说明为什么这样译，最后给简短读经提示。';
   }
   if (label == '讲道大纲') return '请为$anchor生成讲道大纲要点。';
   if (label == '并列观点') {
@@ -124,14 +158,25 @@ AssistantScene chipSceneForLabel(String label) {
     '预备查经': AssistantScene.chatStudy,
     '译本对照': AssistantScene.chatCompare,
     '原文释义': AssistantScene.chatCompare,
+    '原文（希伯来文对照解释）': AssistantScene.chatCompare,
     '讲道大纲': AssistantScene.chatPreach,
     '经文背景': AssistantScene.chatExplain,
     '应用': AssistantScene.chatApply,
     '预备讲道': AssistantScene.chatPreach,
     '并列观点': AssistantScene.chatViewpoints,
     '今日默想': AssistantScene.chatApply,
-    '信仰问答': AssistantScene.chatUnderstand,
+    '信仰问答': AssistantScene.chatGeneral,
     '坚持鼓励': AssistantScene.chatApply,
   };
   return map[label] ?? AssistantScene.chatExplain;
+}
+
+AssistantScene personalizedSceneForLabel(String label) {
+  if (label == '关键词释义') return AssistantScene.chatCompare;
+  if (label == '今日默想' || label == '生活应用' || label == '坚持鼓励') {
+    return AssistantScene.chatApply;
+  }
+  if (label == '信仰问答') return AssistantScene.chatGeneral;
+  if (label == '并列观点') return AssistantScene.chatViewpoints;
+  return AssistantScene.chatExplain;
 }

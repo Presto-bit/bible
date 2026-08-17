@@ -21,6 +21,7 @@ import '../../core/gamification.dart' show maybeNotifyBookComplete;
 import '../../core/theme.dart';
 import '../assistant/answer_text.dart';
 import '../assistant/assistant_format.dart';
+import '../assistant/assistant_reader_context.dart';
 import '../assistant/assistant_repository.dart';
 import '../assistant/assistant_scenes.dart';
 import '../assistant/assistant_seed.dart';
@@ -1075,6 +1076,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
           question: _lockedQuestion,
           mode: am.AssistantMode.explain,
           scene: _scene,
+          readerContext: buildAssistantReaderContext(ref),
         );
     _sub = stream.listen(
       (evt) {
@@ -1221,7 +1223,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
     }
   }
 
-  String get _cleanAnswer => bodyText(_answer);
+  String get _cleanAnswer =>
+      prepareAssistantDisplay(_answer, streaming: _busy);
 
   void _openCitation(am.Citation citation) {
     ref.read(badgeStatsRecorderProvider).recordCitationClick();
@@ -1415,6 +1418,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                                 ? (_busy ? '' : '暂无内容')
                                 : _cleanAnswer,
                             fontSize: 16,
+                            streaming: _busy,
                             onCitationTap: (n) {
                               final citation = _citations
                                   .where((item) => item.n == n)

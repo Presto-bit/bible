@@ -24,6 +24,7 @@ import 'assistant_chip_prompts.dart';
 import 'assistant_draft.dart';
 import 'assistant_format.dart';
 import 'assistant_personalize.dart';
+import 'assistant_reader_context.dart';
 import 'assistant_scenes.dart';
 import 'assistant_seed.dart';
 import 'assistant_repository.dart';
@@ -379,7 +380,24 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     }
 
     // 用户显式要「争议/并列」且未指定 scene 时，走并列观点模板。
-    var activeScene = scene ?? resolveScene(mode: _mode.id);
+    // 无经文锚点时 REF_BOUND scene 降为 chat_general（对齐 PWA resolveScene + refForChatTurn）。
+    final history = _turns
+        .where((t) => t.content.trim().isNotEmpty)
+        .map(
+          (t) => ChatTurn(
+            role: t.role,
+            content: t.role == 'assistant' ? bodyText(t.content) : t.content,
+          ),
+        )
+        .toList();
+    final refForApi = refForChatTurn(_anchorRef, history.length);
+    var activeScene = (scene != null && refForApi != null)
+        ? scene
+        : resolveScene(
+            scene: scene?.id,
+            mode: _mode.id,
+            hasRef: refForApi != null,
+          );
     if (scene == null && text.isNotEmpty && detectsViewpointsIntent(text)) {
       activeScene = AssistantScene.chatViewpoints;
     }
@@ -393,15 +411,6 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
     _input.clear();
     unawaited(clearComposerDraft());
-    final history = _turns
-        .where((t) => t.content.trim().isNotEmpty)
-        .map(
-          (t) => ChatTurn(
-            role: t.role,
-            content: t.role == 'assistant' ? bodyText(t.content) : t.content,
-          ),
-        )
-        .toList();
     if (text.isNotEmpty) {
       _turns.add(ChatTurn(role: 'user', content: text));
       await repo.addMessage(sid, 'user', text);
@@ -456,12 +465,13 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     Stream<ChatEvent> openStream() => ref
         .read(assistantRepoProvider)
         .chat(
-          ref: _turns.length <= 2 ? _anchorRef : null,
+          ref: refForApi,
           question: text.isEmpty ? null : text,
           mode: modeFromScene,
           scene: activeScene,
           history: history,
           knowledgeBaseId: _knowledgeBaseId,
+          readerContext: buildAssistantReaderContext(ref),
         );
 
     var receivedDelta = false;
@@ -1372,7 +1382,9 @@ class _Bubble extends ConsumerWidget {
         : (turn.followups.isNotEmpty
               ? turn.followups
               : followupsOf(turn.content));
-    final displayText = isUser ? turn.content : bodyText(turn.content);
+    final displayText = isUser
+        ? turn.content
+        : prepareAssistantDisplay(turn.content, streaming: streaming);
     final showActions = !isUser && turn.content.isNotEmpty && !streaming;
     final cites = turn.meta?.citations ?? const <Citation>[];
     return Padding(
@@ -1427,6 +1439,7 @@ class _Bubble extends ConsumerWidget {
                           ),
                         AnswerText(
                           text: displayText,
+                          streaming: streaming,
                           onCitationTap: cites.isEmpty
                               ? null
                               : (n) {

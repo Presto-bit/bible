@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import 'assistant_format.dart';
 import 'assistant_scenes.dart';
 import 'models.dart';
 
@@ -54,14 +55,17 @@ class AssistantRepository {
     String? conversationId,
     AssistantScene? scene,
     String? knowledgeBaseId,
+    Map<String, dynamic>? readerContext,
   }) async* {
-    final resolved = scene ?? resolveScene(mode: mode.id);
+    final hasRef = ref != null && ref.isNotEmpty;
+    final resolved =
+        scene ?? resolveScene(mode: mode.id, hasRef: hasRef);
     final body = <String, dynamic>{
       'mode': mode.id,
       'scene': resolved.id,
       'surface': 'mobile',
     };
-    if (ref != null && ref.isNotEmpty) body['ref'] = ref;
+    if (hasRef) body['ref'] = ref;
     if (question != null && question.isNotEmpty) body['question'] = question;
     if (conversationId != null) body['conversation_id'] = conversationId;
     if (knowledgeBaseId != null &&
@@ -69,19 +73,15 @@ class AssistantRepository {
         knowledgeBaseId != 'platform') {
       body['knowledge_base_id'] = knowledgeBaseId;
     }
+    if (readerContext != null && readerContext.isNotEmpty) {
+      body['reader_context'] = readerContext;
+    }
     if (history.isNotEmpty) {
       body['history'] = history
           .map(
             (t) => {
               'role': t.role,
-              'content': t.role == 'assistant'
-                  ? t.content.replaceAll(
-                      RegExp(
-                        r'\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])[\s\S]*$',
-                      ),
-                      '',
-                    )
-                  : t.content,
+              'content': t.role == 'assistant' ? bodyText(t.content) : t.content,
             },
           )
           .toList();

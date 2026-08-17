@@ -11,17 +11,20 @@ class AnswerText extends StatelessWidget {
     super.key,
     required this.text,
     this.fontSize = 15,
+    this.streaming = false,
     this.onCitationTap,
   });
 
   final String text;
   final double fontSize;
+  final bool streaming;
   final void Function(int n)? onCitationTap;
 
   static final _labelRe = RegExp(r'^【([^】]+)】\s*(.*)$');
   static final _headingRe = RegExp(r'^#{1,4}\s+(.*)$');
   static final _bulletRe = RegExp(r'^\s*[-•·]\s+(.*)$');
-  static final _numberedRe = RegExp(r'^\s*\d+[.、)]\s+(.*)$');
+  static final _numberedRe = RegExp(r'^\s*(\d+)[.、)）]\s+(.*)$');
+  static final _circledRe = RegExp(r'^\s*([①②③④⑤⑥⑦⑧⑨⑩])[、.)）]?\s*(.*)$');
   static final _quoteRe = RegExp(r'^>\s?(.*)$');
   static final _boldRe = RegExp(r'\*\*([^*]+)\*\*');
   /// ［n］|【n】|（n）|[n] 脚标（n 为 1–2 位数字）
@@ -100,6 +103,11 @@ class AnswerText extends StatelessWidget {
   Widget build(BuildContext context) {
     final base = TextStyle(
         fontSize: fontSize, height: 1.78, color: AppColors.ink);
+    if (streaming) {
+      return RichText(
+        text: TextSpan(style: base, children: _inline(text, base)),
+      );
+    }
     final lines = text.split('\n');
     final widgets = <Widget>[];
 
@@ -113,6 +121,7 @@ class AnswerText extends StatelessWidget {
       final heading = _headingRe.firstMatch(line);
       final bullet = _bulletRe.firstMatch(line);
       final numbered = _numberedRe.firstMatch(line);
+      final circled = _circledRe.firstMatch(line);
       final quote = _quoteRe.firstMatch(line);
 
       if (label != null) {
@@ -154,27 +163,23 @@ class AnswerText extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   color: AppColors.accentDeep)),
         ));
-      } else if (bullet != null || numbered != null) {
-        final content = (bullet ?? numbered)!.group(1)!;
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 2, bottom: 2),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 6, right: 8, left: 2),
-                child: Container(
-                  width: 5,
-                  height: 5,
-                  decoration: const BoxDecoration(
-                      color: AppColors.accent, shape: BoxShape.circle),
-                ),
-              ),
-              Expanded(
-                child: RichText(text: TextSpan(children: _inline(content, base))),
-              ),
-            ],
-          ),
+      } else if (bullet != null) {
+        widgets.add(_listRow(
+          marker: _dotMarker(),
+          content: bullet.group(1)!,
+          base: base,
+        ));
+      } else if (numbered != null) {
+        widgets.add(_listRow(
+          marker: _indexMarker('${numbered.group(1)!}、', base),
+          content: numbered.group(2)!,
+          base: base,
+        ));
+      } else if (circled != null) {
+        widgets.add(_listRow(
+          marker: _indexMarker('${circled.group(1)!} ', base),
+          content: circled.group(2)!,
+          base: base,
         ));
       } else if (quote != null) {
         widgets.add(Container(
@@ -203,6 +208,50 @@ class AnswerText extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: widgets,
+    );
+  }
+
+  Widget _dotMarker() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, right: 8, left: 2),
+      child: Container(
+        width: 5,
+        height: 5,
+        decoration: const BoxDecoration(
+            color: AppColors.accent, shape: BoxShape.circle),
+      ),
+    );
+  }
+
+  Widget _indexMarker(String label, TextStyle base) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6, left: 2),
+      child: Text(
+        label,
+        style: base.copyWith(
+          fontWeight: FontWeight.w700,
+          color: AppColors.accentDeep,
+        ),
+      ),
+    );
+  }
+
+  Widget _listRow({
+    required Widget marker,
+    required String content,
+    required TextStyle base,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          marker,
+          Expanded(
+            child: RichText(text: TextSpan(children: _inline(content, base))),
+          ),
+        ],
+      ),
     );
   }
 }

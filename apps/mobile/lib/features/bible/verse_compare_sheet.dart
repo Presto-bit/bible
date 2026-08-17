@@ -10,6 +10,7 @@ import '../../app/app_shell.dart';
 import '../../core/theme.dart';
 import '../assistant/answer_text.dart';
 import '../assistant/assistant_format.dart';
+import '../assistant/assistant_reader_context.dart';
 import '../assistant/assistant_repository.dart';
 import '../assistant/assistant_scenes.dart';
 import '../assistant/assistant_seed.dart';
@@ -160,6 +161,7 @@ class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
           question: question,
           mode: am.AssistantMode.compare,
           scene: AssistantScene.chatCompare,
+          readerContext: buildAssistantReaderContext(ref),
         );
     _aiSub = stream.listen(
       (evt) {
@@ -209,7 +211,7 @@ class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
 
   @override
   Widget build(BuildContext context) {
-    final aiBody = bodyText(_aiText).trim();
+    final aiBody = prepareAssistantDisplay(_aiText, streaming: _aiBusy).trim();
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -324,7 +326,11 @@ class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
                         ),
                       ],
                       if (aiBody.isNotEmpty)
-                        AnswerText(text: aiBody, fontSize: 15),
+                        AnswerText(
+                          text: aiBody,
+                          fontSize: 15,
+                          streaming: _aiBusy,
+                        ),
                       if (!_aiBusy &&
                           _aiErr == null &&
                           aiBody.isEmpty &&
