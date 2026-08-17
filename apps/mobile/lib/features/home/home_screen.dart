@@ -605,7 +605,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 : '/${ev.href}';
                             if (!openH5IfAllowed(
                               context,
-                              path.split('?').first,
+                              path,
                             )) {
                               context.push(path);
                             }

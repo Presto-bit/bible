@@ -8,11 +8,10 @@ import 'package:go_router/go_router.dart';
 import '../app/app_shell.dart';
 import 'h5_bridge_channel.dart';
 
-/// 发现 Tab 内 H5 路径（IM / 帮助跳转客服等）。
+/// 发现 Tab 内 H5 路径（IM 等）。
 bool isDiscoverTabH5Path(String path) {
   final p = path.split('?').first;
   if (p == '/discover' || p.startsWith('/discover/')) return true;
-  if (p == '/help' || p == '/feedback') return true;
   return false;
 }
 

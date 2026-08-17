@@ -29,6 +29,7 @@ plugins {
     // 8.9.1 与 Gradle 9.1 兼容且镜像源更易命中
     id("com.android.application") version "8.9.1" apply false
     id("org.jetbrains.kotlin.android") version "2.1.20" apply false
+    id("com.google.gms.google-services") version "4.4.2" apply false
 }
 
 // Flutter engine 走 download.flutter.io / 本地缓存，避免误打 dl.google.com TLS 失败

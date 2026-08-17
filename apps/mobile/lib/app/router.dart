@@ -115,9 +115,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/help',
-        builder: (context, state) => const DiscoverH5RedirectPage(
-              path: '/help',
-            ),
+        builder: (context, state) => const H5HostPage(path: '/help'),
       ),
       GoRoute(
         path: '/legal',
@@ -127,9 +125,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/feedback',
-        builder: (context, state) => const DiscoverH5RedirectPage(
-              path: '/feedback',
-            ),
+        builder: (context, state) => const H5HostPage(path: '/feedback'),
       ),
       GoRoute(
         path: '/profile/licenses',

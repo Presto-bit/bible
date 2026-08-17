@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,7 @@ import 'core/deep_link.dart';
 import 'core/device_id.dart';
 import 'core/discover_h5_redirect.dart';
 import 'core/h5_bridge_channel.dart' show discoverH5PathProvider;
+import 'core/firebase_messaging_background.dart';
 import 'core/notifications.dart';
 import 'core/remote_push_service.dart';
 import 'core/session.dart';
@@ -25,6 +27,7 @@ import 'features/auth/auth_api.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   final prefs = await SharedPreferences.getInstance();
   final device = DeviceIdentity(prefs);
@@ -58,8 +61,8 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initDeepLinks();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initDeepLinks();
       unawaited(ref.read(remotePushServiceProvider).init());
     });
   }
@@ -78,7 +81,7 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
       final uri = Uri.tryParse(loc);
       final pathOnly = uri?.path ?? loc.split('?').first;
 
-      // 发现 / 帮助 / 反馈：进常驻 Tab WebView，避免叠层 /h5
+      // 发现子路径：进常驻 Tab WebView
       if (pathOnly == '/h5') {
         final h5path = uri?.queryParameters['path'] ?? '';
         if (isDiscoverTabH5Path(h5path)) {
@@ -91,9 +94,7 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
         }
       }
 
-      if (pathOnly == '/help' ||
-          pathOnly == '/feedback' ||
-          (pathOnly.startsWith('/discover/') && pathOnly != '/discover')) {
+      if (pathOnly.startsWith('/discover/') && pathOnly != '/discover') {
         ref.read(navIndexProvider.notifier).set(3);
         ref.read(discoverH5PathProvider.notifier).go(loc);
         Future.microtask(() => router.go('/'));
@@ -131,6 +132,10 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
 
     NotificationService.instance.onPayload = (payload) {
       go(DeepLink.fromPayload(payload));
+    };
+
+    ref.read(remotePushServiceProvider).onOpenFromPush = (href) {
+      go(DeepLink.fromPayload(href) ?? href);
     };
 
     final fromNotif = await NotificationService.instance.consumeLaunchPayload();

@@ -23,6 +23,7 @@ out/
 !.env.example
 !.env.production.example
 apps/web/.env.local
+apps/mobile/android/app/google-services.json
 
 deploy/deploy.env
 deploy/publish.env

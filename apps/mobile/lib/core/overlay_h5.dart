@@ -13,7 +13,9 @@ bool isOverlayH5Location(String location) {
   if (loc == '/legal' ||
       loc == '/profile/licenses' ||
       loc == '/profile/settings' ||
-      loc == '/profile/reminders') {
+      loc == '/profile/reminders' ||
+      loc == '/help' ||
+      loc == '/feedback') {
     return true;
   }
   return false;

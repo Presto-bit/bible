@@ -11,7 +11,7 @@ from ..config import get_settings
 from ..db import get_pool
 from ..time_cn import china_now
 from .digest_delivery import deliver_group_digest
-from .webpush_send import send_webpush
+from .push_send import send_push_subscription
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/push", tags=["push"])
@@ -178,7 +178,7 @@ def cron_tick(
             "body": "愿话语成为你脚前的灯 · 今日也可打开圣经读一章",
             "href": "/reader",
         }
-        if send_webpush(
+        if send_push_subscription(
             {"endpoint": endpoint, "p256dh": p256dh, "auth": auth},
             payload,
         ):

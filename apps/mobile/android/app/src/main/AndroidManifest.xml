@@ -47,6 +47,10 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- FCM 默认通知渠道（与 flutter_local_notifications im_messages 对齐） -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="im_messages" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

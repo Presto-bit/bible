@@ -5,7 +5,7 @@ import logging
 
 from ..db import get_pool
 from ..social.router import push_digest
-from .webpush_send import send_webpush
+from .push_send import send_push_subscription
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def deliver_group_digest(user_id: str, *, require_unread: bool = False) -> int:
             return 0
     sent = 0
     for r in rows:
-        if send_webpush({"endpoint": r[0], "p256dh": r[1], "auth": r[2]}, payload):
+        if send_push_subscription({"endpoint": r[0], "p256dh": r[1], "auth": r[2]}, payload):
             sent += 1
     if sent:
         logger.info("digest push user=%s unread=%s sent=%s", user_id[:8], unread, sent)

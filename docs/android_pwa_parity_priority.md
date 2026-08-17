@@ -43,7 +43,7 @@
 
 | 项 | 说明 |
 |----|------|
-| FCM 服务端投递 | 客户端 `/push/fcm-register` + 后台 digest 已就绪；需 Firebase 凭证后启用杀进程推送 |
+| FCM 服务端投递 | 客户端 FCM 已接入；服务端 `fcm_send.py` 支持 HTTP v1 / Legacy；需配置 `google-services.json` + `.env` 凭证 |
 | Shorebird 发 IM 业务 | 禁止 |
 | 原文 Strong's / 收藏 | 不在选中主条；另入口（设置或足迹） |
 | 圣经 Chrome 定稿（2026-08-15） | 点按藏栏；沉浸藏尽 FAB；左右滑换章；译本封顶 2 |

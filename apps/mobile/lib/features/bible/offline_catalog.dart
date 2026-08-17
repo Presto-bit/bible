@@ -75,6 +75,13 @@ const offlineCatalog = [
     kind: 'bundle',
   ),
   OfflineCatalogItem(
+    id: 'topics',
+    tab: 'materials',
+    name: '人生主题',
+    paths: ['content/topics/topics.json'],
+    kind: 'bundle',
+  ),
+  OfflineCatalogItem(
     id: 'plans',
     tab: 'materials',
     name: '读经计划',

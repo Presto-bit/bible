@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
 import '../../core/h5_session_bridge.dart';
+import '../../core/remote_push_service.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../core/user_storage.dart';
 import '../notes/notes_repository.dart' show dbProvider;
@@ -42,6 +43,9 @@ class AuthController extends Notifier<AuthState> {
     ref.invalidate(dbProvider);
     try {
       await ref.read(syncControllerProvider.notifier).runSync(force: true);
+    } catch (_) {}
+    try {
+      await ref.read(remotePushServiceProvider).retryPendingRegistration();
     } catch (_) {}
     _refresh();
   }

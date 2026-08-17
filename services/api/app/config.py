@@ -85,6 +85,13 @@ class Settings(BaseSettings):
     vapid_subject: str = "mailto:support@prestoai.cn"
     push_cron_secret: str = ""
 
+    # ── FCM（Android 杀进程推送）──
+    # HTTP v1：FCM_PROJECT_ID + FCM_SERVICE_ACCOUNT_JSON（推荐）
+    # Legacy：FCM_SERVER_KEY（兼容旧项目）
+    fcm_project_id: str = ""
+    fcm_service_account_json: str = ""
+    fcm_server_key: str = ""
+
     # ── 管理员（RAG 资料后台；口令必须通过环境变量配置，无弱默认）──
     admin_phone: str = ""
     admin_password: str = ""
