@@ -125,17 +125,18 @@ class SessionRepository {
     }
   }
 
-  /// 同锚点 · 中国当天续用（PRODUCT §5.3）；否则 null → 新建。
+  static const resumeWindowMs = 72 * 60 * 60 * 1000;
+
+  /// 同锚点 · 72 小时内续用（对齐 PWA findResumableSession）；否则 null → 新建。
   Future<AiSession?> findResumableSession(String? anchorRef) async {
     final key = normalizeSessionRef(anchorRef);
     if (key.isEmpty) return null;
-    final today = _chinaTodayYmd();
+    final cutoff = DateTime.now().millisecondsSinceEpoch - resumeWindowMs;
     final list = await _db.watchSessions().first;
     for (final s in list) {
       if (s.deleted) continue;
       if (normalizeSessionRef(s.anchorRef) != key) continue;
-      final day = _ymdFromMs(s.updatedAtMs);
-      if (day == today) return s;
+      if (s.updatedAtMs >= cutoff) return s;
     }
     return null;
   }
@@ -146,23 +147,6 @@ class SessionRepository {
     if (t.isEmpty) return '';
     final at = t.indexOf('@');
     return at < 0 ? t : t.substring(0, at);
-  }
-
-  static String _chinaTodayYmd() {
-    final cn = DateTime.now().toUtc().add(const Duration(hours: 8));
-    final y = cn.year.toString().padLeft(4, '0');
-    final m = cn.month.toString().padLeft(2, '0');
-    final d = cn.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
-  }
-
-  static String _ymdFromMs(int ms) {
-    final cn = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true)
-        .add(const Duration(hours: 8));
-    final y = cn.year.toString().padLeft(4, '0');
-    final m = cn.month.toString().padLeft(2, '0');
-    final d = cn.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
   }
 }
 

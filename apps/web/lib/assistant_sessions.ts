@@ -97,35 +97,25 @@ export function formatSessionUpdatedLabel(ts: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** 中国日历日 YYYY-MM-DD（与安卓 SessionRepository 一致） */
-function chinaYmdFromMs(ms: number): string {
-  const cn = new Date(ms + 8 * 60 * 60 * 1000);
-  const y = cn.getUTCFullYear();
-  const m = String(cn.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(cn.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function chinaTodayYmd(): string {
-  return chinaYmdFromMs(Date.now());
-}
+const RESUME_WINDOW_MS = 72 * 60 * 60 * 1000;
 
 /**
- * 同锚点 · 当天续用（PRODUCT §5.3；对齐安卓 findResumableSession）。
- * 跨天再进同经节 → 新建。
+ * 同锚点 · 72 小时内续用（双端一致）。
+ * 超出窗口再进同经节 → 新建。
  */
 export function findResumableSession(
   sessions: AssistantSessionRecord[],
   ref: string,
+  withinMs = RESUME_WINDOW_MS,
 ): AssistantSessionRecord | null {
   const key = normalizeSessionRef(ref);
   if (!key) return null;
-  const today = chinaTodayYmd();
+  const cutoff = Date.now() - withinMs;
   return (
     sessions.find(
       (s) =>
         normalizeSessionRef(s.ref) === key
-        && chinaYmdFromMs(s.updatedAt ?? 0) === today
+        && (s.updatedAt ?? 0) >= cutoff
         && hasUserMessages(s.msgs),
     ) ?? null
   );

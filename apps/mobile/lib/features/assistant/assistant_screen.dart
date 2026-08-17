@@ -153,7 +153,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       _lastMeta = null;
     });
 
-    // 同日同锚点续用
+    // 同锚点 · 72 小时内续用
     final resumed = await repo.findResumableSession(seed.ref);
     if (resumed != null) {
       await _loadSession(resumed);
