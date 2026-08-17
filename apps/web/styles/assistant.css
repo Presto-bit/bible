@@ -642,6 +642,49 @@ body.assistant-active .assistant-page {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.history-item-ref {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--accent-deep);
+  background: var(--accent-wash);
+  border-radius: 6px;
+  padding: 3px 9px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  min-width: 0;
+}
+.history-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.history-date-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.history-date-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 4px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
 .assistant-msg {
   margin-bottom: 20px;
   width: 100%;

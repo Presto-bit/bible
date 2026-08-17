@@ -1093,7 +1093,7 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
   }
 
   Future<void> _rename(AiSession s) async {
-    final c = TextEditingController(text: s.title);
+    final c = TextEditingController(text: _titles[s.id] ?? s.title);
     final v = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1161,6 +1161,7 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
     final active = widget.activeId == s.id;
     final cnRef = refToChineseLabel(s.anchorRef);
     final preview = _previews[s.id];
+    final title = _titles[s.id] ?? s.title;
     final card = Material(
       color: active
           ? Color.alphaBlend(
@@ -1189,7 +1190,7 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      s.title,
+                      title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -1200,7 +1201,7 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
                     ),
                   ),
                   Text(
-                    _timeLabel(s.updatedAtMs),
+                    active ? '进行中' : formatSessionRowTime(s.updatedAtMs),
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.inkFaint,
@@ -1208,18 +1209,17 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
                   ),
                 ],
               ),
-              if (cnRef != null && cnRef.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    cnRef,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.accentDeep,
-                      fontWeight: FontWeight.w500,
-                    ),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  (cnRef != null && cnRef.isNotEmpty) ? cnRef : '随问',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.accentDeep,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
+              ),
               if (preview != null && preview.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -1240,6 +1240,7 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
       ),
     );
     return Padding(
+      key: active ? _activeKey : null,
       padding: const EdgeInsets.only(bottom: 8),
       child: HistorySessionSwipeRow(
         id: s.id,
@@ -1253,8 +1254,7 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final live = ref.watch(sessionsStreamProvider).asData?.value;
-    final list = (live != null && live.isNotEmpty) ? live : _snapshot;
+    final list = _snapshot;
     final groups = list == null ? null : _grouped(list);
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 14, 12, 8),
@@ -1298,35 +1298,23 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
                     ),
                   )
                 : ListView.builder(
+                    controller: _listScroll,
                     itemCount: groups.length,
                     itemBuilder: (_, i) {
                       final g = groups[i];
-                      // 首组默认展开；其他默认折叠
-                      final isCollapsed = i == 0
-                          ? _collapsed.contains(g.key)
-                          : !_collapsed.contains('open:${g.key}');
-                      final headLabel = g.key == '随问'
-                          ? '随问'
-                          : (refToChineseLabel(g.key) ?? g.key);
+                      final containsActive = g.value.any(
+                        (s) => s.id == widget.activeId,
+                      );
+                      final isCollapsed = _isCollapsed(
+                        g.key,
+                        containsActive: containsActive,
+                      );
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           InkWell(
                             onTap: () => setState(() {
-                              if (i == 0) {
-                                if (_collapsed.contains(g.key)) {
-                                  _collapsed.remove(g.key);
-                                } else {
-                                  _collapsed.add(g.key);
-                                }
-                              } else {
-                                final k = 'open:${g.key}';
-                                if (_collapsed.contains(k)) {
-                                  _collapsed.remove(k);
-                                } else {
-                                  _collapsed.add(k);
-                                }
-                              }
+                              _collapsedOverride[g.key] = !isCollapsed;
                             }),
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(2, 10, 2, 6),
@@ -1334,7 +1322,7 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      headLabel,
+                                      g.key,
                                       style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,

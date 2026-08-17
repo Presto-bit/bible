@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
 import '../notes/notes_repository.dart' show dbProvider, syncEngineProvider;
+import 'assistant_format.dart';
 import 'models.dart';
 
 class SessionRepository {
@@ -68,32 +69,71 @@ class SessionRepository {
   Future<void> maybeTitleFromFirst(String sid, String firstText) async {
     final s = await _db.sessionById(sid);
     if (s == null) return;
-    if (s.title == '新会话' && firstText.trim().isNotEmpty) {
-      final t = firstText.trim();
-      await rename(s, t.length > 18 ? '${t.substring(0, 18)}…' : t);
-    }
+    if (!isDefaultSessionTitle(s.title, s.anchorRef, firstText)) return;
+    final t = firstText.trim();
+    if (t.isEmpty) return;
+    await rename(s, t.length > 18 ? '${t.substring(0, 18)}…' : t);
   }
 
-  /// 首条用户消息截断，作历史预览（对齐 PWA session.preview）。
+  static const historyRetentionMs = 30 * 24 * 60 * 60 * 1000;
+
+  Future<bool> _hasUserMessage(String sid) async {
+    final rows = await (_db.select(_db.chatMessages)
+          ..where((t) => t.sessionId.equals(sid) & t.role.equals('user'))
+          ..limit(8))
+        .get();
+    return rows.any((m) => m.content.trim().isNotEmpty);
+  }
+
+  /// 历史抽屉：有用户提问且 30 天内。
+  Future<List<AiSession>> visibleSessions() async {
+    final cutoff =
+        DateTime.now().millisecondsSinceEpoch - historyRetentionMs;
+    final list = await _db.watchSessions().first;
+    final out = <AiSession>[];
+    for (final s in list) {
+      if (s.deleted) continue;
+      if (s.updatedAtMs < cutoff) continue;
+      if (await _hasUserMessage(s.id)) out.add(s);
+    }
+    return out;
+  }
+
+  /// 末条小爱回答摘要（无则回落最近用户问）。
   Future<String?> previewOf(String sid) async {
     final msgs = await (_db.select(_db.chatMessages)
           ..where((t) => t.sessionId.equals(sid))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAtMs)])
+          ..limit(24))
+        .get();
+    for (final m in msgs) {
+      if (m.role == 'assistant' && m.content.trim().isNotEmpty) {
+        return clipSessionText(bodyText(m.content), 40);
+      }
+    }
+    for (final m in msgs) {
+      if (m.role == 'user' && m.content.trim().isNotEmpty) {
+        return clipSessionText(m.content, 40);
+      }
+    }
+    return null;
+  }
+
+  Future<String> displayTitleOf(AiSession s) async {
+    if (!isDefaultSessionTitle(s.title, s.anchorRef)) {
+      return clipSessionText(s.title, 18);
+    }
+    final msgs = await (_db.select(_db.chatMessages)
+          ..where((t) => t.sessionId.equals(s.id))
           ..orderBy([(t) => OrderingTerm.asc(t.createdAtMs)])
           ..limit(12))
         .get();
     for (final m in msgs) {
       if (m.role == 'user' && m.content.trim().isNotEmpty) {
-        final t = m.content.trim().replaceAll(RegExp(r'\s+'), ' ');
-        return t.length > 48 ? '${t.substring(0, 48)}…' : t;
+        return clipSessionText(m.content, 18);
       }
     }
-    for (final m in msgs) {
-      if (m.role == 'assistant' && m.content.trim().isNotEmpty) {
-        final t = m.content.trim().replaceAll(RegExp(r'\s+'), ' ');
-        return t.length > 48 ? '${t.substring(0, 48)}…' : t;
-      }
-    }
-    return null;
+    return '随问';
   }
 
   Future<void> addMessage(
@@ -136,7 +176,8 @@ class SessionRepository {
     for (final s in list) {
       if (s.deleted) continue;
       if (normalizeSessionRef(s.anchorRef) != key) continue;
-      if (s.updatedAtMs >= cutoff) return s;
+      if (s.updatedAtMs < cutoff) continue;
+      if (await _hasUserMessage(s.id)) return s;
     }
     return null;
   }
@@ -148,6 +189,56 @@ class SessionRepository {
     final at = t.indexOf('@');
     return at < 0 ? t : t.substring(0, at);
   }
+}
+
+String clipSessionText(String raw, int max) {
+  final t = raw.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (t.isEmpty) return '';
+  return t.length > max ? '${t.substring(0, max)}…' : t;
+}
+
+bool isDefaultSessionTitle(String title, String? ref, [String? firstUser]) {
+  final t = title.trim();
+  if (t.isEmpty || t == '新会话' || t == '随问') return true;
+  if (t.startsWith('关于 ')) return true;
+  final key = SessionRepository.normalizeSessionRef(ref);
+  if (key.isNotEmpty && t.toUpperCase() == key) return true;
+  if (ref != null && t == ref) return true;
+  final first = clipSessionText(firstUser ?? '', 18);
+  if (first.isNotEmpty && t == first) return true;
+  return false;
+}
+
+int _diffLocalDays(int ms) {
+  final now = DateTime.now();
+  final today0 = DateTime(now.year, now.month, now.day);
+  final day = DateTime.fromMillisecondsSinceEpoch(ms);
+  final d0 = DateTime(day.year, day.month, day.day);
+  return today0.difference(d0).inDays;
+}
+
+String formatSessionGroupLabel(int ms) {
+  final diff = _diffLocalDays(ms);
+  if (diff <= 0) return '今天';
+  if (diff == 1) return '昨天';
+  if (diff < 7) return '本周';
+  return '更早';
+}
+
+bool isHistoryGroupExpandedByDefault(String label) =>
+    label == '今天' || label == '昨天';
+
+String formatSessionRowTime(int ms) {
+  final diff = _diffLocalDays(ms);
+  final d = DateTime.fromMillisecondsSinceEpoch(ms);
+  String pad(int n) => n.toString().padLeft(2, '0');
+  if (diff <= 0) return '${pad(d.hour)}:${pad(d.minute)}';
+  if (diff == 1) return '昨天';
+  if (diff < 7) {
+    const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    return days[d.weekday % 7];
+  }
+  return '${pad(d.month)}-${pad(d.day)}';
 }
 
 final sessionRepoProvider = Provider<SessionRepository>((ref) =>

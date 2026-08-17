@@ -36,13 +36,18 @@ import {
 import { useAssistantViewport } from '@/lib/use_assistant_viewport';
 import {
   findResumableSession,
+  formatSessionRowTime,
   formatSessionUpdatedLabel,
-  groupSessionsByRef,
+  groupSessionsByDate,
   hasUserMessages,
+  isDefaultSessionTitle,
+  isHistoryGroupExpandedByDefault,
   loadAssistantSessions,
   renameAssistantSession,
   deleteAssistantSession,
   saveAssistantSessions,
+  sessionDisplayTitle,
+  sessionPreviewText,
 } from '@/lib/assistant_sessions';
 import { readingStreak } from '@/lib/gamification';
 import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
@@ -199,7 +204,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       }),
     [ref],
   );
-  const sessionGroups = useMemo(() => groupSessionsByRef(sessions), [sessions]);
+  const sessionGroups = useMemo(() => groupSessionsByDate(sessions), [sessions]);
   const composerChips = useMemo(() => {
     const merged = [...personalized, ...staticAssistantChips(ref || undefined)];
     const seen = new Set<string>();
@@ -217,12 +222,28 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     if (!historyOpen) return;
     setCollapsedGroups((prev) => {
       const next = { ...prev };
-      sessionGroups.forEach((g, i) => {
-        if (!(g.label in next)) next[g.label] = i !== 0;
+      sessionGroups.forEach((g) => {
+        if (!(g.label in next)) {
+          next[g.label] = !isHistoryGroupExpandedByDefault(g.label);
+        }
       });
+      const activeGroup = sessionGroups.find((g) =>
+        g.items.some((s) => s.id === activeId),
+      );
+      if (activeGroup) next[activeGroup.label] = false;
       return next;
     });
-  }, [historyOpen, sessionGroups]);
+  }, [historyOpen, sessionGroups, activeId]);
+
+  useEffect(() => {
+    if (!historyOpen || !activeId || activeId === 'current') return;
+    const id = window.requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-history-sid="${activeId}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [historyOpen, collapsedGroups, activeId]);
 
   const lastAssistantIdx = useMemo(() => {
     for (let i = msgs.length - 1; i >= 0; i -= 1) {
@@ -527,11 +548,22 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       sid = existing?.id ?? newSessionId();
       setActiveId(sid);
     }
-    const title = nextMsgs.find((m) => m.role === 'user')?.text.slice(0, 18) || anchorRef || '新会话';
-    const preview = nextMsgs[nextMsgs.length - 1]?.text.slice(0, 40) || '';
+    const firstUser = nextMsgs.find((m) => m.role === 'user')?.text ?? '';
+    const autoTitle = (() => {
+      const t = firstUser.replace(/\s+/g, ' ').trim();
+      if (!t) return '随问';
+      return t.length > 18 ? `${t.slice(0, 18)}…` : t;
+    })();
+    const lastAsst = [...nextMsgs].reverse().find((m) => m.role === 'assistant' && m.text.trim());
+    const preview = lastAsst ? bodyText(lastAsst.text).replace(/\s+/g, ' ').trim().slice(0, 40) : '';
     const now = Date.now();
     const updatedLabel = formatSessionUpdatedLabel(now);
     setSessions((prev) => {
+      const existing = prev.find((s) => s.id === sid);
+      const title =
+        existing && !isDefaultSessionTitle(existing.title, existing.ref, firstUser)
+          ? existing.title
+          : autoTitle;
       const rest = prev.filter((s) => s.id !== sid);
       const next: Session = {
         id: sid,
@@ -878,6 +910,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       if (!handled && refVal && resumeIfMatch(refVal)) {
         /* 已续接 */
       }
+      if (!handled && storedSessions[0]) {
+        const latest = storedSessions[0];
+        setActiveId(latest.id);
+        setMsgs(latest.msgs);
+        setRef(latest.ref);
+        handled = true;
+        skipInputPrefill = true;
+      }
     }
 
     if (!skipInputPrefill && !autoSend) {
@@ -945,12 +985,15 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   };
 
   const handleDeleteSession = (s: Session) => {
-    if (!window.confirm(`删除「${s.title}」？本地消息将无法恢复。`)) return;
+    if (!window.confirm(`删除「${sessionDisplayTitle(s)}」？本地消息将无法恢复。`)) return;
     deleteAssistantSession(s.id);
     bumpAndEnqueueAiSession(s.id, s.title, s.ref, true);
-    setSessions(loadAssistantSessions() as Session[]);
+    const remaining = loadAssistantSessions() as Session[];
+    setSessions(remaining);
     if (activeId === s.id) {
-      startNewSession();
+      const next = remaining[0];
+      if (next) openSession(next);
+      else startNewSession();
     }
   };
 
@@ -1395,12 +1438,12 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               <p className="muted" style={{ marginTop: 10 }}>暂无历史会话，开始提问后会自动保存。</p>
             ) : (
               <div className="history-group-list" style={{ marginTop: 8 }}>
-                {sessionGroups.map((group, gi) => {
-                  const collapsed = collapsedGroups[group.label] ?? gi !== 0;
-                  const headLabel =
-                    group.label === '随问'
-                      ? '随问'
-                      : (refToChineseLabel(group.label) ?? group.label);
+                {sessionGroups.map((group) => {
+                  const containsActive = group.items.some((s) => s.id === activeId);
+                  const collapsed = containsActive
+                    ? false
+                    : (collapsedGroups[group.label]
+                      ?? !isHistoryGroupExpandedByDefault(group.label));
                   return (
                     <div key={group.label} className="history-date-group">
                       <Pressable
@@ -1412,12 +1455,17 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           }))
                         }
                       >
-                        <span>{headLabel}</span>
+                        <span>{group.label}</span>
                         <span className="muted" style={{ fontSize: 11 }}>
                           {group.items.length} 条 · {collapsed ? '展开' : '收起'}
                         </span>
                       </Pressable>
-                      {!collapsed && group.items.map((s) => (
+                      {!collapsed && group.items.map((s) => {
+                        const active = s.id === activeId;
+                        const title = sessionDisplayTitle(s as Session);
+                        const preview = sessionPreviewText(s as Session);
+                        const cnRef = s.ref ? (refToChineseLabel(s.ref) ?? '') : '';
+                        return (
                         <HistorySessionSwipeRow
                           key={s.id}
                           onOpen={() => openSession(s as Session)}
@@ -1425,25 +1473,29 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           onDelete={() => handleDeleteSession(s as Session)}
                         >
                           <div
-                            className={`history-item${s.id === activeId ? ' is-active' : ''}`}
+                            data-history-sid={s.id}
+                            className={`history-item${active ? ' is-active' : ''}`}
                           >
                             <div className="history-item-top">
-                              <span className="history-item-title">{s.title}</span>
+                              <span className="history-item-title">{title}</span>
                               <span className="muted" style={{ fontSize: 11 }}>
-                                {formatSessionUpdatedLabel(s.updatedAt ?? Date.now())}
+                                {active
+                                  ? '进行中'
+                                  : formatSessionRowTime(s.updatedAt ?? Date.now())}
                               </span>
                             </div>
-                            {s.ref && (
+                            <div className="history-item-meta">
                               <span className="history-item-ref">
-                                {refToChineseLabel(s.ref) ?? s.ref}
+                                {cnRef || '随问'}
                               </span>
-                            )}
-                            {s.preview && (
-                              <span className="muted history-item-preview">{s.preview}</span>
-                            )}
+                            </div>
+                            {preview ? (
+                              <span className="muted history-item-preview">{preview}</span>
+                            ) : null}
                           </div>
                         </HistorySessionSwipeRow>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })}
