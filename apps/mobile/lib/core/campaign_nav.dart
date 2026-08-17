@@ -77,7 +77,8 @@ Future<void> openCampaignHref(
       MaterialPageRoute<void>(
         builder: (_) => _ExternalBrowserPage(
           url: raw,
-          title: title ??
+          title:
+              title ??
               (isGenesis50Href(raw)
                   ? '创世记 50 天'
                   : uri.host.replaceFirst(RegExp(r'^www\.'), '')),
@@ -89,8 +90,11 @@ Future<void> openCampaignHref(
   }
 
   // 兜底
-  if (!openH5IfAllowed(context, raw.startsWith('/') ? raw : '/$raw',
-      title: title)) {
+  if (!openH5IfAllowed(
+    context,
+    raw.startsWith('/') ? raw : '/$raw',
+    title: title,
+  )) {
     if (context.mounted) {
       context.push(raw.startsWith('/') ? raw : '/$raw');
     }
@@ -152,13 +156,11 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
 
   Future<void> _openGenesis50() async {
     final name = ref.read(authControllerProvider).displayName?.trim();
-    final nick =
-        (name != null && name.isNotEmpty && name.length <= 20) ? name : '同行者';
+    final nick = (name != null && name.isNotEmpty && name.length <= 20)
+        ? name
+        : '同行者';
     try {
-      final openUrl = await resolveGenesis50OpenUrl(
-        widget.url,
-        nickname: nick,
-      );
+      final openUrl = await resolveGenesis50OpenUrl(widget.url, nickname: nick);
       if (!mounted) return;
       setState(() => _authPhase = false);
       await _startWebView(openUrl);
@@ -191,7 +193,8 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
     });
   }
 
-  /// 对方站若未及时读到 query session，把 token 写入 localStorage 并离开邀请码页。
+  /// 对方站若未及时读到 query session，把 token 写入 localStorage 兜底。
+  /// 对齐 PWA：不清 query、不 reload，避免 SPA 白壳。
   Future<void> _hydrateGenesis50Session(WebViewController controller) async {
     if (!widget.genesis50) return;
     if (_hydrateAttempts >= 2) return;
@@ -200,7 +203,6 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
     _hydrateAttempts += 1;
     final json = jsonEncode(payload);
     final key = genesis50AuthStorageKey;
-    final allowReload = _hydrateAttempts <= 1;
     try {
       await controller.runJavaScript('''
 (function(){
@@ -208,14 +210,6 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
     var session = $json;
     var key = ${jsonEncode(key)};
     localStorage.setItem(key, JSON.stringify(session));
-    var body = (document.body && (document.body.innerText || '')) || '';
-    var onInvite = /邀请码/.test(body);
-    var qs = location.search || '';
-    var hasToken = /access_token=/.test(qs);
-    if ($allowReload && (onInvite || hasToken)) {
-      history.replaceState(null, '', location.pathname + (location.hash || ''));
-      location.reload();
-    }
   } catch (e) {}
 })();
 ''');
@@ -381,7 +375,9 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
             )
           else if (_authPhase || _loading)
             ColoredBox(
-              color: AppColors.paper.withValues(alpha: _controller == null ? 1 : 0.92),
+              color: AppColors.paper.withValues(
+                alpha: _controller == null ? 1 : 0.92,
+              ),
               child: const Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

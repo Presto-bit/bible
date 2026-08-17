@@ -20,6 +20,7 @@ import '../../core/theme.dart';
 import '../bible/reading_repository.dart';
 import '../bible/thoughts_repository.dart';
 import 'answer_text.dart';
+import 'assistant_chip_prompts.dart';
 import 'assistant_draft.dart';
 import 'assistant_format.dart';
 import 'assistant_personalize.dart';
@@ -588,6 +589,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         ref.watch(readingProgressStreamProvider).asData?.value != null;
     final List<(String, AssistantMode, String, AssistantScene?)> intentChips;
     if (_turns.isEmpty) {
+      intentChips = const [];
+    } else {
       final personalized = personalizedAssistantChips(
         ref: (_anchorRef ?? widget.seedRef)?.isNotEmpty == true
             ? (_anchorRef ?? widget.seedRef)
@@ -595,49 +598,26 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         streak: streak,
         hasLastRead: hasLastRead,
       );
-      intentChips = personalized
-          .map((c) => (c.label, c.assistantMode, c.q, c.scene))
-          .toList();
-    } else {
+      final staticRef = (anchorLabel == '未锚定经文') ? null : anchorLabel;
+      final merged = [...personalized, ...staticAssistantChips(staticRef)];
+      final seen = <String>{};
       intentChips = [
-        (
-          '经文背景',
-          AssistantMode.explain,
-          chipUserQuestion('经文背景', ref: anchorLabel),
-          AssistantScene.chatExplain,
-        ),
-        (
-          '解释经文',
-          AssistantMode.explain,
-          chipUserQuestion('解释经文', ref: anchorLabel),
-          AssistantScene.chatExplain,
-        ),
-        (
-          '应用',
-          AssistantMode.apply,
-          chipUserQuestion('生活应用', ref: anchorLabel),
-          AssistantScene.chatApply,
-        ),
-        (
-          '译本对照',
-          AssistantMode.compare,
-          chipUserQuestion('译本对照', ref: anchorLabel),
-          AssistantScene.chatCompare,
-        ),
-        (
-          '和「信」的关系？',
-          AssistantMode.explain,
-          '和「信」有什么关系？',
-          AssistantScene.chatExplain,
-        ),
-        ('日常焦虑里？', AssistantMode.apply, '怎样用在日常焦虑里？', AssistantScene.chatApply),
+        for (final c in merged)
+          if (c.label != '续读导读' && seen.add(c.label))
+            (c.label, c.assistantMode, c.q, c.scene),
       ];
     }
 
     final showQuota = _quotaLimit > 0;
+    final tabOverlay =
+        PeiaiShellMetrics.maybeOf(context)?.tabOverlayExtent ??
+        peiaiTabBarOverlayExtent(context);
+    final kb = MediaQueryData.fromView(View.of(context)).viewInsets.bottom;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             Padding(
@@ -735,7 +715,12 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 // 与 PWA `.assistant-body.is-empty` 一致，避免输入框沉到底部。
                 child: Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    padding: EdgeInsets.fromLTRB(
+                      0,
+                      20,
+                      0,
+                      20 + (kb > 80 ? kb : tabOverlay),
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1153,8 +1138,7 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
 
   bool _isCollapsed(String label, {required bool containsActive}) {
     if (containsActive) return false;
-    return _collapsedOverride[label] ??
-        !isHistoryGroupExpandedByDefault(label);
+    return _collapsedOverride[label] ?? !isHistoryGroupExpandedByDefault(label);
   }
 
   Widget _sessionCard(AiSession s) {
@@ -1895,218 +1879,215 @@ class _ComposerState extends State<_Composer> {
   @override
   Widget build(BuildContext context) {
     final chips = widget.chips;
-    final tabPad = peiaiTabBarOverlayExtent(context, includeSafe: false);
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: EdgeInsets.fromLTRB(12, 8, 12, 8 + tabPad),
-        decoration: BoxDecoration(
-          color: widget.docked ? AppColors.paper : Colors.transparent,
-          border: widget.docked
-              ? const Border(top: BorderSide(color: AppColors.line))
-              : null,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (chips.isNotEmpty)
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.none,
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  children: [
-                    for (var i = 0; i < chips.length; i++) ...[
-                      if (i > 0) const SizedBox(width: 6),
-                      Builder(
-                        builder: (_) {
-                          final c = chips[i];
-                          return Material(
-                            color: AppColors.surface,
+    final kb = MediaQueryData.fromView(View.of(context)).viewInsets.bottom;
+    final tabOverlay =
+        PeiaiShellMetrics.maybeOf(context)?.tabOverlayExtent ??
+        peiaiTabBarOverlayExtent(context);
+    final bottom = kb > 80 ? kb + 8 : (widget.docked ? tabOverlay + 4 : 8.0);
+    return Container(
+      padding: EdgeInsets.fromLTRB(12, 8, 12, bottom),
+      decoration: BoxDecoration(
+        color: widget.docked ? AppColors.paper : Colors.transparent,
+        border: widget.docked
+            ? const Border(top: BorderSide(color: AppColors.line))
+            : null,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (chips.isNotEmpty)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  for (var i = 0; i < chips.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 6),
+                    Builder(
+                      builder: (_) {
+                        final c = chips[i];
+                        return Material(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(999),
+                          child: InkWell(
                             borderRadius: BorderRadius.circular(999),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(999),
-                              onTap: widget.disabled || widget.onChip == null
-                                  ? null
-                                  : () => widget.onChip!(
-                                      c.$3,
-                                      mode: c.$2,
-                                      scene: c.$4 ?? chipSceneForLabel(c.$1),
-                                    ),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 7,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: AppColors.line),
-                                ),
-                                child: Text(
-                                  c.$1,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    height: 1.3,
-                                    color: widget.disabled
-                                        ? AppColors.inkFaint
-                                        : AppColors.ink,
+                            onTap: widget.disabled || widget.onChip == null
+                                ? null
+                                : () => widget.onChip!(
+                                    c.$3,
+                                    mode: c.$2,
+                                    scene: c.$4 ?? chipSceneForLabel(c.$1),
                                   ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 7,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: AppColors.line),
+                              ),
+                              child: Text(
+                                c.$1,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.3,
+                                  color: widget.disabled
+                                      ? AppColors.inkFaint
+                                      : AppColors.ink,
                                 ),
                               ),
                             ),
-                          );
-                        },
-                      ),
-                    ],
+                          ),
+                        );
+                      },
+                    ),
                   ],
-                ),
+                ],
               ),
-            if (chips.isNotEmpty) const SizedBox(height: 8),
-            // 输入框 + 发送按钮（部分 Android 键盘不触发 IME send）
-            _voiceMode
-                ? GestureDetector(
-                    onLongPressStart: _startVoice,
-                    onLongPressMoveUpdate: _moveVoice,
-                    onLongPressEnd: _endVoice,
-                    child: Container(
-                      height: 44,
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.only(left: 40, right: 40),
-                      decoration: BoxDecoration(
+            ),
+          if (chips.isNotEmpty) const SizedBox(height: 8),
+          // 输入框 + 发送按钮（部分 Android 键盘不触发 IME send）
+          _voiceMode
+              ? GestureDetector(
+                  onLongPressStart: _startVoice,
+                  onLongPressMoveUpdate: _moveVoice,
+                  onLongPressEnd: _endVoice,
+                  child: Container(
+                    height: 44,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.only(left: 40, right: 40),
+                    decoration: BoxDecoration(
+                      color: _recording
+                          ? (_cancelArmed
+                                ? const Color(0xFFFDECEC)
+                                : AppColors.accentWash)
+                          : AppColors.surface,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
                         color: _recording
                             ? (_cancelArmed
-                                  ? const Color(0xFFFDECEC)
-                                  : AppColors.accentWash)
-                            : AppColors.surface,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: _recording
-                              ? (_cancelArmed
-                                    ? const Color(0xFFD9534F)
-                                    : AppColors.accentDeep)
-                              : AppColors.line,
-                        ),
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Text(
-                            _recording
-                                ? (_cancelArmed ? '松开取消' : '松开发送 · 上滑取消')
-                                : '按住 说话',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: _recording
-                                  ? (_cancelArmed
-                                        ? const Color(0xFFD9534F)
-                                        : AppColors.accentDeep)
-                                  : AppColors.inkSoft,
-                            ),
-                          ),
-                          if (widget.onPickKnowledgeBase != null)
-                            Positioned(
-                              left: -32,
-                              child: IconButton(
-                                tooltip: '平台知识库',
-                                iconSize: 20,
-                                icon: const Icon(
-                                  Icons.layers_outlined,
-                                  color: AppColors.inkSoft,
-                                ),
-                                onPressed: widget.disabled
-                                    ? null
-                                    : widget.onPickKnowledgeBase,
-                              ),
-                            ),
-                          Positioned(right: -32, child: _modeToggle()),
-                        ],
+                                  ? const Color(0xFFD9534F)
+                                  : AppColors.accentDeep)
+                            : AppColors.line,
                       ),
                     ),
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: widget.controller,
-                          enabled: !widget.disabled,
-                          minLines: 1,
-                          maxLines: 4,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: widget.disabled || widget.streaming
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Text(
+                          _recording
+                              ? (_cancelArmed ? '松开取消' : '松开发送 · 上滑取消')
+                              : '按住 说话',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _recording
+                                ? (_cancelArmed
+                                      ? const Color(0xFFD9534F)
+                                      : AppColors.accentDeep)
+                                : AppColors.inkSoft,
+                          ),
+                        ),
+                        if (widget.onPickKnowledgeBase != null)
+                          Positioned(
+                            left: -32,
+                            child: IconButton(
+                              tooltip: '平台知识库',
+                              iconSize: 20,
+                              icon: const Icon(
+                                Icons.layers_outlined,
+                                color: AppColors.inkSoft,
+                              ),
+                              onPressed: widget.disabled
+                                  ? null
+                                  : widget.onPickKnowledgeBase,
+                            ),
+                          ),
+                        Positioned(right: -32, child: _modeToggle()),
+                      ],
+                    ),
+                  ),
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: widget.controller,
+                        enabled: !widget.disabled,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: widget.disabled || widget.streaming
+                            ? null
+                            : (_) => widget.onSend(),
+                        decoration: InputDecoration(
+                          hintText: widget.disabled ? '今日次数已用完' : '问小爱…',
+                          filled: true,
+                          fillColor: AppColors.surface,
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            4,
+                            10,
+                            4,
+                            10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            borderSide: const BorderSide(color: AppColors.line),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            borderSide: const BorderSide(color: AppColors.line),
+                          ),
+                          prefixIcon: widget.onPickKnowledgeBase == null
                               ? null
-                              : (_) => widget.onSend(),
-                          decoration: InputDecoration(
-                            hintText: widget.disabled ? '今日次数已用完' : '问小爱…',
-                            filled: true,
-                            fillColor: AppColors.surface,
-                            contentPadding: const EdgeInsets.fromLTRB(
-                              4,
-                              10,
-                              4,
-                              10,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(22),
-                              borderSide: const BorderSide(
-                                color: AppColors.line,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(22),
-                              borderSide: const BorderSide(
-                                color: AppColors.line,
-                              ),
-                            ),
-                            prefixIcon: widget.onPickKnowledgeBase == null
-                                ? null
-                                : IconButton(
-                                    tooltip: '知识库',
-                                    icon: const Icon(
-                                      Icons.layers_outlined,
-                                      color: AppColors.inkSoft,
-                                    ),
-                                    onPressed: widget.disabled
-                                        ? null
-                                        : widget.onPickKnowledgeBase,
+                              : IconButton(
+                                  tooltip: '知识库',
+                                  icon: const Icon(
+                                    Icons.layers_outlined,
+                                    color: AppColors.inkSoft,
                                   ),
-                            suffixIcon: _modeToggle(),
-                            suffixIconConstraints: const BoxConstraints(
-                              minWidth: 44,
-                              minHeight: 44,
-                            ),
+                                  onPressed: widget.disabled
+                                      ? null
+                                      : widget.onPickKnowledgeBase,
+                                ),
+                          suffixIcon: _modeToggle(),
+                          suffixIconConstraints: const BoxConstraints(
+                            minWidth: 44,
+                            minHeight: 44,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      IconButton.filled(
-                        style: IconButton.styleFrom(
-                          backgroundColor: widget.disabled || widget.streaming
-                              ? AppColors.line
-                              : AppColors.accentDeep,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: AppColors.line,
-                        ),
-                        tooltip: '发送',
-                        onPressed: widget.disabled || widget.streaming
-                            ? null
-                            : widget.onSend,
-                        icon: widget.streaming
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.arrow_upward, size: 20),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton.filled(
+                      style: IconButton.styleFrom(
+                        backgroundColor: widget.disabled || widget.streaming
+                            ? AppColors.line
+                            : AppColors.accentDeep,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: AppColors.line,
                       ),
-                    ],
-                  ),
-          ],
-        ),
+                      tooltip: '发送',
+                      onPressed: widget.disabled || widget.streaming
+                          ? null
+                          : widget.onSend,
+                      icon: widget.streaming
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.arrow_upward, size: 20),
+                    ),
+                  ],
+                ),
+        ],
       ),
     );
   }

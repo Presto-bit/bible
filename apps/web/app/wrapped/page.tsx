@@ -44,9 +44,15 @@ function WrappedInner() {
       });
     };
     const timer = window.setTimeout(run, isPeiaiAndroidShell() || isFlutterH5Host() ? 80 : 0);
+    const onHydrated = () => {
+      window.clearTimeout(timer);
+      run();
+    };
+    window.addEventListener('peiai-reading-hydrated', onHydrated);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      window.removeEventListener('peiai-reading-hydrated', onHydrated);
     };
   }, [period]);
 

@@ -2,6 +2,8 @@
 /// 区块对齐最新 PWA（`HomePage` / `HomeTodayPanel`）。
 library;
 
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,7 +26,6 @@ import '../../core/open_h5.dart';
 import '../../core/theme.dart';
 import '../../core/user_storage.dart';
 import '../../core/widgets/paper_card.dart';
-import '../../core/widgets/peiai_overlays.dart';
 import '../assistant/assistant_screen.dart';
 import '../auth/auth_controller.dart';
 import '../plans/plan_reading.dart';
@@ -292,6 +293,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _stagger = false;
   bool _groupFlash = false;
+  String? _ptrToast;
+  Timer? _ptrToastTimer;
 
   @override
   void initState() {
@@ -317,6 +320,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           if (mounted) setState(() => _groupFlash = false);
         });
       }
+    });
+  }
+
+  @override
+  void dispose() {
+    _ptrToastTimer?.cancel();
+    super.dispose();
+  }
+
+  void _showPtrToast(String text) {
+    _ptrToastTimer?.cancel();
+    setState(() => _ptrToast = text);
+    _ptrToastTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+      setState(() => _ptrToast = null);
     });
   }
 
@@ -539,210 +557,233 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            ref.read(_homeBootstrapForceProvider.notifier).set(true);
-            ref.invalidate(homeBootstrapProvider);
-            ref.invalidate(prayerTodayProvider);
-            ref.invalidate(myGroupsProvider);
-            try {
-              await ref.read(homeBootstrapProvider.future);
-              peiaiHapticLight();
-              if (context.mounted) {
-                showPeiaiToast(context, '已更新今日');
-              }
-            } catch (_) {
-              if (context.mounted) {
-                showPeiaiToast(context, '刷新失败，请检查网络');
-              }
-            }
-          },
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              12,
-              20,
-              peiaiTabContentBottomPad(context, includeSafe: false),
-            ),
-            children: [
-              _HomeStagger(
-                enabled: _stagger,
-                delayMs: 0,
-                child: _GreetingHeader(
-                  welcomeBack: welcomeBack,
-                  onSearch: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SearchScreen()),
-                  ),
+        child: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: () async {
+                ref.read(_homeBootstrapForceProvider.notifier).set(true);
+                ref.invalidate(homeBootstrapProvider);
+                ref.invalidate(prayerTodayProvider);
+                ref.invalidate(myGroupsProvider);
+                try {
+                  await ref.read(homeBootstrapProvider.future);
+                  peiaiHapticLight();
+                  if (mounted) _showPtrToast('已更新');
+                } catch (_) {
+                  if (mounted) _showPtrToast('刷新失败，请检查网络');
+                }
+              },
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  12,
+                  20,
+                  peiaiTabContentBottomPad(context, includeSafe: false),
                 ),
-              ),
-              Builder(
-                builder: (context) {
-                  final events = currentSeasonalEvents();
-                  if (events.isEmpty) return const SizedBox.shrink();
-                  final ev = events.first;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: PaperCard(
-                      onTap: () {
-                        final path = ev.href.startsWith('/')
-                            ? ev.href
-                            : '/${ev.href}';
-                        if (!openH5IfAllowed(context, path.split('?').first)) {
-                          context.push(path);
-                        }
-                      },
-                      child: Row(
-                        children: [
-                          _Pill(ev.badge ?? '活动', active: true),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  ev.title,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  ev.subtitle,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.inkFaint,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Text(
-                            '›',
-                            style: TextStyle(color: AppColors.inkFaint),
-                          ),
-                        ],
+                children: [
+                  _HomeStagger(
+                    enabled: _stagger,
+                    delayMs: 0,
+                    child: _GreetingHeader(
+                      welcomeBack: welcomeBack,
+                      onSearch: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SearchScreen()),
                       ),
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 14),
-              _HomeStagger(
-                enabled: _stagger,
-                delayMs: 40,
-                child: boot.when(
-                  loading: () => const _VerseCardSkeleton(),
-                  error: (e, _) => PaperCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          e.toString().replaceFirst('Exception: ', ''),
-                          style: const TextStyle(fontSize: 14),
+                  ),
+                  Builder(
+                    builder: (context) {
+                      final events = currentSeasonalEvents();
+                      if (events.isEmpty) return const SizedBox.shrink();
+                      final ev = events.first;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: PaperCard(
+                          onTap: () {
+                            final path = ev.href.startsWith('/')
+                                ? ev.href
+                                : '/${ev.href}';
+                            if (!openH5IfAllowed(
+                              context,
+                              path.split('?').first,
+                            )) {
+                              context.push(path);
+                            }
+                          },
+                          child: Row(
+                            children: [
+                              _Pill(ev.badge ?? '活动', active: true),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      ev.title,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      ev.subtitle,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.inkFaint,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Text(
+                                '›',
+                                style: TextStyle(color: AppColors.inkFaint),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () =>
-                              ref.invalidate(homeBootstrapProvider),
-                          child: const Text('重试'),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  _HomeStagger(
+                    enabled: _stagger,
+                    delayMs: 40,
+                    child: boot.when(
+                      loading: () => const _VerseCardSkeleton(),
+                      error: (e, _) => PaperCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              e.toString().replaceFirst('Exception: ', ''),
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: () =>
+                                  ref.invalidate(homeBootstrapProvider),
+                              child: const Text('重试'),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                      data: (b) {
+                        final v = b.dailyVerse;
+                        final verseCard = _VerseCard(
+                          day: v.day,
+                          theme: v.theme.isEmpty ? '每日经文' : v.theme,
+                          ref: v.ref,
+                          text: v.text,
+                          book: v.book,
+                          chapter: v.chapter,
+                          verseStart: v.verseStart,
+                          initialLiked: v.liked,
+                          initialLikeCount: v.likesCount,
+                          initialSharesCount: v.sharesCount,
+                          initialMyReact: v.myReact,
+                          initialReactsCount: v.reactsCount,
+                          initialTopPresets: v.topPresets,
+                        );
+                        return HomeHeroCarousel(
+                          verseSlide: verseCard,
+                          campaign: b.heroBCampaign,
+                          campaignReady: b.heroBCampaign != null,
+                          onCampaignTap: b.heroBCampaign == null
+                              ? null
+                              : () => _openHeroB(
+                                  context,
+                                  ref,
+                                  b.heroBCampaign!.href,
+                                ),
+                        );
+                      },
                     ),
                   ),
-                  data: (b) {
-                    final v = b.dailyVerse;
-                    final verseCard = _VerseCard(
-                      day: v.day,
-                      theme: v.theme.isEmpty ? '每日经文' : v.theme,
-                      ref: v.ref,
-                      text: v.text,
-                      book: v.book,
-                      chapter: v.chapter,
-                      verseStart: v.verseStart,
-                      initialLiked: v.liked,
-                      initialLikeCount: v.likesCount,
-                      initialSharesCount: v.sharesCount,
-                      initialMyReact: v.myReact,
-                      initialReactsCount: v.reactsCount,
-                      initialTopPresets: v.topPresets,
-                    );
-                    return HomeHeroCarousel(
-                      verseSlide: verseCard,
-                      campaign: b.heroBCampaign,
-                      campaignReady: b.heroBCampaign != null,
-                      onCampaignTap: b.heroBCampaign == null
-                          ? null
-                          : () =>
-                                _openHeroB(context, ref, b.heroBCampaign!.href),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 14),
-              _HomeStagger(
-                enabled: _stagger,
-                delayMs: 80,
-                child: HomeTodayPanel(
-                  primary: panel.primary,
-                  sideTop: panel.group,
-                  sideBottom: panel.prayer,
-                  groupFlash: _groupFlash,
-                  onPrimary: () => openSlot(panel.primary),
-                  onSideTop: () => openSlot(panel.group),
-                  onSideBottom: () => openSlot(panel.prayer),
-                ),
-              ),
-              const SizedBox(height: 14),
-              const HomeOnboardingBanner(),
-              // 成长区：媒体行（摘要 + 功能），对齐 PWA HomeGrowthStack 节奏
-              _GrowthStack(
-                model: buildHomeGrowthModel(
-                  todayMin: todayMins,
-                  monthDays: monthDays,
-                  occupied: occupiedFromIds([
-                    panel.primary.id,
-                    panel.group.id,
-                    panel.prayer.id,
-                  ]),
-                  plan: HomeGrowthFeatureInput(
-                    title: planTitle ?? '选一个读经计划',
-                    detail: planSub ?? '按日程读完一卷书',
-                    href: '/plans',
+                  const SizedBox(height: 14),
+                  _HomeStagger(
+                    enabled: _stagger,
+                    delayMs: 80,
+                    child: HomeTodayPanel(
+                      primary: panel.primary,
+                      sideTop: panel.group,
+                      sideBottom: panel.prayer,
+                      groupFlash: _groupFlash,
+                      onPrimary: () => openSlot(panel.primary),
+                      onSideTop: () => openSlot(panel.group),
+                      onSideBottom: () => openSlot(panel.prayer),
+                    ),
                   ),
-                  prayer: HomeGrowthFeatureInput(
-                    title: (prayerTitle ?? '').isNotEmpty
-                        ? prayerTitle!
-                        : '开始祷告',
-                    detail: '安静片刻，向神说话',
-                    href: '/pray',
+                  const SizedBox(height: 14),
+                  const HomeOnboardingBanner(),
+                  // 成长区：媒体行（摘要 + 功能），对齐 PWA HomeGrowthStack 节奏
+                  _GrowthStack(
+                    model: buildHomeGrowthModel(
+                      todayMin: todayMins,
+                      monthDays: monthDays,
+                      occupied: occupiedFromIds([
+                        panel.primary.id,
+                        panel.group.id,
+                        panel.prayer.id,
+                      ]),
+                      plan: HomeGrowthFeatureInput(
+                        title: planTitle ?? '选一个读经计划',
+                        detail: planSub ?? '按日程读完一卷书',
+                        href: '/plans',
+                      ),
+                      prayer: HomeGrowthFeatureInput(
+                        title: (prayerTitle ?? '').isNotEmpty
+                            ? prayerTitle!
+                            : '开始祷告',
+                        detail: '安静片刻，向神说话',
+                        href: '/pray',
+                      ),
+                      theme: () {
+                        final themes = ref
+                            .watch(dailyThemesProvider)
+                            .maybeWhen(data: (d) => d, orElse: () => null);
+                        final n = themes?.count ?? themes?.themes.length ?? 0;
+                        return HomeGrowthFeatureInput(
+                          title: '探索经文主题',
+                          detail: n > 0 ? '$n 个主题 · 去搜索' : '按主题找经文',
+                          href: '/search',
+                        );
+                      }(),
+                    ),
+                    onReport: () {
+                      if (!openH5IfAllowed(context, '/report')) {
+                        context.push('/report');
+                      }
+                    },
+                    onPlan: planOnTap ?? () => context.push('/plans'),
+                    onTheme: () => context.push('/search'),
+                    onPrayer: () => openH5IfAllowed(context, '/pray'),
                   ),
-                  theme: () {
-                    final themes = ref
-                        .watch(dailyThemesProvider)
-                        .maybeWhen(data: (d) => d, orElse: () => null);
-                    final n = themes?.count ?? themes?.themes.length ?? 0;
-                    return HomeGrowthFeatureInput(
-                      title: '探索经文主题',
-                      detail: n > 0 ? '$n 个主题 · 去搜索' : '按主题找经文',
-                      href: '/search',
-                    );
-                  }(),
+                  const SizedBox(height: 12),
+                  _BelowFold(
+                    onOpenDiscover: () => goTab(3),
+                    onOpenReview: () => context.push('/wrapped?period=month'),
+                  ),
+                ],
+              ),
+            ),
+            if (_ptrToast != null)
+              Positioned(
+                top: 8,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Text(
+                    _ptrToast!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.3,
+                      color: AppColors.inkSoft,
+                    ),
+                  ),
                 ),
-                onReport: () {
-                  if (!openH5IfAllowed(context, '/report')) {
-                    context.push('/report');
-                  }
-                },
-                onPlan: planOnTap ?? () => context.push('/plans'),
-                onTheme: () => context.push('/search'),
-                onPrayer: () => openH5IfAllowed(context, '/pray'),
               ),
-              const SizedBox(height: 12),
-              _BelowFold(
-                onOpenDiscover: () => goTab(3),
-                onOpenReview: () => goTab(4),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -777,16 +818,24 @@ void _openHeroB(BuildContext context, WidgetRef ref, String href) {
 void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
   final box = anchorKey.currentContext?.findRenderObject() as RenderBox?;
   if (box == null) return;
-  final pos = box.localToGlobal(Offset.zero);
+  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+  if (overlay == null) return;
+  final pos = box.localToGlobal(Offset.zero, ancestor: overlay);
+  const menuWidth = 220.0;
+  final overlaySize = overlay.size;
+  final buttonRight = pos.dx + box.size.width;
+  final top = pos.dy + box.size.height + 8;
+  final left = (buttonRight - menuWidth).clamp(
+    12.0,
+    (overlaySize.width - menuWidth - 12).clamp(12.0, overlaySize.width),
+  );
   showMenu<String>(
     context: context,
     color: AppColors.surface,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    position: RelativeRect.fromLTRB(
-      pos.dx - 200,
-      pos.dy + box.size.height + 6,
-      pos.dx + box.size.width,
-      pos.dy + box.size.height + 6,
+    position: RelativeRect.fromRect(
+      Rect.fromLTWH(left, top, menuWidth, overlaySize.height - top),
+      Offset.zero & overlaySize,
     ),
     items: const [
       PopupMenuItem(
@@ -867,8 +916,10 @@ class _GreetingHeaderState extends ConsumerState<_GreetingHeader> {
     final greeting = homeGreeting(welcomeBack: widget.welcomeBack);
     // 与「我的」一致：读分桶键 onboarding_name:$userId，并监听 auth 以便改名后立刻刷新
     final authName = ref.watch(authControllerProvider).displayName?.trim();
-    final prefsName =
-        userPrefGetString(ref.watch(prefsProvider), 'onboarding_name')?.trim();
+    final prefsName = userPrefGetString(
+      ref.watch(prefsProvider),
+      'onboarding_name',
+    )?.trim();
     final raw = (authName != null && authName.isNotEmpty)
         ? authName
         : prefsName;
@@ -1024,7 +1075,7 @@ class _BelowFold extends ConsumerWidget {
           )
         else if (yearReviewWindow)
           PaperCard(
-            onTap: () => context.push('/wrapped'),
+            onTap: () => context.push('/wrapped?period=year'),
             child: Row(
               children: [
                 const _Pill('年度', active: true),

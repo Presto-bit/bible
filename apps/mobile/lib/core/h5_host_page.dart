@@ -21,6 +21,7 @@ import 'app_update_progress_hub.dart';
 import 'app_theme.dart';
 import 'config.dart';
 import 'h5_bridge_channel.dart';
+import 'h5_reading_bridge.dart';
 import 'h5_session_bridge.dart';
 import 'h5_whitelist.dart';
 import 'native_permissions.dart';
@@ -65,6 +66,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   String? _error;
   var _canGoBack = false;
   late String _activePath;
+  String _readingHydrateJs = '';
 
   /// 视图可见高度（键盘弹起时收小），同步给 H5 --im-kb / vv
   double? _viewHeight;
@@ -89,6 +91,21 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     }
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  Future<void> _prepareReadingHydrate(String pathOnly) async {
+    if (pathOnly == '/wrapped' ||
+        pathOnly.startsWith('/wrapped') ||
+        pathOnly == '/report' ||
+        pathOnly.startsWith('/report')) {
+      try {
+        _readingHydrateJs = await buildH5ReadingHydrateJs(ref);
+      } catch (_) {
+        _readingHydrateJs = '';
+      }
+    } else {
+      _readingHydrateJs = '';
+    }
   }
 
   @override
@@ -310,6 +327,8 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       });
       return;
     }
+    await _prepareReadingHydrate(pathOnly);
+    if (!mounted) return;
 
     final themeId = ref.read(appThemeProvider);
     final padTop = MediaQuery.paddingOf(context).top;
@@ -461,6 +480,8 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final path = _activePath.startsWith('/') ? _activePath : '/$_activePath';
     final pathOnly = path.split('?').first;
     if (!H5Whitelist.allows(pathOnly)) return;
+    await _prepareReadingHydrate(pathOnly);
+    if (!mounted) return;
     final themeId = ref.read(appThemeProvider);
     final padTop = MediaQuery.paddingOf(context).top;
     final token = await ref.read(sessionProvider).token();
@@ -595,6 +616,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     root.setAttribute('data-theme', '${dark ? 'dark' : 'light'}');
     root.style.setProperty('--shell-inset-top', '${top.toStringAsFixed(1)}px');
     ${_tabBarCssJs()}
+    $_readingHydrateJs
   } catch (e) {}
 })();
 ''');
@@ -738,6 +760,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     $varJs
     root.style.setProperty('--shell-inset-top', '${topInset.toStringAsFixed(1)}px');
     ${_tabBarCssJs()}
+    $_readingHydrateJs
     root.style.setProperty('--shell-inset-left', '0px');
     root.style.setProperty('--shell-inset-right', '0px');
     window.__PEIAI_FLUTTER__ = {
