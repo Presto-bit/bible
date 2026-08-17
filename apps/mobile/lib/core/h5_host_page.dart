@@ -879,20 +879,21 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     if (widget.tabIndex != null) {
       ref.listen(navIndexProvider, (prev, next) {
         if (prev == next) return;
-        unawaited(_reinjectSession());
         if (widget.tabIndex == 3) {
           if (next == 3) {
             final loc = ref.read(discoverH5LocationProvider);
             _activePath = loc;
             _syncDiscoverImmersive(loc);
+            unawaited(_reinjectSession());
           } else if (prev == 3) {
             ref.read(discoverImmersiveProvider.notifier).set(false);
             unawaited(_pauseDiscoverRealtime());
           }
+          return;
         }
         if (next != widget.tabIndex) return;
         if (widget.forceOffline) return;
-        // 若曾失败且此刻可能已联网，不自动刷（避免打断会话）；仅 reinject
+        unawaited(_reinjectSession());
       });
       ref.listen(readingDndEpochProvider, (prev, next) {
         if (prev == next) return;

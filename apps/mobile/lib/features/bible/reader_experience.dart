@@ -252,6 +252,32 @@ void writeChapterCache(
   );
 }
 
+/// 横滑翻章时锁住竖滑，且不因 physics 切换重建 ListView。
+class _DragLockScrollPhysics extends ScrollPhysics {
+  const _DragLockScrollPhysics({required this.dx, super.parent});
+
+  final ValueNotifier<double> dx;
+
+  bool get _locked => dx.value.abs() > 8;
+
+  @override
+  _DragLockScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _DragLockScrollPhysics(dx: dx, parent: buildParent(ancestor));
+  }
+
+  @override
+  bool shouldAcceptUserOffset(ScrollMetrics position) {
+    if (_locked) return false;
+    return super.shouldAcceptUserOffset(position);
+  }
+
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
+    if (_locked) return 0;
+    return super.applyPhysicsToUserOffset(position, offset);
+  }
+}
+
 /// 增强版章阅读主体（对齐 H5 ReaderView，不含听读同步）。
 class ReaderChapterBody extends ConsumerStatefulWidget {
   const ReaderChapterBody({
@@ -329,14 +355,24 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   final _resumeAnchorKey = GlobalKey();
   final _scroll = ScrollController();
   final _selectionAnchorKey = GlobalKey();
-  double? _focusBarTop;
+  final _focusBarTopN = ValueNotifier<double?>(null);
   bool _resumeScheduled = false;
   bool _planDayFinishScheduled = false;
   Chapter? _cachedChapter;
   Chapter? _liveChapter;
 
-  /// 横滑翻章视觉位移（已含边界阻力）
-  double _pageDragDx = 0;
+  /// 横滑翻章视觉位移（已含边界阻力）；跟手只改 notifier，不重建经文。
+  final _pageDragDxN = ValueNotifier<double>(0);
+  double get _pageDragDx => _pageDragDxN.value;
+  set _pageDragDx(double v) {
+    if (_pageDragDxN.value == v) return;
+    _pageDragDxN.value = v;
+  }
+
+  set _focusBarTop(double? v) {
+    if (_focusBarTopN.value == v) return;
+    _focusBarTopN.value = v;
+  }
 
   /// 横滑原始累计位移（未乘边界阻力；松手判定用）
   double _pageDragRaw = 0;
@@ -364,7 +400,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           duration: const Duration(milliseconds: 280),
         )..addListener(() {
           if (!mounted) return;
-          setState(() => _pageDragDx = _pageTurnAnimation.value);
+          _pageDragDx = _pageTurnAnimation.value;
         });
     _pageTurnAnimation = const AlwaysStoppedAnimation(0);
     _scroll.addListener(_onScroll);
@@ -463,6 +499,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   void dispose() {
     _guideDwellTimer?.cancel();
     _pageTurnController.dispose();
+    _pageDragDxN.dispose();
+    _focusBarTopN.dispose();
     _scroll.removeListener(_onScroll);
     _scroll.dispose();
     super.dispose();
@@ -526,12 +564,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     );
   }
 
-  double _lastOffset = 0;
-
   void _onScroll() {
     if (!_scroll.hasClients) return;
     final cur = _scroll.position.pixels;
-    _lastOffset = cur;
 
     // 章末读完轻提示（对齐 PWA ChapterCompleteTip；专注模式 / 计划模式关闭）
     if (!_chapterBottomFired &&
@@ -724,13 +759,20 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     return sel[sel.length ~/ 2];
   }
 
+  bool _focusBarLayoutScheduled = false;
+
   void _scheduleFocusBarLayout() {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _layoutFocusBar());
+    if (_focusBarLayoutScheduled) return;
+    _focusBarLayoutScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusBarLayoutScheduled = false;
+      _layoutFocusBar();
+    });
   }
 
   void _layoutFocusBar() {
     if (!mounted || _selected.isEmpty) {
-      if (_focusBarTop != null) setState(() => _focusBarTop = null);
+      _focusBarTop = null;
       return;
     }
     final ctx = _selectionAnchorKey.currentContext;
@@ -749,7 +791,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     if (top < topReserve) top = offset.dy + size.height + margin;
     final maxTop = media.size.height - barEstimate - bottomReserve;
     top = top.clamp(topReserve, maxTop);
-    if (_focusBarTop != top) setState(() => _focusBarTop = top);
+    _focusBarTop = top;
   }
 
   List<int> get _sortedSel => _selected.toList()..sort();
@@ -1475,12 +1517,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     if (_pageTurnAnimating) return;
     final width = MediaQuery.sizeOf(context).width;
     if (width <= 0) return;
-    setState(() {
-      // HorizontalDragRecognizer 已完成横轴锁定；此处记录轴态供复位。
-      _pageDragAxis = 'x';
-      _pageDragRaw = (_pageDragRaw + deltaDx).clamp(-width, width);
-      _pageDragDx = _clampPageDrag(_pageDragRaw, width);
-    });
+    _pageDragAxis = 'x';
+    _pageDragRaw = (_pageDragRaw + deltaDx).clamp(-width, width);
+    _pageDragDx = _clampPageDrag(_pageDragRaw, width);
     if (!_pageTurnPrefetched && _pageDragRaw.abs() / width >= 0.04) {
       _pageTurnPrefetched = true;
       _prefetchAdjacentChapters();
@@ -1554,6 +1593,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   Widget _chapterPeekPanel({
+    required WidgetRef watchRef,
     required ReaderExperienceTheme theme,
     required int delta,
     required double width,
@@ -1575,34 +1615,34 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       );
     }
     final async = widget.mainVersionId != null
-        ? ref.watch(
+        ? watchRef.watch(
             chapterVersionProvider((
               book: target.book.id,
               chapter: target.chapter,
               version: widget.mainVersionId!,
             )),
           )
-        : ref.watch(
+        : watchRef.watch(
             chapterProvider((book: target.book.id, chapter: target.chapter)),
           );
-    final fontPx = ref.watch(readerFontProvider).px;
-    final fontFamily = ref.watch(readerFontFamilyProvider);
-    final verseNo = ref.watch(readerVerseNumberProvider);
-    final highlights = ref.watch(highlightMapProvider).value ?? const {};
-    final underlinesEnabled = ref
+    final fontPx = watchRef.watch(readerFontProvider).px;
+    final fontFamily = watchRef.watch(readerFontFamilyProvider);
+    final verseNo = watchRef.watch(readerVerseNumberProvider);
+    final highlights = watchRef.watch(highlightMapProvider).value ?? const {};
+    final underlinesEnabled = watchRef
         .watch(readerFeatureTogglesProvider)
         .underlines;
     final compareId = widget.mainVersionId == null
         ? widget.compareVersionId
         : null;
     final layoutAsync = widget.mainVersionId != null
-        ? ref.watch(
+        ? watchRef.watch(
             chapterProvider((book: target.book.id, chapter: target.chapter)),
           )
         : null;
     final compareAsync = compareId == null
         ? null
-        : ref.watch(
+        : watchRef.watch(
             chapterVersionProvider((
               book: target.book.id,
               chapter: target.chapter,
@@ -1611,7 +1651,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           );
     final outline = outlineFor(target.book.id, target.chapter);
     final sectionByVerse = {for (final s in outline) s.verse: s.title};
-    final apiSections = ref
+    final apiSections = watchRef
         .watch(
           sectionTitlesProvider((
             book: target.book.id,
@@ -1697,6 +1737,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final dictList = ref.watch(dictionaryProvider('')).value ?? const [];
     final dictIndex = buildDictIndex(dictList);
     final dictKeys = dictSortedKeys(dictIndex);
+    final dictRev = dictListRevision(dictList);
     final outline = outlineFor(widget.book.id, widget.chapter);
     final sectionByVerse = {for (final s in outline) s.verse: s.title};
     // API 分段优先；本地 outlines 作兜底
@@ -1783,6 +1824,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         verseNo,
         dictIndex,
         dictKeys,
+        dictRev,
         highlights,
         sectionByVerse,
         null,
@@ -1823,6 +1865,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                         verseNo,
                         dictIndex,
                         dictKeys,
+                        dictRev,
                         highlights,
                         sectionByVerse,
                         null,
@@ -1837,8 +1880,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                   error: (e, _) => Center(child: Text('$e')),
                   data: (ch) {
                     final layoutCh = layoutAsync?.asData?.value;
-                    if (compareAsync == null)
+                    if (compareAsync == null) {
                       return buildBody(ch, null, layoutCh);
+                    }
                     return compareAsync.when(
                       loading: () => buildBody(
                         ch,
@@ -1856,14 +1900,17 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             ],
           ),
           if (_selected.isNotEmpty)
-            Positioned(
-              top:
-                  _focusBarTop ??
-                  (MediaQuery.of(context).size.height -
-                      (widget.chromeHidden ? 140 : 200)),
-              left: 12,
-              right: 12,
-              child: ReaderFocusBar(
+            ValueListenableBuilder<double?>(
+              valueListenable: _focusBarTopN,
+              builder: (context, focusTop, _) {
+                return Positioned(
+                  top:
+                      focusTop ??
+                      (MediaQuery.of(context).size.height -
+                          (widget.chromeHidden ? 140 : 200)),
+                  left: 12,
+                  right: 12,
+                  child: ReaderFocusBar(
                 readingMode: readingMode,
                 currentMark: toggles.underlines
                     ? _currentSelectionMark(highlights)
@@ -1930,6 +1977,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                 onClearMark: _clearHighlight,
                 onClose: _clearSelection,
               ),
+                );
+              },
             ),
           if (_guideTipVisible && _selected.isEmpty && widget.planMeta == null)
             Positioned(
@@ -1995,6 +2044,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     ReaderVerseNumberMode verseNo,
     Map<String, List<DictEntity>> dictIndex,
     List<String> dictKeys,
+    int dictRev,
     Map<String, HighlightMark> highlights,
     Map<int, String> sectionByVerse,
     ChapterContextInfo? ctx,
@@ -2063,7 +2113,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         !reduceMotion &&
         !_pageTurnAnimating &&
         !_selectionGestureActive;
-    final dx = _pageDragDx;
 
     final listBody = VerseSelectionSurface(
       enabled: true,
@@ -2078,7 +2127,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       },
       child: ListView.builder(
         controller: _scroll,
-        physics: dx.abs() > 8 ? const NeverScrollableScrollPhysics() : null,
+        physics: _DragLockScrollPhysics(dx: _pageDragDxN),
         scrollCacheExtent: const ScrollCacheExtent.pixels(900),
         // 沉浸：顶垫给固定卷章条；非沉浸：底垫对齐胶囊底栏（peiaiTabContentBottomPad）
         padding: EdgeInsets.fromLTRB(
@@ -2152,6 +2201,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             fontFamily: fontFamily,
             dictIndex: dictIndex,
             dictKeys: dictKeys,
+            dictRev: dictRev,
             selectionAnchorVerse: _selectionAnchorVerse,
             selectionAnchorKey: _selectionAnchorKey,
             resumeFlashVerse: _resumeFlashVerse,
@@ -2178,7 +2228,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
     return _pageTurnViewport(
       swipeOn: swipeOn,
-      dx: dx,
       pageW: pageW,
       theme: theme,
       listBody: listBody,
@@ -2258,7 +2307,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   Widget _pageTurnViewport({
     required bool swipeOn,
-    required double dx,
     required double pageW,
     required ReaderExperienceTheme theme,
     required Widget listBody,
@@ -2274,54 +2322,72 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         onHorizontalDragEnd: swipeOn ? _finishPageTurn : null,
         onHorizontalDragCancel: () {
           if (_pageDragDx != 0 || _pageDragRaw != 0 || _pageDragAxis != null) {
-            setState(_resetPageDrag);
+            if (_pageTurnAnimating) {
+              setState(_resetPageDrag);
+            } else {
+              _resetPageDrag();
+            }
           }
         },
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            ClipRect(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (dx < -2)
-                    Positioned(
-                      left: pageW + dx,
-                      top: 0,
-                      bottom: 0,
-                      width: pageW,
-                      child: _chapterPeekPanel(
-                        theme: theme,
-                        delta: 1,
-                        width: pageW,
+        child: ValueListenableBuilder<double>(
+          valueListenable: _pageDragDxN,
+          builder: (context, dx, child) {
+            return Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                ClipRect(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (dx < -2)
+                        Positioned(
+                          left: pageW + dx,
+                          top: 0,
+                          bottom: 0,
+                          width: pageW,
+                          child: Consumer(
+                            builder: (context, watchRef, _) =>
+                                _chapterPeekPanel(
+                              watchRef: watchRef,
+                              theme: theme,
+                              delta: 1,
+                              width: pageW,
+                            ),
+                          ),
+                        ),
+                      if (dx > 2)
+                        Positioned(
+                          left: dx - pageW,
+                          top: 0,
+                          bottom: 0,
+                          width: pageW,
+                          child: Consumer(
+                            builder: (context, watchRef, _) =>
+                                _chapterPeekPanel(
+                              watchRef: watchRef,
+                              theme: theme,
+                              delta: -1,
+                              width: pageW,
+                            ),
+                          ),
+                        ),
+                      Transform.translate(
+                        offset: Offset(dx, 0),
+                        child: child,
                       ),
-                    ),
-                  if (dx > 2)
-                    Positioned(
-                      left: dx - pageW,
-                      top: 0,
-                      bottom: 0,
-                      width: pageW,
-                      child: _chapterPeekPanel(
-                        theme: theme,
-                        delta: -1,
-                        width: pageW,
-                      ),
-                    ),
-                  Transform.translate(
-                    offset: Offset(dx, 0),
-                    child: RepaintBoundary(
-                      child: ColoredBox(
-                        color: theme.background,
-                        child: listBody,
-                      ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                _stableLocOverlay(theme, dx),
+              ],
+            );
+          },
+          child: RepaintBoundary(
+            child: ColoredBox(
+              color: theme.background,
+              child: listBody,
             ),
-            _stableLocOverlay(theme, dx),
-          ],
+          ),
         ),
       ),
     );
@@ -2416,11 +2482,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         !_pageTurnAnimating &&
         !_selectionGestureActive;
     final pageW = MediaQuery.sizeOf(context).width;
-    final dx = _pageDragDx;
 
     final listBody = ListView.builder(
       controller: _scroll,
-      physics: dx.abs() > 8 ? const NeverScrollableScrollPhysics() : null,
+      physics: _DragLockScrollPhysics(dx: _pageDragDxN),
       scrollCacheExtent: const ScrollCacheExtent.pixels(900),
       // 对照模式同样沿用 PWA 的 16px 阅读边距，并垫开胶囊底栏。
       padding: EdgeInsets.fromLTRB(
@@ -2557,7 +2622,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             );
           }
         }
-        return Container(
+        return RepaintBoundary(
+          child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Column(
@@ -2574,13 +2640,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
               ),
             ],
           ),
+        ),
         );
       },
     );
 
     return _pageTurnViewport(
       swipeOn: swipeOn,
-      dx: dx,
       pageW: pageW,
       theme: theme,
       listBody: listBody,
@@ -2879,6 +2945,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     required this.fontFamily,
     required this.dictIndex,
     required this.dictKeys,
+    required this.dictRev,
     this.selectionAnchorVerse,
     this.selectionAnchorKey,
     this.resumeFlashVerse,
@@ -2908,6 +2975,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final ReaderFontFamily fontFamily;
   final Map<String, List<DictEntity>> dictIndex;
   final List<String> dictKeys;
+  final int dictRev;
   final int? selectionAnchorVerse;
   final GlobalKey? selectionAnchorKey;
   final int? resumeFlashVerse;
@@ -2964,7 +3032,8 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     final marginMode = widget.verseNo == ReaderVerseNumberMode.margin;
 
     if (marginMode) {
-      return Column(
+      return RepaintBoundary(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final v in widget.paragraph.verses)
@@ -2994,6 +3063,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                         : null),
               dictIndex: widget.dictIndex,
               dictKeys: widget.dictKeys,
+              dictRev: widget.dictRev,
               notes: widget.notesByVerse[v.verse],
               thoughtsCount: widget.thoughtsByVerse[v.verse] ?? 0,
               hasMyThought: (widget.myThoughtsByVerse[v.verse] ?? 0) > 0,
@@ -3007,6 +3077,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               onOpenThoughts: widget.onOpenThoughts,
             ),
         ],
+      ),
       );
     }
 
@@ -3080,13 +3151,14 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
       }
 
       final dictSpans = !selectionActive && widget.dictKeys.isNotEmpty
-          ? dictSpansForText(
+          ? cachedDictSpansForText(
               v.text,
               widget.dictIndex,
               widget.dictKeys,
               bookId: widget.book.id,
               chapter: widget.chapter,
               verse: v.verse,
+              dictRev: widget.dictRev,
             )
           : const <DictSpanHit>[];
       final words = sliceVerseWords(
@@ -3273,7 +3345,8 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
       }
     }
 
-    return Column(
+    return RepaintBoundary(
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
@@ -3288,6 +3361,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           ),
         ),
       ],
+    ),
     );
   }
 }
@@ -3309,6 +3383,7 @@ class _MarginVerseRow extends StatefulWidget {
     required this.anchorKey,
     required this.dictIndex,
     required this.dictKeys,
+    required this.dictRev,
     required this.notes,
     required this.thoughtsCount,
     required this.hasMyThought,
@@ -3336,6 +3411,7 @@ class _MarginVerseRow extends StatefulWidget {
   final GlobalKey? anchorKey;
   final Map<String, List<DictEntity>> dictIndex;
   final List<String> dictKeys;
+  final int dictRev;
   final List<Note>? notes;
   final int thoughtsCount;
   final bool hasMyThought;
@@ -3400,13 +3476,14 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
     final markInfo = widget.markInfo;
     final anchorKey = widget.anchorKey;
     final dictSpans = !selectionActive && dictKeys.isNotEmpty
-        ? dictSpansForText(
+        ? cachedDictSpansForText(
             v.text,
             dictIndex,
             dictKeys,
             bookId: book.id,
             chapter: chapter,
             verse: v.verse,
+            dictRev: widget.dictRev,
           )
         : const <DictSpanHit>[];
     final words = sliceVerseWords(

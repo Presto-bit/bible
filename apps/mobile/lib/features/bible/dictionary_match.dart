@@ -1,6 +1,8 @@
 /// 词典正文匹配：对齐 Web `dictionary_match.ts` 的索引与切分。
 library;
 
+import 'dart:collection';
+
 import 'content_repository.dart';
 
 /// 专名 → 候选词条列表（含 alias）。
@@ -217,6 +219,61 @@ List<DictSpanHit> dictSpansForText(
     cursor = end;
   }
   return out;
+}
+
+/// 词典包指纹：长度 + 首尾 id，供 span 缓存失效。
+int dictListRevision(List<DictEntity> list) {
+  if (list.isEmpty) return 0;
+  return Object.hash(list.length, list.first.id, list.last.id);
+}
+
+// ignore: prefer_collection_literals
+final _dictSpanCache = LinkedHashMap<String, List<DictSpanHit>>();
+const _dictSpanCacheMax = 512;
+
+String _dictSpanCacheKey({
+  required int dictRev,
+  required String bookId,
+  required int chapter,
+  required int verse,
+  required String text,
+}) => '$dictRev|$bookId|$chapter|$verse|${text.hashCode}';
+
+/// 带容量上限的 LRU：同章滚动 / 壳层重建时复用切分结果。
+List<DictSpanHit> cachedDictSpansForText(
+  String text,
+  Map<String, List<DictEntity>> index,
+  List<String> sortedKeys, {
+  required String bookId,
+  required int chapter,
+  required int verse,
+  required int dictRev,
+}) {
+  final key = _dictSpanCacheKey(
+    dictRev: dictRev,
+    bookId: bookId,
+    chapter: chapter,
+    verse: verse,
+    text: text,
+  );
+  final hit = _dictSpanCache.remove(key);
+  if (hit != null) {
+    _dictSpanCache[key] = hit;
+    return hit;
+  }
+  final result = dictSpansForText(
+    text,
+    index,
+    sortedKeys,
+    bookId: bookId,
+    chapter: chapter,
+    verse: verse,
+  );
+  if (_dictSpanCache.length >= _dictSpanCacheMax) {
+    _dictSpanCache.remove(_dictSpanCache.keys.first);
+  }
+  _dictSpanCache[key] = result;
+  return result;
 }
 
 /// 词块是否落在某词典跨度内（词级芯片点按打开词典）。

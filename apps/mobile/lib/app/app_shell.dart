@@ -2,9 +2,11 @@
 /// 底栏：PWA 式浮动胶囊 + 轻量毛玻璃；读经沉浸滑出。
 library;
 
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -71,6 +73,20 @@ final discoverH5LocationProvider =
     NotifierProvider<DiscoverH5LocationNotifier, String>(
       DiscoverH5LocationNotifier.new,
     );
+
+/// 壳层原生列表正在滚动：临时关掉底栏 BackdropFilter，静止后恢复。
+class ShellScrollBusyNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool v) {
+    if (state == v) return;
+    state = v;
+  }
+}
+
+final shellScrollBusyProvider = NotifierProvider<ShellScrollBusyNotifier, bool>(
+  ShellScrollBusyNotifier.new,
+);
 
 /// 浮动胶囊底栏占位（对齐 PWA `--tabbar-h`）。
 ///
@@ -150,10 +166,38 @@ class _AppShellState extends ConsumerState<AppShell> {
     ProfileScreen(),
   ];
 
+  Timer? _scrollIdle;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkForAppUpdate());
+  }
+
+  @override
+  void dispose() {
+    _scrollIdle?.cancel();
+    super.dispose();
+  }
+
+  void _onShellScroll(ScrollNotification n) {
+    if (n is ScrollStartNotification || n is ScrollUpdateNotification) {
+      _scrollIdle?.cancel();
+      ref.read(shellScrollBusyProvider.notifier).set(true);
+      return;
+    }
+    if (n is ScrollEndNotification || n is UserScrollNotification) {
+      if (n is UserScrollNotification && n.direction != ScrollDirection.idle) {
+        _scrollIdle?.cancel();
+        ref.read(shellScrollBusyProvider.notifier).set(true);
+        return;
+      }
+      _scrollIdle?.cancel();
+      _scrollIdle = Timer(const Duration(milliseconds: 120), () {
+        if (!mounted) return;
+        ref.read(shellScrollBusyProvider.notifier).set(false);
+      });
+    }
   }
 
   Future<void> _checkForAppUpdate() async {
@@ -173,6 +217,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final discoverImmersive =
         ref.watch(discoverImmersiveProvider) && index == 3;
     final immersive = readerImmersive || discoverImmersive;
+    final scrolling = ref.watch(shellScrollBusyProvider);
     final theme = Theme.of(context);
     final bg = theme.scaffoldBackgroundColor;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
@@ -206,7 +251,13 @@ class _AppShellState extends ConsumerState<AppShell> {
               children: [
                 const OfflineStatusBar(),
                 Expanded(
-                  child: IndexedStack(index: index, children: _pages),
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (n) {
+                      _onShellScroll(n);
+                      return false;
+                    },
+                    child: IndexedStack(index: index, children: _pages),
+                  ),
                 ),
               ],
             ),
@@ -218,6 +269,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   index: index,
                   bottomPadding: barBottomPad,
                   online: online,
+                  scrolling: scrolling,
                   onSelect: (i) {
                     // 切走圣经 / 发现时清沉浸，避免返回仍是 hidden
                     if (i != 1) {
@@ -241,12 +293,14 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
     required this.onSelect,
     required this.bottomPadding,
     required this.online,
+    required this.scrolling,
   });
 
   final int index;
   final ValueChanged<int> onSelect;
   final double bottomPadding;
   final bool online;
+  final bool scrolling;
 
   static const _items = <(IconData, IconData, String)>[
     (Icons.home_outlined, Icons.home, '首页'),
@@ -265,7 +319,48 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
     // 对齐 PWA `.tab-active`：选中用 ink。
     final active = ink;
     final fill = theme.colorScheme.surface.withValues(
-      alpha: isDark ? 0.72 : 0.78,
+      alpha: scrolling
+          ? (isDark ? 0.88 : 0.92)
+          : (isDark ? 0.72 : 0.78),
+    );
+
+    final capsule = DecoratedBox(
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.10)
+              : Colors.white.withValues(alpha: 0.65),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.10),
+            blurRadius: 28,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          children: [
+            for (var i = 0; i < _items.length; i++)
+              Expanded(
+                child: _TabItem(
+                  outline: _items[i].$1,
+                  filled: _items[i].$2,
+                  label: _items[i].$3,
+                  active: index == i,
+                  activeColor: active,
+                  inactiveColor: faint,
+                  dimmed: !online && (i == 2 || i == 3),
+                  onTap: () => onSelect(i),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
 
     return Material(
@@ -274,47 +369,12 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(28),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: fill,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.10)
-                      : Colors.white.withValues(alpha: 0.65),
+          child: scrolling
+              ? capsule
+              : BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: capsule,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.10),
-                    blurRadius: 28,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: SizedBox(
-                height: 56,
-                child: Row(
-                  children: [
-                    for (var i = 0; i < _items.length; i++)
-                      Expanded(
-                        child: _TabItem(
-                          outline: _items[i].$1,
-                          filled: _items[i].$2,
-                          label: _items[i].$3,
-                          active: index == i,
-                          activeColor: active,
-                          inactiveColor: faint,
-                          dimmed: !online && (i == 2 || i == 3),
-                          onTap: () => onSelect(i),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ),
       ),
     );
