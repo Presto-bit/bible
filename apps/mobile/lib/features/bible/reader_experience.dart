@@ -1629,9 +1629,44 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final fontFamily = watchRef.watch(readerFontFamilyProvider);
     final verseNo = watchRef.watch(readerVerseNumberProvider);
     final highlights = watchRef.watch(highlightMapProvider).value ?? const {};
-    final underlinesEnabled = watchRef
-        .watch(readerFeatureTogglesProvider)
-        .underlines;
+    final toggles = watchRef.watch(readerFeatureTogglesProvider);
+    // 词典/想法/笔记与主文取自同一数据源，预览才能画出同样的下划线与图标。
+    final dictList = watchRef.watch(dictionaryProvider('')).value ?? const [];
+    final dictIndex = buildDictIndex(dictList);
+    final dictKeys = dictSortedKeys(dictIndex);
+    final dictRev = dictListRevision(dictList);
+    final thoughtsByVerse = watchRef.watch(
+      thoughtsByChapterProvider((
+        book: target.book.id,
+        chapter: target.chapter,
+      )),
+    );
+    final myThoughtsByVerse = watchRef.watch(
+      myThoughtsByChapterProvider((
+        book: target.book.id,
+        chapter: target.chapter,
+      )),
+    );
+    final notesByVerse = watchRef
+        .watch(notesStreamProvider)
+        .maybeWhen(
+          data: (list) => notesForChapter(list, target.book.id, target.chapter),
+          orElse: () => const <int, List<Note>>{},
+        );
+    final planMeta = widget.planMeta;
+    final peekPlanBar = planMeta == null
+        ? null
+        : IgnorePointer(
+            child: PlanReadingBar(
+              planTitle: planMeta.planTitle,
+              day: planMeta.day,
+              totalDays: planMeta.totalDays,
+              steps: planMeta.steps,
+              session: planMeta.session,
+              onJumpStep: (_) {},
+              onOpenSheet: () {},
+            ),
+          );
     final compareId = widget.mainVersionId == null
         ? widget.compareVersionId
         : null;
@@ -1693,7 +1728,16 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             fontPx: fontPx,
             fontFamily: fontFamily,
             highlights: highlights,
-            underlinesEnabled: underlinesEnabled,
+            underlinesEnabled: toggles.underlines,
+            dictIndex: dictIndex,
+            dictKeys: dictKeys,
+            dictRev: dictRev,
+            thoughtsEnabled: toggles.thoughts,
+            thoughtsByVerse: thoughtsByVerse,
+            myThoughtsByVerse: myThoughtsByVerse,
+            notesByVerse: notesByVerse,
+            headerBar: peekPlanBar,
+            selectionActive: _selected.isNotEmpty,
             theme: theme,
             topPad: topPad,
           );
@@ -2202,6 +2246,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             dictIndex: dictIndex,
             dictKeys: dictKeys,
             dictRev: dictRev,
+            inkColor: theme.ink,
             selectionAnchorVerse: _selectionAnchorVerse,
             selectionAnchorKey: _selectionAnchorKey,
             resumeFlashVerse: _resumeFlashVerse,
@@ -2658,6 +2703,15 @@ class _ChapterPeekContent extends StatelessWidget {
     required this.fontFamily,
     required this.highlights,
     required this.underlinesEnabled,
+    required this.dictIndex,
+    required this.dictKeys,
+    required this.dictRev,
+    required this.thoughtsEnabled,
+    required this.thoughtsByVerse,
+    required this.myThoughtsByVerse,
+    required this.notesByVerse,
+    required this.headerBar,
+    required this.selectionActive,
     required this.theme,
     required this.topPad,
   });
@@ -2673,6 +2727,19 @@ class _ChapterPeekContent extends StatelessWidget {
   final ReaderFontFamily fontFamily;
   final Map<String, HighlightMark> highlights;
   final bool underlinesEnabled;
+  final Map<String, List<DictEntity>> dictIndex;
+  final List<String> dictKeys;
+  final int dictRev;
+  final bool thoughtsEnabled;
+  final Map<int, int> thoughtsByVerse;
+  final Map<int, int> myThoughtsByVerse;
+  final Map<int, List<Note>> notesByVerse;
+
+  /// 计划阅读条：主文正文被它下推，预览缺了就会在落地瞬间整体下移。
+  final Widget? headerBar;
+
+  /// 主文有选区时会让出词典下划线与分段标题色，预览须同步，否则松手即变样。
+  final bool selectionActive;
   final ReaderExperienceTheme theme;
   final double topPad;
 
@@ -2711,10 +2778,13 @@ class _ChapterPeekContent extends StatelessWidget {
   String _textFor(Chapter source, int verse) =>
       source.verses.where((v) => v.verse == verse).firstOrNull?.text ?? '—';
 
+  /// 与主文 `_ParagraphBlock` 同构：同样切词、同样逐词 WidgetSpan、同样下划线与
+  /// 定宽间隙。预览若退化成整段 TextSpan，落地时断行会整体重排，观感就是「页面波动」。
   List<InlineSpan> _verseSpans(
     Verse verse, {
     required TextStyle style,
     required bool showNumber,
+    bool appendNoteIcon = false,
   }) {
     final spans = <InlineSpan>[];
     if (showNumber && verseNo != ReaderVerseNumberMode.hidden) {
@@ -2747,63 +2817,143 @@ class _ChapterPeekContent extends StatelessWidget {
       );
     }
 
-    final mark = underlinesEnabled
+    final markInfo = underlinesEnabled
         ? markForVerse(highlights, book.id, chapter, verse.verse)
         : null;
+    final mark = markInfo?.mark;
+    final hasThought =
+        thoughtsEnabled && (thoughtsByVerse[verse.verse] ?? 0) > 0;
+    final hasMyThought = (myThoughtsByVerse[verse.verse] ?? 0) > 0;
     final text = verse.text;
-    final start = mark?.spanStart?.clamp(0, text.length);
-    final end = mark?.spanEnd?.clamp(0, text.length);
-    if (mark == null || start == null || end == null || start >= end) {
-      spans.add(
-        TextSpan(
-          text: '$text ',
-          style: applyHighlightStyle(style, mark: mark?.mark, disabled: false),
-        ),
-      );
+    final dictSpans = !selectionActive && dictKeys.isNotEmpty
+        ? cachedDictSpansForText(
+            text,
+            dictIndex,
+            dictKeys,
+            bookId: book.id,
+            chapter: chapter,
+            verse: verse.verse,
+            dictRev: dictRev,
+          )
+        : const <DictSpanHit>[];
+    final words = sliceVerseWords(
+      text,
+      splitOffsets: dictSpans.expand((span) => [span.start, span.end]),
+    );
+    if (words.isEmpty) {
+      spans.add(TextSpan(text: ' ', style: style));
       return spans;
     }
-    if (start > 0) {
-      spans.add(TextSpan(text: text.substring(0, start), style: style));
+    var cursor = 0;
+    for (final w in words) {
+      if (w.start > cursor) {
+        spans.addAll(
+          readerGapSpans(
+            text.substring(cursor, w.start),
+            baseStyle: style,
+            fontPx: fontPx,
+          ),
+        );
+      }
+      final markOnWord =
+          mark != null &&
+          (markInfo?.spanStart == null ||
+              (w.start < (markInfo!.spanEnd ?? 0) &&
+                  w.end > (markInfo.spanStart ?? 0)));
+      var wordStyle = markOnWord
+          ? applyHighlightStyle(style, mark: mark, disabled: false)
+          : style;
+      if (hasThought) {
+        wordStyle = readerThoughtSpanStyle(
+          wordStyle,
+          hasMyThought: hasMyThought,
+        );
+      }
+      final dictHit = selectionActive
+          ? null
+          : matchDictSpanAt(w.start, w.end, dictSpans);
+      if (dictHit != null) {
+        wordStyle = readerDictSpanStyle(wordStyle, dictHit.$1);
+      }
+      spans.add(readerStaticWordSpan(w.text, wordStyle));
+      cursor = w.end;
     }
-    spans.add(
-      TextSpan(
-        text: text.substring(start, end),
-        style: applyHighlightStyle(style, mark: mark.mark, disabled: false),
-      ),
-    );
-    if (end < text.length) {
-      spans.add(TextSpan(text: text.substring(end), style: style));
+    if (cursor < text.length) {
+      spans.addAll(
+        readerGapSpans(
+          text.substring(cursor),
+          baseStyle: style,
+          fontPx: fontPx,
+        ),
+      );
     }
-    spans.add(TextSpan(text: ' ', style: style));
+    // 节间薄缝：与主文同为定宽，避免 justify 把半角空格拉宽。
+    spans.addAll(readerGapSpans(' ', baseStyle: style, fontPx: fontPx));
+    if (appendNoteIcon && notesByVerse[verse.verse]?.firstOrNull != null) {
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 1, right: 4),
+            child: Icon(
+              Icons.sticky_note_2_outlined,
+              size: 11,
+              color: AppColors.accentDeep.withValues(alpha: 0.55),
+            ),
+          ),
+        ),
+      );
+    }
     return spans;
   }
 
-  /// 与主文 `_sectionTitle` 同尺：避免翻章落地时标题从 peek 小字「放大」。
-  Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.fromLTRB(2, 16, 0, 4),
-    child: Text(
-      title,
-      style: TextStyle(
-        fontSize: (fontPx * 0.88).roundToDouble().clamp(13, 32),
-        fontWeight: FontWeight.w700,
-        color: AppColors.accentDeep,
-        fontFamily: fontFamily.fontFamily,
-        fontFamilyFallback: fontFamily.fontFamilyFallback,
+  /// 与主文 `_sectionTitle` 同尺同色：避免翻章落地时标题变尺寸或变色。
+  Widget _sectionTitle(String title) {
+    final style = TextStyle(
+      fontSize: (fontPx * 0.88).roundToDouble().clamp(13, 32),
+      fontWeight: FontWeight.w700,
+      color: selectionActive
+          ? AppColors.inkFaint.withValues(alpha: 0.45)
+          : AppColors.accentDeep,
+      fontFamily: fontFamily.fontFamily,
+      fontFamilyFallback: fontFamily.fontFamilyFallback,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 16, 0, 4),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            // 行内经文引用同样带下划线，只是预览里不可点。
+            for (final p in splitInlineRefs(title))
+              TextSpan(
+                text: p.value,
+                style: p.kind == InlineRefKind.ref && p.osis != null
+                    ? style.copyWith(
+                        decoration: TextDecoration.underline,
+                        decorationColor: style.color,
+                      )
+                    : style,
+              ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _proseParagraph(VerseParagraph para) {
     final display = para.verses
         .map((v) => Verse(verse: v.verse, text: _textFor(primary, v.verse)))
         .toList();
     if (verseNo == ReaderVerseNumberMode.margin) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Column(
-          children: [
-            for (final verse in display)
-              Row(
+      // 与主文 `_MarginVerseRow` 同构：每节上下 3px、节号列宽/字重/间距一致，
+      // 段落本身不再额外留 14px，否则落地时整段会向上跳。
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final verse in display)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
@@ -2811,31 +2961,55 @@ class _ChapterPeekContent extends StatelessWidget {
                     child: Text(
                       '${verse.verse}',
                       textAlign: TextAlign.right,
-                      style: TextStyle(
-                        color: AppColors.accentDeep,
+                      style: _mainStyle.copyWith(
                         fontSize: fontPx * 0.65,
                         fontWeight: FontWeight.w700,
+                        color: AppColors.accentDeep.withValues(alpha: 0.85),
+                        height: 1.0,
+                        letterSpacing: 0,
                       ),
                     ),
                   ),
                   SizedBox(width: fontPx * 0.35),
                   Expanded(
-                    child: RichText(
-                      textAlign: TextAlign.justify,
-                      text: TextSpan(
-                        style: _mainStyle,
-                        children: _verseSpans(
-                          verse,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: RichText(
+                        textAlign: TextAlign.justify,
+                        text: TextSpan(
                           style: _mainStyle,
-                          showNumber: false,
+                          children: _verseSpans(
+                            verse,
+                            style: _mainStyle,
+                            showNumber: false,
+                          ),
                         ),
                       ),
                     ),
                   ),
+                  if (notesByVerse[verse.verse]?.firstOrNull != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 2, top: 2),
+                      child: Icon(
+                        Icons.sticky_note_2_outlined,
+                        size: 12,
+                        color: AppColors.accentDeep.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  if (thoughtsEnabled &&
+                      (thoughtsByVerse[verse.verse] ?? 0) > 0)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 2, top: 2),
+                      child: Icon(
+                        Icons.notes,
+                        size: 12,
+                        color: AppColors.inkFaint,
+                      ),
+                    ),
                 ],
               ),
-          ],
-        ),
+            ),
+        ],
       );
     }
     return Padding(
@@ -2846,7 +3020,12 @@ class _ChapterPeekContent extends StatelessWidget {
           style: _mainStyle,
           children: [
             for (final verse in display)
-              ..._verseSpans(verse, style: _mainStyle, showNumber: true),
+              ..._verseSpans(
+                verse,
+                style: _mainStyle,
+                showNumber: true,
+                appendNoteIcon: true,
+              ),
           ],
         ),
       ),
@@ -2905,8 +3084,10 @@ class _ChapterPeekContent extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(16, topPad, 20, 24),
         // 预览与 PWA ReaderChapterPeek 一致：不显示卷/章头，只渲经文。
+        // 取够铺满一屏的段落数：短段（诗篇等）12 段撑不满，落地补齐时会露出空白。
         children: [
-          for (final row in rows.take(12))
+          ?headerBar,
+          for (final row in rows.take(24))
             row is String
                 ? _sectionTitle(row)
                 : parallel == null
@@ -2937,6 +3118,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     required this.dictIndex,
     required this.dictKeys,
     required this.dictRev,
+    required this.inkColor,
     this.selectionAnchorVerse,
     this.selectionAnchorKey,
     this.resumeFlashVerse,
@@ -2967,6 +3149,9 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final Map<String, List<DictEntity>> dictIndex;
   final List<String> dictKeys;
   final int dictRev;
+
+  /// 随阅读主题走（夜深为浅墨）；预览同源，避免翻章瞬间墨色跳变。
+  final Color inkColor;
   final int? selectionAnchorVerse;
   final GlobalKey? selectionAnchorKey;
   final int? resumeFlashVerse;
@@ -3047,7 +3232,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     // 选中节高亮即可；不压暗其他节（对齐 PWA，避免「白蒙层」观感）
     // PWA 晨光/护眼：line-height 2.05 + letter-spacing 0.015em
     final baseStyle = TextStyle(
-      color: AppColors.ink,
+      color: widget.inkColor,
       fontSize: fontPx,
       height: widget.poetry ? 2.1 : 2.05,
       letterSpacing: fontPx * 0.015,
@@ -3243,16 +3428,11 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               backgroundColor: AppColors.accent.withValues(alpha: 0.28),
             );
           }
-          // 对齐 PWA `.verse-has-thought`：想法直接标在对应经文下方；
-          // 自己写的想法使用更深的强调色。
+          // 对齐 PWA `.verse-has-thought`：想法直接标在对应经文下方。
           if (hasThought && !activeWord) {
-            wordStyle = wordStyle.copyWith(
-              decoration: TextDecoration.underline,
-              decorationStyle: TextDecorationStyle.dashed,
-              decorationColor: AppColors.accentDeep.withValues(
-                alpha: hasMyThought ? 1 : 0.5,
-              ),
-              decorationThickness: 1.5,
+            wordStyle = readerThoughtSpanStyle(
+              wordStyle,
+              hasMyThought: hasMyThought,
             );
           }
 
@@ -3261,19 +3441,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               ? matchDictSpanAt(w.start, w.end, dictSpans)
               : null;
           if (dictHit != null) {
-            wordStyle = wordStyle.copyWith(
-              decoration: TextDecoration.underline,
-              decorationStyle: switch (dictHit.$1.type) {
-                'place' => TextDecorationStyle.dashed,
-                'person' => TextDecorationStyle.dotted,
-                'artifact' => TextDecorationStyle.wavy,
-                _ => TextDecorationStyle.dotted,
-              },
-              decorationColor: (wordStyle.color ?? AppColors.ink).withValues(
-                alpha: 0.35,
-              ),
-              decorationThickness: 1.2,
-            );
+            wordStyle = readerDictSpanStyle(wordStyle, dictHit.$1);
           }
 
           final anchor = WordAnchor(verse: v.verse, start: w.start, end: w.end);
@@ -3538,32 +3706,16 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
         );
       }
       if (thoughtsEnabled && thoughtsCount > 0 && !activeWord) {
-        wordStyle = wordStyle.copyWith(
-          decoration: TextDecoration.underline,
-          decorationStyle: TextDecorationStyle.dashed,
-          decorationColor: AppColors.accentDeep.withValues(
-            alpha: hasMyThought ? 1 : 0.5,
-          ),
-          decorationThickness: 1.5,
+        wordStyle = readerThoughtSpanStyle(
+          wordStyle,
+          hasMyThought: hasMyThought,
         );
       }
       final dictHit = !selectionActive
           ? matchDictSpanAt(w.start, w.end, dictSpans)
           : null;
       if (dictHit != null) {
-        wordStyle = wordStyle.copyWith(
-          decoration: TextDecoration.underline,
-          decorationStyle: switch (dictHit.$1.type) {
-            'place' => TextDecorationStyle.dashed,
-            'person' => TextDecorationStyle.dotted,
-            'artifact' => TextDecorationStyle.wavy,
-            _ => TextDecorationStyle.dotted,
-          },
-          decorationColor: (wordStyle.color ?? AppColors.ink).withValues(
-            alpha: 0.35,
-          ),
-          decorationThickness: 1.2,
-        );
+        wordStyle = readerDictSpanStyle(wordStyle, dictHit.$1);
       }
       final a = WordAnchor(verse: v.verse, start: w.start, end: w.end);
       // 与普通段落一致：未选中时也必须留下词命中锚点。
@@ -3676,6 +3828,49 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
     );
   }
 }
+
+/// 词典命中下划线（对齐 PWA `.verse-word.is-dict`）。
+/// 主文与横滑预览共用，避免预览缺下划线、落地才补上造成观感跳动。
+TextStyle readerDictSpanStyle(TextStyle base, DictEntity entity) =>
+    base.copyWith(
+      decoration: TextDecoration.underline,
+      decorationStyle: switch (entity.type) {
+        'place' => TextDecorationStyle.dashed,
+        'person' => TextDecorationStyle.dotted,
+        'artifact' => TextDecorationStyle.wavy,
+        _ => TextDecorationStyle.dotted,
+      },
+      decorationColor: (base.color ?? AppColors.ink).withValues(alpha: 0.35),
+      decorationThickness: 1.2,
+    );
+
+/// 想法虚线（对齐 PWA `.verse-has-thought`）；自己写的想法用更深强调色。
+TextStyle readerThoughtSpanStyle(
+  TextStyle base, {
+  required bool hasMyThought,
+}) => base.copyWith(
+  decoration: TextDecoration.underline,
+  decorationStyle: TextDecorationStyle.dashed,
+  decorationColor: AppColors.accentDeep.withValues(
+    alpha: hasMyThought ? 1 : 0.5,
+  ),
+  decorationThickness: 1.5,
+);
+
+/// 静态词块：与 `SelectableWordChip` 未选中态布局等价（同样关闭首行/末行 height），
+/// 但不挂 MetaData/手势。横滑预览用它，才能与主文逐词 WidgetSpan 断行完全一致。
+InlineSpan readerStaticWordSpan(String text, TextStyle style) => WidgetSpan(
+  alignment: PlaceholderAlignment.baseline,
+  baseline: TextBaseline.alphabetic,
+  child: Text(
+    text,
+    style: style,
+    textHeightBehavior: const TextHeightBehavior(
+      applyHeightToFirstAscent: false,
+      applyHeightToLastDescent: false,
+    ),
+  ),
+);
 
 /// 经文间隙：全角敬空 `\u3000`、半角空格改为定宽，避免 justify 拉成「神」前大洞。
 List<InlineSpan> readerGapSpans(
