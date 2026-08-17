@@ -1,0 +1,522 @@
+{
+  "schema": "relation_candidates@1",
+  "note": "未并入正式关系。把 source_id 写入 relation_candidates.approved.json 后重新导入才会进入 relations.json。",
+  "priority_types": [
+    "disciple",
+    "mentor",
+    "companion",
+    "located_at",
+    "event",
+    "contains"
+  ],
+  "count": 30,
+  "candidates": [
+    {
+      "from": "abijah-son-of-rehoboam",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "1KI 14:31",
+        "1KI 15:1",
+        "1KI 15:7",
+        "1KI 15:8",
+        "1CH 3:10",
+        "2CH 11:20"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:abijah-son-of-rehoboam->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "abraham",
+      "to": "ur",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "GEN 11:26",
+        "GEN 11:27",
+        "GEN 11:29",
+        "GEN 11:31",
+        "GEN 12:1",
+        "GEN 12:4"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:abraham->ur",
+      "confidence": "medium"
+    },
+    {
+      "from": "adonijah-son-of-david",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2SA 3:4",
+        "1KI 1:5",
+        "1KI 1:7",
+        "1KI 1:8",
+        "1KI 1:9",
+        "1KI 1:11"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:adonijah-son-of-david->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "ahaz-son-of-jotham",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 15:38",
+        "2KI 16:1",
+        "2KI 16:2",
+        "2KI 16:5",
+        "2KI 16:7",
+        "2KI 16:8"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:ahaz-son-of-jotham->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "ahaziah-son-of-jehoram",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 8:24",
+        "2KI 8:25",
+        "2KI 8:26",
+        "2KI 8:29",
+        "2KI 9:16",
+        "2KI 9:21"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:ahaziah-son-of-jehoram->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "amaziah-son-of-joash",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 12:21",
+        "2KI 13:12",
+        "2KI 14:1",
+        "2KI 14:8",
+        "2KI 14:9",
+        "2KI 14:11"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:amaziah-son-of-joash->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "amon-son-of-manasseh",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 21:18",
+        "2KI 21:19",
+        "2KI 21:23",
+        "2KI 21:24",
+        "2KI 21:25",
+        "1CH 3:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:amon-son-of-manasseh->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "asa-son-of-abijah",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "1KI 15:8",
+        "1KI 15:9",
+        "1KI 15:11",
+        "1KI 15:13",
+        "1KI 15:14",
+        "1KI 15:16"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:asa-son-of-abijah->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "athaliah-son-of-ahab",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 8:26",
+        "2KI 11:1",
+        "2KI 11:2",
+        "2KI 11:3",
+        "2KI 11:13",
+        "2KI 11:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:athaliah-son-of-ahab->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "david",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "RUT 4:17",
+        "RUT 4:22",
+        "1SA 16:13",
+        "1SA 16:19",
+        "1SA 16:20",
+        "1SA 16:21"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:david->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "haran-son-of-terah",
+      "to": "ur",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "GEN 11:26",
+        "GEN 11:27",
+        "GEN 11:28",
+        "GEN 11:29",
+        "GEN 11:31"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:haran-son-of-terah->ur",
+      "confidence": "medium"
+    },
+    {
+      "from": "jehoiakim",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 23:34",
+        "2KI 23:35",
+        "2KI 23:36",
+        "2KI 24:1",
+        "2KI 24:5",
+        "2KI 24:6"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:jehoiakim->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "jehoshaphat-son-of-asa",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "1KI 15:24",
+        "1KI 22:2",
+        "1KI 22:4",
+        "1KI 22:5",
+        "1KI 22:7",
+        "1KI 22:8"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:jehoshaphat-son-of-asa->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "jesus",
+      "to": "bethlehem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "1CH 17:13",
+        "1CO 1:1",
+        "1CO 1:10",
+        "1CO 1:12",
+        "1CO 1:13",
+        "1CO 1:17"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:jesus-son-of-joseph->bethlehem",
+      "confidence": "medium"
+    },
+    {
+      "from": "jesus",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "1CH 17:13",
+        "1CO 1:1",
+        "1CO 1:10",
+        "1CO 1:12",
+        "1CO 1:13",
+        "1CO 1:17"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:jesus-son-of-joseph->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "jotham-son-of-uzziah",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 15:5",
+        "2KI 15:7",
+        "2KI 15:30",
+        "2KI 15:32",
+        "2KI 15:36",
+        "2KI 15:38"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:jotham-son-of-uzziah->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "paul",
+      "to": "tarsus",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "ACT 7:58",
+        "ACT 8:1",
+        "ACT 8:3",
+        "ACT 9:1",
+        "ACT 9:4",
+        "ACT 9:8"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:paul->tarsus",
+      "confidence": "medium"
+    },
+    {
+      "from": "seth",
+      "to": "eden",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "GEN 4:25",
+        "GEN 4:26",
+        "GEN 5:3",
+        "GEN 5:4",
+        "GEN 5:6",
+        "GEN 5:7"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:seth->eden",
+      "confidence": "medium"
+    },
+    {
+      "from": "solomon",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2SA 5:14",
+        "2SA 12:24",
+        "2SA 12:25",
+        "1KI 1:10",
+        "1KI 1:11",
+        "1KI 1:12"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:solomon->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "stephen",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "ACT 6:5",
+        "ACT 6:8",
+        "ACT 6:9",
+        "ACT 7:59",
+        "ACT 8:2",
+        "ACT 11:19"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:stephen->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "uzziah-son-of-amaziah",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 14:21",
+        "2KI 15:1",
+        "2KI 15:6",
+        "2KI 15:7",
+        "2KI 15:8",
+        "2KI 15:13"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:uzziah-son-of-amaziah->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "zedekiah-son-of-josiah",
+      "to": "babylon",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 24:17",
+        "2KI 24:18",
+        "2KI 24:20",
+        "2KI 25:2",
+        "2KI 25:7",
+        "1CH 3:15"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:zedekiah-son-of-josiah->babylon",
+      "confidence": "medium"
+    },
+    {
+      "from": "zedekiah-son-of-josiah",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 24:17",
+        "2KI 24:18",
+        "2KI 24:20",
+        "2KI 25:2",
+        "2KI 25:7",
+        "1CH 3:15"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:zedekiah-son-of-josiah->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "亚伯",
+      "to": "eden",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "GEN 4:2",
+        "GEN 4:4",
+        "GEN 4:8",
+        "GEN 4:9",
+        "GEN 4:25",
+        "MAT 23:35"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:abel->eden",
+      "confidence": "medium"
+    },
+    {
+      "from": "亚当",
+      "to": "eden",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "GEN 2:19",
+        "GEN 2:20",
+        "GEN 2:21",
+        "GEN 2:23",
+        "GEN 3:8",
+        "GEN 3:9"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:adam->eden",
+      "confidence": "medium"
+    },
+    {
+      "from": "夏娃",
+      "to": "eden",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "GEN 3:20",
+        "GEN 4:1",
+        "2CO 11:3",
+        "1TI 2:13"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:eve->eden",
+      "confidence": "medium"
+    },
+    {
+      "from": "希西家",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "2KI 16:20",
+        "2KI 18:1",
+        "2KI 18:9",
+        "2KI 18:10",
+        "2KI 18:13",
+        "2KI 18:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:hezekiah-son-of-ahaz->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "约西亚",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "1KI 13:2",
+        "2KI 21:24",
+        "2KI 21:26",
+        "2KI 22:1",
+        "2KI 22:3",
+        "2KI 23:16"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:josiah-son-of-amon->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "罗波安",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "1KI 11:43",
+        "1KI 12:1",
+        "1KI 12:3",
+        "1KI 12:6",
+        "1KI 12:12",
+        "1KI 12:17"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:rehoboam->jerusalem",
+      "confidence": "medium"
+    },
+    {
+      "from": "该隐",
+      "to": "eden",
+      "type": "located_at",
+      "label": "相关地点",
+      "refs": [
+        "GEN 4:1",
+        "GEN 4:2",
+        "GEN 4:3",
+        "GEN 4:5",
+        "GEN 4:6",
+        "GEN 4:8"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis-place:cain->eden",
+      "confidence": "medium"
+    }
+  ]
+}

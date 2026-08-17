@@ -113,7 +113,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
           final e = k.entity.id.isNotEmpty ? k.entity : _entity;
           final tabs = <String>['refs'];
           if (k.place != null) tabs.add('map');
-          if (k.graph != null && (k.graph!.nodes.isNotEmpty)) {
+          if (k.graph != null && k.graph!.edges.isNotEmpty) {
             tabs.add('graph');
           }
           if (k.diagrams.isNotEmpty) tabs.add('diagrams');

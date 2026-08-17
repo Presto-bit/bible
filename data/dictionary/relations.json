@@ -1,30 +1,2959 @@
 {
-  "schema": "relations@2",
-  "count": 24,
+  "schema": "relations@3",
+  "source": "curated + gnosis (CC-BY-SA)",
+  "attribution": "Gnosis Biblical Knowledge Graph",
+  "license": "CC-BY-SA",
+  "count": 173,
+  "stats": {
+    "entities": 373,
+    "people": 241,
+    "relations": 173,
+    "linked_entities": 164,
+    "entity_coverage": 0.4397,
+    "person_coverage": 0.6307,
+    "top50_person_coverage": 1.0,
+    "by_type": {
+      "parent": 75,
+      "sibling": 41,
+      "spouse": 17,
+      "located_at": 11,
+      "mentor": 4,
+      "disciple": 11,
+      "event": 6,
+      "companion": 7,
+      "contains": 1
+    }
+  },
   "relations": [
-    {"from": "abraham", "to": "isaac", "type": "parent", "label": "父亲", "refs": ["GEN 22:2"]},
-    {"from": "isaac", "to": "jacob_patriarch", "type": "parent", "label": "父亲", "refs": ["GEN 25:26"]},
-    {"from": "jacob_patriarch", "to": "joseph-son-of-jacob", "type": "parent", "label": "父亲", "refs": ["GEN 37:3"]},
-    {"from": "moses", "to": "aaron", "type": "sibling", "label": "哥哥", "refs": ["EXO 4:14"]},
-    {"from": "moses", "to": "红海", "type": "event", "label": "过红海", "refs": ["EXO 14:21"]},
-    {"from": "moses", "to": "西奈山", "type": "located_at", "label": "领受律法", "refs": ["EXO 19:20"]},
-    {"from": "moses", "to": "会幕", "type": "event", "label": "建造会幕", "refs": ["EXO 40:17"]},
-    {"from": "moses", "to": "约柜", "type": "event", "label": "法版约柜", "refs": ["EXO 25:10"]},
-    {"from": "david", "to": "solomon", "type": "parent", "label": "父亲", "refs": ["1KI 1:39"]},
-    {"from": "solomon", "to": "圣殿", "type": "event", "label": "建造圣殿", "refs": ["1KI 6:1"]},
-    {"from": "jesus", "to": "peter", "type": "disciple", "label": "门徒", "refs": ["MAT 16:18"]},
-    {"from": "jesus", "to": "thomas", "type": "disciple", "label": "门徒", "refs": ["JHN 20:27"]},
-    {"from": "peter", "to": "thomas", "type": "companion", "label": "同作门徒", "refs": ["JHN 21:2"]},
-    {"from": "jesus", "to": "john-apostle", "type": "disciple", "label": "所爱的门徒", "refs": ["JHN 13:23"]},
-    {"from": "jesus", "to": "jerusalem", "type": "located_at", "label": "受难与复活", "refs": ["MAT 21:1"]},
-    {"from": "jesus", "to": "迦百农", "type": "located_at", "label": "事工中心", "refs": ["MAT 4:13"]},
-    {"from": "paul", "to": "提摩太", "type": "mentor", "label": "属灵儿子", "refs": ["1TI 1:2"]},
-    {"from": "paul", "to": "barnabas", "type": "companion", "label": "同工", "refs": ["ACT 13:2"]},
-    {"from": "elijah", "to": "elisha", "type": "mentor", "label": "传承先知", "refs": ["2KI 2:9"]},
-    {"from": "ruth", "to": "boaz", "type": "spouse", "label": "丈夫", "refs": ["RUT 4:13"]},
-    {"from": "mary-mother-of-jesus", "to": "jesus", "type": "parent", "label": "母亲", "refs": ["LUK 1:31"]},
-    {"from": "peter", "to": "迦百农", "type": "located_at", "label": "家乡附近", "refs": ["MRK 1:29"]},
-    {"from": "会幕", "to": "约柜", "type": "contains", "label": "至圣所内", "refs": ["EXO 26:34"]},
-    {"from": "逾越节", "to": "埃及", "type": "event", "label": "出埃及", "refs": ["EXO 12:31"]}
+    {
+      "from": "aaron",
+      "to": "eleazar-son-of-aaron",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 4:14",
+        "EXO 4:27",
+        "EXO 4:28",
+        "EXO 4:29",
+        "EXO 4:30",
+        "EXO 5:1",
+        "EXO 6:23",
+        "EXO 6:25"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:aaron->eleazar-son-of-aaron",
+      "confidence": "high"
+    },
+    {
+      "from": "aaron",
+      "to": "miriam-son-of-amram",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "EXO 4:14",
+        "EXO 4:27",
+        "EXO 4:28",
+        "EXO 4:29",
+        "EXO 4:30",
+        "EXO 5:1",
+        "EXO 15:20",
+        "EXO 15:21"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:aaron~miriam-son-of-amram",
+      "confidence": "high"
+    },
+    {
+      "from": "abigail",
+      "to": "david",
+      "type": "spouse",
+      "label": "配偶",
+      "refs": [
+        "1SA 25:3",
+        "1SA 25:14",
+        "1SA 25:18",
+        "1SA 25:23",
+        "1SA 25:32",
+        "1SA 25:36",
+        "RUT 4:17",
+        "RUT 4:22"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:abigail=david",
+      "confidence": "high"
+    },
+    {
+      "from": "abigail",
+      "to": "nabal",
+      "type": "spouse",
+      "label": "配偶",
+      "refs": [
+        "1SA 25:3",
+        "1SA 25:14",
+        "1SA 25:18",
+        "1SA 25:23",
+        "1SA 25:32",
+        "1SA 25:36",
+        "1SA 25:4",
+        "1SA 25:5"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:abigail=nabal",
+      "confidence": "high"
+    },
+    {
+      "from": "abijah-son-of-rehoboam",
+      "to": "asa-son-of-abijah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 14:31",
+        "1KI 15:1",
+        "1KI 15:7",
+        "1KI 15:8",
+        "1CH 3:10",
+        "2CH 11:20",
+        "1KI 15:9",
+        "1KI 15:11"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:abijah-son-of-rehoboam->asa-son-of-abijah",
+      "confidence": "high"
+    },
+    {
+      "from": "abiram-son-of-eliab",
+      "to": "dathan",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "NUM 16:1",
+        "NUM 16:12",
+        "NUM 16:24",
+        "NUM 16:25",
+        "NUM 16:27",
+        "NUM 26:9"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:abiram-son-of-eliab~dathan",
+      "confidence": "high"
+    },
+    {
+      "from": "abishai",
+      "to": "joab",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "1SA 26:6",
+        "1SA 26:7",
+        "1SA 26:8",
+        "1SA 26:9",
+        "2SA 2:18",
+        "2SA 2:24",
+        "2SA 2:13",
+        "2SA 2:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:abishai~joab",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "midian",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 11:26",
+        "GEN 11:27",
+        "GEN 11:29",
+        "GEN 11:31",
+        "GEN 12:1",
+        "GEN 12:4",
+        "GEN 25:2",
+        "GEN 25:4"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:abraham->midian",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "以撒",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 22:2",
+        "GEN 11:26",
+        "GEN 11:27",
+        "GEN 11:29",
+        "GEN 11:31",
+        "GEN 12:1",
+        "GEN 12:4",
+        "GEN 17:19"
+      ],
+      "source": "curated",
+      "source_id": "curated:abraham-isaac",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "haran-son-of-terah",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 11:26",
+        "GEN 11:27",
+        "GEN 11:29",
+        "GEN 11:31",
+        "GEN 12:1",
+        "GEN 12:4",
+        "GEN 11:28"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:abraham~haran-son-of-terah",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "hagar",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "GEN 11:26",
+        "GEN 11:27",
+        "GEN 11:29",
+        "GEN 11:31",
+        "GEN 12:1",
+        "GEN 12:4",
+        "GEN 16:1",
+        "GEN 16:3"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:abraham=hagar",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "撒拉",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "GEN 11:29",
+        "GEN 11:26",
+        "GEN 11:27",
+        "GEN 11:31",
+        "GEN 12:1",
+        "GEN 12:4",
+        "GEN 11:30",
+        "GEN 12:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:abraham-sarah",
+      "confidence": "high"
+    },
+    {
+      "from": "ahab-son-of-omri",
+      "to": "athaliah-son-of-ahab",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 16:28",
+        "1KI 16:29",
+        "1KI 16:30",
+        "1KI 16:33",
+        "1KI 17:1",
+        "1KI 18:1",
+        "2KI 8:26",
+        "2KI 11:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:ahab-son-of-omri->athaliah-son-of-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "ahab-son-of-omri",
+      "to": "joram-son-of-ahab",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 16:28",
+        "1KI 16:29",
+        "1KI 16:30",
+        "1KI 16:33",
+        "1KI 17:1",
+        "1KI 18:1",
+        "2KI 1:17",
+        "2KI 3:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:ahab-son-of-omri->joram-son-of-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "ahab-son-of-omri",
+      "to": "jezebel",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "1KI 16:28",
+        "1KI 16:29",
+        "1KI 16:30",
+        "1KI 16:33",
+        "1KI 17:1",
+        "1KI 18:1",
+        "1KI 16:31",
+        "1KI 18:4"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:ahab-son-of-omri=jezebel",
+      "confidence": "high"
+    },
+    {
+      "from": "ahaz-son-of-jotham",
+      "to": "希西家",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2KI 15:38",
+        "2KI 16:1",
+        "2KI 16:2",
+        "2KI 16:5",
+        "2KI 16:7",
+        "2KI 16:8",
+        "2KI 16:20",
+        "2KI 18:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:ahaz-son-of-jotham->hezekiah-son-of-ahaz",
+      "confidence": "high"
+    },
+    {
+      "from": "ahimelech-son-of-ahitub",
+      "to": "abiathar",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 22:20",
+        "1SA 22:21",
+        "1SA 22:22",
+        "1SA 23:6",
+        "1SA 23:9",
+        "1SA 30:7",
+        "1SA 14:3",
+        "1SA 14:18"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:ahimelech-son-of-ahitub->abiathar",
+      "confidence": "high"
+    },
+    {
+      "from": "amaziah-son-of-joash",
+      "to": "uzziah-son-of-amaziah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2KI 12:21",
+        "2KI 13:12",
+        "2KI 14:1",
+        "2KI 14:8",
+        "2KI 14:9",
+        "2KI 14:11",
+        "2KI 14:21",
+        "2KI 15:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:amaziah-son-of-joash->uzziah-son-of-amaziah",
+      "confidence": "high"
+    },
+    {
+      "from": "amon-son-of-manasseh",
+      "to": "约西亚",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2KI 21:18",
+        "2KI 21:19",
+        "2KI 21:23",
+        "2KI 21:24",
+        "2KI 21:25",
+        "1CH 3:14",
+        "1KI 13:2",
+        "2KI 21:26"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:amon-son-of-manasseh->josiah-son-of-amon",
+      "confidence": "high"
+    },
+    {
+      "from": "amoz",
+      "to": "isaiah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2KI 19:2",
+        "2KI 19:20",
+        "2KI 20:1",
+        "2CH 26:22",
+        "2CH 32:20",
+        "2CH 32:32",
+        "2KI 19:5",
+        "2KI 19:6"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:amoz->isaiah",
+      "confidence": "high"
+    },
+    {
+      "from": "aquila",
+      "to": "priscilla",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "ACT 18:2",
+        "ACT 18:18",
+        "ACT 18:26",
+        "ROM 16:3",
+        "1CO 16:19",
+        "2TI 4:19"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:aquila=priscilla",
+      "confidence": "high"
+    },
+    {
+      "from": "asa-son-of-abijah",
+      "to": "jehoshaphat-son-of-asa",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 15:8",
+        "1KI 15:9",
+        "1KI 15:11",
+        "1KI 15:13",
+        "1KI 15:14",
+        "1KI 15:16",
+        "1KI 15:24",
+        "1KI 22:2"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:asa-son-of-abijah->jehoshaphat-son-of-asa",
+      "confidence": "high"
+    },
+    {
+      "from": "asher",
+      "to": "gad-son-of-israel",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:13",
+        "GEN 35:26",
+        "GEN 46:17",
+        "GEN 49:20",
+        "EXO 1:4",
+        "NUM 1:13",
+        "GEN 30:11",
+        "GEN 46:16"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:asher~gad-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "athaliah-son-of-ahab",
+      "to": "ahaziah-son-of-jehoram",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "2KI 8:24",
+        "2KI 8:25",
+        "2KI 8:26",
+        "2KI 8:29",
+        "2KI 9:16",
+        "2KI 9:21",
+        "2KI 11:1",
+        "2KI 11:2"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:athaliah-son-of-ahab->ahaziah-son-of-jehoram",
+      "confidence": "high"
+    },
+    {
+      "from": "athaliah-son-of-ahab",
+      "to": "joram-son-of-ahab",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "2KI 8:26",
+        "2KI 11:1",
+        "2KI 11:2",
+        "2KI 11:3",
+        "2KI 11:13",
+        "2KI 11:14",
+        "2KI 1:17",
+        "2KI 3:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:athaliah-son-of-ahab~joram-son-of-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "bathsheba",
+      "to": "solomon",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "2SA 11:3",
+        "2SA 12:24",
+        "1KI 1:11",
+        "1KI 1:15",
+        "1KI 1:16",
+        "1KI 1:28",
+        "2SA 5:14",
+        "2SA 12:25"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:bathsheba->solomon",
+      "confidence": "high"
+    },
+    {
+      "from": "bathsheba",
+      "to": "david",
+      "type": "spouse",
+      "label": "配偶",
+      "refs": [
+        "2SA 11:3",
+        "2SA 12:24",
+        "1KI 1:11",
+        "1KI 1:15",
+        "1KI 1:16",
+        "1KI 1:28",
+        "RUT 4:17",
+        "RUT 4:22"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:bathsheba=david",
+      "confidence": "high"
+    },
+    {
+      "from": "bathsheba",
+      "to": "uriah",
+      "type": "spouse",
+      "label": "配偶",
+      "refs": [
+        "2SA 11:3",
+        "2SA 12:24",
+        "1KI 1:11",
+        "1KI 1:15",
+        "1KI 1:16",
+        "1KI 1:28",
+        "2SA 11:6",
+        "2SA 11:7"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:bathsheba=uriah",
+      "confidence": "high"
+    },
+    {
+      "from": "canaan",
+      "to": "amorite",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 10:16",
+        "1CH 1:14",
+        "AMO 2:9",
+        "AMO 2:10",
+        "GEN 9:18",
+        "GEN 9:22",
+        "GEN 9:25",
+        "GEN 9:26"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:canaan->amorite",
+      "confidence": "high"
+    },
+    {
+      "from": "canaan",
+      "to": "cush",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 9:18",
+        "GEN 9:22",
+        "GEN 9:25",
+        "GEN 9:26",
+        "GEN 9:27",
+        "GEN 10:6",
+        "GEN 10:7",
+        "GEN 10:8"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:canaan~cush",
+      "confidence": "high"
+    },
+    {
+      "from": "dan",
+      "to": "naphtali",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:6",
+        "GEN 35:25",
+        "GEN 46:23",
+        "GEN 49:16",
+        "GEN 49:17",
+        "EXO 1:4",
+        "GEN 30:8",
+        "GEN 46:24"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:dan~naphtali",
+      "confidence": "high"
+    },
+    {
+      "from": "daniel",
+      "to": "babylon",
+      "type": "located_at",
+      "label": "被掳之地",
+      "refs": [
+        "DAN 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:daniel-babylon",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "absalom",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 3:3",
+        "2SA 13:1",
+        "2SA 13:4",
+        "2SA 13:20",
+        "2SA 13:22",
+        "2SA 13:23",
+        "RUT 4:17",
+        "RUT 4:22"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:david->absalom",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "adonijah-son-of-david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 3:4",
+        "1KI 1:5",
+        "1KI 1:7",
+        "1KI 1:8",
+        "1KI 1:9",
+        "1KI 1:11",
+        "RUT 4:17",
+        "RUT 4:22"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:david->adonijah-son-of-david",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "amnon-son-of-david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 3:2",
+        "2SA 13:1",
+        "2SA 13:2",
+        "2SA 13:3",
+        "2SA 13:4",
+        "2SA 13:6",
+        "RUT 4:17",
+        "RUT 4:22"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:david->amnon-son-of-david",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "solomon",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 1:39",
+        "RUT 4:17",
+        "RUT 4:22",
+        "1SA 16:13",
+        "1SA 16:19",
+        "1SA 16:20",
+        "1SA 16:21",
+        "2SA 5:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-solomon",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "michal",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "RUT 4:17",
+        "RUT 4:22",
+        "1SA 16:13",
+        "1SA 16:19",
+        "1SA 16:20",
+        "1SA 16:21",
+        "1SA 14:49",
+        "1SA 18:20"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:david=michal",
+      "confidence": "high"
+    },
+    {
+      "from": "delilah",
+      "to": "参孙",
+      "type": "spouse",
+      "label": "配偶",
+      "refs": [
+        "JDG 16:4",
+        "JDG 16:6",
+        "JDG 16:10",
+        "JDG 16:12",
+        "JDG 16:13",
+        "JDG 16:18",
+        "JDG 13:24",
+        "JDG 14:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:delilah=samson",
+      "confidence": "high"
+    },
+    {
+      "from": "dinah",
+      "to": "issachar-son-of-israel",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:21",
+        "GEN 34:1",
+        "GEN 34:3",
+        "GEN 34:5",
+        "GEN 34:13",
+        "GEN 34:25",
+        "GEN 30:18",
+        "GEN 35:23"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:dinah~issachar-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "dinah",
+      "to": "levi-son-of-israel",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:21",
+        "GEN 34:1",
+        "GEN 34:3",
+        "GEN 34:5",
+        "GEN 34:13",
+        "GEN 34:25",
+        "GEN 29:34",
+        "GEN 34:30"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:dinah~levi-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "dinah",
+      "to": "reuben",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:21",
+        "GEN 34:1",
+        "GEN 34:3",
+        "GEN 34:5",
+        "GEN 34:13",
+        "GEN 34:25",
+        "GEN 29:32",
+        "GEN 30:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:dinah~reuben",
+      "confidence": "high"
+    },
+    {
+      "from": "dinah",
+      "to": "simeon-son-of-israel",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:21",
+        "GEN 34:1",
+        "GEN 34:3",
+        "GEN 34:5",
+        "GEN 34:13",
+        "GEN 34:25",
+        "GEN 29:33",
+        "GEN 34:30"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:dinah~simeon-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "dinah",
+      "to": "zebulun",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:21",
+        "GEN 34:1",
+        "GEN 34:3",
+        "GEN 34:5",
+        "GEN 34:13",
+        "GEN 34:25",
+        "GEN 30:20",
+        "GEN 35:23"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:dinah~zebulun",
+      "confidence": "high"
+    },
+    {
+      "from": "eleazar-son-of-aaron",
+      "to": "phinehas-son-of-eleazar",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:23",
+        "EXO 6:25",
+        "EXO 28:1",
+        "LEV 10:6",
+        "LEV 10:12",
+        "LEV 10:16",
+        "NUM 25:7",
+        "NUM 25:11"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:eleazar-son-of-aaron->phinehas-son-of-eleazar",
+      "confidence": "high"
+    },
+    {
+      "from": "eli",
+      "to": "hophni",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 1:3",
+        "1SA 1:9",
+        "1SA 1:12",
+        "1SA 1:13",
+        "1SA 1:14",
+        "1SA 1:17",
+        "1SA 2:34",
+        "1SA 4:4"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:eli->hophni",
+      "confidence": "high"
+    },
+    {
+      "from": "elijah",
+      "to": "以利沙",
+      "type": "mentor",
+      "label": "传承先知",
+      "refs": [
+        "2KI 2:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:elijah-elisha",
+      "confidence": "high"
+    },
+    {
+      "from": "elkanah-son-of-jeroham",
+      "to": "撒母耳",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 1:1",
+        "1SA 1:4",
+        "1SA 1:8",
+        "1SA 1:19",
+        "1SA 1:21",
+        "1SA 1:23",
+        "1SA 1:20",
+        "1SA 2:18"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:elkanah-son-of-jeroham->samuel",
+      "confidence": "high"
+    },
+    {
+      "from": "elkanah-son-of-jeroham",
+      "to": "hannah",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "1SA 1:1",
+        "1SA 1:4",
+        "1SA 1:8",
+        "1SA 1:19",
+        "1SA 1:21",
+        "1SA 1:23",
+        "1SA 1:2",
+        "1SA 1:5"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:elkanah-son-of-jeroham=hannah",
+      "confidence": "high"
+    },
+    {
+      "from": "enoch-son-of-jared",
+      "to": "methuselah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 5:18",
+        "GEN 5:19",
+        "GEN 5:21",
+        "GEN 5:22",
+        "GEN 5:23",
+        "GEN 5:24",
+        "GEN 5:25",
+        "GEN 5:26"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:enoch-son-of-jared->methuselah",
+      "confidence": "high"
+    },
+    {
+      "from": "ephraim",
+      "to": "manasseh-son-of-joseph",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 41:52",
+        "GEN 46:20",
+        "GEN 48:1",
+        "GEN 48:5",
+        "GEN 48:13",
+        "GEN 48:14",
+        "GEN 41:51"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:ephraim~manasseh-son-of-joseph",
+      "confidence": "high"
+    },
+    {
+      "from": "god",
+      "to": "亚当",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 2:19",
+        "GEN 2:20",
+        "GEN 2:21",
+        "GEN 2:23",
+        "GEN 3:8",
+        "GEN 3:9",
+        "1CH 10:13",
+        "1CH 10:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:god->adam",
+      "confidence": "high"
+    },
+    {
+      "from": "god",
+      "to": "夏娃",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 3:20",
+        "GEN 4:1",
+        "2CO 11:3",
+        "1TI 2:13",
+        "1CH 10:13",
+        "1CH 10:14",
+        "1CH 11:10",
+        "1CH 11:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:god->eve",
+      "confidence": "high"
+    },
+    {
+      "from": "ham",
+      "to": "canaan",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 9:18",
+        "GEN 9:22",
+        "GEN 9:25",
+        "GEN 9:26",
+        "GEN 9:27",
+        "GEN 10:6",
+        "GEN 5:32",
+        "GEN 6:10"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:ham->canaan",
+      "confidence": "high"
+    },
+    {
+      "from": "ham",
+      "to": "cush",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 10:6",
+        "GEN 10:7",
+        "GEN 10:8",
+        "1CH 1:8",
+        "1CH 1:9",
+        "1CH 1:10",
+        "GEN 5:32",
+        "GEN 6:10"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:ham->cush",
+      "confidence": "high"
+    },
+    {
+      "from": "ham",
+      "to": "japheth",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 5:32",
+        "GEN 6:10",
+        "GEN 7:13",
+        "GEN 9:18",
+        "GEN 9:22",
+        "GEN 10:1",
+        "GEN 9:23",
+        "GEN 9:27"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:ham~japheth",
+      "confidence": "high"
+    },
+    {
+      "from": "ham",
+      "to": "shem",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 5:32",
+        "GEN 6:10",
+        "GEN 7:13",
+        "GEN 9:18",
+        "GEN 9:22",
+        "GEN 10:1",
+        "GEN 9:23",
+        "GEN 9:26"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:ham~shem",
+      "confidence": "high"
+    },
+    {
+      "from": "hannah",
+      "to": "撒母耳",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "1SA 1:2",
+        "1SA 1:5",
+        "1SA 1:8",
+        "1SA 1:9",
+        "1SA 1:13",
+        "1SA 1:15",
+        "1SA 1:20",
+        "1SA 2:18"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:hannah->samuel",
+      "confidence": "high"
+    },
+    {
+      "from": "haran-son-of-terah",
+      "to": "lot",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 11:26",
+        "GEN 11:27",
+        "GEN 11:28",
+        "GEN 11:29",
+        "GEN 11:31",
+        "GEN 12:4",
+        "GEN 12:5",
+        "GEN 13:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:haran-son-of-terah->lot",
+      "confidence": "high"
+    },
+    {
+      "from": "haran-son-of-terah",
+      "to": "撒拉",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 11:26",
+        "GEN 11:27",
+        "GEN 11:28",
+        "GEN 11:29",
+        "GEN 11:31",
+        "GEN 11:30",
+        "GEN 12:5",
+        "GEN 12:11"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:haran-son-of-terah~sarah",
+      "confidence": "high"
+    },
+    {
+      "from": "issachar-son-of-israel",
+      "to": "levi-son-of-israel",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:18",
+        "GEN 35:23",
+        "GEN 46:13",
+        "GEN 49:14",
+        "EXO 1:3",
+        "NUM 1:8",
+        "GEN 29:34",
+        "GEN 34:25"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:issachar-son-of-israel~levi-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "issachar-son-of-israel",
+      "to": "reuben",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:18",
+        "GEN 35:23",
+        "GEN 46:13",
+        "GEN 49:14",
+        "EXO 1:3",
+        "NUM 1:8",
+        "GEN 29:32",
+        "GEN 30:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:issachar-son-of-israel~reuben",
+      "confidence": "high"
+    },
+    {
+      "from": "issachar-son-of-israel",
+      "to": "simeon-son-of-israel",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:18",
+        "GEN 35:23",
+        "GEN 46:13",
+        "GEN 49:14",
+        "EXO 1:3",
+        "NUM 1:8",
+        "GEN 29:33",
+        "GEN 34:25"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:issachar-son-of-israel~simeon-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "issachar-son-of-israel",
+      "to": "zebulun",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 30:18",
+        "GEN 35:23",
+        "GEN 46:13",
+        "GEN 49:14",
+        "EXO 1:3",
+        "NUM 1:8",
+        "GEN 30:20",
+        "GEN 46:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:issachar-son-of-israel~zebulun",
+      "confidence": "high"
+    },
+    {
+      "from": "jacob_patriarch",
+      "to": "joseph_son",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 37:3",
+        "MAT 1:15",
+        "MAT 1:16",
+        "MAT 1:18",
+        "MAT 1:19",
+        "MAT 1:20",
+        "MAT 1:24",
+        "MAT 2:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:jacob-joseph",
+      "confidence": "high"
+    },
+    {
+      "from": "jacob_patriarch",
+      "to": "judah_patriarch",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 29:35"
+      ],
+      "source": "curated",
+      "source_id": "curated:jacob-judah",
+      "confidence": "high"
+    },
+    {
+      "from": "japheth",
+      "to": "shem",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 5:32",
+        "GEN 6:10",
+        "GEN 7:13",
+        "GEN 9:18",
+        "GEN 9:23",
+        "GEN 9:27",
+        "GEN 9:26"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:japheth~shem",
+      "confidence": "high"
+    },
+    {
+      "from": "jesse",
+      "to": "david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "RUT 4:17",
+        "RUT 4:22",
+        "1SA 16:13",
+        "1SA 16:19",
+        "1SA 16:20",
+        "1SA 16:21",
+        "1SA 16:1",
+        "1SA 16:3"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:jesse->david",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "james_apostle",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 4:21"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-james",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "john_apostle",
+      "type": "disciple",
+      "label": "所爱的门徒",
+      "refs": [
+        "JHN 13:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-john",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "peter",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 16:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-peter",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "thomas",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "JHN 20:27"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-thomas",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "安得烈",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 4:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-andrew",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "巴多罗买",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 10:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-bartholomew",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "腓力",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "JHN 1:43"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-philip",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "马太",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 9:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-matthew",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "受难与复活",
+      "refs": [
+        "MAT 21:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-jerusalem",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "迦百农",
+      "type": "located_at",
+      "label": "事工中心",
+      "refs": [
+        "MAT 4:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-capernaum",
+      "confidence": "high"
+    },
+    {
+      "from": "jezebel",
+      "to": "athaliah-son-of-ahab",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "2KI 8:26",
+        "2KI 11:1",
+        "2KI 11:2",
+        "2KI 11:3",
+        "2KI 11:13",
+        "2KI 11:14",
+        "1KI 16:31",
+        "1KI 18:4"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:jezebel->athaliah-son-of-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "jezebel",
+      "to": "joram-son-of-ahab",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "1KI 16:31",
+        "1KI 18:4",
+        "1KI 18:13",
+        "1KI 18:19",
+        "1KI 19:1",
+        "1KI 19:2",
+        "2KI 1:17",
+        "2KI 3:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:jezebel->joram-son-of-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "jonathan-son-of-saul",
+      "to": "mephibosheth-son-of-jonathan",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 13:2",
+        "1SA 13:3",
+        "1SA 13:16",
+        "1SA 13:22",
+        "1SA 14:1",
+        "1SA 14:3",
+        "2SA 4:4",
+        "2SA 9:6"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:jonathan-son-of-saul->mephibosheth-son-of-jonathan",
+      "confidence": "high"
+    },
+    {
+      "from": "jonathan-son-of-saul",
+      "to": "merab",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "1SA 13:2",
+        "1SA 13:3",
+        "1SA 13:16",
+        "1SA 13:22",
+        "1SA 14:1",
+        "1SA 14:3",
+        "1SA 14:49",
+        "1SA 18:17"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:jonathan-son-of-saul~merab",
+      "confidence": "high"
+    },
+    {
+      "from": "jonathan-son-of-saul",
+      "to": "michal",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "1SA 13:2",
+        "1SA 13:3",
+        "1SA 13:16",
+        "1SA 13:22",
+        "1SA 14:1",
+        "1SA 14:3",
+        "1SA 14:49",
+        "1SA 18:20"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:jonathan-son-of-saul~michal",
+      "confidence": "high"
+    },
+    {
+      "from": "joseph_husband",
+      "to": "mary_mother",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "MAT 1:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:joseph-mary",
+      "confidence": "high"
+    },
+    {
+      "from": "joshua",
+      "to": "moses",
+      "type": "mentor",
+      "label": "摩西的帮手",
+      "refs": [
+        "EXO 17:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:joshua-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "jotham-son-of-uzziah",
+      "to": "ahaz-son-of-jotham",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2KI 15:38",
+        "2KI 16:1",
+        "2KI 16:2",
+        "2KI 16:5",
+        "2KI 16:7",
+        "2KI 16:8",
+        "2KI 15:5",
+        "2KI 15:7"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:jotham-son-of-uzziah->ahaz-son-of-jotham",
+      "confidence": "high"
+    },
+    {
+      "from": "laban",
+      "to": "利亚",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 24:29",
+        "GEN 24:50",
+        "GEN 25:20",
+        "GEN 27:43",
+        "GEN 28:2",
+        "GEN 28:5",
+        "GEN 29:16",
+        "GEN 29:17"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:laban->leah",
+      "confidence": "high"
+    },
+    {
+      "from": "laban",
+      "to": "拉结",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 24:29",
+        "GEN 24:50",
+        "GEN 25:20",
+        "GEN 27:43",
+        "GEN 28:2",
+        "GEN 28:5",
+        "GEN 29:6",
+        "GEN 29:9"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:laban->rachel",
+      "confidence": "high"
+    },
+    {
+      "from": "laban",
+      "to": "利百加",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 24:29",
+        "GEN 24:50",
+        "GEN 25:20",
+        "GEN 27:43",
+        "GEN 28:2",
+        "GEN 28:5",
+        "GEN 22:23",
+        "GEN 24:15"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:laban~rebekah",
+      "confidence": "high"
+    },
+    {
+      "from": "levi-son-of-israel",
+      "to": "reuben",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 29:34",
+        "GEN 34:25",
+        "GEN 34:30",
+        "GEN 35:23",
+        "GEN 46:11",
+        "GEN 49:5",
+        "GEN 29:32",
+        "GEN 30:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:levi-son-of-israel~reuben",
+      "confidence": "high"
+    },
+    {
+      "from": "levi-son-of-israel",
+      "to": "simeon-son-of-israel",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 29:34",
+        "GEN 34:25",
+        "GEN 34:30",
+        "GEN 35:23",
+        "GEN 46:11",
+        "GEN 49:5",
+        "GEN 29:33",
+        "GEN 42:24"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:levi-son-of-israel~simeon-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "levi-son-of-israel",
+      "to": "zebulun",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 29:34",
+        "GEN 34:25",
+        "GEN 34:30",
+        "GEN 35:23",
+        "GEN 46:11",
+        "GEN 49:5",
+        "GEN 30:20",
+        "GEN 46:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:levi-son-of-israel~zebulun",
+      "confidence": "high"
+    },
+    {
+      "from": "lot",
+      "to": "moab",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 11:27",
+        "GEN 11:31",
+        "GEN 12:4",
+        "GEN 12:5",
+        "GEN 13:1",
+        "GEN 13:5",
+        "GEN 19:37",
+        "GEN 36:35"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:lot->moab",
+      "confidence": "high"
+    },
+    {
+      "from": "mary_bethany",
+      "to": "拉撒路",
+      "type": "sibling",
+      "label": "兄弟",
+      "refs": [
+        "JHN 11:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:mary-lazarus",
+      "confidence": "high"
+    },
+    {
+      "from": "mary_bethany",
+      "to": "马大",
+      "type": "sibling",
+      "label": "姊妹",
+      "refs": [
+        "JHN 11:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:mary-martha",
+      "confidence": "high"
+    },
+    {
+      "from": "mary_magdalene",
+      "to": "jesus",
+      "type": "disciple",
+      "label": "跟随者",
+      "refs": [
+        "LUK 8:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:mary-magdalene-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "mary_mother",
+      "to": "jesus",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "LUK 1:31"
+      ],
+      "source": "curated",
+      "source_id": "curated:mary-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "merab",
+      "to": "michal",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "1SA 14:49",
+        "1SA 18:17",
+        "1SA 18:19",
+        "2SA 21:8",
+        "1SA 18:20",
+        "1SA 18:27",
+        "1SA 18:28",
+        "1SA 19:11"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:merab~michal",
+      "confidence": "high"
+    },
+    {
+      "from": "miriam-son-of-amram",
+      "to": "moses",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "EXO 15:20",
+        "EXO 15:21",
+        "NUM 12:1",
+        "NUM 12:4",
+        "NUM 12:5",
+        "NUM 12:10",
+        "EXO 2:10",
+        "EXO 2:11"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:miriam-son-of-amram~moses",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "会幕",
+      "type": "event",
+      "label": "建造会幕",
+      "refs": [
+        "EXO 40:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-tabernacle",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "红海",
+      "type": "event",
+      "label": "过红海",
+      "refs": [
+        "EXO 14:21"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-redsea",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "约柜",
+      "type": "event",
+      "label": "法版约柜",
+      "refs": [
+        "EXO 25:10"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-ark",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "sinai",
+      "type": "located_at",
+      "label": "领受律法",
+      "refs": [
+        "EXO 19:20"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-sinai",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "eliezer-son-of-moses",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 18:4",
+        "1CH 23:15",
+        "1CH 23:17",
+        "1CH 26:25",
+        "EXO 2:10",
+        "EXO 2:11",
+        "EXO 2:14",
+        "EXO 2:15"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:moses->eliezer-son-of-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "aaron",
+      "type": "sibling",
+      "label": "哥哥",
+      "refs": [
+        "EXO 4:14",
+        "EXO 4:27",
+        "EXO 4:28",
+        "EXO 4:29",
+        "EXO 4:30",
+        "EXO 5:1",
+        "EXO 2:10",
+        "EXO 2:11"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-aaron",
+      "confidence": "high"
+    },
+    {
+      "from": "nebuchadnezzar",
+      "to": "belshazzar",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "DAN 5:1",
+        "DAN 5:2",
+        "DAN 5:9",
+        "DAN 5:22",
+        "DAN 5:29",
+        "DAN 5:30",
+        "2KI 24:1",
+        "2KI 24:10"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:nebuchadnezzar->belshazzar",
+      "confidence": "high"
+    },
+    {
+      "from": "nicodemus",
+      "to": "jesus",
+      "type": "disciple",
+      "label": "暗中求问",
+      "refs": [
+        "JHN 3:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:nicodemus-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "omri",
+      "to": "ahab-son-of-omri",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 16:28",
+        "1KI 16:29",
+        "1KI 16:30",
+        "1KI 16:33",
+        "1KI 17:1",
+        "1KI 18:1",
+        "1KI 16:16",
+        "1KI 16:17"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:omri->ahab-son-of-omri",
+      "confidence": "high"
+    },
+    {
+      "from": "paul",
+      "to": "巴拿巴",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "ACT 13:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:paul-barnabas",
+      "confidence": "high"
+    },
+    {
+      "from": "paul",
+      "to": "提多",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "TIT 1:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:paul-titus",
+      "confidence": "high"
+    },
+    {
+      "from": "paul",
+      "to": "路加",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "COL 4:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:paul-luke",
+      "confidence": "high"
+    },
+    {
+      "from": "paul",
+      "to": "马可",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "ACT 12:25"
+      ],
+      "source": "curated",
+      "source_id": "curated:paul-mark",
+      "confidence": "high"
+    },
+    {
+      "from": "paul",
+      "to": "提摩太",
+      "type": "mentor",
+      "label": "属灵儿子",
+      "refs": [
+        "1TI 1:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:paul-timothy",
+      "confidence": "high"
+    },
+    {
+      "from": "peter",
+      "to": "thomas",
+      "type": "companion",
+      "label": "同作门徒",
+      "refs": [
+        "JHN 21:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:peter-thomas",
+      "confidence": "high"
+    },
+    {
+      "from": "peter",
+      "to": "迦百农",
+      "type": "located_at",
+      "label": "家乡附近",
+      "refs": [
+        "MRK 1:29"
+      ],
+      "source": "curated",
+      "source_id": "curated:peter-capernaum",
+      "confidence": "high"
+    },
+    {
+      "from": "reuben",
+      "to": "simeon-son-of-israel",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 29:32",
+        "GEN 30:14",
+        "GEN 35:22",
+        "GEN 35:23",
+        "GEN 37:21",
+        "GEN 37:22",
+        "GEN 29:33",
+        "GEN 34:25"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:reuben~simeon-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "reuben",
+      "to": "zebulun",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 29:32",
+        "GEN 30:14",
+        "GEN 35:22",
+        "GEN 35:23",
+        "GEN 37:21",
+        "GEN 37:22",
+        "GEN 30:20",
+        "GEN 46:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:reuben~zebulun",
+      "confidence": "high"
+    },
+    {
+      "from": "ruth",
+      "to": "波阿斯",
+      "type": "spouse",
+      "label": "丈夫",
+      "refs": [
+        "RUT 4:13",
+        "RUT 2:1",
+        "RUT 2:3",
+        "RUT 2:4",
+        "RUT 2:5",
+        "RUT 2:8",
+        "RUT 2:11",
+        "RUT 1:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:ruth-boaz",
+      "confidence": "high"
+    },
+    {
+      "from": "saul_king",
+      "to": "jonathan-son-of-saul",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 14:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:saul-jonathan",
+      "confidence": "high"
+    },
+    {
+      "from": "shem",
+      "to": "aram-son-of-shem",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 10:22",
+        "GEN 10:23",
+        "1CH 1:17",
+        "GEN 5:32",
+        "GEN 6:10",
+        "GEN 7:13",
+        "GEN 9:18",
+        "GEN 9:23"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:shem->aram-son-of-shem",
+      "confidence": "high"
+    },
+    {
+      "from": "simeon-son-of-israel",
+      "to": "zebulun",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 29:33",
+        "GEN 34:25",
+        "GEN 34:30",
+        "GEN 35:23",
+        "GEN 42:24",
+        "GEN 42:36",
+        "GEN 30:20",
+        "GEN 46:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:simeon-son-of-israel~zebulun",
+      "confidence": "high"
+    },
+    {
+      "from": "solomon",
+      "to": "圣殿",
+      "type": "event",
+      "label": "建造圣殿",
+      "refs": [
+        "1KI 6:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:solomon-temple",
+      "confidence": "high"
+    },
+    {
+      "from": "solomon",
+      "to": "罗波安",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 11:43",
+        "1KI 12:1",
+        "1KI 12:3",
+        "1KI 12:6",
+        "1KI 12:12",
+        "1KI 12:17",
+        "2SA 5:14",
+        "2SA 12:24"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:solomon->rehoboam",
+      "confidence": "high"
+    },
+    {
+      "from": "stephen",
+      "to": "jesus",
+      "type": "disciple",
+      "label": "为主作见证",
+      "refs": [
+        "ACT 7:55"
+      ],
+      "source": "curated",
+      "source_id": "curated:stephen-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "uzziah-son-of-amaziah",
+      "to": "jotham-son-of-uzziah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2KI 15:5",
+        "2KI 15:7",
+        "2KI 15:30",
+        "2KI 15:32",
+        "2KI 15:36",
+        "2KI 15:38",
+        "2KI 14:21",
+        "2KI 15:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:uzziah-son-of-amaziah->jotham-son-of-uzziah",
+      "confidence": "high"
+    },
+    {
+      "from": "zacharias",
+      "to": "john_baptist",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "LUK 1:13",
+        "MAT 3:1",
+        "MAT 3:4",
+        "MAT 3:13",
+        "MAT 3:14",
+        "MAT 4:12",
+        "MAT 9:14",
+        "LUK 1:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:zacharias-john",
+      "confidence": "high"
+    },
+    {
+      "from": "zebedee",
+      "to": "john_apostle",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "MAT 4:21",
+        "MAT 10:2",
+        "MAT 17:1",
+        "MRK 1:19",
+        "MRK 1:29",
+        "MRK 3:17",
+        "MAT 20:20",
+        "MAT 26:37"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:zebedee->john-apostle",
+      "confidence": "high"
+    },
+    {
+      "from": "亚伯",
+      "to": "seth",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 4:2",
+        "GEN 4:4",
+        "GEN 4:8",
+        "GEN 4:9",
+        "GEN 4:25",
+        "MAT 23:35",
+        "GEN 4:26",
+        "GEN 5:3"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:abel~seth",
+      "confidence": "high"
+    },
+    {
+      "from": "亚伯",
+      "to": "该隐",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 4:2",
+        "GEN 4:4",
+        "GEN 4:8",
+        "GEN 4:9",
+        "GEN 4:25",
+        "MAT 23:35",
+        "GEN 4:1",
+        "GEN 4:3"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:abel~cain",
+      "confidence": "high"
+    },
+    {
+      "from": "亚伯兰",
+      "to": "撒拉",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "GEN 11:29"
+      ],
+      "source": "curated",
+      "source_id": "curated:abram-sarai",
+      "confidence": "high"
+    },
+    {
+      "from": "亚当",
+      "to": "seth",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 2:19",
+        "GEN 2:20",
+        "GEN 2:21",
+        "GEN 2:23",
+        "GEN 3:8",
+        "GEN 3:9",
+        "GEN 4:25",
+        "GEN 4:26"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:adam->seth",
+      "confidence": "high"
+    },
+    {
+      "from": "亚当",
+      "to": "亚伯",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 4:2",
+        "GEN 4:4",
+        "GEN 4:8",
+        "GEN 4:9",
+        "GEN 4:25",
+        "MAT 23:35",
+        "GEN 2:19",
+        "GEN 2:20"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:adam->abel",
+      "confidence": "high"
+    },
+    {
+      "from": "亚当",
+      "to": "该隐",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 2:19",
+        "GEN 2:20",
+        "GEN 2:21",
+        "GEN 2:23",
+        "GEN 3:8",
+        "GEN 3:9",
+        "GEN 4:1",
+        "GEN 4:2"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:adam->cain",
+      "confidence": "high"
+    },
+    {
+      "from": "亚当",
+      "to": "夏娃",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "GEN 2:19",
+        "GEN 2:20",
+        "GEN 2:21",
+        "GEN 2:23",
+        "GEN 3:8",
+        "GEN 3:9",
+        "GEN 3:20",
+        "GEN 4:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:adam=eve",
+      "confidence": "high"
+    },
+    {
+      "from": "以撒",
+      "to": "jacob_patriarch",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 25:26"
+      ],
+      "source": "curated",
+      "source_id": "curated:isaac-jacob",
+      "confidence": "high"
+    },
+    {
+      "from": "以撒",
+      "to": "以扫",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 25:25",
+        "GEN 25:26",
+        "GEN 25:27",
+        "GEN 25:28",
+        "GEN 25:29",
+        "GEN 25:30",
+        "GEN 17:19",
+        "GEN 17:21"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:isaac->esau",
+      "confidence": "high"
+    },
+    {
+      "from": "以撒",
+      "to": "利百加",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "GEN 24:67",
+        "GEN 17:19",
+        "GEN 17:21",
+        "GEN 21:3",
+        "GEN 21:4",
+        "GEN 21:5",
+        "GEN 21:8",
+        "GEN 22:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:isaac-rebekah",
+      "confidence": "high"
+    },
+    {
+      "from": "以斯帖",
+      "to": "末底改",
+      "type": "companion",
+      "label": "亲人同工",
+      "refs": [
+        "EST 2:7"
+      ],
+      "source": "curated",
+      "source_id": "curated:esther-mordecai",
+      "confidence": "high"
+    },
+    {
+      "from": "以斯帖",
+      "to": "ahasuerus",
+      "type": "spouse",
+      "label": "丈夫",
+      "refs": [
+        "EST 2:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:esther-ahasuerus",
+      "confidence": "high"
+    },
+    {
+      "from": "以斯拉",
+      "to": "尼希米",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "NEH 8:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:ezra-nehemiah",
+      "confidence": "high"
+    },
+    {
+      "from": "以色列",
+      "to": "joseph_son",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 37:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:israel-joseph",
+      "confidence": "high"
+    },
+    {
+      "from": "以西结",
+      "to": "babylon",
+      "type": "located_at",
+      "label": "被掳之地",
+      "refs": [
+        "EZK 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:ezekiel-babylon",
+      "confidence": "high"
+    },
+    {
+      "from": "会幕",
+      "to": "约柜",
+      "type": "contains",
+      "label": "至圣所内",
+      "refs": [
+        "EXO 26:34"
+      ],
+      "source": "curated",
+      "source_id": "curated:tabernacle-ark",
+      "confidence": "high"
+    },
+    {
+      "from": "何西阿",
+      "to": "samaria",
+      "type": "located_at",
+      "label": "北国先知",
+      "refs": [
+        "HOS 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:hosea-samaria",
+      "confidence": "high"
+    },
+    {
+      "from": "利亚",
+      "to": "dinah",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 30:21",
+        "GEN 34:1",
+        "GEN 34:3",
+        "GEN 34:5",
+        "GEN 34:13",
+        "GEN 34:25",
+        "GEN 29:16",
+        "GEN 29:17"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:leah->dinah",
+      "confidence": "high"
+    },
+    {
+      "from": "利亚",
+      "to": "issachar-son-of-israel",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 30:18",
+        "GEN 35:23",
+        "GEN 46:13",
+        "GEN 49:14",
+        "EXO 1:3",
+        "NUM 1:8",
+        "GEN 29:16",
+        "GEN 29:17"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:leah->issachar-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "利亚",
+      "to": "levi-son-of-israel",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 29:16",
+        "GEN 29:17",
+        "GEN 29:23",
+        "GEN 29:24",
+        "GEN 29:25",
+        "GEN 29:30",
+        "GEN 29:34",
+        "GEN 34:25"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:leah->levi-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "利亚",
+      "to": "reuben",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 29:16",
+        "GEN 29:17",
+        "GEN 29:23",
+        "GEN 29:24",
+        "GEN 29:25",
+        "GEN 29:30",
+        "GEN 29:32",
+        "GEN 30:14"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:leah->reuben",
+      "confidence": "high"
+    },
+    {
+      "from": "利亚",
+      "to": "simeon-son-of-israel",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 29:16",
+        "GEN 29:17",
+        "GEN 29:23",
+        "GEN 29:24",
+        "GEN 29:25",
+        "GEN 29:30",
+        "GEN 29:33",
+        "GEN 34:25"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:leah->simeon-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "利亚",
+      "to": "zebulun",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 29:16",
+        "GEN 29:17",
+        "GEN 29:23",
+        "GEN 29:24",
+        "GEN 29:25",
+        "GEN 29:30",
+        "GEN 30:20",
+        "GEN 35:23"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:leah->zebulun",
+      "confidence": "high"
+    },
+    {
+      "from": "利亚",
+      "to": "拉结",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 29:16",
+        "GEN 29:17",
+        "GEN 29:23",
+        "GEN 29:24",
+        "GEN 29:25",
+        "GEN 29:30",
+        "GEN 29:6",
+        "GEN 29:9"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:leah~rachel",
+      "confidence": "high"
+    },
+    {
+      "from": "利百加",
+      "to": "以扫",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 25:25",
+        "GEN 25:26",
+        "GEN 25:27",
+        "GEN 25:28",
+        "GEN 25:29",
+        "GEN 25:30",
+        "GEN 22:23",
+        "GEN 24:15"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:rebekah->esau",
+      "confidence": "high"
+    },
+    {
+      "from": "基甸",
+      "to": "abimelech-son-of-gideon",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "JDG 8:31",
+        "JDG 9:1",
+        "JDG 9:3",
+        "JDG 9:4",
+        "JDG 9:6",
+        "JDG 9:16",
+        "JDG 6:11",
+        "JDG 6:13"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:gideon->abimelech-son-of-gideon",
+      "confidence": "high"
+    },
+    {
+      "from": "夏娃",
+      "to": "seth",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 3:20",
+        "GEN 4:1",
+        "2CO 11:3",
+        "1TI 2:13",
+        "GEN 4:25",
+        "GEN 4:26",
+        "GEN 5:3",
+        "GEN 5:4"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:eve->seth",
+      "confidence": "high"
+    },
+    {
+      "from": "夏娃",
+      "to": "亚伯",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 4:2",
+        "GEN 4:4",
+        "GEN 4:8",
+        "GEN 4:9",
+        "GEN 4:25",
+        "MAT 23:35",
+        "GEN 3:20",
+        "GEN 4:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:eve->abel",
+      "confidence": "high"
+    },
+    {
+      "from": "夏娃",
+      "to": "该隐",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 4:1",
+        "GEN 4:2",
+        "GEN 4:3",
+        "GEN 4:5",
+        "GEN 4:6",
+        "GEN 4:8",
+        "GEN 3:20",
+        "2CO 11:3"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:eve->cain",
+      "confidence": "high"
+    },
+    {
+      "from": "希西家",
+      "to": "isaiah",
+      "type": "mentor",
+      "label": "先知辅佐",
+      "refs": [
+        "ISA 37:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:hezekiah-isaiah",
+      "confidence": "high"
+    },
+    {
+      "from": "弥迦",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "先知事奉",
+      "refs": [
+        "MIC 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:micah-jerusalem",
+      "confidence": "high"
+    },
+    {
+      "from": "拉撒路",
+      "to": "马大",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "JHN 11:1",
+        "JHN 11:2",
+        "JHN 11:5",
+        "JHN 11:11",
+        "JHN 11:14",
+        "JHN 11:43",
+        "LUK 10:38",
+        "LUK 10:40"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:lazarus-of-bethany~martha",
+      "confidence": "high"
+    },
+    {
+      "from": "拉结",
+      "to": "benjamin-son-of-israel",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 35:18",
+        "GEN 35:24",
+        "GEN 42:4",
+        "GEN 42:36",
+        "GEN 43:14",
+        "GEN 43:15",
+        "GEN 29:6",
+        "GEN 29:9"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:rachel->benjamin-son-of-israel",
+      "confidence": "high"
+    },
+    {
+      "from": "挪亚",
+      "to": "ham",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 5:32",
+        "GEN 6:10",
+        "GEN 7:13",
+        "GEN 9:18",
+        "GEN 9:22",
+        "GEN 10:1",
+        "GEN 5:29",
+        "GEN 5:30"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:noah-son-of-lamech->ham",
+      "confidence": "high"
+    },
+    {
+      "from": "挪亚",
+      "to": "japheth",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 5:32",
+        "GEN 6:10",
+        "GEN 7:13",
+        "GEN 9:18",
+        "GEN 9:23",
+        "GEN 9:27",
+        "GEN 5:29",
+        "GEN 5:30"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:noah-son-of-lamech->japheth",
+      "confidence": "high"
+    },
+    {
+      "from": "挪亚",
+      "to": "shem",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 5:29",
+        "GEN 5:30",
+        "GEN 5:32",
+        "GEN 6:8",
+        "GEN 6:9",
+        "GEN 6:10",
+        "GEN 7:13",
+        "GEN 9:18"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:noah-son-of-lamech->shem",
+      "confidence": "high"
+    },
+    {
+      "from": "撒拉",
+      "to": "以撒",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 17:19",
+        "GEN 17:21",
+        "GEN 21:3",
+        "GEN 21:4",
+        "GEN 21:5",
+        "GEN 21:8",
+        "GEN 11:29",
+        "GEN 11:30"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:sarah->isaac",
+      "confidence": "high"
+    },
+    {
+      "from": "撒母耳",
+      "to": "joel-son-of-samuel",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 8:2",
+        "1CH 6:28",
+        "1CH 6:33",
+        "1CH 15:17",
+        "1SA 1:20",
+        "1SA 2:18",
+        "1SA 2:21",
+        "1SA 2:26"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:samuel->joel-son-of-samuel",
+      "confidence": "high"
+    },
+    {
+      "from": "约拿",
+      "to": "尼尼微",
+      "type": "located_at",
+      "label": "奉差之地",
+      "refs": [
+        "JON 1:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:jonah-nineveh",
+      "confidence": "high"
+    },
+    {
+      "from": "约西亚",
+      "to": "圣殿",
+      "type": "event",
+      "label": "重修圣殿",
+      "refs": [
+        "2KI 22:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:josiah-temple",
+      "confidence": "high"
+    },
+    {
+      "from": "约西亚",
+      "to": "jehoiakim",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2KI 23:34",
+        "2KI 23:35",
+        "2KI 23:36",
+        "2KI 24:1",
+        "2KI 24:5",
+        "2KI 24:6",
+        "1KI 13:2",
+        "2KI 21:24"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:josiah-son-of-amon->jehoiakim",
+      "confidence": "high"
+    },
+    {
+      "from": "约西亚",
+      "to": "zedekiah-son-of-josiah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 13:2",
+        "2KI 21:24",
+        "2KI 21:26",
+        "2KI 22:1",
+        "2KI 22:3",
+        "2KI 23:16",
+        "2KI 24:17",
+        "2KI 24:18"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:josiah-son-of-amon->zedekiah-son-of-josiah",
+      "confidence": "high"
+    },
+    {
+      "from": "罗波安",
+      "to": "abijah-son-of-rehoboam",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 14:31",
+        "1KI 15:1",
+        "1KI 15:7",
+        "1KI 15:8",
+        "1CH 3:10",
+        "2CH 11:20",
+        "1KI 11:43",
+        "1KI 12:1"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:rehoboam->abijah-son-of-rehoboam",
+      "confidence": "high"
+    },
+    {
+      "from": "耶利米",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "先知事奉",
+      "refs": [
+        "JER 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:jeremiah-jerusalem",
+      "confidence": "high"
+    },
+    {
+      "from": "该隐",
+      "to": "seth",
+      "type": "sibling",
+      "label": "兄弟姊妹",
+      "refs": [
+        "GEN 4:1",
+        "GEN 4:2",
+        "GEN 4:3",
+        "GEN 4:5",
+        "GEN 4:6",
+        "GEN 4:8",
+        "GEN 4:25",
+        "GEN 4:26"
+      ],
+      "source": "gnosis",
+      "source_id": "gnosis:cain~seth",
+      "confidence": "high"
+    },
+    {
+      "from": "逾越节",
+      "to": "egypt",
+      "type": "event",
+      "label": "出埃及",
+      "refs": [
+        "EXO 12:31"
+      ],
+      "source": "curated",
+      "source_id": "curated:passover-egypt",
+      "confidence": "high"
+    },
+    {
+      "from": "阿摩司",
+      "to": "samaria",
+      "type": "located_at",
+      "label": "北国先知",
+      "refs": [
+        "AMO 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:amos-samaria",
+      "confidence": "high"
+    }
   ]
 }

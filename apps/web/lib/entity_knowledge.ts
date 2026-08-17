@@ -14,7 +14,8 @@ export function defaultEntityKnowledgeTab(
   entity: DictEntity,
   knowledge: EntityKnowledge | null,
 ): EntityKnowledgeTab {
-  if (entity.type === 'person') return 'graph';
+  const hasGraph = (knowledge?.graph?.edges?.length ?? 0) > 0;
+  if (entity.type === 'person' && hasGraph) return 'graph';
   if (entity.type === 'place') return 'map';
   if ((knowledge?.diagrams?.length ?? 0) > 0) return 'diagram';
   return 'refs';
@@ -27,7 +28,7 @@ export function entityKnowledgeTabVisible(
 ): boolean {
   if (tab === 'refs') return true;
   if (tab === 'graph') {
-    return entity.type === 'person' || (knowledge?.graph?.edges?.length ?? 0) > 0;
+    return (knowledge?.graph?.edges?.length ?? 0) > 0;
   }
   if (tab === 'map') {
     return Boolean(knowledge?.place) || (knowledge?.map_tours?.length ?? 0) > 0;

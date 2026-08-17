@@ -631,6 +631,7 @@ export interface EntityKnowledge {
   place: GeoPlace | null;
   map_tours: MapTour[];
   diagrams: BibleDiagram[];
+  has_relations?: boolean;
 }
 
 export interface GraphTopicBeat {

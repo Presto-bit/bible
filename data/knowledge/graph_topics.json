@@ -6,7 +6,7 @@
       "title": "出埃及核心人物",
       "subtitle": "摩西、亚伦与行程地标",
       "description": "以摩西为中心，串联亚伦、红海、西奈山、会幕与约柜，帮助理清出埃及叙事里的人、地、圣物关系。",
-      "entity_ids": ["moses", "aaron", "红海", "西奈山", "会幕", "约柜"],
+      "entity_ids": ["moses", "aaron", "红海", "sinai", "会幕", "约柜"],
       "related": [
         { "kind": "map", "id": "exodus-wilderness", "label": "旷野行程" },
         { "kind": "diagram", "id": "tabernacle-layout", "label": "会幕平面图" },
@@ -50,7 +50,7 @@
       "title": "十二门徒（节选）",
       "subtitle": "耶稣与彼得、多马",
       "description": "从认信到怀疑，看见门徒在跟随里的真实起伏。",
-      "entity_ids": ["jesus", "peter", "thomas"],
+      "entity_ids": ["jesus", "peter", "thomas", "john_apostle", "安得烈", "james_apostle"],
       "related": [
         { "kind": "timeline", "id": "life-of-jesus", "label": "耶稣生平纲要" }
       ]
@@ -67,7 +67,7 @@
       "title": "保罗与同工",
       "subtitle": "第一次宣教旅程",
       "description": "宣教不是独行：巴拿巴、提摩太等与保罗同行。",
-      "entity_ids": ["paul", "barnabas", "提摩太"],
+      "entity_ids": ["paul", "巴拿巴", "提摩太", "提多", "路加", "马可"],
       "related": [
         { "kind": "map", "id": "paul-first-journey", "label": "保罗第一次宣教旅程" }
       ]
@@ -77,14 +77,14 @@
       "title": "先祖族谱（节选）",
       "subtitle": "亚伯拉罕—约瑟",
       "description": "应许如何在家族故事中一代代传递。",
-      "entity_ids": ["abraham", "isaac", "jacob_patriarch", "joseph-son-of-jacob"]
+      "entity_ids": ["abraham", "以撒", "jacob_patriarch", "joseph_son", "撒拉", "利百加"]
     },
     {
       "id": "jesus-ministry-places",
       "title": "耶稣事工地",
       "subtitle": "迦百农与耶路撒冷",
       "description": "从加利利到圣城，看事工地理焦点的转移。",
-      "entity_ids": ["jesus", "迦百农", "jerusalem"],
+      "entity_ids": ["jesus", "迦百农", "jerusalem", "peter"],
       "related": [
         { "kind": "map", "id": "jesus-ministry-galilee", "label": "耶稣加利利事工" }
       ]

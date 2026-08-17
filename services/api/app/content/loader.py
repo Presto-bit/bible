@@ -463,7 +463,8 @@ def entity_relations() -> list[dict]:
 
 
 def relations_for_entity(entity_id: str) -> list[dict]:
-    eid = (entity_id or "").strip()
+    center = entity_by_id(entity_id)
+    eid = str((center or {}).get("id") or entity_id or "").strip()
     out: list[dict] = []
     for rel in entity_relations():
         if rel.get("from") == eid or rel.get("to") == eid:
@@ -491,10 +492,38 @@ def entity_by_id(entity_id: str) -> dict | None:
     eid = (entity_id or "").strip()
     if not eid:
         return None
-    for ent in dictionary_entities():
-        if ent.get("id") == eid or ent.get("name") == eid:
+    items = dictionary_entities()
+    for ent in items:
+        if ent.get("id") == eid:
             return ent
+    aliases = _entity_id_aliases()
+    mapped = aliases.get(eid) or aliases.get(eid.lower())
+    if mapped:
+        for ent in items:
+            if ent.get("id") == mapped:
+                return ent
+    name_hits = [ent for ent in items if ent.get("name") == eid]
+    if len(name_hits) == 1:
+        return name_hits[0]
+    alias_hits = [
+        ent for ent in items
+        if eid in (ent.get("aliases") or []) or eid.lower() in {
+            str(a).lower() for a in (ent.get("aliases") or [])
+        }
+    ]
+    if len(alias_hits) == 1:
+        return alias_hits[0]
     return None
+
+
+@lru_cache(maxsize=1)
+def _entity_id_aliases() -> dict[str, str]:
+    path = _data_dir() / "dictionary" / "id_aliases.json"
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    raw = payload.get("aliases") or {}
+    return {str(k): str(v) for k, v in raw.items() if k and v}
 
 
 @lru_cache(maxsize=1)
@@ -598,7 +627,12 @@ def relations_graph_for_entity(entity_id: str, *, limit: int = 12) -> dict:
             "name": ent.get("name") if ent else nid,
             "type": ent.get("type") if ent else "unknown",
         })
-    return {"center": center, "edges": edges, "nodes": nodes}
+    return {
+        "center": center,
+        "edges": edges,
+        "nodes": nodes,
+        "empty": len(edges) == 0,
+    }
 
 
 def entity_knowledge(entity_id: str, *, graph_limit: int = 12) -> dict | None:
@@ -608,12 +642,14 @@ def entity_knowledge(entity_id: str, *, graph_limit: int = 12) -> dict | None:
     eid = center.get("id") or entity_id
     place = place_for_entity(center)
     tours = map_tours_for_place(place["id"]) if place and place.get("id") else []
+    graph = relations_graph_for_entity(eid, limit=graph_limit)
     return {
         "entity": center,
-        "graph": relations_graph_for_entity(eid, limit=graph_limit),
+        "graph": graph,
         "place": place,
         "map_tours": tours,
         "diagrams": diagrams_for_entity(eid),
+        "has_relations": not bool(graph.get("empty")),
     }
 
 

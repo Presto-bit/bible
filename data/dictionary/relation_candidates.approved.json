@@ -1,0 +1,5 @@
+{
+  "schema": "relation_candidates.approved@1",
+  "note": "把 relation_candidates.json 中已人工核对的 source_id 填入 source_ids，再跑 import_relations.py。",
+  "source_ids": []
+}

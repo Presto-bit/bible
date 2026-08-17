@@ -1,0 +1,4549 @@
+{
+  "schema": "relation_review@1",
+  "count": 649,
+  "unresolved": [
+    {
+      "token": "amram-son-of-kohath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of aaron"
+    },
+    {
+      "token": "jochebed",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of aaron"
+    },
+    {
+      "token": "abihu",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of aaron"
+    },
+    {
+      "token": "nadab-son-of-aaron",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of aaron"
+    },
+    {
+      "token": "ithamar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of aaron"
+    },
+    {
+      "token": "elisheba",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of aaron"
+    },
+    {
+      "token": "jonathan-son-of-abiathar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of abiathar"
+    },
+    {
+      "token": "ahimelech-son-of-abiathar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of abiathar"
+    },
+    {
+      "token": "daniel-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of abigail"
+    },
+    {
+      "token": "maachah-son-of-uriel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of abijah-son-of-rehoboam"
+    },
+    {
+      "token": "attai-son-of-rehoboam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of abijah-son-of-rehoboam"
+    },
+    {
+      "token": "shelomith-son-of-rehoboam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of abijah-son-of-rehoboam"
+    },
+    {
+      "token": "ziza-son-of-rehoboam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of abijah-son-of-rehoboam"
+    },
+    {
+      "token": "jether-son-of-gideon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of abimelech-son-of-gideon"
+    },
+    {
+      "token": "jotham-son-of-gideon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of abimelech-son-of-gideon"
+    },
+    {
+      "token": "eliab-son-of-pallu",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of abiram-son-of-eliab"
+    },
+    {
+      "token": "nemuel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of abiram-son-of-eliab"
+    },
+    {
+      "token": "zeruiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of abishai"
+    },
+    {
+      "token": "asahel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of abishai"
+    },
+    {
+      "token": "ner",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of abner"
+    },
+    {
+      "token": "jaasiel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of abner"
+    },
+    {
+      "token": "terah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of abraham"
+    },
+    {
+      "token": "ishmael-son-of-abraham",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of abraham"
+    },
+    {
+      "token": "medan",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of abraham"
+    },
+    {
+      "token": "zimran",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of abraham"
+    },
+    {
+      "token": "shuah-son-of-abraham",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of abraham"
+    },
+    {
+      "token": "jokshan",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of abraham"
+    },
+    {
+      "token": "ishbak",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of abraham"
+    },
+    {
+      "token": "nahor-son-of-terah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of abraham"
+    },
+    {
+      "token": "keturah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of abraham"
+    },
+    {
+      "token": "maacah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of absalom"
+    },
+    {
+      "token": "tamar-son-of-absalom",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of absalom"
+    },
+    {
+      "token": "japhia-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "jerimoth-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "eliada-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "eliphalet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "elpalet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "elishama-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "elishua",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "ibhar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "nepheg-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "nogah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "tamar-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of absalom"
+    },
+    {
+      "token": "carmi-son-of-zabdi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of achan"
+    },
+    {
+      "token": "maachah-4",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of achish"
+    },
+    {
+      "token": "haggith",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of adonijah-son-of-david"
+    },
+    {
+      "token": "japhia-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "jerimoth-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "eliada-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "eliphalet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "elpalet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "elishama-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "elishua",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "ibhar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "nepheg-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "nogah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "tamar-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of adonijah-son-of-david"
+    },
+    {
+      "token": "joash-son-of-ahab",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ahab-son-of-omri"
+    },
+    {
+      "token": "ahaziah-son-of-ahab",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ahab-son-of-omri"
+    },
+    {
+      "token": "darius-son-of-ahasuerus",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ahasuerus"
+    },
+    {
+      "token": "vashti",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of ahasuerus"
+    },
+    {
+      "token": "maaseiah-son-of-ahaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ahaz-son-of-jotham"
+    },
+    {
+      "token": "abijah-son-of-zechariah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of ahaz-son-of-jotham"
+    },
+    {
+      "token": "jehoram-son-of-jehoshaphat",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of ahaziah-son-of-jehoram"
+    },
+    {
+      "token": "joash-son-of-ahaziah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ahaziah-son-of-jehoram"
+    },
+    {
+      "token": "jehoshabeath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of ahaziah-son-of-jehoram"
+    },
+    {
+      "token": "zibiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of ahaziah-son-of-jehoram"
+    },
+    {
+      "token": "ahitub-son-of-phinehas",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of ahimelech-son-of-ahitub"
+    },
+    {
+      "token": "eliam-son-of-ahithophel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ahithophel"
+    },
+    {
+      "token": "james-son-of-alphaeus",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of alphaeus"
+    },
+    {
+      "token": "lebbaeus",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of alphaeus"
+    },
+    {
+      "token": "eliphaz-son-of-esau",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of amalek"
+    },
+    {
+      "token": "timna",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of amalek"
+    },
+    {
+      "token": "gatam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amalek"
+    },
+    {
+      "token": "kenaz-son-of-eliphaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amalek"
+    },
+    {
+      "token": "korah-son-of-eliphaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amalek"
+    },
+    {
+      "token": "omar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amalek"
+    },
+    {
+      "token": "teman-son-of-eliphaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amalek"
+    },
+    {
+      "token": "zepho",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amalek"
+    },
+    {
+      "token": "joash-son-of-ahaziah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of amaziah-son-of-joash"
+    },
+    {
+      "token": "jehoaddan",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of amaziah-son-of-joash"
+    },
+    {
+      "token": "jecoliah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of amaziah-son-of-joash"
+    },
+    {
+      "token": "ahinoam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of amnon-son-of-david"
+    },
+    {
+      "token": "japhia-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "jerimoth-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "eliada-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "eliphalet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "elpalet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "elishama-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "elishua",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "ibhar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "nepheg-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "nogah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "tamar-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amnon-son-of-david"
+    },
+    {
+      "token": "manasseh-son-of-hezekiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of amon-son-of-manasseh"
+    },
+    {
+      "token": "meshullemeth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of amon-son-of-manasseh"
+    },
+    {
+      "token": "jedidah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of amon-son-of-manasseh"
+    },
+    {
+      "token": "arkite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amorite"
+    },
+    {
+      "token": "arvadite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amorite"
+    },
+    {
+      "token": "jebusite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amorite"
+    },
+    {
+      "token": "girgasite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amorite"
+    },
+    {
+      "token": "hamathite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amorite"
+    },
+    {
+      "token": "heth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amorite"
+    },
+    {
+      "token": "hivite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amorite"
+    },
+    {
+      "token": "sinite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amorite"
+    },
+    {
+      "token": "zemarite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of amorite"
+    },
+    {
+      "token": "arba",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of anak"
+    },
+    {
+      "token": "sheshai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of anak"
+    },
+    {
+      "token": "ahiman-son-of-anak",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of anak"
+    },
+    {
+      "token": "talmai-son-of-anak",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of anak"
+    },
+    {
+      "token": "becher-son-of-benjamin",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of anathoth-son-of-becher"
+    },
+    {
+      "token": "abiah-son-of-becher",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of anathoth-son-of-becher"
+    },
+    {
+      "token": "alameth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of anathoth-son-of-becher"
+    },
+    {
+      "token": "jerimoth-son-of-becher",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of anathoth-son-of-becher"
+    },
+    {
+      "token": "eliezer-son-of-becher",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of anathoth-son-of-becher"
+    },
+    {
+      "token": "elioenai-son-of-becher",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of anathoth-son-of-becher"
+    },
+    {
+      "token": "joash-son-of-becher",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of anathoth-son-of-becher"
+    },
+    {
+      "token": "omri-son-of-becher",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of anathoth-son-of-becher"
+    },
+    {
+      "token": "zemira",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of anathoth-son-of-becher"
+    },
+    {
+      "token": "mash",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of aram-son-of-shem"
+    },
+    {
+      "token": "hul",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of aram-son-of-shem"
+    },
+    {
+      "token": "uz-son-of-aram",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of aram-son-of-shem"
+    },
+    {
+      "token": "gether",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of aram-son-of-shem"
+    },
+    {
+      "token": "arphaxad",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of aram-son-of-shem"
+    },
+    {
+      "token": "asshur",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of aram-son-of-shem"
+    },
+    {
+      "token": "elam-son-of-shem",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of aram-son-of-shem"
+    },
+    {
+      "token": "lud",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of aram-son-of-shem"
+    },
+    {
+      "token": "azubah-son-of-shilhi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of asa-son-of-abijah"
+    },
+    {
+      "token": "berechiah-son-of-shimea",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of asaph-son-of-berechiah"
+    },
+    {
+      "token": "jesharelah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of asaph-son-of-berechiah"
+    },
+    {
+      "token": "joseph-son-of-asaph",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of asaph-son-of-berechiah"
+    },
+    {
+      "token": "nethaniah-son-of-asaph",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of asaph-son-of-berechiah"
+    },
+    {
+      "token": "zaccur-son-of-asaph",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of asaph-son-of-berechiah"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of asher"
+    },
+    {
+      "token": "zilpah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of asher"
+    },
+    {
+      "token": "serah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of asher"
+    },
+    {
+      "token": "isui",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of asher"
+    },
+    {
+      "token": "beriah-son-of-asher",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of asher"
+    },
+    {
+      "token": "isuah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of asher"
+    },
+    {
+      "token": "imnah-son-of-asher",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of asher"
+    },
+    {
+      "token": "jehoshabeath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of athaliah-son-of-ahab"
+    },
+    {
+      "token": "ahaziah-son-of-ahab",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of athaliah-son-of-ahab"
+    },
+    {
+      "token": "joash-son-of-ahab",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of athaliah-son-of-ahab"
+    },
+    {
+      "token": "jehoram-son-of-jehoshaphat",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of athaliah-son-of-ahab"
+    },
+    {
+      "token": "beor-1",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of balaam"
+    },
+    {
+      "token": "zippor",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of balak"
+    },
+    {
+      "token": "abinoam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of barak"
+    },
+    {
+      "token": "mary",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of barnabas"
+    },
+    {
+      "token": "neriah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of baruch-son-of-neriah"
+    },
+    {
+      "token": "seraiah-son-of-neriah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of baruch-son-of-neriah"
+    },
+    {
+      "token": "eliam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of bathsheba"
+    },
+    {
+      "token": "nathan-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of bathsheba"
+    },
+    {
+      "token": "shobab-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of bathsheba"
+    },
+    {
+      "token": "shammua-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of bathsheba"
+    },
+    {
+      "token": "tabrimon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of ben-hadad-son-of-tabrimon"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of benjamin-son-of-israel"
+    },
+    {
+      "token": "bela-son-of-benjamin",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "shupham",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "rapha",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "ehi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "becher-son-of-benjamin",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "gera-son-of-benjamin",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "nohah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "jediael-son-of-benjamin",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "ard-son-of-benjamin",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "ashbel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "ahiram",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "huram-son-of-benjamin",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of benjamin-son-of-israel"
+    },
+    {
+      "token": "joseph-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of benjamin-son-of-israel"
+    },
+    {
+      "token": "salmon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of boaz"
+    },
+    {
+      "token": "rachab",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of boaz"
+    },
+    {
+      "token": "obed-son-of-boaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of boaz"
+    },
+    {
+      "token": "enoch-son-of-cain",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of cain"
+    },
+    {
+      "token": "jephunneh",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of caleb-son-of-jephunneh"
+    },
+    {
+      "token": "naam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of caleb-son-of-jephunneh"
+    },
+    {
+      "token": "iru",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of caleb-son-of-jephunneh"
+    },
+    {
+      "token": "elah-son-of-caleb",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of caleb-son-of-jephunneh"
+    },
+    {
+      "token": "achsah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of caleb-son-of-jephunneh"
+    },
+    {
+      "token": "kenaz-son-of-jephunneh",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of caleb-son-of-jephunneh"
+    },
+    {
+      "token": "hivite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of canaan"
+    },
+    {
+      "token": "hamathite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of canaan"
+    },
+    {
+      "token": "arkite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of canaan"
+    },
+    {
+      "token": "girgasite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of canaan"
+    },
+    {
+      "token": "sinite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of canaan"
+    },
+    {
+      "token": "heth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of canaan"
+    },
+    {
+      "token": "arvadite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of canaan"
+    },
+    {
+      "token": "zemarite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of canaan"
+    },
+    {
+      "token": "jebusite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of canaan"
+    },
+    {
+      "token": "mizraim",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of canaan"
+    },
+    {
+      "token": "phut",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of canaan"
+    },
+    {
+      "token": "sabtah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of cush"
+    },
+    {
+      "token": "raamah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of cush"
+    },
+    {
+      "token": "seba",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of cush"
+    },
+    {
+      "token": "sabtecha",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of cush"
+    },
+    {
+      "token": "havilah-son-of-cush",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of cush"
+    },
+    {
+      "token": "nimrod",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of cush"
+    },
+    {
+      "token": "mizraim",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of cush"
+    },
+    {
+      "token": "phut",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of cush"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of dan"
+    },
+    {
+      "token": "bilhah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of dan"
+    },
+    {
+      "token": "hushim-son-of-dan",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of dan"
+    },
+    {
+      "token": "eliab-son-of-pallu",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of dathan"
+    },
+    {
+      "token": "nemuel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of dathan"
+    },
+    {
+      "token": "eliphalet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "elpalet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "elishua",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "ithream",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "nathan-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "tamar-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "shobab-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "eliada-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "shephatiah-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "ibhar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "jerimoth-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "japhia-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "elishama-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "nepheg-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "shammua-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "daniel-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "nogah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of david"
+    },
+    {
+      "token": "abinadab-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of david"
+    },
+    {
+      "token": "eliab-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of david"
+    },
+    {
+      "token": "elihu-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of david"
+    },
+    {
+      "token": "nethaneel-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of david"
+    },
+    {
+      "token": "ozem-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of david"
+    },
+    {
+      "token": "raddai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of david"
+    },
+    {
+      "token": "shammah-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of david"
+    },
+    {
+      "token": "abital",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of david"
+    },
+    {
+      "token": "ahinoam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of david"
+    },
+    {
+      "token": "eglah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of david"
+    },
+    {
+      "token": "haggith",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of david"
+    },
+    {
+      "token": "maacah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of david"
+    },
+    {
+      "token": "lapidoth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of deborah-judge"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of dinah"
+    },
+    {
+      "token": "judah-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of dinah"
+    },
+    {
+      "token": "gera-son-of-benjamin",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of ehud-son-of-gera"
+    },
+    {
+      "token": "gera-son-of-ehud",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ehud-son-of-gera"
+    },
+    {
+      "token": "naaman-son-of-ehud",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ehud-son-of-gera"
+    },
+    {
+      "token": "ahiah-son-of-ehud",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ehud-son-of-gera"
+    },
+    {
+      "token": "ahihud-son-of-ehud",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ehud-son-of-gera"
+    },
+    {
+      "token": "uzza-son-of-ehud",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ehud-son-of-gera"
+    },
+    {
+      "token": "elisheba",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of eleazar-son-of-aaron"
+    },
+    {
+      "token": "abihu",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of eleazar-son-of-aaron"
+    },
+    {
+      "token": "ithamar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of eleazar-son-of-aaron"
+    },
+    {
+      "token": "nadab-son-of-aaron",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of eleazar-son-of-aaron"
+    },
+    {
+      "token": "phinehas-son-of-eli",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of eli"
+    },
+    {
+      "token": "hilkiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of eliakim-son-of-hilkiah"
+    },
+    {
+      "token": "zipporah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of eliezer-son-of-moses"
+    },
+    {
+      "token": "rehabiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of eliezer-son-of-moses"
+    },
+    {
+      "token": "gershom-son-of-moses",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of eliezer-son-of-moses"
+    },
+    {
+      "token": "barachel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of elihu-son-of-barachel"
+    },
+    {
+      "token": "shaphat",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of elisha"
+    },
+    {
+      "token": "jeroham-son-of-elihu",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of elkanah-son-of-jeroham"
+    },
+    {
+      "token": "peninnah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of elkanah-son-of-jeroham"
+    },
+    {
+      "token": "jared",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of enoch-son-of-jared"
+    },
+    {
+      "token": "joseph-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of ephraim"
+    },
+    {
+      "token": "asenath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of ephraim"
+    },
+    {
+      "token": "ezer-son-of-ephraim",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ephraim"
+    },
+    {
+      "token": "becher-son-of-ephraim",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ephraim"
+    },
+    {
+      "token": "elead",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ephraim"
+    },
+    {
+      "token": "beriah-son-of-ephraim",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ephraim"
+    },
+    {
+      "token": "shuthelah-son-of-ephraim",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ephraim"
+    },
+    {
+      "token": "tahan-son-of-ephraim",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ephraim"
+    },
+    {
+      "token": "jaalam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of esau"
+    },
+    {
+      "token": "eliphaz-son-of-esau",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of esau"
+    },
+    {
+      "token": "korah-son-of-esau",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of esau"
+    },
+    {
+      "token": "reuel-son-of-esau",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of esau"
+    },
+    {
+      "token": "jeush-son-of-esau",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of esau"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of esau"
+    },
+    {
+      "token": "adah-son-of-elon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of esau"
+    },
+    {
+      "token": "aholibamah-son-of-beeri",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of esau"
+    },
+    {
+      "token": "bashemath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of esau"
+    },
+    {
+      "token": "abihail-2",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of esther"
+    },
+    {
+      "token": "buzi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of ezekiel"
+    },
+    {
+      "token": "seraiah-son-of-azariah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of ezra-son-of-seraiah"
+    },
+    {
+      "token": "josedech",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of ezra-son-of-seraiah"
+    },
+    {
+      "token": "drusilla",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of felix"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of gad-son-of-israel"
+    },
+    {
+      "token": "zilpah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of gad-son-of-israel"
+    },
+    {
+      "token": "ozni",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gad-son-of-israel"
+    },
+    {
+      "token": "zephon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gad-son-of-israel"
+    },
+    {
+      "token": "eri",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gad-son-of-israel"
+    },
+    {
+      "token": "shuni",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gad-son-of-israel"
+    },
+    {
+      "token": "areli",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gad-son-of-israel"
+    },
+    {
+      "token": "arod",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gad-son-of-israel"
+    },
+    {
+      "token": "haggi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gad-son-of-israel"
+    },
+    {
+      "token": "pedahzur",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of gamaliel-son-of-pedahzur"
+    },
+    {
+      "token": "joash",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of gideon"
+    },
+    {
+      "token": "jotham-son-of-gideon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gideon"
+    },
+    {
+      "token": "jether-son-of-gideon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gideon"
+    },
+    {
+      "token": "machir-son-of-manasseh",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of gilead-son-of-machir"
+    },
+    {
+      "token": "helek",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gilead-son-of-machir"
+    },
+    {
+      "token": "hepher-son-of-gilead",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gilead-son-of-machir"
+    },
+    {
+      "token": "shechem-son-of-gilead",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gilead-son-of-machir"
+    },
+    {
+      "token": "shemida",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gilead-son-of-machir"
+    },
+    {
+      "token": "abiezer-son-of-gilead",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gilead-son-of-machir"
+    },
+    {
+      "token": "asriel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of gilead-son-of-machir"
+    },
+    {
+      "token": "daughter-of-machir",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of gilead-son-of-machir"
+    },
+    {
+      "token": "hammoleketh",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of gilead-son-of-machir"
+    },
+    {
+      "token": "peresh",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of gilead-son-of-machir"
+    },
+    {
+      "token": "sheresh",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of gilead-son-of-machir"
+    },
+    {
+      "token": "the-giant-in-gath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of goliath"
+    },
+    {
+      "token": "ishbi-benob",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of goliath"
+    },
+    {
+      "token": "lahmi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of goliath"
+    },
+    {
+      "token": "man-of-great-stature",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of goliath"
+    },
+    {
+      "token": "sippai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of goliath"
+    },
+    {
+      "token": "ishmael-son-of-abraham",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hagar"
+    },
+    {
+      "token": "mizraim",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ham"
+    },
+    {
+      "token": "phut",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ham"
+    },
+    {
+      "token": "hammedatha",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of haman"
+    },
+    {
+      "token": "adalia",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haman"
+    },
+    {
+      "token": "aspatha",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haman"
+    },
+    {
+      "token": "aridai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haman"
+    },
+    {
+      "token": "dalphon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haman"
+    },
+    {
+      "token": "parmashta",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haman"
+    },
+    {
+      "token": "aridatha",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haman"
+    },
+    {
+      "token": "parshandatha",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haman"
+    },
+    {
+      "token": "poratha",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haman"
+    },
+    {
+      "token": "arisai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haman"
+    },
+    {
+      "token": "vajezatha",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haman"
+    },
+    {
+      "token": "zeresh",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of haman"
+    },
+    {
+      "token": "terah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of haran-son-of-terah"
+    },
+    {
+      "token": "milcah-son-of-haran",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haran-son-of-terah"
+    },
+    {
+      "token": "iscah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of haran-son-of-terah"
+    },
+    {
+      "token": "nahor-son-of-terah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of haran-son-of-terah"
+    },
+    {
+      "token": "haziel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of haran"
+    },
+    {
+      "token": "shelomith",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of haran"
+    },
+    {
+      "token": "ben-hadad-son-of-hazael",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hazael"
+    },
+    {
+      "token": "beriah-son-of-asher",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of heber-son-of-beriah"
+    },
+    {
+      "token": "shua",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of heber-son-of-beriah"
+    },
+    {
+      "token": "hotham",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of heber-son-of-beriah"
+    },
+    {
+      "token": "shamer-son-of-heber",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of heber-son-of-beriah"
+    },
+    {
+      "token": "japhlet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of heber-son-of-beriah"
+    },
+    {
+      "token": "malchiel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of heber-son-of-beriah"
+    },
+    {
+      "token": "kohath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of hebron-son-of-kohath"
+    },
+    {
+      "token": "jeriah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hebron-son-of-kohath"
+    },
+    {
+      "token": "jekameam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hebron-son-of-kohath"
+    },
+    {
+      "token": "amariah-son-of-hebron",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hebron-son-of-kohath"
+    },
+    {
+      "token": "jahaziel-son-of-hebron",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hebron-son-of-kohath"
+    },
+    {
+      "token": "amram-son-of-kohath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hebron-son-of-kohath"
+    },
+    {
+      "token": "izhar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hebron-son-of-kohath"
+    },
+    {
+      "token": "uzziel-son-of-kohath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hebron-son-of-kohath"
+    },
+    {
+      "token": "philip-son-of-herod",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of herod"
+    },
+    {
+      "token": "archelaus",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of herod"
+    },
+    {
+      "token": "philip-1",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of herod"
+    },
+    {
+      "token": "herod-antipas",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of herod"
+    },
+    {
+      "token": "daughter-of-herodias",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of herodias"
+    },
+    {
+      "token": "herod-antipas",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of herodias"
+    },
+    {
+      "token": "philip-son-of-herod",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of herodias"
+    },
+    {
+      "token": "abijah-son-of-zechariah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of hezekiah-son-of-ahaz"
+    },
+    {
+      "token": "manasseh-son-of-hezekiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hezekiah-son-of-ahaz"
+    },
+    {
+      "token": "maaseiah-son-of-ahaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hezekiah-son-of-ahaz"
+    },
+    {
+      "token": "hephzi-bah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of hezekiah-son-of-ahaz"
+    },
+    {
+      "token": "huram",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of hiram-son-of-huram"
+    },
+    {
+      "token": "phinehas-son-of-eli",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hophni"
+    },
+    {
+      "token": "beeri-1",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of hosea"
+    },
+    {
+      "token": "lo-ammi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hosea"
+    },
+    {
+      "token": "jezreel-son-of-hosea",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hosea"
+    },
+    {
+      "token": "lo-ruhamah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hosea"
+    },
+    {
+      "token": "gomer-son-of-diblaim",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of hosea"
+    },
+    {
+      "token": "caleb-son-of-hezron",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of hur-son-of-caleb"
+    },
+    {
+      "token": "ephratah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of hur-son-of-caleb"
+    },
+    {
+      "token": "hareph",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hur-son-of-caleb"
+    },
+    {
+      "token": "hazelelponi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hur-son-of-caleb"
+    },
+    {
+      "token": "uri-son-of-hur",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hur-son-of-caleb"
+    },
+    {
+      "token": "penuel-son-of-hur",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hur-son-of-caleb"
+    },
+    {
+      "token": "idbash",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hur-son-of-caleb"
+    },
+    {
+      "token": "jezreel-son-of-hur",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hur-son-of-caleb"
+    },
+    {
+      "token": "ezer-son-of-hur",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hur-son-of-caleb"
+    },
+    {
+      "token": "ishma",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hur-son-of-caleb"
+    },
+    {
+      "token": "shobal-son-of-hur",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hur-son-of-caleb"
+    },
+    {
+      "token": "salma",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hur-son-of-caleb"
+    },
+    {
+      "token": "achsa",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hur-son-of-caleb"
+    },
+    {
+      "token": "ardon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hur-son-of-caleb"
+    },
+    {
+      "token": "jahdai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hur-son-of-caleb"
+    },
+    {
+      "token": "jesher",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hur-son-of-caleb"
+    },
+    {
+      "token": "mesha-son-of-caleb",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hur-son-of-caleb"
+    },
+    {
+      "token": "shobab-son-of-caleb",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of hur-son-of-caleb"
+    },
+    {
+      "token": "baanah-son-of-hushai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of hushai"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of isaac"
+    },
+    {
+      "token": "maher-shalal-hash-baz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of isaiah"
+    },
+    {
+      "token": "shear-jashub",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of isaiah"
+    },
+    {
+      "token": "nethaniah-son-of-elishama",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of ishmael-son-of-nethaniah"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of issachar-son-of-israel"
+    },
+    {
+      "token": "shimron",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of issachar-son-of-israel"
+    },
+    {
+      "token": "tola-son-of-issachar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of issachar-son-of-israel"
+    },
+    {
+      "token": "jashub-son-of-issachar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of issachar-son-of-israel"
+    },
+    {
+      "token": "puah-son-of-issachar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of issachar-son-of-israel"
+    },
+    {
+      "token": "judah-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of issachar-son-of-israel"
+    },
+    {
+      "token": "matthan",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of jacob"
+    },
+    {
+      "token": "heber",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of jael"
+    },
+    {
+      "token": "magog",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of japheth"
+    },
+    {
+      "token": "tubal",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of japheth"
+    },
+    {
+      "token": "tiras",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of japheth"
+    },
+    {
+      "token": "madai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of japheth"
+    },
+    {
+      "token": "meshech",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of japheth"
+    },
+    {
+      "token": "gomer-son-of-japheth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of japheth"
+    },
+    {
+      "token": "javan",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of japheth"
+    },
+    {
+      "token": "zacharias-son-of-jehoiada",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jehoiada-priest"
+    },
+    {
+      "token": "jehoshabeath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of jehoiada-priest"
+    },
+    {
+      "token": "zebudah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of jehoiakim"
+    },
+    {
+      "token": "jehoiachin",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jehoiakim"
+    },
+    {
+      "token": "johanan-son-of-josiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of jehoiakim"
+    },
+    {
+      "token": "nehushta",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of jehoiakim"
+    },
+    {
+      "token": "azubah-son-of-shilhi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of jehoshaphat-son-of-asa"
+    },
+    {
+      "token": "azariah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jehoshaphat-son-of-asa"
+    },
+    {
+      "token": "michael-son-of-jehoshaphat",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jehoshaphat-son-of-asa"
+    },
+    {
+      "token": "jehiel-son-of-jehoshaphat",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jehoshaphat-son-of-asa"
+    },
+    {
+      "token": "shephatiah-son-of-jehoshaphat",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jehoshaphat-son-of-asa"
+    },
+    {
+      "token": "azariah-son-of-jehoshaphat",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jehoshaphat-son-of-asa"
+    },
+    {
+      "token": "zechariah-son-of-jehoshaphat",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jehoshaphat-son-of-asa"
+    },
+    {
+      "token": "jehoram-son-of-jehoshaphat",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jehoshaphat-son-of-asa"
+    },
+    {
+      "token": "jehoshaphat-son-of-nimshi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of jehu-son-of-jehoshaphat"
+    },
+    {
+      "token": "jehoahaz-son-of-jehu",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jehu-son-of-jehoshaphat"
+    },
+    {
+      "token": "hilkiah-3",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of jeremiah-son-of-hilkiah"
+    },
+    {
+      "token": "nebat",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of jeroboam-son-of-nebat"
+    },
+    {
+      "token": "zeruah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of jeroboam-son-of-nebat"
+    },
+    {
+      "token": "abijah-son-of-jeroboam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jeroboam-son-of-nebat"
+    },
+    {
+      "token": "nadab-son-of-jeroboam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jeroboam-son-of-nebat"
+    },
+    {
+      "token": "obed-son-of-boaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of jesse"
+    },
+    {
+      "token": "abinadab-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jesse"
+    },
+    {
+      "token": "shammah-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jesse"
+    },
+    {
+      "token": "ozem-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jesse"
+    },
+    {
+      "token": "eliab-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jesse"
+    },
+    {
+      "token": "raddai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jesse"
+    },
+    {
+      "token": "elihu-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jesse"
+    },
+    {
+      "token": "nethaneel-son-of-jesse",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jesse"
+    },
+    {
+      "token": "eliasaph-son-of-jethro",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jethro"
+    },
+    {
+      "token": "zipporah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jethro"
+    },
+    {
+      "token": "hobab",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jethro"
+    },
+    {
+      "token": "ethbaal",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of jezebel"
+    },
+    {
+      "token": "ahaziah-son-of-ahab",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of jezebel"
+    },
+    {
+      "token": "zeruiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of joab"
+    },
+    {
+      "token": "asahel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of joab"
+    },
+    {
+      "token": "jehoahaz-son-of-jehu",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of joash-son-of-jehoahaz"
+    },
+    {
+      "token": "jeroboam-son-of-joash",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of joash-son-of-jehoahaz"
+    },
+    {
+      "token": "jemima",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of job"
+    },
+    {
+      "token": "kezia",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of job"
+    },
+    {
+      "token": "keren-happuch",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of job"
+    },
+    {
+      "token": "heman-son-of-joel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of joel-son-of-samuel"
+    },
+    {
+      "token": "abiah-son-of-samuel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of joel-son-of-samuel"
+    },
+    {
+      "token": "elisabeth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of john-the-baptist"
+    },
+    {
+      "token": "mother-of-zebedees-children",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of john-apostle"
+    },
+    {
+      "token": "james-son-of-zebedee",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of john-apostle"
+    },
+    {
+      "token": "amittai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of jonah"
+    },
+    {
+      "token": "saul",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of jonathan-son-of-saul"
+    },
+    {
+      "token": "ahinoam-son-of-ahimaaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of jonathan-son-of-saul"
+    },
+    {
+      "token": "ish-bosheth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of jonathan-son-of-saul"
+    },
+    {
+      "token": "abinadab-son-of-saul",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of jonathan-son-of-saul"
+    },
+    {
+      "token": "malchi-shua",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of jonathan-son-of-saul"
+    },
+    {
+      "token": "ahaziah-son-of-ahab",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of joram-son-of-ahab"
+    },
+    {
+      "token": "joash-son-of-ahab",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of joram-son-of-ahab"
+    },
+    {
+      "token": "jude",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of joseph-son-of-jacob"
+    },
+    {
+      "token": "jesus-son-of-joseph",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of joseph-son-of-jacob"
+    },
+    {
+      "token": "simon-son-of-joseph",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of joseph-son-of-jacob"
+    },
+    {
+      "token": "joses",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of joseph-son-of-jacob"
+    },
+    {
+      "token": "james-brother-of-jesus",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of joseph-son-of-jacob"
+    },
+    {
+      "token": "nun",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of joshua-son-of-nun"
+    },
+    {
+      "token": "jedidah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of josiah-son-of-amon"
+    },
+    {
+      "token": "johanan-son-of-josiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of josiah-son-of-amon"
+    },
+    {
+      "token": "jehoahaz-son-of-josiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of josiah-son-of-amon"
+    },
+    {
+      "token": "hamutal",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of josiah-son-of-amon"
+    },
+    {
+      "token": "zebudah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of josiah-son-of-amon"
+    },
+    {
+      "token": "jerushah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of jotham-son-of-uzziah"
+    },
+    {
+      "token": "izhar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of korah-son-of-izhar"
+    },
+    {
+      "token": "elkanah-son-of-korah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of korah-son-of-izhar"
+    },
+    {
+      "token": "ebiasaph",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of korah-son-of-izhar"
+    },
+    {
+      "token": "assir-son-of-korah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of korah-son-of-izhar"
+    },
+    {
+      "token": "nepheg-son-of-izhar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of korah-son-of-izhar"
+    },
+    {
+      "token": "shelomoth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of korah-son-of-izhar"
+    },
+    {
+      "token": "zichri-son-of-izhar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of korah-son-of-izhar"
+    },
+    {
+      "token": "bethuel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of laban"
+    },
+    {
+      "token": "mary-of-bethany",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of lazarus-of-bethany"
+    },
+    {
+      "token": "judah-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of leah"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of leah"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of levi-son-of-israel"
+    },
+    {
+      "token": "gershon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of levi-son-of-israel"
+    },
+    {
+      "token": "kohath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of levi-son-of-israel"
+    },
+    {
+      "token": "merari",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of levi-son-of-israel"
+    },
+    {
+      "token": "jochebed",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of levi-son-of-israel"
+    },
+    {
+      "token": "judah-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of levi-son-of-israel"
+    },
+    {
+      "token": "ben-ammi",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of lot"
+    },
+    {
+      "token": "daughter-of-lot-younger",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of lot"
+    },
+    {
+      "token": "daughter-of-lot-older",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of lot"
+    },
+    {
+      "token": "iscah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of lot"
+    },
+    {
+      "token": "milcah-son-of-haran",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of lot"
+    },
+    {
+      "token": "joseph-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of manasseh-son-of-joseph"
+    },
+    {
+      "token": "asenath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of manasseh-son-of-joseph"
+    },
+    {
+      "token": "machir-son-of-manasseh",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of manasseh-son-of-joseph"
+    },
+    {
+      "token": "ashriel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of manasseh-son-of-joseph"
+    },
+    {
+      "token": "mary-of-bethany",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of martha"
+    },
+    {
+      "token": "heli",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of mary-mother-of-jesus"
+    },
+    {
+      "token": "jude",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of mary-mother-of-jesus"
+    },
+    {
+      "token": "jesus-son-of-joseph",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of mary-mother-of-jesus"
+    },
+    {
+      "token": "simon-son-of-joseph",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of mary-mother-of-jesus"
+    },
+    {
+      "token": "joses",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of mary-mother-of-jesus"
+    },
+    {
+      "token": "james-brother-of-jesus",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of mary-mother-of-jesus"
+    },
+    {
+      "token": "alphaeus-1",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of matthew"
+    },
+    {
+      "token": "micah-son-of-mephibosheth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of mephibosheth-son-of-jonathan"
+    },
+    {
+      "token": "saul",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of merab"
+    },
+    {
+      "token": "ahinoam-son-of-ahimaaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of merab"
+    },
+    {
+      "token": "ish-bosheth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of merab"
+    },
+    {
+      "token": "abinadab-son-of-saul",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of merab"
+    },
+    {
+      "token": "malchi-shua",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of merab"
+    },
+    {
+      "token": "adriel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of merab"
+    },
+    {
+      "token": "lamech-son-of-methuselah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of methuselah"
+    },
+    {
+      "token": "saul",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of michal"
+    },
+    {
+      "token": "ahinoam-son-of-ahimaaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of michal"
+    },
+    {
+      "token": "ish-bosheth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of michal"
+    },
+    {
+      "token": "abinadab-son-of-saul",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of michal"
+    },
+    {
+      "token": "malchi-shua",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of michal"
+    },
+    {
+      "token": "phaltiel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of michal"
+    },
+    {
+      "token": "keturah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of midian"
+    },
+    {
+      "token": "eldaah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of midian"
+    },
+    {
+      "token": "abida",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of midian"
+    },
+    {
+      "token": "henoch",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of midian"
+    },
+    {
+      "token": "epher-son-of-midian",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of midian"
+    },
+    {
+      "token": "ephah-son-of-midian",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of midian"
+    },
+    {
+      "token": "ishbak",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of midian"
+    },
+    {
+      "token": "jokshan",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of midian"
+    },
+    {
+      "token": "medan",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of midian"
+    },
+    {
+      "token": "shuah-son-of-abraham",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of midian"
+    },
+    {
+      "token": "zimran",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of midian"
+    },
+    {
+      "token": "amram-son-of-kohath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of miriam-son-of-amram"
+    },
+    {
+      "token": "jochebed",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of miriam-son-of-amram"
+    },
+    {
+      "token": "daughter-of-lot-older",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of moab"
+    },
+    {
+      "token": "jair-son-of-shimei",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of mordecai-son-of-jair"
+    },
+    {
+      "token": "amram-son-of-kohath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of moses"
+    },
+    {
+      "token": "jochebed",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of moses"
+    },
+    {
+      "token": "gershom-son-of-moses",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of moses"
+    },
+    {
+      "token": "zipporah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of moses"
+    },
+    {
+      "token": "mahlon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of naomi"
+    },
+    {
+      "token": "chilion",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of naomi"
+    },
+    {
+      "token": "elimelech",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of naomi"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of naphtali"
+    },
+    {
+      "token": "bilhah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of naphtali"
+    },
+    {
+      "token": "shillem",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of naphtali"
+    },
+    {
+      "token": "guni-son-of-naphtali",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of naphtali"
+    },
+    {
+      "token": "jezer",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of naphtali"
+    },
+    {
+      "token": "jahzeel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of naphtali"
+    },
+    {
+      "token": "zabud",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of nathan"
+    },
+    {
+      "token": "azariah-son-of-nathan",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of nathan"
+    },
+    {
+      "token": "hachaliah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of nehemiah-son-of-hachaliah"
+    },
+    {
+      "token": "hanani-son-of-hachaliah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of nehemiah-son-of-hachaliah"
+    },
+    {
+      "token": "lamech-son-of-methuselah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of noah-son-of-lamech"
+    },
+    {
+      "token": "kenaz-son-of-jephunneh",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of othniel"
+    },
+    {
+      "token": "meonothai",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of othniel"
+    },
+    {
+      "token": "hathath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of othniel"
+    },
+    {
+      "token": "seraiah-son-of-kenaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of othniel"
+    },
+    {
+      "token": "achsah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of othniel"
+    },
+    {
+      "token": "jonas",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of simon-peter"
+    },
+    {
+      "token": "andrew",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of simon-peter"
+    },
+    {
+      "token": "daughter-of-putiel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of phinehas-son-of-eleazar"
+    },
+    {
+      "token": "abishua-son-of-phinehas",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of phinehas-son-of-eleazar"
+    },
+    {
+      "token": "joseph-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of rachel"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of rachel"
+    },
+    {
+      "token": "bethuel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of rebekah"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of rebekah"
+    },
+    {
+      "token": "naamah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of rehoboam"
+    },
+    {
+      "token": "jeush-son-of-rehoboam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of rehoboam"
+    },
+    {
+      "token": "zaham",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of rehoboam"
+    },
+    {
+      "token": "ziza-son-of-rehoboam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of rehoboam"
+    },
+    {
+      "token": "attai-son-of-rehoboam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of rehoboam"
+    },
+    {
+      "token": "shelomith-son-of-rehoboam",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of rehoboam"
+    },
+    {
+      "token": "shamariah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of rehoboam"
+    },
+    {
+      "token": "basmath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of rehoboam"
+    },
+    {
+      "token": "taphath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of rehoboam"
+    },
+    {
+      "token": "abihail-son-of-eliab",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of rehoboam"
+    },
+    {
+      "token": "maachah-son-of-uriel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of rehoboam"
+    },
+    {
+      "token": "mahalath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of rehoboam"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of reuben"
+    },
+    {
+      "token": "pallu",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of reuben"
+    },
+    {
+      "token": "carmi-son-of-reuben",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of reuben"
+    },
+    {
+      "token": "hezron-son-of-reuben",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of reuben"
+    },
+    {
+      "token": "hanoch",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of reuben"
+    },
+    {
+      "token": "judah-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of reuben"
+    },
+    {
+      "token": "obed-son-of-boaz",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ruth"
+    },
+    {
+      "token": "mahlon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of ruth"
+    },
+    {
+      "token": "manoah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of samson"
+    },
+    {
+      "token": "abiah-son-of-samuel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of samuel"
+    },
+    {
+      "token": "terah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of sarah"
+    },
+    {
+      "token": "nahor-son-of-terah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of sarah"
+    },
+    {
+      "token": "enos",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of seth"
+    },
+    {
+      "token": "bichri",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of sheba-son-of-bichri"
+    },
+    {
+      "token": "hamor",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of shechem-son-of-hamor"
+    },
+    {
+      "token": "arphaxad",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of shem"
+    },
+    {
+      "token": "lud",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of shem"
+    },
+    {
+      "token": "elam-son-of-shem",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of shem"
+    },
+    {
+      "token": "asshur",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of shem"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of simeon-son-of-israel"
+    },
+    {
+      "token": "jamin-son-of-simeon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of simeon-son-of-israel"
+    },
+    {
+      "token": "zerah-son-of-simeon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of simeon-son-of-israel"
+    },
+    {
+      "token": "ohad",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of simeon-son-of-israel"
+    },
+    {
+      "token": "jemuel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of simeon-son-of-israel"
+    },
+    {
+      "token": "jachin-son-of-simeon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of simeon-son-of-israel"
+    },
+    {
+      "token": "shaul-son-of-simeon",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of simeon-son-of-israel"
+    },
+    {
+      "token": "judah-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of simeon-son-of-israel"
+    },
+    {
+      "token": "basmath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of solomon"
+    },
+    {
+      "token": "taphath",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of solomon"
+    },
+    {
+      "token": "japhia-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "jerimoth-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "eliada-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "eliphalet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "elpalet",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "elishama-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "elishua",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "ibhar",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "nathan-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "nepheg-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "nogah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "shammua-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "shobab-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "tamar-son-of-david",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of solomon"
+    },
+    {
+      "token": "naamah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of solomon"
+    },
+    {
+      "token": "eliphal",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of ur"
+    },
+    {
+      "token": "jecoliah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of uzziah-son-of-amaziah"
+    },
+    {
+      "token": "jerushah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of uzziah-son-of-amaziah"
+    },
+    {
+      "token": "elisabeth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "partner of zacharias"
+    },
+    {
+      "token": "ahitub-son-of-amariah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of zadok-son-of-ahitub"
+    },
+    {
+      "token": "ahimaaz-son-of-zadok",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zadok-son-of-ahitub"
+    },
+    {
+      "token": "james-son-of-zebedee",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zebedee"
+    },
+    {
+      "token": "israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of zebulun"
+    },
+    {
+      "token": "jahleel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zebulun"
+    },
+    {
+      "token": "sered",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zebulun"
+    },
+    {
+      "token": "elon-son-of-zebulun",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zebulun"
+    },
+    {
+      "token": "judah-son-of-israel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zebulun"
+    },
+    {
+      "token": "hamutal",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "mother of zedekiah-son-of-josiah"
+    },
+    {
+      "token": "jehoahaz-son-of-josiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zedekiah-son-of-josiah"
+    },
+    {
+      "token": "maaseiah-12",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of zephaniah-son-of-maaseiah"
+    },
+    {
+      "token": "pedaiah-son-of-jehoiachin",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "father of zerubbabel"
+    },
+    {
+      "token": "jushab-hesed",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zerubbabel"
+    },
+    {
+      "token": "abiud",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zerubbabel"
+    },
+    {
+      "token": "meshullam-son-of-zerubbabel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zerubbabel"
+    },
+    {
+      "token": "hasadiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zerubbabel"
+    },
+    {
+      "token": "shelomith-son-of-zerubbabel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zerubbabel"
+    },
+    {
+      "token": "hashubah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zerubbabel"
+    },
+    {
+      "token": "berechiah-son-of-zerubbabel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zerubbabel"
+    },
+    {
+      "token": "hananiah-son-of-zerubbabel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zerubbabel"
+    },
+    {
+      "token": "ohel",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "child of zerubbabel"
+    },
+    {
+      "token": "shimei-son-of-pedaiah",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zerubbabel"
+    },
+    {
+      "token": "arkite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zidon"
+    },
+    {
+      "token": "arvadite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zidon"
+    },
+    {
+      "token": "jebusite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zidon"
+    },
+    {
+      "token": "girgasite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zidon"
+    },
+    {
+      "token": "hamathite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zidon"
+    },
+    {
+      "token": "heth",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zidon"
+    },
+    {
+      "token": "hivite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zidon"
+    },
+    {
+      "token": "sinite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zidon"
+    },
+    {
+      "token": "zemarite",
+      "status": "missing",
+      "candidates": [],
+      "reason": "noncanonical_homonym",
+      "context": "sibling of zidon"
+    }
+  ]
+}

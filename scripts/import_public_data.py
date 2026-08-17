@@ -20,6 +20,7 @@ STEPS = [
     ("crossrefs", "import_crossrefs.py", []),
     ("strongs", "import_strongs_gnosis.py", []),
     ("entities", "import_entities.py", []),
+    ("relations", "import_relations.py", []),
     ("topics", "import_topics.py", []),
     ("geography", "import_geography.py", []),
     ("cuv", "import_cuv.py", []),
