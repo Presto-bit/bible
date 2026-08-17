@@ -1,12 +1,14 @@
 /// 创世记 50 天自动登录（对齐 `apps/web/lib/genesis50_auth.ts`）。
 ///
-/// 用邀请码换 Supabase session，再把 token 写入目标站 URL fragment，
-/// 供对方 SPA 首帧 detectSessionInUrl 恢复，从而跳过邀请码页。
+/// 用邀请码换 Supabase session；Android WebView 在首屏前写入同源
+/// localStorage，再跳到带 query session 的 URL（与 PWA iframe 一致）。
+/// 对方 `detectSessionInUrl` + `flowType: implicit` 会在首帧恢复会话。
 library;
 
 import 'package:dio/dio.dart';
 
 const _g50Host = 'genesis-50.pages.dev';
+const _g50Origin = 'https://$_g50Host';
 const _g50SupabaseUrl = 'https://ytiwfmufekvxdgyaokae.supabase.co';
 
 /// 对方前端公开 anon key（与 genesis-50 包内一致）
@@ -15,6 +17,12 @@ const _g50AnonKey = 'sb_publishable_aH3DWsTgZ4X0A4W_zJmyzw_wd7yk7pm';
 /// 运营未在链接里带 ?code= 时的默认邀请码
 const _g50DefaultCode = '0CIW43NR';
 
+/// Supabase Web 本地会话键（对方站 project ref）。
+const genesis50AuthStorageKey = 'sb-ytiwfmufekvxdgyaokae-auth-token';
+
+/// 供 WebView `loadHtmlString` 的同源 base（localStorage 挂在此 origin）。
+const genesis50Origin = _g50Origin;
+
 class Genesis50Session {
   const Genesis50Session({
     required this.accessToken,
@@ -22,6 +30,7 @@ class Genesis50Session {
     this.expiresIn,
     this.expiresAt,
     this.tokenType,
+    this.user,
   });
 
   final String accessToken;
@@ -29,6 +38,25 @@ class Genesis50Session {
   final int? expiresIn;
   final int? expiresAt;
   final String? tokenType;
+  final Map<String, dynamic>? user;
+
+  /// 写入对方站 localStorage 的完整 session（含 user，避免 supabase-js 丢弃）。
+  Map<String, dynamic> toStorageJson() {
+    final expiresIn = this.expiresIn ?? 3600;
+    final expiresAt =
+        this.expiresAt ??
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000 + expiresIn);
+    return {
+      'access_token': accessToken,
+      'refresh_token': refreshToken,
+      'expires_in': expiresIn,
+      'expires_at': expiresAt,
+      'token_type': (tokenType == null || tokenType!.trim().isEmpty)
+          ? 'bearer'
+          : tokenType,
+      if (user != null) 'user': user,
+    };
+  }
 }
 
 String normalizeGenesis50Href(String href) {
@@ -78,6 +106,7 @@ Genesis50Session _parseSession(Map data) {
       '${data['error_description'] ?? data['msg'] ?? data['error'] ?? '登录失败'}',
     );
   }
+  final rawUser = data['user'];
   return Genesis50Session(
     accessToken: access,
     refreshToken: refresh,
@@ -88,6 +117,9 @@ Genesis50Session _parseSession(Map data) {
         ? data['expires_at'] as int
         : int.tryParse('${data['expires_at'] ?? ''}'),
     tokenType: data['token_type'] as String?,
+    user: rawUser is Map<String, dynamic>
+        ? rawUser
+        : (rawUser is Map ? rawUser.map((k, v) => MapEntry('$k', v)) : null),
   );
 }
 
@@ -178,33 +210,21 @@ Future<Genesis50Session> obtainGenesis50Session(
   }
 }
 
+/// 与 PWA `buildAuthedUrl` 一致：token 放 query（iframe / WebView 均可靠）。
 String buildGenesis50AuthedUrl(String href, Genesis50Session session) {
   final u = Uri.parse(normalizeGenesis50Href(href));
   final q = Map<String, String>.from(u.queryParameters)
     ..remove('code')
-    ..remove('invite');
-  // Supabase JS 通过 URL fragment 恢复 OAuth / magic-link session。此前把
-  // token 放在 query，再依赖 WebView 首屏后的 localStorage 注入和 reload；
-  // 对方 SPA 在首帧已决定显示邀请码页时，这条链路无法可靠补救。
-  //
-  // fragment 不会随页面请求发送，也会在 Android WebView 中完整保留，因此是
-  // 进入第三方 Supabase 站点唯一稳定的首屏鉴权载体。
-  final fragment = <String, String>{
-    'access_token': session.accessToken,
-    'refresh_token': session.refreshToken,
-    'expires_in': '${session.expiresIn ?? 3600}',
-    'token_type': session.tokenType ?? 'bearer',
-    'type': 'magiclink',
-  };
+    ..remove('invite')
+    ..['access_token'] = session.accessToken
+    ..['refresh_token'] = session.refreshToken
+    ..['expires_in'] = '${session.expiresIn ?? 3600}'
+    ..['token_type'] = session.tokenType ?? 'bearer'
+    ..['type'] = 'magiclink';
   if (session.expiresAt != null) {
-    fragment['expires_at'] = '${session.expiresAt}';
+    q['expires_at'] = '${session.expiresAt}';
   }
-  return u
-      .replace(
-        queryParameters: q,
-        fragment: Uri(queryParameters: fragment).query,
-      )
-      .toString();
+  return u.replace(queryParameters: q, fragment: '').toString();
 }
 
 String buildGenesis50FallbackUrl(String href, String code) {
@@ -213,23 +233,27 @@ String buildGenesis50FallbackUrl(String href, String code) {
   if ((q['code'] ?? '').isEmpty && (q['invite'] ?? '').isEmpty) {
     q['code'] = code;
   }
-  return u.replace(queryParameters: q).toString();
+  return u.replace(queryParameters: q, fragment: '').toString();
 }
 
-/// 已带 session fragment 时跳过重复鉴权（H5 桥二次打开等）。
+/// 已带 session query（或历史 fragment）时跳过重复鉴权。
 bool genesis50UrlHasSession(String href) {
   try {
     final u = Uri.parse(normalizeGenesis50Href(href));
-    final q = Uri.splitQueryString(u.fragment);
-    return (q['access_token'] ?? '').isNotEmpty &&
-        (q['refresh_token'] ?? '').isNotEmpty;
+    final q = u.queryParameters;
+    if ((q['access_token'] ?? '').isNotEmpty &&
+        (q['refresh_token'] ?? '').isNotEmpty) {
+      return true;
+    }
+    final frag = Uri.splitQueryString(u.fragment);
+    return (frag['access_token'] ?? '').isNotEmpty &&
+        (frag['refresh_token'] ?? '').isNotEmpty;
   } catch (_) {
     return false;
   }
 }
 
-/// 解析可打开的创世记 50 URL：session 在页面首帧通过 fragment 恢复；
-/// 鉴权失败才回退到邀请码页。
+/// 解析可打开的创世记 50 URL（对齐 PWA）；鉴权失败则带邀请码兜底。
 Future<String> resolveGenesis50OpenUrl(
   String href, {
   String nickname = '同行者',
