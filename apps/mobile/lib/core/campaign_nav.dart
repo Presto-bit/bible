@@ -12,7 +12,6 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../features/auth/auth_controller.dart';
 import 'genesis50_auth.dart';
-import 'open_external.dart';
 import 'open_h5.dart';
 import 'theme.dart';
 
@@ -126,13 +125,11 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   var _loading = true;
   var _authPhase = false;
   String? _error;
-  String _activeUrl = '';
   Timer? _loadWatchdog;
 
   @override
   void initState() {
     super.initState();
-    _activeUrl = widget.url;
     if (widget.genesis50) {
       _authPhase = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _openGenesis50());
@@ -161,11 +158,13 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
       await _startWebView(openUrl);
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _authPhase = false;
-        _loading = false;
-        _error = '暂时无法打开活动，请检查网络后重试';
-      });
+      setState(() => _authPhase = false);
+      await _startWebView(
+        buildGenesis50FallbackUrl(
+          widget.url,
+          resolveGenesis50InviteCode(widget.url),
+        ),
+      );
     }
   }
 
@@ -175,13 +174,12 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
       if (!mounted || !_loading || _error != null) return;
       setState(() {
         _loading = false;
-        _error = '页面打开较慢或未显示内容，可重试或用浏览器打开';
+        _error = '页面打开较慢，请检查网络后重试';
       });
     });
   }
 
   Future<void> _startWebView(String url) async {
-    _activeUrl = url;
     final controller = WebViewController();
     await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
     await controller.setBackgroundColor(AppColors.paper);
@@ -200,29 +198,6 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
           _loadWatchdog?.cancel();
           if (!mounted) return;
           setState(() => _loading = false);
-          // 根节点长期空 → 当作白屏，提示兜底（部分机型 WebView 嵌 SPA 会空绘）
-          try {
-            final raw = await controller.runJavaScriptReturningResult(
-              "(function(){var r=document.getElementById('root');"
-              "return r&&r.childElementCount>0?'1':'0';})()",
-            );
-            final ok = '$raw'.contains('1');
-            if (!ok && mounted && _error == null) {
-              await Future<void>.delayed(const Duration(milliseconds: 900));
-              if (!mounted) return;
-              final raw2 = await controller.runJavaScriptReturningResult(
-                "(function(){var r=document.getElementById('root');"
-                "return r&&r.childElementCount>0?'1':'0';})()",
-              );
-              if (!'$raw2'.contains('1') && mounted && _error == null) {
-                setState(() {
-                  _error = '活动页未能正常显示，请用浏览器打开';
-                });
-              }
-            }
-          } catch (_) {
-            /* 非 SPA / 无 #root 时忽略 */
-          }
         },
         onWebResourceError: (err) {
           if (!(err.isForMainFrame ?? true)) return;
@@ -278,17 +253,6 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
     _armLoadWatchdog();
   }
 
-  Future<void> _openInBrowser() async {
-    final ok = await openSystemBrowser(
-      _activeUrl.isNotEmpty ? _activeUrl : widget.url,
-    );
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法打开系统浏览器')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -299,12 +263,6 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          TextButton(
-            onPressed: _openInBrowser,
-            child: const Text('浏览器打开'),
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -338,11 +296,6 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
                           }
                         },
                         child: const Text('重试'),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: _openInBrowser,
-                        child: const Text('用浏览器打开'),
                       ),
                     ],
                   ),

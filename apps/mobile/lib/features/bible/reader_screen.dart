@@ -9,7 +9,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../app/app_shell.dart'
-    show navIndexProvider, readerImmersiveProvider;
+    show
+        navIndexProvider,
+        peiaiTabBarOverlayExtent,
+        PeiaiShellMetrics,
+        readerImmersiveProvider;
 import '../../core/badge_stats.dart';
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/config.dart';
@@ -472,12 +476,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     );
   }
 
-  /// 对齐 AppShell 胶囊底栏真实高度：56 + 12 + safe + 8 呼吸。
+  /// 对齐壳层胶囊底栏真实高度，避免 extendBody 把 inset 清零后 FAB 沉到底栏下。
   double _readerFabBottomInset(BuildContext context) {
-    final safe = MediaQuery.viewPaddingOf(context).bottom;
-    const inner = 56.0;
-    const floatGap = 12.0;
-    return inner + floatGap + safe + 8;
+    final fromShell = PeiaiShellMetrics.maybeOf(context)?.tabOverlayExtent;
+    final overlay = fromShell ?? peiaiTabBarOverlayExtent(context);
+    return overlay + 12;
   }
 
   /// ⋮ 直接打开阅读设置（可下滑/点遮罩关闭）；打卡走独立 FAB。

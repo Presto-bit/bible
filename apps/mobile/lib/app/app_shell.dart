@@ -82,8 +82,32 @@ double peiaiTabBarOverlayExtent(
   const inner = 56.0;
   const floatGap = 12.0;
   const breath = 4.0;
-  final safe = includeSafe ? MediaQuery.paddingOf(context).bottom : 0.0;
+  final mq = MediaQuery.of(context);
+  // extendBody 下子树 padding.bottom 常被清零，改用 viewPadding。
+  final safe = includeSafe
+      ? (mq.viewPadding.bottom > mq.padding.bottom
+            ? mq.viewPadding.bottom
+            : mq.padding.bottom)
+      : 0.0;
   return inner + floatGap + safe + breath;
+}
+
+/// 壳层在 build 时写入的底栏占位，供圣经 FAB 等子树使用（避免 extendBody 吃掉 inset）。
+class PeiaiShellMetrics extends InheritedWidget {
+  const PeiaiShellMetrics({
+    super.key,
+    required this.tabOverlayExtent,
+    required super.child,
+  });
+
+  final double tabOverlayExtent;
+
+  static PeiaiShellMetrics? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<PeiaiShellMetrics>();
+
+  @override
+  bool updateShouldNotify(PeiaiShellMetrics oldWidget) =>
+      tabOverlayExtent != oldWidget.tabOverlayExtent;
 }
 
 /// 内容区建议底边距：浮栏高度 + 呼吸。
@@ -176,13 +200,16 @@ class _AppShellState extends ConsumerState<AppShell> {
           extendBody: true,
           // 键盘由当前 Tab 内部处理；壳层不整体上推避免 IndexedStack 全动
           resizeToAvoidBottomInset: false,
-          body: Column(
-            children: [
-              const OfflineStatusBar(),
-              Expanded(
-                child: IndexedStack(index: index, children: _pages),
-              ),
-            ],
+          body: PeiaiShellMetrics(
+            tabOverlayExtent: peiaiTabBarOverlayExtent(context),
+            child: Column(
+              children: [
+                const OfflineStatusBar(),
+                Expanded(
+                  child: IndexedStack(index: index, children: _pages),
+                ),
+              ],
+            ),
           ),
           // 沉浸读经时直接移除底栏，不保留 Scaffold 的底部高度，也不做滑出动画。
           bottomNavigationBar: immersive

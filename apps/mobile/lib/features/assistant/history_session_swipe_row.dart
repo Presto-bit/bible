@@ -84,67 +84,70 @@ class _HistorySessionSwipeRowState extends State<HistorySessionSwipeRow> {
 
   @override
   Widget build(BuildContext context) {
+    final revealed = _offset < -1;
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Stack(
         children: [
           Positioned.fill(
             child: IgnorePointer(
-              // 关闭态不允许露在底层的操作按钮被误点。
-              ignoring: _offset > -1,
-              child: Row(
-                children: [
-                  const Spacer(),
-                  SizedBox(
-                    width: _revealPx,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Material(
-                            color: AppColors.accent.withValues(alpha: 0.85),
-                            child: InkWell(
-                              onTap: () {
-                                _close();
-                                widget.onRename();
-                              },
-                              child: const Center(
-                                child: Text(
-                                  '改名',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
+              ignoring: !revealed,
+              child: Opacity(
+                opacity: revealed ? 1 : 0,
+                child: Row(
+                  children: [
+                    const Spacer(),
+                    SizedBox(
+                      width: _revealPx,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Material(
+                              color: AppColors.accent.withValues(alpha: 0.85),
+                              child: InkWell(
+                                onTap: () {
+                                  _close();
+                                  widget.onRename();
+                                },
+                                child: const Center(
+                                  child: Text(
+                                    '改名',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                        Expanded(
-                          child: Material(
-                            color: const Color(0xFFC45C5C),
-                            child: InkWell(
-                              onTap: () {
-                                _close();
-                                widget.onDelete();
-                              },
-                              child: const Center(
-                                child: Text(
-                                  '删除',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
+                          Expanded(
+                            child: Material(
+                              color: const Color(0xFFC45C5C),
+                              child: InkWell(
+                                onTap: () {
+                                  _close();
+                                  widget.onDelete();
+                                },
+                                child: const Center(
+                                  child: Text(
+                                    '删除',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

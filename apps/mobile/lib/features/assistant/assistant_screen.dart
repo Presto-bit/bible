@@ -131,8 +131,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       );
       return;
     }
-    // Tab 进入：续接最近一个会话（若有）。
-    final sessions = await repo.watchSessions().first;
+    // Tab 进入：续接最近一条有内容的会话（空壳不进历史）。
+    final sessions = await repo.visibleSessions();
     if (sessions.isNotEmpty) {
       await _loadSession(sessions.first);
     }
@@ -310,6 +310,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               child: SafeArea(
                 child: _SessionListSheet(
                   onNew: _newSession,
+                  onSwitchTo: (s) => _loadSession(s),
                   activeId: _sessionId,
                 ),
               ),
@@ -1014,8 +1015,9 @@ class _AnchorChip extends StatelessWidget {
 }
 
 class _SessionListSheet extends ConsumerStatefulWidget {
-  const _SessionListSheet({this.onNew, this.activeId});
+  const _SessionListSheet({this.onNew, this.onSwitchTo, this.activeId});
   final VoidCallback? onNew;
+  final ValueChanged<AiSession>? onSwitchTo;
   final String? activeId;
 
   @override
@@ -1025,8 +1027,11 @@ class _SessionListSheet extends ConsumerStatefulWidget {
 class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
   List<AiSession>? _snapshot;
   final Map<String, String> _previews = {};
-  final Set<String> _collapsed = {};
+  final Map<String, String> _titles = {};
+  final Map<String, bool> _collapsedOverride = {};
   final _swipeController = HistorySessionSwipeController();
+  final _listScroll = ScrollController();
+  final _activeKey = GlobalKey();
   Object? _err;
 
   @override
@@ -1038,22 +1043,19 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
   @override
   void dispose() {
     _swipeController.dispose();
+    _listScroll.dispose();
     super.dispose();
   }
 
   Future<void> _loadOnce() async {
     try {
-      final list = await ref
-          .read(sessionRepoProvider)
-          .watchSessions()
-          .first
-          .timeout(
-            const Duration(seconds: 4),
-            onTimeout: () => const <AiSession>[],
-          );
+      final repo = ref.read(sessionRepoProvider);
+      final list = await repo.visibleSessions();
       final previews = <String, String>{};
+      final titles = <String, String>{};
       for (final s in list) {
-        final p = await ref.read(sessionRepoProvider).previewOf(s.id);
+        titles[s.id] = await repo.displayTitleOf(s);
+        final p = await repo.previewOf(s.id);
         if (p != null && p.isNotEmpty) previews[s.id] = p;
       }
       if (mounted) {
@@ -1062,8 +1064,12 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
           _previews
             ..clear()
             ..addAll(previews);
+          _titles
+            ..clear()
+            ..addAll(titles);
           _err = null;
         });
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToActive());
       }
     } catch (e) {
       if (mounted) {
@@ -1073,6 +1079,17 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
         });
       }
     }
+  }
+
+  void _scrollToActive() {
+    final ctx = _activeKey.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.12,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+    );
   }
 
   Future<void> _rename(AiSession s) async {
@@ -1101,43 +1118,43 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
   }
 
   Future<void> _delete(AiSession s) async {
+    final wasActive = widget.activeId == s.id;
+    final rest = (_snapshot ?? []).where((x) => x.id != s.id).toList();
     await ref.read(sessionRepoProvider).delete(s);
+    if (!mounted) return;
+    if (wasActive) {
+      Navigator.pop(context);
+      if (rest.isNotEmpty) {
+        widget.onSwitchTo?.call(rest.first);
+      } else {
+        widget.onNew?.call();
+      }
+      return;
+    }
     await _loadOnce();
   }
 
-  /// 按经节锚点分组（无锚点归「随问」）；组内/组间按最近更新降序；「随问」置末。
-  /// 对齐 PWA `groupSessionsByRef`。
+  /// 按今天 / 昨天 / 本周 / 更早分组（对齐 PWA groupSessionsByDate）。
   List<MapEntry<String, List<AiSession>>> _grouped(List<AiSession> list) {
+    const order = ['今天', '昨天', '本周', '更早'];
     final map = <String, List<AiSession>>{};
     for (final s in list) {
-      final key = SessionRepository.normalizeSessionRef(s.anchorRef);
-      final label = key.isEmpty ? '随问' : key;
+      final label = formatSessionGroupLabel(s.updatedAtMs);
       map.putIfAbsent(label, () => []).add(s);
     }
     for (final e in map.entries) {
       e.value.sort((a, b) => b.updatedAtMs.compareTo(a.updatedAtMs));
     }
-    final entries = map.entries.toList()
-      ..sort((a, b) {
-        if (a.key == '随问') return 1;
-        if (b.key == '随问') return -1;
-        final ta = a.value.isEmpty ? 0 : a.value.first.updatedAtMs;
-        final tb = b.value.isEmpty ? 0 : b.value.first.updatedAtMs;
-        return tb.compareTo(ta);
-      });
-    return entries;
+    return [
+      for (final label in order)
+        if (map[label]?.isNotEmpty == true) MapEntry(label, map[label]!),
+    ];
   }
 
-  String _timeLabel(int ms) {
-    final now = DateTime.now();
-    final today0 = DateTime(now.year, now.month, now.day);
-    final day0 = DateTime.fromMillisecondsSinceEpoch(ms);
-    final d0 = DateTime(day0.year, day0.month, day0.day);
-    final diff = today0.difference(d0).inDays;
-    if (diff <= 0) return '今天';
-    if (diff == 1) return '昨天';
-    if (diff < 7) return '本周';
-    return '${day0.year}-${day0.month.toString().padLeft(2, '0')}-${day0.day.toString().padLeft(2, '0')}';
+  bool _isCollapsed(String label, {required bool containsActive}) {
+    if (containsActive) return false;
+    return _collapsedOverride[label] ??
+        !isHistoryGroupExpandedByDefault(label);
   }
 
   Widget _sessionCard(AiSession s) {
@@ -1146,7 +1163,10 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
     final preview = _previews[s.id];
     final card = Material(
       color: active
-          ? AppColors.accent.withValues(alpha: 0.08)
+          ? Color.alphaBlend(
+              AppColors.accent.withValues(alpha: 0.08),
+              AppColors.surface,
+            )
           : AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),

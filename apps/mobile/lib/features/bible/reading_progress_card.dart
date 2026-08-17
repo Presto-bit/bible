@@ -22,34 +22,51 @@ _BookState _stateOf(BookProgress? p) {
   return _BookState.todo;
 }
 
-class ReadingProgressCard extends ConsumerWidget {
-  const ReadingProgressCard({super.key});
+void openReadingProgressCatalog(BuildContext context, WidgetRef ref) {
+  final books = ref.read(booksProvider).value ?? const <BibleBook>[];
+  final data = ref.read(reviewDataProvider).asData?.value;
+  if (books.isEmpty || data == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('读经目录加载中，请稍后再试')),
+    );
+    return;
+  }
+  final totals = {for (final b in books) b.id: b.chapterCount};
+  _showReadingProgressCatalog(
+    context,
+    ref,
+    books: books,
+    progress: data.bookProgress(totals),
+    data: data,
+  );
+}
 
-  void _openCatalog(
-    BuildContext context,
-    WidgetRef ref,
-    List<BibleBook> books,
-    Map<String, BookProgress> progress,
-    ReviewData data,
-  ) {
-    void go(BibleBook b) {
-      final last = data.lastChapterOf(b.id) ?? 1;
-      ref.read(readerJumpProvider.notifier).jump(b.id, last < 1 ? 1 : last);
-      ref.read(navIndexProvider.notifier).set(1);
-      Navigator.of(context).maybePop();
-    }
+void _showReadingProgressCatalog(
+  BuildContext context,
+  WidgetRef ref, {
+  required List<BibleBook> books,
+  required Map<String, BookProgress> progress,
+  required ReviewData data,
+}) {
+  void go(BibleBook b) {
+    final last = data.lastChapterOf(b.id) ?? 1;
+    ref.read(readerJumpProvider.notifier).jump(b.id, last < 1 ? 1 : last);
+    ref.read(navIndexProvider.notifier).set(1);
+    Navigator.of(context).maybePop();
+  }
 
-    final ot = books.where((b) => b.isOldTestament).toList();
-    final nt = books.where((b) => !b.isOldTestament).toList();
+  final ot = books.where((b) => b.isOldTestament).toList();
+  final nt = books.where((b) => !b.isOldTestament).toList();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.paper,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => DraggableScrollableSheet(
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.paper,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.7,
         maxChildSize: 0.92,
@@ -69,18 +86,35 @@ class ReadingProgressCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             const Center(
-              child: Text('读经目录',
-                  style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              child: Text(
+                '读经目录',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
             ),
             const SizedBox(height: 12),
-            if (ot.isNotEmpty) _CatalogSection(title: '旧约', books: ot, progress: progress, onTap: go),
-            if (nt.isNotEmpty) _CatalogSection(title: '新约', books: nt, progress: progress, onTap: go),
+            if (ot.isNotEmpty)
+              _CatalogSection(
+                title: '旧约',
+                books: ot,
+                progress: progress,
+                onTap: go,
+              ),
+            if (nt.isNotEmpty)
+              _CatalogSection(
+                title: '新约',
+                books: nt,
+                progress: progress,
+                onTap: go,
+              ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
+class ReadingProgressCard extends ConsumerWidget {
+  const ReadingProgressCard({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -103,7 +137,13 @@ class ReadingProgressCard extends ConsumerWidget {
         return GestureDetector(
           onTap: books.isEmpty
               ? null
-              : () => _openCatalog(context, ref, books, allTime, data),
+              : () => _showReadingProgressCatalog(
+                    context,
+                    ref,
+                    books: books,
+                    progress: allTime,
+                    data: data,
+                  ),
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(

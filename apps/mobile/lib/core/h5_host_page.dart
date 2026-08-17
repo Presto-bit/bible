@@ -129,25 +129,31 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   }
 
   /// 宿主浮动底栏高度注入 H5（extendBody 后内容需自行垫底）。
-  String _tabBarCssJs() {
+  /// 聊天沉浸仍保留底部安全区，避免 composer 贴到 Home Indicator。
+  String _tabBarCssJs({bool keyboardUp = false}) {
+    final mq = MediaQuery.of(context);
+    final safeRaw = mq.viewPadding.bottom > mq.padding.bottom
+        ? mq.viewPadding.bottom
+        : mq.padding.bottom;
     final chatImmersive =
-        widget.tabIndex == 3 && ref.read(discoverImmersiveProvider);
+        isDiscoverChatPath(_activePath) ||
+        (widget.tabIndex == 3 && ref.read(discoverImmersiveProvider));
+    final safe = keyboardUp ? 0.0 : (chatImmersive ? safeRaw : 0.0);
     if (!widget.embedInTab || chatImmersive) {
       return '''
-    root.style.setProperty('--shell-inset-bottom', '0px');
+    root.style.setProperty('--shell-inset-bottom', '${safe.toStringAsFixed(1)}px');
     root.style.setProperty('--tabbar-inner', '0px');
     root.style.setProperty('--tabbar-float-gap', '0px');
-    root.style.setProperty('--tabbar-safe', '0px');
+    root.style.setProperty('--tabbar-safe', '${safe.toStringAsFixed(1)}px');
     root.style.setProperty('--tabbar-h', '0px');
 ''';
     }
-    final safe = MediaQuery.paddingOf(context).bottom;
     final h = peiaiTabBarOverlayExtent(context, includeSafe: true);
     return '''
-    root.style.setProperty('--shell-inset-bottom', '${safe.toStringAsFixed(1)}px');
+    root.style.setProperty('--shell-inset-bottom', '${safeRaw.toStringAsFixed(1)}px');
     root.style.setProperty('--tabbar-inner', '56px');
     root.style.setProperty('--tabbar-float-gap', '12px');
-    root.style.setProperty('--tabbar-safe', '${safe.toStringAsFixed(1)}px');
+    root.style.setProperty('--tabbar-safe', '${safeRaw.toStringAsFixed(1)}px');
     root.style.setProperty('--tabbar-h', '${h.toStringAsFixed(1)}px');
 ''';
   }
@@ -264,13 +270,16 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     if (insetKb <= 0 && shrinkKb <= 0) {
       _baselineHostH = hostH;
     }
-    // adjustResize / 宿主已变矮时与 PWA 一致：只缩壳高，不再注入 --im-kb-inset 抬栏。
+    // 宿主已因键盘变矮时不再减 inset，避免双重扣除。
     final keyboardUp = insetKb > 0 || shrinkKb > 0;
-    final vv = hostH.clamp(120.0, 4000.0);
+    final vv = (insetKb > 0 && shrinkKb <= 0)
+        ? (hostH - insetKb).clamp(120.0, 4000.0)
+        : hostH.clamp(120.0, 4000.0);
     await c.runJavaScript('''
 (function(){
   try {
     var root = document.documentElement;
+    ${_tabBarCssJs(keyboardUp: keyboardUp)}
     root.style.setProperty('--peiai-vv-h', '${vv.toStringAsFixed(1)}px');
     root.style.setProperty('--im-vv-h', '${vv.toStringAsFixed(1)}px');
     root.style.setProperty('--im-kb-inset', '0px');

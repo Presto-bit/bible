@@ -1,6 +1,8 @@
 /// 圣经知识闯关 · 关卡制问答。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,7 +15,10 @@ import 'challenge_progress.dart';
 import 'daily_quiz.dart';
 
 class ChallengeScreen extends ConsumerStatefulWidget {
-  const ChallengeScreen({super.key});
+  const ChallengeScreen({super.key, this.initialStart});
+
+  /// 对齐 PWA `/challenge?start=daily|random|wrong`
+  final String? initialStart;
 
   @override
   ConsumerState<ChallengeScreen> createState() => _ChallengeScreenState();
@@ -31,7 +36,17 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _reloadProgress());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _reloadProgress();
+      final start = widget.initialStart?.trim();
+      if (start == 'daily') {
+        unawaited(_startDaily());
+      } else if (start == 'random') {
+        unawaited(_startRandom());
+      } else if (start == 'wrong') {
+        unawaited(_startWrongReview());
+      }
+    });
   }
 
   void _reloadProgress() {
@@ -107,19 +122,53 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
     });
   }
 
+  Future<void> _toast(String msg) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(milliseconds: 1600)),
+    );
+  }
+
   Future<void> _startDaily() async {
-    final qs = await dailyQuizQuestions(ref.read(prefsProvider));
-    _startBank(qs, '每日问答');
+    try {
+      final qs = await dailyQuizQuestions(ref.read(prefsProvider));
+      if (!mounted) return;
+      if (qs.isEmpty) {
+        await _toast('题库暂时不可用，请稍后重试');
+        return;
+      }
+      _startBank(qs, '每日问答');
+    } catch (_) {
+      await _toast('题库暂时不可用，请稍后重试');
+    }
   }
 
   Future<void> _startRandom() async {
-    final qs = await randomQuizQuestions();
-    _startBank(qs, '随机挑战');
+    try {
+      final qs = await randomQuizQuestions();
+      if (!mounted) return;
+      if (qs.isEmpty) {
+        await _toast('题库暂时不可用，请稍后重试');
+        return;
+      }
+      _startBank(qs, '随机挑战');
+    } catch (_) {
+      await _toast('题库暂时不可用，请稍后重试');
+    }
   }
 
   Future<void> _startWrongReview() async {
-    final qs = await wrongReviewQuestions(ref.read(prefsProvider));
-    _startBank(qs, '错题重练');
+    try {
+      final qs = await wrongReviewQuestions(ref.read(prefsProvider));
+      if (!mounted) return;
+      if (qs.isEmpty) {
+        await _toast('题库暂时不可用，请稍后重试');
+        return;
+      }
+      _startBank(qs, '错题重练');
+    } catch (_) {
+      await _toast('题库暂时不可用，请稍后重试');
+    }
   }
 
   void _pickBank(int i) {

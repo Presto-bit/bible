@@ -1495,9 +1495,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     if (width <= 0) return false;
     final ratio = dx.abs() / width;
     final goingPrev = dx > 0;
+    // 对齐 PWA useReaderPageTurn：下一页 13%/24%，上一页更松 9%/18%；
+    // 速度单位 Flutter 为 px/s，对应 PWA 0.09–0.12 px/ms。
     final threshold = goingPrev ? 0.09 : 0.13;
     final force = goingPrev ? 0.18 : 0.24;
-    // PWA：0.09–0.12 px/ms ≈ 90–120 px/s
     final velMin = goingPrev ? 90.0 : 120.0;
     final soft = goingPrev ? 0.07 : 0.09;
     return ratio >= force ||
@@ -1531,8 +1532,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       velocityPxPerSec: v,
     );
     if (commit && can) {
-      peiaiHapticLight(context);
-      // 与 PWA 相同：先将相邻完整页补完 280ms，再替换章节并回到轨道中心。
+      // 对齐 PWA：翻页无震动，跟手阈值见 _shouldCommitPageTurn。
       await _animatePageDragTo(goingNext ? -width : width);
       if (!mounted) return;
       setState(_resetPageDrag);
@@ -1559,9 +1559,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     required double width,
   }) {
     final target = _adjacentTarget(delta);
-    final topPad = widget.chromeHidden
-        ? (MediaQuery.paddingOf(context).top + 56)
-        : 12.0;
+    final topPad = _readerListTopPad();
     if (target == null) {
       return ColoredBox(
         color: theme.background,
@@ -2085,7 +2083,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         // 沉浸：顶垫给固定卷章条；非沉浸：底垫对齐胶囊底栏（peiaiTabContentBottomPad）
         padding: EdgeInsets.fromLTRB(
           16,
-          widget.chromeHidden ? (MediaQuery.paddingOf(context).top + 56) : 12,
+          _readerListTopPad(),
           20,
           widget.chromeHidden
               ? (MediaQuery.paddingOf(context).bottom + 8)
@@ -2126,14 +2124,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             );
           }
           if (i == planHead) {
-            // 全屏时卷章固定在顶部叠层；横滑翻章预览时隐藏，避免旧卷章与邻章经文错位。
-            if (widget.chromeHidden || dx.abs() > 8) {
-              return const SizedBox.shrink();
-            }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12, top: 4),
-              child: _chapterLocTitle(theme),
-            );
+            // 卷章固定在轨道外叠层，避免横滑时标题跟着正文移走。
+            return const SizedBox.shrink();
           }
           if (planTail == 1 && i == rows.length + 1 + planHead) {
             return segmentFooter!;
@@ -2184,87 +2176,28 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       ),
     );
 
-    return GestureDetector(
-      onHorizontalDragUpdate: swipeOn
-          ? (d) => _onPageDragUpdate(d.delta.dx)
-          : null,
-      onHorizontalDragEnd: swipeOn ? _finishPageTurn : null,
-      onHorizontalDragCancel: () {
-        if (_pageDragDx != 0 || _pageDragRaw != 0 || _pageDragAxis != null) {
-          setState(_resetPageDrag);
-        }
-      },
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: [
-          ClipRect(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (dx < -2)
-                  Positioned(
-                    left: pageW + dx,
-                    top: 0,
-                    bottom: 0,
-                    width: pageW,
-                    child: _chapterPeekPanel(
-                      theme: theme,
-                      delta: 1,
-                      width: pageW,
-                    ),
-                  ),
-                if (dx > 2)
-                  Positioned(
-                    left: dx - pageW,
-                    top: 0,
-                    bottom: 0,
-                    width: pageW,
-                    child: _chapterPeekPanel(
-                      theme: theme,
-                      delta: -1,
-                      width: pageW,
-                    ),
-                  ),
-                Transform.translate(
-                  offset: Offset(dx, 0),
-                  // 横滑轨道仅平移，正文单独合成层，避免每帧重复 raster 长章 RichText。
-                  child: RepaintBoundary(
-                    child: ColoredBox(color: theme.background, child: listBody),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (widget.chromeHidden && dx.abs() <= 8)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Material(
-                color: theme.background,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    MediaQuery.paddingOf(context).top + 8,
-                    20,
-                    10,
-                  ),
-                  child: _chapterLocTitle(theme),
-                ),
-              ),
-            ),
-        ],
-      ),
+    return _pageTurnViewport(
+      swipeOn: swipeOn,
+      dx: dx,
+      pageW: pageW,
+      theme: theme,
+      listBody: listBody,
     );
   }
 
-  Widget _chapterLocTitle(ReaderExperienceTheme theme) {
+  Widget _chapterLocTitle(
+    ReaderExperienceTheme theme, {
+    String? bookName,
+    int? chapter,
+  }) {
+    final name = bookName ?? widget.book.name;
+    final ch = chapter ?? widget.chapter;
     return Row(
       children: [
         GestureDetector(
           onTap: () => _showChapterSummary(initialTab: 'book'),
           child: Text(
-            widget.book.name,
+            name,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -2276,7 +2209,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         GestureDetector(
           onTap: () => _showChapterSummary(initialTab: 'chapter'),
           child: Text(
-            '第 ${widget.chapter} 章',
+            '第 $ch 章',
             style: TextStyle(
               fontSize: 13,
               color: theme.ink.withValues(alpha: 0.55),
@@ -2284,6 +2217,113 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           ),
         ),
       ],
+    );
+  }
+
+  /// 横滑时卷名保持，仅章节号跟随邻章；不随正文轨道移走。
+  Widget _stableLocOverlay(ReaderExperienceTheme theme, double dx) {
+    var bookName = widget.book.name;
+    var chapter = widget.chapter;
+    if (dx.abs() > 8) {
+      final target = _adjacentTarget(dx < 0 ? 1 : -1);
+      if (target != null) {
+        bookName = target.book.name;
+        chapter = target.chapter;
+      }
+    }
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Material(
+        color: theme.background,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, _locOverlayTopPad(), 20, 10),
+          child: _chapterLocTitle(
+            theme,
+            bookName: bookName,
+            chapter: chapter,
+          ),
+        ),
+      ),
+    );
+  }
+
+  double _locOverlayTopPad() => widget.chromeHidden
+      ? MediaQuery.paddingOf(context).top + 8
+      : 12.0;
+
+  /// 固定卷章条高度，正文从条下开始，避免标题随横滑轨道移走。
+  double _readerListTopPad() => _locOverlayTopPad() + 34;
+
+  Widget _pageTurnViewport({
+    required bool swipeOn,
+    required double dx,
+    required double pageW,
+    required ReaderExperienceTheme theme,
+    required Widget listBody,
+  }) {
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        gestureSettings: const DeviceGestureSettings(touchSlop: 8),
+      ),
+      child: GestureDetector(
+        onHorizontalDragUpdate: swipeOn
+            ? (d) => _onPageDragUpdate(d.delta.dx)
+            : null,
+        onHorizontalDragEnd: swipeOn ? _finishPageTurn : null,
+        onHorizontalDragCancel: () {
+          if (_pageDragDx != 0 || _pageDragRaw != 0 || _pageDragAxis != null) {
+            setState(_resetPageDrag);
+          }
+        },
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            ClipRect(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (dx < -2)
+                    Positioned(
+                      left: pageW + dx,
+                      top: 0,
+                      bottom: 0,
+                      width: pageW,
+                      child: _chapterPeekPanel(
+                        theme: theme,
+                        delta: 1,
+                        width: pageW,
+                      ),
+                    ),
+                  if (dx > 2)
+                    Positioned(
+                      left: dx - pageW,
+                      top: 0,
+                      bottom: 0,
+                      width: pageW,
+                      child: _chapterPeekPanel(
+                        theme: theme,
+                        delta: -1,
+                        width: pageW,
+                      ),
+                    ),
+                  Transform.translate(
+                    offset: Offset(dx, 0),
+                    child: RepaintBoundary(
+                      child: ColoredBox(
+                        color: theme.background,
+                        child: listBody,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _stableLocOverlay(theme, dx),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2385,7 +2425,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       // 对照模式同样沿用 PWA 的 16px 阅读边距，并垫开胶囊底栏。
       padding: EdgeInsets.fromLTRB(
         16,
-        widget.chromeHidden ? (MediaQuery.paddingOf(context).top + 56) : 12,
+        _readerListTopPad(),
         16,
         widget.chromeHidden
             ? (MediaQuery.paddingOf(context).bottom + 8)
@@ -2394,31 +2434,19 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       itemCount: rows.length + 1,
       itemBuilder: (_, i) {
         if (i == 0) {
-          // 横滑预览时隐藏当前卷章头，避免与邻章经文错位。
-          if (widget.chromeHidden || dx.abs() > 8) {
+          if (compareStatus != 'loading' && compareStatus != 'error') {
             return const SizedBox.shrink();
           }
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _chapterLocTitle(theme),
-                if (compareStatus == 'loading') ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    '对照译本加载中…',
-                    style: TextStyle(fontSize: 13, color: AppColors.inkFaint),
-                  ),
-                ],
-                if (compareStatus == 'error') ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    '译本加载失败，请稍后重试',
-                    style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
-                  ),
-                ],
-              ],
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              compareStatus == 'loading' ? '对照译本加载中…' : '译本加载失败，请稍后重试',
+              style: TextStyle(
+                fontSize: 13,
+                color: compareStatus == 'loading'
+                    ? AppColors.inkFaint
+                    : AppColors.inkSoft,
+              ),
             ),
           );
         }
@@ -2550,76 +2578,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       },
     );
 
-    return GestureDetector(
-      onHorizontalDragUpdate: swipeOn
-          ? (d) => _onPageDragUpdate(d.delta.dx)
-          : null,
-      onHorizontalDragEnd: swipeOn ? _finishPageTurn : null,
-      onHorizontalDragCancel: () {
-        if (_pageDragDx != 0 || _pageDragRaw != 0 || _pageDragAxis != null) {
-          setState(_resetPageDrag);
-        }
-      },
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: [
-          ClipRect(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (dx < -2)
-                  Positioned(
-                    left: pageW + dx,
-                    top: 0,
-                    bottom: 0,
-                    width: pageW,
-                    child: _chapterPeekPanel(
-                      theme: theme,
-                      delta: 1,
-                      width: pageW,
-                    ),
-                  ),
-                if (dx > 2)
-                  Positioned(
-                    left: dx - pageW,
-                    top: 0,
-                    bottom: 0,
-                    width: pageW,
-                    child: _chapterPeekPanel(
-                      theme: theme,
-                      delta: -1,
-                      width: pageW,
-                    ),
-                  ),
-                Transform.translate(
-                  offset: Offset(dx, 0),
-                  child: RepaintBoundary(
-                    child: ColoredBox(color: theme.background, child: listBody),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (widget.chromeHidden && dx.abs() <= 8)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Material(
-                color: theme.background,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    MediaQuery.paddingOf(context).top + 8,
-                    16,
-                    10,
-                  ),
-                  child: _chapterLocTitle(theme),
-                ),
-              ),
-            ),
-        ],
-      ),
+    return _pageTurnViewport(
+      swipeOn: swipeOn,
+      dx: dx,
+      pageW: pageW,
+      theme: theme,
+      listBody: listBody,
     );
   }
 }
@@ -3222,11 +3186,23 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               ),
             );
           }
-          // 普通正文保持为 TextSpan，让 Flutter 像 PWA 一样连续断行/两端对齐。
-          // 仅词典命中或已进入逐词选择时保留 WidgetSpan 交互，避免上百个行内
-          // widget 造成孤立标点、行宽填不满及滚动掉帧。
-          if (dictHit == null && !selectionActive) {
-            spans.add(TextSpan(text: w.text, style: wordStyle));
+          // 普通正文与词典命中均用 TextSpan，让 Flutter 连续断行；
+          // 仅进入逐词选择时改用 WidgetSpan 交互。
+          if (!selectionActive) {
+            if (dictHit == null) {
+              spans.add(TextSpan(text: w.text, style: wordStyle));
+            } else {
+              final rec = TapGestureRecognizer()
+                ..onTap = () => widget.onOpenDict(
+                  dictHit.$1,
+                  dictHit.$2,
+                  widget.dictIndex[dictHit.$2] ?? [dictHit.$1],
+                );
+              _recognizers.add(rec);
+              spans.add(
+                TextSpan(text: w.text, style: wordStyle, recognizer: rec),
+              );
+            }
           } else {
             spans.add(
               WidgetSpan(
@@ -3239,16 +3215,8 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                   selected: activeWord,
                   edgeLeft: edge.left,
                   edgeRight: edge.right,
-                  onTap: selectionActive
-                      ? () => widget.onWordExtend(v.verse, w.start, w.end)
-                      : null,
-                  onDictTap: dictHit != null
-                      ? () => widget.onOpenDict(
-                          dictHit.$1,
-                          dictHit.$2,
-                          widget.dictIndex[dictHit.$2] ?? [dictHit.$1],
-                        )
-                      : null,
+                  onTap: () => widget.onWordExtend(v.verse, w.start, w.end),
+                  onDictTap: null,
                   onDoubleTap: () => widget.onStart(v.verse, v.text),
                 ),
               ),
@@ -3325,7 +3293,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
 }
 
 /// 行首节号（margin 模式）：左约 1.8em 节号 + 0.35em 间距 + 右正文（对齐 PWA）。
-class _MarginVerseRow extends StatelessWidget {
+class _MarginVerseRow extends StatefulWidget {
   const _MarginVerseRow({
     required this.verse,
     required this.book,
@@ -3386,9 +3354,51 @@ class _MarginVerseRow extends StatelessWidget {
   final void Function(int verse, String text) onOpenThoughts;
 
   @override
+  State<_MarginVerseRow> createState() => _MarginVerseRowState();
+}
+
+class _MarginVerseRowState extends State<_MarginVerseRow> {
+  final List<GestureRecognizer> _recognizers = [];
+
+  void _clearRecognizers() {
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    _recognizers.clear();
+  }
+
+  @override
+  void dispose() {
+    _clearRecognizers();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final v = verse;
-    final mark = markInfo?.mark;
+    _clearRecognizers();
+    final v = widget.verse;
+    final mark = widget.markInfo?.mark;
+    final selectionActive = widget.selectionActive;
+    final dictKeys = widget.dictKeys;
+    final dictIndex = widget.dictIndex;
+    final book = widget.book;
+    final chapter = widget.chapter;
+    final wordRange = widget.wordRange;
+    final baseStyle = widget.baseStyle;
+    final fontPx = widget.fontPx;
+    final thoughtsEnabled = widget.thoughtsEnabled;
+    final thoughtsCount = widget.thoughtsCount;
+    final hasMyThought = widget.hasMyThought;
+    final resumeFlash = widget.resumeFlash;
+    final onStart = widget.onStart;
+    final onToggle = widget.onToggle;
+    final onWordExtend = widget.onWordExtend;
+    final onOpenDict = widget.onOpenDict;
+    final onViewNote = widget.onViewNote;
+    final onOpenThoughts = widget.onOpenThoughts;
+    final notes = widget.notes;
+    final markInfo = widget.markInfo;
+    final anchorKey = widget.anchorKey;
     final dictSpans = !selectionActive && dictKeys.isNotEmpty
         ? dictSpansForText(
             v.text,
@@ -3473,8 +3483,21 @@ class _MarginVerseRow extends StatelessWidget {
         );
       }
       final a = WordAnchor(verse: v.verse, start: w.start, end: w.end);
-      if (dictHit == null && !selectionActive) {
-        bodyChildren.add(TextSpan(text: w.text, style: wordStyle));
+      if (!selectionActive) {
+        if (dictHit == null) {
+          bodyChildren.add(TextSpan(text: w.text, style: wordStyle));
+        } else {
+          final rec = TapGestureRecognizer()
+            ..onTap = () => onOpenDict(
+              dictHit.$1,
+              dictHit.$2,
+              dictIndex[dictHit.$2] ?? [dictHit.$1],
+            );
+          _recognizers.add(rec);
+          bodyChildren.add(
+            TextSpan(text: w.text, style: wordStyle, recognizer: rec),
+          );
+        }
       } else {
         bodyChildren.add(
           WidgetSpan(
@@ -3487,16 +3510,8 @@ class _MarginVerseRow extends StatelessWidget {
               selected: activeWord,
               edgeLeft: edge.left,
               edgeRight: edge.right,
-              onTap: selectionActive
-                  ? () => onWordExtend(v.verse, w.start, w.end)
-                  : null,
-              onDictTap: dictHit != null
-                  ? () => onOpenDict(
-                      dictHit.$1,
-                      dictHit.$2,
-                      dictIndex[dictHit.$2] ?? [dictHit.$1],
-                    )
-                  : null,
+              onTap: () => onWordExtend(v.verse, w.start, w.end),
+              onDictTap: null,
               onDoubleTap: () => onStart(v.verse, v.text),
             ),
           ),
@@ -3539,6 +3554,10 @@ class _MarginVerseRow extends StatelessWidget {
                   color: AppColors.accentDeep.withValues(alpha: 0.85),
                   height: 1.0,
                   letterSpacing: 0,
+                  backgroundColor:
+                      widget.selected.contains(v.verse) && wordRange == null
+                      ? widget.selBg
+                      : null,
                 ),
               ),
             ),

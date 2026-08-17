@@ -94,7 +94,9 @@ final routerProvider = Provider<GoRouter>((ref) {
               )),
       GoRoute(
           path: '/challenge',
-          builder: (context, state) => const ChallengeScreen()),
+          builder: (context, state) => ChallengeScreen(
+            initialStart: state.uri.queryParameters['start'],
+          )),
       GoRoute(
           path: '/challenge/ai',
           builder: (context, state) => const AiChallengeScreen()),

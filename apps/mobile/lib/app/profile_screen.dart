@@ -31,10 +31,13 @@ import '../features/bible/markings_repository.dart';
 import '../features/bible/thoughts_repository.dart';
 import '../features/bible/models.dart';
 import '../features/bible/reading_repository.dart';
+import '../features/bible/reading_progress_card.dart';
 import '../features/notes/notes_repository.dart' show profileSyncProvider;
 import '../features/notes/notes_screen.dart';
 import '../features/bible/offline_download_sheet.dart';
 import '../features/bible/offline_bible.dart';
+import '../features/plans/plan_reading.dart';
+import '../features/plans/plans_repository.dart';
 import '../core/widgets/paper_card.dart';
 import '../core/notifications.dart';
 import '../core/notif_prefs.dart';
@@ -382,6 +385,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _openJourney() async {
+    final progress = ref.read(planProgressMapProvider).asData?.value ?? {};
+    final activeEntry = progress.entries
+        .where((e) => e.value.status == 'active' && e.value.day > 0)
+        .toList()
+      ..sort((a, b) => b.value.updatedAtMs.compareTo(a.value.updatedAtMs));
+    if (activeEntry.isNotEmpty) {
+      final activeId = activeEntry.first.key;
+      final planDay = activeEntry.first.value.day;
+      final featured = (ref.read(plansListProvider).asData?.value ?? const [])
+          .where((p) => p.planId == activeId)
+          .firstOrNull;
+      final gen = (ref.read(generatedPlansProvider).asData?.value ?? const [])
+          .where((g) => g.id == activeId)
+          .firstOrNull;
+      if (featured != null && !featured.isPrayer && mounted) {
+        await openPlanReading(
+          context,
+          ref,
+          ref.read(prefsProvider),
+          planId: featured.planId,
+          planTitle: featured.title,
+          day: planDay,
+          totalDays: featured.days,
+          source: 'featured',
+        );
+        return;
+      }
+      if (gen != null && mounted) {
+        await openPlanReading(
+          context,
+          ref,
+          ref.read(prefsProvider),
+          planId: gen.id,
+          planTitle: gen.title,
+          day: planDay,
+          totalDays: gen.daysCount,
+          source: 'generated',
+        );
+        return;
+      }
+    }
+    if (!mounted) return;
+    openReadingProgressCatalog(context, ref);
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
@@ -389,6 +438,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final prefs = ref.watch(prefsProvider);
     final todayMin = ref.watch(todayReadingProvider);
     final review = ref.watch(reviewDataProvider);
+    ref.watch(planProgressMapProvider);
+    ref.watch(plansListProvider);
+    ref.watch(generatedPlansProvider);
     final books = ref.watch(booksProvider).value ?? const <BibleBook>[];
     final thoughts = ref.watch(myThoughtsProvider);
     final highlights = ref
@@ -411,15 +463,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final mins = todayMin.maybeWhen(data: (m) => m, orElse: () => 0);
     final report = ref.watch(readingReportProvider);
-    final monthDays = report.maybeWhen(
+    var monthDays = report.maybeWhen(
       data: (d) => d.monthDays,
       orElse: () => 0,
     );
+    if (monthDays == 0) {
+      review.whenData((d) {
+        final now = DateTime.now();
+        monthDays = d
+            .rangeStats(
+              DateTime(now.year, now.month, 1).millisecondsSinceEpoch,
+              DateTime(now.year, now.month + 1, 1).millisecondsSinceEpoch,
+            )
+            .days;
+      });
+    }
     final streakForMilestone = review.maybeWhen(
       data: (d) => readingStreak(d),
       orElse: () => 0,
     );
     var journeyPct = 0;
+    var journeyReadBooks = 0;
     review.whenData((data) {
       if (books.isEmpty) return;
       final totals = {for (final b in books) b.id: b.chapterCount};
@@ -428,6 +492,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           .where((p) => p.distinctChapters > 0 || p.passes >= 1)
           .length;
       journeyPct = (readBooks / books.length * 100).round();
+      journeyReadBooks = readBooks;
     });
 
     // 本周分钟
@@ -617,11 +682,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               tier: 2,
               tint: AppColors.accent,
               padding: const EdgeInsets.fromLTRB(18, 20, 16, 20),
-              onTap: () {
-                if (!openH5IfAllowed(context, '/report')) {
-                  context.push('/report');
-                }
-              },
+              onTap: () => context.push('/report'),
               child: Row(
                 children: [
                   Expanded(
@@ -793,9 +854,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   kind: '旅程',
                   tone: _FootprintTone.journey,
                   count: 0,
-                  value: journeyPct > 0 ? '通读 $journeyPct% · 继续' : '开始通读计划',
+                  value: journeyPct > 0
+                      ? '通读 $journeyPct% · $journeyReadBooks 卷'
+                      : '开始通读计划',
                   empty: journeyPct == 0,
-                  onTap: () => context.push('/plans'),
+                  onTap: _openJourney,
                 ),
               ],
             ),
@@ -811,7 +874,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 10),
             _ShortcutTabs(
-              onWarmup: () => context.push('/challenge'),
+              onWarmup: () => context.push('/challenge?start=daily'),
+              onWarmupPage: () => context.push('/challenge'),
               onRemind: () => context.push('/profile/reminders'),
               onOffline: () => showOfflineDownloadSheet(context, ref),
               onRemindLongPress: () {
@@ -1061,12 +1125,14 @@ extension on _FootprintTone {
 class _ShortcutTabs extends ConsumerStatefulWidget {
   const _ShortcutTabs({
     required this.onWarmup,
+    required this.onWarmupPage,
     required this.onRemind,
     required this.onOffline,
     this.onRemindLongPress,
   });
 
   final VoidCallback onWarmup;
+  final VoidCallback onWarmupPage;
   final VoidCallback onRemind;
   final VoidCallback onOffline;
   final VoidCallback? onRemindLongPress;
@@ -1168,7 +1234,7 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
                     ),
                     const SizedBox(width: 12),
                     TextButton(
-                      onPressed: widget.onWarmup,
+                      onPressed: widget.onWarmupPage,
                       child: const Text('温习页 ›'),
                     ),
                   ],

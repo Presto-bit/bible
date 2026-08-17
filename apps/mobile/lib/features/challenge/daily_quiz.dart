@@ -29,7 +29,7 @@ class QuestionBankEntry {
 
   factory QuestionBankEntry.fromJson(Map<String, dynamic> j) => QuestionBankEntry(
         id: (j['id'] ?? '') as String,
-        category: (j['category'] ?? '') as String,
+        category: (j['category'] ?? j['theme'] ?? j['themeId'] ?? '') as String,
         question: (j['question'] ?? '') as String,
         options: ((j['options'] ?? []) as List).map((e) => '$e').toList(),
         answer: (j['answer'] as num?)?.toInt() ?? 0,
@@ -46,9 +46,18 @@ List<QuestionBankEntry>? _cachedBank;
 Future<List<QuestionBankEntry>> loadQuestionBank() async {
   if (_cachedBank != null) return _cachedBank!;
   final raw = await rootBundle.loadString('assets/question_bank.json');
-  final list = jsonDecode(raw) as List;
+  final decoded = jsonDecode(raw);
+  final List list;
+  if (decoded is List) {
+    list = decoded;
+  } else if (decoded is Map) {
+    list = (decoded['questions'] as List?) ?? const [];
+  } else {
+    list = const [];
+  }
   _cachedBank = list
-      .map((e) => QuestionBankEntry.fromJson(e as Map<String, dynamic>))
+      .whereType<Map>()
+      .map((e) => QuestionBankEntry.fromJson(Map<String, dynamic>.from(e)))
       .toList();
   return _cachedBank!;
 }
@@ -176,7 +185,10 @@ Future<List<QuestionBankEntry>> randomQuizQuestions({int count = 10}) async {
 Future<List<QuestionBankEntry>> wrongReviewQuestions(SharedPreferences prefs) async {
   final bank = await loadQuestionBank();
   final wrong = wrongQuestionIds(prefs).toSet();
-  return bank.where((q) => wrong.contains(q.id)).toList();
+  final qs = bank.where((q) => wrong.contains(q.id)).toList();
+  if (qs.isNotEmpty) return qs.take(10).toList();
+  // 对齐 PWA：无错题时回退随机 5 题。
+  return randomQuizQuestions(count: 5);
 }
 
 Future<List<QuestionBankEntry>> themeQuestions(String theme) async {
