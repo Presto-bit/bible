@@ -756,7 +756,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     const hostTabs = ['home', 'bible', 'assistant', 'discover', 'profile'];
     // 叠层 H5（加好友/祷告等）与 Tab 内 WebView 区分，便于 Web 侧决定是否 close_h5
     final hostTab = widget.embedInTab
-        ? hostTabs[widget.tabIndex.clamp(0, hostTabs.length - 1)]
+        ? hostTabs[(widget.tabIndex ?? 0).clamp(0, hostTabs.length - 1)]
         : 'overlay';
 
     await c.runJavaScript('''
