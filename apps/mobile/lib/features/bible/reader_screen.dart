@@ -996,7 +996,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
   bool _busy = false;
   bool _copied = false;
   bool _expanded = false;
-  bool _fromCache = false;
   List<am.Citation> _citations = const [];
   StreamSubscription<am.ChatEvent>? _sub;
   String _pending = '';
@@ -1027,7 +1026,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
     if (cached != null && cached.trim().isNotEmpty) {
       _answer = cached;
       _pending = cached;
-      _fromCache = true;
       _busy = false;
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) => _ask());
@@ -1065,7 +1063,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
       _answer = '';
       _pending = '';
       _busy = true;
-      _fromCache = false;
       _citations = const [];
     });
     final stream = ref
@@ -1320,7 +1317,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  widget.explainOnly ? '已预读选中经文 · 即时解释' : '已预读这节 · 背景·经文解释',
+                  widget.explainOnly ? '小爱解释' : '小爱解读 · 背景·经文解释',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -1536,28 +1533,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                       ],
                     ),
                   ],
-                  if (_fromCache && !_busy)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          const Text(
-                            '已恢复上次解读',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.inkFaint,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: _ask,
-                            child: const Text(
-                              '重新生成',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                 ],
               ),
             ),

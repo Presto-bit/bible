@@ -288,14 +288,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   font-size: 12px;
   line-height: 1.45;
 }
-.assistant-instant-hint {
-  display: inline-flex;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: color-mix(in srgb, var(--accent, #7d9b8a) 85%, var(--ink, #1a1a1a));
-}
 .assistant-rag-disclaimer {
   margin: 0;
   font-size: 11px;

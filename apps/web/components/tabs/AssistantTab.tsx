@@ -83,7 +83,6 @@ interface Msg {
   useRag?: boolean;
   knowledgeBaseId?: string;
   knowledgeBaseName?: string;
-  instantHint?: string;
 }
 
 interface Session {
@@ -642,7 +641,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let useRag: boolean | undefined;
     let kbId = knowledgeBaseId;
     let kbName: string | undefined;
-    let instantHint: string | undefined;
     let serverFollowups: string[] = [];
     let sceneLabel = SCENES[scene].label;
     let gotDelta = false;
@@ -663,7 +661,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           useRag,
           knowledgeBaseId: kbId,
           knowledgeBaseName: kbName,
-          instantHint,
         };
         return copy;
       });
@@ -703,10 +700,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             if (meta.scene_label) sceneLabel = meta.scene_label;
             if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
             if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
-            if (meta.cache_hit || meta.instant) {
-              instantHint =
-                meta.cache_source === 'prewarm' ? '已预读这节 · 秒回' : '缓存 · 秒回';
-            }
             setStreamCiteCount(cites.length);
             setStreamPhase('refs');
           },
@@ -1250,7 +1243,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           }
                           knowledgeBaseId={m.knowledgeBaseId}
                           knowledgeBaseName={m.knowledgeBaseName}
-                          instantHint={m.instantHint}
                           onSwitchToPlatform={() => setKnowledgeBaseId(DEFAULT_KB_ID)}
                           onReview={
                             usedCitations.length > 0

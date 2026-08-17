@@ -12,8 +12,6 @@ type Props = {
   onSwitchToPlatform?: () => void;
   /** 有来源时点按打开核对 */
   onReview?: () => void;
-  /** 缓存/预读秒回文案 */
-  instantHint?: string | null;
   className?: string;
 };
 
@@ -28,36 +26,12 @@ export function RagSourceStatus({
   knowledgeBaseId,
   onSwitchToPlatform,
   onReview,
-  instantHint,
   className,
 }: Props) {
-  if (useRag === false && !instantHint) return null;
+  if (useRag === false) return null;
   const isTopic = Boolean(knowledgeBaseId && knowledgeBaseId !== 'platform');
   const kbSuffix =
     isTopic && knowledgeBaseName ? ` · ${knowledgeBaseName}` : '';
-
-  if (instantHint) {
-    return (
-      <div
-        className={['assistant-rag-status', 'assistant-rag-status-row', className]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        <span className="assistant-instant-hint">{instantHint}</span>
-        {count > 0 ? (
-          onReview ? (
-            <button type="button" className="text-link" onClick={onReview}>
-              {count} 处来源{kbSuffix}
-            </button>
-          ) : (
-            <span>{count} 处来源{kbSuffix}</span>
-          )
-        ) : null}
-      </div>
-    );
-  }
-
-  if (useRag === false) return null;
   if (count > 0) {
     return (
       <div

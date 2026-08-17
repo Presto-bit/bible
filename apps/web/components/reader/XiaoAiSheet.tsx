@@ -79,7 +79,6 @@ export default function XiaoAiSheet({
   const [slowHint, setSlowHint] = useState(false);
   const [kbId, setKbId] = useState(DEFAULT_KB_ID);
   const [kbName, setKbName] = useState<string | undefined>();
-  const [instantHint, setInstantHint] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const accRef = useRef('');
   const rafRef = useRef<number | null>(null);
@@ -106,7 +105,6 @@ export default function XiaoAiSheet({
     setStreamCiteCount(0);
     setSlowHint(false);
     setKbName(undefined);
-    setInstantHint(null);
     const sessionKb = getSessionKnowledgeBaseId();
     setKbId(sessionKb);
     const { scene: s, refParam: ref, selectionText: sel, userQuestion: q } = lockedRef.current;
@@ -117,7 +115,6 @@ export default function XiaoAiSheet({
       accRef.current = cached.answer;
       setAnswer(cached.answer);
       setCitations(cached.citations);
-      setInstantHint('本地 · 秒回');
       setDone(true);
       return () => {};
     }
@@ -144,11 +141,6 @@ export default function XiaoAiSheet({
           if (typeof meta.use_rag === 'boolean') setUseRag(meta.use_rag);
           if (meta.knowledge_base_id) setKbId(meta.knowledge_base_id);
           if (meta.knowledge_base_name) setKbName(meta.knowledge_base_name);
-          if (meta.cache_hit || meta.instant) {
-            setInstantHint(
-              meta.cache_source === 'prewarm' ? '已预读这节 · 秒回' : '缓存 · 秒回',
-            );
-          }
           setStreamCiteCount(cites.length);
           setStreamPhase('refs');
         },
@@ -319,7 +311,6 @@ export default function XiaoAiSheet({
                       useRag={useRag}
                       knowledgeBaseId={kbId}
                       knowledgeBaseName={kbName}
-                      instantHint={instantHint}
                       onReview={evidenceCites.length > 0 ? openSources : undefined}
                     />
                   )}
