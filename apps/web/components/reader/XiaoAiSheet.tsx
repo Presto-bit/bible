@@ -151,11 +151,12 @@ export default function XiaoAiSheet({
             setStreamPhase('writing');
           }
           accRef.current += t;
+          // 对齐小爱 Tab：约 72ms 节流，避免每帧 setState + Markdown 区抖动
           if (rafRef.current == null) {
-            rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = window.setTimeout(() => {
               rafRef.current = null;
               setAnswer(accRef.current);
-            });
+            }, 72) as unknown as number;
           }
         },
         onError: (msg) => {
@@ -166,6 +167,11 @@ export default function XiaoAiSheet({
         },
         onDone: () => {
           if (!cancelled) {
+            if (rafRef.current != null) {
+              window.clearTimeout(rafRef.current);
+              rafRef.current = null;
+            }
+            setAnswer(accRef.current);
             setDone(true);
             writeHalfSheetCache(s, ref, sel, question, accRef.current, cites);
           }
@@ -182,7 +188,7 @@ export default function XiaoAiSheet({
       controller.abort();
       window.clearTimeout(timer);
       window.clearTimeout(slowTimer);
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) window.clearTimeout(rafRef.current);
     };
   }, [refLabel, retryKey]);
 
@@ -261,6 +267,10 @@ export default function XiaoAiSheet({
 
   const evidenceCites = usedCitations.length > 0 ? usedCitations : citations;
   const canContinueRead = Boolean(readerHrefFromRef(refParam));
+  const onCitationClick = useCallback((n: number) => {
+    recordCitationClick();
+    setCitationOpen(n);
+  }, []);
 
   const stopBubble = (e: React.SyntheticEvent) => e.stopPropagation();
   const { guardedClose } = useSheetOpenGuard(SHEET_OPEN_GUARD_MS);
@@ -301,7 +311,7 @@ export default function XiaoAiSheet({
             <div className="half-sheet-answer-body reader-ai-answer assistant-answer">
               {clean ? (
                 <>
-                  {!clean.startsWith('⚠️') && (
+                  {!clean.startsWith('⚠️') && done && (
                     <RagSourceStatus
                       count={
                         usedCitations.length > 0
@@ -330,10 +340,7 @@ export default function XiaoAiSheet({
                       text={clean}
                       streaming={!done}
                       dense={mode === 'explain'}
-                      onCitationClick={(n) => {
-                        recordCitationClick();
-                        setCitationOpen(n);
-                      }}
+                      onCitationClick={onCitationClick}
                     />
                   )}
                   {done && !hasError && evidenceCites.length > 0 ? (
@@ -389,7 +396,7 @@ export default function XiaoAiSheet({
             </p>
           )}
         </div>
-        {evidenceCites.length > 0 ? (
+        {done && !hasError && evidenceCites.length > 0 ? (
           <div className="xiaoai-cite-host" aria-hidden={citationOpen == null}>
             <CitationBar
               variant="action"

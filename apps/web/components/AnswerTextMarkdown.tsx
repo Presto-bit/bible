@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
@@ -48,27 +48,11 @@ export default function AnswerText({
   dense = false,
   onCitationClick,
 }: Props) {
-  const [streamMd, setStreamMd] = useState('');
-
-  useEffect(() => {
-    if (!streaming) {
-      setStreamMd('');
-      return;
-    }
-    const safe = streamingSafeBody(text);
-    if (!safe.trim()) {
-      setStreamMd('');
-      return;
-    }
-    const t = window.setTimeout(() => {
-      setStreamMd(prepareAssistantMarkdown(safe, true));
-    }, 100);
-    return () => window.clearTimeout(t);
-  }, [text, streaming]);
-
+  // 流式阶段只用纯文本，避免每帧 ReactMarkdown + remarkGfm 全量重解析造成卡顿；
+  // 结束后再走完整 Markdown。
   const markdown = useMemo(
-    () => (streaming ? streamMd : prepareAssistantMarkdown(text, false)),
-    [text, streaming, streamMd],
+    () => (streaming ? '' : prepareAssistantMarkdown(text, false)),
+    [text, streaming],
   );
 
   const components = useMemo<Components>(() => ({
@@ -146,21 +130,11 @@ export default function AnswerText({
         </div>
       );
     }
-    // 方案 B：100ms 防抖增量 Markdown；未就绪前先纯文本兜底
-    if (!markdown.trim()) {
-      return (
-        <div className="answer-rich answer-rich-md answer-rich-streaming">
-          <p className="ans-md-p" style={{ whiteSpace: 'pre-wrap' }}>
-            {safe}
-          </p>
-        </div>
-      );
-    }
     return (
       <div className="answer-rich answer-rich-md answer-rich-streaming">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-          {markdown}
-        </ReactMarkdown>
+        <p className="ans-md-p" style={{ whiteSpace: 'pre-wrap' }}>
+          {safe}
+        </p>
       </div>
     );
   }

@@ -1415,7 +1415,7 @@ class _Bubble extends ConsumerWidget {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (!displayText.startsWith('⚠️'))
+                        if (!displayText.startsWith('⚠️') && !streaming)
                           _RagSourceStatus(
                             count: cites.length,
                             useRag:
@@ -1447,7 +1447,10 @@ class _Bubble extends ConsumerWidget {
                       ],
                     ),
             ),
-          if (!isUser && cites.isNotEmpty)
+          if (!isUser &&
+              cites.isNotEmpty &&
+              !streaming &&
+              turn.content.trim().isNotEmpty)
             CitationEvidenceRail(
               citations: cites,
               onOpen: (n) {

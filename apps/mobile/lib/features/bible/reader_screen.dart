@@ -1422,8 +1422,10 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                               if (citation != null) _openCitation(citation);
                             },
                           ),
-                        // 引用轨：有 meta 即展示（流式中途也显示，对齐 PWA CitationEvidenceRail）
-                        if (_citations.isNotEmpty &&
+                        // 引用轨：流结束后再展示，避免无正文时先跳出来源卡
+                        if (!_busy &&
+                            _cleanAnswer.isNotEmpty &&
+                            _citations.isNotEmpty &&
                             !_cleanAnswer.startsWith('⚠️'))
                           Padding(
                             padding: const EdgeInsets.only(top: 12),
