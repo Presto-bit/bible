@@ -219,6 +219,20 @@ void attachPeiaiJsChannel(
           Future.microtask(() async {
             await NotificationService.instance.requestPermission();
           });
+        } else if (type == 'show_im_notification') {
+          final title = '${data['title'] ?? '彼爱'}'.trim();
+          final body = '${data['body'] ?? ''}'.trim();
+          final path = '${data['path'] ?? data['openPath'] ?? '/discover'}'.trim();
+          final tag = '${data['tag'] ?? ''}'.trim();
+          if (body.isEmpty) return;
+          Future.microtask(() async {
+            await NotificationService.instance.showImDigest(
+              title: title,
+              body: body,
+              payload: path,
+              tag: tag,
+            );
+          });
         } else if (type == 'schedule_reminder') {
           final kind = '${data['kind'] ?? 'daily'}'.trim();
           final enabledRaw = data['enabled'];

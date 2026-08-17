@@ -8,6 +8,7 @@ import {
   setNotifPrefs,
 } from './notif_prefs';
 import { isPeiaiAndroidShell } from './pwa_platform';
+import { isFlutterH5Host, peiaiOpenNative } from './flutter_h5_bridge';
 import { isDiscoverImSessionPath } from './im_session_gate';
 import { normalizeAppPath } from './tab_keep_alive';
 
@@ -72,6 +73,22 @@ export async function notifyDigestIfAllowed(): Promise<boolean> {
       ? `presto-group-${openPath}`
       : 'presto-digest';
 
+  const key = `${tag}|${digest.body}|${digest.unread ?? 0}`;
+  // Flutter 安装包：实时摘要经 JS bridge 交给本地通知插件。
+  // 不在此处申请权限，避免后台收到消息时意外弹出系统权限框。
+  if (isFlutterH5Host()) {
+    if (key === lastShellDigestKey) return false;
+    const ok = peiaiOpenNative({
+      type: 'show_im_notification',
+      title: digest.title || '彼爱',
+      body: digest.body,
+      path: openPath,
+      tag,
+    });
+    if (ok) lastShellDigestKey = key;
+    return ok;
+  }
+
   // 仅旧 WebView 壳走原生社交摘要；Chrome Host / iOS 走 Web Notification / Web Push
   if (isPeiaiAndroidShell()) {
     try {
@@ -82,7 +99,6 @@ export async function notifyDigestIfAllowed(): Promise<boolean> {
       } = await import('./android_shell_bridge');
       if (hasAndroidShellNotification()) {
         requestAndroidShellNotifications();
-        const key = `${tag}|${digest.body}|${digest.unread ?? 0}`;
         if (key === lastShellDigestKey) return false;
         const ok = showAndroidShellNotification({
           title: digest.title || '彼爱',
@@ -156,7 +172,8 @@ function scheduleShellDigestNotify(delayMs = 400) {
  */
 export function startDigestPoller() {
   if (typeof window === 'undefined') return;
-  if (!isPeiaiAndroidShell()) return;
+  // Flutter H5 同样需要保活中的 SSE 摘要轮询，再桥接到原生本地通知。
+  if (!isPeiaiAndroidShell() && !isFlutterH5Host()) return;
   if (shellDigestStop) return;
 
   let unsubRealtime: (() => void) | null = null;

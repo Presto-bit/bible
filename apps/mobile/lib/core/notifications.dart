@@ -130,6 +130,49 @@ class NotificationService {
     await _plugin.cancel(kind == 'group' ? _groupId : _dailyId);
   }
 
+  /// H5 IM 实时摘要转发的即时本地通知。
+  ///
+  /// 仅覆盖 Flutter 进程与发现 WebView 仍存活的场景；应用被系统杀掉后
+  /// 仍需 FCM 才能收到远程推送。
+  Future<bool> showImDigest({
+    required String title,
+    required String body,
+    required String payload,
+    String tag = '',
+  }) async {
+    if (!_supported || body.trim().isEmpty) return false;
+    try {
+      await _ensureInit();
+      final id = 2000 + (tag.isEmpty ? body : tag).hashCode.abs() % 100000;
+      await _plugin.show(
+        id,
+        title.trim().isEmpty ? '彼爱' : title.trim(),
+        body.trim(),
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'im_messages',
+            '消息提醒',
+            channelDescription: '收到私聊或共读消息时提醒',
+            importance: Importance.high,
+            priority: Priority.high,
+            category: AndroidNotificationCategory.message,
+            tag: tag.isEmpty ? null : tag,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: payload.trim().isEmpty ? '/discover' : payload.trim(),
+      );
+      return true;
+    } catch (_) {
+      // 通知权限被禁用或渠道创建失败时不打断 IM 实时链路。
+      return false;
+    }
+  }
+
   /// 冷启动时检查是否从通知点开。
   Future<String?> consumeLaunchPayload() async {
     if (!_supported) return null;

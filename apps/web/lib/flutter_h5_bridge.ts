@@ -20,6 +20,14 @@ type PeiaiNativePayload =
   | { type: 'open_offline_download' }
   | { type: 'request_notifications' }
   | {
+      type: 'show_im_notification';
+      title?: string;
+      body: string;
+      path?: string;
+      openPath?: string;
+      tag?: string;
+    }
+  | {
       type: 'schedule_reminder';
       kind?: 'daily' | 'group' | string;
       enabled?: boolean | number;

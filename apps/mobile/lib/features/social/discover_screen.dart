@@ -6,14 +6,31 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/app_shell.dart' show navIndexProvider;
+import '../../core/notifications.dart';
 import '../../core/h5_host_page.dart';
 import '../bible/offline_notice.dart' show networkOkProvider;
 
-class DiscoverScreen extends ConsumerWidget {
+class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
+}
+
+class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
+  bool _notificationPermissionRequested = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = ref.watch(navIndexProvider) == 3;
+    if (selected && !_notificationPermissionRequested) {
+      _notificationPermissionRequested = true;
+      // 在用户进入发现页后才申请 Android 13+ 授权，不在 App 首屏打断阅读。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        NotificationService.instance.requestPermission();
+      });
+    }
     final online = ref.watch(networkOkProvider).maybeWhen(
           data: (ok) => ok,
           orElse: () => true,
