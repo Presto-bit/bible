@@ -10,8 +10,8 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  height: var(--assistant-page-h, calc(100dvh - var(--tabbar-h) - 18px));
-  max-height: var(--assistant-page-h, calc(100dvh - var(--tabbar-h) - 18px));
+  height: var(--assistant-page-h, calc(100dvh - var(--tabbar-h) - 40px));
+  max-height: var(--assistant-page-h, calc(100dvh - var(--tabbar-h) - 40px));
   min-height: 0;
   margin: 0 auto;
   /* 仅安全区，勿再叠 10px 地板（有对话时顶栏会显得离刘海过远） */
@@ -53,8 +53,8 @@
 .assistant-body:not(.is-empty) .assistant-composer {
   flex-shrink: 0;
   margin-top: auto;
-  /* 与浮动底栏再留一截，避免贴死胶囊 */
-  padding-bottom: 20px;
+  /* 浮动胶囊上方多留一截，避免输入/发送钮被底栏挡住 */
+  padding-bottom: 36px;
 }
 /* 仅防内容区滚动；不要锁 html/body 高度（100svh 会让 fixed 底栏在 iOS 上偏高）
  * 勿对 .app-body 设 touch-action:none：assistant-active 残留时会锁死「我的」等 Tab 点击。 */

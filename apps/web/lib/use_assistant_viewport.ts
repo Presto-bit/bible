@@ -13,8 +13,8 @@ const GAP_FLOOR = 40;
 const LAYOUT_SHRINK_FLOOR = 40;
 /** 键盘确认后输入底与键盘顶的呼吸 */
 const KB_PAD_PX = 10;
-/** 输入区底边与浮动 Tab 顶之间的呼吸（空闲态） */
-const TAB_BREATH_PX = 24;
+/** 输入区底边与浮动 Tab 顶之间的呼吸（空闲态；有对话时需够躲开胶囊） */
+const TAB_BREATH_PX = 40;
 /** 高度变化小于此值不写 CSS，减少 reflow 抖动 */
 const HEIGHT_EPSILON_PX = 2;
 
