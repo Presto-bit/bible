@@ -24,10 +24,10 @@ class AiQuota {
   final bool unlimited;
 
   factory AiQuota.fromJson(Map<String, dynamic> j) => AiQuota(
-        used: (j['used'] ?? 0) as int,
-        limit: (j['limit'] ?? 0) as int,
-        unlimited: j['unlimited'] == true,
-      );
+    used: (j['used'] ?? 0) as int,
+    limit: (j['limit'] ?? 0) as int,
+    unlimited: j['unlimited'] == true,
+  );
 }
 
 class AssistantRepository {
@@ -71,16 +71,19 @@ class AssistantRepository {
     }
     if (history.isNotEmpty) {
       body['history'] = history
-          .map((t) => {
-                'role': t.role,
-                'content': t.role == 'assistant'
-                    ? t.content.replaceAll(
-                        RegExp(
-                            r'\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])[\s\S]*$'),
-                        '',
-                      )
-                    : t.content,
-              })
+          .map(
+            (t) => {
+              'role': t.role,
+              'content': t.role == 'assistant'
+                  ? t.content.replaceAll(
+                      RegExp(
+                        r'\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])[\s\S]*$',
+                      ),
+                      '',
+                    )
+                  : t.content,
+            },
+          )
           .toList();
     }
 
@@ -92,7 +95,8 @@ class AssistantRepository {
         options: Options(
           responseType: ResponseType.stream,
           headers: {'Accept': 'text/event-stream'},
-          receiveTimeout: const Duration(seconds: 150),
+          // 按场景给流设置真实无数据超时；避免首包后上游卡住时 UI 永远思考。
+          receiveTimeout: Duration(milliseconds: resolved.timeoutMs),
           sendTimeout: const Duration(seconds: 30),
           validateStatus: (s) => s != null && s < 500,
         ),
@@ -155,14 +159,16 @@ class AssistantRepository {
       case 'delta':
         return DeltaEvent((data['text'] ?? '') as String);
       case 'followups':
-        final items = (data['items'] as List?)
+        final items =
+            (data['items'] as List?)
                 ?.map((e) => e.toString())
                 .where((s) => s.isNotEmpty)
                 .toList() ??
             const <String>[];
         return FollowupsEvent(items);
       case 'done':
-        final followups = (data['followups'] as List?)
+        final followups =
+            (data['followups'] as List?)
                 ?.map((e) => e.toString())
                 .where((s) => s.isNotEmpty)
                 .toList() ??
@@ -202,7 +208,9 @@ class AssistantRepository {
     return res.data ?? const {};
   }
 
-  Future<Map<String, dynamic>> previewKnowledgeDocument(String documentId) async {
+  Future<Map<String, dynamic>> previewKnowledgeDocument(
+    String documentId,
+  ) async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/ai/knowledge-bases/documents/$documentId',
     );
@@ -290,14 +298,13 @@ class CitationExplain {
   final String? error;
 
   factory CitationExplain.fromJson(Map<String, dynamic> j) => CitationExplain(
-        title: (j['title'] ?? '') as String,
-        explainZh: (j['explain_zh'] ?? '') as String,
-        snippet: (j['snippet'] ?? '') as String,
-        disclaimer: (j['disclaimer'] ??
-                '以下中文为便于阅读的释义，非官方译本；请以圣经与原文摘录为准。')
-            as String,
-        error: j['error'] as String?,
-      );
+    title: (j['title'] ?? '') as String,
+    explainZh: (j['explain_zh'] ?? '') as String,
+    snippet: (j['snippet'] ?? '') as String,
+    disclaimer:
+        (j['disclaimer'] ?? '以下中文为便于阅读的释义，非官方译本；请以圣经与原文摘录为准。') as String,
+    error: j['error'] as String?,
+  );
 }
 
 final assistantRepoProvider = Provider<AssistantRepository>(

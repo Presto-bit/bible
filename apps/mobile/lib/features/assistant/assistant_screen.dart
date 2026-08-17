@@ -454,7 +454,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       _autoScroll();
     }
 
-    final stream = ref
+    Stream<ChatEvent> openStream() => ref
         .read(assistantRepoProvider)
         .chat(
           ref: _turns.length <= 2 ? _anchorRef : null,
@@ -465,69 +465,100 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           knowledgeBaseId: _knowledgeBaseId,
         );
 
-    await for (final evt in stream) {
-      if (!mounted) return;
-      switch (evt) {
-        case MetaEvent(:final meta):
-          setState(() {
-            reply.meta = meta;
-            reply.sceneLabel = meta.sceneLabel;
-            _lastMeta = meta;
-            if (meta.quotaLimit > 0) {
-              // 忽略游客限流 meta：安卓原生不套用 10 次
-              _quotaUsed = 0;
-              _quotaLimit = 0;
+    var receivedDelta = false;
+    var terminalError = false;
+    try {
+      // 首段正文前的断网/代理断流常见且可重试；最多一次，避免重复回答。
+      for (var attempt = 0; attempt < 2; attempt++) {
+        try {
+          await for (final evt in openStream()) {
+            if (!mounted) return;
+            switch (evt) {
+              case MetaEvent(:final meta):
+                setState(() {
+                  reply.meta = meta;
+                  reply.sceneLabel = meta.sceneLabel;
+                  _lastMeta = meta;
+                  if (meta.quotaLimit > 0) {
+                    // 忽略游客限流 meta：安卓原生不套用 10 次
+                    _quotaUsed = 0;
+                    _quotaLimit = 0;
+                  }
+                  _streamPhase = ThinkingPhase.refs;
+                });
+              case DeltaEvent(:final text):
+                receivedDelta = true;
+                pendingDelta += text;
+                deltaFlush ??= Timer.periodic(
+                  const Duration(milliseconds: 100),
+                  (_) {
+                    flushDelta();
+                    if (pendingDelta.isEmpty) {
+                      deltaFlush?.cancel();
+                      deltaFlush = null;
+                    }
+                  },
+                );
+              case FollowupsEvent(:final items):
+                flushDelta(force: true);
+                setState(() => reply.followups = items);
+              case DoneEvent(:final followups):
+                flushDelta(force: true);
+                if (followups.isNotEmpty) {
+                  setState(() => reply.followups = followups);
+                }
+              case ErrorEvent(:final message):
+                terminalError = true;
+                flushDelta(force: true);
+                setState(
+                  () => reply.content = reply.content.isEmpty
+                      ? message
+                      : '${reply.content}\n\n⚠️ $message',
+                );
             }
-            _streamPhase = ThinkingPhase.refs;
-          });
-        case DeltaEvent(:final text):
-          pendingDelta += text;
-          deltaFlush ??= Timer.periodic(const Duration(milliseconds: 100), (_) {
-            flushDelta();
-            if (pendingDelta.isEmpty) {
-              deltaFlush?.cancel();
-              deltaFlush = null;
-            }
-          });
-        case FollowupsEvent(:final items):
-          flushDelta(force: true);
-          setState(() => reply.followups = items);
-        case DoneEvent(:final followups):
-          flushDelta(force: true);
-          if (followups.isNotEmpty) {
-            setState(() => reply.followups = followups);
           }
-        case ErrorEvent(:final message):
-          flushDelta(force: true);
-          setState(
-            () => reply.content = reply.content.isEmpty
-                ? message
-                : '${reply.content}\n\n⚠️ $message',
-          );
+        } catch (_) {
+          // 连接在 headers 已返回后中断会在此抛出；由 finally 统一恢复 UI。
+        }
+
+        deltaFlush?.cancel();
+        deltaFlush = null;
+        flushDelta(force: true);
+        if (receivedDelta || terminalError) break;
+        if (attempt == 0 && mounted) {
+          setState(() {
+            _streamPhase = ThinkingPhase.understanding;
+            _streamSlow = false;
+          });
+        }
       }
+
+      if (reply.content.isEmpty && mounted) {
+        setState(() {
+          reply.content = '连接中断，已自动重试一次仍未收到回答，请稍后再试。';
+        });
+      }
+      if (reply.content.isNotEmpty) {
+        await repo.addMessage(
+          sid,
+          'assistant',
+          bodyText(reply.content),
+          citations: reply.meta?.citations ?? const [],
+        );
+      }
+    } finally {
+      deltaFlush?.cancel();
+      flushDelta(force: true);
+      _slowTimer?.cancel();
+      if (mounted) {
+        setState(() {
+          _streaming = false;
+          _streamSlow = false;
+          _streamPhase = ThinkingPhase.understanding;
+        });
+      }
+      _autoScroll();
     }
-    deltaFlush?.cancel();
-    flushDelta(force: true);
-    _slowTimer?.cancel();
-    if (reply.content.isEmpty) {
-      setState(() => reply.content = '小爱暂时没有给出回答，请稍后再试。');
-    }
-    if (reply.content.isNotEmpty) {
-      await repo.addMessage(
-        sid,
-        'assistant',
-        bodyText(reply.content),
-        citations: reply.meta?.citations ?? const [],
-      );
-    }
-    if (mounted) {
-      setState(() {
-        _streaming = false;
-        _streamSlow = false;
-        _streamPhase = ThinkingPhase.understanding;
-      });
-    }
-    _autoScroll();
   }
 
   Future<void> _sendChip(
