@@ -300,9 +300,9 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
               ? GridView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 6,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
+                    crossAxisCount: 5,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
                   ),
                   itemCount: selected.chapterCount,
                   itemBuilder: (_, i) {
@@ -312,15 +312,15 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
                       color: isResume
                           ? AppColors.accentDeep
                           : AppColors.surfaceSunken,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       child: InkWell(
                         onTap: () => _tryPick(selected, n),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         child: Center(
                           child: Text(
                             '$n',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: isResume ? Colors.white : AppColors.ink,
                             ),

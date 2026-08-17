@@ -47,19 +47,24 @@ import '../../core/peiai_haptics.dart';
 /// 小爱半屏：同 ref 短时会话缓存（进程内，重新打开可恢复上次答案）。
 final Map<String, String> _xiaoAiHalfSheetCache = {};
 
-/// 阅读器跳转目标（串珠/词典点选后跳章）。
-class ReaderJumpNotifier extends Notifier<({String book, int chapter})?> {
+/// 阅读器跳转目标（串珠/词典点选后跳章；可选 verse 触发滚到并轻闪）。
+class ReaderJumpNotifier
+    extends Notifier<({String book, int chapter, int? verse})?> {
   @override
-  ({String book, int chapter})? build() => null;
-  void jump(String book, int chapter) =>
-      state = (book: book.toUpperCase(), chapter: chapter);
+  ({String book, int chapter, int? verse})? build() => null;
+  void jump(String book, int chapter, {int? verse}) => state = (
+    book: book.toUpperCase(),
+    chapter: chapter,
+    verse: verse,
+  );
   void clear() => state = null;
 }
 
 final readerJumpProvider =
-    NotifierProvider<ReaderJumpNotifier, ({String book, int chapter})?>(
-      ReaderJumpNotifier.new,
-    );
+    NotifierProvider<
+      ReaderJumpNotifier,
+      ({String book, int chapter, int? verse})?
+    >(ReaderJumpNotifier.new);
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({
@@ -94,6 +99,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   String? _mainVersionId;
   PlanReadingMeta? _planMeta;
   final _locKey = GlobalKey();
+  /// 外部跳转指定轻闪节（如每日经文）；消费后清空。
+  int? _pendingFlashVerse;
 
   @override
   void initState() {
@@ -177,7 +184,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   Widget build(BuildContext context) {
     final booksAsync = ref.watch(booksProvider);
 
-    // 串珠/词典跳转：解析目标卷并切换。
+    // 串珠/词典/每日经文跳转：解析目标卷并切换。
     ref.listen(readerJumpProvider, (prev, next) {
       if (next == null) return;
       final books = ref.read(booksProvider).value;
@@ -191,6 +198,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         _book = b;
         _chapter = ch;
         _seeded = true;
+        _pendingFlashVerse = next.verse;
       });
       ref.read(readerJumpProvider.notifier).clear();
       _revealChrome();
@@ -377,6 +385,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     compareVersionId: _compareVersionId,
                     mainVersionId: _mainVersionId,
                     chromeHidden: _chromeHidden,
+                    flashVerse: _pendingFlashVerse,
+                    onFlashConsumed: () {
+                      if (_pendingFlashVerse != null) {
+                        setState(() => _pendingFlashVerse = null);
+                      }
+                    },
                     planMeta: _planMeta,
                     onPlanMetaChange: (m) => setState(() => _planMeta = m),
                     onPlanJump: (bookId, ch) {
@@ -494,11 +508,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 
   Widget _readerFab() {
-    // extendBody 下子 Scaffold 的 padding.bottom 常为 0，改用 viewPadding + 壳层占位。
-    final bottom =
-        peiaiTabBarOverlayExtent(context, includeSafe: false) +
-        MediaQuery.viewPaddingOf(context).bottom +
-        8;
+    // 对齐 PWA：bottom = tabbar-h + 8；tabbar-h 已含 safe-bottom。
+    final bottom = peiaiTabBarOverlayExtent(context, includeSafe: true) + 8;
     return Padding(
       padding: EdgeInsets.only(bottom: bottom, right: 4),
       child: Column(
@@ -508,44 +519,54 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           if (_planMeta != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: FloatingActionButton.small(
-                heroTag: 'reader-plan-exit',
-                backgroundColor: AppColors.paper,
-                foregroundColor: AppColors.inkSoft,
+              child: Material(
+                color: AppColors.paper,
                 elevation: 1.5,
-                onPressed: () {
-                  _revealChrome();
-                  setState(() => _planMeta = null);
-                },
-                child: const Text('退出', style: TextStyle(fontSize: 12)),
+                shape: StadiumBorder(
+                  side: BorderSide(color: AppColors.line),
+                ),
+                child: InkWell(
+                  customBorder: const StadiumBorder(),
+                  onTap: () {
+                    _revealChrome();
+                    setState(() => _planMeta = null);
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    child: Text(
+                      '退出计划',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.inkSoft,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          // 打卡在小爱上方（对齐 PWA check-in 按钮栈）
+          // 打卡在小爱上方，窄于小爱胶囊（对齐 PWA reader-fab-sm）
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Tooltip(
               message: '打卡到共读群',
               child: Material(
-                color: AppColors.paper,
+                color: const Color(0xFF4A6B52),
                 elevation: 1.5,
-                borderRadius: BorderRadius.circular(20),
+                shape: const StadiumBorder(),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
+                  customBorder: const StadiumBorder(),
                   onTap: _openCheckin,
-                  child: const SizedBox(
-                    height: 40,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 13),
-                      child: Center(
-                        child: Text(
-                          '打卡',
-                          style: TextStyle(
-                            color: AppColors.accentDeep,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            height: 1,
-                          ),
-                        ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    child: Text(
+                      '打卡',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1,
                       ),
                     ),
                   ),
@@ -553,21 +574,32 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               ),
             ),
           ),
-          // 与打卡控件同为小型操作入口；保留小爱绿色样式。
           Tooltip(
             message: '问小爱',
-            child: FloatingActionButton.small(
-              heroTag: 'reader-xiaoai',
-              backgroundColor: AppColors.accentDeep,
-              foregroundColor: Colors.white,
+            child: Material(
+              color: AppColors.accentDeep,
               elevation: 3,
-              tooltip: '问小爱',
-              onPressed: () {
-                peiaiHapticLight(context);
-                _onOpenOverlay();
-                _openXiaoAiSheet(context);
-              },
-              child: const Icon(Icons.auto_awesome, size: 20),
+              shape: const StadiumBorder(),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: () {
+                  peiaiHapticLight(context);
+                  _onOpenOverlay();
+                  _openXiaoAiSheet(context);
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  child: Text(
+                    '✦ 小爱',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ],

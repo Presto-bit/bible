@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'app_shell.dart' show navIndexProvider, peiaiTabContentBottomPad;
 import '../core/api_client.dart';
+import '../core/app_update.dart';
 import '../core/config.dart';
 import '../core/gamification.dart';
 import '../core/h5_bridge_channel.dart' show discoverH5PathProvider;
@@ -1465,7 +1466,16 @@ class _SettingsSheet extends ConsumerWidget {
             ]),
             const SizedBox(height: 12),
             _section('关于', [
-              const _InfoTile(label: '版本', value: '3.0.0 (Flutter)'),
+              FutureBuilder<({String name, int code})>(
+                future: const AppUpdateService().installedVersion(),
+                builder: (context, snap) {
+                  final v = snap.data;
+                  final label = v == null
+                      ? '…'
+                      : (v.code > 0 ? '${v.name} (${v.code})' : v.name);
+                  return _InfoTile(label: '版本', value: label);
+                },
+              ),
               const SizedBox(height: 8),
               _InfoTile(label: '后端地址', value: AppConfig.baseUrl),
               const SizedBox(height: 8),

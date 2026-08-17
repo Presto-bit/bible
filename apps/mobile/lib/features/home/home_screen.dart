@@ -1207,19 +1207,8 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     // 先写入目标节，阅读页才会稳定地滚至并轻闪该节。
     await ref.read(readingRepoProvider).record(book, ch, verse: verse);
     if (!mounted) return;
-    ref.read(readerJumpProvider.notifier).jump(book, ch);
+    ref.read(readerJumpProvider.notifier).jump(book, ch, verse: verse);
     ref.read(navIndexProvider.notifier).set(1);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            '已打开 ${widget.ref.isNotEmpty ? widget.ref : '$book $ch:$verse'}',
-          ),
-          duration: const Duration(milliseconds: 1800),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
   }
 
   void _openWallpaper() {

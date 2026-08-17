@@ -261,9 +261,9 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 6,
-                      mainAxisSpacing: 6,
-                      crossAxisSpacing: 6,
+                      crossAxisCount: 5,
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
                     ),
                     itemCount: _selectedBook.chapterCount,
                     itemBuilder: (_, i) {
@@ -277,17 +277,17 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
                         color: isCurrent
                             ? AppColors.accentDeep
                             : AppColors.surfaceSunken,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         child: InkWell(
                           onTap: disabled ? null : () => _tryPickChapter(n),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           child: Opacity(
                             opacity: disabled ? 0.35 : 1,
                             child: Center(
                               child: Text(
                                 '$n',
                                 style: TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                   color: isCurrent
                                       ? Colors.white

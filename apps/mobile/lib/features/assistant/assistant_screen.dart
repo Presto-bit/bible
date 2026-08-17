@@ -1267,81 +1267,77 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
           ),
           const SizedBox(height: 4),
           Expanded(
-            child: Listener(
-              // 改名/删除只随左滑露出；点抽屉任意空白或另一行即收起。
-              onPointerDown: (_) => _swipeController.close(),
-              child: groups == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : groups.isEmpty
-                  ? Center(
-                      child: Text(
-                        _err != null ? '暂时无法加载会话' : '暂无历史会话，开始提问后会自动保存。',
-                        style: const TextStyle(color: AppColors.inkFaint),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: groups.length,
-                      itemBuilder: (_, i) {
-                        final g = groups[i];
-                        // 首组默认展开；其他默认折叠
-                        final isCollapsed = i == 0
-                            ? _collapsed.contains(g.key)
-                            : !_collapsed.contains('open:${g.key}');
-                        final headLabel = g.key == '随问'
-                            ? '随问'
-                            : (refToChineseLabel(g.key) ?? g.key);
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            InkWell(
-                              onTap: () => setState(() {
-                                if (i == 0) {
-                                  if (_collapsed.contains(g.key)) {
-                                    _collapsed.remove(g.key);
-                                  } else {
-                                    _collapsed.add(g.key);
-                                  }
+            child: groups == null
+                ? const Center(child: CircularProgressIndicator())
+                : groups.isEmpty
+                ? Center(
+                    child: Text(
+                      _err != null ? '暂时无法加载会话' : '暂无历史会话，开始提问后会自动保存。',
+                      style: const TextStyle(color: AppColors.inkFaint),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: groups.length,
+                    itemBuilder: (_, i) {
+                      final g = groups[i];
+                      // 首组默认展开；其他默认折叠
+                      final isCollapsed = i == 0
+                          ? _collapsed.contains(g.key)
+                          : !_collapsed.contains('open:${g.key}');
+                      final headLabel = g.key == '随问'
+                          ? '随问'
+                          : (refToChineseLabel(g.key) ?? g.key);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          InkWell(
+                            onTap: () => setState(() {
+                              if (i == 0) {
+                                if (_collapsed.contains(g.key)) {
+                                  _collapsed.remove(g.key);
                                 } else {
-                                  final k = 'open:${g.key}';
-                                  if (_collapsed.contains(k)) {
-                                    _collapsed.remove(k);
-                                  } else {
-                                    _collapsed.add(k);
-                                  }
+                                  _collapsed.add(g.key);
                                 }
-                              }),
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(2, 10, 2, 6),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        headLabel,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    Text(
-                                      '${g.value.length} 条 · ${isCollapsed ? '展开' : '收起'}',
+                              } else {
+                                final k = 'open:${g.key}';
+                                if (_collapsed.contains(k)) {
+                                  _collapsed.remove(k);
+                                } else {
+                                  _collapsed.add(k);
+                                }
+                              }
+                            }),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(2, 10, 2, 6),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      headLabel,
                                       style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.inkFaint,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  Text(
+                                    '${g.value.length} 条 · ${isCollapsed ? '展开' : '收起'}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.inkFaint,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            if (!isCollapsed)
-                              for (final s in g.value) _sessionCard(s),
-                          ],
-                        );
-                      },
-                    ),
-            ),
+                          ),
+                          if (!isCollapsed)
+                            for (final s in g.value) _sessionCard(s),
+                        ],
+                      );
+                    },
+                  ),
           ),
           const Padding(
             padding: EdgeInsets.fromLTRB(4, 10, 4, 4),
@@ -1891,10 +1887,11 @@ class _ComposerState extends State<_Composer> {
   @override
   Widget build(BuildContext context) {
     final chips = widget.chips;
+    final tabPad = peiaiTabBarOverlayExtent(context, includeSafe: false);
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        padding: EdgeInsets.fromLTRB(12, 8, 12, 8 + tabPad),
         decoration: BoxDecoration(
           color: widget.docked ? AppColors.paper : Colors.transparent,
           border: widget.docked

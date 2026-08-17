@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/badge_stats.dart';
 import '../../core/theme.dart';
 import '../social/social_repository.dart';
@@ -142,21 +143,46 @@ class _GroupCheckinBodyState extends ConsumerState<_GroupCheckinBody> {
               if (_submitted)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: Text('已打卡')),
+                  child: Center(
+                    child: Text(
+                      '已发送打卡 ✓',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.accentDeep,
+                      ),
+                    ),
+                  ),
                 )
               else if (groups.isEmpty)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('你还没有加入共读群。',
-                        style: TextStyle(
-                            fontSize: 13, color: AppColors.inkFaint)),
-                    const SizedBox(height: 8),
-                    Text(
-                      '可在「发现」加入或创建共读群',
+                    const Text(
+                      '你还没有加入共读群。',
                       style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.accentDeep.withValues(alpha: 0.9)),
+                        fontSize: 13,
+                        color: AppColors.inkFaint,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '加入共读群后可在读经页打卡',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.inkSoft,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accentDeep,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        ref.read(navIndexProvider.notifier).set(3);
+                      },
+                      child: const Text('去发现看看'),
                     ),
                   ],
                 )
@@ -213,7 +239,7 @@ class _GroupCheckinBodyState extends ConsumerState<_GroupCheckinBody> {
                     minimumSize: const Size.fromHeight(48),
                   ),
                   onPressed: _gid == null || _busy ? null : _submit,
-                  child: Text(_busy ? '提交中…' : '打卡'),
+                  child: Text(_busy ? '发送中…' : '发送打卡'),
                 ),
               ],
             ],

@@ -236,11 +236,9 @@ export function useImComposerKeyboard(
       }
       body.classList.toggle('im-keyboard', m.keyboardUp);
       body.classList.remove('im-keyboard-overlay');
-      // Flutter 壳已注入 --im-kb-inset / android-flutter-kb；勿清零以免输入栏与键盘脱节
-      if (!isFlutterH5Host()) {
-        root.style.setProperty('--im-kb-inset', '0px');
-        setInset(0);
-      }
+      // Flutter 宿主已改为只缩壳高（--im-kb-inset=0），与 PWA 同一策略
+      root.style.setProperty('--im-kb-inset', '0px');
+      setInset(0);
       writeComposerHeight(measureComposerHeight());
       if (m.keyboardUp) {
         pinDocScroll();

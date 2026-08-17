@@ -256,10 +256,10 @@ html.android-flutter-h5 .install-banner {
   display: none !important;
 }
 
-/* Flutter 键盘：用壳注入的 --im-kb-inset / --peiai-vv-h 贴底输入 */
+/* Flutter 键盘：与 H5 壳高策略一致，勿再用 inset 抬输入栏 */
 html.android-flutter-h5 body.android-flutter-kb .im-composer-bar,
 html.android-flutter-h5 body.im-keyboard .im-composer-bar {
-  bottom: max(0px, var(--im-kb-inset, 0px)) !important;
+  bottom: auto !important;
   padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
 }
 

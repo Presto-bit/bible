@@ -1,11 +1,15 @@
 /// 词典知识卡半屏：对齐 PWA EntityKnowledgeSheet（摘要 / 经节 / 地点 / 关系列表）。
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../app/app_shell.dart' show readerImmersiveProvider;
 import '../../core/badge_stats.dart';
+import '../../core/config.dart';
 import '../../core/theme.dart';
 import 'bible_repository.dart';
 import 'content_repository.dart';
@@ -295,14 +299,13 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                 style: const TextStyle(height: 1.55, color: AppColors.inkSoft),
               ),
             ],
-            if (place.latitude != null && place.longitude != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                '坐标：${place.latitude!.toStringAsFixed(4)}, '
-                '${place.longitude!.toStringAsFixed(4)}',
-                style: const TextStyle(fontSize: 13, color: AppColors.inkFaint),
-              ),
-            ],
+            const SizedBox(height: 12),
+            _GeoMiniMapPreview(place: place),
+            const SizedBox(height: 6),
+            const Text(
+              '示意地图 · 非精确地理',
+              style: TextStyle(fontSize: 11, color: AppColors.inkFaint),
+            ),
             if (place.refs.isNotEmpty) ...[
               const SizedBox(height: 10),
               Wrap(
@@ -331,11 +334,17 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
           );
         }
         final nodeNames = {for (final node in nodes) node.id: node.name};
+        final centerId = _entity.id;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 优先渲染关系边，避免只有人名而看不出关系内容。
-            for (final edge in edges.take(24))
+            _LocalRelationGraphPreview(
+              nodes: nodes.take(10).toList(),
+              edges: edges.take(16).toList(),
+              centerId: centerId,
+            ),
+            const SizedBox(height: 10),
+            for (final edge in edges.take(12))
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text.rich(
@@ -358,7 +367,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                 ),
               ),
             if (edges.isEmpty)
-              for (final n in nodes.take(24))
+              for (final n in nodes.take(12))
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
@@ -378,18 +387,60 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
             style: TextStyle(color: AppColors.inkFaint),
           );
         }
+        final base = AppConfig.baseUrl.replaceAll(RegExp(r'/+$'), '');
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (final d in diagrams)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  d.title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.inkSoft,
-                  ),
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      d.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.inkSoft,
+                      ),
+                    ),
+                    if ((d.summary ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        d.summary!.trim(),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          color: AppColors.inkFaint,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    AspectRatio(
+                      aspectRatio: 1.25,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceSunken,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: SvgPicture.network(
+                            '$base/content/diagrams/${d.id}/file',
+                            fit: BoxFit.contain,
+                            placeholderBuilder: (_) => const Center(
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -558,4 +609,272 @@ class _VersePreviewSheet extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// 地点示意迷你地图（对齐 PWA GeoMiniMap 的离线投影示意，非精确地理）。
+class _GeoMiniMapPreview extends StatelessWidget {
+  const _GeoMiniMapPreview({required this.place});
+  final GeoPlace place;
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1.7,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xFFEDE6D8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: CustomPaint(
+            painter: _GeoMiniMapPainter(place: place),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GeoMiniMapPainter extends CustomPainter {
+  _GeoMiniMapPainter({required this.place});
+  final GeoPlace place;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final land = Paint()..color = const Color(0xFFD9CFB8);
+    final water = Paint()..color = const Color(0xFFC5D4C8);
+    final coast = Paint()
+      ..color = const Color(0xFF8A7B63)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    canvas.drawRect(Offset.zero & size, water);
+
+    final coastPath = Path()
+      ..moveTo(size.width * 0.02, size.height * 0.55)
+      ..cubicTo(
+        size.width * 0.12,
+        size.height * 0.42,
+        size.width * 0.22,
+        size.height * 0.38,
+        size.width * 0.34,
+        size.height * 0.36,
+      )
+      ..cubicTo(
+        size.width * 0.5,
+        size.height * 0.32,
+        size.width * 0.68,
+        size.height * 0.34,
+        size.width * 0.98,
+        size.height * 0.4,
+      )
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(coastPath, land);
+    canvas.drawPath(coastPath, coast);
+
+    final labels = [
+      (0.14, 0.18, '地中海'),
+      (0.78, 0.2, '美索不达米亚'),
+      (0.2, 0.78, '埃及'),
+      (0.52, 0.55, '犹地亚'),
+    ];
+    final labelStyle = TextStyle(
+      color: AppColors.inkFaint.withValues(alpha: 0.85),
+      fontSize: 10,
+    );
+    for (final (x, y, text) in labels) {
+      final tp = TextPainter(
+        text: TextSpan(text: text, style: labelStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(
+        canvas,
+        Offset(size.width * x - tp.width / 2, size.height * y - tp.height / 2),
+      );
+    }
+
+    final lat = place.latitude ?? 31.7;
+    final lng = place.longitude ?? 35.2;
+    const minLat = 27.5, maxLat = 36.5, minLng = 29.5, maxLng = 40.5;
+    final px = ((lng - minLng) / (maxLng - minLng)).clamp(0.08, 0.92) * size.width;
+    final py =
+        ((maxLat - lat) / (maxLat - minLat)).clamp(0.1, 0.9) * size.height;
+
+    final pin = Paint()..color = AppColors.accentDeep;
+    canvas.drawCircle(Offset(px, py), 6, pin);
+    canvas.drawCircle(
+      Offset(px, py),
+      6,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+
+    final name = place.name.trim();
+    if (name.isNotEmpty) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: name,
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: size.width * 0.45);
+      final labelX = (px + 10).clamp(4.0, size.width - tp.width - 4);
+      final labelY = (py - tp.height - 8).clamp(4.0, size.height - tp.height - 4);
+      final bg = RRect.fromRectAndRadius(
+        Rect.fromLTWH(labelX - 4, labelY - 2, tp.width + 8, tp.height + 4),
+        const Radius.circular(6),
+      );
+      canvas.drawRRect(bg, Paint()..color = Colors.white.withValues(alpha: 0.88));
+      tp.paint(canvas, Offset(labelX, labelY));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GeoMiniMapPainter oldDelegate) =>
+      oldDelegate.place.id != place.id ||
+      oldDelegate.place.latitude != place.latitude ||
+      oldDelegate.place.longitude != place.longitude;
+}
+
+/// 关系图缩略：中心实体 + 周围节点与连线（对齐 PWA LocalRelationGraph 视觉层级）。
+class _LocalRelationGraphPreview extends StatelessWidget {
+  const _LocalRelationGraphPreview({
+    required this.nodes,
+    required this.edges,
+    required this.centerId,
+  });
+
+  final List<GraphNode> nodes;
+  final List<GraphEdge> edges;
+  final String centerId;
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1.35,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceSunken,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: CustomPaint(
+            painter: _RelationGraphPainter(
+              nodes: nodes,
+              edges: edges,
+              centerId: centerId,
+            ),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RelationGraphPainter extends CustomPainter {
+  _RelationGraphPainter({
+    required this.nodes,
+    required this.edges,
+    required this.centerId,
+  });
+
+  final List<GraphNode> nodes;
+  final List<GraphEdge> edges;
+  final String centerId;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (nodes.isEmpty) return;
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final radius = math.min(size.width, size.height) * 0.34;
+
+    GraphNode? center;
+    for (final n in nodes) {
+      if (n.id == centerId) {
+        center = n;
+        break;
+      }
+    }
+    center ??= nodes.first;
+    final others = nodes.where((n) => n.id != center!.id).toList();
+    final positions = <String, Offset>{center.id: Offset(cx, cy)};
+    for (var i = 0; i < others.length; i++) {
+      final a = (i / math.max(others.length, 1)) * math.pi * 2 - math.pi / 2;
+      positions[others[i].id] = Offset(
+        cx + math.cos(a) * radius,
+        cy + math.sin(a) * radius,
+      );
+    }
+
+    final edgePaint = Paint()
+      ..color = AppColors.accentDeep.withValues(alpha: 0.35)
+      ..strokeWidth = 1.4
+      ..style = PaintingStyle.stroke;
+    for (final e in edges) {
+      final a = positions[e.from];
+      final b = positions[e.to];
+      if (a == null || b == null) continue;
+      canvas.drawLine(a, b, edgePaint);
+    }
+
+    void drawNode(GraphNode n, Offset p, {required bool isCenter}) {
+      final r = isCenter ? 18.0 : 12.0;
+      canvas.drawCircle(
+        p,
+        r,
+        Paint()
+          ..color = isCenter ? AppColors.accentDeep : AppColors.paper,
+      );
+      canvas.drawCircle(
+        p,
+        r,
+        Paint()
+          ..color = AppColors.accentDeep.withValues(alpha: isCenter ? 1 : 0.55)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+      final label = (n.name.isNotEmpty ? n.name : n.id).trim();
+      final short = label.length > 5 ? '${label.substring(0, 5)}…' : label;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: short,
+          style: TextStyle(
+            color: isCenter ? Colors.white : AppColors.ink,
+            fontSize: isCenter ? 10 : 9,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+        ellipsis: '…',
+      )..layout(maxWidth: r * 2.2);
+      tp.paint(canvas, Offset(p.dx - tp.width / 2, p.dy - tp.height / 2));
+    }
+
+    for (final n in others) {
+      final p = positions[n.id];
+      if (p != null) drawNode(n, p, isCenter: false);
+    }
+    drawNode(center, positions[center.id]!, isCenter: true);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RelationGraphPainter oldDelegate) =>
+      oldDelegate.centerId != centerId ||
+      oldDelegate.nodes.length != nodes.length ||
+      oldDelegate.edges.length != edges.length;
 }

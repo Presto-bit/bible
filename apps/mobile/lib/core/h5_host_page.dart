@@ -261,19 +261,20 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final shrinkKb = (_baselineHostH != null && hostH < _baselineHostH! - 80)
         ? (_baselineHostH! - hostH)
         : 0.0;
-    final kb = insetKb > 0 ? insetKb : shrinkKb;
     if (insetKb <= 0 && shrinkKb <= 0) {
       _baselineHostH = hostH;
     }
-    final vv = (hostH - (insetKb > 0 ? insetKb : 0)).clamp(120.0, 4000.0);
+    // adjustResize / 宿主已变矮时与 PWA 一致：只缩壳高，不再注入 --im-kb-inset 抬栏。
+    final keyboardUp = insetKb > 0 || shrinkKb > 0;
+    final vv = hostH.clamp(120.0, 4000.0);
     await c.runJavaScript('''
 (function(){
   try {
     var root = document.documentElement;
     root.style.setProperty('--peiai-vv-h', '${vv.toStringAsFixed(1)}px');
     root.style.setProperty('--im-vv-h', '${vv.toStringAsFixed(1)}px');
-    root.style.setProperty('--im-kb-inset', '${kb.toStringAsFixed(1)}px');
-    if ($kb > 0) {
+    root.style.setProperty('--im-kb-inset', '0px');
+    if ($keyboardUp) {
       document.body && document.body.classList.add('im-keyboard', 'android-flutter-kb');
     } else {
       document.body && document.body.classList.remove('im-keyboard', 'android-flutter-kb');
@@ -485,13 +486,11 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         + 'html.android-flutter-h5 nav.app-tabbar,'
         + 'html.android-flutter-h5 .app-bottom-tabs { display:none !important; }'
         + 'html.android-flutter-h5 body { overscroll-behavior-y: contain; }'
+        // 与 H5 relative composer / 壳高策略一致：勿再用 inset 抬栏或垫 thread
         + 'html.android-flutter-h5.im-keyboard .im-composer-bar,'
         + 'html.android-flutter-h5 body.im-keyboard .im-composer-bar {'
-        + '  bottom: var(--im-kb-inset, 0px) !important;'
+        + '  bottom: auto !important;'
         + '  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));'
-        + '}'
-        + 'html.android-flutter-h5 .dm-thread, html.android-flutter-h5 .group-chat-body {'
-        + '  padding-bottom: calc(12px + var(--im-kb-inset, 0px));'
         + '}'
         // 左滑露出置顶/免打扰/不显示：与 web 一致允许 pan-x（此前误写成仅 pan-y）
         + 'html.android-flutter-h5 .swipe-reveal-row,'

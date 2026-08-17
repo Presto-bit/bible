@@ -6,10 +6,12 @@ import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../app/app_shell.dart' show peiaiTabContentBottomPad;
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/mark_notes.dart';
 import '../../core/mark_ref.dart' show selectionRef;
@@ -270,6 +272,8 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
     this.onPlanMetaChange,
     this.onPlanJump,
     this.onEnableParallel,
+    this.flashVerse,
+    this.onFlashConsumed,
   });
 
   final BibleBook book;
@@ -293,6 +297,10 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
 
   /// 从单节对照开启章节双语对照（写入 compareVersionId）。
   final void Function(String versionId)? onEnableParallel;
+
+  /// 外部指定轻闪节（每日经文等）；含第 1 节。
+  final int? flashVerse;
+  final VoidCallback? onFlashConsumed;
 
   /// 打开小爱解读弹窗。explainOnly=true 时仅解释选中经文。
   final void Function(
@@ -412,6 +420,17 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         if (!mounted) return;
         if (_scroll.hasClients) _scroll.jumpTo(0);
         _prefetchAdjacentChapters();
+      });
+    } else if (widget.flashVerse != null &&
+        widget.flashVerse != oldWidget.flashVerse) {
+      // 同章再次跳入（如每日经文第 1 节）：强制再滚再闪。
+      _resumeScheduled = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _selected.isNotEmpty) return;
+        if (!_resumeScheduled) {
+          _resumeScheduled = true;
+          _maybeResume();
+        }
       });
     }
   }
@@ -551,14 +570,25 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   void _maybeResume() {
+    final forced = widget.flashVerse;
+    if (forced != null && forced >= 1) {
+      _triggerResumeFlash(forced);
+      widget.onFlashConsumed?.call();
+      return;
+    }
     final saved = ref.read(readingProgressStreamProvider).value;
+    // 普通续读：第 1 节不闪，避免每次进章都打扰。
     if (saved == null ||
         saved.book != widget.book.id ||
         saved.chapter != widget.chapter ||
         saved.verse <= 1) {
       return;
     }
-    setState(() => _resumeFlashVerse = saved.verse);
+    _triggerResumeFlash(saved.verse);
+  }
+
+  void _triggerResumeFlash(int verse) {
+    setState(() => _resumeFlashVerse = verse);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final ctx = _resumeAnchorKey.currentContext;
@@ -570,7 +600,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           curve: Curves.easeOutCubic,
         );
       }
-      Future.delayed(const Duration(milliseconds: 2600), () {
+      Future.delayed(const Duration(milliseconds: 2400), () {
         if (mounted) setState(() => _resumeFlashVerse = null);
       });
     });
@@ -2051,14 +2081,15 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       child: ListView.builder(
         controller: _scroll,
         physics: dx.abs() > 8 ? const NeverScrollableScrollPhysics() : null,
-        // 沉浸：顶垫给固定卷章条；非沉浸：正常章头在列表内
+        scrollCacheExtent: const ScrollCacheExtent.pixels(900),
+        // 沉浸：顶垫给固定卷章条；非沉浸：底垫对齐胶囊底栏（peiaiTabContentBottomPad）
         padding: EdgeInsets.fromLTRB(
           16,
           widget.chromeHidden ? (MediaQuery.paddingOf(context).top + 56) : 12,
           20,
           widget.chromeHidden
               ? (MediaQuery.paddingOf(context).bottom + 8)
-              : (MediaQuery.paddingOf(context).bottom + 48),
+              : peiaiTabContentBottomPad(context, includeSafe: false),
         ),
         itemCount: rows.length + 1 + planHead + planTail,
         itemBuilder: (_, i) {
@@ -2095,8 +2126,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             );
           }
           if (i == planHead) {
-            // 全屏时卷章固定在顶部叠层；非沉浸仍放正文首行（对齐对照模式）
-            if (widget.chromeHidden) {
+            // 全屏时卷章固定在顶部叠层；横滑翻章预览时隐藏，避免旧卷章与邻章经文错位。
+            if (widget.chromeHidden || dx.abs() > 8) {
               return const SizedBox.shrink();
             }
             return Padding(
@@ -2204,7 +2235,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
               ],
             ),
           ),
-          if (widget.chromeHidden)
+          if (widget.chromeHidden && dx.abs() <= 8)
             Positioned(
               top: 0,
               left: 0,
@@ -2350,17 +2381,21 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final listBody = ListView.builder(
       controller: _scroll,
       physics: dx.abs() > 8 ? const NeverScrollableScrollPhysics() : null,
-      // 对照模式同样沿用 PWA 的 16px 阅读边距。
+      scrollCacheExtent: const ScrollCacheExtent.pixels(900),
+      // 对照模式同样沿用 PWA 的 16px 阅读边距，并垫开胶囊底栏。
       padding: EdgeInsets.fromLTRB(
         16,
         widget.chromeHidden ? (MediaQuery.paddingOf(context).top + 56) : 12,
         16,
-        12,
+        widget.chromeHidden
+            ? (MediaQuery.paddingOf(context).bottom + 8)
+            : peiaiTabContentBottomPad(context, includeSafe: false),
       ),
       itemCount: rows.length + 1,
       itemBuilder: (_, i) {
         if (i == 0) {
-          if (widget.chromeHidden) {
+          // 横滑预览时隐藏当前卷章头，避免与邻章经文错位。
+          if (widget.chromeHidden || dx.abs() > 8) {
             return const SizedBox.shrink();
           }
           return Padding(
@@ -2565,7 +2600,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
               ],
             ),
           ),
-          if (widget.chromeHidden)
+          if (widget.chromeHidden && dx.abs() <= 8)
             Positioned(
               top: 0,
               left: 0,
@@ -2848,32 +2883,9 @@ class _ChapterPeekContent extends StatelessWidget {
       child: ListView(
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(16, topPad, 20, 24),
+        // 预览与 PWA ReaderChapterPeek 一致：不显示卷/章头，只渲经文。
         children: [
-          // 预览页与落定后的正文均从卷章标题开始，避免滑到一半时缺少章节语境。
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12, top: 4),
-            child: Row(
-              children: [
-                Text(
-                  book.name,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: theme.ink,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  '第 $chapter 章',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: theme.ink.withValues(alpha: 0.55),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          for (final row in rows)
+          for (final row in rows.take(12))
             row is String
                 ? _sectionTitle(row)
                 : parallel == null
