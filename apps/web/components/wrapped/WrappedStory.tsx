@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
+import { isPeiaiAndroidWebViewShell } from '@/lib/android_host';
+import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 import type { WrappedSlide, WrappedStats } from '@/lib/wrapped';
 import { renderWrappedSharePng } from '@/lib/wrapped_share';
 
@@ -12,25 +14,41 @@ type Props = {
   sharing?: boolean;
 };
 
+/** 安卓 WebView / Flutter 嵌层：CSS scroll-snap 经常不跟手，改用触摸分页。 */
+function isEmbeddedAndroidWebView(): boolean {
+  return isFlutterH5Host() || isPeiaiAndroidWebViewShell();
+}
+
+function scrollerPageHeight(el: HTMLElement): number {
+  return el.clientHeight || el.offsetHeight || window.innerHeight || 0;
+}
+
 export default function WrappedStory({ stats, onShare, shareHint, sharing }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const indexRef = useRef(0);
   const [index, setIndex] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const slides = stats.slides;
   const total = slides.length;
+  const totalRef = useRef(total);
+  totalRef.current = total;
+  indexRef.current = index;
+  const embedded = isEmbeddedAndroidWebView();
 
   useEffect(() => {
     setIndex(0);
+    indexRef.current = 0;
     scrollerRef.current?.scrollTo({ top: 0 });
   }, [stats.period]);
 
   const syncIndex = useCallback(() => {
     const el = scrollerRef.current;
-    if (!el || !el.clientHeight) return;
-    const next = Math.round(el.scrollTop / el.clientHeight);
-    setIndex(Math.max(0, Math.min(total - 1, next)));
-  }, [total]);
+    const h = el ? scrollerPageHeight(el) : 0;
+    if (!el || !h) return;
+    const next = Math.round(el.scrollTop / h);
+    setIndex(Math.max(0, Math.min(totalRef.current - 1, next)));
+  }, []);
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -51,9 +69,8 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
       return;
     }
     setPreviewing(true);
-    // 分享图延后：安卓壳上 canvas 很容易卡滑动
-    // 仅旧 WebView 壳延后画布；Chrome Host 与 Safari 同级
-    const delay = /PeiaiAndroidShell\//i.test(navigator.userAgent) ? 700 : 180;
+    // 分享图延后：安卓 WebView 上 canvas 很容易卡滑动
+    const delay = isEmbeddedAndroidWebView() ? 700 : 180;
     const timer = window.setTimeout(() => {
       void renderWrappedSharePng(stats, { scale: 0.3 }).then((blob) => {
         if (cancelled) return;
@@ -98,17 +115,72 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
     [],
   );
 
-  const go = (i: number) => {
+  const go = useCallback((i: number) => {
     const el = scrollerRef.current;
     if (!el) return;
-    const h = el.clientHeight || window.innerHeight;
+    const h = scrollerPageHeight(el);
     if (!h) return;
-    const clamped = Math.max(0, Math.min(total - 1, i));
-    // 仅旧 WebView 壳禁用 smooth；Chrome Host 可用
-    const smooth = !/PeiaiAndroidShell\//i.test(navigator.userAgent);
-    el.scrollTo({ top: clamped * h, behavior: smooth ? 'smooth' : 'auto' });
+    const clamped = Math.max(0, Math.min(totalRef.current - 1, i));
+    el.scrollTo({
+      top: clamped * h,
+      behavior: isEmbeddedAndroidWebView() ? 'auto' : 'smooth',
+    });
+    indexRef.current = clamped;
     setIndex(clamped);
-  };
+  }, []);
+
+  // Flutter / 旧 WebView：CSS snap 不可靠，用触摸阈值切屏（对齐 PWA「下滑继续」）
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || !embedded || total < 2) return;
+    let startY = 0;
+    let startX = 0;
+    let startT = 0;
+    let tracking = false;
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      tracking = true;
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      startT = Date.now();
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!tracking || e.touches.length !== 1) return;
+      const dy = e.touches[0].clientY - startY;
+      const dx = e.touches[0].clientX - startX;
+      if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) {
+        e.preventDefault();
+      }
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dy = startY - t.clientY;
+      const dx = Math.abs(t.clientX - startX);
+      if (dx > Math.abs(dy) + 12) return;
+      const h = scrollerPageHeight(el);
+      const threshold = Math.min(72, Math.max(36, h * 0.12));
+      const flick = Date.now() - startT < 320;
+      const cur = indexRef.current;
+      if (dy > threshold || (flick && dy > 24)) go(cur + 1);
+      else if (dy < -threshold || (flick && dy < -24)) go(cur - 1);
+      else go(cur);
+    };
+
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('touchcancel', onEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+  }, [embedded, total, stats.period, go]);
 
   // 布局确定后校准一次 index（WebView 首帧 clientHeight 可能为 0）
   useEffect(() => {

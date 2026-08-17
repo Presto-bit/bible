@@ -547,15 +547,29 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         + 'html.android-flutter-h5 .discover-conv-li {'
         + '  -webkit-user-select: none; user-select: none;'
         + '}'
-        // 故事回顾：fixed 全屏在裁切 WebView 内高度常为 0
+        // 故事回顾：用宿主像素高度铺满，并让内层接管纵向手势
+        + 'html.android-flutter-h5.wrapped-open,'
+        + 'html.android-flutter-h5.wrapped-open body {'
+        + '  height:var(--peiai-vv-h,100%) !important;'
+        + '  min-height:var(--peiai-vv-h,100%) !important;'
+        + '  overflow:hidden !important;'
+        + '}'
         + 'html.android-flutter-h5 .wrapped-page-shell {'
         + '  position:absolute !important; inset:0 !important;'
         + '  width:100% !important; height:100% !important;'
+        + '  min-height:var(--peiai-vv-h,100%) !important;'
         + '}'
         + 'html.android-flutter-h5.wrapped-open .app-body,'
         + 'html.android-flutter-h5 .app-body:has(.wrapped-page-shell) {'
         + '  position:relative !important; padding:0 !important;'
         + '  overflow:hidden !important;'
+        + '  height:var(--peiai-vv-h,100%) !important;'
+        + '  min-height:var(--peiai-vv-h,100%) !important;'
+        + '  touch-action:none !important;'
+        + '}'
+        + 'html.android-flutter-h5 .wrapped-story-scroller {'
+        + '  scroll-behavior:auto !important; scroll-snap-type:none !important;'
+        + '  touch-action:pan-y !important;'
         + '}';
     // 左缘返回：通知可能的 SPA history（touch 可选，系统返回已走 goBack）
   } catch (e) {}

@@ -319,18 +319,29 @@ a.report-tile-link .muted {
   left: 0;
   right: 0;
 }
-/* Flutter 嵌 H5：fixed 相对视觉视口在裁切 WebView 内常塌成 0 高；改贴 app-body */
+/* Flutter 嵌 H5：fixed 相对视觉视口在裁切 WebView 内常塌成 0 高；改贴宿主高度 */
+html.android-flutter-h5.wrapped-open,
+html.android-flutter-h5.wrapped-open body {
+  height: var(--peiai-vv-h, 100%) !important;
+  min-height: var(--peiai-vv-h, 100%) !important;
+  overflow: hidden !important;
+}
 html.android-flutter-h5 .wrapped-page-shell {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  min-height: var(--peiai-vv-h, 100%);
 }
 html.android-flutter-h5.wrapped-open .app-body,
 html.android-flutter-h5 .app-body:has(.wrapped-page-shell) {
   position: relative;
   padding: 0 !important;
   overflow: hidden !important;
+  height: var(--peiai-vv-h, 100%) !important;
+  min-height: var(--peiai-vv-h, 100%) !important;
+  /* 父层 pan-y 会抢走内层故事切屏 */
+  touch-action: none;
 }
 .wrapped-page-head {
   position: absolute;
@@ -412,6 +423,13 @@ html.android-flutter-h5 .app-body:has(.wrapped-page-shell) {
 /* 安卓壳 / standalone：关 smooth，避免 WebView 卡顿；标识类 android-shell 仅作 JS 诊断 */
 html.pwa-standalone .wrapped-story-scroller {
   scroll-behavior: auto;
+}
+/* 安卓 WebView：关掉 CSS snap，改由 JS 触摸分页（snap 经常不跟手） */
+html.android-flutter-h5 .wrapped-story-scroller,
+.wrapped-story-scroller--js-page {
+  scroll-behavior: auto;
+  scroll-snap-type: none;
+  touch-action: pan-y;
 }
 .wrapped-story-loading {
   flex: 1;
