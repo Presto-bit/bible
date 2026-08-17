@@ -14,10 +14,16 @@
   max-height: var(--assistant-page-h, calc(100dvh - var(--tabbar-h) - 18px));
   min-height: 0;
   margin: 0 auto;
-  padding: max(10px, var(--safe-top)) 14px 0;
+  /* 仅安全区，勿再叠 10px 地板（有对话时顶栏会显得离刘海过远） */
+  padding: var(--safe-top) 14px 0;
   overflow: hidden;
   touch-action: pan-y;
   position: relative;
+}
+
+/* 有对话：顶栏再贴一点，把空间留给消息 */
+.assistant-page:has(> .assistant-body:not(.is-empty)) > .assistant-head {
+  margin-bottom: 4px;
 }
 
 /* 顶栏 / 提示条：不挤占对话 flex 份额 */
@@ -56,11 +62,19 @@ body.assistant-active {
   overflow: hidden;
   overscroll-behavior: none;
 }
-body.assistant-active .app-body {
+/*
+ * 清零 .app-body 顶/底垫：须压过 body.pwa-standalone / android-flutter-h5
+ * 的同权规则，否则会与下方 .assistant-page 的 safe-top 双算，顶栏「小爱」偏下。
+ */
+body.assistant-active .app-body,
+body.pwa-standalone.assistant-active .app-body,
+html.pwa-standalone body.assistant-active .app-body,
+html.android-flutter-h5 body.assistant-active .app-body,
+html.android-flutter-h5 body.pwa-standalone.assistant-active .app-body {
   overflow: hidden;
   overscroll-behavior: none;
-  padding-top: 0;
-  padding-bottom: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 /* 空闲态勿整页 touch-action:none：安卓 WebView 上会拖垮标题「历史」等点击合成 */
 body.assistant-active .assistant-page {
