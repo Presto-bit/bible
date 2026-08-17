@@ -92,50 +92,52 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     final showSenses = widget.candidates.length > 1;
     final knowledgeAsync = ref.watch(entityKnowledgeProvider(_entity.id));
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 4, 16, 12 + bottom),
-      child: knowledgeAsync.when(
-        loading: () => _scaffold(
-          typeLabel: typeLabel,
-          showSenses: showSenses,
-          summary: entitySummaryText(_entity),
-          refs: _entity.refs,
-          loading: true,
-        ),
-        error: (_, __) => _scaffold(
-          typeLabel: typeLabel,
-          showSenses: showSenses,
-          summary: entitySummaryText(_entity),
-          refs: _entity.refs,
-          loading: false,
-        ),
-        data: (k) {
-          final e = k.entity.id.isNotEmpty ? k.entity : _entity;
-          final tabs = <String>['refs'];
-          if (k.place != null) tabs.add('map');
-          if (k.graph != null && k.graph!.edges.isNotEmpty) {
-            tabs.add('graph');
-          }
-          if (k.diagrams.isNotEmpty) tabs.add('diagrams');
-          final activeTab = tabs.contains(_tab) ? _tab : 'refs';
-          if (activeTab != _tab) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) setState(() => _tab = activeTab);
-            });
-          }
-          return _scaffold(
+    return SizedBox.expand(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 4, 16, 12 + bottom),
+        child: knowledgeAsync.when(
+          loading: () => _scaffold(
             typeLabel: typeLabel,
             showSenses: showSenses,
-            summary: entitySummaryText(e),
-            refs: e.refs.isNotEmpty ? e.refs : _entity.refs,
+            summary: entitySummaryText(_entity),
+            refs: _entity.refs,
+            loading: true,
+          ),
+          error: (_, __) => _scaffold(
+            typeLabel: typeLabel,
+            showSenses: showSenses,
+            summary: entitySummaryText(_entity),
+            refs: _entity.refs,
             loading: false,
-            tabs: tabs,
-            activeTab: activeTab,
-            place: k.place,
-            graph: k.graph,
-            diagrams: k.diagrams,
-          );
-        },
+          ),
+          data: (k) {
+            final e = k.entity.id.isNotEmpty ? k.entity : _entity;
+            final tabs = <String>['refs'];
+            if (k.place != null) tabs.add('map');
+            if (k.graph != null && k.graph!.edges.isNotEmpty) {
+              tabs.add('graph');
+            }
+            if (k.diagrams.isNotEmpty) tabs.add('diagrams');
+            final activeTab = tabs.contains(_tab) ? _tab : 'refs';
+            if (activeTab != _tab) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _tab = activeTab);
+              });
+            }
+            return _scaffold(
+              typeLabel: typeLabel,
+              showSenses: showSenses,
+              summary: entitySummaryText(e),
+              refs: e.refs.isNotEmpty ? e.refs : _entity.refs,
+              loading: false,
+              tabs: tabs,
+              activeTab: activeTab,
+              place: k.place,
+              graph: k.graph,
+              diagrams: k.diagrams,
+            );
+          },
+        ),
       ),
     );
   }
@@ -241,13 +243,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
           ),
         ],
         const SizedBox(height: 10),
-        Flexible(
+        Expanded(
           child: loading
-              ? const SizedBox(
-                  height: 120,
-                  child: Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+              ? const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : SingleChildScrollView(
                   child: _tabBody(

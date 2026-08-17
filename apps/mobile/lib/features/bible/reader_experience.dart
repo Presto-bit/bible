@@ -2789,15 +2789,17 @@ class _ChapterPeekContent extends StatelessWidget {
     return spans;
   }
 
+  /// 与主文 `_sectionTitle` 同尺：避免翻章落地时标题从 peek 小字「放大」。
   Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.fromLTRB(0, 10, 0, 8),
+    padding: const EdgeInsets.fromLTRB(2, 16, 0, 4),
     child: Text(
       title,
       style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: theme.ink.withValues(alpha: 0.55),
-        letterSpacing: 0.4,
+        fontSize: (fontPx * 0.88).roundToDouble().clamp(13, 32),
+        fontWeight: FontWeight.w700,
+        color: AppColors.accentDeep,
+        fontFamily: fontFamily.fontFamily,
+        fontFamilyFallback: fontFamily.fontFamilyFallback,
       ),
     ),
   );
@@ -2998,24 +3000,59 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
 }
 
 class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
-  final List<GestureRecognizer> _recognizers = [];
+  /// 稳定复用：build 里 dispose recognizer 会打断进行中的 tap，导致词典点词无弹窗。
+  final Map<String, TapGestureRecognizer> _tapByKey = {};
+  final Map<String, LongPressGestureRecognizer> _longPressByKey = {};
+  final Set<String> _usedKeys = {};
 
-  void _clearRecognizers() {
-    for (final r in _recognizers) {
-      r.dispose();
+  TapGestureRecognizer _tap(String key, VoidCallback onTap) {
+    _usedKeys.add(key);
+    final rec = _tapByKey.putIfAbsent(key, TapGestureRecognizer.new);
+    rec.onTap = onTap;
+    return rec;
+  }
+
+  LongPressGestureRecognizer _longPress(String key, VoidCallback onLongPress) {
+    _usedKeys.add(key);
+    final rec = _longPressByKey.putIfAbsent(
+      key,
+      LongPressGestureRecognizer.new,
+    );
+    rec.onLongPress = onLongPress;
+    return rec;
+  }
+
+  void _pruneRecognizers() {
+    final staleTaps = _tapByKey.keys
+        .where((k) => !_usedKeys.contains(k))
+        .toList(growable: false);
+    for (final k in staleTaps) {
+      _tapByKey.remove(k)?.dispose();
     }
-    _recognizers.clear();
+    final staleLp = _longPressByKey.keys
+        .where((k) => !_usedKeys.contains(k))
+        .toList(growable: false);
+    for (final k in staleLp) {
+      _longPressByKey.remove(k)?.dispose();
+    }
   }
 
   @override
   void dispose() {
-    _clearRecognizers();
+    for (final r in _tapByKey.values) {
+      r.dispose();
+    }
+    _tapByKey.clear();
+    for (final r in _longPressByKey.values) {
+      r.dispose();
+    }
+    _longPressByKey.clear();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    _clearRecognizers();
+    _usedKeys.clear();
     final fontPx = ref.watch(readerFontProvider).px;
     final selectionActive = widget.selected.isNotEmpty;
     // 选中节高亮即可；不压暗其他节（对齐 PWA，避免「白蒙层」观感）
@@ -3167,11 +3204,14 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
       );
       if (words.isEmpty) {
         final emptyRec = selectionActive
-            ? (TapGestureRecognizer()
-                ..onTap = () => widget.onToggle(v.verse, v.text))
-            : (LongPressGestureRecognizer()
-                ..onLongPress = () => widget.onStart(v.verse, v.text));
-        _recognizers.add(emptyRec);
+            ? _tap(
+                'empty-tap-${v.verse}',
+                () => widget.onToggle(v.verse, v.text),
+              )
+            : _longPress(
+                'empty-lp-${v.verse}',
+                () => widget.onStart(v.verse, v.text),
+              );
         spans.add(TextSpan(text: ' ', style: baseStyle, recognizer: emptyRec));
       } else {
         var cursor = 0;
@@ -3264,13 +3304,14 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             if (dictHit == null) {
               spans.add(TextSpan(text: w.text, style: wordStyle));
             } else {
-              final rec = TapGestureRecognizer()
-                ..onTap = () => widget.onOpenDict(
+              final rec = _tap(
+                'dict-${v.verse}-${w.start}-${w.end}',
+                () => widget.onOpenDict(
                   dictHit.$1,
                   dictHit.$2,
                   widget.dictIndex[dictHit.$2] ?? [dictHit.$1],
-                );
-              _recognizers.add(rec);
+                ),
+              );
               spans.add(
                 TextSpan(text: w.text, style: wordStyle, recognizer: rec),
               );
@@ -3345,6 +3386,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
       }
     }
 
+    _pruneRecognizers();
     return RepaintBoundary(
       child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3434,24 +3476,37 @@ class _MarginVerseRow extends StatefulWidget {
 }
 
 class _MarginVerseRowState extends State<_MarginVerseRow> {
-  final List<GestureRecognizer> _recognizers = [];
+  final Map<String, TapGestureRecognizer> _tapByKey = {};
+  final Set<String> _usedKeys = {};
 
-  void _clearRecognizers() {
-    for (final r in _recognizers) {
-      r.dispose();
+  TapGestureRecognizer _tap(String key, VoidCallback onTap) {
+    _usedKeys.add(key);
+    final rec = _tapByKey.putIfAbsent(key, TapGestureRecognizer.new);
+    rec.onTap = onTap;
+    return rec;
+  }
+
+  void _pruneRecognizers() {
+    final stale = _tapByKey.keys
+        .where((k) => !_usedKeys.contains(k))
+        .toList(growable: false);
+    for (final k in stale) {
+      _tapByKey.remove(k)?.dispose();
     }
-    _recognizers.clear();
   }
 
   @override
   void dispose() {
-    _clearRecognizers();
+    for (final r in _tapByKey.values) {
+      r.dispose();
+    }
+    _tapByKey.clear();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    _clearRecognizers();
+    _usedKeys.clear();
     final v = widget.verse;
     final mark = widget.markInfo?.mark;
     final selectionActive = widget.selectionActive;
@@ -3564,13 +3619,14 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
         if (dictHit == null) {
           bodyChildren.add(TextSpan(text: w.text, style: wordStyle));
         } else {
-          final rec = TapGestureRecognizer()
-            ..onTap = () => onOpenDict(
+          final rec = _tap(
+            'dict-${v.verse}-${w.start}-${w.end}',
+            () => onOpenDict(
               dictHit.$1,
               dictHit.$2,
               dictIndex[dictHit.$2] ?? [dictHit.$1],
-            );
-          _recognizers.add(rec);
+            ),
+          );
           bodyChildren.add(
             TextSpan(text: w.text, style: wordStyle, recognizer: rec),
           );
@@ -3610,6 +3666,7 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
         ),
       );
     }
+    _pruneRecognizers();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(

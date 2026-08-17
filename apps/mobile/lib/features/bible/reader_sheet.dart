@@ -18,19 +18,21 @@ Future<T?> showReaderSheet<T>({
       final theme = Theme.of(ctx);
       final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
       final maxH = MediaQuery.sizeOf(ctx).height * (heightFactor ?? 0.88);
+      // 固定半屏高度 + Expanded：避免 Column(min)+Flexible 把内容压成近 0 高，
+      // 看起来像「没弹窗」或贴底一条细缝。
       return Padding(
         padding: EdgeInsets.only(bottom: bottom),
         child: Align(
           alignment: Alignment.bottomCenter,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: maxH),
+          child: SizedBox(
+            height: maxH,
+            width: double.infinity,
             child: Material(
               color: theme.colorScheme.surface,
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(18)),
               clipBehavior: Clip.antiAlias,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   const SizedBox(height: 8),
                   Container(
@@ -42,7 +44,7 @@ Future<T?> showReaderSheet<T>({
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Flexible(child: builder(ctx)),
+                  Expanded(child: builder(ctx)),
                 ],
               ),
             ),
