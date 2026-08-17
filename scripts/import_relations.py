@@ -535,8 +535,16 @@ def main() -> int:
             gnosis_edges = adapter.official_edges()
             place_candidates = adapter.candidates()
             print(f"  Gnosis 人物 {len(people)}；族谱边 {len(gnosis_edges)}；地点候选 {len(place_candidates)}")
-        except (OSError, urllib.error.URLError) as exc:
-            print(f"⚠ Gnosis 下载失败，仅使用手工边：{exc}")
+        except (OSError, urllib.error.URLError, json.JSONDecodeError, UnicodeError) as exc:
+            print(f"⚠ Gnosis 下载/解析失败，仅使用手工边：{exc}")
+            # 清掉可能截断的缓存，避免下次发版继续踩雷
+            bad = REPO / "data" / ".cache" / "gnosis-people.json"
+            if bad.exists():
+                try:
+                    bad.unlink()
+                    print("  已删除损坏的 gnosis-people.json 缓存")
+                except OSError:
+                    pass
 
     entity_ids = set(index.by_id)
     candidates = filter_candidates(merge_relations(place_candidates), entity_ids, index.by_id)

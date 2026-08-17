@@ -35,12 +35,41 @@ PLACES_URL = (
 )
 
 
-def _fetch(url: str, name: str) -> Path:
+def _fetch(url: str, name: str, *, min_bytes: int = 1000) -> Path:
+    """下载到 data/.cache；已有完整 JSON 则复用。损坏/截断缓存会删掉重下。"""
     dest = CACHE / name
     dest.parent.mkdir(parents=True, exist_ok=True)
-    if not dest.exists() or dest.stat().st_size < 1000:
+
+    def _json_ok(path: Path) -> bool:
+        if not path.exists() or path.stat().st_size < min_bytes:
+            return False
+        try:
+            json.loads(path.read_text(encoding="utf-8"))
+            return True
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return False
+
+    if _json_ok(dest):
+        return dest
+
+    if dest.exists():
+        print(f"  缓存损坏或过小，重新下载 {name} …")
+        dest.unlink(missing_ok=True)
+    else:
         print(f"  下载 {name} …")
-        urllib.request.urlretrieve(url, dest)
+
+    tmp = dest.with_suffix(dest.suffix + ".tmp")
+    try:
+        if tmp.exists():
+            tmp.unlink()
+        urllib.request.urlretrieve(url, tmp)
+        if not _json_ok(tmp):
+            raise OSError(f"下载内容不是完整 JSON：{name}（{tmp.stat().st_size} bytes）")
+        tmp.replace(dest)
+    except Exception:
+        if tmp.exists():
+            tmp.unlink(missing_ok=True)
+        raise
     return dest
 
 
