@@ -719,16 +719,16 @@ export default function AdminRagPanel({
       <div className="section-row" style={{ marginTop: 0 }}>
         <p className="settings-title" style={{ margin: 0 }}>RAG 资料管理</p>
         {showLogout ? (
-          <button
-            type="button"
-            className="text-link"
-            onClick={() => {
-              clearAdminToken();
-              onLogout?.();
-            }}
-          >
-            退出管理
-          </button>
+        <button
+          type="button"
+          className="text-link"
+          onClick={() => {
+            clearAdminToken();
+            onLogout?.();
+          }}
+        >
+          退出管理
+        </button>
         ) : null}
       </div>
 
