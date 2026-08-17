@@ -34,7 +34,7 @@ import 'bible_repository.dart';
 import 'models.dart';
 import 'reader_catalog_view.dart';
 import 'reader_experience.dart';
-import 'reader_preferences.dart';
+import 'reader_loc_popover.dart';
 import 'reader_settings_menu.dart';
 import 'reader_sheet.dart';
 import 'reader_thoughts_sheet.dart';
@@ -798,63 +798,25 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   Future<void> _pickBookChapter(BuildContext context) async {
     final books = ref.read(booksProvider).value;
-    if (books == null) return;
-    final currentBook = _book;
-    // 对齐 PWA ReaderLocPopover：从顶栏附近弹出卷 / 章选择，
-    // 不再切走整页阅读器或露出首页式「继续阅读」目录。
-    await showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: '选择经卷与章节',
-      barrierColor: Colors.black.withValues(alpha: 0.18),
-      transitionDuration: const Duration(milliseconds: 160),
-      pageBuilder: (dialogContext, _, _) => SafeArea(
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(8, 48, 8, 0),
-            constraints: BoxConstraints(
-              maxWidth: 340,
-              maxHeight: MediaQuery.sizeOf(dialogContext).height - 72,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x29000000),
-                  blurRadius: 32,
-                  offset: Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              clipBehavior: Clip.antiAlias,
-              child: ReaderCatalogView(
-                books: books,
-                resumeBookId: currentBook?.id,
-                resumeChapter: _chapter,
-                planSteps: _planMeta?.steps,
-                compact: true,
-                initialTab: 'chapters',
-                onPickChapter: (book, chapter) {
-                  setState(() {
-                    _book = book;
-                    _chapter = chapter.clamp(1, book.chapterCount);
-                    _hasSelection = false;
-                    _seeded = true;
-                  });
-                  ref.read(readingRepoProvider).record(book.id, _chapter);
-                  Navigator.of(dialogContext).pop();
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
+    final book = _book;
+    if (books == null || book == null) return;
+    // 对齐 PWA：读经中点卷章用锚点弹层；无书卷时仍走全屏目录。
+    final picked = await showReaderLocPopover(
+      context,
+      anchorKey: _locKey,
+      books: books,
+      currentBook: book,
+      currentChapter: _chapter,
+      planSteps: _planMeta?.steps,
     );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _book = picked.book;
+      _chapter = picked.chapter.clamp(1, picked.book.chapterCount);
+      _hasSelection = false;
+      _seeded = true;
+    });
+    ref.read(readingRepoProvider).record(picked.book.id, _chapter);
   }
 }
 

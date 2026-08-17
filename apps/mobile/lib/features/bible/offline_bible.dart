@@ -211,27 +211,35 @@ class OfflineBibleService {
           manifest['${translationId}_sqlite_url'] as String?;
 
       List<int>? bytes;
+      // 直链相对路径对齐 Web：`/offline/${fileName}`；失败则回退 zip。
       if (directUrl != null && directUrl.toString().isNotEmpty) {
-        final url = directUrl.startsWith('http')
-            ? directUrl
-            : '$_base${directUrl.startsWith('/') ? '' : '/'}$directUrl';
-        final res = await _dio.get<List<int>>(
-          url,
-          options: Options(responseType: ResponseType.bytes),
-          onReceiveProgress: (got, total) {
-            if (total > 0) {
-              _downloadProgress = got / total;
-              onProgress?.call(_downloadProgress!);
-              _notifyDownload();
-            }
-          },
-        );
-        bytes = res.data;
-        if (bytes != null && bytes.isNotEmpty) {
-          final out = await _sqliteFile(translationId);
-          await out.writeAsBytes(bytes, flush: true);
-          await _saveMeta(translationId, version);
-          return;
+        try {
+          final raw = directUrl.toString().trim();
+          final url = raw.startsWith('http')
+              ? raw
+              : (raw.startsWith('/offline/')
+                  ? '$_base$raw'
+                  : '$_base/offline/${raw.replaceFirst(RegExp(r'^/+'), '')}');
+          final res = await _dio.get<List<int>>(
+            url,
+            options: Options(responseType: ResponseType.bytes),
+            onReceiveProgress: (got, total) {
+              if (total > 0) {
+                _downloadProgress = got / total;
+                onProgress?.call(_downloadProgress!);
+                _notifyDownload();
+              }
+            },
+          );
+          bytes = res.data;
+          if (bytes != null && bytes.isNotEmpty) {
+            final out = await _sqliteFile(translationId);
+            await out.writeAsBytes(bytes, flush: true);
+            await _saveMeta(translationId, version);
+            return;
+          }
+        } catch (_) {
+          bytes = null;
         }
       }
 

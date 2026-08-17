@@ -711,13 +711,15 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final baseColor = muted
         ? AppColors.inkFaint.withValues(alpha: 0.45)
         : AppColors.accentDeep;
-    // 对齐 PWA `--reader-section-font-size`：随正文「中 / 大 / 特大」
-    // 同步缩放，默认正文 18px 时为 16px。
-    final readerPx = ref.read(readerFontProvider).px;
+    // 对齐 PWA：字号随正文缩放，字体继承读经衬线栈。
+    final readerPx = ref.watch(readerFontProvider).px;
+    final fontFamily = ref.watch(readerFontFamilyProvider);
     final style = TextStyle(
       fontSize: (readerPx * 0.88).roundToDouble().clamp(13, 32),
       fontWeight: FontWeight.w700,
       color: baseColor,
+      fontFamily: fontFamily.fontFamily,
+      fontFamilyFallback: fontFamily.fontFamilyFallback,
     );
     final parts = splitInlineRefs(title);
     return Padding(
@@ -1754,7 +1756,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
               left: 12,
               right: 12,
               top: widget.chromeHidden
-                  ? (MediaQuery.paddingOf(context).top + 44)
+                  ? (MediaQuery.paddingOf(context).top + 56)
                   : 56,
               child: _ChapterGuideTipBar(
                 bookName: widget.book.name,
@@ -1906,157 +1908,185 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
       onHorizontalDragCancel: () {
         if (_pageDragDx != 0) setState(() => _pageDragDx = 0);
       },
-      child: Transform.translate(
-        offset: Offset(_pageDragDx * 0.22, 0),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            VerseSelectionSurface(
-              enabled: true,
-              onApplyRange: (a, f, {commit = true}) =>
-                  _applyWordRange(a, f, commit: commit),
-              onCommitRange: _commitWordRangeProgress,
-              onClearIfEmptyTap: _selected.isNotEmpty ? _clearSelection : null,
-              onSelectionGestureChanged: (on) {
-                if (_selectionGestureActive != on) {
-                  setState(() => _selectionGestureActive = on);
-                }
-              },
-              child: ListView.builder(
-                controller: _scroll,
-                // 沉浸：scroll-bottom ≈ safe；非沉浸：清 FAB / 胶囊底栏边缘（对齐 PWA --reader-scroll-bottom）
-                padding: EdgeInsets.fromLTRB(
-                  // 与 PWA `.container.reader-page` 的左右 16px 对齐。
-                  16,
-                  widget.chromeHidden
-                      ? (MediaQuery.paddingOf(context).top + 40)
-                      : 12,
-                  20,
-                  // 沉浸：仅安全区，勿再垫大块空白
-                  widget.chromeHidden
-                      ? (MediaQuery.paddingOf(context).bottom + 8)
-                      : (MediaQuery.paddingOf(context).bottom + 48),
-                ),
-                itemCount: rows.length + 1 + planHead + planTail,
-                itemBuilder: (_, i) {
-                  if (planHead == 1 && i == 0) {
-                    final meta = widget.planMeta!;
-                    final stepIdx = stepForChapter(
-                      meta.steps,
-                      widget.book.id,
-                      widget.chapter,
-                    );
-                    return PlanReadingBar(
-                      planTitle: meta.planTitle,
-                      day: meta.day,
-                      totalDays: meta.totalDays,
-                      steps: meta.steps,
-                      session: meta.session,
-                      onJumpStep: (index) {
-                        final s = meta.steps[index];
-                        widget.onPlanJump?.call(s.bookId, s.chapterStart);
-                      },
-                      onOpenSheet: () => showPlanDaySheet(
-                        context,
-                        day: meta.day,
-                        steps: meta.steps,
-                        session: meta.session,
-                        currentStepIndex: stepIdx >= 0
-                            ? stepIdx
-                            : meta.session.currentStepIndex,
-                        onJump: (index) {
-                          final s = meta.steps[index];
-                          widget.onPlanJump?.call(s.bookId, s.chapterStart);
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Transform.translate(
+            offset: Offset(_pageDragDx * 0.22, 0),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                VerseSelectionSurface(
+                  enabled: true,
+                  onApplyRange: (a, f, {commit = true}) =>
+                      _applyWordRange(a, f, commit: commit),
+                  onCommitRange: _commitWordRangeProgress,
+                  onClearIfEmptyTap:
+                      _selected.isNotEmpty ? _clearSelection : null,
+                  onSelectionGestureChanged: (on) {
+                    if (_selectionGestureActive != on) {
+                      setState(() => _selectionGestureActive = on);
+                    }
+                  },
+                  child: ListView.builder(
+                    controller: _scroll,
+                    // 沉浸：顶垫给固定卷章条；非沉浸：正常章头在列表内
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      widget.chromeHidden
+                          ? (MediaQuery.paddingOf(context).top + 56)
+                          : 12,
+                      20,
+                      widget.chromeHidden
+                          ? (MediaQuery.paddingOf(context).bottom + 8)
+                          : (MediaQuery.paddingOf(context).bottom + 48),
+                    ),
+                    itemCount: rows.length + 1 + planHead + planTail,
+                    itemBuilder: (_, i) {
+                      if (planHead == 1 && i == 0) {
+                        final meta = widget.planMeta!;
+                        final stepIdx = stepForChapter(
+                          meta.steps,
+                          widget.book.id,
+                          widget.chapter,
+                        );
+                        return PlanReadingBar(
+                          planTitle: meta.planTitle,
+                          day: meta.day,
+                          totalDays: meta.totalDays,
+                          steps: meta.steps,
+                          session: meta.session,
+                          onJumpStep: (index) {
+                            final s = meta.steps[index];
+                            widget.onPlanJump?.call(s.bookId, s.chapterStart);
+                          },
+                          onOpenSheet: () => showPlanDaySheet(
+                            context,
+                            day: meta.day,
+                            steps: meta.steps,
+                            session: meta.session,
+                            currentStepIndex: stepIdx >= 0
+                                ? stepIdx
+                                : meta.session.currentStepIndex,
+                            onJump: (index) {
+                              final s = meta.steps[index];
+                              widget.onPlanJump?.call(s.bookId, s.chapterStart);
+                            },
+                          ),
+                        );
+                      }
+                      if (i == planHead) {
+                        // 全屏时卷章固定在顶部叠层；非沉浸仍放正文首行（对齐对照模式）
+                        if (widget.chromeHidden) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12, top: 4),
+                          child: _chapterLocTitle(theme),
+                        );
+                      }
+                      if (planTail == 1 &&
+                          i == rows.length + 1 + planHead) {
+                        return segmentFooter!;
+                      }
+                      final r = rows[i - 1 - planHead];
+                      if (r is String) {
+                        return _sectionTitle(r);
+                      }
+                      final para = r as VerseParagraph;
+                      return _ParagraphBlock(
+                        book: widget.book,
+                        chapter: widget.chapter,
+                        paragraph: displayPara(para),
+                        verseNo: verseNo,
+                        poetry: poetry,
+                        selected: _selected,
+                        wordRange: _wordRange,
+                        highlightMarks: highlights,
+                        underlinesEnabled: underlinesEnabled,
+                        thoughtsEnabled: thoughtsEnabled,
+                        thoughtsByVerse: thoughtsByVerse,
+                        myThoughtsByVerse: myThoughtsByVerse,
+                        notesByVerse: notesByVerse,
+                        fontFamily: fontFamily,
+                        dictIndex: dictIndex,
+                        dictKeys: dictKeys,
+                        selectionAnchorVerse: _selectionAnchorVerse,
+                        selectionAnchorKey: _selectionAnchorKey,
+                        resumeFlashVerse: _resumeFlashVerse,
+                        resumeAnchorKey: _resumeAnchorKey,
+                        onViewNote: _viewNote,
+                        onStart: _startSelect,
+                        onToggle: _toggleSelect,
+                        onWordStart: _startWordSelect,
+                        onWordExtend: _extendWordSelect,
+                        onOpenThoughts: _openThoughtsForVerse,
+                        onOpenDict: (entity, name, candidates) {
+                          showEntityKnowledgeSheet(
+                            context,
+                            ref,
+                            entity: entity,
+                            displayName: name,
+                            candidates: candidates,
+                          );
                         },
-                      ),
-                    );
-                  }
-                  if (i == planHead) {
-                    // 对齐 PWA：沉浸藏顶栏后，正文首行仍保留卷章（非硬编码章情境摘要）
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12, top: 4),
-                      child: Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () =>
-                                _showChapterSummary(initialTab: 'book'),
-                            child: Text(
-                              widget.book.name,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: theme.ink,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          GestureDetector(
-                            onTap: () =>
-                                _showChapterSummary(initialTab: 'chapter'),
-                            child: Text(
-                              '第 ${widget.chapter} 章',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: theme.ink.withValues(alpha: 0.55),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  if (planTail == 1 && i == rows.length + 1 + planHead) {
-                    return segmentFooter!;
-                  }
-                  final r = rows[i - 1 - planHead];
-                  if (r is String) {
-                    return _sectionTitle(r);
-                  }
-                  final para = r as VerseParagraph;
-                  return _ParagraphBlock(
-                    book: widget.book,
-                    chapter: widget.chapter,
-                    paragraph: displayPara(para),
-                    verseNo: verseNo,
-                    poetry: poetry,
-                    selected: _selected,
-                    wordRange: _wordRange,
-                    highlightMarks: highlights,
-                    underlinesEnabled: underlinesEnabled,
-                    thoughtsEnabled: thoughtsEnabled,
-                    thoughtsByVerse: thoughtsByVerse,
-                    myThoughtsByVerse: myThoughtsByVerse,
-                    notesByVerse: notesByVerse,
-                    fontFamily: fontFamily,
-                    dictIndex: dictIndex,
-                    dictKeys: dictKeys,
-                    selectionAnchorVerse: _selectionAnchorVerse,
-                    selectionAnchorKey: _selectionAnchorKey,
-                    resumeFlashVerse: _resumeFlashVerse,
-                    resumeAnchorKey: _resumeAnchorKey,
-                    onViewNote: _viewNote,
-                    onStart: _startSelect,
-                    onToggle: _toggleSelect,
-                    onWordStart: _startWordSelect,
-                    onWordExtend: _extendWordSelect,
-                    onOpenThoughts: _openThoughtsForVerse,
-                    onOpenDict: (entity, name, candidates) {
-                      showEntityKnowledgeSheet(
-                        context,
-                        ref,
-                        entity: entity,
-                        displayName: name,
-                        candidates: candidates,
                       );
                     },
-                  );
-                },
+                  ),
+                ),
+                if (_pageDragDx.abs() > 12) _pageTurnPeekOverlay(theme),
+              ],
+            ),
+          ),
+          if (widget.chromeHidden)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Material(
+                color: theme.background,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    MediaQuery.paddingOf(context).top + 8,
+                    20,
+                    10,
+                  ),
+                  child: _chapterLocTitle(theme),
+                ),
               ),
             ),
-            if (_pageDragDx.abs() > 12) _pageTurnPeekOverlay(theme),
-          ],
-        ),
+        ],
       ),
+    );
+  }
+
+  Widget _chapterLocTitle(ReaderExperienceTheme theme) {
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: () => _showChapterSummary(initialTab: 'book'),
+          child: Text(
+            widget.book.name,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: theme.ink,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: () => _showChapterSummary(initialTab: 'chapter'),
+          child: Text(
+            '第 ${widget.chapter} 章',
+            style: TextStyle(
+              fontSize: 13,
+              color: theme.ink.withValues(alpha: 0.55),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2148,72 +2178,61 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         if (v < -250) widget.onNav(1);
         if (v > 250) widget.onNav(-1);
       },
-      child: ListView.builder(
-        controller: _scroll,
-        // 对照模式同样沿用 PWA 的 16px 阅读边距。
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        itemCount: rows.length + 1,
-        itemBuilder: (_, i) {
-          if (i == 0) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+      child: Stack(
+        children: [
+          ListView.builder(
+            controller: _scroll,
+            // 对照模式同样沿用 PWA 的 16px 阅读边距。
+            padding: EdgeInsets.fromLTRB(
+              16,
+              widget.chromeHidden
+                  ? (MediaQuery.paddingOf(context).top + 56)
+                  : 12,
+              16,
+              12,
+            ),
+            itemCount: rows.length + 1,
+            itemBuilder: (_, i) {
+              if (i == 0) {
+                if (widget.chromeHidden) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: () => _showChapterSummary(initialTab: 'book'),
-                        child: Text(
-                          widget.book.name,
+                      _chapterLocTitle(theme),
+                      if (compareStatus == 'loading') ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          '对照译本加载中…',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: theme.ink,
-                          ),
+                              fontSize: 13, color: AppColors.inkFaint),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      GestureDetector(
-                        onTap: () => _showChapterSummary(initialTab: 'chapter'),
-                        child: Text(
-                          '第 ${widget.chapter} 章',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: theme.ink.withValues(alpha: 0.55),
-                          ),
+                      ],
+                      if (compareStatus == 'error') ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          '译本加载失败，请稍后重试',
+                          style:
+                              TextStyle(fontSize: 13, color: AppColors.inkSoft),
                         ),
-                      ),
+                      ],
                     ],
                   ),
-                  if (compareStatus == 'loading') ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                      '对照译本加载中…',
-                      style: TextStyle(fontSize: 13, color: AppColors.inkFaint),
-                    ),
-                  ],
-                  if (compareStatus == 'error') ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                      '译本加载失败，请稍后重试',
-                      style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          }
-          final r = rows[i - 1];
-          if (r is String) {
-            return _sectionTitle(r);
-          }
-          final para = r as VerseParagraph;
-          final primarySpans = <InlineSpan>[];
-          final compareSpans = <InlineSpan>[];
-          final selBg = Paint()..color = AppColors.accentWash;
-          final mainBase = TextStyle(
-            color: theme.ink,
+                );
+              }
+              final r = rows[i - 1];
+              if (r is String) {
+                return _sectionTitle(r);
+              }
+              final para = r as VerseParagraph;
+              final primarySpans = <InlineSpan>[];
+              final compareSpans = <InlineSpan>[];
+              final selBg = Paint()..color = AppColors.accentWash;
+              final mainBase = TextStyle(
+                color: theme.ink,
             fontSize: fontPx,
             // 对齐 PWA 单栏：诗体 2.1，散文 2.05；不在对照模式硬编码 Georgia。
             height: poetry ? 2.1 : 2.05,
@@ -2329,7 +2348,27 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
               ],
             ),
           );
-        },
+            },
+          ),
+          if (widget.chromeHidden)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Material(
+                color: theme.background,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    MediaQuery.paddingOf(context).top + 8,
+                    16,
+                    10,
+                  ),
+                  child: _chapterLocTitle(theme),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
