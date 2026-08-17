@@ -601,7 +601,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         );
       }
     }
-    if (_selected.isNotEmpty) _scheduleFocusBarLayout();
+    if (_selected.isNotEmpty) {
+      // 滚动中不必每帧重算选区工具条位置，停止后再对齐即可。
+      if (!_scroll.position.isScrollingNotifier.value) {
+        _scheduleFocusBarLayout();
+      }
+    }
   }
 
   void _maybeResume() {
@@ -760,6 +765,20 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   bool _focusBarLayoutScheduled = false;
+  int? _cachedDictRev;
+  Map<String, List<DictEntity>>? _cachedDictIndex;
+  List<String>? _cachedDictKeys;
+
+  void _ensureDictCache(List<DictEntity> dictList, int dictRev) {
+    if (_cachedDictRev == dictRev &&
+        _cachedDictIndex != null &&
+        _cachedDictKeys != null) {
+      return;
+    }
+    _cachedDictRev = dictRev;
+    _cachedDictIndex = buildDictIndex(dictList);
+    _cachedDictKeys = dictSortedKeys(_cachedDictIndex!);
+  }
 
   void _scheduleFocusBarLayout() {
     if (_focusBarLayoutScheduled) return;
@@ -1779,9 +1798,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       )),
     );
     final dictList = ref.watch(dictionaryProvider('')).value ?? const [];
-    final dictIndex = buildDictIndex(dictList);
-    final dictKeys = dictSortedKeys(dictIndex);
     final dictRev = dictListRevision(dictList);
+    _ensureDictCache(dictList, dictRev);
+    final dictIndex = _cachedDictIndex!;
+    final dictKeys = _cachedDictKeys!;
     final outline = outlineFor(widget.book.id, widget.chapter);
     final sectionByVerse = {for (final s in outline) s.verse: s.title};
     // API 分段优先；本地 outlines 作兜底
@@ -2171,8 +2191,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       },
       child: ListView.builder(
         controller: _scroll,
-        physics: _DragLockScrollPhysics(dx: _pageDragDxN),
-        scrollCacheExtent: const ScrollCacheExtent.pixels(900),
+        physics: pageTurn == ReaderPageTurn.scroll
+            ? const ClampingScrollPhysics()
+            : _DragLockScrollPhysics(dx: _pageDragDxN),
+        scrollCacheExtent: const ScrollCacheExtent.pixels(640),
         // 沉浸：顶垫给固定卷章条；非沉浸：底垫对齐胶囊底栏（peiaiTabContentBottomPad）
         padding: EdgeInsets.fromLTRB(
           16,
@@ -2519,8 +2541,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
     final listBody = ListView.builder(
       controller: _scroll,
-      physics: _DragLockScrollPhysics(dx: _pageDragDxN),
-      scrollCacheExtent: const ScrollCacheExtent.pixels(900),
+      physics: pageTurn == ReaderPageTurn.scroll
+          ? const ClampingScrollPhysics()
+          : _DragLockScrollPhysics(dx: _pageDragDxN),
+      scrollCacheExtent: const ScrollCacheExtent.pixels(640),
       // 对照模式同样沿用 PWA 的 16px 阅读边距，并垫开胶囊底栏。
       padding: EdgeInsets.fromLTRB(
         16,

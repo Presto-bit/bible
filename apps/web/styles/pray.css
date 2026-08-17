@@ -50,7 +50,7 @@ html.android-flutter-h5.pray-session-open body {
 }
 html.android-flutter-h5.pray-session-open .app-body,
 html.android-flutter-h5 body.pray-session-open .app-body {
-  visibility: visible;
+  visibility: hidden;
   pointer-events: none;
   padding: 0 !important;
   overflow: hidden !important;
@@ -61,9 +61,16 @@ html.android-flutter-h5 .pray-session {
   position: absolute;
   inset: 0;
   height: 100%;
-  min-height: var(--peiai-vv-h, 100%);
+  min-height: var(--peiai-vv-h, 100%) !important;
   max-height: var(--peiai-vv-h, 100%);
   pointer-events: auto;
+  overflow: hidden;
+}
+html.android-flutter-h5 .pray-session-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .pray-session-bg {

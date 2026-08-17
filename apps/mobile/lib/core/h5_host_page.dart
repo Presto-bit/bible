@@ -156,6 +156,14 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     syncDiscoverChromeFromPath(ref, _activePath);
   }
 
+  bool get _needsBottomSafeInset {
+    final p = _activePath.split('?').first;
+    return p == '/wrapped' ||
+        p.startsWith('/wrapped') ||
+        p == '/pray' ||
+        p.startsWith('/pray/');
+  }
+
   /// 宿主浮动底栏高度注入 H5（extendBody 后内容需自行垫底）。
   /// 聊天沉浸仍保留底部安全区，避免 composer 贴到 Home Indicator。
   String _tabBarCssJs({bool keyboardUp = false}) {
@@ -166,7 +174,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final chatImmersive =
         isDiscoverChatPath(_activePath) ||
         (widget.tabIndex == 3 && ref.read(discoverImmersiveProvider));
-    final safe = keyboardUp ? 0.0 : (chatImmersive ? safeRaw : 0.0);
+    final useSafeBottom =
+        chatImmersive || (!widget.embedInTab && _needsBottomSafeInset);
+    final safe = keyboardUp ? 0.0 : (useSafeBottom ? safeRaw : 0.0);
     if (!widget.embedInTab || chatImmersive) {
       return '''
     root.style.setProperty('--shell-inset-bottom', '${safe.toStringAsFixed(1)}px');
@@ -568,8 +578,13 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         + '  touch-action:none !important;'
         + '}'
         + 'html.android-flutter-h5 .wrapped-story-scroller {'
-        + '  scroll-behavior:auto !important; scroll-snap-type:none !important;'
+        + '  scroll-behavior:auto !important; scroll-snap-type:y mandatory !important;'
         + '  touch-action:pan-y !important;'
+        + '}'
+        + 'html.android-flutter-h5 .wrapped-slide {'
+        + '  height:var(--peiai-vv-h,100%) !important;'
+        + '  min-height:var(--peiai-vv-h,100%) !important;'
+        + '  max-height:var(--peiai-vv-h,100%) !important;'
         + '}'
         + 'html.android-flutter-h5.story-album-lock,'
         + 'html.android-flutter-h5.story-album-lock body,'
@@ -656,6 +671,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final tokenJs = token != null && token.isNotEmpty ? _jsStr(token) : 'null';
     final top = widget.showAppBar ? 0.0 : MediaQuery.paddingOf(context).top;
     final pray = _isPraySurface;
+    final earlyHostH = MediaQuery.sizeOf(context).height;
     await c.runJavaScript('''
 (function(){
   try {
@@ -669,6 +685,8 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     root.setAttribute('data-peiai-theme', '${dark ? 'dark' : 'light'}');
     root.setAttribute('data-theme', '${dark ? 'dark' : 'light'}');
     root.style.setProperty('--shell-inset-top', '${top.toStringAsFixed(1)}px');
+    root.style.setProperty('--peiai-vv-h', '${earlyHostH.toStringAsFixed(1)}px');
+    root.style.setProperty('--im-vv-h', '${earlyHostH.toStringAsFixed(1)}px');
     ${_tabBarCssJs()}
     $_readingHydrateJs
     // 祷告：SPA hydrate 前先铺表面色，去掉「白屏一瞬」
@@ -1173,9 +1191,13 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
           );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: Theme.of(context).brightness == Brightness.dark
-          ? SystemUiOverlayStyle.light
-          : SystemUiOverlayStyle.dark,
+      value: (Theme.of(context).brightness == Brightness.dark
+              ? SystemUiOverlayStyle.light
+              : SystemUiOverlayStyle.dark)
+          .copyWith(
+        systemNavigationBarColor:
+            praySurface ? _praySurface : Theme.of(context).scaffoldBackgroundColor,
+      ),
       child: PopScope(
         canPop: !widget.embedInTab && !_canGoBack,
         onPopInvokedWithResult: (didPop, _) async {

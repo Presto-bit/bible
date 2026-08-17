@@ -44,6 +44,8 @@ class DictEntity {
     required this.refs,
     this.aliases = const [],
     this.disambiguation,
+    this.testament,
+    this.scopeBooks = const [],
   });
   final String id;
   final String name;
@@ -52,6 +54,8 @@ class DictEntity {
   final List<String> refs;
   final List<String> aliases;
   final String? disambiguation;
+  final String? testament;
+  final List<String> scopeBooks;
 
   factory DictEntity.fromJson(Map<String, dynamic> j) {
     final name = (j['name'] ?? '') as String;
@@ -65,6 +69,8 @@ class DictEntity {
       refs: ((j['refs'] ?? []) as List).map((e) => '$e').toList(),
       aliases: ((j['aliases'] ?? []) as List).map((e) => '$e').toList(),
       disambiguation: j['disambiguation'] as String?,
+      testament: j['testament'] as String?,
+      scopeBooks: ((j['scope_books'] ?? []) as List).map((e) => '$e').toList(),
     );
   }
 }

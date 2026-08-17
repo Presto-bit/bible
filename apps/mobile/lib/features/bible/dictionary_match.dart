@@ -5,6 +5,40 @@ import 'dart:collection';
 
 import 'content_repository.dart';
 
+const _ntBooks = {
+  'MAT', 'MRK', 'LUK', 'JHN', 'ACT', 'ROM', '1CO', '2CO', 'GAL', 'EPH', 'PHP',
+  'COL', '1TH', '2TH', '1TI', '2TI', 'TIT', 'PHM', 'HEB', 'JAS', '1PE', '2PE',
+  '1JN', '2JN', '3JN', 'JUD', 'REV',
+};
+
+final _bookSenseHints = <String, RegExp>{
+  'JHN': RegExp(r'使徒|所爱的门徒|福音作者|启示录'),
+  '1JN': RegExp(r'使徒|所爱的门徒'),
+  '2JN': RegExp(r'使徒|所爱的门徒'),
+  '3JN': RegExp(r'使徒|所爱的门徒'),
+  'REV': RegExp(r'使徒|拔摩|启示录'),
+  'MRK': RegExp(r'马可|约翰马可'),
+  'ACT': RegExp(r'施洗|先锋|马可'),
+  'MAT': RegExp(r'施洗|先锋|使徒'),
+  'LUK': RegExp(r'施洗|先锋|使徒'),
+};
+
+String _testamentForBook(String bookId) =>
+    _ntBooks.contains(bookId.toUpperCase()) ? 'NT' : 'OT';
+
+({String book, int chapter, int verse})? _refCoords(String ref) {
+  final m = RegExp(
+    r'^([1-3]?[A-Z]{2,4})[\s.:]+(\d+)[\s.:]+(\d+)',
+    caseSensitive: false,
+  ).firstMatch(ref.trim().replaceAll('.', ' '));
+  if (m == null) return null;
+  return (
+    book: m.group(1)!.toUpperCase(),
+    chapter: int.parse(m.group(2)!),
+    verse: int.parse(m.group(3)!),
+  );
+}
+
 /// 专名 → 候选词条列表（含 alias）。
 Map<String, List<DictEntity>> buildDictIndex(List<DictEntity> entities) {
   final m = <String, List<DictEntity>>{};
@@ -62,7 +96,6 @@ List<DictToken> splitDictTokens(
       out.add(DictToken(text: hit, entity: cands.first));
       i += hit.length;
     } else {
-      // 聚合连续非专名字符
       final start = i;
       i++;
       while (i < text.length) {
@@ -128,7 +161,7 @@ class DictSpanHit {
   final String name;
 }
 
-int _scoreEntityForContext(
+int scoreEntityForContext(
   DictEntity entity, {
   required String bookId,
   required int chapter,
@@ -136,29 +169,54 @@ int _scoreEntityForContext(
 }) {
   var score = 0;
   final normalizedBook = bookId.toUpperCase();
+  final ctxT = _testamentForBook(normalizedBook);
+  final entT = entity.testament?.toUpperCase();
+  if (entT == ctxT) score += 40;
+  if (entT == 'BOTH') score += 20;
+
+  final scope = entity.scopeBooks.map((b) => b.toUpperCase()).toSet();
+  if (scope.contains(normalizedBook)) score += 80;
+
+  final hint = _bookSenseHints[normalizedBook];
+  if (hint != null) {
+    final blob =
+        '${entity.disambiguation ?? ''} ${entity.summary} ${entity.aliases.join(' ')}';
+    if (hint.hasMatch(blob)) score += 100;
+  }
+
   for (final rawRef in entity.refs) {
-    final m = RegExp(
-      r'^([A-Za-z0-9]+)[.\s]+(\d+)(?:[:.\s]+(\d+))?',
-    ).firstMatch(rawRef.trim());
-    if (m == null) continue;
-    final refBook = m.group(1)!.toUpperCase();
-    final refChapter = int.tryParse(m.group(2)!);
-    final refVerse = int.tryParse(m.group(3) ?? '');
-    if (refBook != normalizedBook) continue;
-    score += 30;
-    if (refChapter == chapter) {
-      score += 20;
-      if (refVerse != null) {
-        score += (15 - (refVerse - verse).abs()).clamp(0, 15);
+    final c = _refCoords(rawRef);
+    if (c == null) continue;
+    if (c.book == normalizedBook) {
+      score += 30;
+      if (c.chapter == chapter) {
+        score += 20;
+        score += (15 - (c.verse - verse).abs()).clamp(0, 15);
       }
+    } else if (_testamentForBook(c.book) == ctxT) {
+      score += 5;
     }
   }
-  final blob =
-      '${entity.disambiguation ?? ''} ${entity.summary} ${entity.aliases.join(' ')}';
-  if (normalizedBook == 'JHN' && RegExp(r'使徒|所爱的门徒|福音作者|启示录').hasMatch(blob)) {
-    score += 100;
-  }
   return score;
+}
+
+/// 低置信时不链正文，避免无关专名（尤其地点）误标。
+bool shouldLinkDictEntity(
+  List<DictEntity> candidates,
+  DictEntity picked, {
+  required int topScore,
+  required int secondScore,
+}) {
+  if (candidates.length <= 1) {
+    if (picked.type == 'place' && picked.name.length <= 2 && topScore < 30) {
+      return false;
+    }
+    if (topScore < 15 && picked.refs.isEmpty) return false;
+    return true;
+  }
+  if (topScore < 30) return false;
+  if (topScore - secondScore < 50 && topScore < 80) return false;
+  return true;
 }
 
 List<DictEntity> rankDictCandidates(
@@ -169,13 +227,13 @@ List<DictEntity> rankDictCandidates(
 }) {
   return [...candidates]..sort(
     (a, b) =>
-        _scoreEntityForContext(
+        scoreEntityForContext(
           b,
           bookId: bookId,
           chapter: chapter,
           verse: verse,
         ).compareTo(
-          _scoreEntityForContext(
+          scoreEntityForContext(
             a,
             bookId: bookId,
             chapter: chapter,
@@ -206,14 +264,39 @@ List<DictSpanHit> dictSpansForText(
     }
     final end = start + t.text.length;
     if (t.entity != null) {
+      final cands = index[t.text] ?? [t.entity!];
       final ranked = rankDictCandidates(
-        index[t.text] ?? [t.entity!],
+        cands,
         bookId: bookId,
         chapter: chapter,
         verse: verse,
       );
+      final top = ranked.first;
+      final topScore = scoreEntityForContext(
+        top,
+        bookId: bookId,
+        chapter: chapter,
+        verse: verse,
+      );
+      final secondScore = ranked.length > 1
+          ? scoreEntityForContext(
+              ranked[1],
+              bookId: bookId,
+              chapter: chapter,
+              verse: verse,
+            )
+          : 0;
+      if (!shouldLinkDictEntity(
+        ranked,
+        top,
+        topScore: topScore,
+        secondScore: secondScore,
+      )) {
+        cursor = end;
+        continue;
+      }
       out.add(
-        DictSpanHit(start: start, end: end, entity: ranked.first, name: t.text),
+        DictSpanHit(start: start, end: end, entity: top, name: t.text),
       );
     }
     cursor = end;

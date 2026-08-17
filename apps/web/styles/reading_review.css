@@ -424,12 +424,20 @@ html.android-flutter-h5 .app-body:has(.wrapped-page-shell) {
 html.pwa-standalone .wrapped-story-scroller {
   scroll-behavior: auto;
 }
-/* 安卓 WebView：关掉 CSS snap，改由 JS 触摸分页（snap 经常不跟手） */
-html.android-flutter-h5 .wrapped-story-scroller,
-.wrapped-story-scroller--js-page {
+/* 安卓 WebView：保留 scroll-snap（宿主高度已对齐），仅关 smooth 防卡顿 */
+html.android-flutter-h5 .wrapped-story-scroller {
   scroll-behavior: auto;
-  scroll-snap-type: none;
+  scroll-snap-type: y mandatory;
   touch-action: pan-y;
+}
+html.android-flutter-h5 .wrapped-slide {
+  height: var(--peiai-vv-h, 100%);
+  min-height: var(--peiai-vv-h, 100%);
+  max-height: var(--peiai-vv-h, 100%);
+}
+html.android-flutter-h5 .wrapped-page-shell {
+  height: var(--peiai-vv-h, 100%);
+  max-height: var(--peiai-vv-h, 100%);
 }
 .wrapped-story-loading {
   flex: 1;

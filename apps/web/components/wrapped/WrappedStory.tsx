@@ -129,73 +129,28 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
     setIndex(clamped);
   }, []);
 
-  // Flutter / 旧 WebView：CSS snap 不可靠，用触摸阈值切屏（对齐 PWA「下滑继续」）
-  useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el || !embedded || total < 2) return;
-    let startY = 0;
-    let startX = 0;
-    let startT = 0;
-    let tracking = false;
-
-    const onStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      tracking = true;
-      startY = e.touches[0].clientY;
-      startX = e.touches[0].clientX;
-      startT = Date.now();
-    };
-    const onMove = (e: TouchEvent) => {
-      if (!tracking || e.touches.length !== 1) return;
-      const dy = e.touches[0].clientY - startY;
-      const dx = e.touches[0].clientX - startX;
-      if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) {
-        e.preventDefault();
-      }
-    };
-    const onEnd = (e: TouchEvent) => {
-      if (!tracking) return;
-      tracking = false;
-      const t = e.changedTouches[0];
-      if (!t) return;
-      const dy = startY - t.clientY;
-      const dx = Math.abs(t.clientX - startX);
-      if (dx > Math.abs(dy) + 12) return;
-      const h = scrollerPageHeight(el);
-      const threshold = Math.min(72, Math.max(36, h * 0.12));
-      const flick = Date.now() - startT < 320;
-      const cur = indexRef.current;
-      if (dy > threshold || (flick && dy > 24)) go(cur + 1);
-      else if (dy < -threshold || (flick && dy < -24)) go(cur - 1);
-      else go(cur);
-    };
-
-    el.addEventListener('touchstart', onStart, { passive: true });
-    el.addEventListener('touchmove', onMove, { passive: false });
-    el.addEventListener('touchend', onEnd, { passive: true });
-    el.addEventListener('touchcancel', onEnd, { passive: true });
-    return () => {
-      el.removeEventListener('touchstart', onStart);
-      el.removeEventListener('touchmove', onMove);
-      el.removeEventListener('touchend', onEnd);
-      el.removeEventListener('touchcancel', onEnd);
-    };
-  }, [embedded, total, stats.period, go]);
-
-  // 布局确定后校准一次 index（WebView 首帧 clientHeight 可能为 0）
+  // 布局确定后校准 index（WebView 首帧 clientHeight 可能为 0）
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
     const ro = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => syncIndex())
+      ? new ResizeObserver(() => {
+          syncIndex();
+          if (embedded) {
+            const h = scrollerPageHeight(el);
+            if (h > 0) {
+              el.scrollTo({ top: indexRef.current * h, behavior: 'auto' });
+            }
+          }
+        })
       : null;
     ro?.observe(el);
-    const t = window.setTimeout(syncIndex, 60);
+    const t = window.setTimeout(syncIndex, 80);
     return () => {
       ro?.disconnect();
       window.clearTimeout(t);
     };
-  }, [syncIndex, total, stats.period]);
+  }, [embedded, syncIndex, total, stats.period]);
 
   return (
     <div className={`wrapped-story wrapped-story--${stats.period}`}>

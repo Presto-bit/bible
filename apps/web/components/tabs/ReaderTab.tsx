@@ -23,6 +23,7 @@ import {
   hasAlternateSenses,
   lookupDictCandidates,
   properNounClass,
+  shouldLinkDictEntity,
   writeDictChoice,
   type DictContext,
 } from '@/lib/dictionary_match';
@@ -149,10 +150,15 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     (text: string, keyBase: string, verse: number) => {
       if (!properNounRe) return text;
       const parts = text.split(properNounRe);
+      const ctx: DictContext = { bookId: book!.id, chapter, verse };
       return parts.map((part, i) => {
         const candidates = dictIndex.get(part);
         if (candidates?.length) {
-          const picked = candidates[0];
+          const ranked = lookupDictCandidates(part, dictIndex, ctx);
+          const picked = ranked[0];
+          if (!picked || !shouldLinkDictEntity(ranked, picked, ctx)) {
+            return <span key={`${keyBase}-t${i}`}>{part}</span>;
+          }
           return (
             <span
               key={`${keyBase}-pn${i}`}

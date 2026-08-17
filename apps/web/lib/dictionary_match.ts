@@ -209,6 +209,25 @@ export function rankDictCandidates(
   return [...candidates].sort((a, b) => scoreEntity(b, ctx) - scoreEntity(a, ctx));
 }
 
+/** 低置信时不链正文，避免无关专名（尤其地点）误标。 */
+export function shouldLinkDictEntity(
+  candidates: DictEntity[],
+  picked: DictEntity,
+  ctx: DictContext,
+): boolean {
+  const scores = candidates.map((c) => scoreEntity(c, ctx));
+  const topScore = scores[0] ?? 0;
+  const secondScore = scores[1] ?? 0;
+  if (candidates.length <= 1) {
+    if (picked.type === 'place' && picked.name.length <= 2 && topScore < 30) return false;
+    if (topScore < 15 && !(picked.refs?.length)) return false;
+    return true;
+  }
+  if (topScore < 30) return false;
+  if (topScore - secondScore < 50 && topScore < 80) return false;
+  return true;
+}
+
 export function dictMatchPattern(index: Map<string, DictEntity[]>): RegExp | null {
   const names = Array.from(index.keys())
     .filter((n) => n.length >= 2)

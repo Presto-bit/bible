@@ -133,6 +133,7 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   Timer? _loadWatchdog;
   Timer? _blankProbe;
   var _blankProbeDone = false;
+  var _blankRetryCount = 0;
 
   @override
   void initState() {
@@ -184,7 +185,7 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   void _scheduleBlankProbe(WebViewController controller) {
     if (!widget.genesis50 || _blankProbeDone) return;
     _blankProbe?.cancel();
-    _blankProbe = Timer(const Duration(milliseconds: 2800), () async {
+    _blankProbe = Timer(const Duration(milliseconds: 6500), () async {
       if (!mounted || _controller != controller) return;
       try {
         final raw = await controller.runJavaScriptReturningResult('''
@@ -192,13 +193,27 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   try {
     var root = document.getElementById('root');
     var text = (document.body && (document.body.innerText || '')) || '';
-    var hasUi = !!(root && root.childElementCount > 0) || text.trim().length > 8;
+    var hasUi = !!(root && root.childElementCount > 0) || text.trim().length > 24;
     return hasUi ? 'ok' : 'blank';
   } catch (e) { return 'ok'; }
 })();
 ''');
         final status = '$raw'.replaceAll('"', '');
-        if (!status.contains('blank')) return;
+        if (!status.contains('blank')) {
+          _blankRetryCount = 0;
+          return;
+        }
+        if (_blankRetryCount < 1) {
+          _blankRetryCount++;
+          if (!mounted) return;
+          setState(() {
+            _error = null;
+            _loading = true;
+            _authPhase = true;
+          });
+          unawaited(_openGenesis50());
+          return;
+        }
         _blankProbeDone = true;
         if (!mounted) return;
         setState(() {
