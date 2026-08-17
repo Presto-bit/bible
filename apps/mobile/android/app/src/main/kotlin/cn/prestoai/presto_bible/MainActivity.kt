@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -76,11 +77,7 @@ class MainActivity : FlutterFragmentActivity() {
               result.error("invalid_url", "链接无效", null)
             } else {
               try {
-                startActivity(
-                  Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                  },
-                )
+                openExternalUrl(url)
                 result.success(null)
               } catch (_: ActivityNotFoundException) {
                 result.error("no_browser", "未找到可用浏览器", null)
@@ -101,6 +98,51 @@ class MainActivity : FlutterFragmentActivity() {
           else -> result.notImplemented()
         }
       }
+  }
+
+  private fun openExternalUrl(url: String) {
+    val uri = Uri.parse(url)
+    val extras = Bundle().apply {
+      putBinder("android.support.customtabs.extra.SESSION", null)
+    }
+    for (pkg in customTabPackages()) {
+      try {
+        startActivity(
+          Intent(Intent.ACTION_VIEW, uri).apply {
+            setPackage(pkg)
+            putExtras(extras)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          },
+        )
+        return
+      } catch (_: Exception) {
+        // 试下一个浏览器
+      }
+    }
+    startActivity(
+      Intent(Intent.ACTION_VIEW, uri).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      },
+    )
+  }
+
+  private fun customTabPackages(): List<String> {
+    val preferred = listOf(
+      "com.android.chrome",
+      "com.google.android.apps.chrome",
+      "com.chrome.beta",
+      "org.mozilla.firefox",
+      "com.microsoft.emmx",
+      "com.sec.android.app.sbrowser",
+    )
+    return preferred.filter { pkg ->
+      try {
+        packageManager.getPackageInfo(pkg, 0)
+        true
+      } catch (_: PackageManager.NameNotFoundException) {
+        false
+      }
+    }
   }
 
   private fun hasMicrophonePermission(): Boolean =

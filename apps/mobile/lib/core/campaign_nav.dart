@@ -2,7 +2,6 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -36,7 +35,7 @@ String normalizeCampaignHref(String href) {
 }
 
 /// 打开活动 / 推荐卡链接：站内 H5 或原生路由；真外链全屏 WebView。
-/// 创世记 50：先鉴权再打开（对齐 PWA `openGenesis50Authed`）。
+/// 创世记 50：本机换 session 后仍在 App 内 WebView 打开（不外跳）。
 Future<void> openCampaignHref(
   BuildContext context,
   String href, {
@@ -72,17 +71,17 @@ Future<void> openCampaignHref(
       context.push(full);
       return;
     }
-    // 真外链 / 创世记 50 等 → 全屏 WebView（对齐 PWA 内嵌浏览器）
+    final genesis50 = isGenesis50Href(raw);
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => _ExternalBrowserPage(
           url: raw,
           title:
               title ??
-              (isGenesis50Href(raw)
+              (genesis50
                   ? '创世记 50 天'
                   : uri.host.replaceFirst(RegExp(r'^www\.'), '')),
-          genesis50: isGenesis50Href(raw),
+          genesis50: genesis50,
         ),
       ),
     );
@@ -130,16 +129,11 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   var _loading = true;
   var _authPhase = false;
   String? _error;
-  String _activeUrl = '';
   Timer? _loadWatchdog;
-  Timer? _inviteSkipProbe;
-  var _hydrateAttempts = 0;
-  var _genesisSessionReloaded = false;
 
   @override
   void initState() {
     super.initState();
-    _activeUrl = widget.url;
     if (widget.genesis50) {
       _authPhase = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _openGenesis50());
@@ -151,7 +145,6 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
   @override
   void dispose() {
     _loadWatchdog?.cancel();
-    _inviteSkipProbe?.cancel();
     super.dispose();
   }
 
@@ -164,8 +157,10 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
       final openUrl = await resolveGenesis50OpenUrl(widget.url, nickname: nick);
       if (!mounted) return;
       setState(() => _authPhase = false);
+      // fragment 携带 session，对方 SPA 首帧 detectSessionInUrl 即可恢复；
+      // 不再做 localStorage 注入 / reload。
       await _startWebView(openUrl);
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _authPhase = false);
       await _startWebView(
@@ -179,72 +174,14 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
 
   void _armLoadWatchdog() {
     _loadWatchdog?.cancel();
-    _loadWatchdog = Timer(Duration(seconds: widget.genesis50 ? 28 : 18), () {
-      if (!mounted || !_loading || _error != null) return;
-      setState(() {
-        _loading = false;
-        _error = widget.genesis50 ? '活动未能完成加载，请检查网络后重试' : '页面打开较慢，请检查网络后重试';
-      });
-    });
-  }
-
-  /// 对方站若未及时读到 query session，把 token 写入 localStorage 兜底。
-  /// 对齐 PWA：不清 query、不 reload，避免 SPA 白壳。
-  Future<void> _hydrateGenesis50Session(WebViewController controller) async {
-    if (!widget.genesis50) return;
-    if (_hydrateAttempts >= 2) return;
-    final payload = genesis50SessionPayloadFromUrl(_activeUrl);
-    if (payload == null) return;
-    _hydrateAttempts += 1;
-    final json = jsonEncode(payload);
-    final key = genesis50AuthStorageKey;
-    try {
-      await controller.runJavaScript('''
-(function(){
-  try {
-    var session = $json;
-    var key = ${jsonEncode(key)};
-    localStorage.setItem(key, JSON.stringify(session));
-  } catch (e) {}
-})();
-''');
-    } catch (e) {
-      if (kDebugMode) debugPrint('genesis50 hydrate: $e');
-    }
-  }
-
-  void _scheduleInviteSkipProbe(WebViewController controller) {
-    if (!widget.genesis50) return;
-    _inviteSkipProbe?.cancel();
-    // 若首屏仍是邀请码页，session 已写入同源 localStorage 后保留 query 重载
-    // 一次。这样对方 SPA 会在初始化前同时读到 URL 与 storage；绝不清 token
-    // query，避免此前 replaceState + reload 造成的白页。
-    _inviteSkipProbe = Timer(const Duration(milliseconds: 1600), () async {
-      if (!mounted || _controller != controller) return;
-      try {
-        final raw = await controller.runJavaScriptReturningResult('''
-(function(){
-  try {
-    var body = (document.body && (document.body.innerText || '')) || '';
-    return /邀请码进入|请输入点长/.test(body) ? 'invite' : 'ok';
-  } catch (e) { return 'ok'; }
-})();
-''');
-        final status = '$raw'.replaceAll('"', '');
-        if (status.contains('invite') && !_genesisSessionReloaded) {
-          await _hydrateGenesis50Session(controller);
-          if (!mounted || _controller != controller) return;
-          _genesisSessionReloaded = true;
-          await controller.reload();
-        }
-      } catch (_) {}
+    // 超时只撤掉 loading 遮罩，不盖死错误层——对方 SPA 可能已可交互。
+    _loadWatchdog = Timer(Duration(seconds: widget.genesis50 ? 22 : 18), () {
+      if (!mounted || !_loading) return;
+      setState(() => _loading = false);
     });
   }
 
   Future<void> _startWebView(String url) async {
-    _activeUrl = url;
-    _hydrateAttempts = 0;
-    _genesisSessionReloaded = false;
     final controller = WebViewController();
     await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
     await controller.setBackgroundColor(AppColors.paper);
@@ -259,14 +196,10 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
           }
           _armLoadWatchdog();
         },
-        onPageFinished: (_) async {
+        onPageFinished: (_) {
           _loadWatchdog?.cancel();
           if (!mounted) return;
           setState(() => _loading = false);
-          if (widget.genesis50) {
-            await _hydrateGenesis50Session(controller);
-            _scheduleInviteSkipProbe(controller);
-          }
         },
         onWebResourceError: (err) {
           if (!(err.isForMainFrame ?? true)) return;
@@ -388,17 +321,17 @@ class _ExternalBrowserPageState extends ConsumerState<_ExternalBrowserPage> {
               color: AppColors.paper.withValues(
                 alpha: _controller == null ? 1 : 0.92,
               ),
-              child: const Center(
+              child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 28,
                       height: 28,
                       child: CircularProgressIndicator(strokeWidth: 2.5),
                     ),
-                    SizedBox(height: 14),
-                    Text('正在进入活动…'),
+                    const SizedBox(height: 14),
+                    Text(widget.genesis50 ? '正在进入活动…' : '正在打开…'),
                   ],
                 ),
               ),
