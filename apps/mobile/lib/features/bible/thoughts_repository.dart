@@ -5,10 +5,12 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../core/api_client.dart';
 import '../../core/user_storage.dart';
+import '../../core/mark_ref.dart' show parseMarkRef;
+import 'markings_repository.dart';
+import 'thought_sync.dart';
 
 export '../../core/mark_ref.dart' show selectionRef;
 
@@ -137,6 +139,14 @@ class VerseThoughtData {
   }
 }
 
+List<VerseThoughtData> readAllThoughts(SharedPreferences prefs) => _readAll(prefs);
+
+Future<void> writeAllThoughts(
+  SharedPreferences prefs,
+  List<VerseThoughtData> rows,
+) =>
+    _writeAll(prefs, rows);
+
 List<VerseThoughtData> _readAll(SharedPreferences prefs) {
   try {
     final raw = userPrefGetString(prefs, _thoughtsKey);
@@ -223,7 +233,6 @@ class ThoughtsRepository {
   ThoughtsRepository(this._prefs, this._ref);
   final SharedPreferences _prefs;
   final Ref _ref;
-  static const _uuid = Uuid();
 
   String get _userId =>
       _prefs.getString('user_id') ??
@@ -253,31 +262,104 @@ class ThoughtsRepository {
       ..sort((a, b) => b.createdAtMs.compareTo(a.createdAtMs));
   }
 
-  Future<void> deleteThought(String id) async {
-    final rows = _readAll(_prefs)..removeWhere((t) => t.id == id);
-    await _writeAll(_prefs, rows);
-    _notify();
+  bool isMine(VerseThoughtData thought) => thought.authorId == _userId;
+
+  List<VerseThoughtData> myThoughtsForRef(String ref) =>
+      _readAll(_prefs).where((t) => t.ref == ref && t.authorId == _userId).toList();
+
+  VerseThoughtData? getThoughtById(String id) {
+    try {
+      return _readAll(_prefs).firstWhere((t) => t.id == id && t.authorId == _userId);
+    } catch (_) {
+      return null;
+    }
   }
 
-  Future<void> updateThought(String id, String body) async {
+  Future<bool> deleteThought(String id, {bool skipSync = false}) async {
     final rows = _readAll(_prefs);
     final i = rows.indexWhere((t) => t.id == id);
+    if (i < 0 || rows[i].authorId != _userId) return false;
+    final row = rows[i];
+    rows.removeAt(i);
+    await _writeAll(_prefs, rows);
+    _notify();
+    if (!skipSync) {
+      final syncId = ensureThoughtSyncId(row.id);
+      await enqueueThoughtSync(
+        _ref,
+        id: syncId,
+        refStr: row.ref,
+        body: row.body,
+        visibility: row.visibility.name,
+        createdAtMs: row.createdAtMs,
+        isDelete: true,
+      );
+    }
+    return true;
+  }
+
+  /// 删除想法后，若该经文已无自己的想法，则同步去掉划线。
+  Future<bool> deleteThoughtAndClearMark(String id) async {
+    final row = getThoughtById(id);
+    if (!await deleteThought(id)) return false;
+    if (row == null || row.ref.isEmpty || row.ref == 'FREE') return true;
+    if (myThoughtsForRef(row.ref).isNotEmpty) return true;
+
+    final markings = _ref.read(markingsRepoProvider);
+    await markings.removeHighlight(row.ref);
+
+    final parsed = parseMarkRef(row.ref);
+    if (parsed?.verseStart != null) {
+      final end = parsed!.verseEnd ?? parsed.verseStart!;
+      for (var v = parsed.verseStart!; v <= end; v++) {
+        final storage = '${parsed.bookId}.${parsed.chapter}.$v';
+        if (storage != row.ref) {
+          await markings.removeHighlight(storage);
+        }
+      }
+    }
+    return true;
+  }
+
+  Future<void> updateThought(
+    String id,
+    String body, {
+    ThoughtVisibility? visibility,
+    bool skipSync = false,
+  }) async {
+    final rows = _readAll(_prefs);
+    final i = rows.indexWhere((t) => t.id == id && t.authorId == _userId);
     if (i < 0) return;
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) return;
     final t = rows[i];
+    final vis = visibility ?? t.visibility;
+    final syncId = skipSync ? t.id : ensureThoughtSyncId(t.id);
     rows[i] = VerseThoughtData(
-      id: t.id,
+      id: syncId,
       ref: t.ref,
-      body: body.trim(),
+      body: trimmed,
       authorId: t.authorId,
       authorName: t.authorName,
       likesCount: t.likesCount,
       likedBy: t.likedBy,
-      isShared: t.isShared,
-      visibility: t.visibility,
+      isShared: vis != ThoughtVisibility.private,
+      visibility: vis,
       createdAtMs: t.createdAtMs,
     );
     await _writeAll(_prefs, rows);
+    await rememberVisibility(_prefs, vis);
     _notify();
+    if (!skipSync) {
+      await enqueueThoughtSync(
+        _ref,
+        id: syncId,
+        refStr: rows[i].ref,
+        body: rows[i].body,
+        visibility: vis.name,
+        createdAtMs: rows[i].createdAtMs,
+      );
+    }
   }
 
   Future<VerseThoughtData> addThought(
@@ -285,13 +367,17 @@ class ThoughtsRepository {
     String body, {
     bool shared = true,
     ThoughtVisibility? visibility,
+    bool skipSync = false,
+    String? id,
+    int? createdAtMs,
   }) async {
     final rows = _readAll(_prefs);
     final vis =
         visibility ??
         (shared ? ThoughtVisibility.public : ThoughtVisibility.private);
+    final syncId = skipSync ? (id ?? ensureThoughtSyncId(null)) : ensureThoughtSyncId(id);
     final row = VerseThoughtData(
-      id: _uuid.v4(),
+      id: syncId,
       ref: ref,
       body: body.trim(),
       authorId: _userId,
@@ -300,11 +386,22 @@ class ThoughtsRepository {
       likedBy: const [],
       isShared: vis != ThoughtVisibility.private,
       visibility: vis,
-      createdAtMs: DateTime.now().millisecondsSinceEpoch,
+      createdAtMs: createdAtMs ?? DateTime.now().millisecondsSinceEpoch,
     );
     rows.add(row);
     await _writeAll(_prefs, rows);
+    await rememberVisibility(_prefs, vis);
     _notify();
+    if (!skipSync) {
+      await enqueueThoughtSync(
+        _ref,
+        id: syncId,
+        refStr: ref,
+        body: row.body,
+        visibility: vis.name,
+        createdAtMs: row.createdAtMs,
+      );
+    }
     return row;
   }
 
@@ -325,6 +422,83 @@ class ThoughtsRepository {
 
   bool isLikedByMe(VerseThoughtData thought) =>
       thought.likedBy.contains(_userId);
+}
 
-  bool isMine(VerseThoughtData thought) => thought.authorId == _userId;
+/// 远端 pull 合并（不回写 outbox）。
+Future<bool> applyRemoteThought(
+  SharedPreferences prefs, {
+  required String id,
+  required String op,
+  int? version,
+  Map<String, dynamic>? data,
+}) async {
+  final incoming = version ?? 1;
+  if (remoteVersionForThought(prefs, id) > incoming && op != 'delete') {
+    return false;
+  }
+
+  if (op == 'delete') {
+    final rows = readAllThoughts(prefs)..removeWhere((t) => t.id == id);
+    await writeAllThoughts(prefs, rows);
+    await clearThoughtSyncMeta(prefs, id);
+    return true;
+  }
+
+  final refStr = (data?['ref'] as String?)?.trim();
+  final body = (data?['body'] as String?)?.trim();
+  if (refStr == null || refStr.isEmpty || body == null || body.isEmpty) {
+    return false;
+  }
+
+  final visRaw = data?['visibility'] as String?;
+  final visibility = switch (visRaw) {
+    'public' => ThoughtVisibility.public,
+    'friends' => ThoughtVisibility.friends,
+    'private' => ThoughtVisibility.private,
+    _ => ThoughtVisibility.private,
+  };
+  final createdAtMs = (data?['created_at_ms'] as num?)?.toInt() ??
+      DateTime.now().millisecondsSinceEpoch;
+
+  final all = readAllThoughts(prefs);
+  final i = all.indexWhere((t) => t.id == id);
+  if (i >= 0) {
+    final prev = all[i];
+    all[i] = VerseThoughtData(
+      id: id,
+      ref: refStr,
+      body: body,
+      authorId: prev.authorId,
+      authorName: prev.authorName,
+      likesCount: prev.likesCount,
+      likedBy: prev.likedBy,
+      isShared: visibility != ThoughtVisibility.private,
+      visibility: visibility,
+      createdAtMs: prev.createdAtMs > 0 ? prev.createdAtMs : createdAtMs,
+    );
+    await writeAllThoughts(prefs, all);
+  } else {
+    final userId =
+        prefs.getString('user_id') ??
+        userPrefGetString(prefs, 'onboarding_name') ??
+        'me';
+    final userName = userPrefGetString(prefs, 'onboarding_name') ?? '我';
+    all.add(
+      VerseThoughtData(
+        id: id,
+        ref: refStr,
+        body: body,
+        authorId: userId,
+        authorName: userName,
+        likesCount: 0,
+        likedBy: const [],
+        isShared: visibility != ThoughtVisibility.private,
+        visibility: visibility,
+        createdAtMs: createdAtMs,
+      ),
+    );
+    await writeAllThoughts(prefs, all);
+  }
+  await recordRemoteThought(prefs, id, incoming);
+  return true;
 }

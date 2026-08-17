@@ -19,6 +19,7 @@ import '../core/sync/sync_controller.dart';
 import '../features/assistant/assistant_screen.dart';
 import '../features/bible/offline_notice.dart'
     show OfflineStatusBar, networkOkProvider;
+import '../features/bible/reading_repository.dart' show markReaderTabEntry;
 import '../features/bible/reader_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/social/discover_screen.dart';
@@ -27,7 +28,12 @@ import 'profile_screen.dart';
 class NavIndexNotifier extends Notifier<int> {
   @override
   int build() => 0;
-  void set(int i) => state = i;
+  void set(int i) {
+    if (i == 1 && state != 1) {
+      markReaderTabEntry(ref.read(prefsProvider));
+    }
+    state = i;
+  }
 }
 
 final navIndexProvider = NotifierProvider<NavIndexNotifier, int>(

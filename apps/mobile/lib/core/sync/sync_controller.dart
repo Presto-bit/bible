@@ -16,6 +16,8 @@ import '../../features/bible/reading_repository.dart'
         readingReportProvider,
         reviewDataProvider,
         todayReadingProvider;
+import '../../features/bible/thoughts_repository.dart'
+    show thoughtsRevisionProvider;
 import '../../features/notes/notes_repository.dart' show dbProvider, syncEngineProvider;
 import '../api_client.dart' show prefsProvider;
 import 'sync_engine.dart';
@@ -90,6 +92,7 @@ class SyncController extends Notifier<SyncUiState> {
     ref.invalidate(booksProvider);
     ref.invalidate(badgeCatalogProvider);
     ref.invalidate(pendingOutboxProvider);
+    ref.read(thoughtsRevisionProvider.notifier).bump();
   }
 
   Future<void> refreshPending() async {

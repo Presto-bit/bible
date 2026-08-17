@@ -38,6 +38,7 @@ import 'offline_bible.dart';
 import 'bible_repository.dart';
 import 'models.dart';
 import 'reader_catalog_view.dart';
+import 'feed_activity.dart';
 import 'reader_experience.dart';
 import 'reader_loc_popover.dart';
 import 'reader_preferences.dart';
@@ -53,23 +54,63 @@ import '../../core/peiai_haptics.dart';
 final Map<String, String> _xiaoAiHalfSheetCache = {};
 
 /// 阅读器跳转目标（串珠/词典点选后跳章；可选 verse 触发滚到并轻闪）。
-class ReaderJumpNotifier
-    extends Notifier<({String book, int chapter, int? verse})?> {
+class ReaderJumpState {
+  const ReaderJumpState({
+    required this.book,
+    required this.chapter,
+    this.verse,
+    this.feedHint,
+  });
+
+  final String book;
+  final int chapter;
+  final int? verse;
+  final FeedActivityHint? feedHint;
+}
+
+class ReaderJumpNotifier extends Notifier<ReaderJumpState?> {
   @override
-  ({String book, int chapter, int? verse})? build() => null;
-  void jump(String book, int chapter, {int? verse}) => state = (
-    book: book.toUpperCase(),
-    chapter: chapter,
-    verse: verse,
-  );
+  ReaderJumpState? build() => null;
+
+  void jump(
+    String book,
+    int chapter, {
+    int? verse,
+    FeedActivityHint? feedHint,
+  }) =>
+      state = ReaderJumpState(
+        book: book.toUpperCase(),
+        chapter: chapter,
+        verse: verse,
+        feedHint: feedHint,
+      );
+
   void clear() => state = null;
 }
 
 final readerJumpProvider =
-    NotifierProvider<
-      ReaderJumpNotifier,
-      ({String book, int chapter, int? verse})?
-    >(ReaderJumpNotifier.new);
+    NotifierProvider<ReaderJumpNotifier, ReaderJumpState?>(
+      ReaderJumpNotifier.new,
+    );
+
+/// 跨入口返回（搜索/笔记等跳读经后显示顶栏返回）。
+class ReaderReturnTarget {
+  const ReaderReturnTarget({required this.label, required this.onBack});
+  final String label;
+  final VoidCallback onBack;
+}
+
+class ReaderReturnNotifier extends Notifier<ReaderReturnTarget?> {
+  @override
+  ReaderReturnTarget? build() => null;
+  void set(ReaderReturnTarget target) => state = target;
+  void clear() => state = null;
+}
+
+final readerReturnProvider =
+    NotifierProvider<ReaderReturnNotifier, ReaderReturnTarget?>(
+      ReaderReturnNotifier.new,
+    );
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({
@@ -106,6 +147,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   final _locKey = GlobalKey();
   /// 外部跳转指定轻闪节（如每日经文）；消费后清空。
   int? _pendingFlashVerse;
+  FeedActivityHint? _pendingFeedHint;
 
   @override
   void initState() {
@@ -204,6 +246,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         _chapter = ch;
         _seeded = true;
         _pendingFlashVerse = next.verse;
+        _pendingFeedHint = next.feedHint;
       });
       ref.read(readerJumpProvider.notifier).clear();
       _revealChrome();
@@ -216,11 +259,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       }
     });
 
+    final readerReturn = ref.watch(readerReturnProvider);
+    final englishUI = _mainVersionId == 'kjv';
+
     return Scaffold(
       backgroundColor: ref.watch(readerExperienceThemeProvider).background,
       appBar: _chromeHidden
           ? null
           : AppBar(
+              leading: readerReturn != null
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: '返回${readerReturn.label}',
+                      onPressed: () {
+                        ref.read(readerReturnProvider.notifier).clear();
+                        readerReturn.onBack();
+                      },
+                    )
+                  : null,
               titleSpacing: 8,
               title: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -255,7 +311,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                       padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
                       child: Text(
                         _book == null
-                            ? '选择经卷'
+                            ? (englishUI ? 'Select book' : '选择经卷')
+                            : englishUI
+                            ? '${bibleBookAbbr(_book!.name)} $_chapter'
                             : '${bibleBookAbbr(_book!.name)} $_chapter',
                         style: const TextStyle(
                           fontSize: 15,
@@ -271,11 +329,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                       _openChapterSummary();
                     },
                     borderRadius: BorderRadius.circular(6),
-                    child: const Padding(
-                      padding: EdgeInsets.fromLTRB(8, 4, 4, 4),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
                       child: Text(
-                        '概要',
-                        style: TextStyle(
+                        englishUI ? 'Summary' : '概要',
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: AppColors.inkSoft,
@@ -394,9 +452,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     mainVersionId: _mainVersionId,
                     chromeHidden: _chromeHidden,
                     flashVerse: _pendingFlashVerse,
+                    feedHint: _pendingFeedHint,
                     onFlashConsumed: () {
-                      if (_pendingFlashVerse != null) {
-                        setState(() => _pendingFlashVerse = null);
+                      if (_pendingFlashVerse != null ||
+                          _pendingFeedHint != null) {
+                        setState(() {
+                          _pendingFlashVerse = null;
+                          _pendingFeedHint = null;
+                        });
                       }
                     },
                     planMeta: _planMeta,

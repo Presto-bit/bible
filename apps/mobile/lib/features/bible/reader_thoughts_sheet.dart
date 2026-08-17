@@ -324,6 +324,361 @@ Future<void> _editThoughtSheet(
   await ref.read(thoughtsRepoProvider).updateThought(thought.id, body.trim());
 }
 
+Future<void> showThoughtHubSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required String refStr,
+  required String refLabel,
+  required String verseText,
+  String? bookId,
+  int? chapter,
+  int? verse,
+  ThoughtHubReturn? returnHub,
+}) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.72,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      builder: (_, scroll) => _ThoughtHubSheetBody(
+        scrollController: scroll,
+        refStr: refStr,
+        refLabel: refLabel,
+        verseText: verseText,
+        bookId: bookId,
+        chapter: chapter,
+        verse: verse,
+        returnHub: returnHub,
+      ),
+    ),
+  );
+}
+
+class ThoughtHubReturn {
+  const ThoughtHubReturn({
+    required this.refStr,
+    required this.refLabel,
+    required this.verseText,
+    this.bookId,
+    this.chapter,
+    this.verse,
+  });
+  final String refStr;
+  final String refLabel;
+  final String verseText;
+  final String? bookId;
+  final int? chapter;
+  final int? verse;
+}
+
+class _ThoughtHubSheetBody extends ConsumerWidget {
+  const _ThoughtHubSheetBody({
+    required this.scrollController,
+    required this.refStr,
+    required this.refLabel,
+    required this.verseText,
+    this.bookId,
+    this.chapter,
+    this.verse,
+    this.returnHub,
+  });
+
+  final ScrollController scrollController;
+  final String refStr;
+  final String refLabel;
+  final String verseText;
+  final String? bookId;
+  final int? chapter;
+  final int? verse;
+  final ThoughtHubReturn? returnHub;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(thoughtsRevisionProvider);
+    final repo = ref.read(thoughtsRepoProvider);
+    final rowsFuture = repo.sortedForRef(refStr);
+    return FutureBuilder<List<VerseThoughtData>>(
+      future: rowsFuture,
+      builder: (context, snap) {
+        final rows = snap.data ?? const [];
+        final mineCount = repo.myThoughtsForRef(refStr).length;
+        return ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.line,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '本节想法',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: AppColors.inkFaint),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.goldWash,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    refLabel,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AppColors.accentDeep,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    verseText,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      height: 1.75,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '共 ${rows.length} 条${mineCount > 0 ? ' · 你的 $mineCount 条' : ''}',
+              style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.tonal(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await showWriteThoughtSheet(
+                    context,
+                    ref,
+                    refStr: refStr,
+                    refLabel: refLabel,
+                    verseText: verseText,
+                  );
+                  if (!context.mounted) return;
+                  final hub = returnHub ??
+                      ThoughtHubReturn(
+                        refStr: refStr,
+                        refLabel: refLabel,
+                        verseText: verseText,
+                        bookId: bookId,
+                        chapter: chapter,
+                        verse: verse,
+                      );
+                  await showThoughtHubSheet(
+                    context,
+                    ref,
+                    refStr: hub.refStr,
+                    refLabel: hub.refLabel,
+                    verseText: hub.verseText,
+                    bookId: hub.bookId,
+                    chapter: hub.chapter,
+                    verse: hub.verse,
+                    returnHub: hub,
+                  );
+                },
+                child: const Text('写想法'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (rows.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                    '还没有想法，来写第一条吧',
+                    style: TextStyle(color: AppColors.inkFaint),
+                  ),
+                ),
+              )
+            else
+              ...rows.map(
+                (t) => _ThoughtListTile(
+                  thought: t,
+                  repo: repo,
+                  onEdit: () async {
+                    Navigator.pop(context);
+                    await _editThoughtSheet(context, ref, t);
+                    if (!context.mounted) return;
+                    await showThoughtHubSheet(
+                      context,
+                      ref,
+                      refStr: refStr,
+                      refLabel: refLabel,
+                      verseText: verseText,
+                      bookId: bookId,
+                      chapter: chapter,
+                      verse: verse,
+                      returnHub: returnHub,
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ThoughtListTile extends ConsumerWidget {
+  const _ThoughtListTile({
+    required this.thought,
+    required this.repo,
+    required this.onEdit,
+  });
+
+  final VerseThoughtData thought;
+  final ThoughtsRepository repo;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final liked = repo.isLikedByMe(thought);
+    final mine = repo.isMine(thought);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSunken,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '${thought.authorName}${mine ? ' · 我' : ''}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                visibilityLabel(thought.visibility),
+                style: const TextStyle(fontSize: 11, color: AppColors.inkFaint),
+              ),
+              const Spacer(),
+              Text(
+                _timeLabel(thought.createdAtMs),
+                style: const TextStyle(fontSize: 11, color: AppColors.inkFaint),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            thought.body,
+            style: const TextStyle(fontSize: 14, height: 1.65, color: AppColors.ink),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              InkWell(
+                onTap: () => ref.read(thoughtsRepoProvider).toggleLike(thought),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      liked ? Icons.favorite : Icons.favorite_border,
+                      size: 16,
+                      color: liked
+                          ? const Color(0xFFB1554A)
+                          : AppColors.inkFaint,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${thought.likesCount}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.inkFaint,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (mine) ...[
+                const Spacer(),
+                TextButton(onPressed: onEdit, child: const Text('编辑')),
+                TextButton(
+                  onPressed: () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (dCtx) => AlertDialog(
+                        title: const Text('删除想法'),
+                        content: const Text('确定删除这条想法？同节划线也会一并去掉。'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dCtx, false),
+                            child: const Text('取消'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(dCtx, true),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.accentDeep,
+                            ),
+                            child: const Text('删除'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok == true) {
+                      await ref
+                          .read(thoughtsRepoProvider)
+                          .deleteThoughtAndClearMark(thought.id);
+                    }
+                  },
+                  child: const Text(
+                    '删除',
+                    style: TextStyle(color: Color(0xFFB1554A)),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 Future<void> showThoughtsListSheet(
   BuildContext context,
   WidgetRef ref, {

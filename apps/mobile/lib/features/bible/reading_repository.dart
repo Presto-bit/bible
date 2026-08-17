@@ -25,6 +25,48 @@ final readingRepoProvider = Provider<ReadingRepository>(
 
 const _chapterEventsKey = 'read_chapter_events';
 const _verseEventsKey = 'read_verse_events';
+const _firstTabHintKey = 'presto_reader_tab_hint_shown';
+const _tabEntryKey = 'reader_tab_entry';
+
+String _scopedLastVerseKey(String bookId, int chapter) =>
+    'last_read_verse:${bookId.toUpperCase()}:$chapter';
+
+String _scopedChapterVerseRangeKey(String bookId, int chapter) =>
+    'chapter_verse_range:${bookId.toUpperCase()}:$chapter';
+
+class ChapterVerseRange {
+  ChapterVerseRange({required this.date, required this.min, required this.max});
+  final String date;
+  final int min;
+  final int max;
+
+  Map<String, dynamic> toJson() => {'date': date, 'min': min, 'max': max};
+
+  factory ChapterVerseRange.fromJson(Map<String, dynamic> j) => ChapterVerseRange(
+        date: j['date'] as String,
+        min: (j['min'] as num).toInt(),
+        max: (j['max'] as num).toInt(),
+      );
+}
+
+/// 标记本次从底部 Tab 进入圣经（session 级）。
+void markReaderTabEntry(SharedPreferences prefs) {
+  prefs.setString(_tabEntryKey, '1');
+}
+
+bool _consumeReaderTabEntry(SharedPreferences prefs) {
+  final fromTab = prefs.getString(_tabEntryKey) == '1';
+  prefs.remove(_tabEntryKey);
+  return fromTab;
+}
+
+/// 是否展示首次续读提示（仅第一次从底部 Tab 进入圣经时闪动一次）。
+bool shouldShowResumeHint(SharedPreferences prefs) {
+  if (!_consumeReaderTabEntry(prefs)) return false;
+  if (prefs.getString(_firstTabHintKey) == '1') return false;
+  prefs.setString(_firstTabHintKey, '1');
+  return true;
+}
 
 class ReadingRepository {
   ReadingRepository(this._db, this._sync, this._prefs);
@@ -44,6 +86,51 @@ class ReadingRepository {
     await _sync.enqueueReadingProgress(row);
     await _bumpLog(chapters: 1);
     _logChapterDetail(book.toUpperCase(), chapter);
+    noteChapterVerseTouch(book, chapter, verse);
+  }
+
+  /// 记录本章今日读到的经节范围，并更新本章最高节。
+  void noteChapterVerseTouch(String bookId, int chapter, int verse) {
+    if (bookId.isEmpty || chapter < 1 || verse < 1) return;
+    final today = _todayKey();
+    final rangeKey = _scopedChapterVerseRangeKey(bookId, chapter);
+    ChapterVerseRange next;
+    try {
+      final raw = userPrefGetString(_prefs, rangeKey);
+      if (raw != null && raw.isNotEmpty) {
+        final prev = ChapterVerseRange.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>,
+        );
+        next = prev.date != today
+            ? ChapterVerseRange(date: today, min: verse, max: verse)
+            : ChapterVerseRange(
+                date: today,
+                min: verse < prev.min ? verse : prev.min,
+                max: verse > prev.max ? verse : prev.max,
+              );
+      } else {
+        next = ChapterVerseRange(date: today, min: verse, max: verse);
+      }
+    } catch (_) {
+      next = ChapterVerseRange(date: today, min: verse, max: verse);
+    }
+    userPrefSetString(_prefs, rangeKey, jsonEncode(next.toJson()));
+    setLastReadVerse(bookId, chapter, next.max);
+  }
+
+  void setLastReadVerse(String bookId, int chapter, int verse) {
+    if (bookId.isEmpty || chapter < 1 || verse < 1) return;
+    final key = _scopedLastVerseKey(bookId, chapter);
+    final prev = getLastReadVerse(bookId, chapter);
+    final next = prev != null ? (verse > prev ? verse : prev) : verse;
+    userPrefSetString(_prefs, key, '$next');
+  }
+
+  int? getLastReadVerse(String bookId, int chapter) {
+    final raw = userPrefGetString(_prefs, _scopedLastVerseKey(bookId, chapter));
+    if (raw == null) return null;
+    final v = int.tryParse(raw);
+    return v != null && v > 0 ? v : null;
   }
 
   // 章节级阅读明细（去抖 30 分钟），存 prefs，供日历回顾「常读卷/章」与读经进度。

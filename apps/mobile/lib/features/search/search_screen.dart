@@ -15,7 +15,8 @@ import '../../core/widgets/paper_card.dart';
 import '../knowledge/knowledge_explore.dart';
 import '../assistant/assistant_seed.dart';
 import '../bible/bible_repository.dart';
-import '../bible/reader_screen.dart' show readerJumpProvider;
+import '../bible/reader_screen.dart'
+    show readerJumpProvider, readerReturnProvider, ReaderReturnTarget;
 import '../notes/notes_repository.dart';
 
 const _historyKey = 'search_history';
@@ -236,6 +237,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _openReader(BibleSearchHit hit) {
+    ref.read(readerReturnProvider.notifier).set(
+          ReaderReturnTarget(
+            label: '搜索',
+            onBack: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
+              );
+            },
+          ),
+        );
     ref.read(readerJumpProvider.notifier).jump(hit.book, hit.chapter);
     ref.read(navIndexProvider.notifier).set(1);
     Navigator.of(context).pop();

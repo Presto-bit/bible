@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../database/app_database.dart';
 import '../badge_catalog.dart' show normalizeBadgeId;
+import '../../features/bible/thoughts_repository.dart' show applyRemoteThought;
 import '../../features/plans/plan_session.dart';
 import 'sync_contract.dart';
 import '../user_storage.dart';
@@ -155,6 +156,30 @@ class SyncEngine {
         'data': {'book': r.book, 'chapter': r.chapter, 'verse': r.verse},
       });
 
+  Future<void> enqueueThought({
+    required String id,
+    required int version,
+    required String refStr,
+    required String body,
+    required String visibility,
+    required int createdAtMs,
+    bool isDelete = false,
+  }) =>
+      _enqueue('thought', {
+        'entity': 'thought',
+        'op': isDelete ? 'delete' : 'update',
+        'id': id,
+        'version': version,
+        'client_ts': _iso(createdAtMs),
+        if (!isDelete)
+          'data': {
+            'ref': refStr,
+            'body': body,
+            'visibility': visibility,
+            'created_at_ms': createdAtMs,
+          },
+      });
+
   Future<void> enqueueUserProfile(Map<String, dynamic> data) =>
       _enqueue('user_profile', {
         'entity': 'user_profile',
@@ -207,6 +232,8 @@ class SyncEngine {
         return _applyHighlight(c);
       case 'bookmark':
         return _applyBookmark(c);
+      case 'thought':
+        return _applyThought(c);
       case 'ai_session':
         return _applyAiSession(c);
       case 'reading_log':
@@ -289,6 +316,19 @@ class SyncEngine {
           updatedAtMs: Value(ms),
         ));
     return true;
+  }
+
+  Future<bool> _applyThought(Map<String, dynamic> c) async {
+    if (_prefs == null) return false;
+    final id = c['id'] as String?;
+    if (id == null) return false;
+    return applyRemoteThought(
+      _prefs!,
+      id: id,
+      op: c['op'] as String? ?? 'update',
+      version: (c['version'] as num?)?.toInt(),
+      data: (c['data'] as Map?)?.cast<String, dynamic>(),
+    );
   }
 
   Future<bool> _applyAiSession(Map<String, dynamic> c) async {
