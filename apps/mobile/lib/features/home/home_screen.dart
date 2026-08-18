@@ -603,10 +603,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             final path = ev.href.startsWith('/')
                                 ? ev.href
                                 : '/${ev.href}';
-                            if (!openH5IfAllowed(
-                              context,
-                              path,
-                            )) {
+                            if (!openH5IfAllowed(context, path)) {
                               context.push(path);
                             }
                           },
@@ -686,6 +683,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         );
                         return HomeHeroCarousel(
                           verseSlide: verseCard,
+                          verseTextLen: formatDailyVerseQuote(
+                            v.text,
+                          ).characters.length,
                           campaign: b.heroBCampaign,
                           campaignReady: b.heroBCampaign != null,
                           onCampaignTap: b.heroBCampaign == null

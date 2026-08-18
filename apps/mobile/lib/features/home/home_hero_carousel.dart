@@ -11,12 +11,14 @@ class HomeHeroCarousel extends StatefulWidget {
   const HomeHeroCarousel({
     super.key,
     required this.verseSlide,
+    this.verseTextLen = 0,
     this.campaign,
     this.campaignReady = false,
     required this.onCampaignTap,
   });
 
   final Widget verseSlide;
+  final int verseTextLen;
   final HeroBCampaign? campaign;
   final bool campaignReady;
   final VoidCallback? onCampaignTap;
@@ -41,7 +43,7 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
   Widget build(BuildContext context) {
     if (!_hasOps) return widget.verseSlide;
 
-    final h = homeHeroVerseHeight(context);
+    final h = homeHeroVerseHeight(context, textLen: widget.verseTextLen);
     return Column(
       children: [
         SizedBox(
@@ -61,11 +63,7 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _dot(0),
-            const SizedBox(width: 6),
-            _dot(1),
-          ],
+          children: [_dot(0), const SizedBox(width: 6), _dot(1)],
         ),
       ],
     );
@@ -102,7 +100,8 @@ class _CampaignCard extends StatelessWidget {
             Image.network(
               campaign.imageSrc,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(color: AppColors.surfaceSunken),
+              errorBuilder: (_, __, ___) =>
+                  Container(color: AppColors.surfaceSunken),
             ),
             DecoratedBox(
               decoration: BoxDecoration(
@@ -125,14 +124,20 @@ class _CampaignCard extends StatelessWidget {
                 children: [
                   if (campaign.badge != null && campaign.badge!.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.accentDeep.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
                         campaign.badge!,
-                        style: const TextStyle(color: Colors.white, fontSize: 11),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   if (campaign.badge != null) const SizedBox(height: 6),
