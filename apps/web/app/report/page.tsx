@@ -4,11 +4,12 @@ import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import { api, type BibleBook } from '@/lib/api';
 import { dailyMinutes, rangeStats, type RangeStats } from '@/lib/reading';
 import { registrationYear } from '@/lib/api';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 
 type Mode = 'day' | 'week' | 'month' | 'year';
 
@@ -151,6 +152,37 @@ function ReportInner() {
     setSel(null);
   };
 
+  const periodSwipeRef = useRef<{ x: number; y: number } | null>(null);
+  const embeddedHost = isFlutterH5Host();
+
+  const onPeriodSwipeStart = (clientX: number, clientY: number) => {
+    if (mode === 'year') return;
+    periodSwipeRef.current = { x: clientX, y: clientY };
+  };
+
+  const onPeriodSwipeEnd = (clientX: number, clientY: number) => {
+    if (mode === 'year') return;
+    const start = periodSwipeRef.current;
+    periodSwipeRef.current = null;
+    if (!start) return;
+    const dx = clientX - start.x;
+    const dy = clientY - start.y;
+    const min = embeddedHost ? 48 : 56;
+    if (Math.abs(dx) < min || Math.abs(dx) < Math.abs(dy) * 1.05) return;
+    move(dx < 0 ? 1 : -1);
+  };
+
+  const periodSwipeHandlers = mode === 'year' ? {} : {
+    onTouchStart: (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (t) onPeriodSwipeStart(t.clientX, t.clientY);
+    },
+    onTouchEnd: (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      if (t) onPeriodSwipeEnd(t.clientX, t.clientY);
+    },
+  };
+
   // 统计范围：选中单元 → 该单元；否则整个窗口。
   const windowStart = cells.find((c) => !c.blank)?.start ?? startOfDay(new Date());
   const windowEnd = [...cells].reverse().find((c) => !c.blank)?.end ?? Date.now();
@@ -236,6 +268,11 @@ function ReportInner() {
         ))}
       </div>
 
+      <div
+        className="report-period-swipe"
+        style={{ touchAction: 'pan-y' }}
+        {...periodSwipeHandlers}
+      >
       {mode === 'year' ? (
         <div className="year-switch year-switch-static" style={{ marginTop: 0, marginBottom: 12 }}>
           <span>{windowLabel}</span>
@@ -290,6 +327,7 @@ function ReportInner() {
             </button>
           );
         })}
+      </div>
       </div>
 
       <div className="report-tiles report-tiles-4" style={{ marginTop: 16 }}>

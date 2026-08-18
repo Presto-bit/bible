@@ -67,6 +67,7 @@ class VerseSelectionSurface extends StatefulWidget {
     required this.onCommitRange,
     this.onClearIfEmptyTap,
     this.onSelectionGestureChanged,
+    this.selectionPrimed = false,
   });
 
   final Widget child;
@@ -76,6 +77,8 @@ class VerseSelectionSurface extends StatefulWidget {
   final void Function() onCommitRange;
   final VoidCallback? onClearIfEmptyTap;
   final ValueChanged<bool>? onSelectionGestureChanged;
+  /// 已有选区时，点在词上立刻武装拖扩，无需再等长按。
+  final bool selectionPrimed;
 
   @override
   State<VerseSelectionSurface> createState() => _VerseSelectionSurfaceState();
@@ -142,6 +145,12 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         _armed = false;
         _lastFocus = w;
         _clearLp();
+        if (widget.selectionPrimed) {
+          _armed = true;
+          _notifyGesture(true);
+          widget.onApplyRange(w, w, commit: true);
+          return;
+        }
         // ~360ms 长按选词（略缩短，起选更跟手）
         _lp = Timer(const Duration(milliseconds: 360), () {
           if (!mounted || _anchor == null || _dragging) return;

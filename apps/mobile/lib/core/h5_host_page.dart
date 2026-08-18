@@ -619,6 +619,8 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final tokenJs = token != null && token.isNotEmpty ? _jsStr(token) : 'null';
     final top = widget.showAppBar ? 0.0 : MediaQuery.paddingOf(context).top;
     final pray = _isPraySurface;
+    final pathOnly = _activePath.split('?').first;
+    final campaign = pathOnly.startsWith('/campaigns');
     final earlyHostH = MediaQuery.sizeOf(context).height;
     await c.runJavaScript('''
 (function(){
@@ -655,6 +657,11 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         (document.head || document.documentElement).appendChild(style);
       }
       style.textContent = 'html,body,#root{background:#f3ebe3!important;min-height:100%}';
+    }
+    if ($campaign) {
+      var paper = '${dark ? '#1a1917' : '#fffcfa'}';
+      root.style.background = paper;
+      if (body) body.style.background = paper;
     }
   } catch (e) {}
 })();

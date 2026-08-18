@@ -445,6 +445,24 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   /// 划词手势中：禁止横滑翻章（对齐 PWA swipeIgnore）
   bool _selectionGestureActive = false;
+  int _swipeIgnoreUntilMs = 0;
+
+  void _armSwipeIgnore([int ms = 320]) {
+    _swipeIgnoreUntilMs = DateTime.now().millisecondsSinceEpoch + ms;
+  }
+
+  bool get _swipeIgnored =>
+      DateTime.now().millisecondsSinceEpoch < _swipeIgnoreUntilMs;
+
+  void _cancelPagePointerTracking() {
+    _resetPagePointer();
+    if (!_pageTurnAnimating && (_pageDragDx != 0 || _pageDragRaw != 0)) {
+      _pageDragDx = 0;
+      _pageDragRaw = 0;
+      _pageDragAxis = null;
+      _pageTurnPrefetched = false;
+    }
+  }
 
   /// 跟手翻页指针态（对齐 PWA useReaderPageTurn 轴锁，避免与竖滚抢手势）
   int? _pagePointerId;
@@ -559,7 +577,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       final fromSwipe =
           oldWidget.book.id == widget.book.id &&
           (widget.chapter - oldWidget.chapter).abs() == 1;
-      setState(() {
+      void applyChapterChange() {
         _selected.clear();
         _wordRange = null;
         _bookDone = false;
@@ -581,15 +599,27 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           _pageDragAxis = null;
         }
         _selectionGestureActive = false;
-        _resetPagePointer();
+        _cancelPagePointerTracking();
         _cachedChapter = readChapterCache(
           ref.read(prefsProvider),
           widget.book.id,
           widget.chapter,
           versionId: widget.mainVersionId,
         );
-        _invalidatePeekCache();
-      });
+        if (_navFromSwipe) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _invalidatePeekCache();
+          });
+        } else {
+          _invalidatePeekCache();
+        }
+      }
+
+      if (_navFromSwipe) {
+        applyChapterChange();
+      } else {
+        setState(applyChapterChange);
+      }
       _notifySelection();
       _guideDwellTimer?.cancel();
       if (!_navFromSwipe) {
@@ -859,6 +889,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   void _commitWordRangeProgress() {
+    _armSwipeIgnore();
     if (_wordRange == null) return;
     final picked = wordRangeToSpan(_wordRange!).verses;
     for (final v in picked) {
@@ -1805,9 +1836,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       e.kind == PointerDeviceKind.stylus;
 
   void _onPagePointerDown(PointerDownEvent e, {required bool swipeOn}) {
-    if (!swipeOn || _pageTurnAnimating || _selectionGestureActive) return;
+    if (!swipeOn || _pageTurnAnimating || _selectionGestureActive || _swipeIgnored) {
+      return;
+    }
     if (!_pagePointerAllowed(e)) return;
     if (_pagePointerId != null) return;
+    // 点在词块上交给选区手势，避免与长按拖扩抢横滑轴
+    if (wordAnchorNear(context, e.position, maxRadius: 12) != null) return;
     _pagePointerId = e.pointer;
     _pagePointerStart = e.position;
     _pagePointerAxis = null;
@@ -1818,6 +1853,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   void _onPagePointerMove(PointerMoveEvent e, {required bool swipeOn}) {
     if (e.pointer != _pagePointerId || !swipeOn || _pageTurnAnimating) return;
+    if (_selectionGestureActive || _swipeIgnored) {
+      _cancelPagePointerTracking();
+      return;
+    }
     final start = _pagePointerStart;
     if (start == null) return;
 
@@ -1938,14 +1977,14 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       widget.onNav(goingNext ? 1 : -1);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        setState(_resetPageDrag);
+        _resetPageDrag();
       });
       return;
     }
     // 未提交或章节边界均回弹至当前页，避免松手瞬移。
     await _animatePageDragTo(0);
     if (!mounted) return;
-    setState(_resetPageDrag);
+    _resetPageDrag();
     if (!can && ratio >= 0.1) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -2128,6 +2167,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                         compareChapter: null,
                         notesByVerse: notesByVerse,
                       );
+                    }
+                    if (_navFromSwipe) {
+                      return ColoredBox(color: theme.background);
                     }
                     return const Center(child: CircularProgressIndicator());
                   },
@@ -2370,11 +2412,16 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
     final listBody = VerseSelectionSurface(
       enabled: true,
+      selectionPrimed: _selected.isNotEmpty,
       onApplyRange: (a, f, {commit = true}) =>
           _applyWordRange(a, f, commit: commit),
       onCommitRange: _commitWordRangeProgress,
       onClearIfEmptyTap: _selected.isNotEmpty ? _clearSelection : null,
       onSelectionGestureChanged: (on) {
+        if (on) {
+          _armSwipeIgnore();
+          _cancelPagePointerTracking();
+        }
         if (_selectionGestureActive != on) {
           setState(() => _selectionGestureActive = on);
         }

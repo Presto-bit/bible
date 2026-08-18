@@ -67,7 +67,20 @@ export default function CampaignViewInner() {
   }, [id, preview, dayParam]);
 
   useEffect(() => {
-    if (id) void load();
+    if (!id) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (!cancelled) {
+        setErr((prev) => prev ?? '加载超时，请检查网络后重试');
+      }
+    }, 12000);
+    void load().finally(() => {
+      if (!cancelled) window.clearTimeout(timer);
+    });
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [id, load]);
 
   useEffect(() => {

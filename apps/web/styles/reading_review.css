@@ -340,8 +340,8 @@ html.android-flutter-h5 .app-body:has(.wrapped-page-shell) {
   overflow: hidden !important;
   height: var(--peiai-vv-h, 100%) !important;
   min-height: var(--peiai-vv-h, 100%) !important;
-  /* 父层 pan-y 会抢走内层故事切屏 */
-  touch-action: none;
+  /* 勿用 touch-action:none，会阻断内层故事切屏；交给 scroller pan-y */
+  touch-action: manipulation;
 }
 .wrapped-page-head {
   position: absolute;

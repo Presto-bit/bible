@@ -144,6 +144,7 @@ class _ExternalBrowserPage extends StatefulWidget {
 class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   WebViewController? _controller;
   var _loading = true;
+  var _hadFirstPaint = false;
   var _authPhase = false;
   String? _error;
   Timer? _loadWatchdog;
@@ -192,9 +193,12 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
         final raw = await controller.runJavaScriptReturningResult('''
 (function(){
   try {
-    var root = document.getElementById('root');
+    var root = document.getElementById('root') || document.getElementById('app');
+    var main = document.querySelector('main');
     var text = (document.body && (document.body.innerText || '')) || '';
-    var hasUi = !!(root && root.childElementCount > 0) || text.trim().length > 24;
+    var hasUi = text.trim().length > 20
+      || !!(root && root.childElementCount > 0)
+      || !!(main && main.childElementCount > 0);
     return hasUi ? 'ok' : 'blank';
   } catch (e) { return 'ok'; }
 })();
@@ -285,6 +289,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
           setState(() {
             _loading = false;
             _authPhase = false;
+            _hadFirstPaint = true;
           });
           if (widget.genesis50 && isGenesis50Href(url)) {
             await _injectGenesis50StorageFallback(controller, url);
@@ -412,11 +417,9 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
                 ),
               ),
             )
-          else if (_authPhase || _loading)
+          else if ((_authPhase || _loading) && !_hadFirstPaint)
             ColoredBox(
-              color: AppColors.paper.withValues(
-                alpha: _controller == null ? 1 : 0.92,
-              ),
+              color: AppColors.paper,
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -431,6 +434,11 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
                   ],
                 ),
               ),
+            )
+          else if (_authPhase || _loading)
+            const Align(
+              alignment: Alignment.topCenter,
+              child: LinearProgressIndicator(minHeight: 2),
             ),
         ],
       ),

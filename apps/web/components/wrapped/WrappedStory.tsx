@@ -129,6 +129,27 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
     setIndex(clamped);
   }, []);
 
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const onTouchSwipeStart = useCallback((clientX: number, clientY: number) => {
+    if (!embedded) return;
+    touchStartRef.current = { x: clientX, y: clientY };
+  }, [embedded]);
+
+  const onTouchSwipeEnd = useCallback((clientX: number, clientY: number) => {
+    if (!embedded) return;
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+    const dx = clientX - start.x;
+    const dy = clientY - start.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    if (absY < 52 || absY < absX * 1.05) return;
+    if (dy < 0) go(indexRef.current + 1);
+    else go(indexRef.current - 1);
+  }, [embedded, go]);
+
   // 布局确定后校准 index（WebView 首帧 clientHeight 可能为 0）
   useEffect(() => {
     const el = scrollerRef.current;
@@ -166,7 +187,28 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
         ))}
       </div>
 
-      <div ref={scrollerRef} className="wrapped-story-scroller" onScroll={syncIndex}>
+      <div
+        ref={scrollerRef}
+        className="wrapped-story-scroller"
+        onScroll={syncIndex}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          if (t) onTouchSwipeStart(t.clientX, t.clientY);
+        }}
+        onTouchEnd={(e) => {
+          const t = e.changedTouches[0];
+          if (t) onTouchSwipeEnd(t.clientX, t.clientY);
+        }}
+        onPointerDown={(e) => {
+          if (e.pointerType === 'touch') return;
+          if (e.button !== 0) return;
+          onTouchSwipeStart(e.clientX, e.clientY);
+        }}
+        onPointerUp={(e) => {
+          if (e.pointerType === 'touch') return;
+          onTouchSwipeEnd(e.clientX, e.clientY);
+        }}
+      >
         {slides.map((slide, i) => (
           <WrappedSlideView
             key={`${slide.kind}-${i}`}
