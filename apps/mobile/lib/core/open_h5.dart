@@ -12,15 +12,11 @@ import 'h5_bridge_channel.dart';
 import 'overlay_h5.dart';
 
 /// 解析 href / path，可打开则 push `/h5?path=…`，返回是否已处理。
-bool openH5IfAllowed(
-  BuildContext context,
-  String href, {
-  String? title,
-}) {
+bool openH5IfAllowed(BuildContext context, String href, {String? title}) {
   final raw = href.trim();
   if (raw.isEmpty) return false;
   final uri = Uri.tryParse(raw);
-  final pathAndQuery = () {
+  var pathAndQuery = () {
     if (uri == null) return raw.startsWith('/') ? raw : '/$raw';
     if (uri.hasScheme && uri.host.isNotEmpty) {
       final p = uri.path.isEmpty ? '/' : uri.path;
@@ -29,8 +25,20 @@ bool openH5IfAllowed(
     }
     return raw.startsWith('/') ? raw : '/$raw';
   }();
-  final pathOnly = pathAndQuery.split('?').first;
+  final parsed = Uri.parse(
+    pathAndQuery.startsWith('/') ? pathAndQuery : '/$pathAndQuery',
+  );
+  final pathOnly = H5Whitelist.stripAppBasePath(
+    parsed.path.isEmpty ? '/' : parsed.path,
+  );
+  pathAndQuery = '$pathOnly${parsed.hasQuery ? '?${parsed.query}' : ''}';
   if (!H5Whitelist.allows(pathOnly)) return false;
+
+  // 故事回顾：H5 全屏竖滑在安卓 WebView 里不跟手，走 Flutter PageView。
+  if (pathOnly == '/wrapped' || pathOnly.startsWith('/wrapped/')) {
+    context.push(pathAndQuery);
+    return true;
+  }
 
   // 发现 IM：进 Tab 常驻 WebView，勿叠层 /h5
   if (isDiscoverTabH5Path(pathOnly)) {

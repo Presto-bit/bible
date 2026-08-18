@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 bool isOverlayH5Location(String location) {
   final loc = location.split('?').first;
   if (loc == '/h5') return true;
-  if (loc == '/wrapped' || loc.startsWith('/wrapped/')) return true;
   if (loc == '/friend/add' || loc == '/group/create') return true;
   if (loc == '/legal' ||
       loc == '/profile/licenses' ||
@@ -22,11 +21,7 @@ bool isOverlayH5Location(String location) {
 }
 
 /// 打开白名单叠层 H5；若已在叠层则 **replace** 而非再 push 一层。
-void openOverlayH5(
-  BuildContext context,
-  String pathAndQuery, {
-  String? title,
-}) {
+void openOverlayH5(BuildContext context, String pathAndQuery, {String? title}) {
   final normalized = pathAndQuery.startsWith('/')
       ? pathAndQuery
       : '/$pathAndQuery';

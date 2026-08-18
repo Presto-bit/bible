@@ -23,8 +23,25 @@ class H5Whitelist {
     '/group',
   ];
 
+  /// 去掉历史 `/2sc` 前缀，得到应用内 path（对齐 PWA `stripAppBasePath`）。
+  static String stripAppBasePath(String pathname) {
+    var p = pathname.trim();
+    if (p.isEmpty) return '/';
+    if (!p.startsWith('/')) p = '/$p';
+    const bases = ['/2sc'];
+    for (final base in bases) {
+      if (p == base) return '/';
+      if (p.startsWith('$base/')) {
+        p = p.substring(base.length);
+        if (p.isEmpty) p = '/';
+        break;
+      }
+    }
+    return p;
+  }
+
   static bool allows(String path) {
-    final p = path.split('?').first;
+    final p = stripAppBasePath(path.split('?').first);
     final n = p.startsWith('/') ? p : '/$p';
     for (final prefix in prefixes) {
       if (n == prefix || n.startsWith(prefix)) return true;

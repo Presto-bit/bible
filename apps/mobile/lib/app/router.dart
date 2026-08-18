@@ -24,6 +24,7 @@ import '../features/notes/notes_screen.dart';
 import '../features/settings/appearance_screen.dart';
 import '../features/knowledge/knowledge_explore.dart';
 import '../features/assistant/knowledge_bases_screen.dart';
+import '../features/bible/wrapped_screen.dart';
 import 'app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -44,10 +45,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
       ),
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const AppShell(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const AppShell()),
       GoRoute(
         path: '/reader',
         builder: (context, state) {
@@ -63,6 +61,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           seedQuestion: state.uri.queryParameters['q'],
         ),
       ),
+
       /// 通用 H5：与 PWA 同页自带顶栏，无原生 AppBar 叠层
       GoRoute(
         path: '/h5',
@@ -70,39 +69,35 @@ final routerProvider = Provider<GoRouter>((ref) {
           final path = state.uri.queryParameters['path'] ?? '/discover';
           final title = state.uri.queryParameters['title'];
           final forceBar = state.uri.queryParameters['bar'] == '1';
-          return H5HostPage(
-            path: path,
-            showAppBar: forceBar,
-            title: title,
-          );
+          return H5HostPage(path: path, showAppBar: forceBar, title: title);
         },
       ),
+      GoRoute(path: '/plans', builder: (context, state) => const PlansScreen()),
       GoRoute(
-          path: '/plans', builder: (context, state) => const PlansScreen()),
+        path: '/plans/generate',
+        builder: (context, state) => const GeneratePlanScreen(),
+      ),
       GoRoute(
-          path: '/plans/generate',
-          builder: (context, state) => const GeneratePlanScreen()),
+        path: '/friend/add',
+        builder: (context, state) => const H5HostPage(path: '/friend/add'),
+      ),
       GoRoute(
-          path: '/friend/add',
-          builder: (context, state) => const H5HostPage(
-                path: '/friend/add',
-              )),
+        path: '/group/create',
+        builder: (context, state) => const H5HostPage(path: '/group/create'),
+      ),
       GoRoute(
-          path: '/group/create',
-          builder: (context, state) => const H5HostPage(
-                path: '/group/create',
-              )),
+        path: '/challenge',
+        builder: (context, state) =>
+            ChallengeScreen(initialStart: state.uri.queryParameters['start']),
+      ),
       GoRoute(
-          path: '/challenge',
-          builder: (context, state) => ChallengeScreen(
-            initialStart: state.uri.queryParameters['start'],
-          )),
+        path: '/challenge/ai',
+        builder: (context, state) => const AiChallengeScreen(),
+      ),
       GoRoute(
-          path: '/challenge/ai',
-          builder: (context, state) => const AiChallengeScreen()),
-      GoRoute(
-          path: '/discover',
-          builder: (context, state) => const DiscoverScreen()),
+        path: '/discover',
+        builder: (context, state) => const DiscoverScreen(),
+      ),
       GoRoute(
         path: '/discover/dm/:id',
         builder: (context, state) => DiscoverH5RedirectPage(
@@ -119,9 +114,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/legal',
-        builder: (context, state) => const H5HostPage(
-              path: '/profile/licenses',
-            ),
+        builder: (context, state) =>
+            const H5HostPage(path: '/profile/licenses'),
       ),
       GoRoute(
         path: '/feedback',
@@ -129,56 +123,59 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/profile/licenses',
-        builder: (context, state) => const H5HostPage(
-              path: '/profile/licenses',
-            ),
+        builder: (context, state) =>
+            const H5HostPage(path: '/profile/licenses'),
       ),
       GoRoute(
         path: '/profile/settings',
-        builder: (context, state) => const H5HostPage(
-              path: '/profile/settings',
-            ),
+        builder: (context, state) =>
+            const H5HostPage(path: '/profile/settings'),
       ),
       GoRoute(
         path: '/profile/reminders',
-        builder: (context, state) => const H5HostPage(
-              path: '/profile/reminders',
-            ),
+        builder: (context, state) =>
+            const H5HostPage(path: '/profile/reminders'),
       ),
       GoRoute(
-          path: '/dictionary',
-          builder: (context, state) => const DictionaryScreen()),
+        path: '/dictionary',
+        builder: (context, state) => const DictionaryScreen(),
+      ),
       GoRoute(
-          path: '/notes',
-          builder: (context, state) => NotesScreen(
-            initialTab:
-                state.uri.queryParameters['tab'] == 'highlights' ? 1 : 0,
-          )),
+        path: '/notes',
+        builder: (context, state) => NotesScreen(
+          initialTab: state.uri.queryParameters['tab'] == 'highlights' ? 1 : 0,
+        ),
+      ),
       GoRoute(
-          path: '/search',
-          builder: (context, state) => const SearchScreen()),
+        path: '/search',
+        builder: (context, state) => const SearchScreen(),
+      ),
       GoRoute(
-          path: '/search/map',
-          builder: (context, state) => const MapToursScreen()),
+        path: '/search/map',
+        builder: (context, state) => const MapToursScreen(),
+      ),
       GoRoute(
         path: '/search/map/:id',
         builder: (context, state) =>
             MapTourDetailScreen(tourId: state.pathParameters['id']!),
       ),
       GoRoute(
-          path: '/search/timeline',
-          builder: (context, state) => const TimelineToursScreen()),
+        path: '/search/timeline',
+        builder: (context, state) => const TimelineToursScreen(),
+      ),
       GoRoute(
         path: '/search/timeline/:id',
         builder: (context, state) =>
             TimelineTourDetailScreen(tourId: state.pathParameters['id']!),
       ),
       GoRoute(
-          path: '/search/diagrams',
-          builder: (context, state) => const DiagramsScreen()),
+        path: '/search/diagrams',
+        builder: (context, state) => const DiagramsScreen(),
+      ),
       GoRoute(
-          path: '/search/graph',
-          builder: (context, state) => const GraphTopicsScreen()),
+        path: '/search/graph',
+        builder: (context, state) => const GraphTopicsScreen(),
+      ),
       GoRoute(
         path: '/search/graph/:id',
         builder: (context, state) =>
@@ -193,18 +190,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/wrapped',
         builder: (context, state) {
           final period = state.uri.queryParameters['period'];
-          final path = (period == 'year' || period == 'month')
-              ? '/wrapped?period=$period'
-              : '/wrapped';
-          return H5HostPage(path: path);
+          return WrappedScreen(
+            initialPeriod: period == 'year' ? 'year' : 'month',
+          );
         },
       ),
       GoRoute(
-          path: '/profile/appearance',
-          builder: (context, state) => const AppearanceScreen()),
+        path: '/profile/appearance',
+        builder: (context, state) => const AppearanceScreen(),
+      ),
       GoRoute(
-          path: '/knowledge-bases',
-          builder: (context, state) => const KnowledgeBasesScreen()),
+        path: '/knowledge-bases',
+        builder: (context, state) => const KnowledgeBasesScreen(),
+      ),
       GoRoute(
         path: '/knowledge-bases/:id',
         builder: (context, state) => KnowledgeBaseDetailScreen(
