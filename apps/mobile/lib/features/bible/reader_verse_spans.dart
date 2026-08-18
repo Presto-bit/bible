@@ -46,10 +46,7 @@ InlineSpan readerStaticWordSpan(
   bool isDict = false,
 }) {
   if (anchor == null) {
-    return TextSpan(
-      text: text,
-      style: style,
-    );
+    return TextSpan(text: text, style: style);
   }
   return WidgetSpan(
     alignment: PlaceholderAlignment.baseline,
@@ -202,11 +199,7 @@ void appendReaderWordSpans({
 
   void addGaps(String gap) {
     merge.flush(spans, index);
-    final gapSpans = readerGapSpans(
-      gap,
-      baseStyle: baseStyle,
-      fontPx: fontPx,
-    );
+    final gapSpans = readerGapSpans(gap, baseStyle: baseStyle, fontPx: fontPx);
     spans.addAll(gapSpans);
     index.absorbSpans(gapSpans);
   }
@@ -217,7 +210,8 @@ void appendReaderWordSpans({
       addGaps(verseText.substring(cursor, w.start));
     }
     final activeWord =
-        wordRange != null && wordOverlapsRange(verse, w.start, w.end, wordRange);
+        wordRange != null &&
+        wordOverlapsRange(verse, w.start, w.end, wordRange);
     final edge = wordRange != null && activeWord
         ? wordSelectionEdge(verse, w.start, w.end, wordRange)
         : (left: false, right: false);
@@ -236,10 +230,7 @@ void appendReaderWordSpans({
       );
     }
     if (hasThought && !activeWord) {
-      wordStyle = readerThoughtSpanStyle(
-        wordStyle,
-        hasMyThought: hasMyThought,
-      );
+      wordStyle = readerThoughtSpanStyle(wordStyle, hasMyThought: hasMyThought);
     }
     final dictHit = !selectionActive
         ? matchDictSpanAt(w.start, w.end, dictSpans)
@@ -284,15 +275,31 @@ void appendReaderWordSpans({
         );
         index.placeholder(anchor: anchor);
       } else {
-        spans.add(TextSpan(text: w.text, style: wordStyle));
-        index.text(
-          value: w.text,
-          verse: verse,
-          verseStart: w.start,
-          words: [w],
+        // 预览与正文 layout 同构：词典仍用 WidgetSpan，仅禁交互，避免断行差异。
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: IgnorePointer(
+              child: SelectableWordChip(
+                anchor: anchor,
+                text: w.text,
+                style: wordStyle,
+                selected: activeWord,
+                edgeLeft: edge.left,
+                edgeRight: edge.right,
+                isDict: dictHit != null,
+              ),
+            ),
+          ),
         );
+        index.placeholder(anchor: anchor);
       }
-    } else if (!merge.canAbsorb(verse: verse, start: w.start, style: wordStyle)) {
+    } else if (!merge.canAbsorb(
+      verse: verse,
+      start: w.start,
+      style: wordStyle,
+    )) {
       merge.flush(spans, index);
       merge.add(w, wordStyle, verse);
     } else {

@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -218,26 +219,37 @@ double bookProgressInBible(List<BibleBook> books, String bookId, int chapter) {
   return total > 0 ? before / total : 0;
 }
 
-/// 横滑翻章时锁住竖滑；与视觉位移 [dx] 分离，避免翻页落地后仍无法竖滚。
+/// 横滑翻章 / 划词拖选时锁住竖滑；与视觉位移 [dx] 分离。
 class _DragLockScrollPhysics extends ScrollPhysics {
-  const _DragLockScrollPhysics({required this.lock, super.parent});
+  const _DragLockScrollPhysics({
+    required this.pageLock,
+    required this.selectionLock,
+    super.parent,
+  });
 
-  final ValueNotifier<bool> lock;
+  final ValueNotifier<bool> pageLock;
+  final ValueNotifier<bool> selectionLock;
+
+  bool get _locked => pageLock.value || selectionLock.value;
 
   @override
   _DragLockScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return _DragLockScrollPhysics(lock: lock, parent: buildParent(ancestor));
+    return _DragLockScrollPhysics(
+      pageLock: pageLock,
+      selectionLock: selectionLock,
+      parent: buildParent(ancestor),
+    );
   }
 
   @override
   bool shouldAcceptUserOffset(ScrollMetrics position) {
-    if (lock.value) return false;
+    if (_locked) return false;
     return super.shouldAcceptUserOffset(position);
   }
 
   @override
   double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
-    if (lock.value) return 0;
+    if (_locked) return 0;
     return super.applyPhysicsToUserOffset(position, offset);
   }
 }
@@ -329,8 +341,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   final _selectionSurfaceKey = GlobalKey();
   final _readerOverlayKey = GlobalKey();
   final _focusBarTopN = ValueNotifier<double?>(null);
-  final _selHandlesN = ValueNotifier<SelectionHandleLayout?>(null);
-  final _pinnedPeekDeltaN = ValueNotifier<int?>(null);
   bool _resumeScheduled = false;
   bool _planDayFinishScheduled = false;
   bool _navFromSwipe = false;
@@ -340,8 +350,15 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   /// 横滑翻章视觉位移（已含边界阻力）；跟手只改 notifier，不重建经文。
   final _pageDragDxN = ValueNotifier<double>(0);
+
   /// 仅横滑跟手/提交动画期间锁竖滚，不与视觉 dx 绑定。
   final _pageScrollLockN = ValueNotifier<bool>(false);
+
+  /// 划词拖扩 / 手柄拖拽期间锁竖滚（对齐 PWA touchmove preventDefault）。
+  final _selectionScrollLockN = ValueNotifier<bool>(false);
+  bool _wordDragRafScheduled = false;
+  WordAnchor? _wordDragPendingAnchor;
+  WordAnchor? _wordDragPendingFocus;
   double get _pageDragDx => _pageDragDxN.value;
   set _pageDragDx(double v) {
     if (_pageDragDxN.value == v) return;
@@ -382,10 +399,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   void _ensurePeekPanels(ReaderExperienceTheme theme, double topPad) {
     final turning =
-        _navFromSwipe ||
-        _pageTurnAnimating ||
-        _pageDragDx.abs() > 2 ||
-        _pinnedPeekDeltaN.value != null;
+        _navFromSwipe || _pageTurnAnimating || _pageDragDx.abs() > 2;
     if (!turning) {
       _cachedPeekNext ??= ColoredBox(color: theme.background);
       _cachedPeekPrev ??= ColoredBox(color: theme.background);
@@ -567,10 +581,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           _pageDragRaw = 0;
           _pageTurnPrefetched = false;
           _pageDragAxis = null;
-          _pinnedPeekDeltaN.value = null;
         }
-        _selHandlesN.value = null;
         _selectionGestureActive = false;
+        _selectionScrollLockN.value = false;
+        _wordDragPendingAnchor = null;
+        _wordDragPendingFocus = null;
+        _wordDragRafScheduled = false;
         _cancelPagePointerTracking();
         _cachedChapter = readChapterCache(
           ref.read(prefsProvider),
@@ -653,10 +669,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _pageTurnController.dispose();
     _pageDragDxN.dispose();
     _pageScrollLockN.dispose();
+    _selectionScrollLockN.dispose();
     _pageTurnAnimatingN.dispose();
     _focusBarTopN.dispose();
-    _selHandlesN.dispose();
-    _pinnedPeekDeltaN.dispose();
     _scroll.removeListener(_onScroll);
     _scroll.dispose();
     super.dispose();
@@ -860,6 +875,36 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _scheduleFocusBarLayout();
   }
 
+  /// 对齐 PWA scheduleWordRangeDuringDrag：拖扩选区每帧最多 apply 一次。
+  void _scheduleWordRangeDuringDrag(WordAnchor anchor, WordAnchor focus) {
+    _wordDragPendingAnchor = anchor;
+    _wordDragPendingFocus = focus;
+    if (_wordDragRafScheduled) return;
+    _wordDragRafScheduled = true;
+    SchedulerBinding.instance.scheduleFrameCallback((_) {
+      _wordDragRafScheduled = false;
+      if (!mounted) return;
+      final a = _wordDragPendingAnchor;
+      final f = _wordDragPendingFocus;
+      if (a == null || f == null) return;
+      _wordDragPendingAnchor = null;
+      _wordDragPendingFocus = null;
+      _applyWordRange(a, f, commit: false);
+    });
+  }
+
+  void _setSelectionGestureActive(bool on) {
+    _selectionScrollLockN.value = on;
+    if (!on) {
+      _wordDragPendingAnchor = null;
+      _wordDragPendingFocus = null;
+      _wordDragRafScheduled = false;
+    }
+    if (_selectionGestureActive != on) {
+      setState(() => _selectionGestureActive = on);
+    }
+  }
+
   void _commitWordRangeProgress() {
     _armSwipeIgnore();
     if (_wordRange == null) return;
@@ -910,6 +955,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   void _clearSelection() {
+    _setSelectionGestureActive(false);
     setState(() {
       _selected.clear();
       _wordRange = null;
@@ -952,7 +998,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   void _layoutFocusBar() {
     if (!mounted || _selected.isEmpty) {
       _focusBarTop = null;
-      _selHandlesN.value = null;
       return;
     }
     final ctx = _selectionAnchorKey.currentContext;
@@ -972,41 +1017,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final maxTop = media.size.height - barEstimate - bottomReserve;
     top = top.clamp(topReserve, maxTop);
     _focusBarTop = top;
-    _layoutSelectionHandles();
-  }
-
-  void _layoutSelectionHandles() {
-    final wr = _wordRange;
-    final surface = _selectionSurfaceKey.currentContext;
-    final overlay =
-        _readerOverlayKey.currentContext?.findRenderObject() as RenderBox?;
-    if (wr == null || surface == null || overlay == null || !overlay.hasSize) {
-      _selHandlesN.value = null;
-      return;
-    }
-    final found = locateSelectionHandles(surface, wr);
-    if (found == null) {
-      _selHandlesN.value = null;
-      return;
-    }
-    _selHandlesN.value = SelectionHandleLayout(
-      start: overlay.globalToLocal(found.start),
-      end: overlay.globalToLocal(found.end),
-      lineHeight: found.lineHeight,
-    );
-  }
-
-  void _onSelectionHandleDrag(Offset global, {required bool isStart}) {
-    final wr = _wordRange;
-    if (wr == null) return;
-    final focus = wordAnchorNear(context, global, maxRadius: 48);
-    if (focus == null) return;
-    final n = normalizeWordRange(wr);
-    if (isStart) {
-      _applyWordRange(focus, n.focus, commit: false);
-    } else {
-      _applyWordRange(n.anchor, focus, commit: false);
-    }
   }
 
   List<int> get _sortedSel => _selected.toList()..sort();
@@ -1991,7 +2001,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       await _animatePageDragTo(goingNext ? -width : width);
       if (!mounted) return;
       _navFromSwipe = true;
-      _pinnedPeekDeltaN.value = goingNext ? 1 : -1;
       final target = _adjacentTarget(goingNext ? 1 : -1);
       if (target != null) {
         _cachedChapter = readChapterCache(
@@ -2001,14 +2010,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           versionId: widget.mainVersionId,
         );
       }
-      // 可见 peek 钉在屏幕上，底下再挂新章 live，避免落地首帧微跳。
       widget.onNav(goingNext ? 1 : -1);
+      // 三屏轨道归零：中线已是目标章，视觉与邻屏 peek 一致（对齐 PWA offset reset）。
+      _resetPageDrag();
+      if (_scroll.hasClients) _scroll.jumpTo(0);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _resetPageDrag();
-        _pinnedPeekDeltaN.value = null;
-        _invalidatePeekCache();
-        if (_scroll.hasClients) _scroll.jumpTo(0);
+        if (mounted) _invalidatePeekCache();
       });
       return;
     }
@@ -2235,28 +2242,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             ],
           ),
           if (_selected.isNotEmpty)
-            ValueListenableBuilder<SelectionHandleLayout?>(
-              valueListenable: _selHandlesN,
-              builder: (context, handles, _) {
-                if (handles == null) return const SizedBox.shrink();
-                return VerseSelectionHandles(
-                  start: handles.start,
-                  end: handles.end,
-                  onDrag: _onSelectionHandleDrag,
-                  onCommit: _commitWordRangeProgress,
-                  onGestureChanged: (on) {
-                    if (on) {
-                      _armSwipeIgnore();
-                      _cancelPagePointerTracking();
-                    }
-                    if (_selectionGestureActive != on) {
-                      setState(() => _selectionGestureActive = on);
-                    }
-                  },
-                );
-              },
-            ),
-          if (_selected.isNotEmpty)
             ValueListenableBuilder<double?>(
               valueListenable: _focusBarTopN,
               builder: (context, focusTop, _) {
@@ -2477,8 +2462,14 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       key: _selectionSurfaceKey,
       enabled: true,
       selectionPrimed: _selected.isNotEmpty,
-      onApplyRange: (a, f, {commit = true}) =>
-          _applyWordRange(a, f, commit: commit),
+      primedRange: _wordRange,
+      onApplyRange: (a, f, {commit = true}) {
+        if (commit) {
+          _applyWordRange(a, f, commit: true);
+        } else {
+          _scheduleWordRangeDuringDrag(a, f);
+        }
+      },
       onCommitRange: _commitWordRangeProgress,
       onClearIfEmptyTap: _selected.isNotEmpty ? _clearSelection : null,
       onSelectionGestureChanged: (on) {
@@ -2486,15 +2477,16 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           _armSwipeIgnore();
           _cancelPagePointerTracking();
         }
-        if (_selectionGestureActive != on) {
-          setState(() => _selectionGestureActive = on);
-        }
+        _setSelectionGestureActive(on);
       },
       child: ListView.builder(
         controller: _scroll,
         physics: pageTurn == ReaderPageTurn.scroll
             ? const ClampingScrollPhysics()
-            : _DragLockScrollPhysics(lock: _pageScrollLockN),
+            : _DragLockScrollPhysics(
+                pageLock: _pageScrollLockN,
+                selectionLock: _selectionScrollLockN,
+              ),
         scrollCacheExtent: const ScrollCacheExtent.pixels(320),
         addAutomaticKeepAlives: false,
         addSemanticIndexes: false,
@@ -2756,52 +2748,57 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             ? (e) => _onPagePointerEnd(e, swipeOn: swipeOn)
             : null,
         child: AnimatedBuilder(
-          animation: Listenable.merge([
-            _pageDragDxN,
-            _pageTurnAnimatingN,
-            _pinnedPeekDeltaN,
-          ]),
-          builder: (context, child) {
+          animation: Listenable.merge([_pageDragDxN, _pageTurnAnimatingN]),
+          builder: (context, _) {
             final dx = _pageDragDxN.value;
-            final pin = _pinnedPeekDeltaN.value;
-            final nextLeft = pin == 1 ? 0.0 : pageW + dx;
-            final prevLeft = pin == -1 ? 0.0 : dx - pageW;
             return Stack(
               clipBehavior: Clip.hardEdge,
               children: [
                 ClipRect(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Positioned(
-                        left: nextLeft,
-                        top: 0,
-                        bottom: 0,
-                        width: pageW,
-                        child: IgnorePointer(
-                          child: RepaintBoundary(child: peekNext),
+                  child: Transform.translate(
+                    offset: Offset(-pageW + dx, 0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: pageW,
+                          child: IgnorePointer(
+                            child: RepaintBoundary(
+                              child: ColoredBox(
+                                color: theme.background,
+                                child: peekPrev,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      Positioned(
-                        left: prevLeft,
-                        top: 0,
-                        bottom: 0,
-                        width: pageW,
-                        child: IgnorePointer(
-                          child: RepaintBoundary(child: peekPrev),
+                        SizedBox(
+                          width: pageW,
+                          child: RepaintBoundary(
+                            child: ColoredBox(
+                              color: theme.background,
+                              child: listBody,
+                            ),
+                          ),
                         ),
-                      ),
-                      Transform.translate(offset: Offset(dx, 0), child: child),
-                    ],
+                        SizedBox(
+                          width: pageW,
+                          child: IgnorePointer(
+                            child: RepaintBoundary(
+                              child: ColoredBox(
+                                color: theme.background,
+                                child: peekNext,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 _stableLocOverlay(theme, dx),
               ],
             );
           },
-          child: RepaintBoundary(
-            child: ColoredBox(color: theme.background, child: listBody),
-          ),
         ),
       ),
     );
@@ -2901,7 +2898,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       controller: _scroll,
       physics: pageTurn == ReaderPageTurn.scroll
           ? const ClampingScrollPhysics()
-          : _DragLockScrollPhysics(lock: _pageScrollLockN),
+          : _DragLockScrollPhysics(
+              pageLock: _pageScrollLockN,
+              selectionLock: _selectionScrollLockN,
+            ),
       scrollCacheExtent: const ScrollCacheExtent.pixels(480),
       addAutomaticKeepAlives: false,
       addSemanticIndexes: false,

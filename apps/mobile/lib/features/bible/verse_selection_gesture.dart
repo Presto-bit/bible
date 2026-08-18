@@ -38,13 +38,11 @@ class PageTurnYield extends StatelessWidget {
 }
 
 class _IndexRun {
-  const _IndexRun.placeholder({
-    required this.start,
-    this.anchor,
-  }) : length = 1,
-       verse = null,
-       verseStart = null,
-       words = null;
+  const _IndexRun.placeholder({required this.start, this.anchor})
+    : length = 1,
+      verse = null,
+      verseStart = null,
+      words = null;
 
   const _IndexRun.text({
     required this.start,
@@ -114,6 +112,23 @@ class VerseTextLocator {
     final local = para.globalToLocal(global);
     final pos = para.getPositionForOffset(local);
     return anchorAt(pos.offset);
+  }
+
+  /// 词锚点在 RichText 内的 UTF-16 起止（供 getBoxesForSelection）。
+  (int start, int end)? offsetsForAnchor(WordAnchor anchor) {
+    for (final run in _runs) {
+      if (run.verse != anchor.verse ||
+          run.words == null ||
+          run.verseStart == null) {
+        continue;
+      }
+      final vs = run.verseStart!;
+      final lo = anchor.start.clamp(vs, vs + run.length);
+      final hi = anchor.end.clamp(vs, vs + run.length);
+      if (hi <= lo) continue;
+      return (run.start + (lo - vs), run.start + (hi - vs));
+    }
+    return null;
   }
 }
 
@@ -291,6 +306,9 @@ SelectionHandleLayout? locateSelectionHandles(
   BuildContext context,
   WordRange range,
 ) {
+  final fromBoxes = _locateSelectionHandlesViaBoxes(context, range);
+  if (fromBoxes != null) return fromBoxes;
+
   final root = context.findRenderObject();
   if (root == null) return null;
   RenderBox? startBox;
@@ -321,6 +339,63 @@ SelectionHandleLayout? locateSelectionHandles(
   );
 }
 
+SelectionHandleLayout? _locateSelectionHandlesViaBoxes(
+  BuildContext context,
+  WordRange range,
+) {
+  final n = normalizeWordRange(range);
+  RenderParagraph? startPara;
+  RenderParagraph? endPara;
+  TextSelection? startSel;
+  TextSelection? endSel;
+
+  void visit(RenderObject obj) {
+    if (obj is RenderMetaData) {
+      final data = obj.metaData;
+      if (data is VerseTextLocator) {
+        final para = _paragraphOf(obj);
+        if (para == null) return;
+        final aOff = data.offsetsForAnchor(n.anchor);
+        final fOff = data.offsetsForAnchor(n.focus);
+        if (aOff != null) {
+          startPara = para;
+          startSel = TextSelection(baseOffset: aOff.$1, extentOffset: aOff.$2);
+        }
+        if (fOff != null) {
+          endPara = para;
+          endSel = TextSelection(baseOffset: fOff.$1, extentOffset: fOff.$2);
+        }
+      }
+    }
+    obj.visitChildren(visit);
+  }
+
+  final root = context.findRenderObject();
+  if (root == null) return null;
+  visit(root);
+  final sp = startPara;
+  final ep = endPara;
+  final ss = startSel;
+  final es = endSel;
+  if (sp == null || ep == null || ss == null || es == null) return null;
+
+  final startBoxes = sp.getBoxesForSelection(ss);
+  final endBoxes = ep.getBoxesForSelection(es);
+  if (startBoxes.isEmpty || endBoxes.isEmpty) return null;
+
+  final startBox = sp as RenderBox;
+  final endBox = ep as RenderBox;
+  final sRect = startBoxes.first.toRect();
+  final eRect = endBoxes.last.toRect();
+  final gStart = startBox.localToGlobal(Offset(sRect.left, sRect.bottom));
+  final gEnd = endBox.localToGlobal(Offset(eRect.right, eRect.bottom));
+  return SelectionHandleLayout(
+    start: gStart,
+    end: gEnd,
+    lineHeight: sRect.height.clamp(16.0, 48.0),
+  );
+}
+
 /// 章列表外包：长按 360ms 选词；武装后拖扩选区。
 ///
 /// **刻意不对齐** PWA「未长按横扫选词」：短横滑交给 ListView 滚 / 翻章。
@@ -334,6 +409,7 @@ class VerseSelectionSurface extends StatefulWidget {
     this.onClearIfEmptyTap,
     this.onSelectionGestureChanged,
     this.selectionPrimed = false,
+    this.primedRange,
   });
 
   final Widget child;
@@ -346,6 +422,9 @@ class VerseSelectionSurface extends StatefulWidget {
 
   /// 已有选区时，点在词上立刻武装拖扩，无需再等长按。
   final bool selectionPrimed;
+
+  /// 已有选区时的锚点区间；拖扩时保留 anchor，不重置为单字。
+  final WordRange? primedRange;
 
   @override
   State<VerseSelectionSurface> createState() => _VerseSelectionSurfaceState();
@@ -406,17 +485,19 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         }
         _pointer = e.pointer;
         _down = e.position;
-        _anchor = w;
         _dragging = false;
         _armed = false;
-        _lastFocus = w;
         _clearLp();
-        if (widget.selectionPrimed) {
+        if (widget.selectionPrimed && widget.primedRange != null) {
+          final n = normalizeWordRange(widget.primedRange!);
+          _anchor = n.anchor;
+          _lastFocus = n.focus;
           _armed = true;
           _notifyGesture(true);
-          widget.onApplyRange(w, w, commit: true);
           return;
         }
+        _anchor = w;
+        _lastFocus = w;
         _lp = Timer(const Duration(milliseconds: 360), () {
           if (!mounted || _anchor == null || _dragging) return;
           _armed = true;
@@ -443,7 +524,11 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         if (!_dragging) {
           _dragging = true;
         }
-        final focus = wordAnchorNear(context, e.position, maxRadius: 40);
+        final focus = wordAnchorNear(
+          context,
+          e.position,
+          maxRadius: _dragging ? 56 : 40,
+        );
         if (focus != null) {
           final same =
               _lastFocus != null &&
