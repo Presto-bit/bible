@@ -8,10 +8,13 @@
  */
 
 import { getUserName } from '@/lib/api';
+import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 import { openExternalBrowser } from '@/lib/external_browser';
 
 const G50_HOST = 'genesis-50.pages.dev';
 const G50_SUPABASE_URL = 'https://ytiwfmufekvxdgyaokae.supabase.co';
+/** 同源桥接页：安卓 WebView 先打开彼爱域，再 replace 到外站（与 PWA iframe 鉴权同路径） */
+export const GENESIS50_BRIDGE_PATH = '/campaigns/genesis-50/enter';
 /** 对方前端公开 anon key（与 genesis-50 包内一致） */
 const G50_ANON_KEY = 'sb_publishable_aH3DWsTgZ4X0A4W_zJmyzw_wd7yk7pm';
 /** 运营未在链接里带 ?code= 时的默认邀请码 */
@@ -25,11 +28,16 @@ type G50Session = {
   token_type?: string;
 };
 
-function normalizeHref(href: string): string {
+export function normalizeGenesis50Href(href: string): string {
   const t = (href || '').trim();
   if (!t) return '';
   if (t.startsWith('//')) return `https:${t}`;
   return t;
+}
+
+/** @deprecated 内部别名 */
+function normalizeHref(href: string): string {
+  return normalizeGenesis50Href(href);
 }
 
 function authHeaders(): HeadersInit {
@@ -41,9 +49,33 @@ function authHeaders(): HeadersInit {
 }
 
 export function isGenesis50Href(href: string): boolean {
+  const t = (href || '').trim().toLowerCase();
+  if (t.includes('genesis-50') || t.includes('genesis50')) return true;
   try {
     const u = new URL(normalizeHref(href));
-    return u.hostname === G50_HOST || u.hostname.endsWith(`.${G50_HOST}`);
+    const host = u.hostname.toLowerCase();
+    return host === G50_HOST || host.endsWith(`.${G50_HOST}`);
+  } catch {
+    return false;
+  }
+}
+
+/** 安卓壳 / WebView：先打开同源桥接页，由页内 JS 完成 Supabase 鉴权再跳转外站。 */
+export function buildGenesis50BridgeUrl(href: string): string {
+  const target = normalizeHref(href);
+  const origin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'https://2sc.prestoai.cn';
+  const u = new URL(GENESIS50_BRIDGE_PATH, origin);
+  if (target) u.searchParams.set('href', target);
+  return u.toString();
+}
+
+export function isGenesis50BridgeHref(href: string): boolean {
+  try {
+    const u = new URL(normalizeHref(href));
+    return u.pathname.replace(/\/$/, '') === GENESIS50_BRIDGE_PATH;
   } catch {
     return false;
   }
@@ -178,12 +210,43 @@ async function obtainGenesis50Session(code: string): Promise<G50Session> {
   }
 }
 
-/** 应用内打开：先展示 loading，登录后把 session 写入 iframe URL（活动沉浸顶栏，无浏览器感）。 */
+/** 解析可打开的创世记 50 URL（桥接页 / PWA 共用）。 */
+export async function resolveGenesis50OpenUrl(href: string): Promise<string> {
+  const fallback = normalizeHref(href);
+  const code = resolveGenesis50InviteCode(href);
+  try {
+    const session = await obtainGenesis50Session(code);
+    return buildAuthedUrl(fallback, session);
+  } catch {
+    try {
+      const u = new URL(fallback);
+      if (!u.searchParams.get('code') && !u.searchParams.get('invite')) {
+        u.searchParams.set('code', code);
+      }
+      return u.toString();
+    } catch {
+      return fallback;
+    }
+  }
+}
+
+/** 应用内打开：PWA 用 iframe 鉴权；Flutter 壳走同源桥接页 + 全屏 WebView。 */
 export function openGenesis50Authed(href: string): void {
   if (typeof window === 'undefined') return;
+  const title = '创世记 50 天';
+
+  if (isFlutterH5Host()) {
+    openExternalBrowser({
+      url: buildGenesis50BridgeUrl(href),
+      title,
+      loading: true,
+      chrome: 'app',
+    });
+    return;
+  }
+
   const code = resolveGenesis50InviteCode(href);
   const fallback = normalizeHref(href);
-  const title = '创世记 50 天';
 
   openExternalBrowser({ title, loading: true, chrome: 'app' });
 

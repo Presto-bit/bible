@@ -7,6 +7,8 @@ library;
 
 import 'package:dio/dio.dart';
 
+import 'config.dart';
+
 const _g50Host = 'genesis-50.pages.dev';
 const _g50Origin = 'https://$_g50Host';
 const _g50SupabaseUrl = 'https://ytiwfmufekvxdgyaokae.supabase.co';
@@ -66,7 +68,31 @@ String normalizeGenesis50Href(String href) {
   return t;
 }
 
+/// 同源桥接页（安卓 WebView 先打开彼爱域再跳转外站）。
+const genesis50BridgePath = '/campaigns/genesis-50/enter';
+
+String buildGenesis50BridgeUrl(String href) {
+  final target = normalizeGenesis50Href(href);
+  return Uri.parse('${AppConfig.webBaseUrl}$genesis50BridgePath')
+      .replace(
+        queryParameters: target.isEmpty ? null : {'href': target},
+      )
+      .toString();
+}
+
+bool isGenesis50BridgeHref(String href) {
+  try {
+    final u = Uri.parse(normalizeGenesis50Href(href));
+    final path = u.path.replaceAll(RegExp(r'/+$'), '');
+    return path == genesis50BridgePath;
+  } catch (_) {
+    return false;
+  }
+}
+
 bool isGenesis50Href(String href) {
+  final t = href.trim().toLowerCase();
+  if (t.contains('genesis-50') || t.contains('genesis50')) return true;
   try {
     final u = Uri.parse(normalizeGenesis50Href(href));
     final host = u.host.toLowerCase();
