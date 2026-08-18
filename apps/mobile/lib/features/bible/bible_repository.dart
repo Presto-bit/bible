@@ -5,15 +5,24 @@ library;
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api_client.dart';
+import 'chapter_cache.dart';
 import 'offline_bible.dart';
 import 'models.dart';
 
 class BibleRepository {
-  BibleRepository(this._dio, {OfflineBibleService? offline}) : _offline = offline;
+  BibleRepository(
+    this._dio, {
+    OfflineBibleService? offline,
+    SharedPreferences? prefs,
+  }) : _offline = offline,
+       _prefs = prefs;
+
   final Dio _dio;
   final OfflineBibleService? _offline;
+  final SharedPreferences? _prefs;
 
   Future<List<BibleBook>> books() async {
     try {
@@ -30,6 +39,18 @@ class BibleRepository {
   }
 
   Future<Chapter> chapter(String book, int chapter, {String? version}) async {
+    final prefs = _prefs;
+    if (prefs != null) {
+      final cached = readChapterCache(
+        prefs,
+        book,
+        chapter,
+        versionId: version,
+      );
+      if (cached != null) return cached;
+    }
+    final local = await _offline?.chapter(book, chapter, version: version);
+    if (local != null) return local;
     try {
       final res = await _dio.get(
         '/bible/chapter',
@@ -41,8 +62,6 @@ class BibleRepository {
       );
       return Chapter.fromJson(res.data as Map<String, dynamic>);
     } catch (e) {
-      final local = await _offline?.chapter(book, chapter, version: version);
-      if (local != null) return local;
       rethrow;
     }
   }
@@ -152,6 +171,7 @@ final bibleRepoProvider = Provider<BibleRepository>(
   (ref) => BibleRepository(
     ref.watch(dioProvider),
     offline: ref.watch(offlineBibleProvider),
+    prefs: ref.watch(prefsProvider),
   ),
 );
 

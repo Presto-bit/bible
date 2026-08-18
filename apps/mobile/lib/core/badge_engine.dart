@@ -14,7 +14,10 @@ import 'badge_stats.dart';
 import 'gamification.dart' show readingStreak;
 import 'user_storage.dart';
 
-final badgeCatalogProvider = FutureProvider<BadgeCatalog>((ref) => BadgeCatalog.load());
+final badgeCatalogProvider = FutureProvider<BadgeCatalog>((ref) {
+  ref.keepAlive();
+  return BadgeCatalog.load();
+});
 
 Future<void> _syncBadgeUnlocks(
   SharedPreferences prefs,

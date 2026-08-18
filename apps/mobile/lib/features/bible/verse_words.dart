@@ -1,8 +1,6 @@
-/// 经节文本按词切分。
+/// 经节文本按词切分（对齐 PWA `verse_words.ts`）。
 ///
-/// Flutter 阅读器为每个切片挂载可命中的 WidgetSpan。若把中文合并成 4 个字的
-/// 词块，换行只能发生在词块边缘，窄屏会在行尾留下最多 3 字的空白；逐字切分
-/// 让排版器能在每个汉字处换行并参与两端对齐。
+/// 中文 1–4 字一块：选区是连续蓝带而不是逐字色块，节点也更少、竖滑更跟手。
 library;
 
 class VerseWordSlice {
@@ -26,7 +24,7 @@ List<VerseWordSlice> sliceVerseWords(
 }) {
   if (text.isEmpty) return const [];
   final re = RegExp(
-    r'[\u4e00-\u9fff]|[A-Za-z0-9]+|[^\s\u4e00-\u9fffA-Za-z0-9]+',
+    r'[\u4e00-\u9fff]{1,4}|[A-Za-z0-9]+|[^\s\u4e00-\u9fffA-Za-z0-9]+',
   );
   final out = <VerseWordSlice>[];
   final splitSet = splitOffsets

@@ -159,10 +159,51 @@ List<VerseThoughtData> _readAll(SharedPreferences prefs) {
   }
 }
 
+/// 按章倒排索引，避免 provider 每次全表扫描。
+class _ThoughtsIndex {
+  _ThoughtsIndex(this.all, this.byChapterPrefix, this.mine);
+
+  final List<VerseThoughtData> all;
+  final Map<String, Map<int, int>> byChapterPrefix;
+  final List<VerseThoughtData> mine;
+}
+
+_ThoughtsIndex? _thoughtsIndexMem;
+
+_ThoughtsIndex _loadThoughtsIndex(SharedPreferences prefs) {
+  if (_thoughtsIndexMem != null) return _thoughtsIndexMem!;
+  final all = _readAll(prefs);
+  final byChapter = <String, Map<int, int>>{};
+  for (final t in all) {
+    final parts = t.ref.split('.');
+    if (parts.length < 3) continue;
+    final chapter = int.tryParse(parts[1]);
+    if (chapter == null) continue;
+    final prefix = '${parts[0].toUpperCase()}.$chapter.';
+    final v = verseFromRef(t.ref, chapter);
+    if (v == null) continue;
+    final m = byChapter.putIfAbsent(prefix, () => <int, int>{});
+    m[v] = (m[v] ?? 0) + 1;
+  }
+  final me = _meId(prefs);
+  final mine = all.where((t) => t.authorId == me).toList()
+    ..sort((a, b) => b.createdAtMs.compareTo(a.createdAtMs));
+  _thoughtsIndexMem = _ThoughtsIndex(all, byChapter, mine);
+  return _thoughtsIndexMem!;
+}
+
+void invalidateThoughtsIndexMem() => _thoughtsIndexMem = null;
+
+String _meId(SharedPreferences prefs) =>
+    prefs.getString('user_id') ??
+    userPrefGetString(prefs, 'onboarding_name') ??
+    'me';
+
 Future<void> _writeAll(
   SharedPreferences prefs,
   List<VerseThoughtData> rows,
 ) async {
+  invalidateThoughtsIndexMem();
   await userPrefSetString(
     prefs,
     _thoughtsKey,
@@ -187,7 +228,10 @@ final thoughtsRevisionProvider =
 class ThoughtsRevisionNotifier extends Notifier<int> {
   @override
   int build() => 0;
-  void bump() => state++;
+  void bump() {
+    invalidateThoughtsIndexMem();
+    state++;
+  }
 }
 
 final thoughtsByChapterProvider =
@@ -195,24 +239,21 @@ final thoughtsByChapterProvider =
       ref.watch(thoughtsRevisionProvider);
       final prefs = ref.watch(prefsProvider);
       final prefix = '${key.book.toUpperCase()}.${key.chapter}.';
-      final map = <int, int>{};
-      for (final t in _readAll(prefs)) {
-        if (!t.ref.startsWith(prefix)) continue;
-        final v = verseFromRef(t.ref, key.chapter);
-        if (v != null) map[v] = (map[v] ?? 0) + 1;
-      }
-      return map;
+      return Map<int, int>.from(
+        _loadThoughtsIndex(prefs).byChapterPrefix[prefix] ?? const {},
+      );
     });
 
 /// 当前用户的想法数：读经正文将「我的」想法加深为与 PWA 一致的虚线。
 final myThoughtsByChapterProvider =
     Provider.family<Map<int, int>, ({String book, int chapter})>((ref, key) {
       ref.watch(thoughtsRevisionProvider);
-      final repo = ref.watch(thoughtsRepoProvider);
+      final prefs = ref.watch(prefsProvider);
+      final me = _meId(prefs);
       final prefix = '${key.book.toUpperCase()}.${key.chapter}.';
       final map = <int, int>{};
-      for (final t in repo.listMine()) {
-        if (!t.ref.startsWith(prefix)) continue;
+      for (final t in _loadThoughtsIndex(prefs).mine) {
+        if (t.authorId != me || !t.ref.startsWith(prefix)) continue;
         final v = verseFromRef(t.ref, key.chapter);
         if (v != null) map[v] = (map[v] ?? 0) + 1;
       }
@@ -222,7 +263,8 @@ final myThoughtsByChapterProvider =
 /// 当前用户全部想法（随 revision 刷新）。
 final myThoughtsProvider = Provider<List<VerseThoughtData>>((ref) {
   ref.watch(thoughtsRevisionProvider);
-  return ref.watch(thoughtsRepoProvider).listMine();
+  final prefs = ref.watch(prefsProvider);
+  return List<VerseThoughtData>.from(_loadThoughtsIndex(prefs).mine);
 });
 
 final thoughtsRepoProvider = Provider<ThoughtsRepository>(
@@ -241,7 +283,10 @@ class ThoughtsRepository {
 
   String get _userName => userPrefGetString(_prefs, 'onboarding_name') ?? '我';
 
-  void _notify() => _ref.read(thoughtsRevisionProvider.notifier).bump();
+  void _notify() {
+    invalidateThoughtsIndexMem();
+    _ref.read(thoughtsRevisionProvider.notifier).bump();
+  }
 
   Future<List<VerseThoughtData>> sortedForRef(String ref) async {
     final rows = _readAll(_prefs).where((t) => t.ref == ref).toList();

@@ -64,12 +64,19 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   String _knowledgeBaseId = 'platform';
   String _knowledgeBaseName = '平台知识库';
   List<KnowledgeBaseSummary> _kbs = const [];
+  bool _bootstrapped = false;
+
+  void _maybeBootstrap() {
+    if (_bootstrapped) return;
+    if (ref.read(navIndexProvider) != 2) return;
+    _bootstrapped = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
 
   @override
   void initState() {
     super.initState();
     _anchorRef = widget.seedRef;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
   }
 
   Future<void> _prefetchQuota() async {
@@ -591,6 +598,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       ref.read(assistantSeedProvider.notifier).consume();
       await _applySeed(next);
     });
+    ref.listen(navIndexProvider, (prev, next) {
+      if (next == 2) _maybeBootstrap();
+    });
+    _maybeBootstrap();
 
     final anchorLabel = _anchorRef ?? widget.seedRef ?? '未锚定经文';
     final review = ref.watch(reviewDataProvider).asData?.value;

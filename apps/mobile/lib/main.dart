@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
-import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,7 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app/app_shell.dart' show navIndexProvider;
 import 'app/router.dart';
 import 'core/api_client.dart';
-import 'core/config.dart';
 import 'core/deep_link.dart';
 import 'core/device_id.dart';
 import 'core/discover_h5_redirect.dart';
@@ -23,8 +21,7 @@ import 'core/session.dart';
 import 'core/app_theme.dart';
 import 'core/theme.dart';
 import 'features/assistant/assistant_seed.dart';
-import 'features/auth/auth_api.dart';
-
+import 'features/auth/account_bootstrap.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -32,8 +29,6 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final device = DeviceIdentity(prefs);
   final session = await Session.load(prefs);
-  final bootstrapDio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
-  await AuthApi(bootstrapDio, session, device).ensureAccountReady();
 
   runApp(
     ProviderScope(
@@ -62,6 +57,7 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      unawaited(ref.read(accountBootstrapProvider.future));
       await _initDeepLinks();
       unawaited(ref.read(remotePushServiceProvider).init());
     });

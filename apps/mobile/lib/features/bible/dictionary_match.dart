@@ -3,6 +3,8 @@ library;
 
 import 'dart:collection';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'content_repository.dart';
 
 const _ntBooks = {
@@ -309,6 +311,31 @@ int dictListRevision(List<DictEntity> list) {
   if (list.isEmpty) return 0;
   return Object.hash(list.length, list.first.id, list.last.id);
 }
+
+/// 全量词典索引（keepAlive）：避免读经/peek 重复 buildDictIndex。
+class ReaderDictIndex {
+  const ReaderDictIndex({
+    required this.index,
+    required this.keys,
+    required this.rev,
+  });
+
+  final Map<String, List<DictEntity>> index;
+  final List<String> keys;
+  final int rev;
+}
+
+final readerDictIndexProvider = Provider<ReaderDictIndex?>((ref) {
+  ref.keepAlive();
+  final list = ref.watch(dictionaryProvider('')).value;
+  if (list == null || list.isEmpty) return null;
+  final index = buildDictIndex(list);
+  return ReaderDictIndex(
+    index: index,
+    keys: dictSortedKeys(index),
+    rev: dictListRevision(list),
+  );
+});
 
 // ignore: prefer_collection_literals
 final _dictSpanCache = LinkedHashMap<String, List<DictSpanHit>>();

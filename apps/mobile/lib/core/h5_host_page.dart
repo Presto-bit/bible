@@ -24,6 +24,7 @@ import 'h5_bridge_channel.dart';
 import 'h5_reading_bridge.dart';
 import 'h5_session_bridge.dart';
 import 'h5_whitelist.dart';
+import 'campaign_nav.dart';
 import 'native_permissions.dart';
 import 'notif_prefs.dart';
 import 'theme_ext.dart';
@@ -67,6 +68,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   var _canGoBack = false;
   late String _activePath;
   String _readingHydrateJs = '';
+  String? _lastBridgeInjectKey;
 
   /// 视图可见高度（键盘弹起时收小），同步给 H5 --im-kb / vv
   double? _viewHeight;
@@ -373,6 +375,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         NavigationDelegate(
           onPageStarted: (url) {
             if (mounted) setState(() => _loading = true);
+            _lastBridgeInjectKey = null;
             // 尽早再推一次 chrome 类，压 Web 双底栏闪现
             unawaited(_runEarlyChrome(controller, token, themeId));
             if (mounted) _syncDiscoverImmersive(url);
@@ -418,13 +421,36 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
           onNavigationRequest: (req) {
             final u = Uri.tryParse(req.url);
             if (u == null) return NavigationDecision.prevent;
+            if (isGenesis50Href(req.url) || isGenesis50BridgeHref(req.url)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                unawaited(openCampaignHref(context, req.url));
+              });
+              return NavigationDecision.prevent;
+            }
             final host = Uri.parse(AppConfig.webBaseUrl).host;
+            final appHost =
+                u.host.isEmpty ||
+                u.host == host ||
+                u.host == 'localhost' ||
+                u.host.endsWith('.prestoai.cn');
+            if (!appHost &&
+                (u.scheme == 'http' || u.scheme == 'https') &&
+                u.host.isNotEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                unawaited(openCampaignHref(context, req.url));
+              });
+              return NavigationDecision.prevent;
+            }
             if (u.host == host || u.host.isEmpty) {
-              final p = u.path.isEmpty ? '/' : u.path;
+              final p = H5Whitelist.stripAppBasePath(
+                u.path.isEmpty ? '/' : u.path,
+              );
               if (_isNativePath(p)) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (!mounted) return;
-                  _openNativeFromWeb(u);
+                  _openNativeFromWeb(u.replace(path: p));
                 });
                 return NavigationDecision.prevent;
               }
@@ -686,7 +712,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         p.startsWith('/notes/') ||
         p == '/profile/appearance' ||
         p == '/knowledge-bases' ||
-        p.startsWith('/knowledge-bases/');
+        p.startsWith('/knowledge-bases/') ||
+        p == '/wrapped' ||
+        p.startsWith('/wrapped/');
   }
 
   void _openNativeFromWeb(Uri u) {
@@ -743,6 +771,15 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       context.push(
         Uri(path: p, queryParameters: qp.isEmpty ? null : qp).toString(),
       );
+      return;
+    }
+    if (p == '/wrapped' || p.startsWith('/wrapped/')) {
+      context.push(
+        Uri(
+          path: '/wrapped',
+          queryParameters: qp.isEmpty ? null : qp,
+        ).toString(),
+      );
     }
   }
 
@@ -752,14 +789,18 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final dark = themeId == AppThemeId.dark;
     final pad = MediaQuery.paddingOf(context);
     final topInset = widget.showAppBar ? 0.0 : pad.top;
+    final prefs = ref.read(prefsProvider);
+    final readingDnd = NotifPrefs.readingDnd(prefs);
+    final injectKey =
+        '$token|${themeId.storageKey}|$readingDnd|${widget.embedInTab}|${widget.tabIndex}|${_readingHydrateJs.hashCode}';
+    if (injectKey == _lastBridgeInjectKey) return;
+    _lastBridgeInjectKey = injectKey;
     final tokenJs = token != null && token.isNotEmpty ? _jsStr(token) : 'null';
     final theme = dark ? 'dark' : 'light';
     final vars = peiaiCssVars(themeId);
     final varJs = vars.entries
         .map((e) => "root.style.setProperty('${e.key}','${e.value}');")
         .join('');
-    final prefs = ref.read(prefsProvider);
-    final readingDnd = NotifPrefs.readingDnd(prefs);
     const hostTabs = ['home', 'bible', 'assistant', 'discover', 'profile'];
     // 叠层 H5（加好友/祷告等）与 Tab 内 WebView 区分，便于 Web 侧决定是否 close_h5
     final hostTab = widget.embedInTab
@@ -1146,13 +1187,15 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
           );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: (Theme.of(context).brightness == Brightness.dark
-              ? SystemUiOverlayStyle.light
-              : SystemUiOverlayStyle.dark)
-          .copyWith(
-        systemNavigationBarColor:
-            praySurface ? _praySurface : Theme.of(context).scaffoldBackgroundColor,
-      ),
+      value:
+          (Theme.of(context).brightness == Brightness.dark
+                  ? SystemUiOverlayStyle.light
+                  : SystemUiOverlayStyle.dark)
+              .copyWith(
+                systemNavigationBarColor: praySurface
+                    ? _praySurface
+                    : Theme.of(context).scaffoldBackgroundColor,
+              ),
       child: PopScope(
         canPop: !widget.embedInTab && !_canGoBack,
         onPopInvokedWithResult: (didPop, _) async {

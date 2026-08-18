@@ -22,6 +22,7 @@ import '../features/bible/offline_notice.dart'
 import '../features/bible/reading_repository.dart' show markReaderTabEntry;
 import '../features/bible/reader_screen.dart';
 import '../features/home/home_screen.dart';
+import '../core/widgets/lazy_indexed_stack.dart';
 import '../features/social/discover_screen.dart';
 import 'profile_screen.dart';
 
@@ -167,15 +168,16 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  static const _pages = [
-    HomeScreen(),
-    ReaderScreen(),
-    AssistantScreen(),
-    DiscoverScreen(),
-    ProfileScreen(),
-  ];
-
   Timer? _scrollIdle;
+
+  Widget _tabPage(int i) => switch (i) {
+        0 => const HomeScreen(),
+        1 => const ReaderScreen(),
+        2 => const AssistantScreen(),
+        3 => const DiscoverScreen(),
+        4 => const ProfileScreen(),
+        _ => const SizedBox.shrink(),
+      };
 
   @override
   void initState() {
@@ -273,7 +275,12 @@ class _AppShellState extends ConsumerState<AppShell> {
                       _onShellScroll(n);
                       return false;
                     },
-                    child: IndexedStack(index: index, children: _pages),
+                    child: LazyIndexedStack(
+                      index: index,
+                      itemCount: 5,
+                      keepAliveOnceVisited: const {3},
+                      itemBuilder: _tabPage,
+                    ),
                   ),
                 ),
               ],

@@ -7,13 +7,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../badge_engine.dart' show badgesProvider;
-import '../gamification.dart' show badgeCatalogProvider;
-import '../../features/bible/bible_repository.dart' show booksProvider;
 import '../../features/bible/reading_repository.dart'
     show
         readingProgressStreamProvider,
-        readingReportProvider,
         reviewDataProvider,
         todayReadingProvider;
 import '../../features/bible/thoughts_repository.dart'
@@ -85,12 +81,8 @@ class SyncController extends Notifier<SyncUiState> {
 
   void _invalidateAfterSync() {
     ref.invalidate(reviewDataProvider);
-    ref.invalidate(badgesProvider);
     ref.invalidate(todayReadingProvider);
-    ref.invalidate(readingReportProvider);
     ref.invalidate(readingProgressStreamProvider);
-    ref.invalidate(booksProvider);
-    ref.invalidate(badgeCatalogProvider);
     ref.invalidate(pendingOutboxProvider);
     ref.read(thoughtsRevisionProvider.notifier).bump();
   }
