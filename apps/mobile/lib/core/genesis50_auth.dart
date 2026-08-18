@@ -1,8 +1,7 @@
 /// 创世记 50 天自动登录（对齐 `apps/web/lib/genesis50_auth.ts`）。
 ///
-/// Android：Flutter 侧用邀请码换 Supabase session，WebView 直开原链接
-///（query 带 token + 可选预写 localStorage）。对方 `detectSessionInUrl` 恢复会话。
-/// Web 桥接页 `/campaigns/genesis-50/enter` 仍供 PWA / 深链兼容。
+/// Android：优先走彼爱同源桥接页（与 PWA / H5 一致）；桥接失败时 Flutter 原生 Supabase 鉴权兜底。
+/// Web 桥接页 `/campaigns/genesis-50/enter` 由页内 JS 完成登录再 replace 到外站。
 library;
 
 import 'package:dio/dio.dart';

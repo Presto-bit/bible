@@ -48,7 +48,7 @@ String? _genesis50TargetFromBridge(String href) {
 }
 
 /// 打开活动 / 推荐卡链接：站内 H5 或原生路由；真外链全屏 WebView。
-/// 创世记 50：Flutter 原生鉴权后 WebView 直开原链接（对齐 iOS PWA）。
+/// 创世记 50：先打开彼爱同源桥接页（与 PWA 一致），由页内 JS 鉴权再跳外站。
 Future<void> openCampaignHref(
   BuildContext context,
   String href, {
@@ -57,15 +57,14 @@ Future<void> openCampaignHref(
   final raw = normalizeCampaignHref(href);
   if (raw.isEmpty || !context.mounted) return;
 
-  final bridgeTarget = _genesis50TargetFromBridge(raw);
-  if (bridgeTarget != null) {
+  if (isGenesis50BridgeHref(raw)) {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => _ExternalBrowserPage(
-          url: bridgeTarget,
+          url: raw,
           title: title ?? '创世记 50 天',
           genesis50: true,
-          genesis50Target: bridgeTarget,
+          genesis50Target: _genesis50TargetFromBridge(raw),
         ),
       ),
     );
@@ -106,10 +105,11 @@ Future<void> openCampaignHref(
       return;
     }
     final genesis50 = isGenesis50Href(raw);
+    final launchUrl = genesis50 ? buildGenesis50BridgeUrl(raw) : raw;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => _ExternalBrowserPage(
-          url: raw,
+          url: launchUrl,
           title:
               title ??
               (genesis50
@@ -170,14 +170,23 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   String? _error;
   Timer? _loadWatchdog;
   Timer? _blankProbe;
+  Timer? _bridgeStallTimer;
   var _blankProbeDone = false;
   var _blankRetryCount = 0;
+  var _manualRetryCount = 0;
+  var _nativeAuthFallback = false;
   Genesis50Session? _genesis50Session;
 
   String get _genesis50RawTarget {
     final fromWidget = widget.genesis50Target?.trim();
     if (fromWidget != null && fromWidget.isNotEmpty) return fromWidget;
-    return widget.url;
+    if (isGenesis50Href(widget.url)) return widget.url;
+    return _genesis50TargetFromBridge(widget.url) ?? widget.url;
+  }
+
+  String _genesis50LaunchUrl() {
+    if (isGenesis50BridgeHref(widget.url)) return widget.url;
+    return buildGenesis50BridgeUrl(_genesis50RawTarget);
   }
 
   @override
@@ -185,7 +194,9 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     super.initState();
     _authPhase = widget.genesis50;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.genesis50) {
+      if (widget.genesis50 && !_nativeAuthFallback) {
+        unawaited(_startWebView(_genesis50LaunchUrl()));
+      } else if (widget.genesis50) {
         unawaited(_resolveGenesis50AndStart());
       } else {
         unawaited(_startWebView(widget.url));
@@ -197,7 +208,42 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   void dispose() {
     _loadWatchdog?.cancel();
     _blankProbe?.cancel();
+    _bridgeStallTimer?.cancel();
     super.dispose();
+  }
+
+  void _scheduleBridgeStallFallback(WebViewController controller) {
+    _bridgeStallTimer?.cancel();
+    _bridgeStallTimer = Timer(const Duration(seconds: 14), () async {
+      if (!mounted || _controller != controller || _nativeAuthFallback) return;
+      try {
+        final current = await controller.currentUrl();
+        if (current == null || !isGenesis50BridgeHref(current)) return;
+        _nativeAuthFallback = true;
+        if (!mounted) return;
+        unawaited(_resolveGenesis50AndStart());
+      } catch (_) {}
+    });
+  }
+
+  Future<void> _probeBridgeError(WebViewController controller) async {
+    if (_nativeAuthFallback) return;
+    try {
+      final raw = await controller.runJavaScriptReturningResult('''
+(function(){
+  try {
+    var t = (document.body && (document.body.innerText || '')) || '';
+    if (/自动进入失败|缺少活动链接|链接无效/.test(t)) return 'err';
+    return 'ok';
+  } catch (e) { return 'ok'; }
+})();
+''');
+      if ('$raw'.contains('err')) {
+        _nativeAuthFallback = true;
+        if (!mounted) return;
+        unawaited(_resolveGenesis50AndStart());
+      }
+    } catch (_) {}
   }
 
   Future<void> _resolveGenesis50AndStart() async {
@@ -279,6 +325,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
         if (_blankRetryCount < 1) {
           _blankRetryCount++;
           if (!mounted) return;
+          _nativeAuthFallback = true;
           unawaited(_resolveGenesis50AndStart());
           return;
         }
@@ -290,26 +337,6 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
         });
       } catch (_) {}
     });
-  }
-
-  Future<void> _preSeedGenesis50Storage(
-    WebViewController controller,
-    Genesis50Session session,
-  ) async {
-    final key = genesis50AuthStorageKey;
-    final payload = session.toStorageJson();
-    await controller.loadHtmlString(
-      '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
-      '<body></body></html>',
-      baseUrl: genesis50Origin,
-    );
-    await controller.runJavaScript('''
-(function(){
-  try {
-    localStorage.setItem(${jsonEncode(key)}, JSON.stringify(${jsonEncode(payload)}));
-  } catch (e) {}
-})();
-''');
   }
 
   Future<void> _injectGenesis50StorageFallback(
@@ -374,8 +401,12 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
               _loading = true;
               _authPhase = true;
             });
+            _armLoadWatchdog();
+            _scheduleBridgeStallFallback(controller);
+            unawaited(_probeBridgeError(controller));
             return;
           }
+          _bridgeStallTimer?.cancel();
           setState(() {
             _loading = false;
             _authPhase = false;
@@ -385,6 +416,12 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
             await _injectGenesis50StorageFallback(controller, url);
             _scheduleBlankProbe(controller);
           }
+        },
+        onNavigationRequest: (req) {
+          if (widget.genesis50 && isGenesis50Href(req.url)) {
+            return NavigationDecision.navigate;
+          }
+          return NavigationDecision.navigate;
         },
         onWebResourceError: (err) {
           if (!(err.isForMainFrame ?? true)) return;
@@ -440,17 +477,20 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     Genesis50Session? genesis50Session,
   }) async {
     _blankProbe?.cancel();
+    _bridgeStallTimer?.cancel();
     final controller = WebViewController();
     await _configureController(controller);
-    if (widget.genesis50 && genesis50Session != null) {
-      await _preSeedGenesis50Storage(controller, genesis50Session);
-    }
     if (!mounted) return;
     setState(() {
       _controller = controller;
       _error = null;
       _loading = true;
-      if (widget.genesis50) _authPhase = false;
+      if (widget.genesis50 && !isGenesis50BridgeHref(url)) {
+        _authPhase = false;
+      } else if (widget.genesis50) {
+        _authPhase = true;
+      }
+      if (genesis50Session != null) _genesis50Session = genesis50Session;
     });
     _armLoadWatchdog();
     try {
@@ -474,7 +514,14 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
       _authPhase = widget.genesis50;
     });
     if (widget.genesis50) {
-      unawaited(_resolveGenesis50AndStart());
+      _manualRetryCount++;
+      if (!_nativeAuthFallback &&
+          (_manualRetryCount >= 2 || _blankRetryCount >= 1)) {
+        _nativeAuthFallback = true;
+        unawaited(_resolveGenesis50AndStart());
+        return;
+      }
+      unawaited(_startWebView(_genesis50LaunchUrl()));
     } else {
       unawaited(_startWebView(widget.url));
     }
