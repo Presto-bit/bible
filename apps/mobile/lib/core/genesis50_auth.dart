@@ -1,8 +1,8 @@
 /// 创世记 50 天自动登录（对齐 `apps/web/lib/genesis50_auth.ts`）。
 ///
-/// 用邀请码换 Supabase session；Android WebView 在首屏前写入同源
-/// localStorage，再跳到带 query session 的 URL（与 PWA iframe 一致）。
-/// 对方 `detectSessionInUrl` + `flowType: implicit` 会在首帧恢复会话。
+/// Android：Flutter 侧用邀请码换 Supabase session，WebView 直开原链接
+///（query 带 token + 可选预写 localStorage）。对方 `detectSessionInUrl` 恢复会话。
+/// Web 桥接页 `/campaigns/genesis-50/enter` 仍供 PWA / 深链兼容。
 library;
 
 import 'package:dio/dio.dart';

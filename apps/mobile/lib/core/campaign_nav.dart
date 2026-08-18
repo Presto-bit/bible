@@ -12,9 +12,10 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'genesis50_auth.dart';
 import 'open_h5.dart';
+import 'h5_whitelist.dart';
 import 'theme.dart';
 
-export 'genesis50_auth.dart' show isGenesis50Href;
+export 'genesis50_auth.dart' show isGenesis50Href, isGenesis50BridgeHref;
 
 bool _isAppHostname(String host) {
   final h = host.trim().toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
@@ -33,8 +34,21 @@ String normalizeCampaignHref(String href) {
   return t;
 }
 
+String? _genesis50TargetFromBridge(String href) {
+  if (!isGenesis50BridgeHref(href)) return null;
+  try {
+    final u = Uri.parse(normalizeGenesis50Href(href));
+    final target = (u.queryParameters['href'] ?? u.queryParameters['target'] ?? '')
+        .trim();
+    if (target.isEmpty || !isGenesis50Href(target)) return null;
+    return normalizeGenesis50Href(target);
+  } catch (_) {
+    return null;
+  }
+}
+
 /// 打开活动 / 推荐卡链接：站内 H5 或原生路由；真外链全屏 WebView。
-/// 创世记 50：先打开彼爱同源桥接页，再跳转外站（方案 A+B）。
+/// 创世记 50：Flutter 原生鉴权后 WebView 直开原链接（对齐 iOS PWA）。
 Future<void> openCampaignHref(
   BuildContext context,
   String href, {
@@ -43,14 +57,15 @@ Future<void> openCampaignHref(
   final raw = normalizeCampaignHref(href);
   if (raw.isEmpty || !context.mounted) return;
 
-  // 已是桥接页（深链等）直接打开
-  if (isGenesis50BridgeHref(raw)) {
+  final bridgeTarget = _genesis50TargetFromBridge(raw);
+  if (bridgeTarget != null) {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => _ExternalBrowserPage(
-          url: raw,
+          url: bridgeTarget,
           title: title ?? '创世记 50 天',
           genesis50: true,
+          genesis50Target: bridgeTarget,
         ),
       ),
     );
@@ -59,17 +74,21 @@ Future<void> openCampaignHref(
 
   // 站内相对路径
   if (raw.startsWith('/') && !raw.startsWith('//')) {
-    final pathOnly = raw.split('?').first;
-    if (openH5IfAllowed(context, raw, title: title)) return;
+    final u = Uri.parse(raw.startsWith('/') ? raw : '/$raw');
+    final pathOnly = H5Whitelist.stripAppBasePath(
+      u.path.isEmpty ? '/' : u.path,
+    );
+    final full = '$pathOnly${u.hasQuery ? '?${u.query}' : ''}';
+    if (openH5IfAllowed(context, full, title: title)) return;
     if (pathOnly == '/reader' || pathOnly.startsWith('/reader')) {
-      context.push(raw);
+      context.push(full);
       return;
     }
     if (pathOnly == '/plans' || pathOnly.startsWith('/plans')) {
-      context.push(raw);
+      context.push(full);
       return;
     }
-    context.push(raw.startsWith('/') ? raw : '/$raw');
+    context.push(full.startsWith('/') ? full : '/$full');
     return;
   }
 
@@ -78,18 +97,19 @@ Future<void> openCampaignHref(
       (uri.scheme == 'http' || uri.scheme == 'https') &&
       uri.host.isNotEmpty) {
     if (_isAppHostname(uri.host)) {
-      final path = uri.path.isEmpty ? '/' : uri.path;
+      final path = H5Whitelist.stripAppBasePath(
+        uri.path.isEmpty ? '/' : uri.path,
+      );
       final full = '$path${uri.hasQuery ? '?${uri.query}' : ''}';
       if (openH5IfAllowed(context, full, title: title)) return;
       context.push(full);
       return;
     }
     final genesis50 = isGenesis50Href(raw);
-    final launchUrl = genesis50 ? buildGenesis50BridgeUrl(raw) : raw;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => _ExternalBrowserPage(
-          url: launchUrl,
+          url: raw,
           title:
               title ??
               (genesis50
@@ -134,7 +154,8 @@ class _ExternalBrowserPage extends StatefulWidget {
   final String url;
   final String title;
   final bool genesis50;
-  /// 创世记 50 外站目标 URL（重试桥接用）
+
+  /// 创世记 50 原站 URL（Dart 鉴权 + 重试用）
   final String? genesis50Target;
 
   @override
@@ -151,11 +172,11 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   Timer? _blankProbe;
   var _blankProbeDone = false;
   var _blankRetryCount = 0;
+  Genesis50Session? _genesis50Session;
 
-  String get _retryUrl {
-    if (widget.genesis50Target != null && widget.genesis50Target!.isNotEmpty) {
-      return buildGenesis50BridgeUrl(widget.genesis50Target!);
-    }
+  String get _genesis50RawTarget {
+    final fromWidget = widget.genesis50Target?.trim();
+    if (fromWidget != null && fromWidget.isNotEmpty) return fromWidget;
     return widget.url;
   }
 
@@ -164,7 +185,11 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     super.initState();
     _authPhase = widget.genesis50;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_startWebView(widget.url));
+      if (widget.genesis50) {
+        unawaited(_resolveGenesis50AndStart());
+      } else {
+        unawaited(_startWebView(widget.url));
+      }
     });
   }
 
@@ -175,12 +200,55 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     super.dispose();
   }
 
+  Future<void> _resolveGenesis50AndStart() async {
+    final target = _genesis50RawTarget;
+    if (!mounted) return;
+    setState(() {
+      _error = null;
+      _loading = true;
+      _authPhase = true;
+      _blankProbeDone = false;
+    });
+
+    Genesis50Session? session;
+    String launchUrl;
+    try {
+      if (genesis50UrlHasSession(target)) {
+        launchUrl = normalizeGenesis50Href(target);
+      } else {
+        final code = resolveGenesis50InviteCode(target);
+        try {
+          session = await obtainGenesis50Session(code);
+          launchUrl = buildGenesis50AuthedUrl(target, session);
+        } catch (_) {
+          launchUrl = buildGenesis50FallbackUrl(target, code);
+        }
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _authPhase = false;
+        _error = '进入活动失败，请检查网络后重试';
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    _genesis50Session = session;
+    await _startWebView(launchUrl, genesis50Session: session);
+  }
+
   void _armLoadWatchdog() {
     _loadWatchdog?.cancel();
     final seconds = widget.genesis50 ? 36 : 18;
     _loadWatchdog = Timer(Duration(seconds: seconds), () {
-      if (!mounted || !_loading) return;
-      setState(() => _loading = false);
+      if (!mounted) return;
+      if (!_loading && !_authPhase) return;
+      setState(() {
+        _loading = false;
+        _authPhase = false;
+      });
     });
   }
 
@@ -211,12 +279,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
         if (_blankRetryCount < 1) {
           _blankRetryCount++;
           if (!mounted) return;
-          setState(() {
-            _error = null;
-            _loading = true;
-            _authPhase = true;
-          });
-          unawaited(_startWebView(_retryUrl));
+          unawaited(_resolveGenesis50AndStart());
           return;
         }
         _blankProbeDone = true;
@@ -229,24 +292,51 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     });
   }
 
+  Future<void> _preSeedGenesis50Storage(
+    WebViewController controller,
+    Genesis50Session session,
+  ) async {
+    final key = genesis50AuthStorageKey;
+    final payload = session.toStorageJson();
+    await controller.loadHtmlString(
+      '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
+      '<body></body></html>',
+      baseUrl: genesis50Origin,
+    );
+    await controller.runJavaScript('''
+(function(){
+  try {
+    localStorage.setItem(${jsonEncode(key)}, JSON.stringify(${jsonEncode(payload)}));
+  } catch (e) {}
+})();
+''');
+  }
+
   Future<void> _injectGenesis50StorageFallback(
     WebViewController controller,
     String pageUrl,
   ) async {
     if (!widget.genesis50 || !isGenesis50Href(pageUrl)) return;
-    final uri = Uri.tryParse(pageUrl);
-    if (uri == null) return;
-    final access = uri.queryParameters['access_token'];
-    final refresh = uri.queryParameters['refresh_token'];
-    if ((access ?? '').isEmpty || (refresh ?? '').isEmpty) return;
-    final payload = {
-      'access_token': access,
-      'refresh_token': refresh,
-      'expires_in': int.tryParse(uri.queryParameters['expires_in'] ?? '') ?? 3600,
-      if (uri.queryParameters['expires_at'] != null)
-        'expires_at': int.tryParse(uri.queryParameters['expires_at'] ?? ''),
-      'token_type': uri.queryParameters['token_type'] ?? 'bearer',
-    };
+    final stored = _genesis50Session?.toStorageJson();
+    Map<String, dynamic> payload;
+    if (stored != null) {
+      payload = stored;
+    } else {
+      final uri = Uri.tryParse(pageUrl);
+      if (uri == null) return;
+      final access = uri.queryParameters['access_token'];
+      final refresh = uri.queryParameters['refresh_token'];
+      if ((access ?? '').isEmpty || (refresh ?? '').isEmpty) return;
+      payload = {
+        'access_token': access,
+        'refresh_token': refresh,
+        'expires_in':
+            int.tryParse(uri.queryParameters['expires_in'] ?? '') ?? 3600,
+        if (uri.queryParameters['expires_at'] != null)
+          'expires_at': int.tryParse(uri.queryParameters['expires_at'] ?? ''),
+        'token_type': uri.queryParameters['token_type'] ?? 'bearer',
+      };
+    }
     final key = genesis50AuthStorageKey;
     await controller.runJavaScript('''
 (function(){
@@ -333,7 +423,6 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
       try {
         await platform.setMediaPlaybackRequiresUserGesture(false);
       } catch (_) {}
-      // 去掉 `; wv`，降低被当成内嵌壳空页的概率；保持接近 Chrome UA
       try {
         final ua = await controller.getUserAgent();
         final cleaned = (ua ?? '')
@@ -346,16 +435,22 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     }
   }
 
-  Future<void> _startWebView(String url) async {
-    _blankProbeDone = false;
+  Future<void> _startWebView(
+    String url, {
+    Genesis50Session? genesis50Session,
+  }) async {
+    _blankProbe?.cancel();
     final controller = WebViewController();
     await _configureController(controller);
+    if (widget.genesis50 && genesis50Session != null) {
+      await _preSeedGenesis50Storage(controller, genesis50Session);
+    }
     if (!mounted) return;
     setState(() {
       _controller = controller;
       _error = null;
       _loading = true;
-      if (widget.genesis50) _authPhase = true;
+      if (widget.genesis50) _authPhase = false;
     });
     _armLoadWatchdog();
     try {
@@ -368,6 +463,20 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
         _authPhase = false;
         _error = '页面加载失败，请检查网络后重试';
       });
+    }
+  }
+
+  void _retry() {
+    setState(() {
+      _error = null;
+      _loading = true;
+      _blankProbeDone = false;
+      _authPhase = widget.genesis50;
+    });
+    if (widget.genesis50) {
+      unawaited(_resolveGenesis50AndStart());
+    } else {
+      unawaited(_startWebView(widget.url));
     }
   }
 
@@ -401,15 +510,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
                       ),
                       const SizedBox(height: 16),
                       FilledButton(
-                        onPressed: () {
-                          setState(() {
-                            _error = null;
-                            _loading = true;
-                            _blankProbeDone = false;
-                            _authPhase = widget.genesis50;
-                          });
-                          unawaited(_startWebView(_retryUrl));
-                        },
+                        onPressed: _retry,
                         child: const Text('重试'),
                       ),
                     ],
