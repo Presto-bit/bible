@@ -126,9 +126,47 @@ function isSessionConsumed(): boolean {
   }
 }
 
-/** 桌面/iOS 被动 Banner：冷却中或本会话已出现过则不再出 */
+/**
+ * iOS Safari 自动保存引导（仅内存 + 已装 PWA 永久不再弹）：
+ * - 进入未安装 PWA → 自动弹 IosSafariInstallCoach
+ * - 关闭 → 只本页不再弹
+ * - 刷新 → 再弹（不写 2 天冷却）
+ */
+let iosAutoSheetOpen = false;
+let iosAutoDismissedThisLoad = false;
+
+export function getIosAutoSheetOpen(): boolean {
+  return iosAutoSheetOpen;
+}
+
+export function setIosAutoSheetOpen(open: boolean): void {
+  iosAutoSheetOpen = open;
+}
+
+export function isIosAutoInstallDismissedThisLoad(): boolean {
+  return iosAutoDismissedThisLoad;
+}
+
+export function dismissIosAutoInstallThisLoad(): void {
+  iosAutoDismissedThisLoad = true;
+  iosAutoSheetOpen = false;
+}
+
+export function resetIosAutoInstallThisLoad(): void {
+  iosAutoDismissedThisLoad = false;
+}
+
+/** 桌面/iOS 被动 Banner：冷却中或本会话已出现过则不再出（iOS 自动 Coach 不走此函数） */
 export function isInstallPromptSuppressed(): boolean {
   return isInCooldown() || isSessionConsumed();
+}
+
+/**
+ * iOS 自动 Coach 抑制：本页已关（刷新后重置）。
+ * 已装 PWA（standalone）在 InstallBanner 层拦截，不在此函数。
+ */
+export function isIosInstallAutoSuppressed(): boolean {
+  return isIosAutoInstallDismissedThisLoad();
 }
 
 /**
@@ -141,7 +179,7 @@ export function isAndroidInstallAutoSuppressed(): boolean {
   return isAndroidTwaInstallClaimed() || isAndroidAutoInstallDismissedThisLoad();
 }
 
-/** 桌面/iOS 点「暂不」：短冷却 + 本会话；安卓装包自动路径请用 dismissAndroidAutoInstallThisLoad */
+/** 桌面/iOS 点「暂不」：短冷却 + 本会话；安卓/iOS 自动 Sheet 请用 dismiss*AutoInstallThisLoad */
 export function dismissInstallPrompt(): void {
   if (typeof window === 'undefined') return;
   try {
@@ -151,6 +189,7 @@ export function dismissInstallPrompt(): void {
     /* ignore */
   }
   dismissAndroidAutoInstallThisLoad();
+  dismissIosAutoInstallThisLoad();
 }
 
 /** 安装成功后清冷却（桌面 PWA 等） */

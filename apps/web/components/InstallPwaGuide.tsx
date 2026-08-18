@@ -40,14 +40,18 @@ import {
   clearInstallPromptDismiss,
   dismissAndroidAutoInstallThisLoad,
   dismissInstallPrompt,
+  dismissIosAutoInstallThisLoad,
   getAndroidAutoSheetOpen,
+  getIosAutoSheetOpen,
   isAndroidInstallAutoSuppressed,
   isAndroidTwaInstallClaimed,
   isInstallPromptSuppressed,
+  isIosInstallAutoSuppressed,
   markAndroidTwaInstallClaimed,
   noteInstallPromptShown,
   PWA_INSTALL_DISMISS_KEY,
   setAndroidAutoSheetOpen,
+  setIosAutoSheetOpen,
 } from '@/lib/pwa_install_prompt';
 import {
   readPwaInstallContext,
@@ -157,9 +161,11 @@ export function InstallPwaSheet({
       ? '下载安装包'
       : '添加到主屏幕';
 
-  /** 分享落地 / 微信 / 安卓自动安装：关闭只关本页，不写 2 天冷却（刷新后可再出） */
+  /** 分享落地 / 微信 / 安卓·iOS 自动安装：关闭只关本页，不写 2 天冷却（刷新后可再出） */
   const softCloseOnly =
     isAndroid ||
+    platform === 'ios-safari' ||
+    platform === 'ios-other' ||
     platform === 'inapp' ||
     isShareLandingPath(
       typeof window !== 'undefined' ? window.location.pathname : '',
@@ -429,9 +435,8 @@ export default function InstallBanner() {
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [sheetOpen, setSheetOpen] = useState(() => {
     if (typeof window === 'undefined') return false;
-    // 仅硬认领阻止首帧自动层；2 天冷却 / session 不挡安卓
     if (isAndroidTwaInstallClaimed()) return false;
-    return getAndroidAutoSheetOpen();
+    return getAndroidAutoSheetOpen() || getIosAutoSheetOpen();
   });
   const [sheetCtx, setSheetCtx] = useState<PwaInstallContext | null>(null);
   const [hidden, setHidden] = useState(false);
@@ -496,36 +501,49 @@ export default function InstallBanner() {
   /** 安卓系统浏览器 + 微信等内置浏览器（安卓微信走 APK 引导） */
   const isAndroidPlatform =
     isAndroidBrowser || (platform === 'inapp' && !isIOS());
+  const isIosBrowserPlatform =
+    platform === 'ios-safari' || platform === 'ios-other';
+  /** 进入即弹装包/保存引导；关只本页；刷新再弹 */
+  const isAutoInstallPlatform = isAndroidPlatform || isIosBrowserPlatform;
 
-  // 安卓浏览器/微信：进入即弹装包；关只本页；未硬认领则刷新再弹
   useEffect(() => {
     if (platform === null) return;
     if (platform === 'standalone') {
       setHidden(true);
       setSheetOpen(false);
       setAndroidAutoSheetOpen(false);
+      setIosAutoSheetOpen(false);
       return;
     }
-    if (isAndroidPlatform) {
-      if (androidInstalled || isAndroidInstallAutoSuppressed()) {
+    if (isAutoInstallPlatform) {
+      const iosSuppressed = isIosBrowserPlatform && isIosInstallAutoSuppressed();
+      const androidSuppressed =
+        isAndroidPlatform &&
+        (androidInstalled || isAndroidInstallAutoSuppressed());
+      if (androidSuppressed || iosSuppressed) {
         setHidden(true);
-        // 仅关掉「自动」Sheet，不挡主动 openPwaInstallSheet
         if (getAndroidAutoSheetOpen()) {
           setAndroidAutoSheetOpen(false);
           setSheetOpen(false);
         }
+        if (getIosAutoSheetOpen()) {
+          setIosAutoSheetOpen(false);
+          setSheetOpen(false);
+        }
         return;
       }
-      // 切 Tab 时若本页仍保持「打开中」则恢复
-      if (getAndroidAutoSheetOpen()) {
+      if (getAndroidAutoSheetOpen() || getIosAutoSheetOpen()) {
         setHidden(false);
         setSheetOpen(true);
         return;
       }
       const t = window.setTimeout(() => {
-        if (androidInstalled || isAndroidInstallAutoSuppressed()) return;
-        // 不写 session / 2 天冷却，保证刷新可再弹
-        setAndroidAutoSheetOpen(true);
+        if (isAndroidPlatform && (androidInstalled || isAndroidInstallAutoSuppressed())) {
+          return;
+        }
+        if (isIosBrowserPlatform && isIosInstallAutoSuppressed()) return;
+        if (isAndroidPlatform) setAndroidAutoSheetOpen(true);
+        if (isIosBrowserPlatform) setIosAutoSheetOpen(true);
         setHidden(false);
         setSheetOpen(true);
       }, platform === 'inapp' ? 180 : 250);
@@ -540,7 +558,15 @@ export default function InstallBanner() {
       setHidden(false);
     }, 1200);
     return () => window.clearTimeout(t);
-  }, [platform, onboardingDone, slotFree, isAndroidPlatform, androidInstalled]);
+  }, [
+    platform,
+    onboardingDone,
+    slotFree,
+    isAutoInstallPlatform,
+    isAndroidPlatform,
+    isIosBrowserPlatform,
+    androidInstalled,
+  ]);
 
   // 探测到已装 → 硬认领，永久关掉自动 Sheet
   useEffect(() => {
@@ -565,13 +591,14 @@ export default function InstallBanner() {
 
   const closeSheet = () => {
     if (isAndroidPlatform) {
-      // 只关本页自动弹；不写 2 天冷却 → 刷新仍可再弹
       dismissAndroidAutoInstallThisLoad();
+    } else if (isIosBrowserPlatform) {
+      dismissIosAutoInstallThisLoad();
     }
     setSheetOpen(false);
     setSheetCtx(null);
     writePwaInstallContext(null);
-    if (isAndroidPlatform) setHidden(true);
+    if (isAutoInstallPlatform) setHidden(true);
     else if (isInstallPromptSuppressed()) setHidden(true);
   };
 
@@ -594,8 +621,8 @@ export default function InstallBanner() {
     );
   }
 
-  // 安卓自动 Sheet：不依赖 Banner 槽位（isAndroidPlatform 已排除 standalone）
-  if (isAndroidPlatform) {
+  // 安卓 / iOS 浏览器：自动 Sheet，不依赖 Banner 槽位
+  if (isAutoInstallPlatform) {
     return (
       <InstallPwaSheet
         open={sheetOpen}
@@ -622,11 +649,9 @@ export default function InstallBanner() {
       ? `下次一键续读 · ${afterReadLabel}`
       : platform === 'inapp'
         ? '微信里装不了 · 先用浏览器打开'
-        : platform === 'ios-safari' || platform === 'ios-other'
-          ? '保存到主屏幕，约 10 秒'
-          : platform === 'desktop'
-            ? '登录后，把读经数据保存到桌面 App'
-            : '下载安装包，装好更稳';
+        : platform === 'desktop'
+          ? '登录后，把读经数据保存到桌面 App'
+          : '下载安装包，装好更稳';
 
   return (
     <>
