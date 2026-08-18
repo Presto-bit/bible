@@ -219,8 +219,16 @@ double bookProgressInBible(List<BibleBook> books, String bookId, int chapter) {
   return total > 0 ? before / total : 0;
 }
 
-Chapter? readChapterCache(SharedPreferences prefs, String book, int chapter) {
-  final raw = prefs.getString('$_chapterCachePrefix${book}_$chapter');
+Chapter? readChapterCache(
+  SharedPreferences prefs,
+  String book,
+  int chapter, {
+  String? versionId,
+}) {
+  final key = versionId == null
+      ? '$_chapterCachePrefix${book}_$chapter'
+      : '$_chapterCachePrefix${book}_${chapter}_$versionId';
+  final raw = prefs.getString(key);
   if (raw == null) return null;
   try {
     final j = jsonDecode(raw) as Map<String, dynamic>;
@@ -236,10 +244,14 @@ void writeChapterCache(
   SharedPreferences prefs,
   String book,
   int chapter,
-  Chapter ch,
-) {
+  Chapter ch, {
+  String? versionId,
+}) {
+  final key = versionId == null
+      ? '$_chapterCachePrefix${book}_$chapter'
+      : '$_chapterCachePrefix${book}_${chapter}_$versionId';
   prefs.setString(
-    '$_chapterCachePrefix${book}_$chapter',
+    key,
     jsonEncode({
       'ts': DateTime.now().millisecondsSinceEpoch,
       'data': {
@@ -367,6 +379,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   final _focusBarTopN = ValueNotifier<double?>(null);
   bool _resumeScheduled = false;
   bool _planDayFinishScheduled = false;
+  bool _navFromSwipe = false;
+  Timer? _scrollProgressTimer;
   Chapter? _cachedChapter;
   Chapter? _liveChapter;
 
@@ -395,7 +409,39 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   /// 松手后把当前页送出或弹回；时长与 PWA reader-turn-track 一致。
   late final AnimationController _pageTurnController;
   late Animation<double> _pageTurnAnimation;
-  bool _pageTurnAnimating = false;
+  final _pageTurnAnimatingN = ValueNotifier<bool>(false);
+  bool get _pageTurnAnimating => _pageTurnAnimatingN.value;
+  set _pageTurnAnimating(bool v) => _pageTurnAnimatingN.value = v;
+
+  /// 邻章预览实例缓存：避免正文 provider 抖动时反复 rebuild peek 树。
+  Object? _cachedPeekKey;
+  Widget? _cachedPeekNext;
+  Widget? _cachedPeekPrev;
+
+  void _invalidatePeekCache() {
+    _cachedPeekKey = null;
+    _cachedPeekNext = null;
+    _cachedPeekPrev = null;
+  }
+
+  void _ensurePeekPanels(ReaderExperienceTheme theme, double topPad) {
+    final key = (
+      widget.book.id,
+      widget.chapter,
+      _selected.isNotEmpty,
+      theme.background.toARGB32(),
+      theme.ink.toARGB32(),
+      widget.mainVersionId,
+      widget.compareVersionId,
+      _cachedDictRev,
+    );
+    if (_cachedPeekKey == key && _cachedPeekNext != null && _cachedPeekPrev != null) {
+      return;
+    }
+    _cachedPeekKey = key;
+    _cachedPeekNext = _buildAdjacentPeekPanel(1, theme, topPad);
+    _cachedPeekPrev = _buildAdjacentPeekPanel(-1, theme, topPad);
+  }
 
   /// 划词手势中：禁止横滑翻章（对齐 PWA swipeIgnore）
   bool _selectionGestureActive = false;
@@ -425,32 +471,55 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   void _trackScrollProgress() {
-    if (!_scroll.hasClients || _liveChapter == null) return;
-    final viewportH = _scroll.position.viewportDimension;
-    final top = _scroll.position.pixels;
-    final bottom = top + viewportH;
-    final mid = top + viewportH * 0.35;
-    int? bestVerse;
-    var bestDist = double.infinity;
-    var maxPassed = 0;
-    for (final v in _liveChapter!.verses) {
-      final y = _verseScrollOffset(_scrollVerseKeys[v.verse]);
-      if (y == null) continue;
-      if (y <= bottom) maxPassed = v.verse > maxPassed ? v.verse : maxPassed;
-      final dist = (y - mid).abs();
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestVerse = v.verse;
+    if (_pageDragDx.abs() > 2 || _pageTurnAnimating) return;
+    _scrollProgressTimer?.cancel();
+    _scrollProgressTimer = Timer(const Duration(milliseconds: 120), () {
+      if (!mounted || !_scroll.hasClients || _liveChapter == null) return;
+      final verses = _liveChapter!.verses;
+      if (verses.isEmpty) return;
+
+      final pos = _scroll.position;
+      final viewportH = pos.viewportDimension;
+      final top = pos.pixels;
+      final bottom = top + viewportH;
+      final mid = top + viewportH * 0.35;
+
+      // 优先用语义锚点（margin 模式节容器 key）
+      int? bestVerse;
+      var bestDist = double.infinity;
+      var maxPassed = 0;
+      for (final v in verses) {
+        final key = _scrollVerseKeys[v.verse];
+        final y = _verseScrollOffset(key);
+        if (y != null) {
+          if (y <= bottom) maxPassed = v.verse > maxPassed ? v.verse : maxPassed;
+          final dist = (y - mid).abs();
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestVerse = v.verse;
+          }
+        }
       }
-    }
-    final progressVerse = maxPassed > 0 ? maxPassed : bestVerse;
-    if (progressVerse == null || progressVerse == _lastProgressVerse) return;
-    _lastProgressVerse = progressVerse;
-    ref.read(readingRepoProvider).noteChapterVerseTouch(
-          widget.book.id,
-          widget.chapter,
-          progressVerse,
-        );
+
+      // inline 模式无逐节 key：按滚动比例估算，避免大量 WidgetSpan 拖慢竖滚
+      if (bestVerse == null) {
+        final extent = pos.maxScrollExtent + viewportH;
+        if (extent <= 0) return;
+        final ratio = (mid / extent).clamp(0.0, 1.0);
+        final idx = (ratio * verses.length).floor().clamp(0, verses.length - 1);
+        bestVerse = verses[idx].verse;
+        maxPassed = bestVerse;
+      }
+
+      final progressVerse = maxPassed > 0 ? maxPassed : bestVerse;
+      if (progressVerse == _lastProgressVerse) return;
+      _lastProgressVerse = progressVerse;
+      ref.read(readingRepoProvider).noteChapterVerseTouch(
+            widget.book.id,
+            widget.chapter,
+            progressVerse,
+          );
+    });
   }
   static const _pageAxisMinPx = 8.0;
   static const _pageAxisRatio = 1.15;
@@ -469,7 +538,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _pageTurnAnimation = const AlwaysStoppedAnimation(0);
     _scroll.addListener(_onScroll);
     final prefs = ref.read(prefsProvider);
-    _cachedChapter = readChapterCache(prefs, widget.book.id, widget.chapter);
+    _cachedChapter = readChapterCache(
+      prefs,
+      widget.book.id,
+      widget.chapter,
+      versionId: widget.mainVersionId,
+    );
     _scheduleGuideTips(fromSwipe: false, prevBookId: null, prevChapter: null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _prefetchAdjacentChapters();
@@ -500,30 +574,37 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         _planDayFinishScheduled = false;
         _resumeScheduled = false;
         _liveChapter = null;
-        _pageDragDx = 0;
-        _pageDragRaw = 0;
-        _pageTurnPrefetched = false;
-        _pageDragAxis = null;
+        if (!_navFromSwipe) {
+          _pageDragDx = 0;
+          _pageDragRaw = 0;
+          _pageTurnPrefetched = false;
+          _pageDragAxis = null;
+        }
         _selectionGestureActive = false;
         _resetPagePointer();
         _cachedChapter = readChapterCache(
           ref.read(prefsProvider),
           widget.book.id,
           widget.chapter,
+          versionId: widget.mainVersionId,
         );
+        _invalidatePeekCache();
       });
       _notifySelection();
       _guideDwellTimer?.cancel();
-      _scheduleGuideTips(
-        fromSwipe: fromSwipe,
-        prevBookId: oldWidget.book.id,
-        prevChapter: oldWidget.chapter,
-      );
+      if (!_navFromSwipe) {
+        _scheduleGuideTips(
+          fromSwipe: fromSwipe,
+          prevBookId: oldWidget.book.id,
+          prevChapter: oldWidget.chapter,
+        );
+      }
       _persistPlanRef();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (_scroll.hasClients) _scroll.jumpTo(0);
         _prefetchAdjacentChapters();
+        _navFromSwipe = false;
       });
     } else if (widget.flashVerse != null &&
         widget.flashVerse != oldWidget.flashVerse) {
@@ -566,8 +647,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   @override
   void dispose() {
     _guideDwellTimer?.cancel();
+    _scrollProgressTimer?.cancel();
     _pageTurnController.dispose();
     _pageDragDxN.dispose();
+    _pageTurnAnimatingN.dispose();
     _focusBarTopN.dispose();
     _scroll.removeListener(_onScroll);
     _scroll.dispose();
@@ -1629,30 +1712,61 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     return null;
   }
 
-  /// 与当前主文同译本预取邻章，避免 peek 空白/错译本。
+  /// 与当前主文同译本预取邻章，并写入磁盘缓存，横滑 peek 可即时同构渲染。
   void _prefetchAdjacentChapters() {
+    final prefs = ref.read(prefsProvider);
+    final compareId =
+        widget.mainVersionId == null ? widget.compareVersionId : null;
+
     for (final delta in const [-1, 1]) {
       final target = _adjacentTarget(delta);
       if (target == null) continue;
-      // 默认 chapterProvider（布局/目录用）始终预热，保证段落分段一致。
+
+      final layoutKey = (book: target.book.id, chapter: target.chapter);
+
       unawaited(
-        ref
-            .read(
-              chapterProvider((
-                book: target.book.id,
-                chapter: target.chapter,
-              )).future,
-            )
-            .then((_) {}, onError: (_) {}),
+        ref.read(chapterProvider(layoutKey).future).then((ch) {
+          writeChapterCache(prefs, target.book.id, target.chapter, ch);
+        }, onError: (_) {}),
       );
+
       if (widget.mainVersionId != null) {
+        final versionId = widget.mainVersionId!;
         unawaited(
           ref
               .read(
                 chapterVersionProvider((
                   book: target.book.id,
                   chapter: target.chapter,
-                  version: widget.mainVersionId!,
+                  version: versionId,
+                )).future,
+              )
+              .then((ch) {
+                writeChapterCache(
+                  prefs,
+                  target.book.id,
+                  target.chapter,
+                  ch,
+                  versionId: versionId,
+                );
+              }, onError: (_) {}),
+        );
+      }
+
+      unawaited(
+        ref
+            .read(sectionTitlesProvider(layoutKey).future)
+            .then((_) {}, onError: (_) {}),
+      );
+
+      if (compareId != null) {
+        unawaited(
+          ref
+              .read(
+                chapterVersionProvider((
+                  book: target.book.id,
+                  chapter: target.chapter,
+                  version: compareId,
                 )).future,
               )
               .then((_) {}, onError: (_) {}),
@@ -1699,6 +1813,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _pagePointerAxis = null;
     _pagePointerVelocity = 0;
     _pagePointerLastMoveMs = 0;
+    _prefetchAdjacentChapters();
   }
 
   void _onPagePointerMove(PointerMoveEvent e, {required bool swipeOn}) {
@@ -1781,9 +1896,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   Future<void> _animatePageDragTo(double target) async {
     final start = _pageDragDx;
     if ((start - target).abs() < 0.5) return;
-    setState(() => _pageTurnAnimating = true);
+    _pageTurnAnimating = true;
     _pageTurnAnimation = Tween<double>(begin: start, end: target).animate(
-      CurvedAnimation(parent: _pageTurnController, curve: Curves.easeOut),
+      CurvedAnimation(parent: _pageTurnController, curve: Curves.easeOutCubic),
     );
     await _pageTurnController.forward(from: 0);
   }
@@ -1807,11 +1922,24 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       velocityPxPerSec: v,
     );
     if (commit && can) {
-      // 对齐 PWA：翻页无震动，跟手阈值见 _shouldCommitPageTurn。
       await _animatePageDragTo(goingNext ? -width : width);
       if (!mounted) return;
-      setState(_resetPageDrag);
+      _navFromSwipe = true;
+      final target = _adjacentTarget(goingNext ? 1 : -1);
+      if (target != null) {
+        _cachedChapter = readChapterCache(
+          ref.read(prefsProvider),
+          target.book.id,
+          target.chapter,
+          versionId: widget.mainVersionId,
+        );
+      }
+      // 对齐 PWA：先换章（此时仍保持 offset），下一帧再归零，避免旧章闪回中心。
       widget.onNav(goingNext ? 1 : -1);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(_resetPageDrag);
+      });
       return;
     }
     // 未提交或章节边界均回弹至当前页，避免松手瞬移。
@@ -1826,142 +1954,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         ),
       );
     }
-  }
-
-  Widget _chapterPeekPanel({
-    required WidgetRef watchRef,
-    required ReaderExperienceTheme theme,
-    required int delta,
-    required double width,
-  }) {
-    final target = _adjacentTarget(delta);
-    final topPad = _readerListTopPad();
-    if (target == null) {
-      return ColoredBox(
-        color: theme.background,
-        child: Center(
-          child: Text(
-            delta > 0 ? '已是最后一章' : '已是第一章',
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.ink.withValues(alpha: 0.45),
-            ),
-          ),
-        ),
-      );
-    }
-    final async = widget.mainVersionId != null
-        ? watchRef.watch(
-            chapterVersionProvider((
-              book: target.book.id,
-              chapter: target.chapter,
-              version: widget.mainVersionId!,
-            )),
-          )
-        : watchRef.watch(
-            chapterProvider((book: target.book.id, chapter: target.chapter)),
-          );
-    final fontPx = watchRef.watch(readerFontProvider).px;
-    final fontFamily = watchRef.watch(readerFontFamilyProvider);
-    final verseNo = watchRef.watch(readerVerseNumberProvider);
-    final layoutAsync = widget.mainVersionId != null
-        ? watchRef.watch(
-            chapterProvider((book: target.book.id, chapter: target.chapter)),
-          )
-        : null;
-    final outline = outlineFor(target.book.id, target.chapter);
-    final sectionByVerse = {for (final s in outline) s.verse: s.title};
-    final apiSections = watchRef
-        .watch(
-          sectionTitlesProvider((
-            book: target.book.id,
-            chapter: target.chapter,
-          )),
-        )
-        .value;
-    if (apiSections != null) {
-      for (final s in apiSections) {
-        final t = s.title.trim();
-        if (t.isNotEmpty) sectionByVerse[s.verse] = t;
-      }
-    }
-
-    final toggles = watchRef.watch(readerFeatureTogglesProvider);
-    final highlights = watchRef.watch(highlightMapProvider).value ?? const {};
-    final targetKey = (book: target.book.id, chapter: target.chapter);
-    final thoughtsByVerse = watchRef.watch(thoughtsByChapterProvider(targetKey));
-    final myThoughtsByVerse =
-        watchRef.watch(myThoughtsByChapterProvider(targetKey));
-    final notesByVerse = watchRef
-        .watch(notesStreamProvider)
-        .maybeWhen(
-          data: (list) =>
-              notesForChapter(list, target.book.id, target.chapter),
-          orElse: () => const <int, List<Note>>{},
-        );
-    final dictList = watchRef.watch(dictionaryProvider('')).value ?? const [];
-    final dictRev = dictListRevision(dictList);
-    final peekDictIndex = buildDictIndex(dictList);
-    final peekDictKeys = dictList.map((e) => e.name).toList();
-    final compareId = widget.mainVersionId == null
-        ? widget.compareVersionId
-        : null;
-    final parallelAsync = compareId != null
-        ? watchRef.watch(
-            chapterVersionProvider((
-              book: target.book.id,
-              chapter: target.chapter,
-              version: compareId,
-            )),
-          )
-        : null;
-
-    return ColoredBox(
-      color: theme.background,
-      child: async.when(
-        loading: () => const SizedBox.shrink(),
-        error: (_, _) => Center(
-          child: Text(
-            '加载失败',
-            style: TextStyle(color: theme.ink.withValues(alpha: 0.45)),
-          ),
-        ),
-        data: (ch) {
-          if (widget.mainVersionId != null &&
-              (layoutAsync == null || !layoutAsync.hasValue)) {
-            return const SizedBox.shrink();
-          }
-          Chapter? parallelCh;
-          if (parallelAsync != null && parallelAsync.hasValue) {
-            parallelCh = parallelAsync.value;
-          }
-          return _ChapterPeekContent(
-            book: target.book,
-            chapter: target.chapter,
-            primary: ch,
-            structure: layoutAsync?.value ?? ch,
-            parallel: parallelCh,
-            sectionByVerse: sectionByVerse,
-            verseNo: verseNo,
-            fontPx: fontPx,
-            fontFamily: fontFamily,
-            highlights: highlights,
-            underlinesEnabled: toggles.underlines,
-            dictIndex: peekDictIndex,
-            dictKeys: peekDictKeys,
-            dictRev: dictRev,
-            thoughtsEnabled: toggles.thoughts,
-            thoughtsByVerse: thoughtsByVerse,
-            myThoughtsByVerse: myThoughtsByVerse,
-            notesByVerse: notesByVerse,
-            headerBar: null,
-            selectionActive: _selected.isNotEmpty,
-            theme: theme,
-            topPad: topPad,
-          );
-        },
-      ),
-    );
   }
 
   @override
@@ -2068,15 +2060,14 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       _liveChapter = ch;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.onRead(widget.book.id, widget.chapter);
-        if (widget.mainVersionId == null) {
-          writeChapterCache(
-            ref.read(prefsProvider),
-            widget.book.id,
-            widget.chapter,
-            ch,
-          );
-        }
-        if (!_resumeScheduled && _selected.isEmpty) {
+        writeChapterCache(
+          ref.read(prefsProvider),
+          widget.book.id,
+          widget.chapter,
+          ch,
+          versionId: widget.mainVersionId,
+        );
+        if (!_resumeScheduled && _selected.isEmpty && !_navFromSwipe) {
           _resumeScheduled = true;
           _maybeResume();
         }
@@ -2393,7 +2384,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         physics: pageTurn == ReaderPageTurn.scroll
             ? const ClampingScrollPhysics()
             : _DragLockScrollPhysics(dx: _pageDragDxN),
-        scrollCacheExtent: const ScrollCacheExtent.pixels(480),
+        scrollCacheExtent: const ScrollCacheExtent.pixels(320),
         addAutomaticKeepAlives: false,
         addSemanticIndexes: false,
         // 沉浸：顶垫给固定卷章条；非沉浸：底垫对齐胶囊底栏（peiaiTabContentBottomPad）
@@ -2474,7 +2465,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             selectionAnchorKey: _selectionAnchorKey,
             resumeFlashVerse: _resumeFlashVerse,
             resumeAnchorKey: _resumeAnchorKey,
-            scrollVerseKey: _scrollVerseKey,
+            scrollVerseKey: verseNo == ReaderVerseNumberMode.margin
+                ? _scrollVerseKey
+                : null,
             feedHintForVerse: _feedHintForVerse,
             onViewNote: _viewNote,
             onStart: _startSelect,
@@ -2496,11 +2489,39 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       ),
     );
 
+    final topPad = _readerListTopPad();
+    _ensurePeekPanels(theme, topPad);
     return _pageTurnViewport(
       swipeOn: swipeOn,
       pageW: pageW,
       theme: theme,
       listBody: listBody,
+      peekNext: _cachedPeekNext!,
+      peekPrev: _cachedPeekPrev!,
+    );
+  }
+
+  Widget _buildAdjacentPeekPanel(
+    int delta,
+    ReaderExperienceTheme theme,
+    double topPad,
+  ) {
+    return _AdjacentChapterPeekPanel(
+      key: ValueKey('peek-$delta-${widget.book.id}-${widget.chapter}'),
+      delta: delta,
+      books: widget.books,
+      book: widget.book,
+      chapter: widget.chapter,
+      mainVersionId: widget.mainVersionId,
+      compareVersionId: widget.compareVersionId,
+      theme: theme,
+      topPad: topPad,
+      selectionActive: _selected.isNotEmpty,
+      pageDragDx: _pageDragDxN,
+      pageTurnAnimating: _pageTurnAnimatingN,
+      dictIndex: _cachedDictIndex,
+      dictKeys: _cachedDictKeys,
+      dictRev: _cachedDictRev,
     );
   }
 
@@ -2554,11 +2575,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       top: 0,
       left: 0,
       right: 0,
-      child: Material(
-        color: theme.background,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(16, _locOverlayTopPad(), 20, 10),
-          child: _chapterLocTitle(theme, bookName: bookName, chapter: chapter),
+      child: RepaintBoundary(
+        child: Material(
+          color: theme.background,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, _locOverlayTopPad(), 20, 10),
+            child: _chapterLocTitle(theme, bookName: bookName, chapter: chapter),
+          ),
         ),
       ),
     );
@@ -2575,6 +2598,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     required double pageW,
     required ReaderExperienceTheme theme,
     required Widget listBody,
+    required Widget peekNext,
+    required Widget peekPrev,
   }) {
     return MediaQuery(
       data: MediaQuery.of(
@@ -2586,9 +2611,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         onPointerMove: swipeOn ? (e) => _onPagePointerMove(e, swipeOn: swipeOn) : null,
         onPointerUp: swipeOn ? (e) => _onPagePointerEnd(e, swipeOn: swipeOn) : null,
         onPointerCancel: swipeOn ? (e) => _onPagePointerEnd(e, swipeOn: swipeOn) : null,
-        child: ValueListenableBuilder<double>(
-          valueListenable: _pageDragDxN,
-          builder: (context, dx, child) {
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_pageDragDxN, _pageTurnAnimatingN]),
+          builder: (context, child) {
+            final dx = _pageDragDxN.value;
             return Stack(
               clipBehavior: Clip.hardEdge,
               children: [
@@ -2596,39 +2622,20 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
+                      // 预挂载邻章预览（屏外），仅 Transform 跟手，避免 dx>0 时突然 mount 掉帧
                       Positioned(
                         left: pageW + dx,
                         top: 0,
                         bottom: 0,
                         width: pageW,
-                        child: RepaintBoundary(
-                          child: Consumer(
-                            builder: (context, watchRef, _) =>
-                                _chapterPeekPanel(
-                                  watchRef: watchRef,
-                                  theme: theme,
-                                  delta: 1,
-                                  width: pageW,
-                                ),
-                          ),
-                        ),
+                        child: RepaintBoundary(child: peekNext),
                       ),
                       Positioned(
                         left: dx - pageW,
                         top: 0,
                         bottom: 0,
                         width: pageW,
-                        child: RepaintBoundary(
-                          child: Consumer(
-                            builder: (context, watchRef, _) =>
-                                _chapterPeekPanel(
-                                  watchRef: watchRef,
-                                  theme: theme,
-                                  delta: -1,
-                                  width: pageW,
-                                ),
-                          ),
-                        ),
+                        child: RepaintBoundary(child: peekPrev),
                       ),
                       Transform.translate(offset: Offset(dx, 0), child: child),
                     ],
@@ -2902,11 +2909,361 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       },
     );
 
+    final topPad = _readerListTopPad();
+    _ensurePeekPanels(theme, topPad);
     return _pageTurnViewport(
       swipeOn: swipeOn,
       pageW: pageW,
       theme: theme,
       listBody: listBody,
+      peekNext: _cachedPeekNext!,
+      peekPrev: _cachedPeekPrev!,
+    );
+  }
+}
+
+({BibleBook book, int chapter})? _peekAdjacentTarget({
+  required List<BibleBook> books,
+  required BibleBook book,
+  required int chapter,
+  required int delta,
+}) {
+  final bi = books.indexWhere((b) => b.id == book.id);
+  if (bi < 0) return null;
+  if (delta > 0) {
+    if (chapter < book.chapterCount) {
+      return (book: book, chapter: chapter + 1);
+    }
+    if (bi + 1 < books.length) {
+      return (book: books[bi + 1], chapter: 1);
+    }
+  } else if (delta < 0) {
+    if (chapter > 1) {
+      return (book: book, chapter: chapter - 1);
+    }
+    if (bi > 0) {
+      final prev = books[bi - 1];
+      return (book: prev, chapter: prev.chapterCount);
+    }
+  }
+  return null;
+}
+
+/// 邻章预览：独立 Consumer，横滑时仅位移；渲染与主文同构。
+class _AdjacentChapterPeekPanel extends ConsumerStatefulWidget {
+  const _AdjacentChapterPeekPanel({
+    super.key,
+    required this.delta,
+    required this.books,
+    required this.book,
+    required this.chapter,
+    required this.mainVersionId,
+    required this.compareVersionId,
+    required this.theme,
+    required this.topPad,
+    required this.selectionActive,
+    required this.pageDragDx,
+    required this.pageTurnAnimating,
+    this.dictIndex,
+    this.dictKeys,
+    this.dictRev,
+  });
+
+  final int delta;
+  final List<BibleBook> books;
+  final BibleBook book;
+  final int chapter;
+  final String? mainVersionId;
+  final String? compareVersionId;
+  final ReaderExperienceTheme theme;
+  final double topPad;
+  final bool selectionActive;
+  final ValueNotifier<double> pageDragDx;
+  final ValueNotifier<bool> pageTurnAnimating;
+  final Map<String, List<DictEntity>>? dictIndex;
+  final List<String>? dictKeys;
+  final int? dictRev;
+
+  @override
+  ConsumerState<_AdjacentChapterPeekPanel> createState() =>
+      _AdjacentChapterPeekPanelState();
+}
+
+class _AdjacentChapterPeekPanelState
+    extends ConsumerState<_AdjacentChapterPeekPanel> {
+  Widget? _frozenSnapshot;
+  bool _interactionActive = false;
+
+  bool get _dragOrAnimating =>
+      widget.pageDragDx.value.abs() > 2 || widget.pageTurnAnimating.value;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.pageDragDx.addListener(_onInteractionChanged);
+    widget.pageTurnAnimating.addListener(_onInteractionChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant _AdjacentChapterPeekPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pageDragDx != widget.pageDragDx) {
+      oldWidget.pageDragDx.removeListener(_onInteractionChanged);
+      widget.pageDragDx.addListener(_onInteractionChanged);
+    }
+    if (oldWidget.pageTurnAnimating != widget.pageTurnAnimating) {
+      oldWidget.pageTurnAnimating.removeListener(_onInteractionChanged);
+      widget.pageTurnAnimating.addListener(_onInteractionChanged);
+    }
+    if (oldWidget.selectionActive != widget.selectionActive ||
+        oldWidget.book.id != widget.book.id ||
+        oldWidget.chapter != widget.chapter) {
+      _frozenSnapshot = null;
+      _interactionActive = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.pageDragDx.removeListener(_onInteractionChanged);
+    widget.pageTurnAnimating.removeListener(_onInteractionChanged);
+    super.dispose();
+  }
+
+  void _onInteractionChanged() {
+    final active = _dragOrAnimating;
+    if (active == _interactionActive) return;
+    _interactionActive = active;
+    if (!active) _frozenSnapshot = null;
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_interactionActive) {
+      return _frozenSnapshot ??= RepaintBoundary(child: _buildPanel(ref));
+    }
+    _frozenSnapshot = null;
+    return RepaintBoundary(child: _buildPanel(ref));
+  }
+
+  Widget _buildPanel(WidgetRef ref) {
+    final target = _peekAdjacentTarget(
+      books: widget.books,
+      book: widget.book,
+      chapter: widget.chapter,
+      delta: widget.delta,
+    );
+    if (target == null) {
+      return ColoredBox(
+        color: widget.theme.background,
+        child: Center(
+          child: Text(
+            widget.delta > 0 ? '已是最后一章' : '已是第一章',
+            style: TextStyle(
+              fontSize: 14,
+              color: widget.theme.ink.withValues(alpha: 0.45),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final async = widget.mainVersionId != null
+        ? ref.watch(
+            chapterVersionProvider((
+              book: target.book.id,
+              chapter: target.chapter,
+              version: widget.mainVersionId!,
+            )),
+          )
+        : ref.watch(
+            chapterProvider((book: target.book.id, chapter: target.chapter)),
+          );
+    final fontPx = ref.watch(readerFontProvider).px;
+    final fontFamily = ref.watch(readerFontFamilyProvider);
+    final verseNo = ref.watch(readerVerseNumberProvider);
+    final layoutAsync = widget.mainVersionId != null
+        ? ref.watch(
+            chapterProvider((book: target.book.id, chapter: target.chapter)),
+          )
+        : null;
+    final outline = outlineFor(target.book.id, target.chapter);
+    final sectionByVerse = {for (final s in outline) s.verse: s.title};
+    final apiSections = ref
+        .watch(
+          sectionTitlesProvider((
+            book: target.book.id,
+            chapter: target.chapter,
+          )),
+        )
+        .value;
+    if (apiSections != null) {
+      for (final s in apiSections) {
+        final t = s.title.trim();
+        if (t.isNotEmpty) sectionByVerse[s.verse] = t;
+      }
+    }
+
+    final toggles = ref.watch(readerFeatureTogglesProvider);
+    final highlights = ref.watch(highlightMapProvider).value ?? const {};
+    final targetKey = (book: target.book.id, chapter: target.chapter);
+    final thoughtsByVerse = ref.watch(thoughtsByChapterProvider(targetKey));
+    final myThoughtsByVerse =
+        ref.watch(myThoughtsByChapterProvider(targetKey));
+    final notesByVerse = ref
+        .watch(notesStreamProvider)
+        .maybeWhen(
+          data: (list) =>
+              notesForChapter(list, target.book.id, target.chapter),
+          orElse: () => const <int, List<Note>>{},
+        );
+
+    late final Map<String, List<DictEntity>> peekDictIndex;
+    late final List<String> peekDictKeys;
+    late final int peekDictRev;
+    if (widget.dictIndex != null &&
+        widget.dictKeys != null &&
+        widget.dictRev != null) {
+      peekDictIndex = widget.dictIndex!;
+      peekDictKeys = widget.dictKeys!;
+      peekDictRev = widget.dictRev!;
+    } else {
+      final dictList = ref.watch(dictionaryProvider('')).value ?? const [];
+      peekDictRev = dictListRevision(dictList);
+      peekDictIndex = buildDictIndex(dictList);
+      peekDictKeys = dictList.map((e) => e.name).toList();
+    }
+
+    final compareId =
+        widget.mainVersionId == null ? widget.compareVersionId : null;
+    final parallelAsync = compareId != null
+        ? ref.watch(
+            chapterVersionProvider((
+              book: target.book.id,
+              chapter: target.chapter,
+              version: compareId,
+            )),
+          )
+        : null;
+
+    final prefs = ref.read(prefsProvider);
+    final cachedChapter = readChapterCache(
+      prefs,
+      target.book.id,
+      target.chapter,
+      versionId: widget.mainVersionId,
+    );
+
+    Widget buildPeekContent(Chapter ch, Chapter structure, {Chapter? parallelCh}) {
+      return _ChapterPeekContent(
+        book: target.book,
+        chapter: target.chapter,
+        primary: ch,
+        structure: structure,
+        parallel: parallelCh,
+        sectionByVerse: sectionByVerse,
+        verseNo: verseNo,
+        fontPx: fontPx,
+        fontFamily: fontFamily,
+        highlights: highlights,
+        underlinesEnabled: toggles.underlines,
+        dictIndex: peekDictIndex,
+        dictKeys: peekDictKeys,
+        dictRev: peekDictRev,
+        thoughtsEnabled: toggles.thoughts,
+        thoughtsByVerse: thoughtsByVerse,
+        myThoughtsByVerse: myThoughtsByVerse,
+        notesByVerse: notesByVerse,
+        headerBar: null,
+        selectionActive: widget.selectionActive,
+        theme: widget.theme,
+        topPad: widget.topPad,
+      );
+    }
+
+    return ColoredBox(
+      color: widget.theme.background,
+      child: async.when(
+        loading: () {
+          if (cachedChapter != null) {
+            return buildPeekContent(
+              cachedChapter,
+              layoutAsync?.value ?? cachedChapter,
+            );
+          }
+          return _PeekChapterPlaceholder(
+            theme: widget.theme,
+            topPad: widget.topPad,
+          );
+        },
+        error: (_, _) {
+          if (cachedChapter != null) {
+            return buildPeekContent(
+              cachedChapter,
+              layoutAsync?.value ?? cachedChapter,
+            );
+          }
+          return Center(
+            child: Text(
+              '加载失败',
+              style: TextStyle(color: widget.theme.ink.withValues(alpha: 0.45)),
+            ),
+          );
+        },
+        data: (ch) {
+          if (widget.mainVersionId != null &&
+              (layoutAsync == null || !layoutAsync.hasValue)) {
+            if (cachedChapter != null) {
+              return buildPeekContent(cachedChapter, cachedChapter);
+            }
+            return _PeekChapterPlaceholder(
+              theme: widget.theme,
+              topPad: widget.topPad,
+            );
+          }
+          Chapter? parallelCh;
+          if (parallelAsync != null && parallelAsync.hasValue) {
+            parallelCh = parallelAsync.value;
+          }
+          return buildPeekContent(
+            ch,
+            layoutAsync?.value ?? ch,
+            parallelCh: parallelCh,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PeekChapterPlaceholder extends StatelessWidget {
+  const _PeekChapterPlaceholder({required this.theme, required this.topPad});
+
+  final ReaderExperienceTheme theme;
+  final double topPad;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, topPad, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < 8; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Container(
+                height: 14,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: theme.ink.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -3302,7 +3659,7 @@ class _ChapterPeekContent extends StatelessWidget {
       if (title != null && title.trim().isNotEmpty) rows.add(title.trim());
       rows.add(paragraph);
     }
-    final itemCount = rows.length.clamp(0, 24);
+    final itemCount = rows.length;
     return ExcludeSemantics(
       child: ListView.builder(
         physics: const NeverScrollableScrollPhysics(),
@@ -3313,11 +3670,13 @@ class _ChapterPeekContent extends StatelessWidget {
         itemBuilder: (context, i) {
           if (headerBar != null && i == 0) return headerBar!;
           final row = rows[i - (headerBar != null ? 1 : 0)];
-          return row is String
-              ? _sectionTitle(row)
-              : parallel == null
-              ? _proseParagraph(row as VerseParagraph)
-              : _parallelParagraph(row as VerseParagraph);
+          return RepaintBoundary(
+            child: row is String
+                ? _sectionTitle(row)
+                : parallel == null
+                ? _proseParagraph(row as VerseParagraph)
+                : _parallelParagraph(row as VerseParagraph),
+          );
         },
       ),
     );
@@ -3532,17 +3891,6 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           WidgetSpan(
             alignment: PlaceholderAlignment.top,
             child: feedHint,
-          ),
-        );
-      }
-      final scrollKey = widget.scrollVerseKey?.call(v.verse);
-      if (scrollKey != null &&
-          widget.selectionAnchorVerse != v.verse &&
-          widget.resumeFlashVerse != v.verse) {
-        spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.top,
-            child: SizedBox(key: scrollKey, width: 0, height: 0),
           ),
         );
       }
