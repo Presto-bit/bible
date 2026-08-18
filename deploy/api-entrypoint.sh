@@ -75,6 +75,18 @@ mkdir -p \
   /app/content/commentary/reference-en \
   /app/content/commentary/study-bible-zh \
   /app/content/commentary/study-bible \
-  /app/data/rag/uploads
+  /app/data/rag/uploads \
+  /app/data/.cache
+
+# Gnosis 离线快照：无出网时 import_relations 仍可用
+for _pair in \
+  "gnosis-people-v0.9.3.json:gnosis-people.json" \
+  "gnosis-places-v0.9.3.json:gnosis-places.json"; do
+  _src="${_pair%%:*}"
+  _dst="${_pair##*:}"
+  if [[ -f "/app/data/vendor/$_src" && ! -f "/app/data/.cache/$_dst" ]]; then
+    cp -f "/app/data/vendor/$_src" "/app/data/.cache/$_dst"
+  fi
+done
 
 exec "$@"

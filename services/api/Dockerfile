@@ -56,7 +56,9 @@ RUN chmod +x /app/deploy/api-entrypoint.sh \
     /app/content/commentary/public-domain-ocd \
     /app/content/commentary/reference-en \
     /app/content/commentary/study-bible-zh \
-    /app/content/commentary/study-bible
+    /app/content/commentary/study-bible \
+  && cp -f /app/data/vendor/gnosis-people-v0.9.3.json /app/data/.cache/gnosis-people.json \
+  && cp -f /app/data/vendor/gnosis-places-v0.9.3.json /app/data/.cache/gnosis-places.json
 
 ENV PYTHONPATH=/app/services/api
 ENV BIBLE_DB_PATH=/app/build/bible_cnv.sqlite

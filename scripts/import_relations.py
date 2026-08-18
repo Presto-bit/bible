@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from import_entities import PEOPLE_URL, PLACES_URL, _fetch, _refs_from_osis_list
+from import_entities import PEOPLE_URL, read_gnosis_data, seed_gnosis_cache, _fetch, _refs_from_osis_list
 from lib.relations import (
     CANDIDATE_SCHEMA,
     SCHEMA,
@@ -43,6 +43,9 @@ CANDIDATES = REPO / "data" / "dictionary" / "relation_candidates.json"
 APPROVED = REPO / "data" / "dictionary" / "relation_candidates.approved.json"
 REVIEW = REPO / "data" / "dictionary" / "relation_review.json"
 ALIASES_OUT = REPO / "data" / "dictionary" / "id_aliases.json"
+
+MIN_PERSON_COVERAGE = 0.4
+MIN_TOP50_COVERAGE = 0.9
 
 CORE_ENTITIES = [
     {
@@ -529,7 +532,8 @@ def main() -> int:
     place_candidates: list[dict] = []
     if not args.skip_gnosis and source_enabled("gnosis"):
         try:
-            people_raw = json.loads(_fetch(PEOPLE_URL, "gnosis-people.json").read_text(encoding="utf-8"))
+            seed_gnosis_cache()
+            people_raw = read_gnosis_data("gnosis-people.json", PEOPLE_URL)
             people = _person_list(people_raw)
             adapter = GnosisFamilyAdapter(people, index, review)
             gnosis_edges = adapter.official_edges()
@@ -603,6 +607,18 @@ def main() -> int:
         f"高频50人 {stats['top50_person_coverage']:.1%}；"
         f"审核 {len(uniq_review)} 条"
     )
+    if stats["person_coverage"] < MIN_PERSON_COVERAGE:
+        print(
+            f"FAIL person coverage {stats['person_coverage']:.1%} < "
+            f"{MIN_PERSON_COVERAGE:.0%}（Gnosis 未加载时会退化，请检查 data/vendor 或出网）"
+        )
+        return 1
+    if stats["top50_person_coverage"] < MIN_TOP50_COVERAGE:
+        print(
+            f"FAIL top50 coverage {stats['top50_person_coverage']:.1%} < "
+            f"{MIN_TOP50_COVERAGE:.0%}"
+        )
+        return 1
     if args.dry_run:
         return 0
     _dump(OUT, official_payload)

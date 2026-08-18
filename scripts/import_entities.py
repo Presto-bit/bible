@@ -13,7 +13,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import sys
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -24,8 +26,15 @@ from lib.usfm import parse_osis_ref, slugify
 
 REPO = Path(__file__).resolve().parent.parent
 CACHE = REPO / "data" / ".cache"
+VENDOR = REPO / "data" / "vendor"
 OUT = REPO / "data" / "dictionary" / "entities.json"
 EXISTING = OUT
+
+# 离线/vendor 回退（CC-BY-SA Gnosis v0.9.3）；发版机无出网时 import_relations 仍可用
+VENDOR_FILES: dict[str, str] = {
+    "gnosis-people.json": "gnosis-people-v0.9.3.json",
+    "gnosis-places.json": "gnosis-places-v0.9.3.json",
+}
 
 PEOPLE_URL = (
     "https://github.com/spearssoftware/gnosis/releases/download/v0.9.3/people.json"
@@ -35,40 +44,122 @@ PLACES_URL = (
 )
 
 
-def _fetch(url: str, name: str, *, min_bytes: int = 1000) -> Path:
-    """下载到 data/.cache；已有完整 JSON 则复用。损坏/截断缓存会删掉重下。"""
-    dest = CACHE / name
-    dest.parent.mkdir(parents=True, exist_ok=True)
+def _ensure_cache_dir() -> Path:
+    try:
+        CACHE.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        # 卷挂载只读或父目录异常时，回落系统临时目录（仍可读 vendor）
+        fallback = Path(tempfile.gettempdir()) / "peiai-gnosis-cache"
+        fallback.mkdir(parents=True, exist_ok=True)
+        print(f"  ⚠ data/.cache 不可用（{exc}），改用 {fallback}")
+        return fallback
+    return CACHE
 
-    def _json_ok(path: Path) -> bool:
-        if not path.exists() or path.stat().st_size < min_bytes:
-            return False
+
+def _json_ok(path: Path, *, min_bytes: int = 1000) -> bool:
+    if not path.exists() or path.stat().st_size < min_bytes:
+        return False
+    try:
+        json.loads(path.read_text(encoding="utf-8"))
+        return True
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+
+
+def _vendor_source(name: str) -> Path | None:
+    vendor_name = VENDOR_FILES.get(name, name)
+    src = VENDOR / vendor_name
+    if not src.is_file():
+        return None
+    if not _json_ok(src, min_bytes=100):
+        return None
+    return src
+
+
+def seed_gnosis_cache() -> None:
+    """把 vendor 快照写入 data/.cache（发版/容器启动时调用）。"""
+    cache = _ensure_cache_dir()
+    for name in VENDOR_FILES:
+        dest = cache / name
+        if _json_ok(dest):
+            continue
+        src = _vendor_source(name)
+        if src is None:
+            continue
         try:
-            json.loads(path.read_text(encoding="utf-8"))
-            return True
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            return False
+            shutil.copy2(src, dest)
+            print(f"  预热缓存 {name} ← {src.name}")
+        except OSError as exc:
+            print(f"  ⚠ 无法写入缓存 {name}：{exc}")
 
+
+def read_gnosis_data(name: str, url: str) -> object:
+    """读 Gnosis JSON：cache → vendor（直读）→ 网络下载。"""
+    cache = _ensure_cache_dir()
+    dest = cache / name
     if _json_ok(dest):
+        return json.loads(dest.read_text(encoding="utf-8"))
+
+    src = _vendor_source(name)
+    if src is not None:
+        print(f"  使用 vendor 回退 {src.name}")
+        try:
+            shutil.copy2(src, dest)
+        except OSError:
+            pass
+        return json.loads(src.read_text(encoding="utf-8"))
+
+    path = _fetch(url, name)
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _copy_vendor(name: str, dest: Path) -> bool:
+    src = _vendor_source(name)
+    if src is None:
+        return False
+    _ensure_cache_dir()
+    shutil.copy2(src, dest)
+    print(f"  使用 vendor 回退 {src.name}")
+    return True
+
+
+def _fetch(url: str, name: str, *, min_bytes: int = 1000) -> Path:
+    """下载到 data/.cache；已有完整 JSON / vendor 回退则复用。损坏/截断缓存会删掉重下。"""
+    cache = _ensure_cache_dir()
+    dest = cache / name
+
+    if _json_ok(dest, min_bytes=min_bytes):
         return dest
 
     if dest.exists():
         print(f"  缓存损坏或过小，重新下载 {name} …")
         dest.unlink(missing_ok=True)
+    elif _copy_vendor(name, dest) and _json_ok(dest, min_bytes=min_bytes):
+        return dest
     else:
         print(f"  下载 {name} …")
 
-    tmp = dest.with_suffix(dest.suffix + ".tmp")
+    tmp: Path | None = None
     try:
-        if tmp.exists():
-            tmp.unlink()
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            delete=False,
+            dir=cache,
+            prefix=f"{dest.stem}.",
+            suffix=".tmp",
+        ) as fh:
+            tmp = Path(fh.name)
         urllib.request.urlretrieve(url, tmp)
-        if not _json_ok(tmp):
+        if not _json_ok(tmp, min_bytes=min_bytes):
             raise OSError(f"下载内容不是完整 JSON：{name}（{tmp.stat().st_size} bytes）")
         tmp.replace(dest)
+        tmp = None
     except Exception:
-        if tmp.exists():
+        if tmp is not None and tmp.exists():
             tmp.unlink(missing_ok=True)
+        if _copy_vendor(name, dest) and _json_ok(dest, min_bytes=min_bytes):
+            print(f"  下载失败，已改用 vendor 回退 {name}")
+            return dest
         raise
     return dest
 
