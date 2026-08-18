@@ -661,8 +661,8 @@ export default function InstallBanner() {
           <span className="install-banner-cta">
             {platform === 'desktop'
               ? '去保存'
-              : platform === 'ios-safari' || platform === 'ios-other'
-                ? '看怎么保存'
+              : platform === 'inapp'
+                ? '看怎么打开'
                 : '去安装'}
           </span>
         </button>
