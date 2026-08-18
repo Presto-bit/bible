@@ -218,28 +218,26 @@ double bookProgressInBible(List<BibleBook> books, String bookId, int chapter) {
   return total > 0 ? before / total : 0;
 }
 
-/// 横滑翻章时锁住竖滑，且不因 physics 切换重建 ListView。
+/// 横滑翻章时锁住竖滑；与视觉位移 [dx] 分离，避免翻页落地后仍无法竖滚。
 class _DragLockScrollPhysics extends ScrollPhysics {
-  const _DragLockScrollPhysics({required this.dx, super.parent});
+  const _DragLockScrollPhysics({required this.lock, super.parent});
 
-  final ValueNotifier<double> dx;
-
-  bool get _locked => dx.value.abs() > 2;
+  final ValueNotifier<bool> lock;
 
   @override
   _DragLockScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return _DragLockScrollPhysics(dx: dx, parent: buildParent(ancestor));
+    return _DragLockScrollPhysics(lock: lock, parent: buildParent(ancestor));
   }
 
   @override
   bool shouldAcceptUserOffset(ScrollMetrics position) {
-    if (_locked) return false;
+    if (lock.value) return false;
     return super.shouldAcceptUserOffset(position);
   }
 
   @override
   double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
-    if (_locked) return 0;
+    if (lock.value) return 0;
     return super.applyPhysicsToUserOffset(position, offset);
   }
 }
@@ -342,6 +340,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   /// 横滑翻章视觉位移（已含边界阻力）；跟手只改 notifier，不重建经文。
   final _pageDragDxN = ValueNotifier<double>(0);
+  /// 仅横滑跟手/提交动画期间锁竖滚，不与视觉 dx 绑定。
+  final _pageScrollLockN = ValueNotifier<bool>(false);
   double get _pageDragDx => _pageDragDxN.value;
   set _pageDragDx(double v) {
     if (_pageDragDxN.value == v) return;
@@ -387,8 +387,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         _pageDragDx.abs() > 2 ||
         _pinnedPeekDeltaN.value != null;
     if (!turning) {
-      _cachedPeekNext ??= const SizedBox.shrink();
-      _cachedPeekPrev ??= const SizedBox.shrink();
+      _cachedPeekNext ??= ColoredBox(color: theme.background);
+      _cachedPeekPrev ??= ColoredBox(color: theme.background);
       return;
     }
     final key = (
@@ -405,9 +405,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     if (_cachedPeekKey == key &&
         _cachedPeekNext != null &&
         _cachedPeekPrev != null) {
-      final nextEmpty = _cachedPeekNext is SizedBox;
-      final prevEmpty = _cachedPeekPrev is SizedBox;
-      if (!nextEmpty && !prevEmpty) return;
+      return;
     }
     _cachedPeekKey = key;
     _cachedPeekNext = _buildAdjacentPeekPanel(1, theme, topPad);
@@ -432,6 +430,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       _pageDragRaw = 0;
       _pageDragAxis = null;
       _pageTurnPrefetched = false;
+      _pageScrollLockN.value = false;
     }
   }
 
@@ -653,6 +652,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _scrollProgressTimer?.cancel();
     _pageTurnController.dispose();
     _pageDragDxN.dispose();
+    _pageScrollLockN.dispose();
     _pageTurnAnimatingN.dispose();
     _focusBarTopN.dispose();
     _selHandlesN.dispose();
@@ -1828,6 +1828,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _pageTurnPrefetched = false;
     _pageDragAxis = null;
     _pageTurnAnimating = false;
+    _pageScrollLockN.value = false;
     _resetPagePointer();
   }
 
@@ -1883,8 +1884,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       if (totalDx.abs() > totalDy.abs() * _pageAxisRatio) {
         _pagePointerAxis = 'x';
         _pageDragAxis = 'x';
+        _pageScrollLockN.value = true;
       } else {
         _pagePointerAxis = 'y';
+        _pageScrollLockN.value = false;
         return;
       }
     }
@@ -1920,6 +1923,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final width = MediaQuery.sizeOf(context).width;
     if (width <= 0) return;
     _pageDragAxis = 'x';
+    _pageScrollLockN.value = true;
     _pageDragRaw = (_pageDragRaw + deltaDx).clamp(-width, width);
     _pageDragDx = _clampPageDrag(_pageDragRaw, width);
     if (!_pageTurnPrefetched && _pageDragRaw.abs() / width >= 0.04) {
@@ -1949,12 +1953,20 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   Future<void> _animatePageDragTo(double target) async {
     final start = _pageDragDx;
-    if ((start - target).abs() < 0.5) return;
+    if ((start - target).abs() < 0.5) {
+      _pageTurnAnimating = false;
+      _pageScrollLockN.value = false;
+      return;
+    }
     _pageTurnAnimating = true;
+    _pageScrollLockN.value = true;
     _pageTurnAnimation = Tween<double>(begin: start, end: target).animate(
       CurvedAnimation(parent: _pageTurnController, curve: Curves.easeOutCubic),
     );
     await _pageTurnController.forward(from: 0);
+    if (!mounted) return;
+    _pageTurnAnimating = false;
+    _pageScrollLockN.value = false;
   }
 
   Future<void> _finishPageTurn({
@@ -1994,11 +2006,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _resetPageDrag();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          _pinnedPeekDeltaN.value = null;
-          _invalidatePeekCache();
-        });
+        _pinnedPeekDeltaN.value = null;
+        _invalidatePeekCache();
+        if (_scroll.hasClients) _scroll.jumpTo(0);
       });
       return;
     }
@@ -2484,7 +2494,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         controller: _scroll,
         physics: pageTurn == ReaderPageTurn.scroll
             ? const ClampingScrollPhysics()
-            : _DragLockScrollPhysics(dx: _pageDragDxN),
+            : _DragLockScrollPhysics(lock: _pageScrollLockN),
         scrollCacheExtent: const ScrollCacheExtent.pixels(320),
         addAutomaticKeepAlives: false,
         addSemanticIndexes: false,
@@ -2891,7 +2901,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       controller: _scroll,
       physics: pageTurn == ReaderPageTurn.scroll
           ? const ClampingScrollPhysics()
-          : _DragLockScrollPhysics(dx: _pageDragDxN),
+          : _DragLockScrollPhysics(lock: _pageScrollLockN),
       scrollCacheExtent: const ScrollCacheExtent.pixels(480),
       addAutomaticKeepAlives: false,
       addSemanticIndexes: false,
@@ -3180,17 +3190,29 @@ class _AdjacentChapterPeekPanelState
     final active = _dragOrAnimating;
     if (active == _interactionActive) return;
     _interactionActive = active;
-    if (!active) _frozenSnapshot = null;
+    if (!active) {
+      _frozenSnapshot = null;
+      if (mounted) setState(() {});
+      return;
+    }
+    if (_frozenSnapshot == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_interactionActive || _frozenSnapshot != null) return;
+        setState(() {
+          _frozenSnapshot = RepaintBoundary(child: _buildPanel(ref));
+        });
+      });
+    }
     if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     if (_interactionActive) {
-      return _frozenSnapshot ??= RepaintBoundary(child: _buildPanel(ref));
+      return _frozenSnapshot ?? ColoredBox(color: widget.theme.background);
     }
     _frozenSnapshot = null;
-    return RepaintBoundary(child: _buildPanel(ref));
+    return ColoredBox(color: widget.theme.background);
   }
 
   Widget _buildPanel(WidgetRef ref) {
