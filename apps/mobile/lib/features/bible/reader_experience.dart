@@ -437,6 +437,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   bool get _swipeIgnored =>
       DateTime.now().millisecondsSinceEpoch < _swipeIgnoreUntilMs;
 
+  void _releasePageScrollLock() {
+    if (!_pageTurnAnimating) {
+      _pageScrollLockN.value = false;
+    }
+  }
+
   void _cancelPagePointerTracking() {
     _resetPagePointer();
     if (!_pageTurnAnimating && (_pageDragDx != 0 || _pageDragRaw != 0)) {
@@ -444,12 +450,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       _pageDragRaw = 0;
       _pageDragAxis = null;
       _pageTurnPrefetched = false;
-      _pageScrollLockN.value = false;
     }
+    _releasePageScrollLock();
   }
 
   /// 跟手翻页指针态（对齐 PWA useReaderPageTurn 轴锁，避免与竖滚抢手势）
   int? _pagePointerId;
+  int? _pagePointerCandidate;
   Offset? _pagePointerStart;
   String? _pagePointerAxis;
   double _pagePointerVelocity = 0;
@@ -1844,6 +1851,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   void _resetPagePointer() {
     _pagePointerId = null;
+    _pagePointerCandidate = null;
     _pagePointerStart = null;
     _pagePointerAxis = null;
     _pagePointerVelocity = 0;
@@ -1863,11 +1871,11 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       return;
     }
     if (!_pagePointerAllowed(e)) return;
-    if (_pagePointerId != null) return;
+    if (_pagePointerId != null || _pagePointerCandidate != null) return;
     // 对齐 PWA shouldYieldPageTurn：词典下划线 / 工具条 / 计划条让路；
     // 普通经文不让，否则正文上左右滑永远不跟手。
     if (shouldYieldPageTurn(context, e.position)) return;
-    _pagePointerId = e.pointer;
+    _pagePointerCandidate = e.pointer;
     _pagePointerStart = e.position;
     _pagePointerAxis = null;
     _pagePointerVelocity = 0;
@@ -1875,8 +1883,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _prefetchAdjacentChapters();
   }
 
+  bool _pagePointerTracked(int pointer) =>
+      pointer == _pagePointerId || pointer == _pagePointerCandidate;
+
   void _onPagePointerMove(PointerMoveEvent e, {required bool swipeOn}) {
-    if (e.pointer != _pagePointerId || !swipeOn || _pageTurnAnimating) return;
+    if (!_pagePointerTracked(e.pointer) || !swipeOn || _pageTurnAnimating)
+      return;
     if (_selectionGestureActive || _swipeIgnored) {
       _cancelPagePointerTracking();
       return;
@@ -1892,10 +1904,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       }
       // 对齐 PWA：默认保竖滚；只有明显偏横才锁 X 翻章。
       if (totalDx.abs() > totalDy.abs() * _pageAxisRatio) {
+        _pagePointerId = e.pointer;
+        _pagePointerCandidate = null;
         _pagePointerAxis = 'x';
         _pageDragAxis = 'x';
         _pageScrollLockN.value = true;
       } else {
+        _pagePointerCandidate = null;
         _pagePointerAxis = 'y';
         _pageScrollLockN.value = false;
         return;
@@ -1913,10 +1928,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   void _onPagePointerEnd(PointerEvent e, {required bool swipeOn}) {
-    if (e.pointer != _pagePointerId) return;
-    if (_pagePointerAxis == 'x' &&
+    if (!_pagePointerTracked(e.pointer)) return;
+    final committed =
+        _pagePointerAxis == 'x' &&
         swipeOn &&
-        (_pageDragRaw != 0 || _pageDragDx != 0)) {
+        (_pageDragRaw != 0 || _pageDragDx != 0);
+    if (committed) {
       unawaited(_finishPageTurn(velocityPxPerSec: _pagePointerVelocity));
     } else if (_pageDragDx != 0 || _pageDragRaw != 0) {
       if (_pageTurnAnimating) {
@@ -1924,6 +1941,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       } else {
         _resetPageDrag();
       }
+    } else {
+      // 轴已判 X 但未位移时也要释放，否则竖滚会永久锁死。
+      _releasePageScrollLock();
     }
     _resetPagePointer();
   }
@@ -2479,118 +2499,121 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         }
         _setSelectionGestureActive(on);
       },
-      child: ListView.builder(
-        controller: _scroll,
-        physics: pageTurn == ReaderPageTurn.scroll
-            ? const ClampingScrollPhysics()
-            : _DragLockScrollPhysics(
-                pageLock: _pageScrollLockN,
-                selectionLock: _selectionScrollLockN,
-              ),
-        scrollCacheExtent: const ScrollCacheExtent.pixels(320),
-        addAutomaticKeepAlives: false,
-        addSemanticIndexes: false,
-        // 沉浸：顶垫给固定卷章条；非沉浸：底垫对齐胶囊底栏（peiaiTabContentBottomPad）
-        padding: EdgeInsets.fromLTRB(
-          16,
-          _readerListTopPad(),
-          20,
-          widget.chromeHidden
-              ? (MediaQuery.paddingOf(context).bottom + 8)
-              : peiaiTabContentBottomPad(context, includeSafe: false),
-        ),
-        itemCount: rows.length + 1 + planHead + planTail,
-        itemBuilder: (_, i) {
-          if (planHead == 1 && i == 0) {
-            final meta = widget.planMeta!;
-            final stepIdx = stepForChapter(
-              meta.steps,
-              widget.book.id,
-              widget.chapter,
-            );
-            return PageTurnYield(
-              child: PlanReadingBar(
-                planTitle: meta.planTitle,
-                day: meta.day,
-                totalDays: meta.totalDays,
-                steps: meta.steps,
-                session: meta.session,
-                onJumpStep: (index) {
-                  final s = meta.steps[index];
-                  widget.onPlanJump?.call(s.bookId, s.chapterStart);
-                },
-                onOpenSheet: () => showPlanDaySheet(
-                  context,
+      child: ListenableBuilder(
+        listenable: Listenable.merge([_pageScrollLockN, _selectionScrollLockN]),
+        builder: (context, _) => ListView.builder(
+          controller: _scroll,
+          physics: pageTurn == ReaderPageTurn.scroll
+              ? const ClampingScrollPhysics()
+              : _DragLockScrollPhysics(
+                  pageLock: _pageScrollLockN,
+                  selectionLock: _selectionScrollLockN,
+                ),
+          scrollCacheExtent: const ScrollCacheExtent.pixels(320),
+          addAutomaticKeepAlives: false,
+          addSemanticIndexes: false,
+          // 沉浸：顶垫给固定卷章条；非沉浸：底垫对齐胶囊底栏（peiaiTabContentBottomPad）
+          padding: EdgeInsets.fromLTRB(
+            16,
+            _readerListTopPad(),
+            20,
+            widget.chromeHidden
+                ? (MediaQuery.paddingOf(context).bottom + 8)
+                : peiaiTabContentBottomPad(context, includeSafe: false),
+          ),
+          itemCount: rows.length + 1 + planHead + planTail,
+          itemBuilder: (_, i) {
+            if (planHead == 1 && i == 0) {
+              final meta = widget.planMeta!;
+              final stepIdx = stepForChapter(
+                meta.steps,
+                widget.book.id,
+                widget.chapter,
+              );
+              return PageTurnYield(
+                child: PlanReadingBar(
+                  planTitle: meta.planTitle,
                   day: meta.day,
+                  totalDays: meta.totalDays,
                   steps: meta.steps,
                   session: meta.session,
-                  currentStepIndex: stepIdx >= 0
-                      ? stepIdx
-                      : meta.session.currentStepIndex,
-                  onJump: (index) {
+                  onJumpStep: (index) {
                     final s = meta.steps[index];
                     widget.onPlanJump?.call(s.bookId, s.chapterStart);
                   },
+                  onOpenSheet: () => showPlanDaySheet(
+                    context,
+                    day: meta.day,
+                    steps: meta.steps,
+                    session: meta.session,
+                    currentStepIndex: stepIdx >= 0
+                        ? stepIdx
+                        : meta.session.currentStepIndex,
+                    onJump: (index) {
+                      final s = meta.steps[index];
+                      widget.onPlanJump?.call(s.bookId, s.chapterStart);
+                    },
+                  ),
                 ),
-              ),
-            );
-          }
-          if (i == planHead) {
-            // 卷章固定在轨道外叠层，避免横滑时标题跟着正文移走。
-            return const SizedBox.shrink();
-          }
-          if (planTail == 1 && i == rows.length + 1 + planHead) {
-            return segmentFooter!;
-          }
-          final r = rows[i - 1 - planHead];
-          if (r is String) {
-            return _sectionTitle(r);
-          }
-          final para = r as VerseParagraph;
-          return _ParagraphBlock(
-            book: widget.book,
-            chapter: widget.chapter,
-            paragraph: displayPara(para),
-            verseNo: verseNo,
-            poetry: poetry,
-            selected: _selected,
-            wordRange: _wordRange,
-            highlightMarks: highlights,
-            underlinesEnabled: underlinesEnabled,
-            thoughtsEnabled: thoughtsEnabled,
-            thoughtsByVerse: thoughtsByVerse,
-            myThoughtsByVerse: myThoughtsByVerse,
-            notesByVerse: notesByVerse,
-            fontFamily: fontFamily,
-            dictIndex: dictIndex,
-            dictKeys: dictKeys,
-            dictRev: dictRev,
-            inkColor: theme.ink,
-            selectionAnchorVerse: _selectionAnchorVerse,
-            selectionAnchorKey: _selectionAnchorKey,
-            resumeFlashVerse: _resumeFlashVerse,
-            resumeAnchorKey: _resumeAnchorKey,
-            scrollVerseKey: verseNo == ReaderVerseNumberMode.margin
-                ? _scrollVerseKey
-                : null,
-            feedHintForVerse: _feedHintForVerse,
-            onViewNote: _viewNote,
-            onStart: _startSelect,
-            onToggle: _toggleSelect,
-            onWordStart: _startWordSelect,
-            onWordExtend: _extendWordSelect,
-            onOpenThoughts: _openThoughtsForVerse,
-            onOpenDict: (entity, name, candidates) {
-              showEntityKnowledgeSheet(
-                context,
-                ref,
-                entity: entity,
-                displayName: name,
-                candidates: candidates,
               );
-            },
-          );
-        },
+            }
+            if (i == planHead) {
+              // 卷章固定在轨道外叠层，避免横滑时标题跟着正文移走。
+              return const SizedBox.shrink();
+            }
+            if (planTail == 1 && i == rows.length + 1 + planHead) {
+              return segmentFooter!;
+            }
+            final r = rows[i - 1 - planHead];
+            if (r is String) {
+              return _sectionTitle(r);
+            }
+            final para = r as VerseParagraph;
+            return _ParagraphBlock(
+              book: widget.book,
+              chapter: widget.chapter,
+              paragraph: displayPara(para),
+              verseNo: verseNo,
+              poetry: poetry,
+              selected: _selected,
+              wordRange: _wordRange,
+              highlightMarks: highlights,
+              underlinesEnabled: underlinesEnabled,
+              thoughtsEnabled: thoughtsEnabled,
+              thoughtsByVerse: thoughtsByVerse,
+              myThoughtsByVerse: myThoughtsByVerse,
+              notesByVerse: notesByVerse,
+              fontFamily: fontFamily,
+              dictIndex: dictIndex,
+              dictKeys: dictKeys,
+              dictRev: dictRev,
+              inkColor: theme.ink,
+              selectionAnchorVerse: _selectionAnchorVerse,
+              selectionAnchorKey: _selectionAnchorKey,
+              resumeFlashVerse: _resumeFlashVerse,
+              resumeAnchorKey: _resumeAnchorKey,
+              scrollVerseKey: verseNo == ReaderVerseNumberMode.margin
+                  ? _scrollVerseKey
+                  : null,
+              feedHintForVerse: _feedHintForVerse,
+              onViewNote: _viewNote,
+              onStart: _startSelect,
+              onToggle: _toggleSelect,
+              onWordStart: _startWordSelect,
+              onWordExtend: _extendWordSelect,
+              onOpenThoughts: _openThoughtsForVerse,
+              onOpenDict: (entity, name, candidates) {
+                showEntityKnowledgeSheet(
+                  context,
+                  ref,
+                  entity: entity,
+                  displayName: name,
+                  candidates: candidates,
+                );
+              },
+            );
+          },
+        ),
       ),
     );
 
@@ -2751,52 +2774,60 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           animation: Listenable.merge([_pageDragDxN, _pageTurnAnimatingN]),
           builder: (context, _) {
             final dx = _pageDragDxN.value;
-            return Stack(
-              clipBehavior: Clip.hardEdge,
-              children: [
-                ClipRect(
-                  child: Transform.translate(
-                    offset: Offset(-pageW + dx, 0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: pageW,
-                          child: IgnorePointer(
-                            child: RepaintBoundary(
-                              child: ColoredBox(
-                                color: theme.background,
-                                child: peekPrev,
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final panelH = constraints.maxHeight;
+                return Stack(
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    ClipRect(
+                      child: Transform.translate(
+                        offset: Offset(-pageW + dx, 0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: pageW,
+                              height: panelH,
+                              child: IgnorePointer(
+                                child: RepaintBoundary(
+                                  child: ColoredBox(
+                                    color: theme.background,
+                                    child: peekPrev,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: pageW,
-                          child: RepaintBoundary(
-                            child: ColoredBox(
-                              color: theme.background,
-                              child: listBody,
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: pageW,
-                          child: IgnorePointer(
-                            child: RepaintBoundary(
-                              child: ColoredBox(
-                                color: theme.background,
-                                child: peekNext,
+                            SizedBox(
+                              width: pageW,
+                              height: panelH,
+                              child: RepaintBoundary(
+                                child: ColoredBox(
+                                  color: theme.background,
+                                  child: listBody,
+                                ),
                               ),
                             ),
-                          ),
+                            SizedBox(
+                              width: pageW,
+                              height: panelH,
+                              child: IgnorePointer(
+                                child: RepaintBoundary(
+                                  child: ColoredBox(
+                                    color: theme.background,
+                                    child: peekNext,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-                _stableLocOverlay(theme, dx),
-              ],
+                    _stableLocOverlay(theme, dx),
+                  ],
+                );
+              },
             );
           },
         ),

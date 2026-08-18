@@ -493,7 +493,6 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
           _anchor = n.anchor;
           _lastFocus = n.focus;
           _armed = true;
-          _notifyGesture(true);
           return;
         }
         _anchor = w;
@@ -523,6 +522,7 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         if (!_dragging && dist < 1) return;
         if (!_dragging) {
           _dragging = true;
+          _notifyGesture(true);
         }
         final focus = wordAnchorNear(
           context,

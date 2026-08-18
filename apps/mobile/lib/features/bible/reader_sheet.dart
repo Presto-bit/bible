@@ -1,7 +1,30 @@
-/// 读经半屏统一契约：抓手 + 纸色圆角 + 安全区。
+/// 读经半屏统一契约：抓手 + 纸色圆角 + 安全区 + 点空白/下滑关闭。
 library;
 
 import 'package:flutter/material.dart';
+
+import '../../core/theme.dart';
+
+/// 半屏右上角「关闭」，对齐 PWA `SheetCloseButton`。
+class ReaderSheetCloseButton extends StatelessWidget {
+  const ReaderSheetCloseButton({super.key, this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.inkSoft,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: const Text('关闭', style: TextStyle(fontSize: 15)),
+    );
+  }
+}
 
 Future<T?> showReaderSheet<T>({
   required BuildContext context,
@@ -9,41 +32,43 @@ Future<T?> showReaderSheet<T>({
   bool isScrollControlled = true,
   double? heightFactor,
 }) {
+  final factor = (heightFactor ?? 0.88).clamp(0.42, 0.92);
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: isScrollControlled,
+    isDismissible: true,
+    enableDrag: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: 0.28),
+    barrierColor: Colors.black.withValues(alpha: 0.35),
     builder: (ctx) {
-      final theme = Theme.of(ctx);
       final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-      final maxH = MediaQuery.sizeOf(ctx).height * (heightFactor ?? 0.88);
-      // 固定半屏高度 + Expanded：避免 Column(min)+Flexible 把内容压成近 0 高，
-      // 看起来像「没弹窗」或贴底一条细缝。
+      final maxH = MediaQuery.sizeOf(ctx).height * factor;
       return Padding(
         padding: EdgeInsets.only(bottom: bottom),
         child: Align(
           alignment: Alignment.bottomCenter,
-          child: SizedBox(
-            height: maxH,
-            width: double.infinity,
-            child: Material(
-              color: theme.colorScheme.surface,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(18)),
-              clipBehavior: Clip.antiAlias,
+          child: Material(
+            color: AppColors.paper,
+            elevation: 12,
+            shadowColor: Colors.black.withValues(alpha: 0.12),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(
+              height: maxH,
+              width: double.infinity,
               child: Column(
                 children: [
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Container(
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: theme.dividerColor,
+                      color: AppColors.line,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Expanded(child: builder(ctx)),
                 ],
               ),

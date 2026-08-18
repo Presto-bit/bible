@@ -92,20 +92,19 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
   @override
   Widget build(BuildContext context) {
     final typeLabel = entityTypeLabel(_entity.type);
-    final bottom = MediaQuery.paddingOf(context).bottom;
     final showSenses = widget.candidates.length > 1;
     final knowledgeAsync = ref.watch(entityKnowledgeProvider(_entity.id));
+    final bottom = MediaQuery.paddingOf(context).bottom;
 
     return SizedBox.expand(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 4, 16, 12 + bottom),
-        child: knowledgeAsync.when(
+      child: knowledgeAsync.when(
           loading: () => _scaffold(
             typeLabel: typeLabel,
             showSenses: showSenses,
             summary: entitySummaryText(_entity),
             refs: _entity.refs,
             loading: true,
+            bottomInset: bottom,
           ),
           error: (_, __) => _scaffold(
             typeLabel: typeLabel,
@@ -113,6 +112,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
             summary: entitySummaryText(_entity),
             refs: _entity.refs,
             loading: false,
+            bottomInset: bottom,
           ),
           data: (k) {
             final e = k.entity.id.isNotEmpty ? k.entity : _entity;
@@ -143,10 +143,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
               graph: k.graph,
               mapTours: k.mapTours,
               diagrams: k.diagrams,
+              bottomInset: bottom,
             );
           },
         ),
-      ),
     );
   }
 
@@ -156,6 +156,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     required String summary,
     required List<String> refs,
     required bool loading,
+    double bottomInset = 0,
     List<String> tabs = const ['refs'],
     String activeTab = 'refs',
     GeoPlace? place,
@@ -163,131 +164,144 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     List<MapTour> mapTours = const [],
     List<DiagramItem> diagrams = const [],
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    entityDisplayName(_entity),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (typeLabel.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      typeLabel,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.accentDeep,
-                        fontWeight: FontWeight.w600,
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 12 + bottomInset),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: entityDisplayName(_entity),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
                       ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.close),
-            ),
-          ],
-        ),
-        if (showSenses) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const Text(
-                '也可能是：',
-                style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
-              ),
-              for (final c in widget.candidates)
-                ChoiceChip(
-                  label: Text(
-                    _senseLabel(c),
-                    style: const TextStyle(fontSize: 12),
+                      if (typeLabel.isNotEmpty)
+                        TextSpan(
+                          text: '  $typeLabel',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.inkFaint,
+                          ),
+                        ),
+                    ],
                   ),
-                  selected: c.id == _entity.id,
-                  onSelected: (_) {
-                    setState(() {
-                      _entity = c;
-                      _tab = 'refs';
-                    });
-                    ref.read(badgeStatsRecorderProvider).recordDictEntity(c.id);
-                  },
                 ),
+              ),
+              const ReaderSheetCloseButton(),
             ],
           ),
-        ],
-        const SizedBox(height: 10),
-        Text(
-          summary,
-          style: const TextStyle(
-            fontSize: 14,
-            height: 1.65,
-            color: AppColors.inkSoft,
+          if (showSenses) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const Text(
+                  '也可能是：',
+                  style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                ),
+                for (final c in widget.candidates)
+                  _DictSenseChip(
+                    label: _senseLabel(c),
+                    active: c.id == _entity.id,
+                    onTap: () {
+                      setState(() {
+                        _entity = c;
+                        _tab = 'refs';
+                      });
+                      ref.read(badgeStatsRecorderProvider).recordDictEntity(c.id);
+                    },
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            summary,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.7,
+              color: AppColors.inkSoft,
+            ),
           ),
-        ),
-        if (tabs.length > 1) ...[
+          if (tabs.length > 1) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final t in tabs)
+                  _KnowledgeTabPill(
+                    label: _tabLabel(t),
+                    active: activeTab == t,
+                    onTap: () => setState(() => _tab = t),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
+          Expanded(
+            child: loading
+                ? const Align(
+                    alignment: Alignment.topLeft,
+                    child: Text(
+                      '加载中…',
+                      style: TextStyle(fontSize: 13, color: AppColors.inkFaint),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _tabBody(
+                      tab: activeTab,
+                      refs: refs,
+                      place: place,
+                      graph: graph,
+                      mapTours: mapTours,
+                      diagrams: diagrams,
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 8),
+          Row(
             children: [
-              for (final t in tabs)
-                ChoiceChip(
-                  label: Text(_tabLabel(t)),
-                  selected: activeTab == t,
-                  onSelected: (_) => setState(() => _tab = t),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _askAssistant,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.inkSoft,
+                    side: const BorderSide(color: AppColors.line),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('问小爱'),
                 ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton(
+                  onPressed: _openDictionary,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('全屏查看'),
+                ),
+              ),
             ],
           ),
         ],
-        const SizedBox(height: 10),
-        Expanded(
-          child: loading
-              ? const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _tabBody(
-                    tab: activeTab,
-                    refs: refs,
-                    place: place,
-                    graph: graph,
-                    mapTours: mapTours,
-                    diagrams: diagrams,
-                  ),
-                ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _askAssistant,
-                child: const Text('问小爱'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton(
-                onPressed: _openDictionary,
-                child: const Text('全屏查看'),
-              ),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 
@@ -471,14 +485,9 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
           runSpacing: 8,
           children: [
             for (final r in refs.take(16))
-              ActionChip(
-                label: Text(
-                  formatGroupRefLabel(r),
-                  style: const TextStyle(fontSize: 12),
-                ),
-                backgroundColor: AppColors.goldWash,
-                side: BorderSide.none,
-                onPressed: () => _openRefPreview(context, r),
+              _RefPill(
+                label: formatGroupRefLabel(r),
+                onTap: () => _openRefPreview(context, r),
               ),
           ],
         );
@@ -553,6 +562,116 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
   }
 }
 
+/// 义项切换 chip，对齐 PWA `.dict-sense-chip`。
+class _DictSenseChip extends StatelessWidget {
+  const _DictSenseChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: active ? AppColors.accentWash : AppColors.surface,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: active ? AppColors.accentDeep : AppColors.line,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.3,
+              color: active ? AppColors.accentDeep : AppColors.inkSoft,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tab pill，对齐 PWA `.entity-knowledge-tab`。
+class _KnowledgeTabPill extends StatelessWidget {
+  const _KnowledgeTabPill({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: active ? AppColors.accent : AppColors.line,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: active ? AppColors.accent : AppColors.inkSoft,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 经节 pill，对齐 PWA `.font-pill`。
+class _RefPill extends StatelessWidget {
+  const _RefPill({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppColors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: AppColors.inkSoft),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _VersePreviewSheet extends ConsumerWidget {
   const _VersePreviewSheet({
     required this.label,
@@ -569,13 +688,25 @@ class _VersePreviewSheet extends ConsumerWidget {
     final async = ref.watch(chapterProvider((book: bookId, chapter: chapter)));
     final bottom = MediaQuery.paddingOf(context).bottom;
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 4, 16, 12 + bottom),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 12 + bottom),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              const ReaderSheetCloseButton(),
+            ],
           ),
           const SizedBox(height: 10),
           Expanded(
