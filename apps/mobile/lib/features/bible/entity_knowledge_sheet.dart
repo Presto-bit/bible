@@ -15,6 +15,7 @@ import '../assistant/assistant_seed.dart';
 import 'bible_repository.dart';
 import 'content_repository.dart';
 import 'dictionary_match.dart';
+import 'local_relation_graph.dart';
 import 'reader_sheet.dart';
 
 Future<void> showEntityKnowledgeSheet(
@@ -251,17 +252,30 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                       style: TextStyle(fontSize: 13, color: AppColors.inkFaint),
                     ),
                   )
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _tabBody(
-                      tab: activeTab,
-                      refs: refs,
-                      place: place,
-                      graph: graph,
-                      mapTours: mapTours,
-                      diagrams: diagrams,
-                    ),
-                  ),
+                : activeTab == 'graph' && graph != null
+                    ? LocalRelationGraph(
+                        graph: GraphData(
+                          center: graph.center ?? _entity,
+                          nodes: graph.nodes,
+                          edges: graph.edges,
+                        ),
+                        onRefClick: (ref) => _openRefPreview(context, ref),
+                        onOpenFullscreen: () => _openFullscreenGraph(
+                          context,
+                          graph: graph,
+                          displayName: entityDisplayName(_entity),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _tabBody(
+                          tab: activeTab,
+                          refs: refs,
+                          place: place,
+                          mapTours: mapTours,
+                          diagrams: diagrams,
+                        ),
+                      ),
           ),
           const SizedBox(height: 8),
           Row(
@@ -300,7 +314,6 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     required String tab,
     required List<String> refs,
     GeoPlace? place,
-    GraphData? graph,
     List<MapTour> mapTours = const [],
     List<DiagramItem> diagrams = const [],
   }) {
@@ -341,12 +354,6 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                 ),
             ],
           ],
-        );
-      case 'graph':
-        return _RelationHubPanel(
-          graph: graph,
-          centerId: _graphCenterId(graph, _entity),
-          centerName: _graphCenterName(graph, _entity),
         );
       case 'diagram':
         if (diagrams.isEmpty) {
@@ -448,20 +455,6 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     }
   }
 
-  String _graphCenterId(GraphData? graph, DictEntity entity) {
-    final c = graph?.center;
-    if (c != null && c.id.isNotEmpty) return c.id;
-    if (c != null && c.name.isNotEmpty) return c.name;
-    if (entity.id.isNotEmpty) return entity.id;
-    return entity.name;
-  }
-
-  String _graphCenterName(GraphData? graph, DictEntity entity) {
-    final c = graph?.center;
-    if (c != null && c.name.isNotEmpty) return c.name;
-    return entityDisplayName(entity);
-  }
-
   String _senseLabel(DictEntity e) {
     final d = e.disambiguation?.trim();
     if (d != null && d.isNotEmpty) {
@@ -506,6 +499,35 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
     router.push('/dictionary');
+  }
+
+  void _openFullscreenGraph(
+    BuildContext context, {
+    required GraphData graph,
+    required String displayName,
+  }) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (ctx) => Scaffold(
+          backgroundColor: AppColors.paper,
+          appBar: AppBar(
+            title: Text('$displayName · 关系'),
+            backgroundColor: AppColors.paper,
+          ),
+          body: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: LocalRelationGraph(
+              graph: graph,
+              variant: LocalRelationGraphVariant.fullscreen,
+              onRefClick: (ref) async {
+                await _openRefPreview(ctx, ref);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -844,226 +866,4 @@ class _GeoMiniMapPainter extends CustomPainter {
       oldDelegate.place.id != place.id ||
       oldDelegate.place.latitude != place.latitude ||
       oldDelegate.place.longitude != place.longitude;
-}
-
-/// 词典半屏 · 关系 Tab：半屏空间以可读列表为主（PWA 全屏图在发现/搜索）。
-class _RelationHubPanel extends StatelessWidget {
-  const _RelationHubPanel({
-    required this.graph,
-    required this.centerId,
-    required this.centerName,
-  });
-
-  final GraphData? graph;
-  final String centerId;
-  final String centerName;
-
-  @override
-  Widget build(BuildContext context) {
-    final allNodes = graph?.nodes ?? const <GraphNode>[];
-    final allEdges = graph?.edges ?? const <GraphEdge>[];
-    if (allNodes.isEmpty && allEdges.isEmpty) {
-      return const Text(
-        '暂无关系',
-        style: TextStyle(color: AppColors.inkFaint),
-      );
-    }
-
-    final nodeNames = <String, String>{
-      for (final n in allNodes) n.id: n.name,
-      for (final n in allNodes)
-        if (n.name.isNotEmpty) n.name: n.name,
-    };
-
-    final spokes = <GraphEdge>[];
-    final other = <GraphEdge>[];
-    for (final e in allEdges) {
-      if (_edgeTouchesCenter(e, centerId, centerName)) {
-        spokes.add(e);
-      } else {
-        other.add(e);
-      }
-    }
-    spokes.sort(_compareEdges);
-    other.sort(_compareEdges);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.accentDeep,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              centerName,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-        if (spokes.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          const Text(
-            '直接关系',
-            style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
-          ),
-          const SizedBox(height: 8),
-          for (final e in spokes)
-            _RelationRow(
-              label: _edgeLabel(e),
-              peerName: _peerNameForEdge(
-                e,
-                centerId: centerId,
-                centerName: centerName,
-                nodeNames: nodeNames,
-              ),
-            ),
-        ],
-        if (other.isNotEmpty) ...[
-          SizedBox(height: spokes.isNotEmpty ? 14 : 14),
-          const Text(
-            '其他关联',
-            style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
-          ),
-          const SizedBox(height: 8),
-          for (final e in other.take(8))
-            _RelationRow(
-              label: _edgeLabel(e),
-              peerName: _peerNameForEdge(
-                e,
-                centerId: centerId,
-                centerName: centerName,
-                nodeNames: nodeNames,
-              ),
-            ),
-          if (other.length > 8)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '还有 ${other.length - 8} 条关联',
-                style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
-              ),
-            ),
-        ],
-        if (spokes.isEmpty && other.isEmpty)
-          for (final n in allNodes
-              .where((n) => !_isCenterNode(n, centerId, centerName))
-              .take(12))
-            _RelationRow(
-              label: '相关',
-              peerName: n.name.isNotEmpty ? n.name : n.id,
-            ),
-        const SizedBox(height: 4),
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-            context.push('/search/graph');
-          },
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.accentDeep,
-            padding: EdgeInsets.zero,
-            alignment: Alignment.centerLeft,
-          ),
-          child: const Text('在发现中查看关系专题 ›'),
-        ),
-      ],
-    );
-  }
-}
-
-class _RelationRow extends StatelessWidget {
-  const _RelationRow({required this.label, required this.peerName});
-
-  final String label;
-  final String peerName;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppColors.accentWash,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.accentDeep,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              peerName,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.ink,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-bool _edgeTouchesCenter(GraphEdge e, String centerId, String centerName) {
-  bool hit(String id) => id == centerId || id == centerName;
-  return hit(e.from) || hit(e.to);
-}
-
-bool _isCenterNode(GraphNode n, String centerId, String centerName) =>
-    n.id == centerId || n.name == centerId || n.name == centerName;
-
-String _edgeLabel(GraphEdge e) {
-  final label = (e.label ?? e.type ?? '相关').trim();
-  return label.isEmpty ? '相关' : label;
-}
-
-int _compareEdges(GraphEdge a, GraphEdge b) {
-  final la = _edgeLabel(a);
-  final lb = _edgeLabel(b);
-  if (la == '相关' && lb != '相关') return 1;
-  if (lb == '相关' && la != '相关') return -1;
-  return la.compareTo(lb);
-}
-
-String _peerNameForEdge(
-  GraphEdge edge, {
-  required String centerId,
-  required String centerName,
-  required Map<String, String> nodeNames,
-}) {
-  final peer = edge.peerName?.trim();
-  if (peer != null && peer.isNotEmpty) return peer;
-  final peerId = _peerIdForEdge(edge, centerId, centerName);
-  return nodeNames[peerId] ?? peerId;
-}
-
-String _peerIdForEdge(GraphEdge edge, String centerId, String centerName) {
-  if (edge.from == centerId || edge.from == centerName) return edge.to;
-  if (edge.to == centerId || edge.to == centerName) return edge.from;
-  return edge.peerId ?? edge.to;
 }

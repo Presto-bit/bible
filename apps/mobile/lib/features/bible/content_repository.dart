@@ -584,6 +584,7 @@ class GraphEdge {
     this.label,
     this.peerId,
     this.peerName,
+    this.refs = const [],
   });
   final String from;
   final String to;
@@ -591,6 +592,7 @@ class GraphEdge {
   final String? label;
   final String? peerId;
   final String? peerName;
+  final List<String> refs;
   factory GraphEdge.fromJson(Map<String, dynamic> j) => GraphEdge(
     from: (j['from'] ?? '') as String,
     to: (j['to'] ?? '') as String,
@@ -598,6 +600,7 @@ class GraphEdge {
     label: j['label'] as String?,
     peerId: j['peer_id'] as String?,
     peerName: j['peer_name'] as String?,
+    refs: ((j['refs'] ?? []) as List).map((e) => e.toString()).toList(),
   );
 }
 
