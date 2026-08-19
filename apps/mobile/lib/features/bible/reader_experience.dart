@@ -395,8 +395,11 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _cachedPeekPrev = _buildAdjacentPeekPanel(-1, theme, topPad);
   }
 
-  /// 划词手势中：禁止横滑翻章（对齐 PWA swipeIgnore）
+  /// 划词手势中：禁止竖滚与横滑翻章（对齐 PWA swipeIgnore）
   bool _selectionGestureActive = false;
+  final _selectionGestureN = ValueNotifier<bool>(false);
+  late final Listenable _readerScrollLock =
+      Listenable.merge([_pageTurningN, _selectionGestureN]);
   int _swipeIgnoreUntilMs = 0;
 
   void _armSwipeIgnore([int ms = 320]) {
@@ -687,6 +690,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           _pageDragAxis = null;
         }
         _selectionGestureActive = false;
+        _selectionGestureN.value = false;
         _wordDragPendingAnchor = null;
         _wordDragPendingFocus = null;
         _wordDragRafScheduled = false;
@@ -772,6 +776,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _pageTurnController.dispose();
     _pageDragDxN.dispose();
     _pageTurningN.dispose();
+    _selectionGestureN.dispose();
     _pageTurnStuckTimer?.cancel();
     _pageTurnAnimatingN.dispose();
     _focusBarTopN.dispose();
@@ -1001,6 +1006,9 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       _wordDragPendingAnchor = null;
       _wordDragPendingFocus = null;
       _wordDragRafScheduled = false;
+    }
+    if (_selectionGestureN.value != on) {
+      _selectionGestureN.value = on;
     }
     if (_selectionGestureActive != on) {
       setState(() => _selectionGestureActive = on);
@@ -2465,9 +2473,11 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         !_pageTurnAnimating &&
         !_selectionGestureActive;
 
-    final listBody = ValueListenableBuilder<bool>(
-      valueListenable: _pageTurningN,
-      builder: (context, turning, _) {
+    final listBody = ListenableBuilder(
+      listenable: _readerScrollLock,
+      builder: (context, _) {
+        final lockScroll =
+            _pageTurningN.value || _selectionGestureN.value;
         return VerseSelectionSurface(
           key: _selectionSurfaceKey,
           enabled: true,
@@ -2491,7 +2501,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           },
           child: ListView.builder(
             controller: _scroll,
-            physics: (turning || _selectionGestureActive)
+            physics: lockScroll
                 ? const NeverScrollableScrollPhysics()
                 : const ClampingScrollPhysics(),
             scrollCacheExtent: const ScrollCacheExtent.pixels(320),
@@ -2935,9 +2945,11 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         !reduceMotion &&
         !_pageTurnAnimating &&
         !_selectionGestureActive;
-    final listBody = ValueListenableBuilder<bool>(
-      valueListenable: _pageTurningN,
-      builder: (context, turning, _) {
+    final listBody = ListenableBuilder(
+      listenable: _readerScrollLock,
+      builder: (context, _) {
+        final lockScroll =
+            _pageTurningN.value || _selectionGestureN.value;
         return VerseSelectionSurface(
       key: _selectionSurfaceKey,
       enabled: true,
@@ -2961,7 +2973,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       },
       child: ListView.builder(
       controller: _scroll,
-      physics: (turning || _selectionGestureActive)
+      physics: lockScroll
           ? const NeverScrollableScrollPhysics()
           : const ClampingScrollPhysics(),
       scrollCacheExtent: const ScrollCacheExtent.pixels(480),

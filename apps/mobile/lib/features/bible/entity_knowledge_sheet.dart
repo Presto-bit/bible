@@ -38,6 +38,58 @@ Future<void> showEntityKnowledgeSheet(
   );
 }
 
+/// 词条全屏页（对齐 PWA `/dictionary/:id`），非词典搜索列表。
+Future<void> showEntityKnowledgeFullscreen(
+  BuildContext context, {
+  required DictEntity entity,
+  required String displayName,
+  List<DictEntity> candidates = const [],
+  String initialTab = 'refs',
+}) {
+  return Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => _EntityKnowledgeFullscreenPage(
+        entity: entity,
+        displayName: displayName,
+        candidates: candidates.isEmpty ? [entity] : candidates,
+        initialTab: initialTab,
+      ),
+    ),
+  );
+}
+
+class _EntityKnowledgeFullscreenPage extends StatelessWidget {
+  const _EntityKnowledgeFullscreenPage({
+    required this.entity,
+    required this.displayName,
+    required this.candidates,
+    required this.initialTab,
+  });
+
+  final DictEntity entity;
+  final String displayName;
+  final List<DictEntity> candidates;
+  final String initialTab;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      appBar: AppBar(
+        title: Text(entityDisplayName(entity)),
+        backgroundColor: AppColors.paper,
+      ),
+      body: _EntityKnowledgeSheet(
+        entity: entity,
+        displayName: displayName,
+        candidates: candidates,
+        fullscreen: true,
+        initialTab: initialTab,
+      ),
+    );
+  }
+}
+
 Future<void> showInlineVersePreview(
   BuildContext context, {
   required String label,
@@ -57,11 +109,15 @@ class _EntityKnowledgeSheet extends ConsumerStatefulWidget {
     required this.entity,
     required this.displayName,
     required this.candidates,
+    this.fullscreen = false,
+    this.initialTab = 'refs',
   });
 
   final DictEntity entity;
   final String displayName;
   final List<DictEntity> candidates;
+  final bool fullscreen;
+  final String initialTab;
 
   @override
   ConsumerState<_EntityKnowledgeSheet> createState() =>
@@ -70,7 +126,13 @@ class _EntityKnowledgeSheet extends ConsumerStatefulWidget {
 
 class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
   late DictEntity _entity = widget.entity;
-  String _tab = 'refs';
+  late String _tab = widget.initialTab;
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = widget.initialTab;
+  }
 
   @override
   void didUpdateWidget(covariant _EntityKnowledgeSheet oldWidget) {
@@ -157,41 +219,52 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     List<DiagramItem> diagrams = const [],
   }) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 12 + bottomInset),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        widget.fullscreen ? 16 + bottomInset : 12 + bottomInset,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: entityDisplayName(_entity),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      if (typeLabel.isNotEmpty)
+          if (!widget.fullscreen)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
                         TextSpan(
-                          text: '  $typeLabel',
+                          text: entityDisplayName(_entity),
                           style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.inkFaint,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
                           ),
                         ),
-                    ],
+                        if (typeLabel.isNotEmpty)
+                          TextSpan(
+                            text: '  $typeLabel',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.inkFaint,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const ReaderSheetCloseButton(),
-            ],
-          ),
+                const ReaderSheetCloseButton(),
+              ],
+            )
+          else if (typeLabel.isNotEmpty)
+            Text(
+              typeLabel,
+              style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+            ),
           if (showSenses) ...[
             const SizedBox(height: 10),
             Wrap(
@@ -259,12 +332,13 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                           nodes: graph.nodes,
                           edges: graph.edges,
                         ),
+                        variant: widget.fullscreen
+                            ? LocalRelationGraphVariant.fullscreen
+                            : LocalRelationGraphVariant.compact,
                         onRefClick: (ref) => _openRefPreview(context, ref),
-                        onOpenFullscreen: () => _openFullscreenGraph(
-                          context,
-                          graph: graph,
-                          displayName: entityDisplayName(_entity),
-                        ),
+                        onOpenFullscreen: widget.fullscreen
+                            ? null
+                            : () => _openFullscreenView(tab: 'graph'),
                       )
                     : SingleChildScrollView(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -277,34 +351,47 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                         ),
                       ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _askAssistant,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.inkSoft,
-                    side: const BorderSide(color: AppColors.line),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+          if (!widget.fullscreen) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _askAssistant,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.inkSoft,
+                      side: const BorderSide(color: AppColors.line),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('问小爱'),
                   ),
-                  child: const Text('问小爱'),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton(
-                  onPressed: _openDictionary,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _openFullscreenView,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('全屏查看'),
                   ),
-                  child: const Text('全屏查看'),
                 ),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _askAssistant,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.inkSoft,
+                side: const BorderSide(color: AppColors.line),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-            ],
-          ),
+              child: const Text('问小爱'),
+            ),
+          ],
         ],
       ),
     );
@@ -495,36 +582,18 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     ref.read(navIndexProvider.notifier).set(2);
   }
 
-  void _openDictionary() {
-    final router = GoRouter.of(context);
-    Navigator.of(context).pop();
-    router.push('/dictionary');
-  }
-
-  void _openFullscreenGraph(
-    BuildContext context, {
-    required GraphData graph,
-    required String displayName,
-  }) {
-    Navigator.of(context).push<void>(
+  void _openFullscreenView({String? tab}) {
+    if (widget.fullscreen) return;
+    final nav = Navigator.of(context);
+    final targetTab = tab ?? _tab;
+    nav.pop();
+    nav.push<void>(
       MaterialPageRoute<void>(
-        fullscreenDialog: true,
-        builder: (ctx) => Scaffold(
-          backgroundColor: AppColors.paper,
-          appBar: AppBar(
-            title: Text('$displayName · 关系'),
-            backgroundColor: AppColors.paper,
-          ),
-          body: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: LocalRelationGraph(
-              graph: graph,
-              variant: LocalRelationGraphVariant.fullscreen,
-              onRefClick: (ref) async {
-                await _openRefPreview(ctx, ref);
-              },
-            ),
-          ),
+        builder: (_) => _EntityKnowledgeFullscreenPage(
+          entity: _entity,
+          displayName: entityDisplayName(_entity),
+          candidates: widget.candidates,
+          initialTab: targetTab,
         ),
       ),
     );

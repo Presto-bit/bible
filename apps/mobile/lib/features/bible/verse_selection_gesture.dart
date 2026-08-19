@@ -495,6 +495,7 @@ class VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
           _anchor = n.anchor;
           _lastFocus = n.focus;
           _armed = true;
+          _notifyGesture(true);
           return;
         }
         _anchor = w;

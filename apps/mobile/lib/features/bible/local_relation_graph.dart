@@ -256,10 +256,12 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
   bool get _isFullscreen =>
       widget.variant == LocalRelationGraphVariant.fullscreen;
 
-  double get _w => _isFullscreen ? 520 : 400;
-  double get _h => _isFullscreen ? 420 : 280;
-  double get _baseR => _isFullscreen ? 128 : 88;
-  double get _maxScale => _isFullscreen ? 3.2 : 2.4;
+  double get _defaultScale => _isFullscreen ? 1.35 : 1.0;
+
+  double get _w => _isFullscreen ? 680 : 400;
+  double get _h => _isFullscreen ? 560 : 280;
+  double get _baseR => _isFullscreen ? math.min(_w, _h) * 0.24 : 88;
+  double get _maxScale => _isFullscreen ? 3.6 : 2.4;
 
   DictEntity? get _center => widget.graph.center;
 
@@ -271,13 +273,23 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    final s = _defaultScale;
+    if (s != 1.0) {
+      _transform.value = Matrix4.identity()..scale(s);
+    }
+  }
+
+  @override
   void dispose() {
     _transform.dispose();
     super.dispose();
   }
 
   void _resetView() {
-    _transform.value = Matrix4.identity();
+    final s = _defaultScale;
+    _transform.value = Matrix4.identity()..scale(s);
   }
 
   void _zoomBy(double delta) {
