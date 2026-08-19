@@ -427,10 +427,12 @@ class VerseSelectionSurface extends StatefulWidget {
   final WordRange? primedRange;
 
   @override
-  State<VerseSelectionSurface> createState() => _VerseSelectionSurfaceState();
+  State<VerseSelectionSurface> createState() => VerseSelectionSurfaceState();
 }
 
-class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
+class VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
+  /// 横滑翻章轴锁定时清掉进行中的长按/拖选，避免与翻页抢手势。
+  void cancelPointerTracking() => _resetPointer();
   WordAnchor? _anchor;
   Offset? _down;
   bool _dragging = false;
@@ -512,19 +514,11 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         if (down == null) return;
         final dist = (e.position - down).distance;
         if (!_armed) {
-          if (dist >= 14) {
+          // 长按前有位移：视为滚屏/翻页，取消选词意图（对齐 PWA 仅长按起选）。
+          if (dist >= 10) {
             _clearLp();
-            if (_anchor != null) {
-              final dx = (e.position.dx - down.dx).abs();
-              final dy = (e.position.dy - down.dy).abs();
-              // 纵向/斜向拖扩；明显横滑留给翻页
-              if (dy >= dx * 0.85) {
-                _armed = true;
-                _notifyGesture(true);
-                widget.onApplyRange(_anchor!, _anchor!, commit: true);
-                HapticFeedback.selectionClick();
-              }
-            }
+            _anchor = null;
+            _lastFocus = null;
           }
           return;
         }

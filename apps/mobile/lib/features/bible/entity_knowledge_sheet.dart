@@ -28,8 +28,9 @@ Future<void> showEntityKnowledgeSheet(
 }) async {
   await showReaderSheet<void>(
     context: context,
-    // 对齐 PWA 的 max-height: 82vh，给关联资料留出阅读空间。
-    heightFactor: 0.82,
+    // 对齐 PWA `.dict-entry-sheet`：min(78vh, 560px)。
+    heightFactor: 0.78,
+    maxHeight: 560,
     builder: (_) => _EntityKnowledgeSheet(
       entity: entity,
       displayName: displayName,

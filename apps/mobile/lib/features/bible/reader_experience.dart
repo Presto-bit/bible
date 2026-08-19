@@ -303,7 +303,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   bool _feedHintDismissed = false;
   final _scroll = ScrollController();
   final _selectionAnchorKey = GlobalKey();
-  final _selectionSurfaceKey = GlobalKey();
+  final _selectionSurfaceKey = GlobalKey<VerseSelectionSurfaceState>();
   final _readerOverlayKey = GlobalKey();
   final _focusBarTopN = ValueNotifier<double?>(null);
   bool _resumeScheduled = false;
@@ -340,8 +340,13 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   /// 邻章是否已触发预取
   bool _pageTurnPrefetched = false;
 
-  /// 横滑轴锁：null 未判定 / x 横翻（由 HorizontalDrag 手势识别器完成）
+  /// 横滑轴锁：null 未判定 / x 横翻 / y 竖滚（对齐 PWA useReaderPageTurn）
   String? _pageDragAxis;
+
+  /// 翻页指针跟手（window 级语义：viewport Listener + 轴锁，不用 HorizontalDrag）
+  int? _pagePointerId;
+  Offset _pagePointerStart = Offset.zero;
+  int _pagePointerStartMs = 0;
 
   /// 松手后把当前页送出或弹回；时长与 PWA reader-turn-track 一致。
   late final AnimationController _pageTurnController;
@@ -449,7 +454,95 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _releasePageTurnLock();
   }
 
-  /// 横滑翻章跟手位移（HorizontalDrag 驱动）
+  /// 横滑翻章跟手位移（Listener 指针轴锁，对齐 PWA useReaderPageTurn）
+
+  void _cancelSelectionPointer() {
+    _selectionSurfaceKey.currentState?.cancelPointerTracking();
+  }
+
+  void _beginPagePointer(PointerDownEvent e, {required bool swipeOn}) {
+    if (!swipeOn || _pageTurnAnimating || _selectionGestureActive || _swipeIgnored) {
+      return;
+    }
+    if (_pagePointerId != null) return;
+    if (shouldYieldPageTurn(context, e.position)) return;
+    _pagePointerId = e.pointer;
+    _pagePointerStart = e.position;
+    _pagePointerStartMs = DateTime.now().millisecondsSinceEpoch;
+    _pageDragAxis = null;
+    _pageDragRaw = 0;
+    _pageDragDx = 0;
+    _pageTurnPrefetched = false;
+  }
+
+  void _movePagePointer(PointerMoveEvent e, {required bool swipeOn}) {
+    if (_pagePointerId != e.pointer) return;
+    if (!swipeOn && _pageDragAxis != 'x') return;
+
+    final totalDx = e.position.dx - _pagePointerStart.dx;
+    final totalDy = e.position.dy - _pagePointerStart.dy;
+
+    if (_pageDragAxis == null) {
+      final adx = totalDx.abs();
+      final ady = totalDy.abs();
+      if (adx < _pageAxisMinPx && ady < _pageAxisMinPx) return;
+      if (adx >= _pageAxisMinPx && adx > ady * _pageAxisRatio) {
+        _pageDragAxis = 'x';
+      } else if (ady >= _pageAxisMinPx && ady >= adx * _pageAxisRatio) {
+        _pageDragAxis = 'y';
+        _pagePointerId = null;
+        return;
+      } else if (adx >= _pageAxisMinPx * 1.2 && adx > ady) {
+        _pageDragAxis = 'x';
+      } else {
+        _pageDragAxis = 'y';
+        _pagePointerId = null;
+        return;
+      }
+      if (_pageDragAxis == 'x') {
+        _pageTurningN.value = true;
+        _armPageTurnStuckTimer();
+        _cancelSelectionPointer();
+        _prefetchAdjacentChapters();
+      }
+    }
+
+    if (_pageDragAxis != 'x') return;
+    _setPageDragFromOffset(totalDx);
+  }
+
+  void _endPagePointer(PointerEvent e) {
+    if (_pagePointerId != e.pointer) return;
+    final axis = _pageDragAxis;
+    final elapsed = DateTime.now().millisecondsSinceEpoch - _pagePointerStartMs;
+    final vel = axis == 'x' && elapsed > 0
+        ? (_pageDragRaw.abs() / elapsed) * 1000
+        : 0.0;
+    _pagePointerId = null;
+    _pageDragAxis = null;
+    if (axis != 'x') {
+      _releasePageTurnLock();
+      return;
+    }
+    unawaited(_finishPageTurn(velocityPxPerSec: vel));
+  }
+
+  void _setPageDragFromOffset(double rawDx) {
+    if (_pageTurnAnimating) return;
+    final width = _viewportWidth > 0
+        ? _viewportWidth
+        : MediaQuery.sizeOf(context).width;
+    if (width <= 0) return;
+    _pageDragAxis = 'x';
+    _pageTurningN.value = true;
+    _armPageTurnStuckTimer();
+    _pageDragRaw = rawDx.clamp(-width, width);
+    _pageDragDx = _clampPageDrag(_pageDragRaw, width);
+    if (!_pageTurnPrefetched && _pageDragRaw.abs() / width >= 0.04) {
+      _pageTurnPrefetched = true;
+      _prefetchAdjacentChapters();
+    }
+  }
 
   bool get _englishUI => widget.mainVersionId == 'kjv';
 
@@ -521,8 +614,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   static const _pageAxisMinPx = 8.0;
   static const _pageAxisRatio = 1.15;
-  /// 竖滚已有明显位移时不再判为横滑翻页，避免误锁 ListView。
-  static const _pageAxisMaxDyForLock = 14.0;
 
   /// LayoutBuilder 实测宽，供翻页位移/阈值（勿用 MediaQuery 全屏宽）。
   double _viewportWidth = 0;
@@ -1836,27 +1927,11 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _pageDragRaw = 0;
     _pageTurnPrefetched = false;
     _pageDragAxis = null;
+    _pagePointerId = null;
     _pageTurnAnimating = false;
     _pageTurningN.value = false;
     _pageTurnStuckTimer?.cancel();
     _pageTurnStuckTimer = null;
-  }
-
-  void _onPageDragUpdate(double deltaDx) {
-    if (_pageTurnAnimating) return;
-    final width = _viewportWidth > 0
-        ? _viewportWidth
-        : MediaQuery.sizeOf(context).width;
-    if (width <= 0) return;
-    _pageDragAxis = 'x';
-    _pageTurningN.value = true;
-    _armPageTurnStuckTimer();
-    _pageDragRaw = (_pageDragRaw + deltaDx).clamp(-width, width);
-    _pageDragDx = _clampPageDrag(_pageDragRaw, width);
-    if (!_pageTurnPrefetched && _pageDragRaw.abs() / width >= 0.04) {
-      _pageTurnPrefetched = true;
-      _prefetchAdjacentChapters();
-    }
   }
 
   bool _shouldCommitPageTurn({
@@ -2406,9 +2481,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           },
           child: ListView.builder(
             controller: _scroll,
-            physics: pageTurn == ReaderPageTurn.scroll
-                ? const ClampingScrollPhysics()
-                : turning
+            physics: (turning || _selectionGestureActive)
                 ? const NeverScrollableScrollPhysics()
                 : const ClampingScrollPhysics(),
             scrollCacheExtent: const ScrollCacheExtent.pixels(320),
@@ -2672,43 +2745,27 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           );
         }
 
-        // 左右滑动：HorizontalDrag 与 ListView 竖滚分轨竞争；idle 时不 Transform 正文。
-        return GestureDetector(
+        // 左右滑动：viewport Listener 轴锁横翻（对齐 PWA）；idle 时不 Transform 正文。
+        return Listener(
           behavior: HitTestBehavior.translucent,
-          onHorizontalDragStart: !swipeOn
+          onPointerDown: !swipeOn
               ? null
-              : (d) {
-                  if (_pageTurnAnimating ||
-                      _selectionGestureActive ||
-                      _swipeIgnored) {
-                    return;
-                  }
-                  if (shouldYieldPageTurn(context, d.globalPosition)) return;
-                  _pageTurningN.value = true;
-                  _armPageTurnStuckTimer();
-                  _prefetchAdjacentChapters();
-                },
-          onHorizontalDragUpdate: !swipeOn
+              : (e) => _beginPagePointer(e, swipeOn: swipeOn),
+          onPointerMove: !swipeOn
               ? null
-              : (d) {
-                  if (_selectionGestureActive || _swipeIgnored) {
+              : (e) => _movePagePointer(e, swipeOn: swipeOn),
+          onPointerUp: !swipeOn ? null : _endPagePointer,
+          onPointerCancel: !swipeOn
+              ? null
+              : (e) {
+                  if (_pagePointerId == e.pointer &&
+                      _pageDragAxis == 'x' &&
+                      _pageDragRaw.abs() > 1) {
+                    unawaited(_finishPageTurn(velocityPxPerSec: 0));
+                  } else {
                     cancelPageTurn();
-                    return;
                   }
-                  _onPageDragUpdate(d.delta.dx);
                 },
-          onHorizontalDragEnd: !swipeOn
-              ? null
-              : (d) {
-                  if (_selectionGestureActive || _swipeIgnored) {
-                    cancelPageTurn();
-                    return;
-                  }
-                  unawaited(
-                    _finishPageTurn(velocityPxPerSec: d.primaryVelocity ?? 0),
-                  );
-                },
-          onHorizontalDragCancel: !swipeOn ? null : () => cancelPageTurn(),
           child: AnimatedBuilder(
             animation: Listenable.merge([_pageDragDxN, _pageTurnAnimatingN]),
             builder: (context, _) {
@@ -2894,9 +2951,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       },
       child: ListView.builder(
       controller: _scroll,
-      physics: pageTurn == ReaderPageTurn.scroll
-          ? const ClampingScrollPhysics()
-          : turning
+      physics: (turning || _selectionGestureActive)
           ? const NeverScrollableScrollPhysics()
           : const ClampingScrollPhysics(),
       scrollCacheExtent: const ScrollCacheExtent.pixels(480),

@@ -31,6 +31,7 @@ Future<T?> showReaderSheet<T>({
   required WidgetBuilder builder,
   bool isScrollControlled = true,
   double? heightFactor,
+  double? maxHeight,
 }) {
   final factor = (heightFactor ?? 0.88).clamp(0.42, 0.92);
   return showModalBottomSheet<T>(
@@ -43,7 +44,9 @@ Future<T?> showReaderSheet<T>({
     barrierColor: Colors.black.withValues(alpha: 0.35),
     builder: (ctx) {
       final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-      final maxH = MediaQuery.sizeOf(ctx).height * factor;
+      final screenH = MediaQuery.sizeOf(ctx).height;
+      var maxH = screenH * factor;
+      if (maxHeight != null) maxH = maxH.clamp(0, maxHeight);
       return Padding(
         padding: EdgeInsets.only(bottom: bottom),
         child: Align(
