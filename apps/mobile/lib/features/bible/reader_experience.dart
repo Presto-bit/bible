@@ -395,11 +395,13 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _cachedPeekPrev = _buildAdjacentPeekPanel(-1, theme, topPad);
   }
 
-  /// 划词手势中：禁止竖滚与横滑翻章（对齐 PWA swipeIgnore）
+  /// 划词手势中：禁止横滑翻章（对齐 PWA swipeIgnore）
   bool _selectionGestureActive = false;
   final _selectionGestureN = ValueNotifier<bool>(false);
-  late final Listenable _readerScrollLock =
-      Listenable.merge([_pageTurningN, _selectionGestureN]);
+  late final _ReaderScrollPhysics _readerScrollPhysics = _ReaderScrollPhysics(
+    selectionLock: _selectionGestureN,
+    pageTurnLock: _pageTurningN,
+  );
   int _swipeIgnoreUntilMs = 0;
 
   void _armSwipeIgnore([int ms = 320]) {
@@ -2473,12 +2475,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         !_pageTurnAnimating &&
         !_selectionGestureActive;
 
-    final listBody = ListenableBuilder(
-      listenable: _readerScrollLock,
-      builder: (context, _) {
-        final lockScroll =
-            _pageTurningN.value || _selectionGestureN.value;
-        return VerseSelectionSurface(
+    final listBody = VerseSelectionSurface(
           key: _selectionSurfaceKey,
           enabled: true,
           selectionPrimed: _selected.isNotEmpty,
@@ -2501,9 +2498,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           },
           child: ListView.builder(
             controller: _scroll,
-            physics: lockScroll
-                ? const NeverScrollableScrollPhysics()
-                : const ClampingScrollPhysics(),
+            physics: _readerScrollPhysics,
             scrollCacheExtent: const ScrollCacheExtent.pixels(320),
             addAutomaticKeepAlives: false,
             addSemanticIndexes: false,
@@ -2611,8 +2606,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             },
           ),
         );
-      },
-    );
 
     final topPad = _readerListTopPad();
     _ensurePeekPanels(theme, topPad);
@@ -2945,12 +2938,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         !reduceMotion &&
         !_pageTurnAnimating &&
         !_selectionGestureActive;
-    final listBody = ListenableBuilder(
-      listenable: _readerScrollLock,
-      builder: (context, _) {
-        final lockScroll =
-            _pageTurningN.value || _selectionGestureN.value;
-        return VerseSelectionSurface(
+    final listBody = VerseSelectionSurface(
       key: _selectionSurfaceKey,
       enabled: true,
       selectionPrimed: _selected.isNotEmpty,
@@ -2973,9 +2961,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       },
       child: ListView.builder(
       controller: _scroll,
-      physics: lockScroll
-          ? const NeverScrollableScrollPhysics()
-          : const ClampingScrollPhysics(),
+      physics: _readerScrollPhysics,
       scrollCacheExtent: const ScrollCacheExtent.pixels(480),
       addAutomaticKeepAlives: false,
       addSemanticIndexes: false,
@@ -3137,8 +3123,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       },
     ),
         );
-      },
-    );
 
     final topPad = _readerListTopPad();
     _ensurePeekPanels(theme, topPad);
@@ -3150,6 +3134,33 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       peekNext: _cachedPeekNext!,
       peekPrev: _cachedPeekPrev!,
     );
+  }
+}
+
+/// 读经 ListView 滚动物理：划词/横滑跟手时实时拒滚，且不触发 subtree 重建。
+class _ReaderScrollPhysics extends ScrollPhysics {
+  const _ReaderScrollPhysics({
+    required this.selectionLock,
+    required this.pageTurnLock,
+    super.parent,
+  });
+
+  final ValueNotifier<bool> selectionLock;
+  final ValueNotifier<bool> pageTurnLock;
+
+  @override
+  _ReaderScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _ReaderScrollPhysics(
+      selectionLock: selectionLock,
+      pageTurnLock: pageTurnLock,
+      parent: buildParent(ancestor),
+    );
+  }
+
+  @override
+  bool shouldAcceptUserOffset(ScrollMetrics position) {
+    if (selectionLock.value || pageTurnLock.value) return false;
+    return super.shouldAcceptUserOffset(position);
   }
 }
 

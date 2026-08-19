@@ -515,16 +515,20 @@ class VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         if (down == null) return;
         final dist = (e.position - down).distance;
         if (!_armed) {
-          // 长按前有位移：视为滚屏/翻页，取消选词意图（对齐 PWA 仅长按起选）。
+          // 长按等待：小幅抖动不取消；明确竖滚/横翻方向才放弃选词。
           if (dist >= 10) {
-            _clearLp();
-            _anchor = null;
-            _lastFocus = null;
+            final dx = (e.position.dx - down.dx).abs();
+            final dy = (e.position.dy - down.dy).abs();
+            if ((dy >= 10 && dy > dx * 1.15) ||
+                (dx >= 10 && dx > dy * 1.15)) {
+              _clearLp();
+              _anchor = null;
+              _lastFocus = null;
+            }
           }
           return;
         }
         if (anchor == null) return;
-        if (!_dragging && dist < 1) return;
         if (!_dragging) {
           _dragging = true;
           _notifyGesture(true);

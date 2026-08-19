@@ -28,6 +28,32 @@ const _typeColor = <String, Color>{
   'unknown': Color(0xFF8A7D6B),
 };
 
+/// 把当前词条 id/name 对齐到关系边端点，避免中心落错节点。
+String resolveGraphCenterId(GraphData graph, DictEntity entity) {
+  final ids = <String>{
+    if (graph.center?.id.isNotEmpty == true) graph.center!.id,
+    if (graph.center?.name.isNotEmpty == true) graph.center!.name,
+    if (entity.id.isNotEmpty) entity.id,
+    if (entity.name.isNotEmpty) entity.name,
+  };
+  for (final id in ids) {
+    if (graph.edges.any((e) => e.from == id || e.to == id)) return id;
+  }
+  for (final n in graph.nodes) {
+    if (ids.contains(n.id) || ids.contains(n.name)) return n.id;
+  }
+  if (graph.center?.id.isNotEmpty == true) return graph.center!.id;
+  if (graph.center?.name.isNotEmpty == true) return graph.center!.name;
+  return entity.id.isNotEmpty ? entity.id : entity.name;
+}
+
+Matrix4 matrixForCenteredScale(double scale, double cx, double cy) {
+  return Matrix4.identity()
+    ..translate(cx, cy)
+    ..scale(scale)
+    ..translate(-cx, -cy);
+}
+
 enum LocalRelationGraphVariant { compact, fullscreen }
 
 enum _GraphSelectionKind { center, node, edge }
@@ -232,6 +258,7 @@ class LocalRelationGraph extends StatefulWidget {
   const LocalRelationGraph({
     super.key,
     required this.graph,
+    this.focusEntity,
     this.onRefClick,
     this.onNodeClick,
     this.onOpenFullscreen,
@@ -239,6 +266,7 @@ class LocalRelationGraph extends StatefulWidget {
   });
 
   final GraphData graph;
+  final DictEntity? focusEntity;
   final void Function(String ref)? onRefClick;
   final void Function(String nodeId)? onNodeClick;
   final VoidCallback? onOpenFullscreen;
@@ -252,15 +280,14 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
   final _transform = TransformationController();
   _GraphSelection? _selection;
   RelationFilterKey _edgeFilter = RelationFilterKey.all;
+  double? _canvasCx;
+  double? _canvasCy;
 
   bool get _isFullscreen =>
       widget.variant == LocalRelationGraphVariant.fullscreen;
 
-  double get _defaultScale => _isFullscreen ? 1.35 : 1.0;
+  double get _defaultScale => _isFullscreen ? 1.25 : 1.0;
 
-  double get _w => _isFullscreen ? 680 : 400;
-  double get _h => _isFullscreen ? 560 : 280;
-  double get _baseR => _isFullscreen ? math.min(_w, _h) * 0.24 : 88;
   double get _maxScale => _isFullscreen ? 3.6 : 2.4;
 
   DictEntity? get _center => widget.graph.center;
@@ -268,17 +295,11 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
   String get _centerId {
     final c = _center;
     if (c == null) return '';
+    if (widget.focusEntity != null) {
+      return resolveGraphCenterId(widget.graph, widget.focusEntity!);
+    }
     if (c.id.isNotEmpty) return c.id;
     return c.name;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    final s = _defaultScale;
-    if (s != 1.0) {
-      _transform.value = Matrix4.identity()..scale(s);
-    }
   }
 
   @override
@@ -288,16 +309,20 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
   }
 
   void _resetView() {
-    final s = _defaultScale;
-    _transform.value = Matrix4.identity()..scale(s);
+    final cx = _canvasCx;
+    final cy = _canvasCy;
+    if (cx == null || cy == null) return;
+    _transform.value = matrixForCenteredScale(_defaultScale, cx, cy);
   }
 
   void _zoomBy(double delta) {
-    final m = Matrix4.copy(_transform.value);
-    final scale = m.getMaxScaleOnAxis().clamp(0.5, _maxScale);
+    final cx = _canvasCx;
+    final cy = _canvasCy;
+    if (cx == null || cy == null) return;
+    final scale = _transform.value.getMaxScaleOnAxis().clamp(0.5, _maxScale);
     final next = (scale + delta).clamp(0.5, _maxScale);
     if (next == scale) return;
-    _transform.value = Matrix4.identity()..scale(next);
+    _transform.value = matrixForCenteredScale(next, cx, cy);
   }
 
   void _selectNode(GraphNode node, {required bool isCenter}) {
@@ -326,18 +351,6 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
       name: center.name,
       type: center.type,
     );
-    final layout = computeRelationLayout(
-      centerId: centerId,
-      centerNode: centerNode,
-      edges: filteredEdges,
-      nodes: widget.graph.nodes,
-      cx: _w / 2,
-      cy: _h / 2,
-      baseR: _baseR,
-    );
-    final positions = {
-      for (final n in layout.layoutNodes) n.node.id: Offset(n.x, n.y),
-    };
 
     GraphEdge? selectedEdge;
     if (_selection?.kind == _GraphSelectionKind.edge) {
@@ -345,24 +358,21 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
       if (i >= 0 && i < filteredEdges.length) selectedEdge = filteredEdges[i];
     }
 
-    RelationLayoutNode? selectedLayoutNode;
+    GraphNode? selectedNode;
     if (_selection?.kind == _GraphSelectionKind.center) {
-      for (final n in layout.layoutNodes) {
-        if (n.isCenter) {
-          selectedLayoutNode = n;
-          break;
-        }
-      }
+      selectedNode = centerNode;
     } else if (_selection?.kind == _GraphSelectionKind.node) {
       final id = _selection!.nodeId!;
-      for (final n in layout.layoutNodes) {
-        if (n.node.id == id) {
-          selectedLayoutNode = n;
+      GraphNode? found;
+      for (final n in widget.graph.nodes) {
+        if (n.id == id) {
+          found = n;
           break;
         }
       }
+      selectedNode = found ?? GraphNode(id: id, name: id, type: 'unknown');
     }
-    final selectedNode = selectedLayoutNode?.node;
+
     GraphEdge? selectedNodeEdge;
     if (selectedNode != null && selectedNode.id != centerId) {
       for (final e in centerNeighborEdges(centerId, filteredEdges)) {
@@ -371,7 +381,6 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
           break;
         }
       }
-      selectedNodeEdge ??= selectedLayoutNode?.edgeToCenter;
     }
     final extraHops = selectedNode == null || selectedNode.id == centerId
         ? const <GraphEdge>[]
@@ -420,61 +429,97 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
         ),
         const SizedBox(height: 8),
         Expanded(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSunken,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.line),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: InteractiveViewer(
-                transformationController: _transform,
-                minScale: 0.5,
-                maxScale: _maxScale,
-                boundaryMargin: const EdgeInsets.all(48),
-                child: SizedBox(
-                  width: _w,
-                  height: _h,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onTapUp: (d) => _handleCanvasTap(
-                      d.localPosition,
-                      layout: layout,
-                      positions: positions,
-                      centerId: centerId,
-                      filteredEdges: filteredEdges,
-                    ),
-                    child: CustomPaint(
-                      painter: _RelationGraphPainter(
-                        layoutNodes: layout.layoutNodes,
-                        drawableEdges: layout.drawableEdges,
-                        positions: positions,
-                        centerId: centerId,
-                        baseR: _baseR,
-                        w: _w,
-                        h: _h,
-                        selection: _selection,
-                      ),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          for (final ln in layout.layoutNodes)
-                            _NodeHitTarget(
-                              layoutNode: ln,
-                              selected: _isNodeSelected(ln),
-                              onTap: () => _selectNode(
-                                ln.node,
-                                isCenter: ln.isCenter,
-                              ),
-                            ),
-                        ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final w = _isFullscreen ? constraints.maxWidth : 400.0;
+              final h = _isFullscreen ? constraints.maxHeight : 280.0;
+              final baseR = _isFullscreen ? math.min(w, h) * 0.26 : 88.0;
+              final cx = w / 2;
+              final cy = h / 2;
+              if (_canvasCx != cx || _canvasCy != cy) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  if (_canvasCx == cx && _canvasCy == cy) return;
+                  _canvasCx = cx;
+                  _canvasCy = cy;
+                  _transform.value =
+                      matrixForCenteredScale(_defaultScale, cx, cy);
+                });
+              }
+
+              final layout = computeRelationLayout(
+                centerId: centerId,
+                centerNode: centerNode,
+                edges: filteredEdges,
+                nodes: widget.graph.nodes,
+                cx: cx,
+                cy: cy,
+                baseR: baseR,
+              );
+              final positions = {
+                for (final n in layout.layoutNodes) n.node.id: Offset(n.x, n.y),
+              };
+
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSunken,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.line),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: InteractiveViewer(
+                    transformationController: _transform,
+                    minScale: 0.5,
+                    maxScale: _maxScale,
+                    boundaryMargin: const EdgeInsets.all(48),
+                    alignment: Alignment.center,
+                    child: SizedBox(
+                      width: w,
+                      height: h,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTapUp: (d) => _handleCanvasTap(
+                          d.localPosition,
+                          layout: layout,
+                          positions: positions,
+                          centerId: centerId,
+                          canvasCx: cx,
+                          canvasCy: cy,
+                          filteredEdges: filteredEdges,
+                        ),
+                        child: CustomPaint(
+                          painter: _RelationGraphPainter(
+                            layoutNodes: layout.layoutNodes,
+                            drawableEdges: layout.drawableEdges,
+                            positions: positions,
+                            centerId: centerId,
+                            baseR: baseR,
+                            w: w,
+                            h: h,
+                            selection: _selection,
+                          ),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              for (final ln in layout.layoutNodes)
+                                _NodeHitTarget(
+                                  layoutNode: ln,
+                                  selected: _isNodeSelected(ln),
+                                  onTap: () => _selectNode(
+                                    ln.node,
+                                    isCenter: ln.isCenter,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 8),
@@ -512,13 +557,15 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
     required ({List<RelationLayoutNode> layoutNodes, List<(GraphEdge edge, int index)> drawableEdges}) layout,
     required Map<String, Offset> positions,
     required String centerId,
+    required double canvasCx,
+    required double canvasCy,
     required List<GraphEdge> filteredEdges,
   }) {
     for (final (edge, index) in layout.drawableEdges) {
       final fromPos = positions[edge.from] ??
-          (edge.from == centerId ? Offset(_w / 2, _h / 2) : null);
+          (edge.from == centerId ? Offset(canvasCx, canvasCy) : null);
       final toPos = positions[edge.to] ??
-          (edge.to == centerId ? Offset(_w / 2, _h / 2) : null);
+          (edge.to == centerId ? Offset(canvasCx, canvasCy) : null);
       if (fromPos == null || toPos == null) continue;
       if (_distanceToSegment(local, fromPos, toPos) <= 14) {
         _selectEdge(index);

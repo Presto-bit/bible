@@ -332,6 +332,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                           nodes: graph.nodes,
                           edges: graph.edges,
                         ),
+                        focusEntity: _entity,
                         variant: widget.fullscreen
                             ? LocalRelationGraphVariant.fullscreen
                             : LocalRelationGraphVariant.compact,
