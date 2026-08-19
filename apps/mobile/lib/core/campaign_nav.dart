@@ -6,8 +6,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'genesis50_auth.dart';
 import 'open_external.dart';
@@ -51,24 +49,66 @@ String _genesis50Target(String href) {
   return _genesis50TargetFromBridge(href) ?? normalizeCampaignHref(href);
 }
 
-/// 创世记 50：Flutter 鉴权 + Chrome Custom Tabs（不用 WebView 嵌外站 SPA）。
-Future<void> _openGenesis50External(
+String _titleFromExternalUrl(String url) {
+  try {
+    return Uri.parse(url).host.replaceFirst(RegExp(r'^www\.'), '');
+  } catch (_) {
+    return '外部页面';
+  }
+}
+
+Future<void> _openCustomTabLauncher(
   BuildContext context, {
-  required String href,
-  String? title,
+  required String title,
+  required Future<String> Function() resolveUrl,
+  required String loadingMessage,
+  required String failureMessage,
 }) async {
   await Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) => _Genesis50CustomTabPage(
-        targetHref: _genesis50Target(href),
-        title: title ?? '创世记 50 天',
+      builder: (_) => _CustomTabLauncherPage(
+        title: title,
+        resolveUrl: resolveUrl,
+        loadingMessage: loadingMessage,
+        failureMessage: failureMessage,
       ),
     ),
   );
 }
 
-/// 打开活动 / 推荐卡链接：站内 H5 或原生路由；真外链全屏 WebView。
-/// 创世记 50：Dart 鉴权后 Custom Tabs 打开原链接。
+/// 创世记 50：Flutter 鉴权 + Chrome Custom Tabs。
+Future<void> _openGenesis50External(
+  BuildContext context, {
+  required String href,
+  String? title,
+}) async {
+  final target = _genesis50Target(href);
+  await _openCustomTabLauncher(
+    context,
+    title: title ?? '创世记 50 天',
+    loadingMessage: '正在进入活动…',
+    failureMessage: '进入活动失败，请检查网络后重试',
+    resolveUrl: () => resolveGenesis50OpenUrl(target),
+  );
+}
+
+/// 真外域 http(s)：Chrome Custom Tabs（不用 WebView 嵌跨站页）。
+Future<void> _openExternalCustomTab(
+  BuildContext context, {
+  required String url,
+  String? title,
+}) async {
+  final pageTitle = title ?? _titleFromExternalUrl(url);
+  await _openCustomTabLauncher(
+    context,
+    title: pageTitle,
+    loadingMessage: '正在打开…',
+    failureMessage: '无法打开链接，请确认已安装 Chrome 或其他浏览器',
+    resolveUrl: () async => url,
+  );
+}
+
+/// 打开活动 / 推荐卡链接：站内 H5 或原生路由；真外链 Custom Tabs。
 Future<void> openCampaignHref(
   BuildContext context,
   String href, {
@@ -123,14 +163,7 @@ Future<void> openCampaignHref(
       context.push(full);
       return;
     }
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => _ExternalBrowserPage(
-          url: raw,
-          title: title ?? uri.host.replaceFirst(RegExp(r'^www\.'), ''),
-        ),
-      ),
-    );
+    await _openExternalCustomTab(context, url: raw, title: title);
     return;
   }
 
@@ -155,22 +188,25 @@ bool looksLikeCampaignHref(String href) {
       t.startsWith('https://');
 }
 
-/// 创世记 50：鉴权 loading → Custom Tabs → 返回彼爱。
-class _Genesis50CustomTabPage extends StatefulWidget {
-  const _Genesis50CustomTabPage({
-    required this.targetHref,
+/// 鉴权 / 解析 URL → Custom Tabs → 返回彼爱。
+class _CustomTabLauncherPage extends StatefulWidget {
+  const _CustomTabLauncherPage({
     required this.title,
+    required this.resolveUrl,
+    required this.loadingMessage,
+    required this.failureMessage,
   });
 
-  final String targetHref;
   final String title;
+  final Future<String> Function() resolveUrl;
+  final String loadingMessage;
+  final String failureMessage;
 
   @override
-  State<_Genesis50CustomTabPage> createState() =>
-      _Genesis50CustomTabPageState();
+  State<_CustomTabLauncherPage> createState() => _CustomTabLauncherPageState();
 }
 
-class _Genesis50CustomTabPageState extends State<_Genesis50CustomTabPage> {
+class _CustomTabLauncherPageState extends State<_CustomTabLauncherPage> {
   var _loading = true;
   String? _error;
   String? _resolvedUrl;
@@ -191,7 +227,7 @@ class _Genesis50CustomTabPageState extends State<_Genesis50CustomTabPage> {
     });
 
     try {
-      final url = await resolveGenesis50OpenUrl(widget.targetHref);
+      final url = await widget.resolveUrl();
       if (!mounted) return;
       _resolvedUrl = url;
       final ok = await openInAppBrowser(url, title: widget.title);
@@ -202,14 +238,14 @@ class _Genesis50CustomTabPageState extends State<_Genesis50CustomTabPage> {
       }
       setState(() {
         _loading = false;
-        _error = '无法打开活动页面，请确认已安装 Chrome 或其他浏览器';
+        _error = '无法打开页面，请确认已安装 Chrome 或其他浏览器';
       });
     } catch (e) {
-      if (kDebugMode) debugPrint('genesis50 custom tab: $e');
+      if (kDebugMode) debugPrint('custom tab launch: $e');
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = '进入活动失败，请检查网络后重试';
+        _error = widget.failureMessage;
       });
     }
   }
@@ -228,7 +264,7 @@ class _Genesis50CustomTabPageState extends State<_Genesis50CustomTabPage> {
       }
       setState(() {
         _loading = false;
-        _error = '无法打开活动页面，请确认已安装 Chrome 或其他浏览器';
+        _error = '无法打开页面，请确认已安装 Chrome 或其他浏览器';
       });
       return;
     }
@@ -259,7 +295,7 @@ class _Genesis50CustomTabPageState extends State<_Genesis50CustomTabPage> {
                   child: CircularProgressIndicator(strokeWidth: 2.5),
                 ),
                 const SizedBox(height: 14),
-                const Text('正在进入活动…'),
+                Text(widget.loadingMessage),
               ] else if (_error != null) ...[
                 Text(
                   _error!,
@@ -275,212 +311,6 @@ class _Genesis50CustomTabPageState extends State<_Genesis50CustomTabPage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// 非创世记 50 的真外链：全屏 WebView。
-class _ExternalBrowserPage extends StatefulWidget {
-  const _ExternalBrowserPage({
-    required this.url,
-    required this.title,
-  });
-  final String url;
-  final String title;
-
-  @override
-  State<_ExternalBrowserPage> createState() => _ExternalBrowserPageState();
-}
-
-class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
-  WebViewController? _controller;
-  var _loading = true;
-  var _hadFirstPaint = false;
-  String? _error;
-  Timer? _loadWatchdog;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_startWebView(widget.url));
-    });
-  }
-
-  @override
-  void dispose() {
-    _loadWatchdog?.cancel();
-    super.dispose();
-  }
-
-  void _armLoadWatchdog() {
-    _loadWatchdog?.cancel();
-    _loadWatchdog = Timer(const Duration(seconds: 18), () {
-      if (!mounted || !_loading) return;
-      setState(() => _loading = false);
-    });
-  }
-
-  Future<void> _configureController(WebViewController controller) async {
-    await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-    await controller.setBackgroundColor(AppColors.paper);
-    await controller.setNavigationDelegate(
-      NavigationDelegate(
-        onPageStarted: (_) {
-          if (mounted) {
-            setState(() {
-              _loading = true;
-              _error = null;
-            });
-          }
-          _armLoadWatchdog();
-        },
-        onPageFinished: (_) {
-          _loadWatchdog?.cancel();
-          if (!mounted) return;
-          setState(() {
-            _loading = false;
-            _hadFirstPaint = true;
-          });
-        },
-        onWebResourceError: (err) {
-          if (!(err.isForMainFrame ?? true)) return;
-          _loadWatchdog?.cancel();
-          if (!mounted) return;
-          setState(() {
-            _loading = false;
-            _error ??= '页面加载失败，请检查网络后重试';
-          });
-        },
-        onHttpError: (err) {
-          final code = err.response?.statusCode;
-          if (code == null || code < 400) return;
-          _loadWatchdog?.cancel();
-          if (!mounted) return;
-          setState(() {
-            _loading = false;
-            _error ??= '页面打开失败（$code），请稍后重试';
-          });
-        },
-      ),
-    );
-
-    final platform = controller.platform;
-    if (platform is AndroidWebViewController) {
-      try {
-        final cookieMgr = WebViewCookieManager().platform;
-        if (cookieMgr is AndroidWebViewCookieManager) {
-          await cookieMgr.setAcceptThirdPartyCookies(platform, true);
-        }
-      } catch (e) {
-        if (kDebugMode) debugPrint('external webview cookies: $e');
-      }
-      try {
-        await platform.setMediaPlaybackRequiresUserGesture(false);
-      } catch (_) {}
-      try {
-        final ua = await controller.getUserAgent();
-        final cleaned = (ua ?? '')
-            .replaceAll(RegExp(r';\s*wv\)'), ')')
-            .replaceAll('; wv', '');
-        if (cleaned.trim().isNotEmpty) {
-          await controller.setUserAgent(cleaned);
-        }
-      } catch (_) {}
-    }
-  }
-
-  Future<void> _startWebView(String url) async {
-    final controller = WebViewController();
-    await _configureController(controller);
-    if (!mounted) return;
-    setState(() {
-      _controller = controller;
-      _error = null;
-      _loading = true;
-    });
-    _armLoadWatchdog();
-    try {
-      await controller.loadRequest(Uri.parse(url));
-    } catch (_) {
-      _loadWatchdog?.cancel();
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = '页面加载失败，请检查网络后重试';
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.paper,
-      appBar: AppBar(
-        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Stack(
-        children: [
-          if (_controller != null) WebViewWidget(controller: _controller!),
-          if (_error != null)
-            ColoredBox(
-              color: AppColors.paper,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _error!,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: () {
-                          setState(() {
-                            _error = null;
-                            _loading = true;
-                          });
-                          unawaited(_startWebView(widget.url));
-                        },
-                        child: const Text('重试'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-          else if (_loading && !_hadFirstPaint)
-            ColoredBox(
-              color: AppColors.paper,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    ),
-                    const SizedBox(height: 14),
-                    Text('正在打开…'),
-                  ],
-                ),
-              ),
-            )
-          else if (_loading)
-            const Align(
-              alignment: Alignment.topCenter,
-              child: LinearProgressIndicator(minHeight: 2),
-            ),
-        ],
       ),
     );
   }
