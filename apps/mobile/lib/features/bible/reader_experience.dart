@@ -219,36 +219,6 @@ double bookProgressInBible(List<BibleBook> books, String bookId, int chapter) {
   return total > 0 ? before / total : 0;
 }
 
-/// 横滑翻章确认后（对齐 PWA `.is-turning`）才锁竖滚；划词不锁。
-class _PageTurnScrollPhysics extends ScrollPhysics {
-  const _PageTurnScrollPhysics({
-    required this.pageTurnLock,
-    super.parent,
-  });
-
-  final ValueNotifier<bool> pageTurnLock;
-
-  @override
-  _PageTurnScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return _PageTurnScrollPhysics(
-      pageTurnLock: pageTurnLock,
-      parent: buildParent(ancestor),
-    );
-  }
-
-  @override
-  bool shouldAcceptUserOffset(ScrollMetrics position) {
-    if (pageTurnLock.value) return false;
-    return super.shouldAcceptUserOffset(position);
-  }
-
-  @override
-  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
-    if (pageTurnLock.value) return 0;
-    return super.applyPhysicsToUserOffset(position, offset);
-  }
-}
-
 /// 增强版章阅读主体（对齐 H5 ReaderView，不含听读同步）。
 class ReaderChapterBody extends ConsumerStatefulWidget {
   const ReaderChapterBody({
@@ -559,9 +529,12 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   static const _pageAxisMinPx = 8.0;
-  static const _pageAxisRatio = 1.35;
+  static const _pageAxisRatio = 1.15;
   /// 竖滚已有明显位移时不再判为横滑翻页，避免误锁 ListView。
   static const _pageAxisMaxDyForLock = 14.0;
+
+  /// LayoutBuilder 实测宽，供翻页位移/阈值（勿用 MediaQuery 全屏宽）。
+  double _viewportWidth = 0;
 
   @override
   void initState() {
@@ -1917,8 +1890,9 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       pointer == _pagePointerId || pointer == _pagePointerCandidate;
 
   void _onPagePointerMove(PointerMoveEvent e, {required bool swipeOn}) {
-    if (!_pagePointerTracked(e.pointer) || !swipeOn || _pageTurnAnimating)
+    if (!_pagePointerTracked(e.pointer) || !swipeOn || _pageTurnAnimating) {
       return;
+    }
     if (_selectionGestureActive || _swipeIgnored) {
       _cancelPagePointerTracking();
       return;
@@ -1932,9 +1906,14 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       if (totalDx.abs() < _pageAxisMinPx && totalDy.abs() < _pageAxisMinPx) {
         return;
       }
-      // 对齐 PWA：默认保竖滚；只有明显偏横且竖向位移仍小才进入翻页。
-      if (totalDx.abs() > totalDy.abs() * _pageAxisRatio &&
-          totalDy.abs() < _pageAxisMaxDyForLock) {
+      final adx = totalDx.abs();
+      final ady = totalDy.abs();
+      // 对齐 PWA useReaderPageTurn 轴锁
+      final lockX = (adx >= _pageAxisMinPx &&
+              adx > ady * _pageAxisRatio &&
+              ady < _pageAxisMaxDyForLock) ||
+          (adx >= _pageAxisMinPx * 1.2 && adx > ady);
+      if (lockX) {
         _pagePointerId = e.pointer;
         _pagePointerCandidate = null;
         _pagePointerAxis = 'x';
@@ -1979,7 +1958,9 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   void _onPageDragUpdate(double deltaDx) {
     if (_pageTurnAnimating) return;
-    final width = MediaQuery.sizeOf(context).width;
+    final width = _viewportWidth > 0
+        ? _viewportWidth
+        : MediaQuery.sizeOf(context).width;
     if (width <= 0) return;
     _pageDragAxis = 'x';
     _pageTurningN.value = true;
@@ -2038,7 +2019,9 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }) async {
     if (_pageTurnAnimating) return;
     widget.onInteract();
-    final width = MediaQuery.sizeOf(context).width;
+    final width = _viewportWidth > 0
+        ? _viewportWidth
+        : MediaQuery.sizeOf(context).width;
     // 用原始位移判定方向/阈值，避免边界阻力压扁后永远翻不过去
     final dx = _pageDragRaw;
     final v = velocityPxPerSec ?? details?.primaryVelocity ?? 0;
@@ -2504,7 +2487,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final planHead = widget.planMeta != null ? 1 : 0;
     final planTail = segmentFooter != null ? 1 : 0;
     final reduceMotion = peiaiReduceMotion(context);
-    final pageW = MediaQuery.sizeOf(context).width;
     final swipeOn =
         pageTurn == ReaderPageTurn.swipe &&
         !reduceMotion &&
@@ -2512,146 +2494,151 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         !_selectionGestureActive &&
         _selected.isEmpty;
 
-    final listBody = VerseSelectionSurface(
-      key: _selectionSurfaceKey,
-      enabled: true,
-      selectionPrimed: _selected.isNotEmpty,
-      primedRange: _wordRange,
-      onApplyRange: (a, f, {commit = true}) {
-        if (commit) {
-          _applyWordRange(a, f, commit: true);
-        } else {
-          _scheduleWordRangeDuringDrag(a, f);
-        }
-      },
-      onCommitRange: _commitWordRangeProgress,
-      onClearIfEmptyTap: _selected.isNotEmpty ? _clearSelection : null,
-      onSelectionGestureChanged: (on) {
-        if (on) {
-          _armSwipeIgnore();
-          _cancelPagePointerTracking();
-        }
-        _setSelectionGestureActive(on);
-      },
-      child: ListView.builder(
-          controller: _scroll,
-          physics: pageTurn == ReaderPageTurn.scroll
-              ? const ClampingScrollPhysics()
-              : _PageTurnScrollPhysics(pageTurnLock: _pageTurningN),
-          scrollCacheExtent: const ScrollCacheExtent.pixels(320),
-          addAutomaticKeepAlives: false,
-          addSemanticIndexes: false,
-          // 沉浸：顶垫给固定卷章条；非沉浸：底垫对齐胶囊底栏（peiaiTabContentBottomPad）
-          padding: EdgeInsets.fromLTRB(
-            16,
-            _readerListTopPad(),
-            20,
-            widget.chromeHidden
-                ? (MediaQuery.paddingOf(context).bottom + 8)
-                : peiaiTabContentBottomPad(context, includeSafe: false),
-          ),
-          itemCount: rows.length + 1 + planHead + planTail,
-          itemBuilder: (_, i) {
-            if (planHead == 1 && i == 0) {
-              final meta = widget.planMeta!;
-              final stepIdx = stepForChapter(
-                meta.steps,
-                widget.book.id,
-                widget.chapter,
-              );
-              return PageTurnYield(
-                child: PlanReadingBar(
-                  planTitle: meta.planTitle,
-                  day: meta.day,
-                  totalDays: meta.totalDays,
-                  steps: meta.steps,
-                  session: meta.session,
-                  onJumpStep: (index) {
-                    final s = meta.steps[index];
-                    widget.onPlanJump?.call(s.bookId, s.chapterStart);
-                  },
-                  onOpenSheet: () => showPlanDaySheet(
-                    context,
+    final listBody = ValueListenableBuilder<bool>(
+      valueListenable: _pageTurningN,
+      builder: (context, turning, _) {
+        return VerseSelectionSurface(
+          key: _selectionSurfaceKey,
+          enabled: true,
+          selectionPrimed: _selected.isNotEmpty,
+          primedRange: _wordRange,
+          onApplyRange: (a, f, {commit = true}) {
+            if (commit) {
+              _applyWordRange(a, f, commit: true);
+            } else {
+              _scheduleWordRangeDuringDrag(a, f);
+            }
+          },
+          onCommitRange: _commitWordRangeProgress,
+          onClearIfEmptyTap: _selected.isNotEmpty ? _clearSelection : null,
+          onSelectionGestureChanged: (on) {
+            if (on) {
+              _armSwipeIgnore();
+              _cancelPagePointerTracking();
+            }
+            _setSelectionGestureActive(on);
+          },
+          child: ListView.builder(
+            controller: _scroll,
+            physics: pageTurn == ReaderPageTurn.scroll
+                ? const ClampingScrollPhysics()
+                : turning
+                ? const NeverScrollableScrollPhysics()
+                : const ClampingScrollPhysics(),
+            scrollCacheExtent: const ScrollCacheExtent.pixels(320),
+            addAutomaticKeepAlives: false,
+            addSemanticIndexes: false,
+            padding: EdgeInsets.fromLTRB(
+              16,
+              _readerListTopPad(),
+              20,
+              widget.chromeHidden
+                  ? (MediaQuery.paddingOf(context).bottom + 8)
+                  : peiaiTabContentBottomPad(context, includeSafe: false),
+            ),
+            itemCount: rows.length + 1 + planHead + planTail,
+            itemBuilder: (_, i) {
+              if (planHead == 1 && i == 0) {
+                final meta = widget.planMeta!;
+                final stepIdx = stepForChapter(
+                  meta.steps,
+                  widget.book.id,
+                  widget.chapter,
+                );
+                return PageTurnYield(
+                  child: PlanReadingBar(
+                    planTitle: meta.planTitle,
                     day: meta.day,
+                    totalDays: meta.totalDays,
                     steps: meta.steps,
                     session: meta.session,
-                    currentStepIndex: stepIdx >= 0
-                        ? stepIdx
-                        : meta.session.currentStepIndex,
-                    onJump: (index) {
+                    onJumpStep: (index) {
                       final s = meta.steps[index];
                       widget.onPlanJump?.call(s.bookId, s.chapterStart);
                     },
+                    onOpenSheet: () => showPlanDaySheet(
+                      context,
+                      day: meta.day,
+                      steps: meta.steps,
+                      session: meta.session,
+                      currentStepIndex: stepIdx >= 0
+                          ? stepIdx
+                          : meta.session.currentStepIndex,
+                      onJump: (index) {
+                        final s = meta.steps[index];
+                        widget.onPlanJump?.call(s.bookId, s.chapterStart);
+                      },
+                    ),
                   ),
-                ),
-              );
-            }
-            if (i == planHead) {
-              // 卷章固定在轨道外叠层，避免横滑时标题跟着正文移走。
-              return const SizedBox.shrink();
-            }
-            if (planTail == 1 && i == rows.length + 1 + planHead) {
-              return segmentFooter!;
-            }
-            final r = rows[i - 1 - planHead];
-            if (r is String) {
-              return _sectionTitle(r);
-            }
-            final para = r as VerseParagraph;
-            return _ParagraphBlock(
-              book: widget.book,
-              chapter: widget.chapter,
-              paragraph: displayPara(para),
-              verseNo: verseNo,
-              poetry: poetry,
-              selected: _selected,
-              wordRange: _wordRange,
-              highlightMarks: highlights,
-              underlinesEnabled: underlinesEnabled,
-              thoughtsEnabled: thoughtsEnabled,
-              thoughtsByVerse: thoughtsByVerse,
-              myThoughtsByVerse: myThoughtsByVerse,
-              notesByVerse: notesByVerse,
-              fontFamily: fontFamily,
-              dictIndex: dictIndex,
-              dictKeys: dictKeys,
-              dictRev: dictRev,
-              inkColor: theme.ink,
-              selectionAnchorVerse: _selectionAnchorVerse,
-              selectionAnchorKey: _selectionAnchorKey,
-              resumeFlashVerse: _resumeFlashVerse,
-              resumeAnchorKey: _resumeAnchorKey,
-              scrollVerseKey: verseNo == ReaderVerseNumberMode.margin
-                  ? _scrollVerseKey
-                  : null,
-              feedHintForVerse: _feedHintForVerse,
-              onViewNote: _viewNote,
-              onStart: _startSelect,
-              onToggle: _toggleSelect,
-              onWordStart: _startWordSelect,
-              onWordExtend: _extendWordSelect,
-              onOpenThoughts: _openThoughtsForVerse,
-              onOpenDict: (entity, name, candidates) {
-                cancelPageTurn();
-                widget.onInteract();
-                showEntityKnowledgeSheet(
-                  context,
-                  ref,
-                  entity: entity,
-                  displayName: name,
-                  candidates: candidates,
                 );
-              },
-            );
-          },
-        ),
+              }
+              if (i == planHead) {
+                return const SizedBox.shrink();
+              }
+              if (planTail == 1 && i == rows.length + 1 + planHead) {
+                return segmentFooter!;
+              }
+              final r = rows[i - 1 - planHead];
+              if (r is String) {
+                return _sectionTitle(r);
+              }
+              final para = r as VerseParagraph;
+              return _ParagraphBlock(
+                book: widget.book,
+                chapter: widget.chapter,
+                paragraph: displayPara(para),
+                verseNo: verseNo,
+                poetry: poetry,
+                selected: _selected,
+                wordRange: _wordRange,
+                highlightMarks: highlights,
+                underlinesEnabled: underlinesEnabled,
+                thoughtsEnabled: thoughtsEnabled,
+                thoughtsByVerse: thoughtsByVerse,
+                myThoughtsByVerse: myThoughtsByVerse,
+                notesByVerse: notesByVerse,
+                fontFamily: fontFamily,
+                dictIndex: dictIndex,
+                dictKeys: dictKeys,
+                dictRev: dictRev,
+                inkColor: theme.ink,
+                selectionAnchorVerse: _selectionAnchorVerse,
+                selectionAnchorKey: _selectionAnchorKey,
+                resumeFlashVerse: _resumeFlashVerse,
+                resumeAnchorKey: _resumeAnchorKey,
+                scrollVerseKey: verseNo == ReaderVerseNumberMode.margin
+                    ? _scrollVerseKey
+                    : null,
+                feedHintForVerse: _feedHintForVerse,
+                onViewNote: _viewNote,
+                onStart: _startSelect,
+                onToggle: _toggleSelect,
+                onWordStart: _startWordSelect,
+                onWordExtend: _extendWordSelect,
+                onOpenThoughts: _openThoughtsForVerse,
+                onOpenDict: (entity, name, candidates) {
+                  cancelPageTurn();
+                  widget.onInteract();
+                  showEntityKnowledgeSheet(
+                    context,
+                    ref,
+                    entity: entity,
+                    displayName: name,
+                    candidates: candidates,
+                  );
+                },
+              );
+            },
+          ),
+        );
+      },
     );
 
     final topPad = _readerListTopPad();
     _ensurePeekPanels(theme, topPad);
-    return _pageTurnViewport(
+    return _readerViewport(
+      pageTurn: pageTurn,
       swipeOn: swipeOn,
-      pageW: pageW,
       theme: theme,
       listBody: listBody,
       peekNext: _cachedPeekNext!,
@@ -2774,94 +2761,112 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   /// 固定卷章条高度，正文从条下开始，避免标题随横滑轨道移走。
   double _readerListTopPad() => _locOverlayTopPad() + 34;
 
-  Widget _pageTurnViewport({
+  Widget _readerViewport({
+    required ReaderPageTurn pageTurn,
     required bool swipeOn,
-    required double pageW,
     required ReaderExperienceTheme theme,
     required Widget listBody,
     required Widget peekNext,
     required Widget peekPrev,
   }) {
-    return MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(gestureSettings: const DeviceGestureSettings(touchSlop: 8)),
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: swipeOn
-            ? (e) => _onPagePointerDown(e, swipeOn: swipeOn)
-            : null,
-        onPointerMove: swipeOn
-            ? (e) => _onPagePointerMove(e, swipeOn: swipeOn)
-            : null,
-        onPointerUp: swipeOn
-            ? (e) => _onPagePointerEnd(e, swipeOn: swipeOn)
-            : null,
-        onPointerCancel: swipeOn
-            ? (e) => _onPagePointerEnd(e, swipeOn: swipeOn)
-            : null,
-        child: AnimatedBuilder(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final pageW = constraints.maxWidth;
+        _viewportWidth = pageW;
+        final panelH = constraints.maxHeight;
+
+        // 上下滚动：正文裸 ListView，无 Transform / 翻页 overlay（对齐 PWA scroll panel）。
+        if (pageTurn == ReaderPageTurn.scroll) {
+          return Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              Positioned.fill(child: listBody),
+              _stableLocOverlay(theme, 0),
+            ],
+          );
+        }
+
+        // 左右滑动：竖滚层与翻页视觉/手势分离；idle 时不 Transform 正文。
+        return AnimatedBuilder(
           animation: Listenable.merge([_pageDragDxN, _pageTurnAnimatingN]),
           builder: (context, _) {
             final dx = _pageDragDxN.value;
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final panelH = constraints.maxHeight;
-                return Stack(
-                  clipBehavior: Clip.hardEdge,
-                  children: [
-                    ClipRect(
-                      child: Transform.translate(
-                        offset: Offset(-pageW + dx, 0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: pageW,
-                              height: panelH,
-                              child: IgnorePointer(
-                                child: RepaintBoundary(
-                                  child: ColoredBox(
-                                    color: theme.background,
-                                    child: peekPrev,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: pageW,
-                              height: panelH,
+            final trackVisible =
+                dx.abs() > 1 || _pageTurnAnimating || _pageTurningN.value;
+
+            return Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                if (trackVisible)
+                  ClipRect(
+                    child: Transform.translate(
+                      offset: Offset(-pageW + dx, 0),
+                      transformHitTests: false,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: pageW,
+                            height: panelH,
+                            child: IgnorePointer(
                               child: RepaintBoundary(
                                 child: ColoredBox(
                                   color: theme.background,
-                                  child: listBody,
+                                  child: peekPrev,
                                 ),
                               ),
                             ),
-                            SizedBox(
-                              width: pageW,
-                              height: panelH,
-                              child: IgnorePointer(
-                                child: RepaintBoundary(
-                                  child: ColoredBox(
-                                    color: theme.background,
-                                    child: peekNext,
-                                  ),
+                          ),
+                          SizedBox(
+                            width: pageW,
+                            height: panelH,
+                            child: ColoredBox(color: theme.background),
+                          ),
+                          SizedBox(
+                            width: pageW,
+                            height: panelH,
+                            child: IgnorePointer(
+                              child: RepaintBoundary(
+                                child: ColoredBox(
+                                  color: theme.background,
+                                  child: peekNext,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                    _stableLocOverlay(theme, dx),
-                  ],
-                );
-              },
+                  ),
+                Transform.translate(
+                  offset: Offset(trackVisible ? dx : 0, 0),
+                  transformHitTests: trackVisible,
+                  child: SizedBox(
+                    width: pageW,
+                    height: panelH,
+                    child: listBody,
+                  ),
+                ),
+                _stableLocOverlay(theme, dx),
+                if (swipeOn)
+                  Positioned.fill(
+                    child: Listener(
+                      behavior: HitTestBehavior.translucent,
+                      onPointerDown: (e) =>
+                          _onPagePointerDown(e, swipeOn: swipeOn),
+                      onPointerMove: (e) =>
+                          _onPagePointerMove(e, swipeOn: swipeOn),
+                      onPointerUp: (e) =>
+                          _onPagePointerEnd(e, swipeOn: swipeOn),
+                      onPointerCancel: (e) =>
+                          _onPagePointerEnd(e, swipeOn: swipeOn),
+                    ),
+                  ),
+              ],
             );
           },
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -2954,9 +2959,10 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         !_pageTurnAnimating &&
         !_selectionGestureActive &&
         _selected.isEmpty;
-    final pageW = MediaQuery.sizeOf(context).width;
-
-    final listBody = VerseSelectionSurface(
+    final listBody = ValueListenableBuilder<bool>(
+      valueListenable: _pageTurningN,
+      builder: (context, turning, _) {
+        return VerseSelectionSurface(
       key: _selectionSurfaceKey,
       enabled: true,
       selectionPrimed: _selected.isNotEmpty,
@@ -2981,7 +2987,9 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       controller: _scroll,
       physics: pageTurn == ReaderPageTurn.scroll
           ? const ClampingScrollPhysics()
-          : _PageTurnScrollPhysics(pageTurnLock: _pageTurningN),
+          : turning
+          ? const NeverScrollableScrollPhysics()
+          : const ClampingScrollPhysics(),
       scrollCacheExtent: const ScrollCacheExtent.pixels(480),
       addAutomaticKeepAlives: false,
       addSemanticIndexes: false,
@@ -3142,13 +3150,15 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         );
       },
     ),
+        );
+      },
     );
 
     final topPad = _readerListTopPad();
     _ensurePeekPanels(theme, topPad);
-    return _pageTurnViewport(
+    return _readerViewport(
+      pageTurn: pageTurn,
       swipeOn: swipeOn,
-      pageW: pageW,
       theme: theme,
       listBody: listBody,
       peekNext: _cachedPeekNext!,
