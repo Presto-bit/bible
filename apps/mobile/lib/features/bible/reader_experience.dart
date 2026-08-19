@@ -417,8 +417,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     if (_pageTurnAnimating ||
         _pageDragDx != 0 ||
         _pageDragRaw != 0 ||
-        _pagePointerId != null ||
-        _pagePointerCandidate != null ||
         _pageTurningN.value) {
       if (_pageTurnAnimating) {
         setState(_resetPageDrag);
@@ -426,7 +424,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         _resetPageDrag();
       }
     } else {
-      _cancelPagePointerTracking();
+      _releasePageTurnLock();
     }
   }
 
@@ -442,7 +440,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   void _cancelPagePointerTracking() {
-    _resetPagePointer();
     if (!_pageTurnAnimating && (_pageDragDx != 0 || _pageDragRaw != 0)) {
       _pageDragDx = 0;
       _pageDragRaw = 0;
@@ -452,13 +449,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _releasePageTurnLock();
   }
 
-  /// 跟手翻页指针态（对齐 PWA useReaderPageTurn 轴锁，避免与竖滚抢手势）
-  int? _pagePointerId;
-  int? _pagePointerCandidate;
-  Offset? _pagePointerStart;
-  String? _pagePointerAxis;
-  double _pagePointerVelocity = 0;
-  int _pagePointerLastMoveMs = 0;
+  /// 横滑翻章跟手位移（HorizontalDrag 驱动）
 
   bool get _englishUI => widget.mainVersionId == 'kjv';
 
@@ -1849,111 +1840,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _pageTurningN.value = false;
     _pageTurnStuckTimer?.cancel();
     _pageTurnStuckTimer = null;
-    _resetPagePointer();
-  }
-
-  void _resetPagePointer() {
-    _pagePointerId = null;
-    _pagePointerCandidate = null;
-    _pagePointerStart = null;
-    _pagePointerAxis = null;
-    _pagePointerVelocity = 0;
-    _pagePointerLastMoveMs = 0;
-  }
-
-  bool _pagePointerAllowed(PointerEvent e) =>
-      e.kind == PointerDeviceKind.touch ||
-      e.kind == PointerDeviceKind.mouse ||
-      e.kind == PointerDeviceKind.stylus;
-
-  void _onPagePointerDown(PointerDownEvent e, {required bool swipeOn}) {
-    if (!swipeOn ||
-        _pageTurnAnimating ||
-        _selectionGestureActive ||
-        _swipeIgnored) {
-      return;
-    }
-    if (!_pagePointerAllowed(e)) return;
-    if (_pagePointerId != null || _pagePointerCandidate != null) return;
-    // 对齐 PWA shouldYieldPageTurn：词典下划线 / 工具条 / 计划条让路；
-    // 普通经文不让，否则正文上左右滑永远不跟手。
-    if (shouldYieldPageTurn(context, e.position)) return;
-    _pagePointerCandidate = e.pointer;
-    _pagePointerStart = e.position;
-    _pagePointerAxis = null;
-    _pagePointerVelocity = 0;
-    _pagePointerLastMoveMs = 0;
-    _prefetchAdjacentChapters();
-  }
-
-  bool _pagePointerTracked(int pointer) =>
-      pointer == _pagePointerId || pointer == _pagePointerCandidate;
-
-  void _onPagePointerMove(PointerMoveEvent e, {required bool swipeOn}) {
-    if (!_pagePointerTracked(e.pointer) || !swipeOn || _pageTurnAnimating) {
-      return;
-    }
-    if (_selectionGestureActive || _swipeIgnored) {
-      _cancelPagePointerTracking();
-      return;
-    }
-    final start = _pagePointerStart;
-    if (start == null) return;
-
-    final totalDx = e.position.dx - start.dx;
-    final totalDy = e.position.dy - start.dy;
-    if (_pagePointerAxis == null) {
-      if (totalDx.abs() < _pageAxisMinPx && totalDy.abs() < _pageAxisMinPx) {
-        return;
-      }
-      final adx = totalDx.abs();
-      final ady = totalDy.abs();
-      // 对齐 PWA useReaderPageTurn 轴锁
-      final lockX = (adx >= _pageAxisMinPx &&
-              adx > ady * _pageAxisRatio &&
-              ady < _pageAxisMaxDyForLock) ||
-          (adx >= _pageAxisMinPx * 1.2 && adx > ady);
-      if (lockX) {
-        _pagePointerId = e.pointer;
-        _pagePointerCandidate = null;
-        _pagePointerAxis = 'x';
-        _pageDragAxis = 'x';
-      } else {
-        _pageTurningN.value = false;
-        _resetPagePointer();
-        return;
-      }
-    }
-    if (_pagePointerAxis != 'x') return;
-
-    _onPageDragUpdate(e.delta.dx);
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (_pagePointerLastMoveMs > 0) {
-      final dt = (now - _pagePointerLastMoveMs) / 1000.0;
-      if (dt > 0.001) _pagePointerVelocity = e.delta.dx / dt;
-    }
-    _pagePointerLastMoveMs = now;
-  }
-
-  void _onPagePointerEnd(PointerEvent e, {required bool swipeOn}) {
-    if (!_pagePointerTracked(e.pointer)) return;
-    final committed =
-        _pagePointerAxis == 'x' &&
-        swipeOn &&
-        (_pageDragRaw != 0 || _pageDragDx != 0);
-    if (committed) {
-      unawaited(_finishPageTurn(velocityPxPerSec: _pagePointerVelocity));
-    } else if (_pageDragDx != 0 || _pageDragRaw != 0) {
-      if (_pageTurnAnimating) {
-        setState(_resetPageDrag);
-      } else {
-        _resetPageDrag();
-      }
-    } else {
-      // 轴已判 X 但未位移时也要释放，否则竖滚会永久锁死。
-      _releasePageTurnLock();
-    }
-    _resetPagePointer();
   }
 
   void _onPageDragUpdate(double deltaDx) {
@@ -2786,85 +2672,108 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           );
         }
 
-        // 左右滑动：竖滚层与翻页视觉/手势分离；idle 时不 Transform 正文。
-        return AnimatedBuilder(
-          animation: Listenable.merge([_pageDragDxN, _pageTurnAnimatingN]),
-          builder: (context, _) {
-            final dx = _pageDragDxN.value;
-            final trackVisible =
-                dx.abs() > 1 || _pageTurnAnimating || _pageTurningN.value;
+        // 左右滑动：HorizontalDrag 与 ListView 竖滚分轨竞争；idle 时不 Transform 正文。
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragStart: !swipeOn
+              ? null
+              : (d) {
+                  if (_pageTurnAnimating ||
+                      _selectionGestureActive ||
+                      _swipeIgnored) {
+                    return;
+                  }
+                  if (shouldYieldPageTurn(context, d.globalPosition)) return;
+                  _pageTurningN.value = true;
+                  _armPageTurnStuckTimer();
+                  _prefetchAdjacentChapters();
+                },
+          onHorizontalDragUpdate: !swipeOn
+              ? null
+              : (d) {
+                  if (_selectionGestureActive || _swipeIgnored) {
+                    cancelPageTurn();
+                    return;
+                  }
+                  _onPageDragUpdate(d.delta.dx);
+                },
+          onHorizontalDragEnd: !swipeOn
+              ? null
+              : (d) {
+                  if (_selectionGestureActive || _swipeIgnored) {
+                    cancelPageTurn();
+                    return;
+                  }
+                  unawaited(
+                    _finishPageTurn(velocityPxPerSec: d.primaryVelocity ?? 0),
+                  );
+                },
+          onHorizontalDragCancel: !swipeOn ? null : () => cancelPageTurn(),
+          child: AnimatedBuilder(
+            animation: Listenable.merge([_pageDragDxN, _pageTurnAnimatingN]),
+            builder: (context, _) {
+              final dx = _pageDragDxN.value;
+              final trackVisible =
+                  dx.abs() > 1 || _pageTurnAnimating || _pageTurningN.value;
 
-            return Stack(
-              clipBehavior: Clip.hardEdge,
-              children: [
-                if (trackVisible)
-                  ClipRect(
-                    child: Transform.translate(
-                      offset: Offset(-pageW + dx, 0),
-                      transformHitTests: false,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: pageW,
-                            height: panelH,
-                            child: IgnorePointer(
-                              child: RepaintBoundary(
-                                child: ColoredBox(
-                                  color: theme.background,
-                                  child: peekPrev,
+              return Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  if (trackVisible)
+                    ClipRect(
+                      child: Transform.translate(
+                        offset: Offset(-pageW + dx, 0),
+                        transformHitTests: false,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: pageW,
+                              height: panelH,
+                              child: IgnorePointer(
+                                child: RepaintBoundary(
+                                  child: ColoredBox(
+                                    color: theme.background,
+                                    child: peekPrev,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          SizedBox(
-                            width: pageW,
-                            height: panelH,
-                            child: ColoredBox(color: theme.background),
-                          ),
-                          SizedBox(
-                            width: pageW,
-                            height: panelH,
-                            child: IgnorePointer(
-                              child: RepaintBoundary(
-                                child: ColoredBox(
-                                  color: theme.background,
-                                  child: peekNext,
+                            SizedBox(
+                              width: pageW,
+                              height: panelH,
+                              child: ColoredBox(color: theme.background),
+                            ),
+                            SizedBox(
+                              width: pageW,
+                              height: panelH,
+                              child: IgnorePointer(
+                                child: RepaintBoundary(
+                                  child: ColoredBox(
+                                    color: theme.background,
+                                    child: peekNext,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                Transform.translate(
-                  offset: Offset(trackVisible ? dx : 0, 0),
-                  transformHitTests: trackVisible,
-                  child: SizedBox(
-                    width: pageW,
-                    height: panelH,
-                    child: listBody,
-                  ),
-                ),
-                _stableLocOverlay(theme, dx),
-                if (swipeOn)
-                  Positioned.fill(
-                    child: Listener(
-                      behavior: HitTestBehavior.translucent,
-                      onPointerDown: (e) =>
-                          _onPagePointerDown(e, swipeOn: swipeOn),
-                      onPointerMove: (e) =>
-                          _onPagePointerMove(e, swipeOn: swipeOn),
-                      onPointerUp: (e) =>
-                          _onPagePointerEnd(e, swipeOn: swipeOn),
-                      onPointerCancel: (e) =>
-                          _onPagePointerEnd(e, swipeOn: swipeOn),
+                  Transform.translate(
+                    offset: Offset(trackVisible ? dx : 0, 0),
+                    transformHitTests: trackVisible,
+                    child: SizedBox(
+                      width: pageW,
+                      height: panelH,
+                      child: listBody,
                     ),
                   ),
-              ],
-            );
-          },
+                  _stableLocOverlay(theme, dx),
+                ],
+              );
+            },
+          ),
         );
       },
     );

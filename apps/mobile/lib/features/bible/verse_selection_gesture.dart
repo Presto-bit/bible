@@ -514,7 +514,17 @@ class _VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         if (!_armed) {
           if (dist >= 14) {
             _clearLp();
-            _anchor = null;
+            if (_anchor != null) {
+              final dx = (e.position.dx - down.dx).abs();
+              final dy = (e.position.dy - down.dy).abs();
+              // 纵向/斜向拖扩；明显横滑留给翻页
+              if (dy >= dx * 0.85) {
+                _armed = true;
+                _notifyGesture(true);
+                widget.onApplyRange(_anchor!, _anchor!, commit: true);
+                HapticFeedback.selectionClick();
+              }
+            }
           }
           return;
         }
