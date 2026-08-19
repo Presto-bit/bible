@@ -144,6 +144,7 @@ computeRelationLayout({
   required double cx,
   required double cy,
   required double baseR,
+  bool strictNeighborsOnly = false,
 }) {
   final nodeById = {for (final n in nodes) n.id: n};
   final neighborEdges = centerNeighborEdges(centerId, edges);
@@ -162,9 +163,11 @@ computeRelationLayout({
     if (!peerBuckets[cat]!.contains(peer)) peerBuckets[cat]!.add(peer);
   }
 
-  for (final n in nodes) {
-    if (n.id == centerId || peerEdge.containsKey(n.id)) continue;
-    peerBuckets[RelationFilterKey.companion]!.add(n.id);
+  if (!strictNeighborsOnly) {
+    for (final n in nodes) {
+      if (n.id == centerId || peerEdge.containsKey(n.id)) continue;
+      peerBuckets[RelationFilterKey.companion]!.add(n.id);
+    }
   }
 
   const ringOrder = [
@@ -176,19 +179,30 @@ computeRelationLayout({
   final ringRadii = [baseR * 0.82, baseR, baseR * 1.14, baseR * 1.28];
   final positions = <String, Offset>{};
 
-  for (var ringIdx = 0; ringIdx < ringOrder.length; ringIdx++) {
-    final cat = ringOrder[ringIdx];
-    final ids = peerBuckets[cat]!;
-    final r = ringRadii[ringIdx];
-    for (var i = 0; i < ids.length; i++) {
-      final angle =
-          (2 * math.pi * i) / math.max(ids.length, 1) -
-          math.pi / 2 +
-          ringIdx * 0.12;
-      positions[ids[i]] = Offset(
-        cx + r * math.cos(angle),
-        cy + r * math.sin(angle),
+  if (strictNeighborsOnly) {
+    final peers = peerEdge.keys.toList();
+    for (var i = 0; i < peers.length; i++) {
+      final angle = (2 * math.pi * i) / math.max(peers.length, 1) - math.pi / 2;
+      positions[peers[i]] = Offset(
+        cx + baseR * math.cos(angle),
+        cy + baseR * math.sin(angle),
       );
+    }
+  } else {
+    for (var ringIdx = 0; ringIdx < ringOrder.length; ringIdx++) {
+      final cat = ringOrder[ringIdx];
+      final ids = peerBuckets[cat]!;
+      final r = ringRadii[ringIdx];
+      for (var i = 0; i < ids.length; i++) {
+        final angle =
+            (2 * math.pi * i) / math.max(ids.length, 1) -
+            math.pi / 2 +
+            ringIdx * 0.12;
+        positions[ids[i]] = Offset(
+          cx + r * math.cos(angle),
+          cy + r * math.sin(angle),
+        );
+      }
     }
   }
 
@@ -224,30 +238,38 @@ computeRelationLayout({
     );
   }
 
-  for (final entry in positions.entries) {
-    final id = entry.key;
-    final pos = entry.value;
-    if (id == centerId || layoutNodes.any((n) => n.node.id == id)) continue;
-    layoutNodes.add(
-      RelationLayoutNode(
-        node: nodeById[id] ?? GraphNode(id: id, name: id, type: 'unknown'),
-        x: pos.dx,
-        y: pos.dy,
-        isCenter: false,
-      ),
-    );
+  if (!strictNeighborsOnly) {
+    for (final entry in positions.entries) {
+      final id = entry.key;
+      final pos = entry.value;
+      if (id == centerId || layoutNodes.any((n) => n.node.id == id)) continue;
+      layoutNodes.add(
+        RelationLayoutNode(
+          node: nodeById[id] ?? GraphNode(id: id, name: id, type: 'unknown'),
+          x: pos.dx,
+          y: pos.dy,
+          isCenter: false,
+        ),
+      );
+    }
   }
 
   final drawableEdges = <(GraphEdge, int)>[];
-  for (var index = 0; index < edges.length; index++) {
-    final edge = edges[index];
-    final a = positions.containsKey(edge.from) || edge.from == centerId;
-    final b = positions.containsKey(edge.to) || edge.to == centerId;
-    if ((edge.from == centerId || positions.containsKey(edge.from)) &&
-        (edge.to == centerId || positions.containsKey(edge.to)) &&
-        (a || edge.from == centerId) &&
-        (b || edge.to == centerId)) {
-      drawableEdges.add((edge, index));
+  if (strictNeighborsOnly) {
+    for (var index = 0; index < neighborEdges.length; index++) {
+      drawableEdges.add((neighborEdges[index], index));
+    }
+  } else {
+    for (var index = 0; index < edges.length; index++) {
+      final edge = edges[index];
+      final a = positions.containsKey(edge.from) || edge.from == centerId;
+      final b = positions.containsKey(edge.to) || edge.to == centerId;
+      if ((edge.from == centerId || positions.containsKey(edge.from)) &&
+          (edge.to == centerId || positions.containsKey(edge.to)) &&
+          (a || edge.from == centerId) &&
+          (b || edge.to == centerId)) {
+        drawableEdges.add((edge, index));
+      }
     }
   }
 
@@ -455,6 +477,7 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
                 cx: cx,
                 cy: cy,
                 baseR: baseR,
+                strictNeighborsOnly: _edgeFilter != RelationFilterKey.all,
               );
               final positions = {
                 for (final n in layout.layoutNodes) n.node.id: Offset(n.x, n.y),

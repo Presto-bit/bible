@@ -1026,6 +1026,27 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     }
   }
 
+  void _dragSelectionHandle(Offset global, {required bool isStart}) {
+    final wr = _wordRange;
+    if (wr == null) return;
+    final hit = wordAnchorNear(context, global, maxRadius: 56);
+    if (hit == null) return;
+    final n = normalizeWordRange(wr);
+    if (isStart) {
+      _scheduleWordRangeDuringDrag(hit, n.focus);
+    } else {
+      _scheduleWordRangeDuringDrag(n.anchor, hit);
+    }
+  }
+
+  void _onSelectionHandleGesture(bool on) {
+    if (on) {
+      _armSwipeIgnore();
+      _cancelPagePointerTracking();
+    }
+    _setSelectionGestureActive(on);
+  }
+
   // 词块长按：半节/词选起点（兼容节号旧路径）。
   void _startWordSelect(int verse, int start, int end) {
     final a = WordAnchor(verse: verse, start: start, end: end);
@@ -1154,10 +1175,8 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   Widget _sectionTitle(String title) {
-    final muted = _selected.isNotEmpty;
-    final baseColor = muted
-        ? AppColors.inkFaint.withValues(alpha: 0.45)
-        : AppColors.accentDeep;
+    // 对齐 PWA `.section-title`：选区激活时标题颜色不变。
+    final baseColor = AppColors.accentDeep;
     // 对齐 PWA：字号随正文缩放，字体继承读经衬线栈。
     final readerPx = ref.watch(readerFontProvider).px;
     final fontFamily = ref.watch(readerFontFamilyProvider);
@@ -2342,6 +2361,16 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                 );
               },
             ),
+          if (_wordRange != null)
+            Positioned.fill(
+              child: _SelectionHandlesOverlay(
+                rangeListenable: _scroll,
+                range: _wordRange!,
+                onDrag: _dragSelectionHandle,
+                onCommit: _commitWordRangeProgress,
+                onGestureChanged: _onSelectionHandleGesture,
+              ),
+            ),
           if (_guideTipVisible && _selected.isEmpty && widget.planMeta == null)
             Positioned(
               left: 12,
@@ -2590,17 +2619,17 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                 onWordStart: _startWordSelect,
                 onWordExtend: _extendWordSelect,
                 onOpenThoughts: _openThoughtsForVerse,
-                onOpenDict: (entity, name, candidates) async {
-                  releaseReaderGestures();
+                onOpenDict: (entity, name, candidates) {
                   widget.onInteract();
-                  await showEntityKnowledgeSheet(
-                    context,
-                    ref,
-                    entity: entity,
-                    displayName: name,
-                    candidates: candidates,
+                  unawaited(
+                    showEntityKnowledgeSheet(
+                      context,
+                      ref,
+                      entity: entity,
+                      displayName: name,
+                      candidates: candidates,
+                    ),
                   );
-                  if (mounted) releaseReaderGestures();
                 },
               );
             },
@@ -3723,9 +3752,7 @@ class _ChapterPeekContent extends StatelessWidget {
     final style = TextStyle(
       fontSize: (fontPx * 0.88).roundToDouble().clamp(13, 32),
       fontWeight: FontWeight.w700,
-      color: selectionActive
-          ? AppColors.inkFaint.withValues(alpha: 0.45)
-          : AppColors.accentDeep,
+      color: AppColors.accentDeep,
       fontFamily: fontFamily.fontFamily,
       fontFamilyFallback: fontFamily.fontFamilyFallback,
     );
@@ -4781,6 +4808,78 @@ class _ChapterCompleteTip extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 选区两端拖动手柄层（对齐 PWA 左右锚点）。
+class _SelectionHandlesOverlay extends StatefulWidget {
+  const _SelectionHandlesOverlay({
+    required this.rangeListenable,
+    required this.range,
+    required this.onDrag,
+    required this.onCommit,
+    required this.onGestureChanged,
+  });
+
+  final Listenable rangeListenable;
+  final WordRange range;
+  final void Function(Offset global, {required bool isStart}) onDrag;
+  final VoidCallback onCommit;
+  final ValueChanged<bool> onGestureChanged;
+
+  @override
+  State<_SelectionHandlesOverlay> createState() =>
+      _SelectionHandlesOverlayState();
+}
+
+class _SelectionHandlesOverlayState extends State<_SelectionHandlesOverlay> {
+  @override
+  void initState() {
+    super.initState();
+    widget.rangeListenable.addListener(_repaint);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _repaint());
+  }
+
+  @override
+  void didUpdateWidget(covariant _SelectionHandlesOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.rangeListenable != widget.rangeListenable) {
+      oldWidget.rangeListenable.removeListener(_repaint);
+      widget.rangeListenable.addListener(_repaint);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _repaint());
+  }
+
+  @override
+  void dispose() {
+    widget.rangeListenable.removeListener(_repaint);
+    super.dispose();
+  }
+
+  void _repaint() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = locateSelectionHandles(context, widget.range);
+    if (layout == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _repaint());
+      return const SizedBox.shrink();
+    }
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return const SizedBox.shrink();
+
+    final start = box.globalToLocal(layout.start);
+    final end = box.globalToLocal(layout.end);
+
+    return VerseSelectionHandles(
+      start: start,
+      end: end,
+      onDrag: widget.onDrag,
+      onCommit: widget.onCommit,
+      onGestureChanged: widget.onGestureChanged,
     );
   }
 }

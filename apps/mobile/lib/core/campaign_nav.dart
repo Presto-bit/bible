@@ -208,6 +208,8 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   var _blankRetryCount = 0;
   var _manualRetryCount = 0;
   var _nativeAuthFallback = false;
+  var _genesis50CleanReloadDone = false;
+  var _genesis50AuthRetryCount = 0;
   Genesis50Session? _genesis50Session;
 
   String get _genesis50RawTarget {
@@ -227,9 +229,8 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     super.initState();
     _authPhase = widget.genesis50;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.genesis50 && !_nativeAuthFallback) {
-        unawaited(_startWebView(_genesis50LaunchUrl()));
-      } else if (widget.genesis50) {
+      if (widget.genesis50) {
+        _nativeAuthFallback = true;
         unawaited(_resolveGenesis50AndStart());
       } else {
         unawaited(_startWebView(widget.url));
@@ -447,6 +448,26 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
           });
           if (widget.genesis50 && isGenesis50Href(url)) {
             await _injectGenesis50StorageFallback(controller, url);
+            final uri = Uri.tryParse(url);
+            if (!_genesis50CleanReloadDone &&
+                uri != null &&
+                (uri.queryParameters['access_token'] ?? '').isNotEmpty) {
+              _genesis50CleanReloadDone = true;
+              final cleanQ = Map<String, String>.from(uri.queryParameters)
+                ..remove('access_token')
+                ..remove('refresh_token')
+                ..remove('expires_in')
+                ..remove('expires_at')
+                ..remove('token_type')
+                ..remove('type');
+              await controller.loadRequest(
+                uri.replace(
+                  queryParameters: cleanQ.isEmpty ? null : cleanQ,
+                  fragment: '',
+                ),
+              );
+              return;
+            }
             _scheduleBlankProbe(controller);
           }
         },
@@ -469,6 +490,14 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
         onHttpError: (err) {
           final code = err.response?.statusCode;
           if (code == null || code < 400) return;
+          if (widget.genesis50 &&
+              code == 401 &&
+              _genesis50AuthRetryCount < 2) {
+            _genesis50AuthRetryCount++;
+            _genesis50CleanReloadDone = false;
+            unawaited(_resolveGenesis50AndStart());
+            return;
+          }
           _loadWatchdog?.cancel();
           if (!mounted) return;
           setState(() {
@@ -544,17 +573,13 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
       _error = null;
       _loading = true;
       _blankProbeDone = false;
+      _genesis50CleanReloadDone = false;
       _authPhase = widget.genesis50;
     });
     if (widget.genesis50) {
       _manualRetryCount++;
-      if (!_nativeAuthFallback &&
-          (_manualRetryCount >= 2 || _blankRetryCount >= 1)) {
-        _nativeAuthFallback = true;
-        unawaited(_resolveGenesis50AndStart());
-        return;
-      }
-      unawaited(_startWebView(_genesis50LaunchUrl()));
+      _nativeAuthFallback = true;
+      unawaited(_resolveGenesis50AndStart());
     } else {
       unawaited(_startWebView(widget.url));
     }

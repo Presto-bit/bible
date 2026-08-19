@@ -354,32 +354,35 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
           ),
           if (!widget.fullscreen) ...[
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _askAssistant,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.inkSoft,
-                      side: const BorderSide(color: AppColors.line),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+            Material(
+              color: AppColors.paper,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _askAssistant,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.inkSoft,
+                        side: const BorderSide(color: AppColors.line),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('问小爱'),
                     ),
-                    child: const Text('问小爱'),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _openFullscreenView,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _openFullscreenView,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('全屏查看'),
                     ),
-                    child: const Text('全屏查看'),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ] else ...[
             const SizedBox(height: 8),
@@ -585,9 +588,8 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
 
   void _openFullscreenView({String? tab}) {
     if (widget.fullscreen) return;
-    final nav = Navigator.of(context);
     final targetTab = tab ?? _tab;
-    nav.pop();
+    final nav = Navigator.of(context);
     nav.push<void>(
       MaterialPageRoute<void>(
         builder: (_) => _EntityKnowledgeFullscreenPage(
@@ -598,6 +600,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
         ),
       ),
     );
+    nav.pop();
   }
 }
 

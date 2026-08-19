@@ -478,6 +478,11 @@ class VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
           return;
         }
         if (_pointer != null) return;
+        if (_yieldFromHit(_hitAt(context, e.position))) {
+          _pointer = e.pointer;
+          _down = e.position;
+          return;
+        }
         final w = wordAnchorNear(context, e.position, maxRadius: 12);
         if (w == null) {
           _pointer = e.pointer;
@@ -516,11 +521,11 @@ class VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         final dist = (e.position - down).distance;
         if (!_armed) {
           // 长按等待：小幅抖动不取消；明确竖滚/横翻方向才放弃选词。
-          if (dist >= 10) {
+          if (dist >= 14) {
             final dx = (e.position.dx - down.dx).abs();
             final dy = (e.position.dy - down.dy).abs();
-            if ((dy >= 10 && dy > dx * 1.15) ||
-                (dx >= 10 && dx > dy * 1.15)) {
+            if ((dy >= 14 && dy > dx * 1.35) ||
+                (dx >= 14 && dx > dy * 1.35)) {
               _clearLp();
               _anchor = null;
               _lastFocus = null;

@@ -47,37 +47,51 @@ Future<T?> showReaderSheet<T>({
       final screenH = MediaQuery.sizeOf(ctx).height;
       var maxH = screenH * factor;
       if (maxHeight != null) maxH = maxH.clamp(0, maxHeight);
-      return Padding(
-        padding: EdgeInsets.only(bottom: bottom),
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: Material(
-            color: AppColors.paper,
-            elevation: 12,
-            shadowColor: Colors.black.withValues(alpha: 0.12),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            clipBehavior: Clip.antiAlias,
-            child: SizedBox(
-              height: maxH,
-              width: double.infinity,
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-                  Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.line,
-                      borderRadius: BorderRadius.circular(2),
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(ctx).pop(),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(bottom: bottom),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: GestureDetector(
+                onTap: () {},
+                child: Material(
+                  color: AppColors.paper,
+                  elevation: 12,
+                  shadowColor: Colors.black.withValues(alpha: 0.12),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
+                  clipBehavior: Clip.antiAlias,
+                  child: SizedBox(
+                    height: maxH,
+                    width: double.infinity,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.line,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Expanded(child: builder(ctx)),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Expanded(child: builder(ctx)),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       );
     },
   );
