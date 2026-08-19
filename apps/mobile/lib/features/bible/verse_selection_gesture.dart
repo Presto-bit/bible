@@ -600,28 +600,19 @@ class SelectableWordChip extends StatelessWidget {
       left: edgeLeft ? const Radius.circular(3) : Radius.zero,
       right: edgeRight ? const Radius.circular(3) : Radius.zero,
     );
+    final textStyle = selected
+        ? style.copyWith(backgroundColor: _sel)
+        : style;
     Widget child = Text(
       text,
-      style: style,
+      style: textStyle,
       textHeightBehavior: const TextHeightBehavior(
         applyHeightToFirstAscent: false,
         applyHeightToLastDescent: false,
       ),
     );
-    if (selected) {
-      final em = style.fontSize ?? 16;
-      final stitch = em * 0.14;
-      child = DecoratedBox(
-        decoration: BoxDecoration(
-          color: _sel,
-          borderRadius: radius,
-          boxShadow: [
-            if (!edgeRight) BoxShadow(color: _sel, offset: Offset(stitch, 0)),
-            if (!edgeLeft) BoxShadow(color: _sel, offset: Offset(-stitch, 0)),
-          ],
-        ),
-        child: child,
-      );
+    if (selected && (edgeLeft || edgeRight)) {
+      child = ClipRRect(borderRadius: radius, child: child);
     }
     return MetaData(
       metaData: WordHitMeta(anchor: anchor, isDict: isDict),

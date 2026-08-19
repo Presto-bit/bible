@@ -4,14 +4,12 @@ import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -75,12 +73,11 @@ class MainActivity : FlutterFragmentActivity() {
           }
           "openExternal" -> {
             val url = call.argument<String>("url")?.trim().orEmpty()
-            val title = call.argument<String>("title")?.trim().orEmpty()
             if (url.isEmpty()) {
               result.error("invalid_url", "链接无效", null)
             } else {
               try {
-                openExternalUrl(url, title.ifEmpty { null })
+                openExternalUrl(url)
                 result.success(null)
               } catch (_: ActivityNotFoundException) {
                 result.error("no_browser", "未找到可用浏览器", null)
@@ -103,30 +100,20 @@ class MainActivity : FlutterFragmentActivity() {
       }
   }
 
-  /** 彼爱纸感 toolbar（与 H5 `--paper` 对齐） */
-  private fun openExternalUrl(url: String, title: String?) {
+  private fun openExternalUrl(url: String) {
     val uri = Uri.parse(url)
-    val paper = Color.parseColor("#FFFCFA")
+    val extras = Bundle().apply {
+      putBinder("android.support.customtabs.extra.SESSION", null)
+    }
     for (pkg in customTabPackages()) {
       try {
-        val tabsBuilder =
-          CustomTabsIntent.Builder().apply {
-            setShowTitle(true)
-            setToolbarColor(paper)
-            setNavigationBarColor(paper)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-              setSecondaryToolbarColor(paper)
-            }
-            if (!title.isNullOrEmpty()) {
-              setShareState(CustomTabsIntent.SHARE_STATE_OFF)
-            }
-          }
-        val customTabsIntent = tabsBuilder.build()
-        customTabsIntent.intent.setPackage(pkg)
-        if (!title.isNullOrEmpty()) {
-          customTabsIntent.intent.putExtra(Intent.EXTRA_TITLE, title)
-        }
-        customTabsIntent.launchUrl(this, uri)
+        startActivity(
+          Intent(Intent.ACTION_VIEW, uri).apply {
+            setPackage(pkg)
+            putExtras(extras)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          },
+        )
         return
       } catch (_: Exception) {
         // 试下一个浏览器
@@ -134,9 +121,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
     startActivity(
       Intent(Intent.ACTION_VIEW, uri).apply {
-        if (!title.isNullOrEmpty()) {
-          putExtra(Intent.EXTRA_TITLE, title)
-        }
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       },
     )
   }

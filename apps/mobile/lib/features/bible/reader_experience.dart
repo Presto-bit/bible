@@ -1979,7 +1979,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     double? velocityPxPerSec,
   }) async {
     if (_pageTurnAnimating) return;
-    widget.onInteract();
     final width = _viewportWidth > 0
         ? _viewportWidth
         : MediaQuery.sizeOf(context).width;
@@ -4440,9 +4439,11 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
               child: Container(
                 key: anchorKey,
                 padding: const EdgeInsets.only(right: 4),
-                child: readerLocatedRichText(
-                  locator: index.build(),
-                  text: TextSpan(style: baseStyle, children: bodyChildren),
+                child: SelectionContainer.disabled(
+                  child: readerLocatedRichText(
+                    locator: index.build(),
+                    text: TextSpan(style: baseStyle, children: bodyChildren),
+                  ),
                 ),
               ),
             ),

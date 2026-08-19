@@ -64,7 +64,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    implementation("androidx.browser:browser:1.8.0")
 }
 
 if (file("google-services.json").exists()) {

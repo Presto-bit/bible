@@ -105,10 +105,7 @@ body.assistant-keyboard.assistant-active .assistant-page {
 body.assistant-keyboard.assistant-active .assistant-page {
   height: var(--assistant-page-h, 100dvh);
   max-height: var(--assistant-page-h, 100dvh);
-  padding-bottom: max(
-    var(--assistant-kb-inset, 12px),
-    env(safe-area-inset-bottom, 0px)
-  );
+  padding-bottom: var(--assistant-kb-inset, 8px);
 }
 /* 键盘态无底栏：收掉为空闲态预留的 composer 底垫 */
 body.assistant-keyboard.assistant-active .assistant-body .assistant-composer {

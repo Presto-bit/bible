@@ -1,7 +1,7 @@
 /// 创世记 50 天自动登录（对齐 `apps/web/lib/genesis50_auth.ts`）。
 ///
-/// Android：Flutter 鉴权 + Chrome Custom Tabs 打开原链接（campaign_nav.dart）。
-/// Web 桥接页 `/campaigns/genesis-50/enter` 仍供 PWA / H5 内嵌浏览器。
+/// Android：优先走彼爱同源桥接页（与 PWA / H5 一致）；桥接失败时 Flutter 原生 Supabase 鉴权兜底。
+/// Web 桥接页 `/campaigns/genesis-50/enter` 由页内 JS 完成登录再 replace 到外站。
 library;
 
 import 'package:dio/dio.dart';
