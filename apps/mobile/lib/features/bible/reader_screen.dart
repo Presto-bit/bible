@@ -45,7 +45,6 @@ import 'reader_preferences.dart';
 import 'reader_settings_menu.dart';
 import 'reader_sheet.dart';
 import 'reader_thoughts_sheet.dart';
-import 'verse_selection_gesture.dart' show shouldYieldPageTurn;
 import 'summary_sheet.dart';
 import 'group_checkin_sheet.dart';
 import 'reading_repository.dart';
@@ -369,16 +368,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         clipBehavior: Clip.none,
         children: [
           GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            // 对齐 PWA：点空白切换 chrome；词典/工具条/计划条让路。
-            onTapUp: _book == null || _catalogOverlay
-                ? null
-                : (details) {
-                    if (shouldYieldPageTurn(context, details.globalPosition)) {
-                      return;
-                    }
-                    _toggleChrome();
-                  },
+            behavior: HitTestBehavior.deferToChild,
+            // 对齐 PWA：点子控件（词典/按钮）由子级处理；点空白才切换 chrome。
+            onTap: _book == null || _catalogOverlay ? null : _toggleChrome,
             child: booksAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => _ErrorView(
