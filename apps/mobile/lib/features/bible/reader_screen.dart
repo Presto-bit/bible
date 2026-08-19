@@ -221,7 +221,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   /// 打开半屏 / 设置 / AI 时强制恢复 chrome（对齐 PWA overlay 规则）。
   void _onOpenOverlay() {
-    _chapterBodyKey.currentState?.cancelPageTurn();
+    _chapterBodyKey.currentState?.releaseReaderGestures();
     _revealChrome();
   }
 
@@ -229,7 +229,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      _chapterBodyKey.currentState?.cancelPageTurn();
+      _chapterBodyKey.currentState?.releaseReaderGestures();
     }
   }
 
@@ -269,7 +269,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     // 回到圣经 Tab：若 session 内仍沉浸，恢复底栏隐藏。
     ref.listen(navIndexProvider, (prev, next) {
       if (next != 1) {
-        _chapterBodyKey.currentState?.cancelPageTurn();
+        _chapterBodyKey.currentState?.releaseReaderGestures();
       }
       if (next == 1 && _chromeHidden) {
         ref.read(readerImmersiveProvider.notifier).set(true);

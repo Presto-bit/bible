@@ -412,6 +412,16 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     }
   }
 
+  /// 对齐 PWA cancelDrag / peiai-reader-unlock：半屏、选区、指针粘连后恢复横滑。
+  void releaseReaderGestures() {
+    _pagePointerId = null;
+    _pageDragAxis = null;
+    _swipeIgnoreUntilMs = 0;
+    _setSelectionGestureActive(false);
+    _cancelSelectionPointer();
+    cancelPageTurn();
+  }
+
   /// 对齐 PWA cancelDrag：半屏/Tab/前台/粘滞超时释放翻页态。
   void cancelPageTurn() {
     _pageTurnStuckTimer?.cancel();
@@ -445,6 +455,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   void _cancelPagePointerTracking() {
+    _pagePointerId = null;
     if (!_pageTurnAnimating && (_pageDragDx != 0 || _pageDragRaw != 0)) {
       _pageDragDx = 0;
       _pageDragRaw = 0;
@@ -503,6 +514,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         _pageTurningN.value = true;
         _armPageTurnStuckTimer();
         _cancelSelectionPointer();
+        if (_selected.isNotEmpty) _clearSelection();
         _prefetchAdjacentChapters();
       }
     }
@@ -2451,8 +2463,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         pageTurn == ReaderPageTurn.swipe &&
         !reduceMotion &&
         !_pageTurnAnimating &&
-        !_selectionGestureActive &&
-        _selected.isEmpty;
+        !_selectionGestureActive;
 
     final listBody = ValueListenableBuilder<bool>(
       valueListenable: _pageTurningN,
@@ -2574,16 +2585,17 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                 onWordStart: _startWordSelect,
                 onWordExtend: _extendWordSelect,
                 onOpenThoughts: _openThoughtsForVerse,
-                onOpenDict: (entity, name, candidates) {
-                  cancelPageTurn();
+                onOpenDict: (entity, name, candidates) async {
+                  releaseReaderGestures();
                   widget.onInteract();
-                  showEntityKnowledgeSheet(
+                  await showEntityKnowledgeSheet(
                     context,
                     ref,
                     entity: entity,
                     displayName: name,
                     candidates: candidates,
                   );
+                  if (mounted) releaseReaderGestures();
                 },
               );
             },
@@ -2922,8 +2934,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         pageTurn == ReaderPageTurn.swipe &&
         !reduceMotion &&
         !_pageTurnAnimating &&
-        !_selectionGestureActive &&
-        _selected.isEmpty;
+        !_selectionGestureActive;
     final listBody = ValueListenableBuilder<bool>(
       valueListenable: _pageTurningN,
       builder: (context, turning, _) {

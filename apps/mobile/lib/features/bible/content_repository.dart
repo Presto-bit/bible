@@ -602,10 +602,14 @@ class GraphEdge {
 }
 
 class GraphData {
-  GraphData({this.nodes = const [], this.edges = const []});
+  GraphData({this.center, this.nodes = const [], this.edges = const []});
+  final DictEntity? center;
   final List<GraphNode> nodes;
   final List<GraphEdge> edges;
   factory GraphData.fromJson(Map<String, dynamic> j) => GraphData(
+    center: j['center'] is Map
+        ? DictEntity.fromJson(Map<String, dynamic>.from(j['center'] as Map))
+        : null,
     nodes: ((j['nodes'] ?? []) as List)
         .map((e) => GraphNode.fromJson(e as Map<String, dynamic>))
         .toList(),

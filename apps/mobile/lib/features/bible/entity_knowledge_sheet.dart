@@ -1,8 +1,6 @@
 /// 词典知识卡半屏：对齐 PWA EntityKnowledgeSheet（摘要 / 经节 / 地点 / 关系列表）。
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -345,60 +343,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
           ],
         );
       case 'graph':
-        final nodes = graph?.nodes ?? const <GraphNode>[];
-        final edges = graph?.edges ?? const <GraphEdge>[];
-        if (nodes.isEmpty) {
-          return const Text(
-            '暂无关系',
-            style: TextStyle(color: AppColors.inkFaint),
-          );
-        }
-        final nodeNames = {for (final node in nodes) node.id: node.name};
-        final centerId = _entity.id;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _LocalRelationGraphPreview(
-              nodes: nodes.take(10).toList(),
-              edges: edges.take(16).toList(),
-              centerId: centerId,
-            ),
-            const SizedBox(height: 10),
-            for (final edge in edges.take(12))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text.rich(
-                  TextSpan(
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.inkSoft,
-                    ),
-                    children: [
-                      TextSpan(
-                        text: (edge.label ?? edge.type ?? '相关').trim(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.accentDeep,
-                        ),
-                      ),
-                      TextSpan(text: ' · ${_edgePeerName(edge, nodeNames)}'),
-                    ],
-                  ),
-                ),
-              ),
-            if (edges.isEmpty)
-              for (final n in nodes.take(12))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    n.name.isNotEmpty ? n.name : n.id,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.inkSoft,
-                    ),
-                  ),
-                ),
-          ],
+        return _RelationHubPanel(
+          graph: graph,
+          centerId: _graphCenterId(graph, _entity),
+          centerName: _graphCenterName(graph, _entity),
         );
       case 'diagram':
         if (diagrams.isEmpty) {
@@ -500,12 +448,18 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     }
   }
 
-  String _edgePeerName(GraphEdge edge, Map<String, String> nodeNames) {
-    final peer = edge.peerName?.trim();
-    if (peer != null && peer.isNotEmpty) return peer;
-    final peerId =
-        edge.peerId ?? (edge.from == _entity.id ? edge.to : edge.from);
-    return nodeNames[peerId] ?? peerId;
+  String _graphCenterId(GraphData? graph, DictEntity entity) {
+    final c = graph?.center;
+    if (c != null && c.id.isNotEmpty) return c.id;
+    if (c != null && c.name.isNotEmpty) return c.name;
+    if (entity.id.isNotEmpty) return entity.id;
+    return entity.name;
+  }
+
+  String _graphCenterName(GraphData? graph, DictEntity entity) {
+    final c = graph?.center;
+    if (c != null && c.name.isNotEmpty) return c.name;
+    return entityDisplayName(entity);
   }
 
   String _senseLabel(DictEntity e) {
@@ -892,135 +846,224 @@ class _GeoMiniMapPainter extends CustomPainter {
       oldDelegate.place.longitude != place.longitude;
 }
 
-/// 关系图缩略：中心实体 + 周围节点与连线（对齐 PWA LocalRelationGraph 视觉层级）。
-class _LocalRelationGraphPreview extends StatelessWidget {
-  const _LocalRelationGraphPreview({
-    required this.nodes,
-    required this.edges,
+/// 词典半屏 · 关系 Tab：半屏空间以可读列表为主（PWA 全屏图在发现/搜索）。
+class _RelationHubPanel extends StatelessWidget {
+  const _RelationHubPanel({
+    required this.graph,
     required this.centerId,
+    required this.centerName,
   });
 
-  final List<GraphNode> nodes;
-  final List<GraphEdge> edges;
+  final GraphData? graph;
   final String centerId;
+  final String centerName;
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1.35,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSunken,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.line),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: CustomPaint(
-            painter: _RelationGraphPainter(
-              nodes: nodes,
-              edges: edges,
-              centerId: centerId,
+    final allNodes = graph?.nodes ?? const <GraphNode>[];
+    final allEdges = graph?.edges ?? const <GraphEdge>[];
+    if (allNodes.isEmpty && allEdges.isEmpty) {
+      return const Text(
+        '暂无关系',
+        style: TextStyle(color: AppColors.inkFaint),
+      );
+    }
+
+    final nodeNames = <String, String>{
+      for (final n in allNodes) n.id: n.name,
+      for (final n in allNodes)
+        if (n.name.isNotEmpty) n.name: n.name,
+    };
+
+    final spokes = <GraphEdge>[];
+    final other = <GraphEdge>[];
+    for (final e in allEdges) {
+      if (_edgeTouchesCenter(e, centerId, centerName)) {
+        spokes.add(e);
+      } else {
+        other.add(e);
+      }
+    }
+    spokes.sort(_compareEdges);
+    other.sort(_compareEdges);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.accentDeep,
+              borderRadius: BorderRadius.circular(999),
             ),
-            child: const SizedBox.expand(),
+            child: Text(
+              centerName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ),
+        if (spokes.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          const Text(
+            '直接关系',
+            style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+          ),
+          const SizedBox(height: 8),
+          for (final e in spokes)
+            _RelationRow(
+              label: _edgeLabel(e),
+              peerName: _peerNameForEdge(
+                e,
+                centerId: centerId,
+                centerName: centerName,
+                nodeNames: nodeNames,
+              ),
+            ),
+        ],
+        if (other.isNotEmpty) ...[
+          SizedBox(height: spokes.isNotEmpty ? 14 : 14),
+          const Text(
+            '其他关联',
+            style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+          ),
+          const SizedBox(height: 8),
+          for (final e in other.take(8))
+            _RelationRow(
+              label: _edgeLabel(e),
+              peerName: _peerNameForEdge(
+                e,
+                centerId: centerId,
+                centerName: centerName,
+                nodeNames: nodeNames,
+              ),
+            ),
+          if (other.length > 8)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '还有 ${other.length - 8} 条关联',
+                style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+              ),
+            ),
+        ],
+        if (spokes.isEmpty && other.isEmpty)
+          for (final n in allNodes
+              .where((n) => !_isCenterNode(n, centerId, centerName))
+              .take(12))
+            _RelationRow(
+              label: '相关',
+              peerName: n.name.isNotEmpty ? n.name : n.id,
+            ),
+        const SizedBox(height: 4),
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            context.push('/search/graph');
+          },
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.accentDeep,
+            padding: EdgeInsets.zero,
+            alignment: Alignment.centerLeft,
+          ),
+          child: const Text('在发现中查看关系专题 ›'),
+        ),
+      ],
+    );
+  }
+}
+
+class _RelationRow extends StatelessWidget {
+  const _RelationRow({required this.label, required this.peerName});
+
+  final String label;
+  final String peerName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.accentWash,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.accentDeep,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              peerName,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _RelationGraphPainter extends CustomPainter {
-  _RelationGraphPainter({
-    required this.nodes,
-    required this.edges,
-    required this.centerId,
-  });
+bool _edgeTouchesCenter(GraphEdge e, String centerId, String centerName) {
+  bool hit(String id) => id == centerId || id == centerName;
+  return hit(e.from) || hit(e.to);
+}
 
-  final List<GraphNode> nodes;
-  final List<GraphEdge> edges;
-  final String centerId;
+bool _isCenterNode(GraphNode n, String centerId, String centerName) =>
+    n.id == centerId || n.name == centerId || n.name == centerName;
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (nodes.isEmpty) return;
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final radius = math.min(size.width, size.height) * 0.34;
+String _edgeLabel(GraphEdge e) {
+  final label = (e.label ?? e.type ?? '相关').trim();
+  return label.isEmpty ? '相关' : label;
+}
 
-    GraphNode? center;
-    for (final n in nodes) {
-      if (n.id == centerId) {
-        center = n;
-        break;
-      }
-    }
-    center ??= nodes.first;
-    final others = nodes.where((n) => n.id != center!.id).toList();
-    final positions = <String, Offset>{center.id: Offset(cx, cy)};
-    for (var i = 0; i < others.length; i++) {
-      final a = (i / math.max(others.length, 1)) * math.pi * 2 - math.pi / 2;
-      positions[others[i].id] = Offset(
-        cx + math.cos(a) * radius,
-        cy + math.sin(a) * radius,
-      );
-    }
+int _compareEdges(GraphEdge a, GraphEdge b) {
+  final la = _edgeLabel(a);
+  final lb = _edgeLabel(b);
+  if (la == '相关' && lb != '相关') return 1;
+  if (lb == '相关' && la != '相关') return -1;
+  return la.compareTo(lb);
+}
 
-    final edgePaint = Paint()
-      ..color = AppColors.accentDeep.withValues(alpha: 0.35)
-      ..strokeWidth = 1.4
-      ..style = PaintingStyle.stroke;
-    for (final e in edges) {
-      final a = positions[e.from];
-      final b = positions[e.to];
-      if (a == null || b == null) continue;
-      canvas.drawLine(a, b, edgePaint);
-    }
+String _peerNameForEdge(
+  GraphEdge edge, {
+  required String centerId,
+  required String centerName,
+  required Map<String, String> nodeNames,
+}) {
+  final peer = edge.peerName?.trim();
+  if (peer != null && peer.isNotEmpty) return peer;
+  final peerId = _peerIdForEdge(edge, centerId, centerName);
+  return nodeNames[peerId] ?? peerId;
+}
 
-    void drawNode(GraphNode n, Offset p, {required bool isCenter}) {
-      final r = isCenter ? 18.0 : 12.0;
-      canvas.drawCircle(
-        p,
-        r,
-        Paint()
-          ..color = isCenter ? AppColors.accentDeep : AppColors.paper,
-      );
-      canvas.drawCircle(
-        p,
-        r,
-        Paint()
-          ..color = AppColors.accentDeep.withValues(alpha: isCenter ? 1 : 0.55)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5,
-      );
-      final label = (n.name.isNotEmpty ? n.name : n.id).trim();
-      final short = label.length > 5 ? '${label.substring(0, 5)}…' : label;
-      final tp = TextPainter(
-        text: TextSpan(
-          text: short,
-          style: TextStyle(
-            color: isCenter ? Colors.white : AppColors.ink,
-            fontSize: isCenter ? 10 : 9,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-        ellipsis: '…',
-      )..layout(maxWidth: r * 2.2);
-      tp.paint(canvas, Offset(p.dx - tp.width / 2, p.dy - tp.height / 2));
-    }
-
-    for (final n in others) {
-      final p = positions[n.id];
-      if (p != null) drawNode(n, p, isCenter: false);
-    }
-    drawNode(center, positions[center.id]!, isCenter: true);
-  }
-
-  @override
-  bool shouldRepaint(covariant _RelationGraphPainter oldDelegate) =>
-      oldDelegate.centerId != centerId ||
-      oldDelegate.nodes.length != nodes.length ||
-      oldDelegate.edges.length != edges.length;
+String _peerIdForEdge(GraphEdge edge, String centerId, String centerName) {
+  if (edge.from == centerId || edge.from == centerName) return edge.to;
+  if (edge.to == centerId || edge.to == centerName) return edge.from;
+  return edge.peerId ?? edge.to;
 }
