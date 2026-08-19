@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
+import { isPeiaiAndroidShell, isStandalone } from '@/lib/pwa_platform';
 
 /**
  * 与 IM（use_im_composer_keyboard）同源：
@@ -12,7 +12,9 @@ import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 const GAP_FLOOR = 40;
 const LAYOUT_SHRINK_FLOOR = 40;
 /** 键盘确认后输入底与键盘顶的呼吸 */
-const KB_PAD_PX = 10;
+const KB_PAD_PX = 16;
+/** layout 已收缩但仍差一截时，PWA 额外上抬 */
+const PWA_KB_EXTRA_PX = 8;
 /** 输入区底边与浮动 Tab 顶之间的呼吸（空闲态；有对话时需够躲开胶囊） */
 const TAB_BREATH_PX = 40;
 /** 高度变化小于此值不写 CSS，减少 reflow 抖动 */
@@ -56,6 +58,12 @@ function isComposerFieldFocused(): boolean {
   if (!(ae instanceof HTMLElement)) return false;
   if (!ae.closest('.assistant-composer')) return false;
   return ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT';
+}
+
+function keyboardBottomInsetPx(): number {
+  let pad = KB_PAD_PX;
+  if (isStandalone() && !isPeiaiAndroidShell()) pad += PWA_KB_EXTRA_PX;
+  return pad;
 }
 
 /** 清掉小爱页高度 / 键盘相关 class 与 CSS 变量（离开 Tab 必调） */
@@ -147,7 +155,7 @@ export function useAssistantViewport(
       // top 固定 0：跟 IM 一样，避免 offsetTop 把壳顶飞造成横跳
       root.style.setProperty('--assistant-vv-h', `${h}px`);
       root.style.setProperty('--assistant-vv-top', '0px');
-      root.style.setProperty('--assistant-kb-inset', `${KB_PAD_PX}px`);
+      root.style.setProperty('--assistant-kb-inset', `${keyboardBottomInsetPx()}px`);
     };
 
     const syncViewport = () => {
@@ -172,13 +180,12 @@ export function useAssistantViewport(
       const layoutShrunk = base - layoutH > LAYOUT_SHRINK_FLOOR;
       const vvOccluded = base - vvBottom > GAP_FLOOR || base - vvH > GAP_FLOOR;
       const keyboardUp = layoutShrunk || vvOccluded;
-
-      // layout 已收缩跟 layout；卡住则跟 vv（勿再减 LIFT、勿跟 offsetTop）
+      const layoutCap = layoutH > 0 ? layoutH : vvBottom;
+      // 聚焦时壳高贴可视区域（layout 与 vv 取较小），避免 PWA 局部收缩仍被键盘挡
+      const visibleCap = Math.min(layoutCap, vvBottom);
       const pageH = keyboardUp
-        ? layoutShrunk
-          ? Math.max(160, layoutH)
-          : Math.max(160, vvH)
-        : Math.max(160, layoutH > 0 ? layoutH : vvH);
+        ? Math.max(160, visibleCap)
+        : Math.max(160, layoutCap);
       writeKeyboardHeight(pageH);
 
       if (!keyboardUp && isPeiaiAndroidShell()) {
@@ -202,8 +209,9 @@ export function useAssistantViewport(
       setComposerFocused(true);
       pinDocScroll();
       syncViewport();
-      // 键盘动画中途再同步一次即可，过多会抖
+      // 键盘动画中途再同步，避免 PWA 首帧高度偏高
       window.setTimeout(syncViewport, 180);
+      window.setTimeout(syncViewport, 320);
     };
 
     const onFocusOut = (e: FocusEvent) => {
@@ -223,7 +231,7 @@ export function useAssistantViewport(
     syncViewport();
     const t = window.setTimeout(syncViewport, 120);
     vv?.addEventListener('resize', onViewport);
-    // 不跟 vv scroll：iOS 键盘动画期 offsetTop 抖动，易造成横跳
+    vv?.addEventListener('scroll', onViewport);
     window.addEventListener('resize', onViewport);
     window.addEventListener('orientationchange', onViewport);
     window.addEventListener('focusin', onFocusIn);
@@ -242,6 +250,7 @@ export function useAssistantViewport(
       window.clearTimeout(t);
       ro?.disconnect();
       vv?.removeEventListener('resize', onViewport);
+      vv?.removeEventListener('scroll', onViewport);
       window.removeEventListener('resize', onViewport);
       window.removeEventListener('orientationchange', onViewport);
       window.removeEventListener('focusin', onFocusIn);
