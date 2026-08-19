@@ -13,6 +13,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'genesis50_auth.dart';
 import 'open_h5.dart';
 import 'h5_whitelist.dart';
+import 'config.dart';
 import 'theme.dart';
 
 export 'genesis50_auth.dart' show isGenesis50Href, isGenesis50BridgeHref;
@@ -47,6 +48,41 @@ String? _genesis50TargetFromBridge(String href) {
   }
 }
 
+String _absoluteBridgeUrl(String href) {
+  final raw = normalizeCampaignHref(href);
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  final u = Uri.parse(raw.startsWith('/') ? raw : '/$raw');
+  final path = H5Whitelist.stripAppBasePath(u.path.isEmpty ? '/' : u.path);
+  return Uri.parse(AppConfig.webBaseUrl)
+      .replace(
+        path: path,
+        queryParameters: u.queryParameters.isEmpty ? null : u.queryParameters,
+      )
+      .toString();
+}
+
+Future<void> _openGenesis50External(
+  BuildContext context, {
+  required String href,
+  String? title,
+}) async {
+  final bridgeUrl = isGenesis50BridgeHref(href)
+      ? _absoluteBridgeUrl(href)
+      : buildGenesis50BridgeUrl(href);
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => _ExternalBrowserPage(
+        url: bridgeUrl,
+        title: title ?? '创世记 50 天',
+        genesis50: true,
+        genesis50Target: isGenesis50BridgeHref(href)
+            ? _genesis50TargetFromBridge(href)
+            : normalizeCampaignHref(href),
+      ),
+    ),
+  );
+}
+
 /// 打开活动 / 推荐卡链接：站内 H5 或原生路由；真外链全屏 WebView。
 /// 创世记 50：先打开彼爱同源桥接页（与 PWA 一致），由页内 JS 鉴权再跳外站。
 Future<void> openCampaignHref(
@@ -58,16 +94,7 @@ Future<void> openCampaignHref(
   if (raw.isEmpty || !context.mounted) return;
 
   if (isGenesis50BridgeHref(raw)) {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => _ExternalBrowserPage(
-          url: raw,
-          title: title ?? '创世记 50 天',
-          genesis50: true,
-          genesis50Target: _genesis50TargetFromBridge(raw),
-        ),
-      ),
-    );
+    await _openGenesis50External(context, href: raw, title: title);
     return;
   }
 
@@ -78,6 +105,10 @@ Future<void> openCampaignHref(
       u.path.isEmpty ? '/' : u.path,
     );
     final full = '$pathOnly${u.hasQuery ? '?${u.query}' : ''}';
+    if (isGenesis50BridgeHref(full)) {
+      await _openGenesis50External(context, href: full, title: title);
+      return;
+    }
     if (openH5IfAllowed(context, full, title: title)) return;
     if (pathOnly == '/reader' || pathOnly.startsWith('/reader')) {
       context.push(full);
@@ -100,23 +131,25 @@ Future<void> openCampaignHref(
         uri.path.isEmpty ? '/' : uri.path,
       );
       final full = '$path${uri.hasQuery ? '?${uri.query}' : ''}';
+      if (isGenesis50BridgeHref(raw) || isGenesis50BridgeHref(full)) {
+        await _openGenesis50External(context, href: raw, title: title);
+        return;
+      }
       if (openH5IfAllowed(context, full, title: title)) return;
       context.push(full);
       return;
     }
     final genesis50 = isGenesis50Href(raw);
-    final launchUrl = genesis50 ? buildGenesis50BridgeUrl(raw) : raw;
+    if (genesis50) {
+      await _openGenesis50External(context, href: raw, title: title);
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => _ExternalBrowserPage(
-          url: launchUrl,
-          title:
-              title ??
-              (genesis50
-                  ? '创世记 50 天'
-                  : uri.host.replaceFirst(RegExp(r'^www\.'), '')),
-          genesis50: genesis50,
-          genesis50Target: genesis50 ? raw : null,
+          url: raw,
+          title: title ?? uri.host.replaceFirst(RegExp(r'^www\.'), ''),
+          genesis50: false,
         ),
       ),
     );
@@ -214,7 +247,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
 
   void _scheduleBridgeStallFallback(WebViewController controller) {
     _bridgeStallTimer?.cancel();
-    _bridgeStallTimer = Timer(const Duration(seconds: 14), () async {
+    _bridgeStallTimer = Timer(const Duration(seconds: 8), () async {
       if (!mounted || _controller != controller || _nativeAuthFallback) return;
       try {
         final current = await controller.currentUrl();

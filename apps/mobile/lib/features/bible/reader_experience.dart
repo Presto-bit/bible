@@ -531,7 +531,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   static const _pageAxisMinPx = 8.0;
-  static const _pageAxisRatio = 1.15;
+  static const _pageAxisRatio = 1.35;
+  /// 竖滚已有明显位移时不再判为横滑翻页，避免误锁 ListView。
+  static const _pageAxisMaxDyForLock = 14.0;
 
   @override
   void initState() {
@@ -1902,17 +1904,21 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       if (totalDx.abs() < _pageAxisMinPx && totalDy.abs() < _pageAxisMinPx) {
         return;
       }
-      // 对齐 PWA：默认保竖滚；只有明显偏横才锁 X 翻章。
-      if (totalDx.abs() > totalDy.abs() * _pageAxisRatio) {
+      // 对齐 PWA：默认保竖滚；只有明显偏横且竖向位移仍小才锁 X 翻章。
+      if (totalDx.abs() > totalDy.abs() * _pageAxisRatio &&
+          totalDy.abs() < _pageAxisMaxDyForLock) {
         _pagePointerId = e.pointer;
         _pagePointerCandidate = null;
         _pagePointerAxis = 'x';
         _pageDragAxis = 'x';
         _pageScrollLockN.value = true;
-      } else {
-        _pagePointerCandidate = null;
+      } else if (totalDy.abs() >= _pageAxisMinPx ||
+          totalDy.abs() >= totalDx.abs()) {
         _pagePointerAxis = 'y';
         _pageScrollLockN.value = false;
+        _resetPagePointer();
+        return;
+      } else {
         return;
       }
     }
@@ -2603,6 +2609,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
               onWordExtend: _extendWordSelect,
               onOpenThoughts: _openThoughtsForVerse,
               onOpenDict: (entity, name, candidates) {
+                widget.onInteract();
                 showEntityKnowledgeSheet(
                   context,
                   ref,
@@ -2925,7 +2932,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         !_selectionGestureActive;
     final pageW = MediaQuery.sizeOf(context).width;
 
-    final listBody = ListView.builder(
+    final listBody = ListenableBuilder(
+      listenable: Listenable.merge([_pageScrollLockN, _selectionScrollLockN]),
+      builder: (context, _) => ListView.builder(
       controller: _scroll,
       physics: pageTurn == ReaderPageTurn.scroll
           ? const ClampingScrollPhysics()
@@ -3092,6 +3101,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           ),
         );
       },
+    ),
     );
 
     final topPad = _readerListTopPad();

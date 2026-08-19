@@ -7,6 +7,7 @@ library;
 import 'package:dio/dio.dart';
 
 import 'config.dart';
+import 'h5_whitelist.dart';
 
 const _g50Host = 'genesis-50.pages.dev';
 const _g50Origin = 'https://$_g50Host';
@@ -82,7 +83,9 @@ String buildGenesis50BridgeUrl(String href) {
 bool isGenesis50BridgeHref(String href) {
   try {
     final u = Uri.parse(normalizeGenesis50Href(href));
-    final path = u.path.replaceAll(RegExp(r'/+$'), '');
+    final path = H5Whitelist.stripAppBasePath(
+      u.path.replaceAll(RegExp(r'/+$'), ''),
+    );
     return path == genesis50BridgePath;
   } catch (_) {
     return false;

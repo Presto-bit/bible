@@ -45,6 +45,7 @@ import 'reader_preferences.dart';
 import 'reader_settings_menu.dart';
 import 'reader_sheet.dart';
 import 'reader_thoughts_sheet.dart';
+import 'verse_selection_gesture.dart' show shouldYieldPageTurn;
 import 'summary_sheet.dart';
 import 'group_checkin_sheet.dart';
 import 'reading_repository.dart';
@@ -369,8 +370,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         children: [
           GestureDetector(
             behavior: HitTestBehavior.translucent,
-            // 对齐 PWA：点按切换 chrome，无 idle 自动藏；目录态不藏栏。
-            onTap: _book == null || _catalogOverlay ? null : _toggleChrome,
+            // 对齐 PWA：点空白切换 chrome；词典/工具条/计划条让路。
+            onTapUp: _book == null || _catalogOverlay
+                ? null
+                : (details) {
+                    if (shouldYieldPageTurn(context, details.globalPosition)) {
+                      return;
+                    }
+                    _toggleChrome();
+                  },
             child: booksAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => _ErrorView(
@@ -484,7 +492,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                       prefs.setString('reader_parallel_version', id);
                     },
                     onNav: _nav,
-                    onInteract: () {},
+                    onInteract: _onOpenOverlay,
                     onSelectionChanged: (has) {
                       if (_hasSelection == has) return;
                       setState(() => _hasSelection = has);

@@ -1,12 +1,15 @@
 /// 打开白名单 H5 页面（统一入口，便于深链 / 首页活动共用）。
 library;
 
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'h5_whitelist.dart';
 import '../app/app_shell.dart';
+import 'campaign_nav.dart';
 import 'discover_h5_redirect.dart';
 import 'h5_bridge_channel.dart';
 import 'overlay_h5.dart';
@@ -33,6 +36,12 @@ bool openH5IfAllowed(BuildContext context, String href, {String? title}) {
   );
   pathAndQuery = '$pathOnly${parsed.hasQuery ? '?${parsed.query}' : ''}';
   if (!H5Whitelist.allows(pathOnly)) return false;
+
+  // 创世记 50 桥接页必须走专用外链 WebView，不能进叠层 H5。
+  if (isGenesis50BridgeHref(pathAndQuery)) {
+    unawaited(openCampaignHref(context, pathAndQuery, title: title));
+    return true;
+  }
 
   // 故事回顾：H5 全屏竖滑在安卓 WebView 里不跟手，走 Flutter PageView。
   if (pathOnly == '/wrapped' || pathOnly.startsWith('/wrapped/')) {

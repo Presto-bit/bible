@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/app_shell.dart' show navIndexProvider, readerImmersiveProvider;
+import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/badge_stats.dart';
 import '../../core/config.dart';
 import '../../core/ref_label.dart';
@@ -26,24 +26,16 @@ Future<void> showEntityKnowledgeSheet(
   required String displayName,
   List<DictEntity> candidates = const [],
 }) async {
-  final prevImmersive = ref.read(readerImmersiveProvider);
-  ref.read(readerImmersiveProvider.notifier).set(true);
-  try {
-    await showReaderSheet<void>(
-      context: context,
-      // 对齐 PWA 的 max-height: 82vh，给关联资料留出阅读空间。
-      heightFactor: 0.82,
-      builder: (_) => _EntityKnowledgeSheet(
-        entity: entity,
-        displayName: displayName,
-        candidates: candidates.isEmpty ? [entity] : candidates,
-      ),
-    );
-  } finally {
-    if (context.mounted) {
-      ref.read(readerImmersiveProvider.notifier).set(prevImmersive);
-    }
-  }
+  await showReaderSheet<void>(
+    context: context,
+    // 对齐 PWA 的 max-height: 82vh，给关联资料留出阅读空间。
+    heightFactor: 0.82,
+    builder: (_) => _EntityKnowledgeSheet(
+      entity: entity,
+      displayName: displayName,
+      candidates: candidates.isEmpty ? [entity] : candidates,
+    ),
+  );
 }
 
 Future<void> showInlineVersePreview(
