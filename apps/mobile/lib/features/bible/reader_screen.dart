@@ -40,6 +40,7 @@ import 'models.dart';
 import 'reader_catalog_view.dart';
 import 'feed_activity.dart';
 import 'reader_experience.dart';
+import 'verse_selection_gesture.dart' show shouldYieldPageTurn;
 import 'reader_loc_popover.dart';
 import 'reader_preferences.dart';
 import 'reader_settings_menu.dart';
@@ -145,6 +146,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   String? _mainVersionId;
   PlanReadingMeta? _planMeta;
   final _locKey = GlobalKey();
+  final _chapterBodyKey = GlobalKey<ReaderChapterBodyState>();
+  Offset? _chromeTapStart;
   /// 外部跳转指定轻闪节（如每日经文）；消费后清空。
   int? _pendingFlashVerse;
   FeedActivityHint? _pendingFeedHint;
@@ -217,7 +220,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 
   /// 打开半屏 / 设置 / AI 时强制恢复 chrome（对齐 PWA overlay 规则）。
-  void _onOpenOverlay() => _revealChrome();
+  void _onOpenOverlay() {
+    _chapterBodyKey.currentState?.cancelPageTurn();
+    _revealChrome();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _chapterBodyKey.currentState?.cancelPageTurn();
+    }
+  }
 
   @override
   void dispose() {
@@ -254,6 +268,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
     // 回到圣经 Tab：若 session 内仍沉浸，恢复底栏隐藏。
     ref.listen(navIndexProvider, (prev, next) {
+      if (next != 1) {
+        _chapterBodyKey.currentState?.cancelPageTurn();
+      }
       if (next == 1 && _chromeHidden) {
         ref.read(readerImmersiveProvider.notifier).set(true);
       }
@@ -367,10 +384,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       body: Stack(
         clipBehavior: Clip.none,
         children: [
-          GestureDetector(
+          Listener(
             behavior: HitTestBehavior.deferToChild,
-            // 对齐 PWA：点子控件（词典/按钮）由子级处理；点空白才切换 chrome。
-            onTap: _book == null || _catalogOverlay ? null : _toggleChrome,
+            onPointerDown: (e) {
+              if (_book == null || _catalogOverlay) return;
+              _chromeTapStart = e.position;
+            },
+            onPointerUp: (e) {
+              if (_book == null || _catalogOverlay || _hasSelection) return;
+              final start = _chromeTapStart;
+              _chromeTapStart = null;
+              if (start == null) return;
+              if ((e.position - start).distance >= 8) return;
+              if (shouldYieldPageTurn(context, e.position)) return;
+              _toggleChrome();
+            },
+            onPointerCancel: (_) => _chromeTapStart = null,
             child: booksAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => _ErrorView(
@@ -445,6 +474,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                 const OfflineBibleCard(),
                 Expanded(
                   child: ReaderChapterBody(
+                    key: _chapterBodyKey,
                     book: _book!,
                     chapter: _chapter,
                     books: books,

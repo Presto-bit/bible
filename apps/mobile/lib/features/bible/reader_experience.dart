@@ -219,37 +219,32 @@ double bookProgressInBible(List<BibleBook> books, String bookId, int chapter) {
   return total > 0 ? before / total : 0;
 }
 
-/// 横滑翻章 / 划词拖选时锁住竖滑；与视觉位移 [dx] 分离。
-class _DragLockScrollPhysics extends ScrollPhysics {
-  const _DragLockScrollPhysics({
-    required this.pageLock,
-    required this.selectionLock,
+/// 横滑翻章确认后（对齐 PWA `.is-turning`）才锁竖滚；划词不锁。
+class _PageTurnScrollPhysics extends ScrollPhysics {
+  const _PageTurnScrollPhysics({
+    required this.pageTurnLock,
     super.parent,
   });
 
-  final ValueNotifier<bool> pageLock;
-  final ValueNotifier<bool> selectionLock;
-
-  bool get _locked => pageLock.value || selectionLock.value;
+  final ValueNotifier<bool> pageTurnLock;
 
   @override
-  _DragLockScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return _DragLockScrollPhysics(
-      pageLock: pageLock,
-      selectionLock: selectionLock,
+  _PageTurnScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _PageTurnScrollPhysics(
+      pageTurnLock: pageTurnLock,
       parent: buildParent(ancestor),
     );
   }
 
   @override
   bool shouldAcceptUserOffset(ScrollMetrics position) {
-    if (_locked) return false;
+    if (pageTurnLock.value) return false;
     return super.shouldAcceptUserOffset(position);
   }
 
   @override
   double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
-    if (_locked) return 0;
+    if (pageTurnLock.value) return 0;
     return super.applyPhysicsToUserOffset(position, offset);
   }
 }
@@ -318,10 +313,10 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
   onAskAi;
 
   @override
-  ConsumerState<ReaderChapterBody> createState() => _ReaderChapterBodyState();
+  ConsumerState<ReaderChapterBody> createState() => ReaderChapterBodyState();
 }
 
-class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
+class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     with SingleTickerProviderStateMixin {
   Set<int> _selected = {};
   WordRange? _wordRange;
@@ -351,11 +346,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   /// 横滑翻章视觉位移（已含边界阻力）；跟手只改 notifier，不重建经文。
   final _pageDragDxN = ValueNotifier<double>(0);
 
-  /// 仅横滑跟手/提交动画期间锁竖滚，不与视觉 dx 绑定。
-  final _pageScrollLockN = ValueNotifier<bool>(false);
-
-  /// 划词拖扩 / 手柄拖拽期间锁竖滚（对齐 PWA touchmove preventDefault）。
-  final _selectionScrollLockN = ValueNotifier<bool>(false);
+  /// 对齐 PWA `turning` / `.is-turning`：仅横滑跟手时锁竖滚。
+  final _pageTurningN = ValueNotifier<bool>(false);
+  Timer? _pageTurnStuckTimer;
+  static const _pageTurnStuckMs = 900;
   bool _wordDragRafScheduled = false;
   WordAnchor? _wordDragPendingAnchor;
   WordAnchor? _wordDragPendingFocus;
@@ -437,10 +431,44 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   bool get _swipeIgnored =>
       DateTime.now().millisecondsSinceEpoch < _swipeIgnoreUntilMs;
 
-  void _releasePageScrollLock() {
+  void _releasePageTurnLock() {
     if (!_pageTurnAnimating) {
-      _pageScrollLockN.value = false;
+      _pageTurningN.value = false;
     }
+  }
+
+  /// 对齐 PWA cancelDrag：半屏/Tab/前台/粘滞超时释放翻页态。
+  void cancelPageTurn() {
+    _pageTurnStuckTimer?.cancel();
+    _pageTurnStuckTimer = null;
+    if (_pageTurnAnimating) {
+      _pageTurnController.stop(canceled: false);
+    }
+    if (_pageTurnAnimating ||
+        _pageDragDx != 0 ||
+        _pageDragRaw != 0 ||
+        _pagePointerId != null ||
+        _pagePointerCandidate != null ||
+        _pageTurningN.value) {
+      if (_pageTurnAnimating) {
+        setState(_resetPageDrag);
+      } else {
+        _resetPageDrag();
+      }
+    } else {
+      _cancelPagePointerTracking();
+    }
+  }
+
+  void _armPageTurnStuckTimer() {
+    _pageTurnStuckTimer?.cancel();
+    _pageTurnStuckTimer = Timer(
+      const Duration(milliseconds: _pageTurnStuckMs),
+      () {
+        if (!mounted) return;
+        cancelPageTurn();
+      },
+    );
   }
 
   void _cancelPagePointerTracking() {
@@ -451,7 +479,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       _pageDragAxis = null;
       _pageTurnPrefetched = false;
     }
-    _releasePageScrollLock();
+    _releasePageTurnLock();
   }
 
   /// 跟手翻页指针态（对齐 PWA useReaderPageTurn 轴锁，避免与竖滚抢手势）
@@ -592,7 +620,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           _pageDragAxis = null;
         }
         _selectionGestureActive = false;
-        _selectionScrollLockN.value = false;
         _wordDragPendingAnchor = null;
         _wordDragPendingFocus = null;
         _wordDragRafScheduled = false;
@@ -677,8 +704,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _scrollProgressTimer?.cancel();
     _pageTurnController.dispose();
     _pageDragDxN.dispose();
-    _pageScrollLockN.dispose();
-    _selectionScrollLockN.dispose();
+    _pageTurningN.dispose();
+    _pageTurnStuckTimer?.cancel();
     _pageTurnAnimatingN.dispose();
     _focusBarTopN.dispose();
     _scroll.removeListener(_onScroll);
@@ -903,7 +930,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   void _setSelectionGestureActive(bool on) {
-    _selectionScrollLockN.value = on;
     if (!on) {
       _wordDragPendingAnchor = null;
       _wordDragPendingFocus = null;
@@ -1847,7 +1873,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _pageTurnPrefetched = false;
     _pageDragAxis = null;
     _pageTurnAnimating = false;
-    _pageScrollLockN.value = false;
+    _pageTurningN.value = false;
+    _pageTurnStuckTimer?.cancel();
+    _pageTurnStuckTimer = null;
     _resetPagePointer();
   }
 
@@ -1912,7 +1940,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         _pagePointerAxis = 'x';
         _pageDragAxis = 'x';
       } else {
-        _pageScrollLockN.value = false;
+        _pageTurningN.value = false;
         _resetPagePointer();
         return;
       }
@@ -1944,7 +1972,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       }
     } else {
       // 轴已判 X 但未位移时也要释放，否则竖滚会永久锁死。
-      _releasePageScrollLock();
+      _releasePageTurnLock();
     }
     _resetPagePointer();
   }
@@ -1954,7 +1982,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final width = MediaQuery.sizeOf(context).width;
     if (width <= 0) return;
     _pageDragAxis = 'x';
-    _pageScrollLockN.value = true;
+    _pageTurningN.value = true;
+    _armPageTurnStuckTimer();
     _pageDragRaw = (_pageDragRaw + deltaDx).clamp(-width, width);
     _pageDragDx = _clampPageDrag(_pageDragRaw, width);
     if (!_pageTurnPrefetched && _pageDragRaw.abs() / width >= 0.04) {
@@ -1986,18 +2015,21 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final start = _pageDragDx;
     if ((start - target).abs() < 0.5) {
       _pageTurnAnimating = false;
-      _pageScrollLockN.value = false;
+      _pageTurningN.value = false;
+      _pageTurnStuckTimer?.cancel();
       return;
     }
     _pageTurnAnimating = true;
-    _pageScrollLockN.value = true;
+    _pageTurningN.value = true;
+    _armPageTurnStuckTimer();
     _pageTurnAnimation = Tween<double>(begin: start, end: target).animate(
       CurvedAnimation(parent: _pageTurnController, curve: Curves.easeOutCubic),
     );
     await _pageTurnController.forward(from: 0);
     if (!mounted) return;
     _pageTurnAnimating = false;
-    _pageScrollLockN.value = false;
+    _pageTurningN.value = false;
+    _pageTurnStuckTimer?.cancel();
   }
 
   Future<void> _finishPageTurn({
@@ -2477,7 +2509,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         pageTurn == ReaderPageTurn.swipe &&
         !reduceMotion &&
         !_pageTurnAnimating &&
-        !_selectionGestureActive;
+        !_selectionGestureActive &&
+        _selected.isEmpty;
 
     final listBody = VerseSelectionSurface(
       key: _selectionSurfaceKey,
@@ -2504,10 +2537,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           controller: _scroll,
           physics: pageTurn == ReaderPageTurn.scroll
               ? const ClampingScrollPhysics()
-              : _DragLockScrollPhysics(
-                  pageLock: _pageScrollLockN,
-                  selectionLock: _selectionScrollLockN,
-                ),
+              : _PageTurnScrollPhysics(pageTurnLock: _pageTurningN),
           scrollCacheExtent: const ScrollCacheExtent.pixels(320),
           addAutomaticKeepAlives: false,
           addSemanticIndexes: false,
@@ -2602,6 +2632,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
               onWordExtend: _extendWordSelect,
               onOpenThoughts: _openThoughtsForVerse,
               onOpenDict: (entity, name, candidates) {
+                cancelPageTurn();
                 widget.onInteract();
                 showEntityKnowledgeSheet(
                   context,
@@ -2921,17 +2952,36 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         pageTurn == ReaderPageTurn.swipe &&
         !reduceMotion &&
         !_pageTurnAnimating &&
-        !_selectionGestureActive;
+        !_selectionGestureActive &&
+        _selected.isEmpty;
     final pageW = MediaQuery.sizeOf(context).width;
 
-    final listBody = ListView.builder(
+    final listBody = VerseSelectionSurface(
+      key: _selectionSurfaceKey,
+      enabled: true,
+      selectionPrimed: _selected.isNotEmpty,
+      primedRange: _wordRange,
+      onApplyRange: (a, f, {commit = true}) {
+        if (commit) {
+          _applyWordRange(a, f, commit: true);
+        } else {
+          _scheduleWordRangeDuringDrag(a, f);
+        }
+      },
+      onCommitRange: _commitWordRangeProgress,
+      onClearIfEmptyTap: _selected.isNotEmpty ? _clearSelection : null,
+      onSelectionGestureChanged: (on) {
+        if (on) {
+          _armSwipeIgnore();
+          _cancelPagePointerTracking();
+        }
+        _setSelectionGestureActive(on);
+      },
+      child: ListView.builder(
       controller: _scroll,
       physics: pageTurn == ReaderPageTurn.scroll
           ? const ClampingScrollPhysics()
-          : _DragLockScrollPhysics(
-              pageLock: _pageScrollLockN,
-              selectionLock: _selectionScrollLockN,
-            ),
+          : _PageTurnScrollPhysics(pageTurnLock: _pageTurningN),
       scrollCacheExtent: const ScrollCacheExtent.pixels(480),
       addAutomaticKeepAlives: false,
       addSemanticIndexes: false,
@@ -3091,6 +3141,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           ),
         );
       },
+    ),
     );
 
     final topPad = _readerListTopPad();
