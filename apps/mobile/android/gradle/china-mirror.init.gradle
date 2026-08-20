@@ -1,0 +1,40 @@
+import org.gradle.api.initialization.resolve.RepositoriesMode
+
+// Flutter composite build (:gradle) 默认只配 google()；国内走阿里源，避免 dl.google.com TLS 失败。
+gradle.settingsEvaluated { settings ->
+  settings.pluginManagement {
+    repositories {
+      maven { url = uri("https://maven.aliyun.com/repository/google") }
+      maven { url = uri("https://maven.aliyun.com/repository/central") }
+      maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
+      maven { url = uri("https://maven.aliyun.com/repository/public") }
+      google()
+      mavenCentral()
+      gradlePluginPortal()
+    }
+  }
+  settings.dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+      maven { url = uri("https://maven.aliyun.com/repository/google") }
+      maven { url = uri("https://maven.aliyun.com/repository/central") }
+      maven { url = uri("https://maven.aliyun.com/repository/public") }
+      google()
+      mavenCentral()
+    }
+  }
+}
+
+gradle.beforeProject { project ->
+  project.buildscript.repositories { repos ->
+    repos.maven { url = uri("https://maven.aliyun.com/repository/google") }
+    repos.maven { url = uri("https://maven.aliyun.com/repository/central") }
+    repos.maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
+    repos.maven { url = uri("https://maven.aliyun.com/repository/public") }
+  }
+  project.repositories { repos ->
+    repos.maven { url = uri("https://maven.aliyun.com/repository/google") }
+    repos.maven { url = uri("https://maven.aliyun.com/repository/central") }
+    repos.maven { url = uri("https://maven.aliyun.com/repository/public") }
+  }
+}

@@ -72,5 +72,8 @@ apps/android-twa/keystore/keystore.properties
 apps/android-twa/local.properties
 apps/android-twa/.gradle/
 apps/android-twa/**/build/
+
+# 本地 Gradle 缓存（勿提交；脚本已默认用 ~/.gradle）
+.gradle-home/
 apps/android-twa/app/build/
 

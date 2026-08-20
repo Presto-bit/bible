@@ -2,53 +2,30 @@
 # 构建 Flutter 安卓 APK 并发布到 apps/web/public/downloads/
 #
 # 用法：
-#   ./scripts/publish_flutter_apk.sh              # 官网全量（arm64 + R8 + Dart 混淆）
-#   FAST_BUILD=1 ./scripts/publish_flutter_apk.sh # 本机快包（无混淆/无 R8，勿发官网）
-#   ORG_GRADLE_OFFLINE=1 ./scripts/…              # 依赖缓存已齐时强制离线
+#   ./scripts/publish_flutter_apk.sh              # 官网全量（arm64 + R8 + Dart 混淆，慢）
+#   FAST_BUILD=1 ./scripts/publish_flutter_apk.sh # 快包（无混淆/R8，2–5min，勿发官网）
+#   ORG_GRADLE_OFFLINE=0 ./scripts/…              # 强制在线拉依赖
 #   TARGET_PLATFORM=android-arm ./scripts/…       # 32 位真机
+#
+# 提速要点：Gradle 9.1-bin 腾讯镜像 + .gradle-home 缓存 + 自动离线 + 停 Daemon。
+# 日常联调请用：FAST_BUILD=1 ./scripts/publish_flutter_apk.sh
+# 或：./scripts/build_flutter_apk_dev.sh fast-release
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+_ANDROID_ENV_ROOT="$ROOT"
+# shellcheck source=scripts/_android_build_env.sh
+source "$ROOT/scripts/_android_build_env.sh"
+
 MOBILE="$ROOT/apps/mobile"
 OUT_DIR="$ROOT/apps/web/public/downloads"
 APK_NAME="biai-android.apk"
 META="$OUT_DIR/biai-android.json"
 
-FLUTTER="${FLUTTER_BIN:-flutter}"
-if ! command -v "$FLUTTER" >/dev/null 2>&1; then
-  for cand in \
-    "$HOME/development/flutter/bin/flutter" \
-    /opt/homebrew/bin/flutter \
-    "$HOME/flutter/bin/flutter"; do
-    if [[ -x "$cand" ]]; then FLUTTER="$cand"; break; fi
-  done
-fi
-if ! command -v "$FLUTTER" >/dev/null 2>&1 && [[ ! -x "$FLUTTER" ]]; then
-  echo "flutter not found; set FLUTTER_BIN" >&2
-  exit 1
-fi
-
-# 与 Web 默认一致：API + H5 同 origin（2sc）
 API_BASE="${API_BASE_URL:-https://2sc.prestoai.cn}"
 WEB_BASE="${WEB_BASE_URL:-https://2sc.prestoai.cn}"
-
-# 本机缺 android-35 时可用 apps/mobile/.android-sdk-shim
-if [[ -d "$MOBILE/.android-sdk-shim/platforms/android-35" ]]; then
-  export ANDROID_HOME="${ANDROID_HOME:-$MOBILE/.android-sdk-shim}"
-  export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-fi
-export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$ROOT/.gradle-home}"
-
-# P0 体积：仅 arm64 + R8（Gradle minify）+ Dart 混淆
-# 真机 32 位：TARGET_PLATFORM=android-arm
 TARGET_PLATFORM="${TARGET_PLATFORM:-android-arm64}"
 SYMBOLS_DIR="$MOBILE/build/symbols"
 FAST_BUILD="${FAST_BUILD:-0}"
-
-if [[ "${ORG_GRADLE_OFFLINE:-0}" == "1" ]]; then
-  # Gradle 识别 -Dorg.gradle.offline=true
-  export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.offline=true"
-  echo "Gradle offline mode ON (ORG_GRADLE_OFFLINE=1)"
-fi
 
 BUILD_ARGS=(
   build apk --release
@@ -70,11 +47,12 @@ else
   mkdir -p "$SYMBOLS_DIR"
 fi
 
-cd "$MOBILE"
-"$FLUTTER" pub get
-"$FLUTTER" "${BUILD_ARGS[@]}"
+SECONDS=0
+android_flutter_pub_get
+echo "→ flutter build (${BUILD_ARGS[*]})"
+(cd "$MOBILE" && "$FLUTTER" "${BUILD_ARGS[@]}")
+echo "Build finished in ${SECONDS}s"
 
-# fat 名仍为 app-release.apk；带 --target-platform 时亦落此路径
 APK_SRC="$MOBILE/build/app/outputs/flutter-apk/app-release.apk"
 if [[ ! -f "$APK_SRC" ]]; then
   case "$TARGET_PLATFORM" in
