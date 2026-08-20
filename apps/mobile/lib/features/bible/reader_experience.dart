@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -306,6 +307,8 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   final _selectionSurfaceKey = GlobalKey<VerseSelectionSurfaceState>();
   final _readerOverlayKey = GlobalKey();
   final _focusBarTopN = ValueNotifier<double?>(null);
+  final _focusBarLeftN = ValueNotifier<double?>(null);
+  final _focusBarKey = GlobalKey();
   bool _resumeScheduled = false;
   bool _planDayFinishScheduled = false;
   bool _navFromSwipe = false;
@@ -332,6 +335,11 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   set _focusBarTop(double? v) {
     if (_focusBarTopN.value == v) return;
     _focusBarTopN.value = v;
+  }
+
+  set _focusBarLeft(double? v) {
+    if (_focusBarLeftN.value == v) return;
+    _focusBarLeftN.value = v;
   }
 
   /// 横滑原始累计位移（未乘边界阻力；松手判定用）
@@ -782,6 +790,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _pageTurnStuckTimer?.cancel();
     _pageTurnAnimatingN.dispose();
     _focusBarTopN.dispose();
+    _focusBarLeftN.dispose();
     _scroll.removeListener(_onScroll);
     _scroll.dispose();
     super.dispose();
@@ -849,6 +858,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     if (!_scroll.hasClients) return;
     final cur = _scroll.position.pixels;
     _trackScrollProgress();
+    if (_selected.isNotEmpty) _scheduleFocusBarLayout();
 
     // 章末读完轻提示（对齐 PWA ChapterCompleteTip；专注模式 / 计划模式关闭）
     if (!_chapterBottomFired &&
@@ -1093,6 +1103,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       _selected.clear();
       _wordRange = null;
       _focusBarTop = null;
+      _focusBarLeft = null;
     });
     _notifySelection();
   }
@@ -1131,25 +1142,85 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   void _layoutFocusBar() {
     if (!mounted || _selected.isEmpty) {
       _focusBarTop = null;
+      _focusBarLeft = null;
       return;
     }
-    final ctx = _selectionAnchorKey.currentContext;
-    if (ctx == null) return;
-    final box = ctx.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return;
-    final offset = box.localToGlobal(Offset.zero);
-    final size = box.size;
     final media = MediaQuery.of(context);
-    const barEstimate = 112.0;
-    const margin = 10.0;
-    final topReserve = media.padding.top + (widget.chromeHidden ? 8 : 56);
+    final barBox = _focusBarKey.currentContext?.findRenderObject() as RenderBox?;
+    final barH = barBox?.hasSize == true ? barBox!.size.height : 112.0;
+    final barW = barBox?.hasSize == true
+        ? barBox!.size.width
+        : math.min(media.size.width * 0.96, 420.0);
+    const margin = 16.0;
+    final topReserve = media.padding.top + (widget.chromeHidden ? 12 : 64);
     final bottomReserve =
-        media.padding.bottom + (widget.chromeHidden ? 16 : 72);
-    var top = offset.dy - barEstimate - margin;
-    if (top < topReserve) top = offset.dy + size.height + margin;
-    final maxTop = media.size.height - barEstimate - bottomReserve;
-    top = top.clamp(topReserve, maxTop);
+        media.padding.bottom + (widget.chromeHidden ? 24 : 56);
+
+    Rect? selRect;
+    if (_wordRange != null) {
+      final handles = locateSelectionHandles(context, _wordRange!);
+      if (handles != null) {
+        selRect = Rect.fromLTRB(
+          math.min(handles.start.dx, handles.end.dx),
+          math.min(handles.start.dy, handles.end.dy) - handles.lineHeight,
+          math.max(handles.start.dx, handles.end.dx),
+          math.max(handles.start.dy, handles.end.dy),
+        );
+      }
+    }
+    if (selRect == null) {
+      final sorted = _sortedSel;
+      RenderBox? firstBox;
+      RenderBox? lastBox;
+      for (final v in [sorted.first, sorted.last]) {
+        final ctx = _scrollVerseKeys[v]?.currentContext;
+        final box = ctx?.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) continue;
+        if (v == sorted.first) firstBox = box;
+        if (v == sorted.last) lastBox = box;
+      }
+      firstBox ??= _selectionAnchorKey.currentContext?.findRenderObject()
+          as RenderBox?;
+      lastBox ??= firstBox;
+      if (firstBox != null && firstBox.hasSize) {
+        final a = firstBox.localToGlobal(Offset.zero);
+        final b = (lastBox ?? firstBox).localToGlobal(Offset.zero);
+        final bSize = (lastBox ?? firstBox).size;
+        selRect = Rect.fromLTRB(
+          math.min(a.dx, b.dx),
+          math.min(a.dy, b.dy),
+          math.max(a.dx + firstBox.size.width, b.dx + bSize.width),
+          math.max(a.dy + firstBox.size.height, b.dy + bSize.height),
+        );
+      }
+    }
+    if (selRect == null) return;
+
+    var top = selRect.bottom + margin;
+    if (top + barH > media.size.height - bottomReserve) {
+      top = selRect.top - barH - margin;
+    }
+    top = top.clamp(topReserve, media.size.height - barH - bottomReserve).toDouble();
+    final selCenterX = selRect.center.dx;
+    final left = (selCenterX - barW / 2).clamp(
+      8.0,
+      math.max(8.0, media.size.width - barW - 8),
+    ).toDouble();
     _focusBarTop = top;
+    _focusBarLeft = left;
+    if (barBox?.hasSize != true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _selected.isNotEmpty) _layoutFocusBar();
+      });
+    }
+  }
+
+  double _readerListBottomPad() {
+    if (widget.chromeHidden) {
+      return MediaQuery.paddingOf(context).bottom + 8;
+    }
+    // extendBody 下用 viewPadding 计入 Home 条，并多留一截给末节 / 划词手柄。
+    return peiaiTabContentBottomPad(context, includeSafe: true) + 28;
   }
 
   List<int> get _sortedSel => _selected.toList()..sort();
@@ -2282,15 +2353,23 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             ValueListenableBuilder<double?>(
               valueListenable: _focusBarTopN,
               builder: (context, focusTop, _) {
-                return Positioned(
-                  top:
-                      focusTop ??
-                      (MediaQuery.of(context).size.height -
-                          (widget.chromeHidden ? 140 : 200)),
-                  left: 12,
-                  right: 12,
-                  child: PageTurnYield(
-                    child: ReaderFocusBar(
+                return ValueListenableBuilder<double?>(
+                  valueListenable: _focusBarLeftN,
+                  builder: (context, focusLeft, _) {
+                    if (focusTop == null || focusLeft == null) {
+                      return const SizedBox.shrink();
+                    }
+                    final barW = math.min(
+                      MediaQuery.sizeOf(context).width * 0.96,
+                      420.0,
+                    );
+                    return Positioned(
+                      top: focusTop,
+                      left: focusLeft,
+                      width: barW,
+                      child: PageTurnYield(
+                        key: _focusBarKey,
+                        child: ReaderFocusBar(
                       readingMode: readingMode,
                       currentMark: toggles.underlines
                           ? _currentSelectionMark(highlights)
@@ -2356,8 +2435,10 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                       },
                       onClearMark: _clearHighlight,
                       onClose: _clearSelection,
-                    ),
-                  ),
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -2535,9 +2616,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
               16,
               _readerListTopPad(),
               20,
-              widget.chromeHidden
-                  ? (MediaQuery.paddingOf(context).bottom + 8)
-                  : peiaiTabContentBottomPad(context, includeSafe: false),
+              _readerListBottomPad(),
             ),
             itemCount: rows.length + 1 + planHead + planTail,
             itemBuilder: (_, i) {
@@ -2999,9 +3078,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         16,
         _readerListTopPad(),
         16,
-        widget.chromeHidden
-            ? (MediaQuery.paddingOf(context).bottom + 8)
-            : peiaiTabContentBottomPad(context, includeSafe: false),
+        _readerListBottomPad(),
       ),
       itemCount: rows.length + 1,
       itemBuilder: (_, i) {

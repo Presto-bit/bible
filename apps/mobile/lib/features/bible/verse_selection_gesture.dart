@@ -505,10 +505,10 @@ class VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         }
         _anchor = w;
         _lastFocus = w;
+        _notifyGesture(true);
         _lp = Timer(const Duration(milliseconds: 360), () {
           if (!mounted || _anchor == null || _dragging) return;
           _armed = true;
-          _notifyGesture(true);
           widget.onApplyRange(_anchor!, _anchor!, commit: true);
           HapticFeedback.selectionClick();
         });
@@ -520,28 +520,30 @@ class VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         if (down == null) return;
         final dist = (e.position - down).distance;
         if (!_armed) {
-          // 长按等待：小幅抖动不取消；明确竖滚/横翻方向才放弃选词。
-          if (dist >= 14) {
+          // 长按等待：只有明确滚/翻方向才放弃；避免 iOS 式拖扩被误判为滚动。
+          if (dist >= 18) {
             final dx = (e.position.dx - down.dx).abs();
             final dy = (e.position.dy - down.dy).abs();
-            if ((dy >= 14 && dy > dx * 1.35) ||
-                (dx >= 14 && dx > dy * 1.35)) {
+            if ((dy >= 18 && dy > dx * 1.5) ||
+                (dx >= 18 && dx > dy * 1.5)) {
               _clearLp();
               _anchor = null;
               _lastFocus = null;
+              _notifyGesture(false);
             }
           }
           return;
         }
         if (anchor == null) return;
-        if (!_dragging) {
+        if (!_dragging && dist >= 4) {
           _dragging = true;
           _notifyGesture(true);
         }
+        if (!_dragging) return;
         final focus = wordAnchorNear(
           context,
           e.position,
-          maxRadius: _dragging ? 56 : 40,
+          maxRadius: 72,
         );
         if (focus != null) {
           final same =
@@ -565,7 +567,11 @@ class VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         if (blank && _down != null && (e.position - _down!).distance < 8) {
           widget.onClearIfEmptyTap?.call();
         }
+        final wasGesture = _dragging || _armed;
         _resetPointer();
+        if (wasGesture && !hadDrag) {
+          widget.onSelectionGestureChanged?.call(false);
+        }
       },
       onPointerCancel: (e) {
         if (_pointer == e.pointer) _resetPointer();
@@ -669,10 +675,11 @@ class VerseSelectionHandles extends StatelessWidget {
   }
 
   Widget _handle(BuildContext context, Offset pos, {required bool isStart}) {
-    const size = 22.0;
+    const size = 28.0;
+    const hit = 44.0;
     return Positioned(
-      left: pos.dx - size / 2,
-      top: pos.dy - 2,
+      left: pos.dx - hit / 2,
+      top: pos.dy - 6,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onPanStart: (_) => onGestureChanged(true),
@@ -682,9 +689,15 @@ class VerseSelectionHandles extends StatelessWidget {
           onGestureChanged(false);
         },
         onPanCancel: () => onGestureChanged(false),
-        child: CustomPaint(
-          size: const Size(size, 28),
-          painter: _HandlePainter(color: _blue, isStart: isStart),
+        child: SizedBox(
+          width: hit,
+          height: hit,
+          child: Center(
+            child: CustomPaint(
+              size: const Size(size, 32),
+              painter: _HandlePainter(color: _blue, isStart: isStart),
+            ),
+          ),
         ),
       ),
     );
