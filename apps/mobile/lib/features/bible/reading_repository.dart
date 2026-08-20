@@ -76,6 +76,20 @@ class ReadingRepository {
   final SharedPreferences _prefs;
 
   Future<void> record(String book, int chapter, {int verse = 1}) async {
+    await _persistProgress(book, chapter, verse);
+    if (_logChapterDetail(book.toUpperCase(), chapter)) {
+      await _bumpLog(chapters: 1);
+    }
+    noteChapterVerseTouch(book, chapter, verse);
+  }
+
+  /// 更新读到哪一节，不计入「完成章节」（划词/点选经节时用）。
+  Future<void> touchProgress(String book, int chapter, {int verse = 1}) async {
+    await _persistProgress(book, chapter, verse);
+    noteChapterVerseTouch(book, chapter, verse);
+  }
+
+  Future<void> _persistProgress(String book, int chapter, int verse) async {
     final row = ReadingProgressData(
       singleton: 0,
       book: book,
@@ -85,9 +99,6 @@ class ReadingRepository {
     );
     await _db.into(_db.readingProgress).insertOnConflictUpdate(row);
     await _sync.enqueueReadingProgress(row);
-    await _bumpLog(chapters: 1);
-    _logChapterDetail(book.toUpperCase(), chapter);
-    noteChapterVerseTouch(book, chapter, verse);
   }
 
   /// 记录本章今日读到的经节范围，并更新本章最高节。
@@ -135,14 +146,15 @@ class ReadingRepository {
   }
 
   // 章节级阅读明细（去抖 30 分钟），存 prefs，供日历回顾「常读卷/章」与读经进度。
-  void _logChapterDetail(String book, int chapter) {
+  /// 返回 true 表示本次新记入一章（可同步 +1 当日章节数）。
+  bool _logChapterDetail(String book, int chapter) {
     final list = _readJsonList(_chapterEventsKey);
     final now = DateTime.now().millisecondsSinceEpoch;
     final recent = list.any((e) =>
         e['book'] == book &&
         e['chapter'] == chapter &&
         now - (e['ts'] as num).toInt() < 30 * 60 * 1000);
-    if (recent) return;
+    if (recent) return false;
     list.add({'ts': now, 'book': book, 'chapter': chapter});
     if (list.length > 2000) list.removeRange(0, list.length - 2000);
     userPrefSetString(_prefs, _chapterEventsKey, jsonEncode(list));
@@ -153,6 +165,7 @@ class ReadingRepository {
       book: book,
       chapter: chapter,
     );
+    return true;
   }
 
   // 金句记录：阅读时点选某节即记一次（去抖 10s）。
@@ -347,27 +360,30 @@ class ReviewData {
   }
 
   RangeStats rangeStats(int startMs, int endMs) {
-    var minutes = 0, chapters = 0, days = 0;
+    var minutes = 0, days = 0;
     minutesByDay.forEach((date, mins) {
       final t = DateTime.tryParse('${date}T00:00:00')?.millisecondsSinceEpoch;
       if (t != null && t >= startMs && t < endMs) {
         minutes += mins;
         final ch = chaptersByDay[date] ?? 0;
-        chapters += ch;
         if (mins > 0 || ch > 0) days += 1;
       }
     });
+    // 章节数以去重后的章节事件为准，避免划词误触刷高 chaptersByDay。
+    final chapterKeys = <String>{};
     final bookCount = <String, int>{};
     final chapCount = <String, int>{};
     for (final e in chapterEvents) {
       final ts = (e['ts'] as num).toInt();
       if (ts >= startMs && ts < endMs) {
         final b = e['book'] as String;
-        bookCount[b] = (bookCount[b] ?? 0) + 1;
         final ck = '$b.${e['chapter']}';
+        chapterKeys.add(ck);
+        bookCount[b] = (bookCount[b] ?? 0) + 1;
         chapCount[ck] = (chapCount[ck] ?? 0) + 1;
       }
     }
+    final chapters = chapterKeys.length;
     final verseCount = <String, int>{};
     for (final e in verseEvents) {
       final ts = (e['ts'] as num).toInt();

@@ -3,7 +3,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/database/app_database.dart' show Note, Bookmark;
@@ -16,6 +15,7 @@ import 'markings_repository.dart';
 import 'reader_marking_models.dart';
 import 'reading_repository.dart';
 import 'wrapped.dart';
+import 'wrapped_share.dart';
 
 final wrappedStatsProvider = FutureProvider.family<WrappedStats, String>((
   ref,
@@ -176,9 +176,7 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
                   slide: slides[i],
                   period: s.period,
                   isLast: i == slides.length - 1,
-                  onShare: () => SharePlus.instance.share(
-                    ShareParams(text: wrappedShareText(s)),
-                  ),
+                  onShare: () => shareWrappedPoster(context, s),
                   onNext: i < slides.length - 1
                       ? () => _page.animateToPage(
                             i + 1,

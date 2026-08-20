@@ -947,7 +947,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         .logVerseRead('${widget.book.id}.${widget.chapter}.$verse');
     ref
         .read(readingRepoProvider)
-        .record(widget.book.id, widget.chapter, verse: verse);
+        .touchProgress(widget.book.id, widget.chapter, verse: verse);
   }
 
   void _notifySelection() {

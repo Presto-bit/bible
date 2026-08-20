@@ -24,6 +24,8 @@ object Genesis50CustomTabHelper {
       "com.chrome.beta",
       "com.chrome.dev",
       "com.chrome.canary",
+      "com.android.browser",
+      "com.mi.globalbrowser",
       "org.mozilla.firefox",
       "com.microsoft.emmx",
       "com.sec.android.app.sbrowser",

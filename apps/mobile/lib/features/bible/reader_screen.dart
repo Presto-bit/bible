@@ -2050,62 +2050,131 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                     widget.mainVersionId == null;
                 return Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: versions.map((v) {
-                    final selectable = _selectable(v);
-                    final downloading =
-                        svc.isDownloading && svc.downloadingId == v.id;
-                    final needsDl = _needsDownload(v) || _failedId == v.id;
-                    final isMainDisplay = v.primary
-                        ? widget.mainVersionId == null && !isParallel
-                        : widget.mainVersionId == v.id;
-                    final isCompare =
-                        isParallel && widget.compareVersionId == v.id;
-                    final checked = selectable && (isMainDisplay || isCompare);
-                    final trailing = _trailing(v, svc);
+                  children: [
+                    ...versions.map((v) {
+                      final selectable = _selectable(v);
+                      final downloading =
+                          svc.isDownloading && svc.downloadingId == v.id;
+                      final needsDl = _needsDownload(v) || _failedId == v.id;
+                      final isMainDisplay = v.primary
+                          ? widget.mainVersionId == null && !isParallel
+                          : widget.mainVersionId == v.id;
+                      final isCompare =
+                          isParallel && widget.compareVersionId == v.id;
+                      final checked = selectable && (isMainDisplay || isCompare);
+                      final trailing = _trailing(v, svc);
+                      final actionClickable =
+                          _failedId == v.id ||
+                          (needsDl && !downloading && _offlineable(v.id));
 
-                    void handle() {
-                      if (_needsDownload(v) || _failedId == v.id) {
-                        unawaited(_downloadVersion(v, versions));
-                        return;
+                      void handle() {
+                        if (_needsDownload(v) || _failedId == v.id) {
+                          unawaited(_downloadVersion(v, versions));
+                          return;
+                        }
+                        if (selectable) _applyTap(v, versions);
                       }
-                      if (selectable) _applyTap(v, versions);
-                    }
 
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        checked
-                            ? Icons.check_circle
-                            : (downloading
-                                  ? Icons.downloading
-                                  : (selectable
-                                        ? Icons.translate
-                                        : Icons.download_outlined)),
+                      return Material(
                         color: checked
-                            ? AppColors.accentDeep
-                            : (selectable
-                                  ? AppColors.accent
-                                  : AppColors.inkFaint),
-                      ),
-                      title: Text(v.label),
-                      trailing: TextButton(
-                        onPressed: downloading ? null : handle,
-                        child: Text(
-                          trailing,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: needsDl || _failedId == v.id
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: needsDl || downloading || _failedId == v.id
-                                ? AppColors.accentDeep
-                                : AppColors.inkFaint,
+                            ? AppColors.accentWash
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: downloading ? null : handle,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          v.label,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: checked
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                            color: selectable
+                                                ? AppColors.ink
+                                                : AppColors.inkFaint,
+                                          ),
+                                        ),
+                                      ),
+                                      if (checked) ...[
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '✓',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.inkFaint
+                                                .withValues(alpha: 0.85),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                if (actionClickable)
+                                  TextButton(
+                                    onPressed: downloading ? null : handle,
+                                    style: TextButton.styleFrom(
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                        vertical: 4,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      trailing,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.accentDeep,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    trailing,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: downloading
+                                          ? FontWeight.w500
+                                          : FontWeight.w400,
+                                      color: downloading
+                                          ? AppColors.accentDeep
+                                          : AppColors.inkFaint,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: widget.onClose,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.accentDeep,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(44),
+                        ),
+                        child: const Text('完成'),
                       ),
-                      onTap: downloading ? null : handle,
-                    );
-                  }).toList(),
+                    ),
+                  ],
                 );
               },
             ),

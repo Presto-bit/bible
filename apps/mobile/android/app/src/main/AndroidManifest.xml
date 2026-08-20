@@ -76,6 +76,8 @@
         </intent>
         <package android:name="com.android.chrome" />
         <package android:name="com.google.android.apps.chrome" />
+        <package android:name="com.android.browser" />
+        <package android:name="com.mi.globalbrowser" />
         <package android:name="org.mozilla.firefox" />
         <package android:name="com.microsoft.emmx" />
         <package android:name="com.sec.android.app.sbrowser" />

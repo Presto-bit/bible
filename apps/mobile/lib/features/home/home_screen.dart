@@ -345,7 +345,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final progress = ref.watch(planProgressMapProvider).value ?? const {};
     final plansAsync = ref.watch(plansListProvider);
     final generated = ref.watch(generatedPlansProvider).value ?? const [];
-    final prayerToday = ref.watch(prayerTodayProvider);
     void goTab(int i) => ref.read(navIndexProvider.notifier).set(i);
 
     // —— 今日推荐输入 ——
@@ -469,11 +468,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       groupSub = '进入消息';
     }
 
-    final prayerTitle = prayerToday.maybeWhen(
-      data: (p) =>
-          p.day > 0 ? '第 ${p.day} 天' : (p.title.isNotEmpty ? p.title : null),
-      orElse: () => null,
-    );
+    final prayerTitle = () {
+      if (activeEntry.isEmpty) return null;
+      final activeId = activeEntry.first.key;
+      final featured = plansAsync.maybeWhen(
+        data: (list) => list.where((p) => p.planId == activeId).firstOrNull,
+        orElse: () => null,
+      );
+      if (featured == null || !featured.isPrayer) return null;
+      final day = activeEntry.first.value.day;
+      return day > 0 ? '第 $day 天' : null;
+    }();
 
     final rails = boot.maybeWhen(
       data: (b) => b.railCampaigns,

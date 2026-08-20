@@ -89,7 +89,7 @@ Future<void> openGenesis50InCustomTab(
     final url = await resolveGenesis50OpenUrl(target);
     final ok = await _openGenesis50TabNative(url);
     if (!ok) {
-      error = '无法打开活动页，请确认已安装 Chrome 后重试';
+      error = '无法打开活动页，请确认已安装浏览器后重试';
     }
   } catch (_) {
     error = '进入活动失败，请检查网络后重试';

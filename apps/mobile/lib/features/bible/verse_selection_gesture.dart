@@ -302,13 +302,22 @@ class SelectionHandleLayout {
 }
 
 /// 选区两端手柄锚点（全局坐标，落在首/末词块底边）。
+///
+/// WidgetSpan 词芯片与 [RenderParagraph.getBoxesForSelection] 不同步，
+/// 优先用词块 MetaData 定位，避免手柄漂到节间空白。
 SelectionHandleLayout? locateSelectionHandles(
   BuildContext context,
   WordRange range,
 ) {
-  final fromBoxes = _locateSelectionHandlesViaBoxes(context, range);
-  if (fromBoxes != null) return fromBoxes;
+  final fromMeta = _locateSelectionHandlesViaMeta(context, range);
+  if (fromMeta != null) return fromMeta;
+  return _locateSelectionHandlesViaBoxes(context, range);
+}
 
+SelectionHandleLayout? _locateSelectionHandlesViaMeta(
+  BuildContext context,
+  WordRange range,
+) {
   final root = context.findRenderObject();
   if (root == null) return null;
   RenderBox? startBox;
@@ -630,20 +639,6 @@ class SelectableWordChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: _sel,
           borderRadius: radius,
-          boxShadow: [
-            if (!edgeLeft)
-              BoxShadow(
-                color: _sel,
-                offset: const Offset(-3, 0),
-                spreadRadius: 1,
-              ),
-            if (!edgeRight)
-              BoxShadow(
-                color: _sel,
-                offset: const Offset(3, 0),
-                spreadRadius: 1,
-              ),
-          ],
         ),
         child: child,
       );
