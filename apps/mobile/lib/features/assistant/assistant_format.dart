@@ -180,14 +180,5 @@ String streamingSafeBody(String text) {
   return t;
 }
 
-/// 展示用正文：流式用安全截取，完成后用完整清洗 + 长段拆句（对齐 PWA `prepareAssistantMarkdown`）。
-String prepareAssistantDisplay(String text, {required bool streaming}) {
-  var raw = streaming ? streamingSafeBody(text) : bodyText(text);
-  if (streaming) {
-    raw = stripTrailingReferences(raw);
-    raw = joinOrphanFootnotes(raw);
-  } else {
-    raw = breakLongPlainBlocks(raw);
-  }
-  return raw;
-}
+export 'assistant_markdown.dart'
+    show extractSummaryLead, prepareAssistantDisplay, prepareAssistantMarkdown;

@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/app_shell.dart';
 import '../../core/theme.dart';
 import '../assistant/answer_text.dart';
-import '../assistant/assistant_format.dart';
 import '../assistant/assistant_reader_context.dart';
 import '../assistant/assistant_repository.dart';
 import '../assistant/assistant_scenes.dart';
@@ -211,7 +210,6 @@ class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
 
   @override
   Widget build(BuildContext context) {
-    final aiBody = prepareAssistantDisplay(_aiText, streaming: _aiBusy).trim();
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -304,17 +302,17 @@ class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      if (_aiBusy && aiBody.isEmpty)
+                      if (_aiBusy && _aiText.trim().isEmpty)
                         const Text(
                           '小爱正在整理白话对照…',
                           style:
-                              TextStyle(fontSize: 13, color: AppColors.inkFaint),
+                              TextStyle(fontSize: 14, color: AppColors.inkFaint),
                         ),
-                      if (_aiErr != null && aiBody.isEmpty) ...[
+                      if (_aiErr != null && _aiText.trim().isEmpty) ...[
                         Text(
                           _aiErr!,
                           style: const TextStyle(
-                              fontSize: 13, color: AppColors.inkSoft),
+                              fontSize: 14, color: AppColors.inkSoft),
                         ),
                         const SizedBox(height: 8),
                         Align(
@@ -325,20 +323,20 @@ class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
                           ),
                         ),
                       ],
-                      if (aiBody.isNotEmpty)
-                        AnswerText(
-                          text: aiBody,
-                          fontSize: 15,
+                      if (_aiText.trim().isNotEmpty)
+                        AssistantMarkdownBody(
+                          text: _aiText,
                           streaming: _aiBusy,
+                          dense: true,
                         ),
                       if (!_aiBusy &&
                           _aiErr == null &&
-                          aiBody.isEmpty &&
+                          _aiText.trim().isEmpty &&
                           _aiDone)
                         const Text(
                           '暂无解读，请稍后重试。',
                           style:
-                              TextStyle(fontSize: 13, color: AppColors.inkFaint),
+                              TextStyle(fontSize: 14, color: AppColors.inkFaint),
                         ),
                     ],
                   );

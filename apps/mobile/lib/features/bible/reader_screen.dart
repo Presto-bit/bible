@@ -1330,15 +1330,15 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
   }
 
   String? get _summary {
-    final m = RegExp(r'【摘要】\s*([^\n【]+)').firstMatch(_cleanAnswer);
-    return m?.group(1)?.trim();
+    final lead = extractSummaryLead(_cleanAnswer);
+    return lead.summary.isNotEmpty ? lead.summary : null;
   }
 
   bool get _showCollapsed =>
       !_expanded &&
       !_cleanAnswer.startsWith('⚠️') &&
       (_summary?.isNotEmpty ?? false) &&
-      _cleanAnswer.length > (_summary?.length ?? 0) + 20;
+      extractSummaryLead(_cleanAnswer).body.length > 20;
 
   @override
   Widget build(BuildContext context) {
@@ -1489,14 +1489,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                _summary!,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.7,
-                                  color: AppColors.ink,
-                                ),
+                              AssistantMarkdownBody(
+                                text: _summary!,
+                                dense: true,
                               ),
                               TextButton(
                                 onPressed: () =>
@@ -1506,11 +1501,10 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                             ],
                           )
                         else
-                          AnswerText(
-                            text: _cleanAnswer.isEmpty
+                          AssistantMarkdownBody(
+                            text: _answer.isEmpty
                                 ? (_busy ? '' : '暂无内容')
-                                : _cleanAnswer,
-                            fontSize: 16,
+                                : _answer,
                             streaming: _busy,
                             onCitationTap: (n) {
                               final citation = _citations

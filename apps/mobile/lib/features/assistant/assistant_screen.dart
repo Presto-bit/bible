@@ -1395,9 +1395,7 @@ class _Bubble extends ConsumerWidget {
         : (turn.followups.isNotEmpty
               ? turn.followups
               : followupsOf(turn.content));
-    final displayText = isUser
-        ? turn.content
-        : prepareAssistantDisplay(turn.content, streaming: streaming);
+    final displayText = turn.content;
     final showActions = !isUser && turn.content.isNotEmpty && !streaming;
     final cites = turn.meta?.citations ?? const <Citation>[];
     return Padding(
@@ -1450,8 +1448,9 @@ class _Bubble extends ConsumerWidget {
                             knowledgeBaseName: turn.meta?.knowledgeBaseName,
                             onSwitchToPlatform: onSwitchToPlatform,
                           ),
-                        AnswerText(
-                          text: displayText,
+                        AssistantMarkdownBody(
+                          text: turn.content,
+                          fontSize: kAssistantTabAnswerFontSize,
                           streaming: streaming,
                           onCitationTap: cites.isEmpty
                               ? null

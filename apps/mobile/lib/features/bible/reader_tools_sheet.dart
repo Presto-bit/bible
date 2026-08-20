@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/badge_stats.dart';
 import '../../core/theme.dart';
+import '../assistant/answer_text.dart';
 import '../bible/bible_repository.dart';
 import '../bible/content_repository.dart';
 import '../bible/reader_screen.dart' show readerJumpProvider;
@@ -222,7 +223,10 @@ class _GuideBody extends ConsumerWidget {
             if (g.passage.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(g.passage, style: const TextStyle(height: 1.55)),
+                child: AssistantMarkdownBody(
+                  text: g.passage,
+                  dense: true,
+                ),
               ),
             ...g.cards.map(
               (r) => ListTile(

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
+import '../assistant/answer_text.dart';
 import 'bible_summary.dart';
 import 'content_repository.dart';
 import 'reader_sheet.dart';
@@ -191,7 +192,7 @@ class _SummarySheetBodyState extends ConsumerState<_SummarySheetBody> {
                                 Text('小爱正在整理…',
                                     style: TextStyle(
                                         color: AppColors.inkFaint,
-                                        fontSize: 13)),
+                                        fontSize: 14)),
                               ],
                             ),
                           );
@@ -228,13 +229,9 @@ class _SummarySheetBodyState extends ConsumerState<_SummarySheetBody> {
                                 color: AppColors.inkFaint, fontSize: 14),
                           );
                         }
-                        return Text(
-                          body,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            height: 1.75,
-                            color: AppColors.inkSoft,
-                          ),
+                        return AssistantMarkdownBody(
+                          text: body,
+                          dense: true,
                         );
                       },
                     ),
