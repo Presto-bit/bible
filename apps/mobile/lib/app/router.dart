@@ -24,6 +24,7 @@ import '../features/notes/notes_screen.dart';
 import '../features/settings/appearance_screen.dart';
 import '../features/knowledge/knowledge_explore.dart';
 import '../features/assistant/knowledge_bases_screen.dart';
+import '../features/bible/reading_report_screen.dart';
 import '../features/bible/wrapped_screen.dart';
 import 'app_shell.dart';
 
@@ -106,7 +107,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/report',
-        builder: (context, state) => const H5HostPage(path: '/report'),
+        builder: (context, state) => const ReadingReportScreen(),
       ),
       GoRoute(
         path: '/help',

@@ -21,12 +21,30 @@ import {
 } from '@/lib/wrapped';
 import { renderWrappedSharePng } from '@/lib/wrapped_share';
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
-import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
+import { isFlutterH5Host, peiaiOpenNativeWrapped } from '@/lib/flutter_h5_bridge';
 
 function WrappedInner() {
   useEdgeSwipeBack({ href: '/report' });
   const sp = useSearchParams();
   const period: WrappedPeriod = sp.get('period') === 'year' ? 'year' : 'month';
+  const flutterHost =
+    typeof window !== 'undefined' && isFlutterH5Host();
+
+  // Flutter 壳：故事回顾走原生 PageView，勿在 WebView 里竖滑。
+  useEffect(() => {
+    if (!flutterHost) return;
+    peiaiOpenNativeWrapped(period);
+  }, [flutterHost, period]);
+
+  if (flutterHost) {
+    return (
+      <main className="wrapped-page-shell">
+        <div className="wrapped-story-loading" aria-busy="true">
+          <p className="muted">正在打开故事回顾…</p>
+        </div>
+      </main>
+    );
+  }
   const [w, setW] = useState<WrappedStats | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);

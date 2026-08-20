@@ -181,6 +181,10 @@ export function isFlutterH5Host(): boolean {
 /**
  * 请求 Flutter 原生打开小爱（带经节锚点）。非 Flutter H5 时返回 false。
  */
+export function peiaiOpenNativeWrapped(period: 'month' | 'year' = 'month'): boolean {
+  return peiaiOpenNative({ type: 'open_path', path: `/wrapped?period=${period}` });
+}
+
 export function peiaiOpenNativeAssistant(opts: {
   ref?: string;
   q?: string;

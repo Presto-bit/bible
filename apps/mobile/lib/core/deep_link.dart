@@ -65,9 +65,9 @@ class DeepLink {
       return _h5(uri.replace(path: path));
     }
 
-    // 读经回顾：与 PWA 同套 H5 /report
+    // 读经回顾：Flutter 原生（竖滑日历 + 故事回顾 PageView）
     if (path == '/report' || path.startsWith('/report/')) {
-      return _h5(uri.replace(path: path));
+      return Uri(path: path, queryParameters: qp.isEmpty ? null : qp).toString();
     }
 
     // 白名单 H5（IM / 活动 / 协议 / 设置 / 祷告）

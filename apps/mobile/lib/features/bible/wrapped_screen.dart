@@ -1,4 +1,4 @@
-/// 故事回顾：全屏竖滑分页（对齐 PWA WrappedStory；不走 WebView snap）。
+/// 故事回顾：全屏竖滑分页（对齐 PWA WrappedStory；原生 PageView，不走 WebView）。
 library;
 
 import 'package:flutter/material.dart';
@@ -8,8 +8,10 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/database/app_database.dart' show Note, Bookmark;
 import '../../core/home_day_wallpaper_cache.dart';
+import '../../core/mark_ref.dart';
 import '../../core/theme.dart';
 import '../notes/notes_repository.dart';
+import 'bible_repository.dart';
 import 'markings_repository.dart';
 import 'reader_marking_models.dart';
 import 'reading_repository.dart';
@@ -20,6 +22,7 @@ final wrappedStatsProvider = FutureProvider.family<WrappedStats, String>((
   period,
 ) async {
   final review = await ref.read(reviewDataProvider.future);
+  final bible = ref.read(bibleRepoProvider);
 
   var notes = ref.read(notesStreamProvider).value ?? const <Note>[];
   var bookmarks = ref.read(bookmarksProvider).value ?? const <Bookmark>[];
@@ -46,13 +49,36 @@ final wrappedStatsProvider = FutureProvider.family<WrappedStats, String>((
   final noteCount = notes
       .where((n) => n.updatedAtMs >= range.start && n.updatedAtMs < range.end)
       .length;
-  return buildWrapped(
+
+  final colorByRef = <String, String>{
+    for (final e in highlights.entries) e.key: e.value.color,
+  };
+
+  final base = buildWrapped(
     review: review,
     period: period,
     notesCount: noteCount,
     favoritesCount: bookmarks.length,
     marksCount: highlights.length,
+    highlightColors: colorByRef,
   );
+
+  Future<String?> fetchVerseText(String refKey) async {
+    final p = parseMarkRef(refKey);
+    if (p == null || p.verseStart == null) return null;
+    try {
+      final ch = await bible.chapter(p.bookId, p.chapter);
+      for (final v in ch.verses) {
+        if (v.verse == p.verseStart) {
+          final text = v.text.trim();
+          return text.isEmpty ? null : text;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  return enrichWrappedTexts(base, fetchVerseText);
 });
 
 ({int start, int end}) _periodRange(String period) {
@@ -67,73 +93,6 @@ final wrappedStatsProvider = FutureProvider.family<WrappedStats, String>((
     start: DateTime(now.year, now.month, 1).millisecondsSinceEpoch,
     end: DateTime(now.year, now.month + 1, 1).millisecondsSinceEpoch,
   );
-}
-
-class _StorySlide {
-  const _StorySlide({
-    required this.kicker,
-    required this.title,
-    this.body,
-    this.metrics = const [],
-    required this.wallpaperDay,
-    this.share = false,
-  });
-  final String kicker;
-  final String title;
-  final String? body;
-  final List<(String value, String label)> metrics;
-  final int wallpaperDay;
-  final bool share;
-}
-
-List<_StorySlide> _slidesFor(WrappedStats s) {
-  return [
-    _StorySlide(
-      kicker: '故事回顾',
-      title: s.label,
-      body: s.highlight,
-      wallpaperDay: s.period == 'year' ? 12 : 3,
-    ),
-    _StorySlide(
-      kicker: '时间',
-      title: '${s.totalMinutes} 分钟',
-      body: '你把这段时间给了话语',
-      metrics: [('${s.totalMinutes}', '分钟')],
-      wallpaperDay: 7,
-    ),
-    _StorySlide(
-      kicker: '节奏',
-      title: s.streak > 0 ? '连续 ${s.streak} 天' : '活跃 ${s.activeDays} 天',
-      body: s.streak > 0 ? '你在话语里留下了连续的足迹' : '每一个打开的日子都算数',
-      metrics: [('${s.activeDays}', '活跃天'), ('${s.streak}', '连续')],
-      wallpaperDay: 18,
-    ),
-    _StorySlide(
-      kicker: '经文',
-      title: '读了 ${s.chapters} 章',
-      body: '章章都是相遇',
-      metrics: [('${s.chapters}', '章')],
-      wallpaperDay: 15,
-    ),
-    _StorySlide(
-      kicker: '留下的',
-      title: s.marksCount > 0 ? '划线 ${s.marksCount} 处' : '慢慢记下',
-      body: '笔记、收藏与划线，都是你与话语的痕迹',
-      metrics: [
-        ('${s.notesCount}', '笔记'),
-        ('${s.favoritesCount}', '收藏'),
-        ('${s.marksCount}', '划线'),
-      ],
-      wallpaperDay: 22,
-    ),
-    _StorySlide(
-      kicker: '彼爱',
-      title: '愿你继续在话语中相遇',
-      body: s.highlight,
-      wallpaperDay: 28,
-      share: true,
-    ),
-  ];
 }
 
 class WrappedScreen extends ConsumerStatefulWidget {
@@ -159,6 +118,15 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
   void dispose() {
     _page.dispose();
     super.dispose();
+  }
+
+  void _switchPeriod(String period) {
+    if (_period == period) return;
+    setState(() {
+      _period = period;
+      _index = 0;
+    });
+    if (_page.hasClients) _page.jumpToPage(0);
   }
 
   @override
@@ -192,7 +160,7 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
           ),
         ),
         data: (s) {
-          final slides = _slidesFor(s);
+          final slides = s.slides;
           return Stack(
             children: [
               PageView.builder(
@@ -201,13 +169,23 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
                 physics: const PageScrollPhysics(
                   parent: ClampingScrollPhysics(),
                 ),
+                allowImplicitScrolling: true,
                 itemCount: slides.length,
                 onPageChanged: (i) => setState(() => _index = i),
                 itemBuilder: (context, i) => _SlideView(
                   slide: slides[i],
+                  period: s.period,
+                  isLast: i == slides.length - 1,
                   onShare: () => SharePlus.instance.share(
                     ShareParams(text: wrappedShareText(s)),
                   ),
+                  onNext: i < slides.length - 1
+                      ? () => _page.animateToPage(
+                            i + 1,
+                            duration: const Duration(milliseconds: 320),
+                            curve: Curves.easeOutCubic,
+                          )
+                      : null,
                 ),
               ),
               SafeArea(
@@ -278,14 +256,7 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
   Widget _periodChip(String label, String period) {
     final active = _period == period;
     return GestureDetector(
-      onTap: () {
-        if (_period == period) return;
-        setState(() {
-          _period = period;
-          _index = 0;
-        });
-        _page.jumpToPage(0);
-      },
+      onTap: () => _switchPeriod(period),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
@@ -306,9 +277,19 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
 }
 
 class _SlideView extends StatelessWidget {
-  const _SlideView({required this.slide, required this.onShare});
-  final _StorySlide slide;
+  const _SlideView({
+    required this.slide,
+    required this.period,
+    required this.isLast,
+    required this.onShare,
+    this.onNext,
+  });
+
+  final WrappedSlide slide;
+  final String period;
+  final bool isLast;
   final VoidCallback onShare;
+  final VoidCallback? onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -345,70 +326,172 @@ class _SlideView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              Text(
-                slide.title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  height: 1.25,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (slide.body != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  slide.body!,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    fontSize: 16,
-                    height: 1.55,
-                  ),
-                ),
-              ],
-              if (slide.metrics.isNotEmpty) ...[
-                const SizedBox(height: 28),
-                Wrap(
-                  spacing: 18,
-                  runSpacing: 12,
-                  children: [
-                    for (final m in slide.metrics)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            m.$1,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            m.$2,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.65),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ],
+              ..._slideBody(),
               const Spacer(),
-              if (slide.share)
+              if (isLast) ...[
                 FilledButton(
                   onPressed: onShare,
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: AppColors.ink,
+                    minimumSize: const Size.fromHeight(48),
                   ),
-                  child: const Text('分享这一段'),
+                  child: const Text('分享海报'),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '一图含经文与足迹 · 可发朋友圈',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    fontSize: 12,
+                  ),
+                ),
+              ] else if (onNext != null)
+                TextButton(
+                  onPressed: onNext,
+                  style: TextButton.styleFrom(foregroundColor: Colors.white70),
+                  child: const Text('继续'),
                 ),
             ],
           ),
         ),
       ],
     );
+  }
+
+  List<Widget> _slideBody() {
+    if (slide.kind == WrappedSlideKind.verse) {
+      return [
+        Text(
+          slide.title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            height: 1.35,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (slide.body != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            slide.body!,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: 14,
+              height: 1.5,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ];
+    }
+
+    if (slide.kind == WrappedSlideKind.quotes && slide.quotes != null) {
+      return [
+        Text(
+          slide.title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            height: 1.25,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (slide.body != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            slide.body!,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.88),
+              fontSize: 15,
+              height: 1.55,
+            ),
+          ),
+        ],
+        const SizedBox(height: 20),
+        for (final q in slide.quotes!)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  q.text != null && q.text!.isNotEmpty
+                      ? '「${q.text}」'
+                      : q.label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    height: 1.55,
+                  ),
+                ),
+                if (q.text != null && q.text!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    q.label,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ];
+    }
+
+    return [
+      Text(
+        slide.title,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: slide.kind == WrappedSlideKind.cover ? 28 : 32,
+          height: 1.25,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      if (slide.body != null) ...[
+        const SizedBox(height: 12),
+        Text(
+          slide.body!,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.88),
+            fontSize: 16,
+            height: 1.55,
+          ),
+        ),
+      ],
+      if (slide.metrics.isNotEmpty) ...[
+        const SizedBox(height: 28),
+        Wrap(
+          spacing: 18,
+          runSpacing: 12,
+          children: [
+            for (final m in slide.metrics)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    m.$1,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    m.$2,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.65),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ],
+    ];
   }
 }

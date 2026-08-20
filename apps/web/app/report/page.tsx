@@ -9,7 +9,7 @@ import { api, type BibleBook } from '@/lib/api';
 import { dailyMinutes, rangeStats, type RangeStats } from '@/lib/reading';
 import { registrationYear } from '@/lib/api';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
-import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
+import { isFlutterH5Host, peiaiOpenNativeWrapped } from '@/lib/flutter_h5_bridge';
 
 type Mode = 'day' | 'week' | 'month' | 'year';
 
@@ -246,7 +246,12 @@ function ReportInner() {
           href="/wrapped"
           className="muted"
           style={{ fontSize: 13 }}
-          onClick={() => markRouteNavigation()}
+          onClick={(e) => {
+            markRouteNavigation();
+            if (isFlutterH5Host() && peiaiOpenNativeWrapped('month')) {
+              e.preventDefault();
+            }
+          }}
         >
           故事回顾 ›
         </Link>

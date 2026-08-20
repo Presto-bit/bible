@@ -43,7 +43,11 @@ bool openH5IfAllowed(BuildContext context, String href, {String? title}) {
     return true;
   }
 
-  // 故事回顾：H5 全屏竖滑在安卓 WebView 里不跟手，走 Flutter PageView。
+  // 读经回顾 / 故事回顾：WebView 竖滑不跟手，走 Flutter 原生（对齐 PWA 体验）。
+  if (pathOnly == '/report' || pathOnly.startsWith('/report/')) {
+    context.push(pathAndQuery);
+    return true;
+  }
   if (pathOnly == '/wrapped' || pathOnly.startsWith('/wrapped/')) {
     context.push(pathAndQuery);
     return true;

@@ -384,6 +384,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
             final url = change.url;
             if (url == null || !mounted) return;
             _syncDiscoverImmersive(url);
+            _maybeOpenNativeFromSpaUrl(url);
           },
           onPageFinished: (url) async {
             if (!mounted) return;
@@ -715,6 +716,24 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         p.startsWith('/knowledge-bases/') ||
         p == '/wrapped' ||
         p.startsWith('/wrapped/');
+  }
+
+  /// Next.js SPA 内链（pushState）不会触发 [onNavigationRequest]，在此补拦截。
+  void _maybeOpenNativeFromSpaUrl(String url) {
+    final u = Uri.tryParse(url);
+    if (u == null) return;
+    final host = Uri.parse(AppConfig.webBaseUrl).host;
+    final appHost = u.host.isEmpty ||
+        u.host == host ||
+        u.host == 'localhost' ||
+        u.host.endsWith('.prestoai.cn');
+    if (!appHost) return;
+    final p = H5Whitelist.stripAppBasePath(u.path.isEmpty ? '/' : u.path);
+    if (p != '/wrapped' && !p.startsWith('/wrapped/')) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openNativeFromWeb(u.replace(path: p));
+    });
   }
 
   void _openNativeFromWeb(Uri u) {
