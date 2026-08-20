@@ -1,6 +1,6 @@
 /// 创世记 50 天自动登录（对齐 `apps/web/lib/genesis50_auth.ts`）。
 ///
-/// Android：Flutter 鉴权 + Chrome Custom Tabs 打开原链接（campaign_nav.dart）。
+/// Android：Flutter 鉴权 + Chrome Custom Tabs 打开原链接（open_genesis50_tab.dart）。
 /// Web 桥接页 `/campaigns/genesis-50/enter` 仍供 PWA / H5 内嵌浏览器。
 library;
 

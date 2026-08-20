@@ -37,7 +37,7 @@ bool openH5IfAllowed(BuildContext context, String href, {String? title}) {
   pathAndQuery = '$pathOnly${parsed.hasQuery ? '?${parsed.query}' : ''}';
   if (!H5Whitelist.allows(pathOnly)) return false;
 
-  // 创世记 50 桥接页必须走专用外链 WebView，不能进叠层 H5。
+  // 创世记 50 桥接页走 Custom Tabs（Chrome 内核），不能进叠层 H5 WebView。
   if (isGenesis50BridgeHref(pathAndQuery)) {
     unawaited(openCampaignHref(context, pathAndQuery, title: title));
     return true;

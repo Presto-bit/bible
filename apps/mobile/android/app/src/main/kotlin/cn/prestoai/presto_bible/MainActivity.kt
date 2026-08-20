@@ -40,6 +40,11 @@ class MainActivity : FlutterFragmentActivity() {
       pendingMicResult = null
     }
 
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    Genesis50CustomTabHelper.warmUp(this)
+  }
+
   override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, updateChannel)
@@ -83,6 +88,20 @@ class MainActivity : FlutterFragmentActivity() {
                 result.error("no_browser", "未找到可用浏览器", null)
               } catch (e: Exception) {
                 result.error("open_failed", e.message, null)
+              }
+            }
+          }
+          "openGenesis50Tab" -> {
+            val url = call.argument<String>("url")?.trim().orEmpty()
+            if (url.isEmpty()) {
+              result.error("invalid_url", "链接无效", null)
+            } else {
+              val toolbarColor = call.argument<Int>("toolbarColor") ?: 0xFFFFFFFF.toInt()
+              val ok = Genesis50CustomTabHelper.open(this, url, toolbarColor)
+              if (ok) {
+                result.success(null)
+              } else {
+                result.error("open_failed", "无法打开活动页", null)
               }
             }
           }
