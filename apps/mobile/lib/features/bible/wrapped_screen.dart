@@ -180,11 +180,6 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
                   isLast: i == slides.length - 1,
                   sharePosterKey:
                       i == slides.length - 1 ? _sharePosterKey : null,
-                  onShare: () => shareWrappedPoster(
-                    context,
-                    s,
-                    posterKey: _sharePosterKey,
-                  ),
                   onNext: i < slides.length - 1
                       ? () => _page.animateToPage(
                             i + 1,
@@ -207,6 +202,19 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
                       _periodChip('本月', 'month'),
                       const SizedBox(width: 8),
                       _periodChip('今年', 'year'),
+                      if (_index == slides.length - 1) ...[
+                        const SizedBox(width: 4),
+                        IconButton(
+                          onPressed: () => shareWrappedPoster(
+                            context,
+                            s,
+                            posterKey: _sharePosterKey,
+                          ),
+                          icon: const Icon(Icons.share_outlined),
+                          tooltip: '分享海报',
+                          color: Colors.white,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -288,7 +296,6 @@ class _SlideView extends StatelessWidget {
     required this.period,
     required this.stats,
     required this.isLast,
-    required this.onShare,
     this.sharePosterKey,
     this.onNext,
   });
@@ -297,7 +304,6 @@ class _SlideView extends StatelessWidget {
   final String period;
   final WrappedStats stats;
   final bool isLast;
-  final VoidCallback onShare;
   final GlobalKey? sharePosterKey;
   final VoidCallback? onNext;
 
@@ -338,30 +344,12 @@ class _SlideView extends StatelessWidget {
               const SizedBox(height: 14),
               ..._slideBody(),
               const Spacer(),
-              if (isLast) ...[
+              if (isLast)
                 RepaintBoundary(
                   key: sharePosterKey,
                   child: WrappedSharePreview(stats: stats),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: onShare,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.ink,
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  child: const Text('分享海报'),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '一图含经文与足迹 · 可发朋友圈',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 12,
-                  ),
-                ),
-              ] else if (onNext != null)
+                )
+              else if (onNext != null)
                 TextButton(
                   onPressed: onNext,
                   style: TextButton.styleFrom(foregroundColor: Colors.white70),
