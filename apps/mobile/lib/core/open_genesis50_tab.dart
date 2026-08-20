@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'genesis50_auth.dart';
+import 'open_external.dart';
 import 'theme.dart';
 
 const _channel = MethodChannel('cn.prestoai.peiai/app_update');
@@ -41,7 +42,8 @@ Future<bool> _openGenesis50TabNative(String url) async {
     });
     return true;
   } catch (_) {
-    return false;
+    // Custom Tabs 不可用时降级系统/小米浏览器（ACTION_VIEW）。
+    return openInAppBrowser(raw);
   }
 }
 

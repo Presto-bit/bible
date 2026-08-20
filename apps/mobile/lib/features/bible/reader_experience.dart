@@ -2446,6 +2446,14 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             ),
           if (_wordRange != null)
             Positioned.fill(
+              child: WordRangeHighlightOverlay(
+                overlayKey: _readerOverlayKey,
+                rangeListenable: _scroll,
+                range: _wordRange!,
+              ),
+            ),
+          if (_wordRange != null)
+            Positioned.fill(
               child: _SelectionHandlesOverlay(
                 overlayKey: _readerOverlayKey,
                 rangeListenable: _scroll,

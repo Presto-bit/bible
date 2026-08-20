@@ -17,15 +17,25 @@ import androidx.browser.customtabs.CustomTabsSession
  * UI：全屏；顶栏仅 ×（右侧）；纸白工具条；地址栏滚动收起；无分享/无标题。
  */
 object Genesis50CustomTabHelper {
-  private val browserPackages =
+  /** 仅列出确认支持 Custom Tabs 服务的浏览器（小米/系统浏览器走 ACTION_VIEW 降级）。 */
+  private val customTabPackages =
     listOf(
       "com.android.chrome",
       "com.google.android.apps.chrome",
       "com.chrome.beta",
       "com.chrome.dev",
       "com.chrome.canary",
+      "org.mozilla.firefox",
+      "com.microsoft.emmx",
+      "com.sec.android.app.sbrowser",
+    )
+
+  private val systemBrowserPackages =
+    listOf(
       "com.android.browser",
       "com.mi.globalbrowser",
+      "com.android.chrome",
+      "com.google.android.apps.chrome",
       "org.mozilla.firefox",
       "com.microsoft.emmx",
       "com.sec.android.app.sbrowser",
@@ -49,7 +59,7 @@ object Genesis50CustomTabHelper {
     if (uri.scheme != "http" && uri.scheme != "https") return false
 
     val pkg =
-      CustomTabsClient.getPackageName(activity, browserPackages, true)
+      CustomTabsClient.getPackageName(activity, customTabPackages, true)
         ?: return openFallbackBrowser(activity, uri)
 
     ensureBound(activity, pkg)
@@ -100,7 +110,7 @@ object Genesis50CustomTabHelper {
 
   /** 预热并保持 CustomTabsSession，缩短首开白屏。 */
   fun warmUp(activity: Activity) {
-    val pkg = CustomTabsClient.getPackageName(activity, browserPackages, true) ?: return
+    val pkg = CustomTabsClient.getPackageName(activity, customTabPackages, true) ?: return
     ensureBound(activity, pkg)
   }
 
@@ -134,12 +144,21 @@ object Genesis50CustomTabHelper {
   }
 
   private fun openFallbackBrowser(activity: Activity, uri: Uri): Boolean {
+    for (pkg in systemBrowserPackages) {
+      try {
+        val intent =
+          Intent(Intent.ACTION_VIEW, uri).apply {
+            setPackage(pkg)
+          }
+        if (activity.packageManager.resolveActivity(intent, 0) == null) continue
+        activity.startActivity(intent)
+        return true
+      } catch (_: Exception) {
+        // 试下一个浏览器
+      }
+    }
     return try {
-      activity.startActivity(
-        Intent(Intent.ACTION_VIEW, uri).apply {
-          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        },
-      )
+      activity.startActivity(Intent(Intent.ACTION_VIEW, uri))
       true
     } catch (_: Exception) {
       false

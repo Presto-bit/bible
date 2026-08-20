@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -129,6 +130,67 @@ class VerseTextLocator {
       return (run.start + (lo - vs), run.start + (hi - vs));
     }
     return null;
+  }
+
+  /// 节内字符区间 → RichText UTF-16 偏移（供选区 overlay / 手柄）。
+  (int start, int end)? offsetsForVerseChars(
+    int verse,
+    int charStart,
+    int charEnd,
+  ) {
+    for (final run in _runs) {
+      if (run.verse != verse || run.verseStart == null || run.words == null) {
+        continue;
+      }
+      final vs = run.verseStart!;
+      final runCharEnd = vs + run.length;
+      if (charEnd <= vs || charStart >= runCharEnd) continue;
+      final lo = charStart.clamp(vs, runCharEnd);
+      final hi = charEnd.clamp(vs, runCharEnd);
+      if (hi <= lo) continue;
+      return (run.start + (lo - vs), run.start + (hi - vs));
+    }
+    return null;
+  }
+
+  int verseTextLength(int verse) {
+    var len = 0;
+    for (final run in _runs) {
+      if (run.verse == verse && run.words != null) {
+        len = math.max(len, run.length);
+      }
+    }
+    return len;
+  }
+
+  Iterable<int> versesInParagraph() sync* {
+    final seen = <int>{};
+    for (final run in _runs) {
+      final v = run.verse;
+      if (v != null && v > 0 && seen.add(v)) yield v;
+    }
+  }
+
+  /// 当前 [range] 在本段该节内的字符起止（节内坐标）。
+  (int start, int end)? charRangeInSelection(int verse, WordRange range) {
+    final n = normalizeWordRange(range);
+    if (!n.verses.contains(verse)) return null;
+    final textLen = verseTextLength(verse);
+    if (textLen <= 0) return null;
+    final loV = n.anchor.verse;
+    final hiV = n.focus.verse;
+    if (loV == hiV) {
+      final lo = math.min(n.anchor.start, n.focus.start);
+      final hi = math.max(n.anchor.end, n.focus.end);
+      return (lo.clamp(0, textLen), hi.clamp(0, textLen));
+    }
+    if (verse == loV) {
+      return (n.anchor.start.clamp(0, textLen), textLen);
+    }
+    if (verse == hiV) {
+      return (0, n.focus.end.clamp(0, textLen));
+    }
+    return (0, textLen);
   }
 }
 
@@ -301,17 +363,55 @@ class SelectionHandleLayout {
   final double lineHeight;
 }
 
-/// 选区两端手柄锚点（全局坐标，落在首/末词块底边）。
+/// 选区两端手柄锚点（全局坐标，落在选区首尾字符底边）。
 ///
-/// WidgetSpan 词芯片与 [RenderParagraph.getBoxesForSelection] 不同步，
-/// 优先用词块 MetaData 定位，避免手柄漂到节间空白。
+/// 优先 [RenderParagraph.getBoxesForSelection]（与 PWA 系统选区一致）；
+/// 词典词块等 WidgetSpan 场景再回退 MetaData。
 SelectionHandleLayout? locateSelectionHandles(
   BuildContext context,
   WordRange range,
 ) {
-  final fromMeta = _locateSelectionHandlesViaMeta(context, range);
-  if (fromMeta != null) return fromMeta;
-  return _locateSelectionHandlesViaBoxes(context, range);
+  final fromBoxes = _locateSelectionHandlesViaBoxes(context, range);
+  if (fromBoxes != null) return fromBoxes;
+  return _locateSelectionHandlesViaMeta(context, range);
+}
+
+/// 收集词级选区高亮矩形（全局坐标，供 overlay 绘制）。
+List<Rect> collectWordRangeHighlightRects(
+  BuildContext context,
+  WordRange range,
+) {
+  final rects = <Rect>[];
+  final root = context.findRenderObject();
+  if (root == null) return rects;
+
+  void visit(RenderObject obj) {
+    if (obj is RenderMetaData && obj.metaData is VerseTextLocator) {
+      final locator = obj.metaData as VerseTextLocator;
+      final para = _paragraphOf(obj);
+      if (para == null) return;
+      final box = para as RenderBox;
+      for (final verse in locator.versesInParagraph()) {
+        final chars = locator.charRangeInSelection(verse, range);
+        if (chars == null) continue;
+        final utf = locator.offsetsForVerseChars(verse, chars.$1, chars.$2);
+        if (utf == null) continue;
+        final sel = TextSelection(
+          baseOffset: utf.$1,
+          extentOffset: utf.$2,
+        );
+        for (final tb in para.getBoxesForSelection(sel)) {
+          final r = tb.toRect();
+          final g = box.localToGlobal(r.topLeft);
+          rects.add(Rect.fromLTWH(g.dx, g.dy, r.width, r.height));
+        }
+      }
+    }
+    obj.visitChildren(visit);
+  }
+
+  visit(root);
+  return rects;
 }
 
 SelectionHandleLayout? _locateSelectionHandlesViaMeta(
@@ -328,7 +428,7 @@ SelectionHandleLayout? _locateSelectionHandlesViaMeta(
       final a = _anchorFromMeta(obj.metaData);
       if (a != null) {
         final edge = wordSelectionEdge(a.verse, a.start, a.end, range);
-        if (edge.left) startBox = obj;
+        if (edge.left && startBox == null) startBox = obj;
         if (edge.right) endBox = obj;
       }
     }
@@ -355,24 +455,35 @@ SelectionHandleLayout? _locateSelectionHandlesViaBoxes(
   final n = normalizeWordRange(range);
   RenderParagraph? startPara;
   RenderParagraph? endPara;
-  TextSelection? startSel;
-  TextSelection? endSel;
+  int? startOff;
+  int? endOff;
 
   void visit(RenderObject obj) {
-    if (obj is RenderMetaData) {
-      final data = obj.metaData;
-      if (data is VerseTextLocator) {
-        final para = _paragraphOf(obj);
-        if (para == null) return;
-        final aOff = data.offsetsForAnchor(n.anchor);
-        final fOff = data.offsetsForAnchor(n.focus);
-        if (aOff != null) {
-          startPara = para;
-          startSel = TextSelection(baseOffset: aOff.$1, extentOffset: aOff.$2);
+    if (obj is RenderMetaData && obj.metaData is VerseTextLocator) {
+      final locator = obj.metaData as VerseTextLocator;
+      final para = _paragraphOf(obj);
+      if (para == null) return;
+      if (locator.charRangeInSelection(n.anchor.verse, range) != null) {
+        final len = locator.verseTextLength(n.anchor.verse);
+        final cs = n.anchor.start.clamp(0, math.max(0, len - 1));
+        final aUtf = locator.offsetsForVerseChars(
+          n.anchor.verse,
+          cs,
+          math.min(cs + 1, len),
+        );
+        if (aUtf != null) {
+          startPara ??= para;
+          startOff ??= aUtf.$1;
         }
-        if (fOff != null) {
+      }
+      if (locator.charRangeInSelection(n.focus.verse, range) != null) {
+        final len = locator.verseTextLength(n.focus.verse);
+        final ce = n.focus.end.clamp(0, len);
+        final lo = math.max(0, ce - 1);
+        final fUtf = locator.offsetsForVerseChars(n.focus.verse, lo, ce);
+        if (fUtf != null) {
           endPara = para;
-          endSel = TextSelection(baseOffset: fOff.$1, extentOffset: fOff.$2);
+          endOff = fUtf.$2;
         }
       }
     }
@@ -384,12 +495,12 @@ SelectionHandleLayout? _locateSelectionHandlesViaBoxes(
   visit(root);
   final sp = startPara;
   final ep = endPara;
-  final ss = startSel;
-  final es = endSel;
-  if (sp == null || ep == null || ss == null || es == null) return null;
+  final so = startOff;
+  final eo = endOff;
+  if (sp == null || ep == null || so == null || eo == null) return null;
 
-  final startBoxes = sp.getBoxesForSelection(ss);
-  final endBoxes = ep.getBoxesForSelection(es);
+  final startBoxes = sp.getBoxesForSelection(TextSelection.collapsed(offset: so));
+  final endBoxes = ep.getBoxesForSelection(TextSelection.collapsed(offset: eo));
   if (startBoxes.isEmpty || endBoxes.isEmpty) return null;
 
   final startBox = sp as RenderBox;
@@ -656,6 +767,115 @@ class SelectableWordChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 词级选区底色 overlay（对齐 PWA CSS Highlight：不改 RichText 排版）。
+class WordRangeHighlightOverlay extends StatefulWidget {
+  const WordRangeHighlightOverlay({
+    super.key,
+    required this.overlayKey,
+    required this.rangeListenable,
+    required this.range,
+  });
+
+  final GlobalKey overlayKey;
+  final Listenable rangeListenable;
+  final WordRange range;
+
+  @override
+  State<WordRangeHighlightOverlay> createState() =>
+      _WordRangeHighlightOverlayState();
+}
+
+class _WordRangeHighlightOverlayState extends State<WordRangeHighlightOverlay> {
+  int _repaintThrottleMs = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.rangeListenable.addListener(_repaint);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _repaint(force: true));
+  }
+
+  @override
+  void didUpdateWidget(covariant WordRangeHighlightOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.rangeListenable != widget.rangeListenable) {
+      oldWidget.rangeListenable.removeListener(_repaint);
+      widget.rangeListenable.addListener(_repaint);
+    }
+    if (oldWidget.range != widget.range) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _repaint(force: true));
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.rangeListenable.removeListener(_repaint);
+    super.dispose();
+  }
+
+  void _repaint({bool force = false}) {
+    if (!mounted) return;
+    if (!force) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (now - _repaintThrottleMs < 80) return;
+      _repaintThrottleMs = now;
+    }
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locateCtx = widget.overlayKey.currentContext ?? context;
+    final globalRects = collectWordRangeHighlightRects(locateCtx, widget.range);
+    if (globalRects.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _repaint(force: true));
+      return const SizedBox.shrink();
+    }
+    final box =
+        widget.overlayKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _repaint(force: true));
+      return const SizedBox.shrink();
+    }
+
+    final localRects = globalRects
+        .map((r) {
+          final tl = box.globalToLocal(r.topLeft);
+          return Rect.fromLTWH(tl.dx, tl.dy, r.width, r.height);
+        })
+        .toList(growable: false);
+
+    return IgnorePointer(
+      child: CustomPaint(
+        size: box.size,
+        painter: _WordRangeHighlightPainter(localRects),
+      ),
+    );
+  }
+}
+
+class _WordRangeHighlightPainter extends CustomPainter {
+  _WordRangeHighlightPainter(this.rects);
+
+  final List<Rect> rects;
+  static const _color = Color(0x473390FF);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = _color;
+    for (final r in rects) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(r, const Radius.circular(3)),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WordRangeHighlightPainter old) =>
+      old.rects != rects;
 }
 
 /// 选区两端拖动手柄（对齐系统划选）。

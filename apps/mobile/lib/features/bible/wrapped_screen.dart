@@ -106,6 +106,7 @@ class WrappedScreen extends ConsumerStatefulWidget {
 class _WrappedScreenState extends ConsumerState<WrappedScreen> {
   late String _period;
   final _page = PageController();
+  final _sharePosterKey = GlobalKey();
   var _index = 0;
 
   @override
@@ -175,8 +176,15 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
                 itemBuilder: (context, i) => _SlideView(
                   slide: slides[i],
                   period: s.period,
+                  stats: s,
                   isLast: i == slides.length - 1,
-                  onShare: () => shareWrappedPoster(context, s),
+                  sharePosterKey:
+                      i == slides.length - 1 ? _sharePosterKey : null,
+                  onShare: () => shareWrappedPoster(
+                    context,
+                    s,
+                    posterKey: _sharePosterKey,
+                  ),
                   onNext: i < slides.length - 1
                       ? () => _page.animateToPage(
                             i + 1,
@@ -278,15 +286,19 @@ class _SlideView extends StatelessWidget {
   const _SlideView({
     required this.slide,
     required this.period,
+    required this.stats,
     required this.isLast,
     required this.onShare,
+    this.sharePosterKey,
     this.onNext,
   });
 
   final WrappedSlide slide;
   final String period;
+  final WrappedStats stats;
   final bool isLast;
   final VoidCallback onShare;
+  final GlobalKey? sharePosterKey;
   final VoidCallback? onNext;
 
   @override
@@ -327,6 +339,11 @@ class _SlideView extends StatelessWidget {
               ..._slideBody(),
               const Spacer(),
               if (isLast) ...[
+                RepaintBoundary(
+                  key: sharePosterKey,
+                  child: WrappedSharePreview(stats: stats),
+                ),
+                const SizedBox(height: 12),
                 FilledButton(
                   onPressed: onShare,
                   style: FilledButton.styleFrom(

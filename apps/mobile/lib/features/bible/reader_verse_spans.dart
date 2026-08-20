@@ -170,8 +170,8 @@ class _MergeBuf {
 
 /// 把一节的词跑写入 [spans] / [index]。
 ///
-/// idle 无词典、无选中：相邻同款式字符合成 TextSpan（对齐 HTML 可在字边界断行）。
-/// 词典与选中仍用芯片，供点按与手柄锚点。
+/// idle 与词选：相邻同款式字符合成 TextSpan（对齐 PWA / HTML 断行）。
+/// 仅词典命中使用 WidgetSpan 芯片；词选底色由 overlay 绘制，避免排版跳动。
 void appendReaderWordSpans({
   required List<InlineSpan> spans,
   required SpanIndexBuilder index,
@@ -209,27 +209,24 @@ void appendReaderWordSpans({
     if (w.start > cursor) {
       addGaps(verseText.substring(cursor, w.start));
     }
-    final activeWord =
+    final inWordSel =
         wordRange != null &&
         wordOverlapsRange(verse, w.start, w.end, wordRange);
-    final edge = wordRange != null && activeWord
-        ? wordSelectionEdge(verse, w.start, w.end, wordRange)
-        : (left: false, right: false);
     final markOnWord =
         mark != null &&
         (markInfo?.spanStart == null ||
             (w.start < (markInfo!.spanEnd ?? 0) &&
                 w.end > (markInfo.spanStart ?? 0)));
     var wordStyle = baseStyle;
-    if (!activeWord && markOnWord) {
+    if (markOnWord && !inWordSel) {
       wordStyle = applyHighlightStyle(baseStyle, mark: mark, disabled: false);
     }
-    if (resumeFlash && !activeWord) {
+    if (resumeFlash && !inWordSel) {
       wordStyle = wordStyle.copyWith(
         backgroundColor: AppColors.accent.withValues(alpha: 0.28),
       );
     }
-    if (hasThought && !activeWord) {
+    if (hasThought && !inWordSel) {
       wordStyle = readerThoughtSpanStyle(wordStyle, hasMyThought: hasMyThought);
     }
     final dictHit = !selectionActive
@@ -240,7 +237,7 @@ void appendReaderWordSpans({
     }
 
     final anchor = WordAnchor(verse: verse, start: w.start, end: w.end);
-    final needChip = activeWord || dictHit != null;
+    final needChip = dictHit != null;
 
     if (needChip) {
       merge.flush(spans, index);
@@ -253,14 +250,8 @@ void appendReaderWordSpans({
               anchor: anchor,
               text: w.text,
               style: wordStyle,
-              selected: activeWord,
-              edgeLeft: edge.left,
-              edgeRight: edge.right,
-              isDict: dictHit != null,
-              onTap: selectionActive
-                  ? () => onWordExtend?.call(verse, w.start, w.end)
-                  : null,
-              onDictTap: !selectionActive && dictHit != null
+              isDict: true,
+              onDictTap: !selectionActive
                   ? () => onOpenDict?.call(
                       dictHit.$1,
                       dictHit.$2,
@@ -275,7 +266,6 @@ void appendReaderWordSpans({
         );
         index.placeholder(anchor: anchor);
       } else {
-        // 预览与正文 layout 同构：词典仍用 WidgetSpan，仅禁交互，避免断行差异。
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.baseline,
@@ -285,10 +275,7 @@ void appendReaderWordSpans({
                 anchor: anchor,
                 text: w.text,
                 style: wordStyle,
-                selected: activeWord,
-                edgeLeft: edge.left,
-                edgeRight: edge.right,
-                isDict: dictHit != null,
+                isDict: true,
               ),
             ),
           ),

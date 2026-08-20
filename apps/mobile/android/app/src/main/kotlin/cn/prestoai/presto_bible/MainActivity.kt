@@ -150,6 +150,8 @@ class MainActivity : FlutterFragmentActivity() {
       "com.android.chrome",
       "com.google.android.apps.chrome",
       "com.chrome.beta",
+      "com.android.browser",
+      "com.mi.globalbrowser",
       "org.mozilla.firefox",
       "com.microsoft.emmx",
       "com.sec.android.app.sbrowser",

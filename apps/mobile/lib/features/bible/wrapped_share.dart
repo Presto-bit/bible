@@ -24,12 +24,96 @@ int _wallpaperDayFor(WrappedStats w) {
   return w.period == 'year' ? 21 : 14;
 }
 
+/// 分享海报组件（页内预览与离屏导出共用）。
+class WrappedSharePoster extends StatelessWidget {
+  const WrappedSharePoster({
+    super.key,
+    required this.stats,
+    this.onReady,
+  });
+
+  final WrappedStats stats;
+  final VoidCallback? onReady;
+
+  @override
+  Widget build(BuildContext context) {
+    return _WrappedSharePosterBody(stats: stats, onReady: onReady);
+  }
+}
+
+/// 最后一页海报预览（对齐 PWA `.wrapped-share-preview`）。
+class WrappedSharePreview extends StatelessWidget {
+  const WrappedSharePreview({super.key, required this.stats});
+
+  final WrappedStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: AspectRatio(
+            aspectRatio: 9 / 16,
+            child: FittedBox(
+              fit: BoxFit.contain,
+              child: SizedBox(
+                width: 360,
+                child: WrappedSharePoster(stats: stats),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 调起系统分享（优先海报图 + 文案）；失败回落纯文字。
 Future<bool> shareWrappedPoster(
   BuildContext context,
-  WrappedStats stats,
-) async {
+  WrappedStats stats, {
+  GlobalKey? posterKey,
+}) async {
   final shareText = wrappedShareText(stats);
+
+  RenderRepaintBoundary? boundary;
+  if (posterKey?.currentContext != null) {
+    boundary =
+        posterKey!.currentContext!.findRenderObject() as RenderRepaintBoundary?;
+  }
+
+  if (boundary != null) {
+    try {
+      final image = await boundary.toImage(pixelRatio: 3);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      if (byteData != null) {
+        final dir = await getTemporaryDirectory();
+        final file = File(
+          '${dir.path}/peiai_wrapped_${DateTime.now().millisecondsSinceEpoch}.png',
+        );
+        await file.writeAsBytes(byteData.buffer.asUint8List());
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path, mimeType: 'image/png')],
+            text: shareText,
+            subject: '${stats.label}｜彼爱',
+          ),
+        );
+        return true;
+      }
+    } catch (_) {
+      // 回落离屏渲染
+    }
+  }
+
   final overlay = Overlay.maybeOf(context);
   if (overlay == null) {
     await SharePlus.instance.share(ShareParams(text: shareText));
@@ -49,7 +133,7 @@ Future<bool> shareWrappedPoster(
           width: 360,
           child: RepaintBoundary(
             key: key,
-            child: _WrappedSharePoster(
+            child: _WrappedSharePosterBody(
               stats: stats,
               onReady: () {
                 if (!ready.isCompleted) ready.complete();
@@ -103,23 +187,24 @@ Future<bool> shareWrappedPoster(
   }
 }
 
-class _WrappedSharePoster extends StatefulWidget {
-  const _WrappedSharePoster({required this.stats, required this.onReady});
+class _WrappedSharePosterBody extends StatefulWidget {
+  const _WrappedSharePosterBody({required this.stats, this.onReady});
 
   final WrappedStats stats;
-  final VoidCallback onReady;
+  final VoidCallback? onReady;
 
   @override
-  State<_WrappedSharePoster> createState() => _WrappedSharePosterState();
+  State<_WrappedSharePosterBody> createState() =>
+      _WrappedSharePosterBodyState();
 }
 
-class _WrappedSharePosterState extends State<_WrappedSharePoster> {
+class _WrappedSharePosterBodyState extends State<_WrappedSharePosterBody> {
   var _fired = false;
 
   void _markReady() {
     if (_fired) return;
     _fired = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onReady());
+    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onReady?.call());
   }
 
   @override
