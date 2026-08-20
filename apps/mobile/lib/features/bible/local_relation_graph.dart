@@ -559,9 +559,26 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
             onOpenFullscreen: _isFullscreen ? null : widget.onOpenFullscreen,
           )
         else
-          const Text(
-            '点击节点或关系线查看详情',
-            style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '点击节点或关系线查看详情',
+                  style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                ),
+              ),
+              if (widget.onOpenFullscreen != null)
+                TextButton(
+                  onPressed: widget.onOpenFullscreen,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.accentDeep,
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('全屏关系图 ›', style: TextStyle(fontSize: 13)),
+                ),
+            ],
           ),
       ],
     );

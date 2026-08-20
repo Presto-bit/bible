@@ -10,6 +10,7 @@ import { refSpaceToOsis } from '@/lib/inline_ref';
 import {
   ENTITY_KNOWLEDGE_TAB_LABEL,
   entityGraphHref,
+  type EntityKnowledgeFrom,
   type EntityKnowledgeTab,
 } from '@/lib/entity_knowledge';
 import { mapStoryHref } from '@/lib/topic_routes';
@@ -41,6 +42,7 @@ export function EntityKnowledgePanel({
   onRefPreview,
   onNodeClick,
   graphTopicId,
+  from,
 }: {
   entity: DictEntity;
   knowledge: EntityKnowledge | null;
@@ -51,6 +53,7 @@ export function EntityKnowledgePanel({
   onRefPreview: (osis: string, label: string) => void;
   onNodeClick?: (entityId: string) => void;
   graphTopicId?: string | null;
+  from?: EntityKnowledgeFrom;
 }) {
   const mapPlaces = knowledge?.place ? [knowledge.place] : [];
 
@@ -87,7 +90,7 @@ export function EntityKnowledgePanel({
                 onRefClick={onRefPreview}
               />
               <div className="entity-knowledge-graph-links">
-                <Link href={entityGraphHref(entity.id ?? entity.name)} className="entity-knowledge-tour-link">
+                <Link href={entityGraphHref(entity.id ?? entity.name, { from })} className="entity-knowledge-tour-link">
                   全屏关系图 ›
                 </Link>
                 {graphTopicId ? (

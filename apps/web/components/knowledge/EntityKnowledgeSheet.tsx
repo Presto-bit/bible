@@ -176,6 +176,7 @@ export function EntityKnowledgeSheet({
             onRefPreview={onRefPreview}
             onNodeClick={onNodeClick}
             graphTopicId={graphTopicId}
+            from="reader"
           />
 
           <div className="entity-knowledge-foot">
@@ -183,7 +184,7 @@ export function EntityKnowledgeSheet({
               问小爱
             </button>
             <Link
-              href={entityDictionaryHref(entity)}
+              href={entityDictionaryHref(entity, { from: 'reader' })}
               className="btn"
               style={{ flex: 1, textAlign: 'center' }}
             >

@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/app_shell.dart' show navIndexProvider;
+import '../../core/api_client.dart' show prefsProvider;
 import '../../core/theme.dart';
+import '../../core/widgets/paper_card.dart';
 import 'bible_repository.dart';
 import 'models.dart';
 import 'reader_screen.dart' show readerJumpProvider;
@@ -99,9 +101,12 @@ class _ReadingReportScreenState extends ConsumerState<ReadingReportScreen> {
       }
       return (label: '$y 年', cells: cells);
     }
-    // year：不做筛选，固定显示「注册年（首个活动年）→ 当年」。
+    // year：注册年 → 当年（对齐 PWA registrationYear）。
     final endY = DateTime.now().year;
-    final startY = data.firstYear() <= endY ? data.firstYear() : endY;
+    final startY = ReviewData.registrationYear(
+      ref.read(prefsProvider),
+      data,
+    ).clamp(1970, endY);
     final cells = <_Cell>[];
     for (var y = startY; y <= endY; y++) {
       final s = DateTime(y, 1, 1).millisecondsSinceEpoch;
@@ -139,7 +144,9 @@ class _ReadingReportScreenState extends ConsumerState<ReadingReportScreen> {
     };
 
     return Scaffold(
+      backgroundColor: AppColors.paper,
       appBar: AppBar(
+        backgroundColor: AppColors.paper,
         title: const Text('读经回顾'),
         actions: [
           TextButton(
@@ -168,7 +175,7 @@ class _ReadingReportScreenState extends ConsumerState<ReadingReportScreen> {
           final cols = _mode == _Mode.day ? 7 : (_mode == _Mode.week ? 3 : 4);
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
               _ModeTabs(
                 mode: _mode,
@@ -178,93 +185,129 @@ class _ReadingReportScreenState extends ConsumerState<ReadingReportScreen> {
                 }),
               ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_mode != _Mode.year)
-                    IconButton(
-                        onPressed: () => _move(-1),
-                        icon: const Icon(Icons.chevron_left)),
-                  Text(grid.label,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  if (_mode != _Mode.year)
-                    IconButton(
-                        onPressed: () => _move(1),
-                        icon: const Icon(Icons.chevron_right)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (isCalendar)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    children: ['日', '一', '二', '三', '四', '五', '六']
-                        .map((d) => Expanded(
-                              child: Center(
-                                child: Text(d,
-                                    style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.inkFaint)),
-                              ),
-                            ))
-                        .toList(),
-                  ),
-                ),
-              GridView.count(
-                crossAxisCount: cols,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 6,
-                crossAxisSpacing: 6,
-                childAspectRatio: isCalendar ? 1 : 1.5,
-                children: cells.map((c) {
-                  if (c.blank) return const SizedBox.shrink();
-                  final active = _sel?.start == c.start;
-                  final intensity =
-                      c.minutes > 0 ? (0.18 + 0.82 * (c.minutes / maxMin)) : 0.0;
-                  return GestureDetector(
-                    onTap: () => setState(() {
-                      _sel = active
-                          ? null
-                          : (
-                              start: c.start,
-                              end: c.end,
-                              label: c.sub != null ? '${c.label} ${c.sub}' : c.label
-                            );
-                    }),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: c.minutes > 0
-                            ? AppColors.accentDeep.withValues(alpha: intensity)
-                            : AppColors.surface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: active ? AppColors.accentDeep : AppColors.line,
-                            width: active ? 2 : 1),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(c.label,
-                              style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w600)),
-                          if (c.sub != null)
-                            Text(c.sub!,
-                                style: const TextStyle(
-                                    fontSize: 10, color: AppColors.inkFaint)),
-                          if (c.minutes > 0)
-                            Text('${c.minutes}′',
-                                style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.accentDeep)),
-                        ],
-                      ),
+              PaperCard(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_mode != _Mode.year)
+                          IconButton(
+                            onPressed: () => _move(-1),
+                            icon: const Icon(Icons.chevron_left),
+                          ),
+                        Text(
+                          grid.label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                        if (_mode != _Mode.year)
+                          IconButton(
+                            onPressed: () => _move(1),
+                            icon: const Icon(Icons.chevron_right),
+                          ),
+                      ],
                     ),
-                  );
-                }).toList(),
+                    if (isCalendar) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: ['日', '一', '二', '三', '四', '五', '六']
+                            .map(
+                              (d) => Expanded(
+                                child: Center(
+                                  child: Text(
+                                    d,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.inkFaint,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    GridView.count(
+                      crossAxisCount: cols,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 6,
+                      crossAxisSpacing: 6,
+                      childAspectRatio: isCalendar ? 1 : 1.5,
+                      children: cells.map((c) {
+                        if (c.blank) return const SizedBox.shrink();
+                        final active = _sel?.start == c.start;
+                        final intensity = c.minutes > 0
+                            ? (0.18 + 0.82 * (c.minutes / maxMin))
+                            : 0.0;
+                        return GestureDetector(
+                          onTap: () => setState(() {
+                            _sel = active
+                                ? null
+                                : (
+                                    start: c.start,
+                                    end: c.end,
+                                    label: c.sub != null
+                                        ? '${c.label} ${c.sub}'
+                                        : c.label,
+                                  );
+                          }),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: c.minutes > 0
+                                  ? AppColors.accentDeep
+                                      .withValues(alpha: intensity)
+                                  : AppColors.surfaceSunken,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: active
+                                    ? AppColors.accentDeep
+                                    : AppColors.line,
+                                width: active ? 2 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  c.label,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (c.sub != null)
+                                  Text(
+                                    c.sub!,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.inkFaint,
+                                    ),
+                                  ),
+                                if (c.minutes > 0)
+                                  Text(
+                                    '${c.minutes} 分',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.accentDeep,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               Row(
                 children: [
                   _Tile(value: '${stats.minutes}', unit: '分钟', label: '阅读时长'),
@@ -274,10 +317,12 @@ class _ReadingReportScreenState extends ConsumerState<ReadingReportScreen> {
                   _Tile(value: '${stats.chapters}', unit: '章', label: '完成章节'),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text('当前统计：$statLabel',
-                  style: const TextStyle(fontSize: 12, color: AppColors.inkFaint)),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
+              Text(
+                '当前统计：$statLabel',
+                style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+              ),
+              const SizedBox(height: 18),
               _RankSection(
                 title: '常读的卷',
                 empty: '该时段暂无记录',

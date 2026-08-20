@@ -15,6 +15,7 @@ import '../assistant/assistant_seed.dart';
 import 'bible_repository.dart';
 import 'content_repository.dart';
 import 'dictionary_match.dart';
+import 'entity_graph_screen.dart';
 import 'local_relation_graph.dart';
 import 'reader_sheet.dart';
 
@@ -352,7 +353,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                         onRefClick: (ref) => _openRefPreview(context, ref),
                         onOpenFullscreen: widget.fullscreen
                             ? null
-                            : () => _openFullscreenView(tab: 'graph'),
+                            : _openFullscreenGraph,
                       )
                     : SingleChildScrollView(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -602,9 +603,9 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
   void _openFullscreenView({String? tab}) {
     if (widget.fullscreen) return;
     final targetTab = tab ?? _tab;
-    final nav = Navigator.of(context);
-    nav.push<void>(
+    Navigator.of(context, rootNavigator: true).push<void>(
       MaterialPageRoute<void>(
+        fullscreenDialog: true,
         builder: (_) => _EntityKnowledgeFullscreenPage(
           entity: _entity,
           displayName: entityDisplayName(_entity),
@@ -613,7 +614,25 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
         ),
       ),
     );
-    nav.pop();
+  }
+
+  void _openFullscreenGraph() {
+    if (widget.fullscreen) return;
+    final entityId = _entity.id.isNotEmpty ? _entity.id : _entity.name;
+    ref.read(entityKnowledgeProvider(entityId).future).then((k) {
+      if (!mounted) return;
+      final g = k.graph;
+      if (g == null || g.edges.isEmpty) return;
+      showEntityGraphScreen(
+        context,
+        entity: _entity,
+        graph: GraphData(
+          center: g.center ?? _entity,
+          nodes: g.nodes,
+          edges: g.edges,
+        ),
+      );
+    });
   }
 }
 

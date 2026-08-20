@@ -8,6 +8,7 @@ import '../../core/badge_stats.dart';
 import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/theme.dart';
 import 'content_repository.dart';
+import 'entity_knowledge_sheet.dart';
 import 'reader_screen.dart' show readerJumpProvider;
 
 class DictionaryScreen extends ConsumerStatefulWidget {
@@ -74,8 +75,16 @@ class _EntityCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return InkWell(
-      onTap: () =>
-          ref.read(badgeStatsRecorderProvider).recordDictEntity(entity.name),
+      onTap: () {
+        ref.read(badgeStatsRecorderProvider).recordDictEntity(entity.name);
+        showEntityKnowledgeSheet(
+          context,
+          ref,
+          entity: entity,
+          displayName: entity.name,
+          candidates: [entity],
+        );
+      },
       borderRadius: BorderRadius.circular(14),
       child: Container(
       padding: const EdgeInsets.all(16),

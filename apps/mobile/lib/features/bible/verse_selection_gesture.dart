@@ -615,7 +615,7 @@ class SelectableWordChip extends StatelessWidget {
       right: edgeRight ? const Radius.circular(3) : Radius.zero,
     );
     final textStyle = selected
-        ? style.copyWith(backgroundColor: _sel)
+        ? style.copyWith(backgroundColor: Colors.transparent)
         : style;
     Widget child = Text(
       text,
@@ -625,7 +625,29 @@ class SelectableWordChip extends StatelessWidget {
         applyHeightToLastDescent: false,
       ),
     );
-    if (selected && (edgeLeft || edgeRight)) {
+    if (selected) {
+      child = DecoratedBox(
+        decoration: BoxDecoration(
+          color: _sel,
+          borderRadius: radius,
+          boxShadow: [
+            if (!edgeLeft)
+              BoxShadow(
+                color: _sel,
+                offset: const Offset(-3, 0),
+                spreadRadius: 1,
+              ),
+            if (!edgeRight)
+              BoxShadow(
+                color: _sel,
+                offset: const Offset(3, 0),
+                spreadRadius: 1,
+              ),
+          ],
+        ),
+        child: child,
+      );
+    } else if (edgeLeft || edgeRight) {
       child = ClipRRect(borderRadius: radius, child: child);
     }
     return MetaData(

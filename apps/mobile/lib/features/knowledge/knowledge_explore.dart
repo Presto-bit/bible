@@ -13,7 +13,29 @@ import '../../core/ref_label.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
 import '../bible/content_repository.dart';
+import '../bible/local_relation_graph.dart';
 import '../bible/reader_screen.dart' show readerJumpProvider;
+
+DictEntity _graphFocusEntity(GraphData graph, GraphTopic topic) {
+  if (graph.center != null) return graph.center!;
+  if (graph.nodes.isNotEmpty) {
+    final n = graph.nodes.first;
+    return DictEntity(
+      id: n.id,
+      name: n.name,
+      type: n.type ?? 'term',
+      summary: '',
+      refs: const [],
+    );
+  }
+  return DictEntity(
+    id: topic.id,
+    name: topic.title,
+    type: 'term',
+    summary: '',
+    refs: const [],
+  );
+}
 
 class KnowledgeHub extends ConsumerWidget {
   const KnowledgeHub({super.key});
@@ -304,6 +326,33 @@ class GraphTopicDetailScreen extends ConsumerWidget {
   const GraphTopicDetailScreen({super.key, required this.topicId});
   final String topicId;
 
+  void _openGraphFullscreen(BuildContext context, GraphTopic topic, GraphData graph) {
+    final center = _graphFocusEntity(graph, topic);
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text('${topic.title} · 关系')),
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: LocalRelationGraph(
+              graph: graph,
+              focusEntity: center,
+              variant: LocalRelationGraphVariant.fullscreen,
+              onNodeClick: (nodeId) {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => GraphTopicDetailScreen(topicId: topicId),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(graphTopicProvider(topicId));
@@ -315,14 +364,37 @@ class GraphTopicDetailScreen extends ConsumerWidget {
         final topic = data.topic;
         final graph = data.graph;
         final nodeName = {for (final n in graph.nodes) n.id: n.name};
+        final center = _graphFocusEntity(graph, topic);
         return Scaffold(
-          appBar: AppBar(title: Text(topic.title)),
+          appBar: AppBar(
+            title: Text(topic.title),
+            actions: [
+              IconButton(
+                tooltip: '全屏关系图',
+                onPressed: () => _openGraphFullscreen(context, topic, graph),
+                icon: const Icon(Icons.fullscreen),
+              ),
+            ],
+          ),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               if (topic.subtitle != null)
                 Text(topic.subtitle!,
                     style: const TextStyle(color: AppColors.inkSoft)),
+              if (graph.edges.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 320,
+                  child: LocalRelationGraph(
+                    graph: graph,
+                    focusEntity: center,
+                    variant: LocalRelationGraphVariant.compact,
+                    onOpenFullscreen: () =>
+                        _openGraphFullscreen(context, topic, graph),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               ...graph.edges.map((e) {
                 final from = nodeName[e.from] ?? e.from;

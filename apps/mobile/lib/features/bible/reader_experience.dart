@@ -4955,7 +4955,8 @@ class _SelectionHandlesOverlayState extends State<_SelectionHandlesOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final layout = locateSelectionHandles(context, widget.range);
+    final locateCtx = widget.overlayKey.currentContext ?? context;
+    final layout = locateSelectionHandles(locateCtx, widget.range);
     if (layout == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _repaint(force: true));
       return const SizedBox.shrink();

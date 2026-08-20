@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type DictEntity, type EntityKnowledge } from '@/lib/api';
@@ -12,6 +12,7 @@ import {
   entityAnchorRef,
   entityAssistantQuestion,
   entityKnowledgeTabs,
+  type EntityKnowledgeFrom,
 } from '@/lib/entity_knowledge';
 import type { EntityKnowledgeTab } from '@/lib/entity_knowledge';
 import { EntityKnowledgeHeader, EntityKnowledgePanel } from '@/components/knowledge/EntityKnowledgePanel';
@@ -22,13 +23,23 @@ export function EntityKnowledgePage({
   entityId,
   backHref,
   backLabel,
+  from: fromProp,
 }: {
   entityId: string;
-  backHref: string;
-  backLabel: string;
+  backHref?: string;
+  backLabel?: string;
+  from?: EntityKnowledgeFrom;
 }) {
-  useEdgeSwipeBack({ href: backHref });
   const router = useRouter();
+  const sp = useSearchParams();
+  const from = (fromProp ?? sp.get('from') ?? undefined) as EntityKnowledgeFrom | undefined;
+  const resolvedBackHref = from === 'reader' ? undefined : (backHref ?? '/dictionary');
+  const resolvedBackLabel = from === 'reader' ? '读经' : (backLabel ?? '词典');
+
+  useEdgeSwipeBack({
+    href: resolvedBackHref ?? '/reader',
+    preferHistoryBack: from === 'reader',
+  });
 
   const [knowledge, setKnowledge] = useState<EntityKnowledge | null>(null);
   const [graphTopicId, setGraphTopicId] = useState<string | null>(null);
@@ -97,7 +108,9 @@ export function EntityKnowledgePage({
     return (
       <main className="container">
         <header className="page-head">
-          <PageBackBar href={backHref} label={backLabel} />
+          <PageBackBar href={resolvedBackHref} label={resolvedBackLabel} onClick={() => {
+            if (from === 'reader') router.back();
+          }} />
           <h2 className="page-head-title">词条</h2>
         </header>
         <p className="muted" style={{ marginTop: 16 }}>{err}</p>
@@ -109,7 +122,9 @@ export function EntityKnowledgePage({
     return (
       <main className="container">
         <header className="page-head">
-          <PageBackBar href={backHref} label={backLabel} />
+          <PageBackBar href={resolvedBackHref} label={resolvedBackLabel} onClick={() => {
+            if (from === 'reader') router.back();
+          }} />
           <h2 className="page-head-title">词条</h2>
         </header>
         <p className="muted" style={{ marginTop: 16 }}>加载中…</p>
@@ -120,7 +135,13 @@ export function EntityKnowledgePage({
   return (
     <main className="container entity-knowledge-page">
       <header className="page-head">
-        <PageBackBar href={backHref} label={backLabel} />
+        <PageBackBar
+          href={resolvedBackHref}
+          label={resolvedBackLabel}
+          onClick={() => {
+            if (from === 'reader') router.back();
+          }}
+        />
         <h2 className="page-head-title">{entity.name}</h2>
       </header>
 
@@ -136,6 +157,7 @@ export function EntityKnowledgePage({
           onRefPreview={(osis, label) => setPreview({ osis, label })}
           onNodeClick={handleNodeClick}
           graphTopicId={graphTopicId}
+          from={from}
         />
       </div>
 

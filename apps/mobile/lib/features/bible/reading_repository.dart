@@ -2,6 +2,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -403,7 +404,7 @@ class ReviewData {
     return best == null ? null : (best['chapter'] as num).toInt();
   }
 
-  /// 最早活动年份（无记录时返回当年）；用作「注册年」近似。
+  /// 最早活动年份（无记录时返回当年）。
   int firstYear() {
     int? minTs;
     for (final e in chapterEvents) {
@@ -412,6 +413,18 @@ class ReviewData {
     }
     if (minTs == null) return DateTime.now().year;
     return DateTime.fromMillisecondsSinceEpoch(minTs).year;
+  }
+
+  /// 注册/首次使用年份（对齐 Web `registrationYear()`）。
+  static int registrationYear(SharedPreferences prefs, ReviewData data) {
+    final raw = prefs.getString('presto_first_seen');
+    if (raw != null) {
+      final ts = int.tryParse(raw);
+      if (ts != null && ts > 0) {
+        return DateTime.fromMillisecondsSinceEpoch(ts).year;
+      }
+    }
+    return math.min(data.firstYear(), DateTime.now().year);
   }
 
   Map<String, BookProgress> bookProgress(
@@ -445,6 +458,13 @@ class ReviewData {
 
 final reviewDataProvider = FutureProvider<ReviewData>((ref) async {
   final db = ref.watch(dbProvider);
+  final prefs = ref.watch(prefsProvider);
+  if (!prefs.containsKey('presto_first_seen')) {
+    await prefs.setString(
+      'presto_first_seen',
+      '${DateTime.now().millisecondsSinceEpoch}',
+    );
+  }
   final logs = await db.allReadingLogs();
   final minutes = <String, int>{};
   final chapters = <String, int>{};
@@ -452,7 +472,6 @@ final reviewDataProvider = FutureProvider<ReviewData>((ref) async {
     minutes[l.date] = l.minutes;
     chapters[l.date] = l.chapters;
   }
-  final prefs = ref.watch(prefsProvider);
   List<Map<String, dynamic>> rd(String k) {
     final raw = userPrefGetString(prefs, k);
     if (raw == null || raw.isEmpty) return [];

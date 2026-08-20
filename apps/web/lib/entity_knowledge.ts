@@ -46,13 +46,28 @@ export function entityKnowledgeTabs(
   );
 }
 
-export function entityDictionaryHref(entity: DictEntity): string {
+export type EntityKnowledgeFrom = 'reader' | 'dictionary';
+
+export function entityDictionaryHref(
+  entity: DictEntity,
+  opts?: { from?: EntityKnowledgeFrom; tab?: string },
+): string {
   const id = entity.id ?? entity.name;
-  return `/dictionary/${encodeURIComponent(id)}`;
+  const q = new URLSearchParams();
+  if (opts?.from) q.set('from', opts.from);
+  if (opts?.tab) q.set('tab', opts.tab);
+  const qs = q.toString();
+  return `/dictionary/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`;
 }
 
-export function entityGraphHref(entityId: string): string {
-  return `/graph/${encodeURIComponent(entityId)}`;
+export function entityGraphHref(
+  entityId: string,
+  opts?: { from?: EntityKnowledgeFrom },
+): string {
+  const q = new URLSearchParams();
+  if (opts?.from) q.set('from', opts.from);
+  const qs = q.toString();
+  return `/graph/${encodeURIComponent(entityId)}${qs ? `?${qs}` : ''}`;
 }
 
 export function entityAnchorRef(entity: DictEntity): string {
