@@ -1,6 +1,9 @@
 /// 小爱回答正文解析：追问剥离、参考资料清理、流式安全截取（对齐 PWA `assistant_format.ts`）。
 library;
 
+export 'assistant_markdown.dart'
+    show extractSummaryLead, prepareAssistantDisplay, prepareAssistantMarkdown;
+
 final _followupSectionRe = RegExp(
   r'\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])',
 );
@@ -179,6 +182,3 @@ String streamingSafeBody(String text) {
   }
   return t;
 }
-
-export 'assistant_markdown.dart'
-    show extractSummaryLead, prepareAssistantDisplay, prepareAssistantMarkdown;

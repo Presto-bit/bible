@@ -264,7 +264,7 @@ class AnswerText extends StatelessWidget {
       }
 
       if (label != null) {
-        widgets.add(_sectionHeading(label.group(1)!, tail: label.group(2)));
+        widgets.add(_sectionHeading(label.group(1)!, tail: label.group(2) ?? ''));
         afterSection = (label.group(2) ?? '').isEmpty;
         i += 1;
         continue;
@@ -318,7 +318,7 @@ class AnswerText extends StatelessWidget {
           marker: _indexMarker('${circled.group(1)!} ', base),
           content: circled.group(2)!,
           base: base,
-        );
+        ));
         afterSection = false;
         i += 1;
         continue;
