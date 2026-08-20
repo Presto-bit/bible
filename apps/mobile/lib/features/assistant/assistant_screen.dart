@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../app/app_shell.dart';
@@ -15,8 +14,11 @@ import '../../core/config.dart';
 import '../../core/database/app_database.dart';
 import '../../core/badge_stats.dart';
 import '../../core/gamification.dart' show readingStreak;
+import '../../core/analysis_share_sheet.dart';
+import '../../core/reader_ref.dart';
 import '../../core/ref_label.dart' show refToChineseLabel;
 import '../../core/theme.dart';
+import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../bible/reading_repository.dart';
 import '../bible/thoughts_repository.dart';
 import 'answer_text.dart';
@@ -1513,23 +1515,54 @@ class _Bubble extends ConsumerWidget {
           if (showActions)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Row(
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 4,
                 children: [
                   _ActionText(
                     label: '复制',
                     onTap: () => _copy(context, stripFollowups(turn.content)),
                   ),
-                  const SizedBox(width: 16),
                   _ActionText(
                     label: '存想法',
                     onTap: () => _saveThought(context, ref),
                   ),
-                  const SizedBox(width: 16),
                   _ActionText(
                     label: '分享',
-                    onTap: () =>
-                        _share(context, ref, stripFollowups(turn.content)),
+                    onTap: () => showAnalysisShareSheet(
+                      context,
+                      ref,
+                      refLabel: anchorRef ?? '小爱的解读',
+                      refParam: anchorRef,
+                      answerText: turn.content,
+                    ),
                   ),
+                  if (readerJumpFromRef(anchorRef ?? '') != null)
+                    _ActionText(
+                      label: '继续读',
+                      onTap: () {
+                        final jump = readerJumpFromRef(anchorRef!);
+                        if (jump == null) return;
+                        ref
+                            .read(readerJumpProvider.notifier)
+                            .jump(jump.book, jump.chapter, verse: jump.verse);
+                        ref.read(navIndexProvider.notifier).set(1);
+                      },
+                    ),
+                  if (cites.isNotEmpty)
+                    _ActionText(
+                      label: '看来源',
+                      onTap: () {
+                        ref.read(badgeStatsRecorderProvider).recordCitationClick();
+                        showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          showDragHandle: true,
+                          builder: (ctx) =>
+                              _CitationBilingualSheet(citation: cites.first),
+                        );
+                      },
+                    ),
                 ],
               ),
             ),
@@ -1563,37 +1596,6 @@ class _Bubble extends ConsumerWidget {
         duration: Duration(milliseconds: 1500),
       ),
     );
-  }
-
-  Future<void> _share(BuildContext context, WidgetRef ref, String text) async {
-    Clipboard.setData(ClipboardData(text: text));
-    var payload = text;
-    try {
-      final id = await ref
-          .read(assistantRepoProvider)
-          .createAnalysisShareSnapshot(
-            answerMarkdown: text,
-            refLabel: anchorRef,
-            refParam: anchorRef,
-          );
-      if (id != null && id.isNotEmpty) {
-        final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
-        payload = '$text\n$base/share/analysis/$id';
-      }
-    } catch (_) {
-      // 快照失败则纯文案分享
-    }
-    try {
-      await SharePlus.instance.share(ShareParams(text: payload));
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('已复制，可粘贴分享到群或动态'),
-          duration: Duration(milliseconds: 1500),
-        ),
-      );
-    }
   }
 }
 

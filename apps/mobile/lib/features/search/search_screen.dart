@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/app_shell.dart';
 import '../../core/api_client.dart';
@@ -15,6 +16,8 @@ import '../../core/widgets/paper_card.dart';
 import '../knowledge/knowledge_explore.dart';
 import '../assistant/assistant_seed.dart';
 import '../bible/bible_repository.dart';
+import '../bible/content_repository.dart';
+import '../bible/dictionary_match.dart';
 import '../bible/reader_screen.dart'
     show readerJumpProvider, readerReturnProvider, ReaderReturnTarget;
 import '../notes/notes_repository.dart';
@@ -297,6 +300,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _ScopeTab.ot => '旧约',
       _ScopeTab.nt => '新约',
     };
+    final entityAsync = searchTooShort(searchQ)
+        ? const AsyncValue<List<DictEntity>>.data([])
+        : ref.watch(dictionaryProvider(searchQ));
+    final entityHits = entityAsync.maybeWhen(
+      data: (list) => list.take(8).toList(),
+      orElse: () => const <DictEntity>[],
+    );
+    final entityLoading = !searchTooShort(searchQ) && entityAsync.isLoading;
 
     return Scaffold(
       backgroundColor: AppColors.paper,
@@ -368,6 +379,73 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ],
           if (!searchTooShort(searchQ)) ...[
             const SizedBox(height: 18),
+            if (entityLoading || entityHits.isNotEmpty) ...[
+              const Text(
+                '人物与地点',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              if (entityLoading)
+                const Text(
+                  '查找词条…',
+                  style: TextStyle(fontSize: 13, color: AppColors.inkFaint),
+                )
+              else
+                ...entityHits.map(
+                  (ent) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: PaperCard(
+                      padding: const EdgeInsets.all(12),
+                      onTap: () {
+                        _saveHistory(searchQ);
+                        context.push(
+                          '/dictionary/${Uri.encodeComponent(ent.id)}',
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  entityDisplayName(ent),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              if (entityTypeLabel(ent.type).isNotEmpty)
+                                Text(
+                                  entityTypeLabel(ent.type),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.inkFaint,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (ent.summary.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              ent.summary.length > 48
+                                  ? '${ent.summary.substring(0, 48)}…'
+                                  : ent.summary,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.inkFaint,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 8),
+            ],
             Row(
               children: [
                 const Text(

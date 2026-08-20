@@ -14,6 +14,9 @@ class Group {
     this.joinCode,
     required this.role,
     this.members = 0,
+    this.myCheckedInToday = false,
+    this.checkedInToday = 0,
+    this.openTasks = 0,
   });
   final String id;
   final String name;
@@ -21,6 +24,9 @@ class Group {
   final String? joinCode;
   final String role;
   final int members;
+  final bool myCheckedInToday;
+  final int checkedInToday;
+  final int openTasks;
 
   bool get isOwner => role == 'owner';
 
@@ -31,6 +37,9 @@ class Group {
         joinCode: j['join_code'] as String?,
         role: (j['role'] ?? 'member') as String,
         members: (j['members'] ?? 0) as int,
+        myCheckedInToday: (j['my_checked_in_today'] ?? false) as bool,
+        checkedInToday: (j['checked_in_today'] ?? 0) as int,
+        openTasks: (j['open_tasks'] ?? 0) as int,
       );
 }
 

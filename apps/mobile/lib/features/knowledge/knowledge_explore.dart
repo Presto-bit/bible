@@ -51,22 +51,22 @@ class KnowledgeHub extends ConsumerWidget {
       (
         '地图故事',
         Icons.map_outlined,
-        () => context.push('/search/map'),
+        () => openH5IfAllowed(context, '/search/map/exodus-wilderness'),
       ),
       (
         '历史时间线',
         Icons.timeline,
-        () => context.push('/search/timeline'),
+        () => openH5IfAllowed(context, '/search/timeline/life-of-jesus'),
       ),
       (
         '关系专题',
         Icons.hub_outlined,
-        () => context.push('/search/graph'),
+        () => openH5IfAllowed(context, '/search/graph/exodus-core'),
       ),
       (
         '圣经图鉴',
         Icons.account_tree_outlined,
-        () => context.push('/search/diagrams'),
+        () => openH5IfAllowed(context, '/search/diagrams/tabernacle-layout'),
       ),
       (
         '圣经词典',

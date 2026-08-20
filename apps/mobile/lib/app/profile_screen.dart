@@ -8,8 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:share_plus/share_plus.dart';
-
 import 'app_shell.dart' show navIndexProvider, peiaiTabContentBottomPad;
 import '../core/api_client.dart';
 import '../core/app_update.dart';
@@ -41,6 +39,7 @@ import '../features/plans/plans_repository.dart';
 import '../core/widgets/paper_card.dart';
 import '../core/notifications.dart';
 import '../core/notif_prefs.dart';
+import '../core/share_card.dart';
 import '../core/user_storage.dart';
 import '../features/social/social_repository.dart';
 
@@ -562,11 +561,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   padding: const EdgeInsets.all(8),
                   visualDensity: VisualDensity.compact,
-                  onPressed: () {
-                    Share.share(
-                      '彼爱 · 安静读经，在话语中相遇\nhttps://2sc.prestoai.cn',
-                      subject: '彼爱',
-                    );
+                  onPressed: () async {
+                    final code = ref.read(sessionProvider).effectiveUserCode;
+                    await shareInviteProduct(context, userCode: code);
                   },
                   icon: const Icon(Icons.ios_share_outlined, size: 22),
                 ),
@@ -767,7 +764,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     TextButton(
                       onPressed: () async {
-                        Share.share('我在彼爱已同行读经 $milestone 天。愿话语继续同行。');
+                        await shareBrandCard(
+                          context,
+                          ShareCardInput(
+                            title: '已同行 $milestone 天',
+                            subtitle: name,
+                            body: '在彼爱安静读经，一天又一天。愿话语继续同行。',
+                            footer: '彼爱 · 安静读经，在话语中相遇',
+                            badge: '读经同行',
+                            day: milestone! > 28 ? 28 : milestone!,
+                            shareText:
+                                '我在彼爱已同行读经 $milestone 天。愿话语继续同行。\n${AppConfig.webBaseUrl}/share/app?l1=share&l2=system_share&l3=streak:$milestone',
+                            subject: '已同行 $milestone 天｜彼爱',
+                          ),
+                        );
                         await markStreakMilestoneShared(prefs, milestone!);
                         if (mounted) setState(() {});
                       },
@@ -806,10 +816,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   isNew: thoughtNew,
                   onLongPress: thoughtPreview.isEmpty
                       ? null
-                      : () => Share.share(
-                          '我在彼爱写下的一句感受：\n$thoughtPreview\n\n彼爱 · 安静读经，在话语中相遇',
-                          subject: '读经笔记',
-                        ),
+                      : () => shareBrandCard(
+                            context,
+                            ShareCardInput(
+                              title: '读经笔记',
+                              body: thoughtPreview,
+                              badge: '足迹',
+                              shareText:
+                                  '我在彼爱写下的一句感受：\n$thoughtPreview\n\n彼爱 · 安静读经，在话语中相遇',
+                              subject: '读经笔记',
+                            ),
+                          ),
                   onTap: () async {
                     await markFootprintSeen(prefs, 'thoughts', thoughts.length);
                     if (!context.mounted) return;
@@ -825,10 +842,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   isNew: markNew,
                   onLongPress: markPreview.isEmpty
                       ? null
-                      : () => Share.share(
-                          '我在彼爱标记了一处经文：$markPreview\n\n彼爱 · 安静读经，在话语中相遇',
-                          subject: '经文划线',
-                        ),
+                      : () => shareBrandCard(
+                            context,
+                            ShareCardInput(
+                              title: '经文划线',
+                              body: markPreview,
+                              badge: '足迹',
+                              shareText:
+                                  '我在彼爱标记了一处经文：$markPreview\n\n彼爱 · 安静读经，在话语中相遇',
+                              subject: '经文划线',
+                            ),
+                          ),
                   onTap: () async {
                     await markFootprintSeen(prefs, 'marks', highlights);
                     if (!context.mounted) return;
@@ -1145,6 +1169,36 @@ class _ShortcutTabs extends ConsumerStatefulWidget {
 class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
   /// challenge | remind | offline — 对齐 PWA 常用 tab 面板
   String _tab = 'challenge';
+  var _remindBusy = false;
+
+  static const _remindSlots = [
+    (key: 'morning', label: '晨读', hour: 7, minute: 0),
+    (key: 'noon', label: '午间', hour: 12, minute: 30),
+    (key: 'evening', label: '晚读', hour: 21, minute: 0),
+  ];
+
+  Future<void> _applyRemindSlot(int hour, int minute) async {
+    if (_remindBusy) return;
+    setState(() => _remindBusy = true);
+    try {
+      final prefs = ref.read(prefsProvider);
+      if (!NotifPrefs.dailyEnabled(prefs)) {
+        final ok = await NotificationService.instance.requestPermission();
+        if (!ok && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('请在系统设置中允许通知')),
+          );
+          return;
+        }
+        await NotifPrefs.setDailyEnabled(prefs, true);
+      }
+      await NotifPrefs.setDailyTime(prefs, hour: hour, minute: minute);
+      await NotificationService.instance.scheduleDaily(hour, minute);
+      if (mounted) setState(() {});
+    } finally {
+      if (mounted) setState(() => _remindBusy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1255,6 +1309,23 @@ class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
                     fontSize: 12,
                     color: AppColors.inkFaint,
                   ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _remindSlots.map((slot) {
+                    final active = remindOn &&
+                        hour == slot.hour &&
+                        minute == slot.minute;
+                    return ChoiceChip(
+                      label: Text(slot.label, style: const TextStyle(fontSize: 12)),
+                      selected: active,
+                      onSelected: _remindBusy
+                          ? null
+                          : (_) => _applyRemindSlot(slot.hour, slot.minute),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 12),
                 Row(

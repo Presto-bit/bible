@@ -32,6 +32,26 @@ export const H5_WHITELIST: readonly H5WhitelistEntry[] = [
     pathPrefix: '/search/series',
     note: '故事图册（出埃及等）',
   },
+  {
+    surface: 'story_series',
+    pathPrefix: '/search/map',
+    note: '地图故事',
+  },
+  {
+    surface: 'story_series',
+    pathPrefix: '/search/timeline',
+    note: '历史时间线故事',
+  },
+  {
+    surface: 'story_series',
+    pathPrefix: '/search/graph',
+    note: '关系专题故事',
+  },
+  {
+    surface: 'story_series',
+    pathPrefix: '/search/diagrams',
+    note: '圣经图鉴故事',
+  },
   { surface: 'legal_help', pathPrefix: '/help', note: '帮助中心' },
   { surface: 'legal_help', pathPrefix: '/feedback', note: '反馈' },
   { surface: 'legal_help', pathPrefix: '/legal', note: '协议/隐私' },

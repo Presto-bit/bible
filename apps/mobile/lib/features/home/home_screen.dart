@@ -41,6 +41,7 @@ import 'home_growth_cards.dart';
 import 'home_hero_carousel.dart';
 import 'home_hero_metrics.dart';
 import 'home_onboarding_banner.dart';
+import 'home_group_line.dart';
 import 'home_today_builder.dart';
 import 'home_today_panel.dart';
 import '../search/search_screen.dart';
@@ -458,15 +459,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final groups = ref
         .watch(myGroupsProvider)
         .maybeWhen(data: (g) => g, orElse: () => const <Group>[]);
-    String? groupTitle;
-    String? groupSub;
-    if (groups.isEmpty) {
-      groupTitle = '创建共读';
-      groupSub = '创建或加入';
-    } else {
-      groupTitle = '${groups.length} 个群';
-      groupSub = '进入消息';
-    }
+    final discoverSummary = ref
+        .watch(discoverSummaryProvider)
+        .maybeWhen(data: (d) => d, orElse: () => null);
+    final groupRail = buildHomeGroupRailInput(groups, discoverSummary);
+    final groupTitle = groupRail.title;
+    final groupSub = groupRail.sub;
+    final groupStatLabel = groupRail.statLabel;
 
     final prayerTitle = () {
       if (activeEntry.isEmpty) return null;
@@ -499,6 +498,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         prayerTitle: prayerTitle,
         groupTitle: groupTitle,
         groupSub: groupSub,
+        groupStatLabel: groupStatLabel,
         campaigns: rails,
         planDoneToday: isPlanDayDoneToday(prefs),
         readToday: readToday,
