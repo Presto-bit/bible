@@ -465,7 +465,7 @@ SelectionHandleLayout? _locateSelectionHandlesViaBoxes(
       if (para == null) return;
       if (locator.charRangeInSelection(n.anchor.verse, range) != null) {
         final len = locator.verseTextLength(n.anchor.verse);
-        final cs = n.anchor.start.clamp(0, math.max(0, len - 1));
+        final cs = math.min(math.max(n.anchor.start, 0), math.max(0, len - 1));
         final aUtf = locator.offsetsForVerseChars(
           n.anchor.verse,
           cs,
@@ -478,7 +478,7 @@ SelectionHandleLayout? _locateSelectionHandlesViaBoxes(
       }
       if (locator.charRangeInSelection(n.focus.verse, range) != null) {
         final len = locator.verseTextLength(n.focus.verse);
-        final ce = n.focus.end.clamp(0, len);
+        final ce = math.min(math.max(n.focus.end, 0), len);
         final lo = math.max(0, ce - 1);
         final fUtf = locator.offsetsForVerseChars(n.focus.verse, lo, ce);
         if (fUtf != null) {
