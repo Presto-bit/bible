@@ -26,14 +26,39 @@ class ReaderSheetCloseButton extends StatelessWidget {
   }
 }
 
+/// 半屏高度契约（对齐 PWA 词条卡 / 关系图不同 max-height）。
+class ReaderSheetSize {
+  const ReaderSheetSize({required this.heightFactor, this.maxHeight});
+
+  final double heightFactor;
+  final double? maxHeight;
+}
+
 Future<T?> showReaderSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool isScrollControlled = true,
   double? heightFactor,
   double? maxHeight,
+  ValueNotifier<ReaderSheetSize>? sizeListenable,
 }) {
-  final factor = (heightFactor ?? 0.88).clamp(0.42, 0.92);
+  final initial = ReaderSheetSize(
+    heightFactor: heightFactor ?? 0.88,
+    maxHeight: maxHeight,
+  );
+  final sizes = sizeListenable ?? ValueNotifier(initial);
+  if (sizeListenable == null && (heightFactor != null || maxHeight != null)) {
+    sizes.value = initial;
+  }
+
+  double resolveHeight(BuildContext ctx, ReaderSheetSize size) {
+    final screenH = MediaQuery.sizeOf(ctx).height;
+    final factor = size.heightFactor.clamp(0.42, 0.92);
+    var maxH = screenH * factor;
+    if (size.maxHeight != null) maxH = maxH.clamp(0, size.maxHeight!);
+    return maxH;
+  }
+
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: isScrollControlled,
@@ -43,55 +68,61 @@ Future<T?> showReaderSheet<T>({
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.35),
     builder: (ctx) {
-      final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-      final screenH = MediaQuery.sizeOf(ctx).height;
-      var maxH = screenH * factor;
-      if (maxHeight != null) maxH = maxH.clamp(0, maxHeight);
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => Navigator.of(ctx).pop(),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.only(bottom: bottom),
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: GestureDetector(
-                onTap: () {},
-                child: Material(
-                  color: AppColors.paper,
-                  elevation: 12,
-                  shadowColor: Colors.black.withValues(alpha: 0.12),
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(20)),
-                  clipBehavior: Clip.antiAlias,
-                  child: SizedBox(
-                    height: maxH,
-                    width: double.infinity,
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 10),
-                        Container(
-                          width: 36,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AppColors.line,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
+      return ValueListenableBuilder<ReaderSheetSize>(
+        valueListenable: sizes,
+        builder: (ctx, size, _) {
+          final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
+          final maxH = resolveHeight(ctx, size);
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => Navigator.of(ctx).pop(),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.only(bottom: bottom),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: GestureDetector(
+                    onTap: () {},
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                      height: maxH,
+                      width: double.infinity,
+                      child: Material(
+                        color: AppColors.paper,
+                        elevation: 12,
+                        shadowColor: Colors.black.withValues(alpha: 0.12),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
                         ),
-                        const SizedBox(height: 6),
-                        Expanded(child: builder(ctx)),
-                      ],
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 10),
+                            Container(
+                              width: 36,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: AppColors.line,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Expanded(child: builder(ctx)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       );
     },
   );

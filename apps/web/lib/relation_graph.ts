@@ -68,6 +68,7 @@ export function computeRelationLayout({
   cx,
   cy,
   baseR,
+  strictNeighborsOnly = false,
 }: {
   centerId: string;
   centerNode: EntityGraphNode;
@@ -76,6 +77,7 @@ export function computeRelationLayout({
   cx: number;
   cy: number;
   baseR: number;
+  strictNeighborsOnly?: boolean;
 }): { layoutNodes: RelationLayoutNode[]; drawableEdges: { edge: EntityRelation; index: number }[] } {
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   const neighborEdges = centerNeighborEdges(centerId, edges);
@@ -95,23 +97,33 @@ export function computeRelationLayout({
     if (!peerBuckets[cat].includes(peer)) peerBuckets[cat].push(peer);
   }
 
-  for (const n of nodes) {
-    if (n.id === centerId || peerEdge.has(n.id)) continue;
-    peerBuckets.companion.push(n.id);
+  if (!strictNeighborsOnly) {
+    for (const n of nodes) {
+      if (n.id === centerId || peerEdge.has(n.id)) continue;
+      peerBuckets.companion.push(n.id);
+    }
   }
 
   const ringOrder: (keyof typeof peerBuckets)[] = ['family', 'companion', 'place', 'event'];
   const ringRadii = [baseR * 0.82, baseR, baseR * 1.14, baseR * 1.28];
   const positions = new Map<string, { x: number; y: number }>();
 
-  ringOrder.forEach((cat, ringIdx) => {
-    const ids = peerBuckets[cat];
-    const r = ringRadii[ringIdx] ?? baseR;
-    ids.forEach((id, i) => {
-      const angle = (2 * Math.PI * i) / Math.max(ids.length, 1) - Math.PI / 2 + ringIdx * 0.12;
-      positions.set(id, { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+  if (strictNeighborsOnly) {
+    const peers = [...peerEdge.keys()];
+    peers.forEach((id, i) => {
+      const angle = (2 * Math.PI * i) / Math.max(peers.length, 1) - Math.PI / 2;
+      positions.set(id, { x: cx + baseR * Math.cos(angle), y: cy + baseR * Math.sin(angle) });
     });
-  });
+  } else {
+    ringOrder.forEach((cat, ringIdx) => {
+      const ids = peerBuckets[cat];
+      const r = ringRadii[ringIdx] ?? baseR;
+      ids.forEach((id, i) => {
+        const angle = (2 * Math.PI * i) / Math.max(ids.length, 1) - Math.PI / 2 + ringIdx * 0.12;
+        positions.set(id, { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+      });
+    });
+  }
 
   const layoutNodes: RelationLayoutNode[] = [
     { node: centerNode, x: cx, y: cy, isCenter: true },
@@ -133,27 +145,31 @@ export function computeRelationLayout({
     });
   });
 
-  for (const [id, pos] of positions) {
-    if (id === centerId || layoutNodes.some((n) => n.node.id === id)) continue;
-    const found = nodeById.get(id);
-    layoutNodes.push({
-      node: found ?? { id, name: id, type: 'unknown' },
-      x: pos.x,
-      y: pos.y,
-      isCenter: false,
-    });
+  if (!strictNeighborsOnly) {
+    for (const [id, pos] of positions) {
+      if (id === centerId || layoutNodes.some((n) => n.node.id === id)) continue;
+      const found = nodeById.get(id);
+      layoutNodes.push({
+        node: found ?? { id, name: id, type: 'unknown' },
+        x: pos.x,
+        y: pos.y,
+        isCenter: false,
+      });
+    }
   }
 
-  const drawableEdges = edges
-    .map((edge, index) => ({ edge, index }))
-    .filter(({ edge }) => {
-      const a = positions.has(edge.from) || edge.from === centerId;
-      const b = positions.has(edge.to) || edge.to === centerId;
-      return (edge.from === centerId || positions.has(edge.from))
-        && (edge.to === centerId || positions.has(edge.to))
-        && (a || edge.from === centerId)
-        && (b || edge.to === centerId);
-    });
+  const drawableEdges: { edge: EntityRelation; index: number }[] = strictNeighborsOnly
+    ? neighborEdges.map((edge, index) => ({ edge, index }))
+    : edges
+        .map((edge, index) => ({ edge, index }))
+        .filter(({ edge }) => {
+          const a = positions.has(edge.from) || edge.from === centerId;
+          const b = positions.has(edge.to) || edge.to === centerId;
+          return (edge.from === centerId || positions.has(edge.from))
+            && (edge.to === centerId || positions.has(edge.to))
+            && (a || edge.from === centerId)
+            && (b || edge.to === centerId);
+        });
 
   return { layoutNodes, drawableEdges };
 }

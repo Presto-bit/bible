@@ -97,6 +97,7 @@ export function LocalRelationGraph({
       cx,
       cy,
       baseR,
+      strictNeighborsOnly: edgeFilter !== 'all',
     });
     const pos = new Map(nodes.map((n) => [n.node.id, { x: n.x, y: n.y }]));
     return { layoutNodes: nodes, drawableEdges: draw, positions: pos };

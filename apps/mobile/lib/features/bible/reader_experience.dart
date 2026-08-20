@@ -485,9 +485,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   void _beginPagePointer(PointerDownEvent e, {required bool swipeOn}) {
-    if (!swipeOn || _pageTurnAnimating || _selectionGestureActive || _swipeIgnored) {
-      return;
-    }
+    if (!swipeOn || _pageTurnAnimating || _swipeIgnored) return;
     if (_pagePointerId != null) return;
     if (shouldYieldPageTurn(context, e.position)) return;
     _pagePointerId = e.pointer;
@@ -858,7 +856,13 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     if (!_scroll.hasClients) return;
     final cur = _scroll.position.pixels;
     _trackScrollProgress();
-    if (_selected.isNotEmpty) _scheduleFocusBarLayout();
+    if (_selected.isNotEmpty) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (now - _focusBarScrollThrottleMs > 80) {
+        _focusBarScrollThrottleMs = now;
+        _scheduleFocusBarLayout();
+      }
+    }
 
     // 章末读完轻提示（对齐 PWA ChapterCompleteTip；专注模式 / 计划模式关闭）
     if (!_chapterBottomFired &&
@@ -892,9 +896,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           ),
         );
       }
-    }
-    if (_selected.isNotEmpty) {
-      _scheduleFocusBarLayout();
     }
   }
 
@@ -1115,6 +1116,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   bool _focusBarLayoutScheduled = false;
+  int _focusBarScrollThrottleMs = 0;
   int? _cachedDictRev;
   Map<String, List<DictEntity>>? _cachedDictIndex;
   List<String>? _cachedDictKeys;
@@ -2445,6 +2447,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           if (_wordRange != null)
             Positioned.fill(
               child: _SelectionHandlesOverlay(
+                overlayKey: _readerOverlayKey,
                 rangeListenable: _scroll,
                 range: _wordRange!,
                 onDrag: _dragSelectionHandle,
@@ -4892,6 +4895,7 @@ class _ChapterCompleteTip extends StatelessWidget {
 /// 选区两端拖动手柄层（对齐 PWA 左右锚点）。
 class _SelectionHandlesOverlay extends StatefulWidget {
   const _SelectionHandlesOverlay({
+    required this.overlayKey,
     required this.rangeListenable,
     required this.range,
     required this.onDrag,
@@ -4899,6 +4903,7 @@ class _SelectionHandlesOverlay extends StatefulWidget {
     required this.onGestureChanged,
   });
 
+  final GlobalKey overlayKey;
   final Listenable rangeListenable;
   final WordRange range;
   final void Function(Offset global, {required bool isStart}) onDrag;
@@ -4911,11 +4916,13 @@ class _SelectionHandlesOverlay extends StatefulWidget {
 }
 
 class _SelectionHandlesOverlayState extends State<_SelectionHandlesOverlay> {
+  int _repaintThrottleMs = 0;
+
   @override
   void initState() {
     super.initState();
     widget.rangeListenable.addListener(_repaint);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _repaint());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _repaint(force: true));
   }
 
   @override
@@ -4925,7 +4932,9 @@ class _SelectionHandlesOverlayState extends State<_SelectionHandlesOverlay> {
       oldWidget.rangeListenable.removeListener(_repaint);
       widget.rangeListenable.addListener(_repaint);
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _repaint());
+    if (oldWidget.range != widget.range) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _repaint(force: true));
+    }
   }
 
   @override
@@ -4934,19 +4943,29 @@ class _SelectionHandlesOverlayState extends State<_SelectionHandlesOverlay> {
     super.dispose();
   }
 
-  void _repaint() {
-    if (mounted) setState(() {});
+  void _repaint({bool force = false}) {
+    if (!mounted) return;
+    if (!force) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (now - _repaintThrottleMs < 80) return;
+      _repaintThrottleMs = now;
+    }
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final layout = locateSelectionHandles(context, widget.range);
     if (layout == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _repaint());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _repaint(force: true));
       return const SizedBox.shrink();
     }
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return const SizedBox.shrink();
+    final box =
+        widget.overlayKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _repaint(force: true));
+      return const SizedBox.shrink();
+    }
 
     final start = box.globalToLocal(layout.start);
     final end = box.globalToLocal(layout.end);

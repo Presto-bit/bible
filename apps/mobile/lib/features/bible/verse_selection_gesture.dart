@@ -505,10 +505,10 @@ class VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         }
         _anchor = w;
         _lastFocus = w;
-        _notifyGesture(true);
         _lp = Timer(const Duration(milliseconds: 360), () {
           if (!mounted || _anchor == null || _dragging) return;
           _armed = true;
+          _notifyGesture(true);
           widget.onApplyRange(_anchor!, _anchor!, commit: true);
           HapticFeedback.selectionClick();
         });
@@ -520,16 +520,14 @@ class VerseSelectionSurfaceState extends State<VerseSelectionSurface> {
         if (down == null) return;
         final dist = (e.position - down).distance;
         if (!_armed) {
-          // 长按等待：只有明确滚/翻方向才放弃；避免 iOS 式拖扩被误判为滚动。
-          if (dist >= 18) {
+          // 长按等待：仅明确竖滚才放弃；横移留给拖扩选 / 翻章轴锁。
+          if (dist >= 22) {
             final dx = (e.position.dx - down.dx).abs();
             final dy = (e.position.dy - down.dy).abs();
-            if ((dy >= 18 && dy > dx * 1.5) ||
-                (dx >= 18 && dx > dy * 1.5)) {
+            if (dy >= 22 && dy > dx * 1.8) {
               _clearLp();
               _anchor = null;
               _lastFocus = null;
-              _notifyGesture(false);
             }
           }
           return;
@@ -666,15 +664,17 @@ class VerseSelectionHandles extends StatelessWidget {
   Widget build(BuildContext context) {
     return PageTurnYield(
       child: Stack(
+        clipBehavior: Clip.none,
+        fit: StackFit.expand,
         children: [
-          _handle(context, start, isStart: true),
-          _handle(context, end, isStart: false),
+          _handle(start, isStart: true),
+          _handle(end, isStart: false),
         ],
       ),
     );
   }
 
-  Widget _handle(BuildContext context, Offset pos, {required bool isStart}) {
+  Widget _handle(Offset pos, {required bool isStart}) {
     const size = 28.0;
     const hit = 44.0;
     return Positioned(

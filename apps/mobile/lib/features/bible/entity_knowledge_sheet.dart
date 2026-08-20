@@ -25,15 +25,23 @@ Future<void> showEntityKnowledgeSheet(
   required String displayName,
   List<DictEntity> candidates = const [],
 }) async {
+  final sheetSize = ValueNotifier(
+    const ReaderSheetSize(heightFactor: 0.58, maxHeight: 480),
+  );
   await showReaderSheet<void>(
     context: context,
-    // 对齐 PWA `.dict-entry-sheet`：min(78vh, 560px)。
-    heightFactor: 0.78,
-    maxHeight: 560,
+    sizeListenable: sheetSize,
     builder: (_) => _EntityKnowledgeSheet(
       entity: entity,
       displayName: displayName,
       candidates: candidates.isEmpty ? [entity] : candidates,
+      onTabChanged: (tab) {
+        sheetSize.value = switch (tab) {
+          'graph' => const ReaderSheetSize(heightFactor: 0.82, maxHeight: 680),
+          'map' => const ReaderSheetSize(heightFactor: 0.72, maxHeight: 560),
+          _ => const ReaderSheetSize(heightFactor: 0.58, maxHeight: 480),
+        };
+      },
     ),
   );
 }
@@ -111,6 +119,7 @@ class _EntityKnowledgeSheet extends ConsumerStatefulWidget {
     required this.candidates,
     this.fullscreen = false,
     this.initialTab = 'refs',
+    this.onTabChanged,
   });
 
   final DictEntity entity;
@@ -118,6 +127,7 @@ class _EntityKnowledgeSheet extends ConsumerStatefulWidget {
   final List<DictEntity> candidates;
   final bool fullscreen;
   final String initialTab;
+  final ValueChanged<String>? onTabChanged;
 
   @override
   ConsumerState<_EntityKnowledgeSheet> createState() =>
@@ -310,7 +320,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                   _KnowledgeTabPill(
                     label: _tabLabel(t),
                     active: activeTab == t,
-                    onTap: () => setState(() => _tab = t),
+                    onTap: () {
+                      setState(() => _tab = t);
+                      widget.onTabChanged?.call(t);
+                    },
                   ),
               ],
             ),
