@@ -1040,7 +1040,8 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   void _dragSelectionHandle(Offset global, {required bool isStart}) {
     final wr = _wordRange;
     if (wr == null) return;
-    final hit = wordAnchorNear(context, global, maxRadius: 56);
+    final hitCtx = _readerOverlayKey.currentContext ?? context;
+    final hit = wordAnchorNear(hitCtx, global, maxRadius: 56);
     if (hit == null) return;
     final n = normalizeWordRange(wr);
     if (isStart) {
@@ -1277,15 +1278,10 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                   ),
                   recognizer: TapGestureRecognizer()
                     ..onTap = () {
-                      final m = RegExp(
-                        r'^([A-Za-z0-9]+)\.(\d+)',
-                      ).firstMatch(p.osis!);
-                      if (m == null) return;
                       showInlineVersePreview(
                         context,
+                        refParam: p.osis!,
                         label: p.value,
-                        bookId: m.group(1)!,
-                        chapter: int.parse(m.group(2)!),
                       );
                     },
                 )

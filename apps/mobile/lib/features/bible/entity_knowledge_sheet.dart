@@ -101,15 +101,13 @@ class _EntityKnowledgeFullscreenPage extends StatelessWidget {
 
 Future<void> showInlineVersePreview(
   BuildContext context, {
-  required String label,
-  required String bookId,
-  required int chapter,
+  required String refParam,
+  String? label,
 }) {
   return showReaderSheet<void>(
     context: context,
     heightFactor: 0.55,
-    builder: (_) =>
-        _VersePreviewSheet(label: label, bookId: bookId, chapter: chapter),
+    builder: (_) => _VersePreviewSheet(refParam: refParam, label: label),
   );
 }
 
@@ -574,14 +572,12 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
   }
 
   Future<void> _openRefPreview(BuildContext context, String rawRef) async {
-    final target = RelatedVerse(ref: rawRef, text: '').target;
-    if (target == null) return;
+    if (rawRef.trim().isEmpty) return;
     ref.read(badgeStatsRecorderProvider).recordDictEntity(_entity.id);
     await showInlineVersePreview(
       context,
+      refParam: rawRef,
       label: rawRef,
-      bookId: target.book,
-      chapter: target.chapter,
     );
   }
 
@@ -748,18 +744,17 @@ class _RefPill extends StatelessWidget {
 
 class _VersePreviewSheet extends ConsumerWidget {
   const _VersePreviewSheet({
-    required this.label,
-    required this.bookId,
-    required this.chapter,
+    required this.refParam,
+    this.label,
   });
 
-  final String label;
-  final String bookId;
-  final int chapter;
+  final String refParam;
+  final String? label;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(chapterProvider((book: bookId, chapter: chapter)));
+    final async = ref.watch(scriptureRefProvider(refParam));
+    final title = label ?? refToChineseLabel(refParam) ?? refParam;
     final bottom = MediaQuery.paddingOf(context).bottom;
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 12 + bottom),
@@ -771,7 +766,7 @@ class _VersePreviewSheet extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  label,
+                  title,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -792,8 +787,8 @@ class _VersePreviewSheet extends ConsumerWidget {
                 '无法加载经文',
                 style: TextStyle(color: AppColors.inkFaint),
               ),
-              data: (ch) {
-                final verses = ch.verses.take(12).toList();
+              data: (result) {
+                final verses = result.verses;
                 if (verses.isEmpty) {
                   return const Text(
                     '暂无经文',

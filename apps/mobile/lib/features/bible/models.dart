@@ -58,3 +58,25 @@ class Chapter {
             .toList(),
       );
 }
+
+/// `/bible/ref` 响应（对齐 PWA `api.scriptureRef`）。
+class ScriptureRefResult {
+  ScriptureRefResult({
+    required this.ref,
+    required this.display,
+    required this.verses,
+  });
+
+  final String ref;
+  final String display;
+  final List<Verse> verses;
+
+  factory ScriptureRefResult.fromJson(Map<String, dynamic> j) =>
+      ScriptureRefResult(
+        ref: (j['ref'] ?? '') as String,
+        display: (j['display'] ?? '') as String,
+        verses: ((j['verses'] ?? []) as List)
+            .map((e) => Verse.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}

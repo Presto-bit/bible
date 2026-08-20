@@ -133,11 +133,14 @@ class VerseTextLocator {
   }
 
   /// 节内字符区间 → RichText UTF-16 偏移（供选区 overlay / 手柄）。
-  (int start, int end)? offsetsForVerseChars(
+  /// 跨同节多个 TextSpan run 时合并起止。
+  (int start, int end)? offsetsForVerseCharRange(
     int verse,
     int charStart,
     int charEnd,
   ) {
+    int? utfLo;
+    int? utfHi;
     for (final run in _runs) {
       if (run.verse != verse || run.verseStart == null || run.words == null) {
         continue;
@@ -145,13 +148,25 @@ class VerseTextLocator {
       final vs = run.verseStart!;
       final runCharEnd = vs + run.length;
       if (charEnd <= vs || charStart >= runCharEnd) continue;
-      final lo = charStart.clamp(vs, runCharEnd);
-      final hi = charEnd.clamp(vs, runCharEnd);
+      final lo = math.max(charStart, vs);
+      final hi = math.min(charEnd, runCharEnd);
       if (hi <= lo) continue;
-      return (run.start + (lo - vs), run.start + (hi - vs));
+      final uLo = run.start + (lo - vs);
+      final uHi = run.start + (hi - vs);
+      utfLo = utfLo == null ? uLo : math.min(utfLo, uLo);
+      utfHi = utfHi == null ? uHi : math.max(utfHi, uHi);
     }
-    return null;
+    if (utfLo == null || utfHi == null || utfHi <= utfLo) return null;
+    return (utfLo, utfHi);
   }
+
+  /// 单点字符区间（兼容旧调用）。
+  (int start, int end)? offsetsForVerseChars(
+    int verse,
+    int charStart,
+    int charEnd,
+  ) =>
+      offsetsForVerseCharRange(verse, charStart, charEnd);
 
   int verseTextLength(int verse) {
     var len = 0;
@@ -182,15 +197,22 @@ class VerseTextLocator {
     if (loV == hiV) {
       final lo = math.min(n.anchor.start, n.focus.start);
       final hi = math.max(n.anchor.end, n.focus.end);
-      return (lo.clamp(0, textLen), hi.clamp(0, textLen));
+      return (math.min(lo, textLen), math.min(hi, textLen));
     }
     if (verse == loV) {
-      return (n.anchor.start.clamp(0, textLen), textLen);
+      return (math.min(n.anchor.start, textLen), textLen);
     }
     if (verse == hiV) {
-      return (0, n.focus.end.clamp(0, textLen));
+      return (0, math.min(n.focus.end, textLen));
     }
     return (0, textLen);
+  }
+
+  /// 规范化选区在指定节内的 UTF-16 起止（整段 overlay / 手柄共用）。
+  (int start, int end)? utf16RangeInSelection(int verse, WordRange range) {
+    final chars = charRangeInSelection(verse, range);
+    if (chars == null) return null;
+    return offsetsForVerseCharRange(verse, chars.$1, chars.$2);
   }
 }
 
@@ -365,14 +387,15 @@ class SelectionHandleLayout {
 
 /// 选区两端手柄锚点（全局坐标，落在选区首尾字符底边）。
 ///
-/// 优先 [RenderParagraph.getBoxesForSelection]（与 PWA 系统选区一致）；
-/// 词典词块等 WidgetSpan 场景再回退 MetaData。
+/// 优先 [RenderParagraph.getBoxesForSelection]；高亮矩形兜底；词典词块 MetaData 最后。
 SelectionHandleLayout? locateSelectionHandles(
   BuildContext context,
   WordRange range,
 ) {
   final fromBoxes = _locateSelectionHandlesViaBoxes(context, range);
   if (fromBoxes != null) return fromBoxes;
+  final fromRects = _locateSelectionHandlesViaHighlightRects(context, range);
+  if (fromRects != null) return fromRects;
   return _locateSelectionHandlesViaMeta(context, range);
 }
 
@@ -394,7 +417,7 @@ List<Rect> collectWordRangeHighlightRects(
       for (final verse in locator.versesInParagraph()) {
         final chars = locator.charRangeInSelection(verse, range);
         if (chars == null) continue;
-        final utf = locator.offsetsForVerseChars(verse, chars.$1, chars.$2);
+        final utf = locator.offsetsForVerseCharRange(verse, chars.$1, chars.$2);
         if (utf == null) continue;
         final sel = TextSelection(
           baseOffset: utf.$1,
@@ -453,6 +476,15 @@ SelectionHandleLayout? _locateSelectionHandlesViaBoxes(
   WordRange range,
 ) {
   final n = normalizeWordRange(range);
+  final startVerse = n.anchor.verse;
+  final endVerse = n.focus.verse;
+  final startChar = startVerse == endVerse
+      ? math.min(n.anchor.start, n.focus.start)
+      : n.anchor.start;
+  final endChar = startVerse == endVerse
+      ? math.max(n.anchor.end, n.focus.end)
+      : n.focus.end;
+
   RenderParagraph? startPara;
   RenderParagraph? endPara;
   int? startOff;
@@ -463,11 +495,11 @@ SelectionHandleLayout? _locateSelectionHandlesViaBoxes(
       final locator = obj.metaData as VerseTextLocator;
       final para = _paragraphOf(obj);
       if (para == null) return;
-      if (locator.charRangeInSelection(n.anchor.verse, range) != null) {
-        final len = locator.verseTextLength(n.anchor.verse);
-        final cs = math.min(math.max(n.anchor.start, 0), math.max(0, len - 1));
-        final aUtf = locator.offsetsForVerseChars(
-          n.anchor.verse,
+      if (locator.charRangeInSelection(startVerse, range) != null) {
+        final len = locator.verseTextLength(startVerse);
+        final cs = math.min(math.max(startChar, 0), math.max(0, len - 1));
+        final aUtf = locator.offsetsForVerseCharRange(
+          startVerse,
           cs,
           math.min(cs + 1, len),
         );
@@ -476,11 +508,11 @@ SelectionHandleLayout? _locateSelectionHandlesViaBoxes(
           startOff ??= aUtf.$1;
         }
       }
-      if (locator.charRangeInSelection(n.focus.verse, range) != null) {
-        final len = locator.verseTextLength(n.focus.verse);
-        final ce = math.min(math.max(n.focus.end, 0), len);
+      if (locator.charRangeInSelection(endVerse, range) != null) {
+        final len = locator.verseTextLength(endVerse);
+        final ce = math.min(math.max(endChar, 0), len);
         final lo = math.max(0, ce - 1);
-        final fUtf = locator.offsetsForVerseChars(n.focus.verse, lo, ce);
+        final fUtf = locator.offsetsForVerseCharRange(endVerse, lo, ce);
         if (fUtf != null) {
           endPara = para;
           endOff = fUtf.$2;
@@ -513,6 +545,33 @@ SelectionHandleLayout? _locateSelectionHandlesViaBoxes(
     start: gStart,
     end: gEnd,
     lineHeight: sRect.height.clamp(16.0, 48.0),
+  );
+}
+
+SelectionHandleLayout? _locateSelectionHandlesViaHighlightRects(
+  BuildContext context,
+  WordRange range,
+) {
+  final rects = collectWordRangeHighlightRects(context, range);
+  if (rects.isEmpty) return null;
+
+  Rect first = rects.first;
+  Rect last = rects.first;
+  for (final r in rects) {
+    if (r.top < first.top - 0.5 ||
+        (r.top - first.top).abs() < 0.5 && r.left < first.left) {
+      first = r;
+    }
+    if (r.bottom > last.bottom + 0.5 ||
+        (r.bottom - last.bottom).abs() < 0.5 && r.right > last.right) {
+      last = r;
+    }
+  }
+
+  return SelectionHandleLayout(
+    start: Offset(first.left, first.bottom),
+    end: Offset(last.right, last.bottom),
+    lineHeight: first.height.clamp(16.0, 48.0),
   );
 }
 

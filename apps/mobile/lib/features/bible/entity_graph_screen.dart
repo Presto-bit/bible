@@ -74,14 +74,11 @@ class _EntityGraphBody extends StatelessWidget {
   final GraphData graph;
 
   void _openRef(BuildContext context, String ref) {
-    final parts = ref.split('.');
-    if (parts.length < 2) return;
-    final ch = int.tryParse(parts[1]) ?? 1;
+    if (ref.trim().isEmpty) return;
     showInlineVersePreview(
       context,
+      refParam: ref,
       label: formatGroupRefLabel(ref),
-      bookId: parts[0],
-      chapter: ch,
     );
   }
 

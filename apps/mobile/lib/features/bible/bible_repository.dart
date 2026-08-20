@@ -85,6 +85,34 @@ class BibleRepository {
         .toList();
   }
 
+  /// 按引用加载经文（JHN.3.16 / 约翰福音3:16-18），对齐 PWA `/bible/ref`。
+  Future<ScriptureRefResult> scriptureRef(String ref) async {
+    try {
+      final res = await _dio.get(
+        '/bible/ref',
+        queryParameters: {'ref': ref},
+      );
+      return ScriptureRefResult.fromJson(res.data as Map<String, dynamic>);
+    } catch (e) {
+      final local = await _scriptureRefOffline(ref);
+      if (local != null) return local;
+      rethrow;
+    }
+  }
+
+  Future<ScriptureRefResult?> _scriptureRefOffline(String raw) async {
+    final parsed = _parseOsisRef(raw);
+    if (parsed == null) return null;
+    final ch = await chapter(parsed.book, parsed.chapter);
+    final verses = _filterVerses(ch.verses, parsed.verseStart, parsed.verseEnd);
+    if (verses.isEmpty) return null;
+    return ScriptureRefResult(
+      ref: parsed.osis,
+      display: parsed.display,
+      verses: verses,
+    );
+  }
+
   Future<GuideResult> guide(String ref) async {
     final res = await _dio.get(
       '/guide/passage',
@@ -92,6 +120,62 @@ class BibleRepository {
     );
     return GuideResult.fromJson(res.data as Map<String, dynamic>);
   }
+}
+
+class _ParsedOsisRef {
+  const _ParsedOsisRef({
+    required this.book,
+    required this.chapter,
+    required this.osis,
+    required this.display,
+    this.verseStart,
+    this.verseEnd,
+  });
+
+  final String book;
+  final int chapter;
+  final String osis;
+  final String display;
+  final int? verseStart;
+  final int? verseEnd;
+}
+
+_ParsedOsisRef? _parseOsisRef(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return null;
+  final m = RegExp(
+    r'^([A-Za-z0-9]+)[.\s]+(\d+)(?:[:.\s]+(\d+)(?:\s*[-~–—]\s*(\d+))?)?',
+  ).firstMatch(s);
+  if (m == null) return null;
+  final book = m.group(1)!.toUpperCase();
+  final chapter = int.parse(m.group(2)!);
+  final verseStart = m.group(3) != null ? int.parse(m.group(3)!) : null;
+  final verseEnd = m.group(4) != null ? int.parse(m.group(4)!) : null;
+  final osis = verseStart == null
+      ? '$book.$chapter'
+      : verseEnd != null && verseEnd != verseStart
+          ? '$book.$chapter.$verseStart-$verseEnd'
+          : '$book.$chapter.$verseStart';
+  return _ParsedOsisRef(
+    book: book,
+    chapter: chapter,
+    osis: osis,
+    display: osis,
+    verseStart: verseStart,
+    verseEnd: verseEnd,
+  );
+}
+
+List<Verse> _filterVerses(
+  List<Verse> verses,
+  int? verseStart,
+  int? verseEnd,
+) {
+  if (verseStart == null) return verses;
+  final end = verseEnd ?? verseStart;
+  return verses
+      .where((v) => v.verse >= verseStart && v.verse <= end)
+      .toList(growable: false);
 }
 
 /// 资源指南卡片（确定性研经卡：注释/资源片段）。
@@ -204,6 +288,11 @@ final bibleVersionsProvider = FutureProvider<List<BibleVersion>>(
 final verseCompareProvider =
     FutureProvider.family<List<VerseRendition>, String>(
   (ref, osis) => ref.watch(bibleRepoProvider).compare(osis),
+);
+
+/// 引用预览（osis / 中文引用，对齐 PWA VersePreviewSheet）。
+final scriptureRefProvider = FutureProvider.family<ScriptureRefResult, String>(
+  (ref, refParam) => ref.watch(bibleRepoProvider).scriptureRef(refParam),
 );
 
 /// 资源指南（确定性研经卡，ref 如 JHN.3.16）。
