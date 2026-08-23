@@ -391,6 +391,8 @@
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
+  /* 列表滚动优先；具体点击由 Pressable phase=up 在松手时判定 */
+  touch-action: pan-y;
 }
 
 .settings-group-list > .settings-nav-row:last-child,

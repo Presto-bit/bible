@@ -94,7 +94,14 @@ function SettingsNavRow({
     onClick?.();
   };
   return (
-    <Pressable type="button" className={className} disabled={disabled} onTap={run} softRecover>
+    <Pressable
+      type="button"
+      className={className}
+      disabled={disabled}
+      onTap={run}
+      softRecover
+      phase="up"
+    >
       {body}
     </Pressable>
   );
@@ -475,6 +482,7 @@ export default function ProfileSettingsPanel() {
                   markRouteNavigation();
                   navigateAppHref('/admin?tab=ops', router);
                 }}
+                phase="up"
               >
                 管理后台
               </Pressable>
@@ -491,6 +499,7 @@ export default function ProfileSettingsPanel() {
             disabled={syncBusy}
             onTap={() => void handleSyncNow()}
             softRecover
+            phase="up"
           >
             <span className="settings-nav-glyph" aria-hidden>
               {settingsGlyph(
@@ -510,6 +519,7 @@ export default function ProfileSettingsPanel() {
             disabled={clearCacheBusy}
             onTap={() => void handleClearCache()}
             softRecover
+            phase="up"
           >
             <span className="settings-nav-glyph" aria-hidden>
               {settingsGlyph(
@@ -534,6 +544,7 @@ export default function ProfileSettingsPanel() {
                 navigateAppHref('/profile', router);
               }}
               softRecover
+              phase="up"
             >
               <span className="settings-nav-glyph" aria-hidden>
                 {settingsGlyph(
