@@ -1,9 +1,9 @@
 {
   "packageId": "cn.prestoai.peiai",
-  "versionCode": 78,
+  "versionCode": 79,
   "versionName": "1.1.0",
-  "bytes": 25057811,
-  "sha256": "28f263b4c8ce69ef01366a8d4a2df9acfb675bd75911656da7de3f43f9221075",
+  "bytes": 25057807,
+  "sha256": "faff2012780834a4695450fb9c248d5df13e1f0b558269297e531abf646d70e2",
   "downloadUrl": "/downloads/biai-android.apk",
   "iconUrl": "/downloads/biai-android-icon.png",
   "icon192Url": "/downloads/biai-android-icon-192.png",
