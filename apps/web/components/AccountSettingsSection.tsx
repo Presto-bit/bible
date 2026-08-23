@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
+import { Pressable } from '@/components/ui/Pressable';
 import { getDeviceId, hasPassword, unbindDevice } from '@/lib/api';
 import { localDeviceFriendlyName } from '@/lib/device_id';
 import { isAccountComplete } from '@/lib/account_guide';
@@ -182,11 +183,11 @@ export default function AccountSettingsSection({
 
   return (
     <div className="settings-account-block">
-      <button
-        type="button"
+      <Pressable
         className="settings-nav-row"
         aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
+        onTap={() => setExpanded((v) => !v)}
+        softRecover
       >
         <span className="settings-nav-glyph" aria-hidden>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -201,7 +202,7 @@ export default function AccountSettingsSection({
         <span className="muted settings-nav-chevron" aria-hidden>
           {expanded ? '⌃' : '›'}
         </span>
-      </button>
+      </Pressable>
       {expanded ? form : null}
     </div>
   );

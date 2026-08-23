@@ -4,14 +4,22 @@ import { useEffect } from 'react';
 import PageBackBar from '@/components/PageBackBar';
 import ProfileSettingsPanel from '@/components/profile/ProfileSettingsPanel';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import {
+  clearStrandedBodyTouchLocks,
+  dismissOrphanBodySheetBackdrops,
+  hardRemoveBlockingOverlays,
+} from '@/lib/sheet_overlay';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 export default function ProfileSettingsPage() {
   useEdgeSwipeBack({ href: '/profile' });
 
-  // 进设置即锁定 route 源，避免确认框叠在旧的发现 Tab 保活层上
+  // 进设置即锁定 route 源，并清僵尸遮罩（避免 TWA/壳上整页点击无响应）
   useEffect(() => {
     markRouteNavigation();
+    dismissOrphanBodySheetBackdrops();
+    hardRemoveBlockingOverlays();
+    clearStrandedBodyTouchLocks({ forceExternal: false });
   }, []);
 
   return (

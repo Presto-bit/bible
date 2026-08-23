@@ -1,5 +1,7 @@
 /** 首页背景图按本地自然日缓存（Cache Storage）；跨日清旧键。 */
 
+import { clientAssetUrl } from './basePath';
+
 const CACHE_NAME = 'peiai-home-bg-v1';
 const DAY_KEY = 'peiai_home_bg_day';
 
@@ -14,6 +16,27 @@ function canUseCaches(): boolean {
   return typeof window !== 'undefined' && typeof caches !== 'undefined';
 }
 
+/** 绝对/相对 URL 统一成 Cache Storage 可匹配的候选键。 */
+function wallpaperCacheKeys(src: string): string[] {
+  const raw = src.trim();
+  if (!raw) return [];
+  const out = new Set<string>([raw]);
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const u = new URL(raw);
+      out.add(u.pathname);
+      out.add(`${u.pathname}${u.search}`);
+    } catch {
+      /* ignore */
+    }
+  } else {
+    const rel = raw.startsWith('/') ? raw : `/${raw}`;
+    out.add(rel);
+    out.add(clientAssetUrl(rel));
+  }
+  return [...out];
+}
+
 /** 优先返回当日缓存的 blob URL；未命中返回 null。 */
 export async function getCachedHomeWallpaperUrl(
   src: string,
@@ -22,11 +45,16 @@ export async function getCachedHomeWallpaperUrl(
   if (!canUseCaches() || !src) return null;
   try {
     const cache = await caches.open(CACHE_NAME);
-    const hit = await cache.match(src);
-    if (!hit || !hit.ok) return null;
-    const blob = await hit.blob();
-    if (!blob.size) return null;
-    return URL.createObjectURL(blob);
+    for (const key of wallpaperCacheKeys(src)) {
+      const hit = await cache.match(key);
+      if (!hit || !hit.ok) continue;
+      const blob = await hit.blob();
+      if (!blob.size) continue;
+      const ct = (blob.type || '').toLowerCase();
+      if (ct && !ct.startsWith('image/') && blob.size < 800) continue;
+      return URL.createObjectURL(blob);
+    }
+    return null;
   } catch {
     return null;
   }
@@ -49,16 +77,25 @@ export async function ensureHomeDayWallpapers(
     }
     localStorage.setItem(DAY_KEY, ymd);
     await Promise.all(
-      list.map(async (url) => {
-        const hit = await cache.match(url);
-        if (hit?.ok) return;
-        try {
-          const res = await fetch(url, { credentials: 'same-origin', mode: 'cors' });
-          if (res.ok) await cache.put(url, res.clone());
-        } catch {
-          /* ignore */
-        }
-      }),
+      list.flatMap((url) =>
+        wallpaperCacheKeys(url).map(async (key) => {
+          const hit = await cache.match(key);
+          if (hit?.ok) return;
+          try {
+            const fetchUrl = /^https?:\/\//i.test(url) ? url : clientAssetUrl(url);
+            const res = await fetch(fetchUrl, {
+              credentials: 'same-origin',
+              cache: 'default',
+            });
+            if (!res.ok) return;
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            if (ct && !ct.includes('image') && (await res.clone().blob()).size < 800) return;
+            await cache.put(key, res.clone());
+          } catch {
+            /* ignore */
+          }
+        }),
+      ),
     );
   } catch {
     /* ignore */

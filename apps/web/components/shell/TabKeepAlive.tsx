@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { isTabKeepAliveEnabled } from '@/lib/platform';
 import {
   DISCOVER_SECONDARY_PREFIXES,
+  isSecondaryAppPath,
   PROFILE_SECONDARY_PATHS,
   keepAliveTabId,
   normalizeAppPath,
@@ -127,8 +128,13 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
   const paneVisible = (tab: KeepAliveTabId) =>
     Boolean(mounted[tab] || (enabled && activeTab === tab));
 
-  // 仅在 KeepAlive pane 已可见时隐藏路由 children，避免空窗期
-  const suppressRoute = enabled && activeTab !== null && paneVisible(activeTab);
+  const routerPath = normalizeAppPath(routerPathname);
+  // 仅在 KeepAlive pane 已可见时隐藏路由 children，避免空窗期；二级页（设置等）永不 suppress
+  const suppressRoute =
+    enabled
+    && activeTab !== null
+    && paneVisible(activeTab)
+    && !isSecondaryAppPath(routerPath);
 
   // 切 Tab：滚轮隔离 + 清 body 壳 class + 去焦点方框，避免「页面串行」
   useEffect(() => {

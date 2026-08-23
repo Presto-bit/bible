@@ -2,7 +2,7 @@
 
 import { isTabKeepAliveEnabled } from './platform';
 import { markReaderTabEntry } from './reading';
-import { keepAliveTabId, normalizeAppPath } from './tab_keep_alive';
+import { isSecondaryAppPath, keepAliveTabId, normalizeAppPath } from './tab_keep_alive';
 import { clientWithBasePath, withBasePath } from './basePath';
 
 type NavSource = 'tab' | 'route';
@@ -72,6 +72,9 @@ export function resolvePwaPathname(routerPathname: string, pwaPathname: string):
   const r = normalizeAppPath(routerPathname);
   const p = normalizeAppPath(pwaPathname);
   if (r === p) return r;
+
+  // 设置 / IM 等二级页：始终跟 Next router，避免仍亮「我的/发现」保活层导致设置页被 suppress、点击无响应
+  if (isSecondaryAppPath(r)) return r;
 
   const routerTab = keepAliveTabId(r);
   const pwaTab = keepAliveTabId(p);

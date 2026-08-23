@@ -6,7 +6,6 @@
  */
 
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import {
@@ -41,6 +40,7 @@ import { isSyncRequiresPasswordError, syncNow } from '@/lib/sync';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { isFlutterH5Host, peiaiOpenNative, subscribeAppUpdate, type AppUpdateSnapshot } from '@/lib/flutter_h5_bridge';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { Pressable } from '@/components/ui/Pressable';
 import { useToast } from '@/components/ui/ToastProvider';
 
 const AccountSettingsSection = dynamic(() => import('@/components/AccountSettingsSection'), {
@@ -67,6 +67,7 @@ function SettingsNavRow({
   glyph?: ReactNode;
   danger?: boolean;
 }) {
+  const router = useRouter();
   const className = `settings-nav-row${danger ? ' is-danger' : ''}${disabled ? ' is-disabled' : ''}`;
   const body = (
     <>
@@ -84,17 +85,18 @@ function SettingsNavRow({
       </span>
     </>
   );
-  if (href) {
-    return (
-      <Link href={href} className={className} onClick={onClick}>
-        {body}
-      </Link>
-    );
-  }
+  const run = () => {
+    if (disabled) return;
+    if (href) {
+      markRouteNavigation();
+      navigateAppHref(href, router);
+    }
+    onClick?.();
+  };
   return (
-    <button type="button" className={className} disabled={disabled} onClick={onClick}>
+    <Pressable type="button" className={className} disabled={disabled} onTap={run} softRecover>
       {body}
-    </button>
+    </Pressable>
   );
 }
 
@@ -467,13 +469,15 @@ export default function ProfileSettingsPanel() {
           <div className="settings-version-row">
             <span className="muted">版本 {appVersion}</span>
             {adminEligible ? (
-              <Link
-                href="/admin?tab=ops"
+              <Pressable
                 className="text-link settings-admin-link"
-                onClick={markSettingsNav}
+                onTap={() => {
+                  markRouteNavigation();
+                  navigateAppHref('/admin?tab=ops', router);
+                }}
               >
                 管理后台
-              </Link>
+              </Pressable>
             ) : null}
           </div>
         </div>
@@ -482,11 +486,11 @@ export default function ProfileSettingsPanel() {
       <section className="settings-group settings-group-danger">
         <h4 className="settings-group-label">数据</h4>
         <div className="settings-group-list">
-          <button
-            type="button"
+          <Pressable
             className="settings-nav-row"
             disabled={syncBusy}
-            onClick={() => void handleSyncNow()}
+            onTap={() => void handleSyncNow()}
+            softRecover
           >
             <span className="settings-nav-glyph" aria-hidden>
               {settingsGlyph(
@@ -500,12 +504,12 @@ export default function ProfileSettingsPanel() {
               <strong>{syncBusy ? '同步中…' : '同步到云端'}</strong>
               <span className="muted">{syncLabel}</span>
             </span>
-          </button>
-          <button
-            type="button"
+          </Pressable>
+          <Pressable
             className="settings-nav-row"
             disabled={clearCacheBusy}
-            onClick={() => void handleClearCache()}
+            onTap={() => void handleClearCache()}
+            softRecover
           >
             <span className="settings-nav-glyph" aria-hidden>
               {settingsGlyph(
@@ -520,16 +524,16 @@ export default function ProfileSettingsPanel() {
               <strong>{clearCacheBusy ? '清除中…' : '清除缓存'}</strong>
               <span className="muted">不删除读经记录</span>
             </span>
-          </button>
+          </Pressable>
           {uid ? (
-            <button
-              type="button"
+            <Pressable
               className="settings-nav-row is-danger"
-              onClick={() => {
+              onTap={() => {
                 logout();
                 setUid(null);
                 navigateAppHref('/profile', router);
               }}
+              softRecover
             >
               <span className="settings-nav-glyph" aria-hidden>
                 {settingsGlyph(
@@ -542,7 +546,7 @@ export default function ProfileSettingsPanel() {
               <span className="settings-nav-main">
                 <strong>退出登录</strong>
               </span>
-            </button>
+            </Pressable>
           ) : null}
         </div>
       </section>

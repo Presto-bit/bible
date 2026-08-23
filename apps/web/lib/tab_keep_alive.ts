@@ -42,6 +42,12 @@ function isDiscoverSecondaryPath(pathname: string): boolean {
   );
 }
 
+/** 主 Tab 下的二级页（设置 / IM 等），须走 Next 路由而非 pushState Tab 路径。 */
+export function isSecondaryAppPath(pathname: string): boolean {
+  const p = normalizeAppPath(pathname);
+  return isProfileSecondaryPath(p) || isDiscoverSecondaryPath(p);
+}
+
 export function normalizeAppPath(pathname: string): string {
   const base = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
   if (base && pathname.startsWith(base)) {

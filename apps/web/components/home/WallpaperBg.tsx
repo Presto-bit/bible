@@ -211,9 +211,18 @@ export function WallpaperBg({
         if (!cancelled && gen === genRef.current && cached) {
           blobRef.current = cached;
           setDisplaySrc(cached);
-          markReady(cached);
-          void ensureHomeDayWallpapers([src]);
-          return;
+          const cachedOk = await tryPaintFromUrl(cached);
+          if (cachedOk) {
+            void ensureHomeDayWallpapers([src]);
+            return;
+          }
+          // 坏 blob / 解码失败：丢弃缓存继续走网络
+          try {
+            URL.revokeObjectURL(cached);
+          } catch {
+            /* ignore */
+          }
+          blobRef.current = null;
         }
         void ensureHomeDayWallpapers([src]);
       } catch {
