@@ -792,6 +792,18 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                       thinkingPhase: thinking ? _streamPhase : null,
                       streamSlow: thinking && _streamSlow,
                       anchorRef: _anchorRef,
+                      userActionsDisabled: _streaming || _quotaExhausted,
+                      onEditUserMessage: _quotaExhausted
+                          ? null
+                          : (text) {
+                              _input.text = text;
+                              _input.selection = TextSelection.collapsed(
+                                offset: text.length,
+                              );
+                            },
+                      onResendUserMessage: (_streaming || _quotaExhausted)
+                          ? null
+                          : (text) => unawaited(_send(seedQuestion: text)),
                       onFollowup: _quotaExhausted
                           ? null
                           : (q) =>
@@ -1369,6 +1381,165 @@ class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
   }
 }
 
+class _UserQuestionBubble extends StatefulWidget {
+  const _UserQuestionBubble({
+    required this.text,
+    required this.disabled,
+    required this.onCopy,
+    required this.onEdit,
+    required this.onResend,
+  });
+
+  final String text;
+  final bool disabled;
+  final VoidCallback onCopy;
+  final VoidCallback onEdit;
+  final VoidCallback onResend;
+
+  @override
+  State<_UserQuestionBubble> createState() => _UserQuestionBubbleState();
+}
+
+class _UserQuestionBubbleState extends State<_UserQuestionBubble> {
+  bool _menuOpen = false;
+
+  void _openMenu() {
+    if (widget.disabled || widget.text.trim().isEmpty) return;
+    HapticFeedback.lightImpact();
+    setState(() => _menuOpen = true);
+  }
+
+  void _closeMenu() {
+    if (!_menuOpen) return;
+    setState(() => _menuOpen = false);
+  }
+
+  void _run(VoidCallback fn) {
+    _closeMenu();
+    fn();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.82,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          GestureDetector(
+            onLongPress: _openMenu,
+            onTap: _menuOpen ? _closeMenu : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: AppColors.accentWash,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _menuOpen
+                      ? AppColors.accent.withValues(alpha: 0.45)
+                      : AppColors.line,
+                  width: _menuOpen ? 1.5 : 1,
+                ),
+                boxShadow: _menuOpen
+                    ? [
+                        BoxShadow(
+                          color: AppColors.accent.withValues(alpha: 0.12),
+                          blurRadius: 0,
+                          spreadRadius: 2,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Text(
+                widget.text,
+                style: const TextStyle(
+                  height: 1.7,
+                  fontSize: 15,
+                  color: AppColors.ink,
+                ),
+              ),
+            ),
+          ),
+          if (_menuOpen)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Material(
+                color: AppColors.surface,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: AppColors.line),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _UserQuestionAction(
+                        icon: Icons.copy_outlined,
+                        label: '复制',
+                        onTap: () => _run(widget.onCopy),
+                      ),
+                      _UserQuestionAction(
+                        icon: Icons.edit_outlined,
+                        label: '编辑',
+                        onTap: () => _run(widget.onEdit),
+                      ),
+                      _UserQuestionAction(
+                        icon: Icons.refresh_rounded,
+                        label: '重发',
+                        onTap: () => _run(widget.onResend),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UserQuestionAction extends StatelessWidget {
+  const _UserQuestionAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: 72,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: AppColors.accentDeep),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 11, color: AppColors.inkFaint),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Bubble extends ConsumerWidget {
   const _Bubble({
     required this.turn,
@@ -1376,6 +1547,9 @@ class _Bubble extends ConsumerWidget {
     this.thinkingPhase,
     this.streamSlow = false,
     this.anchorRef,
+    this.userActionsDisabled = false,
+    this.onEditUserMessage,
+    this.onResendUserMessage,
     this.onFollowup,
     this.onSwitchToPlatform,
   });
@@ -1384,6 +1558,9 @@ class _Bubble extends ConsumerWidget {
   final ThinkingPhase? thinkingPhase;
   final bool streamSlow;
   final String? anchorRef;
+  final bool userActionsDisabled;
+  final void Function(String text)? onEditUserMessage;
+  final void Function(String text)? onResendUserMessage;
   final void Function(String question)? onFollowup;
   final VoidCallback? onSwitchToPlatform;
 
@@ -1406,24 +1583,15 @@ class _Bubble extends ConsumerWidget {
             : CrossAxisAlignment.start,
         children: [
           if (isUser)
-            Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.82,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-              decoration: BoxDecoration(
-                color: AppColors.accentWash,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.line),
-              ),
-              child: Text(
-                displayText,
-                style: const TextStyle(
-                  height: 1.7,
-                  fontSize: 15,
-                  color: AppColors.ink,
-                ),
-              ),
+            _UserQuestionBubble(
+              text: displayText,
+              disabled:
+                  userActionsDisabled ||
+                  onEditUserMessage == null ||
+                  onResendUserMessage == null,
+              onCopy: () => _copy(context, displayText),
+              onEdit: () => onEditUserMessage?.call(displayText),
+              onResend: () => onResendUserMessage?.call(displayText),
             )
           else
             // 助手答文：无外框全宽，对齐 PWA .assistant-answer

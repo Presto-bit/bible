@@ -727,6 +727,57 @@ body.assistant-active .assistant-page {
     -webkit-touch-callout: default;
   }
 }
+.assistant-user-text.is-actions-open {
+  border-color: color-mix(in srgb, var(--accent-deep) 28%, var(--line));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-deep) 10%, transparent);
+}
+.assistant-user-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 4px;
+  max-width: min(100%, 240px);
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.assistant-user-action {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.assistant-user-action:active,
+.assistant-user-action:hover {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+.assistant-user-action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, var(--accent-deep) 72%, var(--ink));
+}
+.assistant-user-action-label {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--muted, #6b6b6b);
+  white-space: nowrap;
+}
 .assistant-answer .allow-text-select,
 .assistant-answer .answer-rich {
   -webkit-user-select: text;
