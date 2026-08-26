@@ -1097,6 +1097,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
   StreamSubscription<am.ChatEvent>? _sub;
   String _pending = '';
   bool _scheduled = false;
+  bool _streamIncomplete = false;
 
   @override
   void initState() {
@@ -1113,18 +1114,19 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
     } else {
       _userQuestion = '请解读：${widget.refLabel}';
     }
-    _lockedQuestion = snippet.isEmpty
-        ? _userQuestion
-        : '$_userQuestion\n\n经文：$snippet';
+    _lockedQuestion = buildHalfSheetQuestion(_userQuestion, snippet);
     _expanded = !widget.explainOnly;
     _cacheKey =
         '${widget.refStr}\u001e${widget.explainOnly}\u001e${snippet.hashCode}';
     final cached = _xiaoAiHalfSheetCache[_cacheKey];
-    if (cached != null && cached.trim().isNotEmpty) {
+    if (cached != null &&
+        cached.trim().isNotEmpty &&
+        isHalfSheetAnswerComplete(cached, _scene)) {
       _answer = cached;
       _pending = cached;
       _busy = false;
     } else {
+      if (cached != null) _xiaoAiHalfSheetCache.remove(_cacheKey);
       WidgetsBinding.instance.addPostFrameCallback((_) => _ask());
     }
   }
@@ -1132,11 +1134,15 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
   @override
   void dispose() {
     _sub?.cancel();
-    final clean = bodyText(_answer).trim();
-    if (clean.isNotEmpty && !clean.startsWith('⚠️')) {
-      _xiaoAiHalfSheetCache[_cacheKey] = _answer;
-      if (_xiaoAiHalfSheetCache.length > 24) {
-        _xiaoAiHalfSheetCache.remove(_xiaoAiHalfSheetCache.keys.first);
+    if (!_busy) {
+      final clean = bodyText(_answer).trim();
+      if (clean.isNotEmpty &&
+          !clean.startsWith('⚠️') &&
+          isHalfSheetAnswerComplete(_answer, _scene)) {
+        _xiaoAiHalfSheetCache[_cacheKey] = _answer;
+        if (_xiaoAiHalfSheetCache.length > 24) {
+          _xiaoAiHalfSheetCache.remove(_xiaoAiHalfSheetCache.keys.first);
+        }
       }
     }
     super.dispose();
@@ -1160,6 +1166,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
       _answer = '';
       _pending = '';
       _busy = true;
+      _streamIncomplete = false;
       _citations = const [];
     });
     final stream = ref
@@ -1182,15 +1189,23 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
             _schedule();
           case am.ErrorEvent(:final message):
             setState(() {
-              _answer = _pending.isEmpty ? '⚠️ $message' : _pending;
+              if (_pending.isEmpty) {
+                _answer = '⚠️ $message';
+              } else {
+                _answer = _pending;
+                _streamIncomplete = true;
+              }
               _busy = false;
             });
           case am.DoneEvent():
             setState(() {
               _answer = _pending;
               _busy = false;
+              _streamIncomplete =
+                  !isHalfSheetAnswerComplete(_pending, _scene);
             });
-            if (_pending.trim().isNotEmpty) {
+            if (_pending.trim().isNotEmpty &&
+                isHalfSheetAnswerComplete(_pending, _scene)) {
               _xiaoAiHalfSheetCache[_cacheKey] = _pending;
             }
           default:
@@ -1219,6 +1234,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
           _answer = '⚠️ 请求超时，请重试或前往小爱 Tab 继续对话';
         } else {
           _answer = _pending;
+          _streamIncomplete = true;
         }
         _busy = false;
       });
@@ -1525,14 +1541,41 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                         if (!_busy &&
                             _cleanAnswer.isNotEmpty &&
                             !_cleanAnswer.startsWith('⚠️'))
-                          const Padding(
-                            padding: EdgeInsets.only(top: 10),
-                            child: Text(
-                              '内容由 AI 生成，请以圣经原文为准。请用下方「复制」按钮。',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.inkFaint,
-                              ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (_streamIncomplete)
+                                  const Text(
+                                    '解读可能未写完，可点「去问小爱」继续补全。',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.inkFaint,
+                                    ),
+                                  ),
+                                if (assistantDisplayTrimmed(_answer))
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      '相关追问与参考资料已在下方引用区展示。',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.inkFaint,
+                                      ),
+                                    ),
+                                  ),
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    '内容由 AI 生成，请以圣经原文为准。请用下方「复制」按钮。',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.inkFaint,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         if (_cleanAnswer.startsWith('⚠️'))

@@ -44,3 +44,34 @@ def extract_sections(text: str) -> list[dict[str, str]]:
             break
         sections.append({"id": title, "title": title})
     return sections
+
+
+_VERSE_FULL_SECTIONS = frozenset({"摘要", "背景", "经文解释"})
+_VERSE_QUICK_SECTIONS = frozenset({"摘要", "经文解释"})
+
+
+def verse_explain_incomplete(scene: str, body_text: str) -> bool:
+    """读经半屏解读是否缺必需小节或明显过短。"""
+    if scene not in ("verse_full", "verse_quick"):
+        return False
+    text = body_text.strip()
+    if not text:
+        return True
+    titles = {s["title"] for s in extract_sections(text)}
+    if scene == "verse_full":
+        if len(text) < 100:
+            return True
+        return not _VERSE_FULL_SECTIONS.issubset(titles)
+    if len(text) < 60:
+        return True
+    return not _VERSE_QUICK_SECTIONS.issubset(titles)
+
+
+def missing_verse_sections(scene: str, body_text: str) -> list[str]:
+    titles = {s["title"] for s in extract_sections(body_text)}
+    required = (
+        list(_VERSE_FULL_SECTIONS)
+        if scene == "verse_full"
+        else list(_VERSE_QUICK_SECTIONS)
+    )
+    return [s for s in required if s not in titles]

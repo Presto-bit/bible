@@ -17,12 +17,18 @@ import {
   recordSaveAnswerNote,
   recordXiaoAiQuestion,
 } from '@/lib/badge_events';
-import { bodyText } from '@/lib/assistant_format';
+import { bodyText, assistantDisplayTrimmed } from '@/lib/assistant_format';
 import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
-import { readHalfSheetCache, writeHalfSheetCache } from '@/lib/xiaoai_halfsheet_cache';
+import {
+  buildHalfSheetQuestion,
+  halfSheetCacheSelection,
+  isHalfSheetAnswerComplete,
+  readHalfSheetCache,
+  writeHalfSheetCache,
+} from '@/lib/xiaoai_halfsheet_cache';
 import {
   AssistantThinkingState,
   type ThinkingPhase,
@@ -45,12 +51,15 @@ export default function XiaoAiSheet({
   refParam,
   refLabel,
   selectionText,
+  explicitSelection = true,
   onClose,
 }: {
   mode: 'ask' | 'explain';
   refParam: string;
   refLabel: string;
   selectionText: string;
+  /** false = FAB 视口段落仅展示，不参与 cache key / API 问句 */
+  explicitSelection?: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -80,14 +89,14 @@ export default function XiaoAiSheet({
   const [kbId, setKbId] = useState(DEFAULT_KB_ID);
   const [kbName, setKbName] = useState<string | undefined>();
   const [shareOpen, setShareOpen] = useState(false);
+  const [streamIncomplete, setStreamIncomplete] = useState(false);
   const accRef = useRef('');
   const rafRef = useRef<number | null>(null);
-  const fetchStartedRef = useRef(false);
-  const lockedRef = useRef({ scene, refParam, selectionText, userQuestion });
+  const lockedRef = useRef({ scene, refParam, selectionText, userQuestion, explicitSelection });
 
   useEffect(() => {
-    lockedRef.current = { scene, refParam, selectionText, userQuestion };
-  }, [scene, refParam, selectionText, userQuestion]);
+    lockedRef.current = { scene, refParam, selectionText, userQuestion, explicitSelection };
+  }, [scene, refParam, selectionText, userQuestion, explicitSelection]);
 
   useEffect(() => {
     recordHalfSheetXiaoAi();
@@ -105,12 +114,19 @@ export default function XiaoAiSheet({
     setStreamCiteCount(0);
     setSlowHint(false);
     setKbName(undefined);
+    setStreamIncomplete(false);
     const sessionKb = getSessionKnowledgeBaseId();
     setKbId(sessionKb);
-    const { scene: s, refParam: ref, selectionText: sel, userQuestion: q } = lockedRef.current;
-    // 经文正文已由 ref 在后端展开，避免重复粘贴长经文挤占输出 token
-    const question = sel && sel.length <= 300 ? `${q}\n\n选中文本：${sel}` : q;
-    const cached = retryKey > 0 ? null : readHalfSheetCache(s, ref, sel, question);
+    const {
+      scene: s,
+      refParam: ref,
+      selectionText: sel,
+      userQuestion: q,
+      explicitSelection: explicitSel,
+    } = lockedRef.current;
+    const cacheSel = halfSheetCacheSelection(sel, explicitSel);
+    const question = buildHalfSheetQuestion(q, sel, explicitSel);
+    const cached = retryKey > 0 ? null : readHalfSheetCache(s, ref, cacheSel, question);
     if (cached) {
       accRef.current = cached.answer;
       setAnswer(cached.answer);
@@ -161,19 +177,34 @@ export default function XiaoAiSheet({
         },
         onError: (msg) => {
           if (cancelled) return;
+          if (accRef.current.trim()) {
+            if (rafRef.current != null) {
+              window.clearTimeout(rafRef.current);
+              rafRef.current = null;
+            }
+            setAnswer(accRef.current);
+            setStreamIncomplete(true);
+            setDone(true);
+            return;
+          }
           accRef.current = `⚠️ ${msg}`;
           setAnswer(accRef.current);
           setDone(true);
         },
-        onDone: () => {
+        onDone: (payload) => {
           if (!cancelled) {
             if (rafRef.current != null) {
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
             }
             setAnswer(accRef.current);
+            const streamOk = payload?.streamComplete !== false;
+            const structOk = isHalfSheetAnswerComplete(accRef.current, s);
+            setStreamIncomplete(!streamOk || !structOk);
             setDone(true);
-            writeHalfSheetCache(s, ref, sel, question, accRef.current, cites);
+            if (streamOk && structOk) {
+              writeHalfSheetCache(s, ref, cacheSel, question, accRef.current, cites);
+            }
           }
         },
       },
@@ -192,11 +223,7 @@ export default function XiaoAiSheet({
     };
   }, [refLabel, retryKey]);
 
-  useEffect(() => {
-    if (fetchStartedRef.current && retryKey === 0) return;
-    fetchStartedRef.current = true;
-    return runChat();
-  }, [runChat, retryKey]);
+  useEffect(() => runChat(), [runChat]); // runChat returns abort cleanup
 
   const clean = stripAnswer(answer);
   const usedCitations = useMemo(
@@ -204,6 +231,10 @@ export default function XiaoAiSheet({
     [clean, citations],
   );
   const hasError = clean.startsWith('⚠️');
+  const displayTrimmed = useMemo(
+    () => done && !hasError && assistantDisplayTrimmed(answer),
+    [answer, done, hasError],
+  );
   const { summary, body: bodyWithoutSummary } = extractSummaryLead(clean);
   const showCollapsed = !expanded && !hasError && summary && bodyWithoutSummary;
 
@@ -382,18 +413,27 @@ export default function XiaoAiSheet({
               type="button"
               className="half-sheet-action-btn"
               style={{ marginTop: 10 }}
-              onClick={() => {
-                fetchStartedRef.current = false;
-                setRetryKey((k) => k + 1);
-              }}
+              onClick={() => setRetryKey((k) => k + 1)}
             >
               重试
             </button>
           )}
           {done && clean && !hasError && (
-            <p className="muted xiaoai-disclaimer">
-              内容由 AI 生成，请以圣经原文为准。
-            </p>
+            <>
+              {streamIncomplete && (
+                <p className="muted xiaoai-disclaimer">
+                  解读可能未写完，可点「继续聊」让小爱补全。
+                </p>
+              )}
+              {displayTrimmed && (
+                <p className="muted xiaoai-disclaimer">
+                  相关追问与参考资料已在下方引用区展示。
+                </p>
+              )}
+              <p className="muted xiaoai-disclaimer">
+                内容由 AI 生成，请以圣经原文为准。
+              </p>
+            </>
           )}
         </div>
         {done && !hasError && evidenceCites.length > 0 ? (

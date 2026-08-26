@@ -1103,6 +1103,8 @@ export interface ChatDonePayload {
   cache_hit?: boolean;
   cache_source?: 'cache' | 'prewarm' | string;
   instant?: boolean;
+  /** false = 流未收到服务端 done（断流/中断），不可当作完整答案缓存 */
+  streamComplete?: boolean;
 }
 
 export interface ChatCallbacks {
@@ -1248,7 +1250,7 @@ export async function chatStream(
       cb.onError?.('生成中断，请重试');
       return 'fail';
     }
-    if (!sawDone) cb.onDone?.();
+    if (!sawDone) cb.onDone?.({ streamComplete: false });
     if (!gotDelta && !sawDone) return 'retry';
     return 'ok';
   };

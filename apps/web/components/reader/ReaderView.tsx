@@ -426,6 +426,7 @@ export default function ReaderView({
     refParam: string;
     refLabel: string;
     selectionText: string;
+    explicitSelection: boolean;
   }>(null);
   const readStartRef = useRef(Date.now());
   const readingEngagedRef = useRef(false);
@@ -631,6 +632,7 @@ export default function ReaderView({
         refParam: effRefParam,
         refLabel: effRefLabel,
         selectionText: effSelectionText,
+        explicitSelection: true,
       };
     }
     const verseNums = verses.map((v) => v.verse);
@@ -661,7 +663,7 @@ export default function ReaderView({
       minV === maxV
         ? `${bookAbbr(book.name)} ${chapter}:${minV}`
         : `${bookAbbr(book.name)} ${chapter}:${minV}-${maxV}`;
-    return { refParam, refLabel, selectionText: text };
+    return { refParam, refLabel, selectionText: text, explicitSelection: false };
   }, [
     hasSel,
     effRefParam,
@@ -2787,6 +2789,7 @@ export default function ReaderView({
                                       refParam: `${book.id}.${chapter}.${v.verse}`,
                                       refLabel: `${book.name} ${chapter}:${v.verse}`,
                                       selectionText: text,
+                                      explicitSelection: true,
                                     });
                                     setAiSheet(true);
                                   }}
@@ -2808,6 +2811,7 @@ export default function ReaderView({
                                           refParam: `${book.id}.${chapter}.${v.verse}`,
                                           refLabel: `${book.name} ${chapter}:${v.verse}`,
                                           selectionText: text,
+                                          explicitSelection: true,
                                         });
                                         setAiSheet(true);
                                       }}
@@ -3330,6 +3334,7 @@ export default function ReaderView({
                       refParam: effRefParam,
                       refLabel: effRefLabel,
                       selectionText: pinnedText,
+                      explicitSelection: true,
                     });
                     setAiSheet(true);
                     clearSelection();
@@ -3546,6 +3551,7 @@ export default function ReaderView({
           refParam={aiSheetContext.refParam}
           refLabel={aiSheetContext.refLabel}
           selectionText={aiSheetContext.selectionText}
+          explicitSelection={aiSheetContext.explicitSelection}
           onClose={() => {
             setAiSheet(false);
             setAiSheetContext(null);

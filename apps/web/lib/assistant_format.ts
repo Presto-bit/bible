@@ -60,6 +60,14 @@ export function bodyText(text: string): string {
   return joinOrphanFootnotes(stripTrailingReferences(stripFollowups(text)));
 }
 
+/** 正文展示是否剥离了追问区或末尾参考资料（UI 已有引用条）。 */
+export function assistantDisplayTrimmed(raw: string): boolean {
+  const t = raw.trim();
+  if (!t) return false;
+  if (FOLLOWUP_SECTION_RE.test(t)) return true;
+  return TRAILING_REF_BLOCK_RE.test(t);
+}
+
 /**
  * 句末软换行，便于阅读。
  * 不拆：编号 `1.`、括号内句末、闭合标点前（避免 `。` 后把 `）` 甩到下一行）。

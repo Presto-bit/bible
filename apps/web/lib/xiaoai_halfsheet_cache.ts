@@ -8,6 +8,9 @@ import { userLsGet, userLsSet } from './user_storage';
 const STORAGE_KEY = 'presto_xiaoai_halfsheet_v1';
 const MAX_ENTRIES = 48;
 
+const VERSE_FULL_SECTIONS = ['摘要', '背景', '经文解释'] as const;
+const VERSE_QUICK_SECTIONS = ['摘要', '经文解释'] as const;
+
 type CacheEntry = {
   answer: string;
   citations: Citation[];
@@ -16,6 +19,55 @@ type CacheEntry = {
 };
 
 type CacheMap = Record<string, CacheEntry>;
+
+function sectionTitles(text: string): Set<string> {
+  const titles = new Set<string>();
+  for (const m of text.matchAll(/^###\s+(.+)$/gm)) {
+    const t = m[1]?.trim();
+    if (t && t !== '相关追问') titles.add(t);
+  }
+  for (const m of text.matchAll(/【([^】]+)】/g)) {
+    const t = m[1]?.trim();
+    if (t && t !== '相关追问') titles.add(t);
+  }
+  return titles;
+}
+
+/** 半屏解读回答是否结构完整，避免缓存/展示半截生成。 */
+export function isHalfSheetAnswerComplete(answer: string, scene: AssistantScene): boolean {
+  const text = answer.trim();
+  if (!text || text.startsWith('⚠️')) return false;
+
+  const required =
+    scene === 'verse_full'
+      ? VERSE_FULL_SECTIONS
+      : scene === 'verse_quick'
+        ? VERSE_QUICK_SECTIONS
+        : null;
+  const minLen = scene === 'verse_full' ? 100 : scene === 'verse_quick' ? 60 : 80;
+
+  if (text.length < minLen) return false;
+  if (!required) return true;
+
+  const titles = sectionTitles(text);
+  return required.every((s) => titles.has(s));
+}
+
+/** FAB 无选区时选区不参与 cache key / 问句，仅 ref + scene。 */
+export function halfSheetCacheSelection(selection: string, explicitSelection: boolean): string {
+  if (!explicitSelection) return '';
+  return selection.trim();
+}
+
+/** 半屏 API 问句：长选区不拼进 prompt，经文由 ref 在后端展开。 */
+export function buildHalfSheetQuestion(
+  userQuestion: string,
+  selection: string,
+  explicitSelection: boolean,
+): string {
+  const sel = halfSheetCacheSelection(selection, explicitSelection);
+  return sel && sel.length <= 300 ? `${userQuestion}\n\n选中文本：${sel}` : userQuestion;
+}
 
 function buildKey(
   scene: AssistantScene,
@@ -55,6 +107,12 @@ export function readHalfSheetCache(
   if (!entry?.answer?.trim()) return null;
   const today = chinaTodayYmd();
   if (entry.day !== today) return null;
+  if (!isHalfSheetAnswerComplete(entry.answer, scene)) {
+    const map = readMap();
+    delete map[key];
+    writeMap(map);
+    return null;
+  }
   return { answer: entry.answer, citations: entry.citations ?? [] };
 }
 
@@ -68,6 +126,7 @@ export function writeHalfSheetCache(
 ) {
   const text = answer.trim();
   if (!text || text.startsWith('⚠️')) return;
+  if (!isHalfSheetAnswerComplete(text, scene)) return;
   const key = buildKey(scene, ref, selection, question);
   const map = readMap();
   map[key] = {

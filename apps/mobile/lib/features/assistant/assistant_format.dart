@@ -1,6 +1,8 @@
 /// 小爱回答正文解析：追问剥离、参考资料清理、流式安全截取（对齐 PWA `assistant_format.ts`）。
 library;
 
+import 'assistant_scenes.dart';
+
 export 'assistant_markdown.dart'
     show extractSummaryLead, prepareAssistantDisplay, prepareAssistantMarkdown;
 
@@ -46,6 +48,55 @@ String joinOrphanFootnotes(String text) {
 
 String bodyText(String text) =>
     joinOrphanFootnotes(stripTrailingReferences(stripFollowups(text)));
+
+/// 正文展示是否剥离了追问区或末尾参考资料。
+bool assistantDisplayTrimmed(String raw) {
+  final t = raw.trim();
+  if (t.isEmpty) return false;
+  if (_followupSectionRe.hasMatch(t)) return true;
+  return _trailingRefBlockRe.hasMatch(t);
+}
+
+const _verseFullSections = ['摘要', '背景', '经文解释'];
+const _verseQuickSections = ['摘要', '经文解释'];
+
+Set<String> _sectionTitles(String text) {
+  final titles = <String>{};
+  for (final m in RegExp(r'^###\s+(.+)$', multiLine: true).allMatches(text)) {
+    final t = m.group(1)?.trim();
+    if (t != null && t.isNotEmpty && t != '相关追问') titles.add(t);
+  }
+  for (final m in RegExp(r'【([^】]+)】').allMatches(text)) {
+    final t = m.group(1)?.trim();
+    if (t != null && t.isNotEmpty && t != '相关追问') titles.add(t);
+  }
+  return titles;
+}
+
+/// 半屏解读回答是否结构完整（对齐 PWA `isHalfSheetAnswerComplete`）。
+bool isHalfSheetAnswerComplete(String answer, AssistantScene scene) {
+  final text = answer.trim();
+  if (text.isEmpty || text.startsWith('⚠️')) return false;
+  final titles = _sectionTitles(text);
+  switch (scene) {
+    case AssistantScene.verseFull:
+      if (text.length < 100) return false;
+      return _verseFullSections.every(titles.contains);
+    case AssistantScene.verseQuick:
+      if (text.length < 60) return false;
+      return _verseQuickSections.every(titles.contains);
+    default:
+      return text.length >= 80;
+  }
+}
+
+/// 半屏 API 问句：长选区不拼进 prompt。
+String buildHalfSheetQuestion(String userQuestion, String selection) {
+  final sel = selection.trim();
+  if (sel.isEmpty) return userQuestion;
+  if (sel.length > 300) return userQuestion;
+  return '$userQuestion\n\n选中文本：$sel';
+}
 
 List<String> followupsOf(String text) {
   final m = _followupSectionRe.firstMatch(text);

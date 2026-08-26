@@ -13,7 +13,12 @@ from ..config import get_settings
 from ..db import get_pool
 from .chat import prepare
 from .llm import StreamMeta, stream_chat
-from .parse_output import extract_sections, split_body_and_followups
+from .parse_output import (
+    extract_sections,
+    missing_verse_sections,
+    split_body_and_followups,
+    verse_explain_incomplete,
+)
 from .usage import consume_quota, peek_quota, record_ai_request
 from .request_log import log_ai_request
 
@@ -680,6 +685,33 @@ def chat(
                     yield _sse("delta", {"text": piece})
                 if cont_meta.finish_reason:
                     meta.finish_reason = cont_meta.finish_reason
+            # 半屏解读：缺必需小节时再续写一次（非仅 length 触顶）
+            if scene in ("verse_full", "verse_quick") and full:
+                for _ in range(2):
+                    body_probe, _ = split_body_and_followups("".join(full))
+                    if not verse_explain_incomplete(scene, body_probe):
+                        break
+                    missing = missing_verse_sections(scene, body_probe)
+                    hint = "、".join(missing) if missing else "剩余小节"
+                    cont_budget = min(max(max_tokens // 3, 400), 900)
+                    cont_msgs = messages + [
+                        {"role": "assistant", "content": "".join(full)},
+                        {
+                            "role": "user",
+                            "content": (
+                                f"回答尚不完整，请补写缺失部分：{hint}。"
+                                "不要重复已写内容，保持 ### 中文标题格式，自然收束。"
+                            ),
+                        },
+                    ]
+                    cont_meta = StreamMeta()
+                    for piece in stream_chat(
+                        cont_msgs, max_tokens=cont_budget, meta=cont_meta,
+                    ):
+                        full.append(piece)
+                        yield _sse("delta", {"text": piece})
+                    if cont_meta.finish_reason:
+                        meta.finish_reason = cont_meta.finish_reason
         except Exception as exc:  # 上游/网络异常 → 友好错误事件
             logger.exception("ai chat stream failed")
             log_ai_request(
