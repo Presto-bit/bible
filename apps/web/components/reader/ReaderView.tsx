@@ -133,6 +133,11 @@ import {
 } from '@/lib/reading';
 import { recordParallelChapter } from '@/lib/badge_events';
 import { outlineFor, outlineForAsync, preloadSectionTitles, type SectionMark } from '@/lib/section_titles';
+import {
+  paragraphRangesFor,
+  paragraphRangesForAsync,
+  preloadParagraphRanges,
+} from '@/lib/paragraph_ranges';
 import { resolveSelectionTextForAi, versesForNativeLineHighlight, nativeSelectionCoversVerses } from '@/lib/reader_selection_text';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import { buildCheckinRef } from '@/lib/group_checkin';
@@ -530,6 +535,7 @@ export default function ReaderView({
 
   const poetry = isPoetryBook(book.id);
   const [outline, setOutline] = useState<SectionMark[]>([]);
+  const [paragraphRanges, setParagraphRanges] = useState<[number, number][] | null>(null);
 
   useEffect(() => {
     if (skipChapterHydrateRef.current) return;
@@ -537,19 +543,30 @@ export default function ReaderView({
     void outlineForAsync(book.id, chapter).then((marks) => {
       if (!cancelled) setOutline(marks);
     });
+    void paragraphRangesForAsync(book.id, chapter).then((ranges) => {
+      if (!cancelled) setParagraphRanges(ranges);
+    });
     return () => {
       cancelled = true;
     };
   }, [book.id, chapter]);
   const structureVerses = layoutVerses.length ? layoutVerses : verses;
   const paragraphs = useMemo(
-    () =>
-      groupVersesIntoParagraphs(
+    () => {
+      const verseLines = structureVerses.map((v) => ({ verse: v.verse, text: v.text }));
+      const sectionStarts = outline.map((s) => s.verse);
+      const ranges =
+        paragraphRanges
+        ?? paragraphRangesFor(book.id, chapter)
+        ?? null;
+      return groupVersesIntoParagraphs(
         book.id,
-        structureVerses.map((v) => ({ verse: v.verse, text: v.text })),
-        outline.map((s) => s.verse),
-      ),
-    [book.id, structureVerses, outline],
+        verseLines,
+        sectionStarts,
+        ranges,
+      );
+    },
+    [book.id, chapter, structureVerses, outline, paragraphRanges],
   );
   const verseDisplayText = useCallback(
     (verseNum: number, fallback: string) =>
@@ -1320,6 +1337,7 @@ export default function ReaderView({
   useEffect(() => {
     if (!swipeTurn) return;
     preloadSectionTitles();
+    preloadParagraphRanges();
   }, [swipeTurn]);
 
   useEffect(() => {

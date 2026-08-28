@@ -173,6 +173,24 @@ class ContentRepository {
         .toList();
   }
 
+  Future<List<(int, int)>> paragraphRanges(String book, int chapter) async {
+    final res = await _dio.get(
+      '/content/paragraphs',
+      queryParameters: {'book': book, 'chapter': chapter},
+    );
+    final raw = (res.data['paragraphs'] ?? []) as List;
+    return raw
+        .map((e) {
+          if (e is! List || e.length < 2) return null;
+          final a = (e[0] as num?)?.toInt();
+          final b = (e[1] as num?)?.toInt();
+          if (a == null || b == null) return null;
+          return (a, b);
+        })
+        .whereType<(int, int)>()
+        .toList();
+  }
+
   Future<List<TopicEntry>> topics() async {
     final res = await _dio.get('/content/topics');
     return ((res.data['topics'] ?? []) as List)
@@ -339,6 +357,13 @@ final sectionTitlesProvider =
     FutureProvider.family<List<SectionMark>, ({String book, int chapter})>(
       (ref, args) =>
           ref.watch(contentRepoProvider).sectionTitles(args.book, args.chapter),
+    );
+
+final paragraphRangesProvider =
+    FutureProvider.family<List<(int, int)>, ({String book, int chapter})>(
+      (ref, args) => ref
+          .watch(contentRepoProvider)
+          .paragraphRanges(args.book, args.chapter),
     );
 
 final topicsProvider = FutureProvider<List<TopicEntry>>(

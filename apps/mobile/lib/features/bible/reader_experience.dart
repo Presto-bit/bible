@@ -1220,10 +1220,10 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   double _readerListBottomPad() {
     if (widget.chromeHidden) {
-      return MediaQuery.paddingOf(context).bottom + 8;
+      return MediaQuery.paddingOf(context).bottom + 16;
     }
     // extendBody 下用 viewPadding 计入 Home 条，并多留一截给末节 / 划词手柄。
-    return peiaiTabContentBottomPad(context, includeSafe: true) + 28;
+    return peiaiTabContentBottomPad(context, includeSafe: true) + 44;
   }
 
   List<int> get _sortedSel => _selected.toList()..sort();
@@ -2008,6 +2008,11 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             .read(sectionTitlesProvider(layoutKey).future)
             .then((_) {}, onError: (_) {}),
       );
+      unawaited(
+        ref
+            .read(paragraphRangesProvider(layoutKey).future)
+            .then((_) {}, onError: (_) {}),
+      );
 
       if (compareId != null) {
         unawaited(
@@ -2200,6 +2205,14 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         if (t.isNotEmpty) sectionByVerse[s.verse] = t;
       }
     }
+    final paragraphRanges = ref
+        .watch(
+          paragraphRangesProvider((
+            book: widget.book.id,
+            chapter: widget.chapter,
+          )),
+        )
+        .value;
     final poetry = const {
       'PSA',
       'PRO',
@@ -2283,6 +2296,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         myThoughtsByVerse: myThoughtsByVerse,
         pageTurn: pageTurn,
         fontFamily: fontFamily,
+        paragraphRanges: paragraphRanges,
       );
     }
 
@@ -2538,6 +2552,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     Map<int, int> myThoughtsByVerse = const {},
     ReaderPageTurn pageTurn = ReaderPageTurn.swipe,
     ReaderFontFamily fontFamily = ReaderFontFamily.serif,
+    List<(int, int)>? paragraphRanges,
   }) {
     if (compareChapter != null || compareStatus != null) {
       return _buildParallelList(
@@ -2550,6 +2565,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         poetry,
         compareStatus: compareStatus,
         sectionByVerse: sectionByVerse,
+        paragraphRanges: paragraphRanges,
       );
     }
 
@@ -2558,7 +2574,8 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final paras = groupVersesIntoParagraphs(
       widget.book.id,
       layoutChapter.verses,
-      breakVerses,
+      sectionStarts: breakVerses,
+      paragraphRanges: paragraphRanges,
     );
     for (final para in paras) {
       final t = sectionByVerse[para.startVerse];
@@ -2975,6 +2992,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     bool poetry, {
     String? compareStatus,
     Map<int, String>? sectionByVerse,
+    List<(int, int)>? paragraphRanges,
   }) {
     final fontPx = ref.watch(readerFontProvider).px;
     final fontFamily = ref.watch(readerFontFamilyProvider);
@@ -2991,7 +3009,8 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final paras = groupVersesIntoParagraphs(
       widget.book.id,
       structure.verses,
-      sections.keys.toList()..sort(),
+      sectionStarts: sections.keys.toList()..sort(),
+      paragraphRanges: paragraphRanges,
     );
     final rows = <Object>[];
     for (final para in paras) {
@@ -3473,6 +3492,14 @@ class _AdjacentChapterPeekPanelState
         if (t.isNotEmpty) sectionByVerse[s.verse] = t;
       }
     }
+    final peekParagraphRanges = ref
+        .watch(
+          paragraphRangesProvider((
+            book: target.book.id,
+            chapter: target.chapter,
+          )),
+        )
+        .value;
 
     final toggles = ref.watch(readerFeatureTogglesProvider);
     final highlights = ref.watch(highlightMapProvider).value ?? const {};
@@ -3551,6 +3578,7 @@ class _AdjacentChapterPeekPanelState
         selectionActive: widget.selectionActive,
         theme: widget.theme,
         topPad: widget.topPad,
+        paragraphRanges: peekParagraphRanges,
       );
     }
 
@@ -3666,6 +3694,7 @@ class _ChapterPeekContent extends StatelessWidget {
     required this.selectionActive,
     required this.theme,
     required this.topPad,
+    this.paragraphRanges,
   });
 
   final BibleBook book;
@@ -3694,6 +3723,7 @@ class _ChapterPeekContent extends StatelessWidget {
   final bool selectionActive;
   final ReaderExperienceTheme theme;
   final double topPad;
+  final List<(int, int)>? paragraphRanges;
 
   bool get _poetry => const {
     'PSA',
@@ -3994,7 +4024,8 @@ class _ChapterPeekContent extends StatelessWidget {
     final paragraphs = groupVersesIntoParagraphs(
       book.id,
       structure.verses,
-      sectionByVerse.keys.toList()..sort(),
+      sectionStarts: sectionByVerse.keys.toList()..sort(),
+      paragraphRanges: paragraphRanges,
     );
     for (final paragraph in paragraphs) {
       final title = sectionByVerse[paragraph.startVerse];

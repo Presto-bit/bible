@@ -5,6 +5,7 @@ import type { Verse } from '@/lib/api';
 import { SectionTitle } from '@/components/reader/SectionTitle';
 import type { SectionMark } from '@/lib/section_titles';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
+import { paragraphRangesFor } from '@/lib/paragraph_ranges';
 import type { VerseNumberMode } from '@/lib/reader_settings';
 import type { ReadingLayout } from '@/lib/reader_settings';
 import {
@@ -69,6 +70,7 @@ export default function ReaderChapterPeek({
     bookId,
     structure.map((v) => ({ verse: v.verse, text: v.text })),
     outline.map((s) => s.verse),
+    paragraphRangesFor(bookId, chapter),
   );
   const parallel = layout === 'parallel' && parallelVerses?.length ? parallelVerses : null;
 

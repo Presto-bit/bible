@@ -875,6 +875,8 @@ export const api = {
         ? `/content/sections?book=${encodeURIComponent(book)}&chapter=${chapter}`
         : '/content/sections',
     ),
+  paragraphRanges: () =>
+    getJson<{ chapters?: Record<string, [number, number][]> }>('/content/paragraphs'),
   // 社交
   myGroups: () => authed<{ groups: Group[] }>('/social/groups'),
   discoverSummary: () => authed<DiscoverSummary>('/social/discover/summary'),

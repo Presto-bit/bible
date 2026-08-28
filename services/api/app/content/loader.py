@@ -274,6 +274,21 @@ def section_titles(book: str, chapter: int) -> list[dict]:
     return section_titles_index().get(key, [])
 
 
+# ── 阅读段落边界（CNV paragraphs.json） ──
+@lru_cache(maxsize=1)
+def paragraph_ranges_index() -> dict[str, list[list[int]]]:
+    path = _data_dir() / "bible/cnv/paragraphs.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return data.get("chapters", {})
+
+
+def paragraph_ranges(book: str, chapter: int) -> list[list[int]]:
+    key = f"{book.upper()}.{chapter}"
+    return paragraph_ranges_index().get(key, [])
+
+
 # ── 插画 ──
 def illustrations_index() -> dict:
     return _load_json("illustrations/index.json")

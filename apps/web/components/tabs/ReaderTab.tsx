@@ -31,6 +31,7 @@ import { recordDictEntity } from '@/lib/badge_events';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { preloadSectionTitles } from '@/lib/section_titles';
+import { preloadParagraphRanges } from '@/lib/paragraph_ranges';
 import { OfflineBibleCard } from '@/components/OfflineBibleCard';
 import { OfflineInlineNotice } from '@/components/OfflineInlineNotice';
 import { bookAbbr } from '@/lib/book_abbr';
@@ -308,6 +309,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     let timeoutId: number | undefined;
     const run = () => {
       preloadSectionTitles();
+      preloadParagraphRanges();
       if (dict.length === 0) {
         void api.dictionary().then((d) => {
           startTransition(() => setDict(d.entities || []));

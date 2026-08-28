@@ -488,6 +488,16 @@ def sections(
     return {"chapters": loader.section_titles_index()}
 
 
+@router.get("/paragraphs")
+def paragraphs(
+    book: str | None = Query(None),
+    chapter: int | None = Query(None, ge=1),
+) -> dict:
+    if book and chapter:
+        return {"paragraphs": loader.paragraph_ranges(book, chapter)}
+    return {"chapters": loader.paragraph_ranges_index()}
+
+
 # ── 插画 ──
 @router.get("/illustrations")
 def illustrations() -> dict:
