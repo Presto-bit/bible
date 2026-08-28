@@ -2,6 +2,9 @@
 
 const DAY_KEY = 'chapter_complete_tip_day_v1';
 
+/** 同 Tab 会话内已展示（先于 localStorage，防 effect 连跑重复弹）。 */
+const sessionShown = new Set<string>();
+
 type DayMap = { day: string; chapters: Record<string, 1> };
 
 function todayKey(): string {
@@ -34,11 +37,16 @@ function writeDay(m: DayMap) {
 }
 
 export function hasShownChapterCompleteTip(bookId: string, chapter: number): boolean {
-  return Boolean(readDay().chapters[chapterKey(bookId, chapter)]);
+  const key = chapterKey(bookId, chapter);
+  if (sessionShown.has(key)) return true;
+  return Boolean(readDay().chapters[key]);
 }
 
 export function markChapterCompleteTipShown(bookId: string, chapter: number): void {
+  const key = chapterKey(bookId, chapter);
+  if (sessionShown.has(key)) return;
+  sessionShown.add(key);
   const m = readDay();
-  m.chapters[chapterKey(bookId, chapter)] = 1;
+  m.chapters[key] = 1;
   writeDay(m);
 }

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import 'paragraphs.dart';
 
 class RelatedVerse {
   RelatedVerse({required this.ref, required this.text});
@@ -124,6 +125,38 @@ class EntityKnowledge {
 class ContentRepository {
   ContentRepository(this._dio);
   final Dio _dio;
+  final Map<String, List<(int, int)>> _paragraphRangesByChapter = {};
+  Future<void>? _paragraphIndexLoad;
+
+  String _paragraphChapterKey(String book, int chapter) =>
+      '${book.toUpperCase()}.$chapter';
+
+  /// 同步读已缓存的段落表（preload 或单章请求后可用）。
+  List<(int, int)>? paragraphRangesCached(String book, int chapter) {
+    final ranges = _paragraphRangesByChapter[_paragraphChapterKey(book, chapter)];
+    return ranges != null && ranges.isNotEmpty ? ranges : null;
+  }
+
+  Future<void> preloadParagraphRangesIndex() {
+    _paragraphIndexLoad ??= _loadParagraphRangesIndex();
+    return _paragraphIndexLoad!;
+  }
+
+  Future<void> _loadParagraphRangesIndex() async {
+    try {
+      final res = await _dio.get('/content/paragraphs');
+      final chapters =
+          (res.data['chapters'] as Map?)?.cast<String, dynamic>() ?? {};
+      for (final entry in chapters.entries) {
+        final parsed = parseParagraphRangesJson(entry.value as List);
+        if (parsed.isNotEmpty) {
+          _paragraphRangesByChapter[entry.key.toUpperCase()] = parsed;
+        }
+      }
+    } catch (_) {
+      // 离线或未部署时静默；阅读器走兜底算法
+    }
+  }
 
   Future<CrossrefResult> crossrefs(String ref) async {
     final res = await _dio.get(
@@ -174,12 +207,16 @@ class ContentRepository {
   }
 
   Future<List<(int, int)>> paragraphRanges(String book, int chapter) async {
+    final key = _paragraphChapterKey(book, chapter);
+    final cached = _paragraphRangesByChapter[key];
+    if (cached != null && cached.isNotEmpty) return cached;
+
     final res = await _dio.get(
       '/content/paragraphs',
       queryParameters: {'book': book, 'chapter': chapter},
     );
     final raw = (res.data['paragraphs'] ?? []) as List;
-    return raw
+    final parsed = raw
         .map((e) {
           if (e is! List || e.length < 2) return null;
           final a = (e[0] as num?)?.toInt();
@@ -189,6 +226,10 @@ class ContentRepository {
         })
         .whereType<(int, int)>()
         .toList();
+    if (parsed.isNotEmpty) {
+      _paragraphRangesByChapter[key] = parsed;
+    }
+    return parsed;
   }
 
   Future<List<TopicEntry>> topics() async {

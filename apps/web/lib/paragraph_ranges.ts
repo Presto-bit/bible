@@ -51,13 +51,16 @@ export function paragraphRangesFor(
   return ranges?.length ? ranges : null;
 }
 
-/** 当前章段落范围：索引优先，避免翻页后 state 仍是上一章造成跳动。 */
+/** 当前章段落范围：索引优先；state 仅在有内容时作过渡，空数组视为缺失。 */
 export function paragraphRangesForChapter(
   bookId: string,
   chapter: number,
   stateRanges?: ParagraphRange[] | null,
 ): ParagraphRange[] | null {
-  return paragraphRangesFor(bookId, chapter) ?? stateRanges ?? null;
+  const indexed = paragraphRangesFor(bookId, chapter);
+  if (indexed?.length) return indexed;
+  if (stateRanges?.length) return stateRanges;
+  return null;
 }
 
 export async function paragraphRangesForAsync(

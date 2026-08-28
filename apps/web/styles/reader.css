@@ -640,6 +640,10 @@ a.license-row-name:hover {
   font-size: var(--reader-font-size);
   line-height: 1.9;
 }
+/* 散文段落首行缩进（诗体/对照模式不加） */
+.reader-prose .verse-paragraph {
+  text-indent: 2em;
+}
 /* 滑动预览与正式正文：统一经节排版容器 */
 .reader-turn-panel-active .reader-turn-peek,
 .reader-turn-panel-peek .reader-turn-peek {
@@ -708,7 +712,7 @@ a.license-row-name:hover {
    * - scroll-bottom：章末呼吸，只清 FAB/底栏边缘，勿用整颗 tabbar-h 撑半屏空纸
    */
   --reader-chrome-top: calc(max(10px, var(--safe-top)) + 54px);
-  --reader-scroll-bottom: calc(72px + max(8px, var(--safe-bottom)));
+  --reader-scroll-bottom: calc(108px + max(8px, var(--safe-bottom)));
   position: relative;
   display: flex;
   flex-direction: column;
@@ -806,7 +810,7 @@ body.reader-overlay-open .reader-page {
 /* 沉浸：顶栏滑出 → 成对收顶/底，只留安全区呼吸 */
 .reader-page.reader-chrome-hidden {
   --reader-chrome-top: max(12px, var(--safe-top));
-  --reader-scroll-bottom: max(32px, var(--safe-bottom));
+  --reader-scroll-bottom: max(52px, var(--safe-bottom));
 }
 .reader-page.reader-chrome-hidden .reader-body {
   padding-bottom: 0;

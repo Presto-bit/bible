@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment } from 'react';
 import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import {
@@ -440,6 +440,8 @@ export default function ReaderView({
   const skipResumeOnLoadRef = useRef(false);
   /** 横滑松手后 applyNavigate 已灌入经文，章 effect 跳过重复加载 */
   const skipChapterHydrateRef = useRef(false);
+  /** 当前章是否已触发过章末 tick（防 scroll 连发 + 换章误用旧 tick） */
+  const chapterBottomArrivedRef = useRef<string | null>(null);
   const overlayOpenRef = useRef(false);
   /** 划词结束后短时忽略横滑 */
   const swipeIgnoreUntilRef = useRef(0);
@@ -539,10 +541,14 @@ export default function ReaderView({
   const [outline, setOutline] = useState<SectionMark[]>([]);
   const [paragraphRanges, setParagraphRanges] = useState<[number, number][] | null>(null);
 
+  useLayoutEffect(() => {
+    if (skipChapterHydrateRef.current) return;
+    setParagraphRanges(paragraphRangesFor(book.id, chapter));
+  }, [book.id, chapter]);
+
   useEffect(() => {
     if (skipChapterHydrateRef.current) return;
     let cancelled = false;
-    setParagraphRanges(paragraphRangesFor(book.id, chapter));
     void outlineForAsync(book.id, chapter).then((marks) => {
       if (!cancelled) setOutline(marks);
     });
@@ -1192,8 +1198,8 @@ export default function ReaderView({
     if (planMeta) return;
     if (!chapterCompleteTipOn || readingMode === 'focus') return;
     if (hasShownChapterCompleteTip(book.id, chapter)) return;
-    setChapterCompleteVisible(true);
     markChapterCompleteTipShown(book.id, chapter);
+    setChapterCompleteVisible(true);
   }, [
     chapterBottomTick,
     planMeta,
@@ -1205,6 +1211,8 @@ export default function ReaderView({
 
   useEffect(() => {
     setChapterCompleteVisible(false);
+    chapterBottomArrivedRef.current = null;
+    setChapterBottomTick(0);
   }, [book.id, chapter]);
 
   // 首屏预拉译本列表，补全中文名（勿等点击选择器）。
@@ -1581,8 +1589,12 @@ export default function ReaderView({
       }
 
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      const bottomKey = `${book.id}.${chapter}`;
       if (nearBottom && verses.length > 0) {
-        setChapterBottomTick((t) => t + 1);
+        if (chapterBottomArrivedRef.current !== bottomKey) {
+          chapterBottomArrivedRef.current = bottomKey;
+          setChapterBottomTick((t) => t + 1);
+        }
       }
       if (bookDone) return;
       if (chapter < book.chapter_count) return;
@@ -1759,8 +1771,21 @@ export default function ReaderView({
           });
           if (contentRef.current) resetReaderScroll(contentRef.current);
         } else {
-          setLayoutVerses(instant);
+          let structureSource = instant;
+          if (mainVersionId) {
+            structureSource =
+              getChapterVersesSync(target.book.id, target.chapter, null)
+              ?? getCachedChapter(target.book.id, target.chapter, chapterCacheVersion(null))
+              ?? instant;
+          }
+          setLayoutVerses(structureSource);
           setVerses(instant);
+          setOutline(outlineReady ?? []);
+          setParagraphRanges(
+            peekBundle?.paragraphRanges?.length
+              ? peekBundle.paragraphRanges
+              : paragraphRangesFor(target.book.id, target.chapter),
+          );
           setChapterLoading(false);
         }
         if (!cached?.length) {

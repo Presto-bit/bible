@@ -312,6 +312,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   bool _resumeScheduled = false;
   bool _planDayFinishScheduled = false;
   bool _navFromSwipe = false;
+  List<(int, int)>? _swipeCommittedParagraphRanges;
   Timer? _scrollProgressTimer;
   Chapter? _cachedChapter;
   Chapter? _liveChapter;
@@ -663,8 +664,28 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     );
     _scheduleGuideTips(fromSwipe: false, prevBookId: null, prevChapter: null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _prefetchAdjacentChapters();
+      if (mounted) {
+        unawaited(ref.read(contentRepoProvider).preloadParagraphRangesIndex());
+        _prefetchAdjacentChapters();
+      }
     });
+  }
+
+  List<(int, int)>? _paragraphRangesForChapter(String bookId, int chapter) {
+    final fromProvider = ref
+        .read(paragraphRangesProvider((book: bookId, chapter: chapter)))
+        .value;
+    if (fromProvider != null && fromProvider.isNotEmpty) return fromProvider;
+    final cached = ref
+        .read(contentRepoProvider)
+        .paragraphRangesCached(bookId, chapter);
+    if (cached != null && cached.isNotEmpty) return cached;
+    if (_swipeCommittedParagraphRanges != null &&
+        bookId == widget.book.id &&
+        chapter == widget.chapter) {
+      return _swipeCommittedParagraphRanges;
+    }
+    return null;
   }
 
   @override
@@ -692,6 +713,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         _resumeScheduled = false;
         _liveChapter = null;
         if (!_navFromSwipe) {
+          _swipeCommittedParagraphRanges = null;
           _pageDragDx = 0;
           _pageDragRaw = 0;
           _pageTurnPrefetched = false;
@@ -872,13 +894,14 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       final mode = ref.read(readingModeProvider);
       final tipOn = ref.read(chapterCompleteTipOnProvider);
       final prefs = ref.read(readerPreferencesProvider);
-      if (tipOn &&
-          mode != ReadingMode.focus &&
-          !prefs.hasShownChapterCompleteTip(widget.book.id, widget.chapter)) {
-        unawaited(
-          prefs.markChapterCompleteTipShown(widget.book.id, widget.chapter),
-        );
-        if (mounted) setState(() => _chapterTipVisible = true);
+      if (tipOn && mode != ReadingMode.focus) {
+        if (!prefs.hasShownChapterCompleteTip(widget.book.id, widget.chapter)) {
+          // 内存先标记，再异步落盘，避免快速翻章重复弹。
+          unawaited(
+            prefs.markChapterCompleteTipShown(widget.book.id, widget.chapter),
+          );
+          if (mounted) setState(() => _chapterTipVisible = true);
+        }
       }
     }
 
@@ -1220,10 +1243,10 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   double _readerListBottomPad() {
     if (widget.chromeHidden) {
-      return MediaQuery.paddingOf(context).bottom + 16;
+      return MediaQuery.paddingOf(context).bottom + 32;
     }
     // extendBody 下用 viewPadding 计入 Home 条，并多留一截给末节 / 划词手柄。
-    return peiaiTabContentBottomPad(context, includeSafe: true) + 44;
+    return peiaiTabContentBottomPad(context, includeSafe: true) + 72;
   }
 
   List<int> get _sortedSel => _selected.toList()..sort();
@@ -2120,6 +2143,18 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           target.chapter,
           versionId: widget.mainVersionId,
         );
+        _swipeCommittedParagraphRanges =
+            ref
+                .read(contentRepoProvider)
+                .paragraphRangesCached(target.book.id, target.chapter) ??
+            ref
+                .read(
+                  paragraphRangesProvider((
+                    book: target.book.id,
+                    chapter: target.chapter,
+                  )),
+                )
+                .value;
       }
       widget.onNav(goingNext ? 1 : -1);
       // 三屏轨道归零：中线已是目标章，视觉与邻屏 peek 一致（对齐 PWA offset reset）。
@@ -2205,7 +2240,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         if (t.isNotEmpty) sectionByVerse[s.verse] = t;
       }
     }
-    final paragraphRanges = ref
+    final paragraphRangesFromProvider = ref
         .watch(
           paragraphRangesProvider((
             book: widget.book.id,
@@ -2213,6 +2248,11 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           )),
         )
         .value;
+    final paragraphRanges =
+        (paragraphRangesFromProvider != null &&
+            paragraphRangesFromProvider.isNotEmpty)
+        ? paragraphRangesFromProvider
+        : _paragraphRangesForChapter(widget.book.id, widget.chapter);
     final poetry = const {
       'PSA',
       'PRO',
@@ -2270,6 +2310,9 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           ch,
           versionId: widget.mainVersionId,
         );
+        if (_swipeCommittedParagraphRanges != null) {
+          _swipeCommittedParagraphRanges = null;
+        }
         if (!_resumeScheduled && _selected.isEmpty && !_navFromSwipe) {
           _resumeScheduled = true;
           _maybeResume();
@@ -2332,6 +2375,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                         layoutChapter: _cachedChapter!,
                         compareChapter: null,
                         notesByVerse: notesByVerse,
+                        paragraphRanges: paragraphRanges,
                       );
                     }
                     if (_navFromSwipe) {
@@ -3498,7 +3542,7 @@ class _AdjacentChapterPeekPanelState
         if (t.isNotEmpty) sectionByVerse[s.verse] = t;
       }
     }
-    final peekParagraphRanges = ref
+    final peekParagraphRangesFromProvider = ref
         .watch(
           paragraphRangesProvider((
             book: target.book.id,
@@ -3506,6 +3550,13 @@ class _AdjacentChapterPeekPanelState
           )),
         )
         .value;
+    final peekParagraphRanges =
+        (peekParagraphRangesFromProvider != null &&
+            peekParagraphRangesFromProvider.isNotEmpty)
+        ? peekParagraphRangesFromProvider
+        : ref
+              .read(contentRepoProvider)
+              .paragraphRangesCached(target.book.id, target.chapter);
 
     final toggles = ref.watch(readerFeatureTogglesProvider);
     final highlights = ref.watch(highlightMapProvider).value ?? const {};
@@ -3652,7 +3703,7 @@ class _PeekChapterPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, topPad, 20, 24),
+      padding: EdgeInsets.fromLTRB(16, topPad, 20, 72),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -3902,99 +3953,114 @@ class _ChapterPeekContent extends StatelessWidget {
     final display = para.verses
         .map((v) => Verse(verse: v.verse, text: _textFor(primary, v.verse)))
         .toList();
+    final prose = !isPoetryBook(book.id);
+
     if (verseNo == ReaderVerseNumberMode.margin) {
-      // 与主文 `_MarginVerseRow` 同构：每节上下 3px、节号列宽/字重/间距一致，
-      // 段落本身不再额外留 14px，否则落地时整段会向上跳。
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final verse in display) ...[
-            if (sectionByVerse[verse.verse] case final t?)
-              _sectionTitle(t.trim()),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: fontPx * 1.8,
-                    child: Text(
-                      '${verse.verse}',
-                      textAlign: TextAlign.right,
-                      style: _mainStyle.copyWith(
-                        fontSize: fontPx * 0.65,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.accentDeep.withValues(alpha: 0.85),
-                        height: 1.0,
-                        letterSpacing: 0,
+      return Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (i, verse) in display.indexed) ...[
+              if (sectionByVerse[verse.verse] case final t?)
+                _sectionTitle(t.trim()),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: fontPx * 1.8,
+                      child: Text(
+                        '${verse.verse}',
+                        textAlign: TextAlign.right,
+                        style: _mainStyle.copyWith(
+                          fontSize: fontPx * 0.65,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.accentDeep.withValues(alpha: 0.85),
+                          height: 1.0,
+                          letterSpacing: 0,
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(width: fontPx * 0.35),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: RichText(
-                        textAlign: TextAlign.justify,
-                        text: TextSpan(
-                          style: _mainStyle,
-                          children: _verseSpans(
-                            verse,
+                    SizedBox(width: fontPx * 0.35),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: 4,
+                          left: prose && i == 0 ? fontPx * 2 : 0,
+                        ),
+                        child: RichText(
+                          textAlign: TextAlign.justify,
+                          text: TextSpan(
                             style: _mainStyle,
-                            showNumber: false,
+                            children: _verseSpans(
+                              verse,
+                              style: _mainStyle,
+                              showNumber: false,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  if (notesByVerse[verse.verse]?.firstOrNull != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 2, top: 2),
-                      child: Icon(
-                        Icons.sticky_note_2_outlined,
-                        size: 12,
-                        color: AppColors.accentDeep.withValues(alpha: 0.5),
+                    if (notesByVerse[verse.verse]?.firstOrNull != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 2, top: 2),
+                        child: Icon(
+                          Icons.sticky_note_2_outlined,
+                          size: 12,
+                          color: AppColors.accentDeep.withValues(alpha: 0.5),
+                        ),
                       ),
-                    ),
-                  if (thoughtsEnabled &&
-                      (thoughtsByVerse[verse.verse] ?? 0) > 0)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 2, top: 2),
-                      child: Icon(
-                        Icons.notes,
-                        size: 12,
-                        color: AppColors.inkFaint,
+                    if (thoughtsEnabled &&
+                        (thoughtsByVerse[verse.verse] ?? 0) > 0)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 2, top: 2),
+                        child: Icon(
+                          Icons.notes,
+                          size: 12,
+                          color: AppColors.inkFaint,
+                        ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-        ],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final verse in display) ...[
-          if (sectionByVerse[verse.verse] case final t?)
-            _sectionTitle(t.trim()),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: RichText(
-              textAlign: TextAlign.justify,
-              text: TextSpan(
-                style: _mainStyle,
-                children: _verseSpans(
-                  verse,
-                  style: _mainStyle,
-                  showNumber: true,
-                  appendNoteIcon: true,
+                  ],
                 ),
               ),
-            ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    final spans = <InlineSpan>[];
+    var firstVerse = true;
+    for (final verse in display) {
+      if (sectionByVerse[verse.verse] case final t?) {
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.top,
+            child: _sectionTitle(t.trim()),
           ),
-        ],
-      ],
+        );
+      }
+      if (prose && firstVerse) {
+        spans.add(TextSpan(text: kProseParagraphIndent, style: _mainStyle));
+      }
+      firstVerse = false;
+      spans.addAll(
+        _verseSpans(
+          verse,
+          style: _mainStyle,
+          showNumber: true,
+          appendNoteIcon: true,
+        ),
+      );
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: RichText(
+        textAlign: TextAlign.justify,
+        text: TextSpan(style: _mainStyle, children: spans),
+      ),
     );
   }
 
@@ -4050,7 +4116,7 @@ class _ChapterPeekContent extends StatelessWidget {
     return ExcludeSemantics(
       child: ListView.builder(
         physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(16, topPad, 20, 24),
+        padding: EdgeInsets.fromLTRB(16, topPad, 20, 72),
         addAutomaticKeepAlives: false,
         addSemanticIndexes: false,
         itemCount: itemCount + (headerBar != null ? 1 : 0),
@@ -4265,7 +4331,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final v in widget.paragraph.verses) ...[
+            for (final (i, v) in widget.paragraph.verses.indexed) ...[
               if (_sectionTitleForVerse(v.verse) case final t?) t,
               if (widget.feedHintForVerse?.call(v.verse) != null)
                 widget.feedHintForVerse!(v.verse)!,
@@ -4275,6 +4341,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                 chapter: widget.chapter,
                 baseStyle: baseStyle,
                 fontPx: fontPx,
+                textIndentPx: !widget.poetry && i == 0 ? fontPx * 2 : 0,
                 selectionActive: selectionActive,
                 selBg: selBg,
                 wordRange: widget.wordRange,
@@ -4316,6 +4383,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
 
     final spans = <InlineSpan>[];
     final index = SpanIndexBuilder();
+    var firstVerse = true;
     for (final v in widget.paragraph.verses) {
       if (_sectionTitleForVerse(v.verse) case final t?) {
         spans.add(
@@ -4330,6 +4398,16 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         );
         index.placeholder();
       }
+      if (!widget.poetry && firstVerse) {
+        spans.add(TextSpan(text: kProseParagraphIndent, style: baseStyle));
+        index.text(
+          value: kProseParagraphIndent,
+          verse: v.verse,
+          verseStart: 0,
+          words: const [],
+        );
+      }
+      firstVerse = false;
       final markInfo = widget.underlinesEnabled
           ? markForVerse(
               widget.highlightMarks,
@@ -4521,6 +4599,7 @@ class _MarginVerseRow extends StatefulWidget {
     required this.chapter,
     required this.baseStyle,
     required this.fontPx,
+    this.textIndentPx = 0,
     required this.selectionActive,
     required this.selBg,
     required this.wordRange,
@@ -4549,6 +4628,7 @@ class _MarginVerseRow extends StatefulWidget {
   final int chapter;
   final TextStyle baseStyle;
   final double fontPx;
+  final double textIndentPx;
   final bool selectionActive;
   final Color selBg;
   final WordRange? wordRange;
@@ -4678,7 +4758,7 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
               onTap: selectionActive ? () => onToggle(v.verse, v.text) : null,
               child: Container(
                 key: anchorKey,
-                padding: const EdgeInsets.only(right: 4),
+                padding: EdgeInsets.only(right: 4, left: widget.textIndentPx),
                 child: SelectionContainer.disabled(
                   child: readerLocatedRichText(
                     locator: index.build(),

@@ -82,6 +82,9 @@ const _chapterTipOffKey = 'reader_chapter_complete_tip_off';
 const _chapterTipShownKey = 'reader_chapter_complete_tip_shown_v1';
 const _parallelDiffOffKey = 'reader_parallel_diff_off';
 
+/// 会话内已展示（先于 SharedPreferences 写入，防快速翻章重复弹）。
+final _chapterTipShownMemory = <String>{};
+
 class ReaderPreferences {
   ReaderPreferences(this._prefs);
   final SharedPreferences _prefs;
@@ -141,12 +144,15 @@ class ReaderPreferences {
 
   bool hasShownChapterCompleteTip(String bookId, int chapter) {
     final key = '${bookId.toUpperCase()}.$chapter';
+    if (_chapterTipShownMemory.contains(key)) return true;
     final raw = _prefs.getStringList(_chapterTipShownKey) ?? const [];
     return raw.contains(key);
   }
 
   Future<void> markChapterCompleteTipShown(String bookId, int chapter) async {
     final key = '${bookId.toUpperCase()}.$chapter';
+    if (_chapterTipShownMemory.contains(key)) return;
+    _chapterTipShownMemory.add(key);
     final raw = List<String>.from(
       _prefs.getStringList(_chapterTipShownKey) ?? const <String>[],
     );
