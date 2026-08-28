@@ -3849,6 +3849,7 @@ class _ChapterPeekContent extends StatelessWidget {
     required TextStyle style,
     required bool showNumber,
     bool appendNoteIcon = false,
+    bool proseIndent = false,
   }) {
     final spans = <InlineSpan>[];
     if (showNumber && verseNo != ReaderVerseNumberMode.hidden) {
@@ -3879,6 +3880,9 @@ class _ChapterPeekContent extends StatelessWidget {
           child: SizedBox(width: fontPx * 0.22),
         ),
       );
+    }
+    if (proseIndent) {
+      spans.add(TextSpan(text: kProseParagraphIndent, style: style));
     }
 
     final markInfo = underlinesEnabled
@@ -4067,9 +4071,7 @@ class _ChapterPeekContent extends StatelessWidget {
           ),
         );
       }
-      if (prose && firstVerse) {
-        spans.add(TextSpan(text: kProseParagraphIndent, style: _mainStyle));
-      }
+      final indentHere = prose && firstVerse;
       firstVerse = false;
       spans.addAll(
         _verseSpans(
@@ -4077,6 +4079,7 @@ class _ChapterPeekContent extends StatelessWidget {
           style: _mainStyle,
           showNumber: true,
           appendNoteIcon: true,
+          proseIndent: indentHere,
         ),
       );
     }
@@ -4423,15 +4426,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         );
         index.placeholder();
       }
-      if (!widget.poetry && firstVerse) {
-        spans.add(TextSpan(text: kProseParagraphIndent, style: baseStyle));
-        index.text(
-          value: kProseParagraphIndent,
-          verse: v.verse,
-          verseStart: 0,
-          words: const [],
-        );
-      }
+      final indentHere = !widget.poetry && firstVerse;
       firstVerse = false;
       final markInfo = widget.underlinesEnabled
           ? markForVerse(
@@ -4499,6 +4494,16 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           ),
         );
         index.placeholder();
+      }
+
+      if (indentHere) {
+        spans.add(TextSpan(text: kProseParagraphIndent, style: baseStyle));
+        index.text(
+          value: kProseParagraphIndent,
+          verse: v.verse,
+          verseStart: 0,
+          words: const [],
+        );
       }
 
       final dictSpans = !selectionActive && widget.dictKeys.isNotEmpty
