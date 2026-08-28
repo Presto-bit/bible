@@ -526,8 +526,11 @@ else
   log "⚠️  无法读取 /bible/versions"
 fi
 
-# 鉴权冒烟：裸 User-Code 必须 401；持会话令牌必须 200
+# 鉴权冒烟：裸 User-Code 必须 401；持会话令牌必须 200（dry-run 不写点赞）
 api_base_local="http://127.0.0.1:8011"
+SMOKE_USER_CODE="99990001"
+SMOKE_DEVICE_ID="release-smoke-fixed"
+
 like_anon="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${api_base_local}/content/daily-verse/like" \
   -H "Content-Type: application/json" -H "X-User-Code: 12345678" 2>/dev/null || echo "000")"
 social_anon="$(curl -s -o /dev/null -w '%{http_code}' "${api_base_local}/social/groups" \
@@ -539,43 +542,28 @@ if [[ "$social_anon" != "401" && "$social_anon" != "000" ]]; then
   die "未授权社交返回 HTTP $social_anon（期望 401）"
 fi
 
-smoke_device="release-smoke-$(hostname 2>/dev/null || echo host)-$$"
-# 注意：bash $RANDOM 仅 0–32767，拼出的「8 位码」实际落在 ~3 万个值，易撞历史冒烟账号 → 403 无权恢复
-gen_smoke_user_code() {
-  if command -v python3 >/dev/null 2>&1; then
-    python3 -c 'import secrets; print(f"{secrets.randbelow(90_000_000) + 10_000_000:08d}")'
-  else
-    od -An -N4 -tu4 /dev/urandom | tr -d ' \n' | awk '{ printf "%08d\n", ($1 % 90000000) + 10000000 }'
-  fi
-}
-
 smoke_token=""
 reg_body=""
-smoke_code=""
-for _smoke_try in 1 2 3 4 5; do
-  smoke_code="$(gen_smoke_user_code)"
-  reg_body="$(curl -sS -X POST "${api_base_local}/auth/register" \
-    -H "Content-Type: application/json" \
-    -H "X-Device-Id: ${smoke_device}" \
-    -d "{\"user_code\":\"${smoke_code}\"}" 2>/dev/null || true)"
-  if command -v python3 >/dev/null 2>&1; then
-    smoke_token="$(printf '%s' "$reg_body" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("session_token") or "")' 2>/dev/null || true)"
-  elif command -v jq >/dev/null 2>&1; then
-    smoke_token="$(printf '%s' "$reg_body" | jq -r '.session_token // empty' 2>/dev/null || true)"
-  fi
-  [[ -n "$smoke_token" ]] && break
-done
+reg_body="$(curl -sS -X POST "${api_base_local}/auth/register" \
+  -H "Content-Type: application/json" \
+  -H "X-Device-Id: ${SMOKE_DEVICE_ID}" \
+  -d "{\"user_code\":\"${SMOKE_USER_CODE}\"}" 2>/dev/null || true)"
+if command -v python3 >/dev/null 2>&1; then
+  smoke_token="$(printf '%s' "$reg_body" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("session_token") or "")' 2>/dev/null || true)"
+elif command -v jq >/dev/null 2>&1; then
+  smoke_token="$(printf '%s' "$reg_body" | jq -r '.session_token // empty' 2>/dev/null || true)"
+fi
 
 if [[ -z "$smoke_token" ]]; then
   log "register 响应片段: $(printf '%s' "$reg_body" | head -c 300)"
-  die "无法签发冒烟会话（register 未返回 session_token）。若为「无权恢复此账号」多为 user_code 碰撞；否则检查 SESSION_TOKEN_SECRET"
+  die "无法签发冒烟会话（固定账号 ${SMOKE_USER_CODE}）。请检查 SESSION_TOKEN_SECRET 与 device 绑定"
 fi
 
 # 负向：对已存在账号、无设备绑定、无会话的静默 register 不得签发（防接管）
 hijack_code="$(curl -s -o /tmp/bible-reg-hijack.body -w '%{http_code}' -X POST "${api_base_local}/auth/register" \
   -H "Content-Type: application/json" \
-  -H "X-Device-Id: hijack-${smoke_device}" \
-  -d "{\"user_code\":\"${smoke_code}\"}" 2>/dev/null || echo "000")"
+  -H "X-Device-Id: hijack-${SMOKE_DEVICE_ID}" \
+  -d "{\"user_code\":\"${SMOKE_USER_CODE}\"}" 2>/dev/null || echo "000")"
 hijack_token=""
 if command -v python3 >/dev/null 2>&1; then
   hijack_token="$(python3 -c 'import json; d=json.load(open("/tmp/bible-reg-hijack.body")); print(d.get("session_token") or "")' 2>/dev/null || true)"
@@ -590,19 +578,21 @@ if [[ -n "$hijack_token" ]]; then
 fi
 rm -f /tmp/bible-reg-hijack.body 2>/dev/null || true
 
-like_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${api_base_local}/content/daily-verse/like" \
+like_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  "${api_base_local}/content/daily-verse/like?dry_run=1" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${smoke_token}" \
-  -H "X-Device-Id: ${smoke_device}" 2>/dev/null || echo "000")"
+  -H "X-Device-Id: ${SMOKE_DEVICE_ID}" \
+  -H "X-Smoke-Test: dry-run" 2>/dev/null || echo "000")"
 social_code="$(curl -s -o /dev/null -w '%{http_code}' "${api_base_local}/social/groups" \
   -H "Authorization: Bearer ${smoke_token}" \
-  -H "X-Device-Id: ${smoke_device}" 2>/dev/null || echo "000")"
+  -H "X-Device-Id: ${SMOKE_DEVICE_ID}" 2>/dev/null || echo "000")"
 
 if [[ "$like_code" == "503" ]]; then
   die "点赞 API 仍 503，请检查 PG 是否已应用 005_daily_verse_engagement.sql"
 fi
 if [[ "$like_code" != "200" ]]; then
-  die "点赞 API（带会话）返回 HTTP $like_code（期望 200）"
+  die "点赞 API（带会话 dry-run）返回 HTTP $like_code（期望 200）"
 fi
 if [[ "$social_code" != "200" ]]; then
   die "社交 API（带会话）返回 HTTP $social_code（期望 200；401 请查 SESSION_TOKEN_SECRET）"

@@ -132,6 +132,24 @@ def _pick_user_code(x_user_code: str | None, x_user_id: str | None) -> str | Non
     return None
 
 
+def _client_host(request: Request) -> str:
+    return request.client.host if request.client else ""
+
+
+def _is_internal_client_host(host: str) -> bool:
+    """本机 / Docker 网桥 / 单测 TestClient。"""
+    if host in ("127.0.0.1", "::1", "testclient"):
+        return True
+    return host.startswith(("172.", "10.", "192.168."))
+
+
+def _allow_smoke_dry_run(request: Request, smoke_header: str | None) -> bool:
+    """发版冒烟：验鉴权链路，禁止写 daily_verse_like。"""
+    if (smoke_header or "").strip() != "dry-run":
+        return False
+    return _is_internal_client_host(_client_host(request))
+
+
 def _daily_verse_engagement(verse_day: int, user_code: str | None) -> dict:
     """点赞/分享只统计「今天」这条经文（北京日历日），不含往年同天序。"""
     empty_react = {"reacts_count": 0, "my_react": None, "top_presets": []}
@@ -226,8 +244,11 @@ def daily_verse(
 
 @router.post("/daily-verse/like")
 def toggle_daily_verse_like(
+    request: Request,
     response: Response,
     day: int | None = Query(None, ge=1),
+    dry_run: bool = Query(False),
+    x_smoke_test: str | None = Header(default=None, alias="X-Smoke-Test"),
     user_id: str = Depends(get_current_user),
 ) -> dict:
     _no_store_headers(response)
@@ -235,6 +256,9 @@ def toggle_daily_verse_like(
     if not user_code:
         raise HTTPException(status_code=400, detail="账号未建档")
     verse_day, _ = _resolve_verse_day(day)
+    if dry_run and _allow_smoke_dry_run(request, x_smoke_test):
+        stats = _daily_verse_engagement(verse_day, user_code)
+        return {**stats, "dry_run": True}
     today_sql = f"{cn_day_sql('created_at')} = {CN_TODAY_SQL}"
     try:
         pool = get_pool()
