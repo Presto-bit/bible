@@ -4013,7 +4013,7 @@ class _ChapterPeekContent extends StatelessWidget {
                       child: Padding(
                         padding: EdgeInsets.only(
                           right: 4,
-                          left: prose && i == 0 ? fontPx : 0,
+                          left: prose && i == 0 ? fontPx * 2 : 0,
                         ),
                         child: RichText(
                           textAlign: TextAlign.justify,
@@ -4366,7 +4366,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                 chapter: widget.chapter,
                 baseStyle: baseStyle,
                 fontPx: fontPx,
-                textIndentPx: !widget.poetry && i == 0 ? fontPx : 0,
+                textIndentPx: !widget.poetry && i == 0 ? fontPx * 2 : 0,
                 selectionActive: selectionActive,
                 selBg: selBg,
                 wordRange: widget.wordRange,
