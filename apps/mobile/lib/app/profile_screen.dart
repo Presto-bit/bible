@@ -15,6 +15,7 @@ import '../core/config.dart';
 import '../core/gamification.dart';
 import '../core/h5_bridge_channel.dart' show discoverH5PathProvider;
 import '../core/open_h5.dart';
+import '../core/overlay_h5.dart';
 import '../core/profile_avatar.dart';
 import '../core/profile_footprint.dart';
 import '../core/theme.dart';
@@ -66,6 +67,13 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _idCopied = false;
   String? _avatarOverride;
+  var _settingsOpening = false;
+  var _shareOpening = false;
+
+  static const _topBarIconConstraints = BoxConstraints.tightFor(
+    width: 48,
+    height: 48,
+  );
 
   void _showBadgeGallery(List<BadgeDef> badges) {
     showModalBottomSheet<void>(
@@ -78,9 +86,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // 名称+密码只在欢迎页一次完成（对齐 PWA：不再强制账号门闸）。
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (mounted) await maybeShowSyncMigrateSheet(context, ref);
+    // 同步弹窗延后 + 仅登录态，避免首帧与 Profile 渲染抢主线程。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 800), () async {
+        if (!mounted) return;
+        if (!ref.read(authControllerProvider).signedIn) return;
+        await maybeShowSyncMigrateSheet(context, ref);
+      });
     });
   }
 
@@ -364,8 +376,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _openSettings() {
-    // §24：说明型设置走 H5，与 iOS PWA 同稿
-    context.push('/profile/settings');
+    if (_settingsOpening) return;
+    _settingsOpening = true;
+    HapticFeedback.lightImpact();
+    openOverlayH5(context, '/profile/settings', title: '设置');
+    Future<void>.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) _settingsOpening = false;
+    });
+  }
+
+  Future<void> _shareInvite() async {
+    if (_shareOpening) return;
+    _shareOpening = true;
+    HapticFeedback.lightImpact();
+    try {
+      final code = ref.read(sessionProvider).effectiveUserCode;
+      await shareInviteProduct(context, userCode: code);
+    } finally {
+      if (mounted) {
+        Future<void>.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) _shareOpening = false;
+        });
+      }
+    }
   }
 
   Future<void> _openSupport() async {
@@ -555,27 +588,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const Spacer(),
                 IconButton(
                   tooltip: '分享彼爱',
-                  constraints: const BoxConstraints.tightFor(
-                    width: 40,
-                    height: 40,
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () async {
-                    final code = ref.read(sessionProvider).effectiveUserCode;
-                    await shareInviteProduct(context, userCode: code);
-                  },
+                  constraints: _topBarIconConstraints,
+                  padding: const EdgeInsets.all(12),
+                  onPressed: _shareOpening ? null : _shareInvite,
                   icon: const Icon(Icons.ios_share_outlined, size: 22),
                 ),
                 IconButton(
                   tooltip: '设置',
-                  constraints: const BoxConstraints.tightFor(
-                    width: 40,
-                    height: 40,
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: _openSettings,
+                  constraints: _topBarIconConstraints,
+                  padding: const EdgeInsets.all(12),
+                  onPressed: _settingsOpening ? null : _openSettings,
                   icon: const Icon(Icons.settings_outlined, size: 22),
                 ),
               ],
