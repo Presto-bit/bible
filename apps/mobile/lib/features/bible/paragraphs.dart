@@ -17,8 +17,8 @@ class VerseParagraph {
 
 typedef ParagraphRange = (int start, int end);
 
-/// 散文段首缩进（RichText 无 text-indent，约 2 个全角字宽）。
-const kProseParagraphIndent = '\u3000\u3000';
+/// 散文段首缩进（RichText 无 text-indent，1 个全角字宽）。
+const kProseParagraphIndent = '\u3000';
 
 const _poetryBooks = {
   'PSA', 'PRO', 'ECC', 'SNG', 'LAM', 'AMO', 'MIC', 'HAB', 'ZEP', 'NAH',

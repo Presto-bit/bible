@@ -313,6 +313,8 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   bool _planDayFinishScheduled = false;
   bool _navFromSwipe = false;
   List<(int, int)>? _swipeCommittedParagraphRanges;
+  List<(int, int)>? _lockedParagraphRanges;
+  String? _lockedParagraphKey;
   Timer? _scrollProgressTimer;
   Chapter? _cachedChapter;
   Chapter? _liveChapter;
@@ -672,17 +674,33 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   }
 
   List<(int, int)>? _paragraphRangesForChapter(String bookId, int chapter) {
+    final chapterKey = '${bookId.toUpperCase()}.$chapter';
+    if (_lockedParagraphKey != chapterKey) {
+      _lockedParagraphKey = chapterKey;
+      _lockedParagraphRanges = null;
+    }
+    if (_lockedParagraphRanges != null && _lockedParagraphRanges!.isNotEmpty) {
+      return _lockedParagraphRanges;
+    }
+
     final fromProvider = ref
         .read(paragraphRangesProvider((book: bookId, chapter: chapter)))
         .value;
-    if (fromProvider != null && fromProvider.isNotEmpty) return fromProvider;
+    if (fromProvider != null && fromProvider.isNotEmpty) {
+      _lockedParagraphRanges = fromProvider;
+      return fromProvider;
+    }
     final cached = ref
         .read(contentRepoProvider)
         .paragraphRangesCached(bookId, chapter);
-    if (cached != null && cached.isNotEmpty) return cached;
+    if (cached != null && cached.isNotEmpty) {
+      _lockedParagraphRanges = cached;
+      return cached;
+    }
     if (_swipeCommittedParagraphRanges != null &&
         bookId == widget.book.id &&
         chapter == widget.chapter) {
+      _lockedParagraphRanges = _swipeCommittedParagraphRanges;
       return _swipeCommittedParagraphRanges;
     }
     return null;
@@ -712,6 +730,8 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         _planDayFinishScheduled = false;
         _resumeScheduled = false;
         _liveChapter = null;
+        _lockedParagraphKey = null;
+        _lockedParagraphRanges = null;
         if (!_navFromSwipe) {
           _swipeCommittedParagraphRanges = null;
           _pageDragDx = 0;
@@ -2155,6 +2175,9 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                   )),
                 )
                 .value;
+        _lockedParagraphKey =
+            '${target.book.id.toUpperCase()}.${target.chapter}';
+        _lockedParagraphRanges = _swipeCommittedParagraphRanges;
       }
       widget.onNav(goingNext ? 1 : -1);
       // 三屏轨道归零：中线已是目标章，视觉与邻屏 peek 一致（对齐 PWA offset reset）。
@@ -2253,6 +2276,11 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             paragraphRangesFromProvider.isNotEmpty)
         ? paragraphRangesFromProvider
         : _paragraphRangesForChapter(widget.book.id, widget.chapter);
+    if (paragraphRanges != null && paragraphRanges.isNotEmpty) {
+      _lockedParagraphKey =
+          '${widget.book.id.toUpperCase()}.${widget.chapter}';
+      _lockedParagraphRanges = paragraphRanges;
+    }
     final poetry = const {
       'PSA',
       'PRO',
@@ -2310,9 +2338,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           ch,
           versionId: widget.mainVersionId,
         );
-        if (_swipeCommittedParagraphRanges != null) {
-          _swipeCommittedParagraphRanges = null;
-        }
         if (!_resumeScheduled && _selected.isEmpty && !_navFromSwipe) {
           _resumeScheduled = true;
           _maybeResume();
@@ -3988,7 +4013,7 @@ class _ChapterPeekContent extends StatelessWidget {
                       child: Padding(
                         padding: EdgeInsets.only(
                           right: 4,
-                          left: prose && i == 0 ? fontPx * 2 : 0,
+                          left: prose && i == 0 ? fontPx : 0,
                         ),
                         child: RichText(
                           textAlign: TextAlign.justify,
@@ -4341,7 +4366,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                 chapter: widget.chapter,
                 baseStyle: baseStyle,
                 fontPx: fontPx,
-                textIndentPx: !widget.poetry && i == 0 ? fontPx * 2 : 0,
+                textIndentPx: !widget.poetry && i == 0 ? fontPx : 0,
                 selectionActive: selectionActive,
                 selBg: selBg,
                 wordRange: widget.wordRange,

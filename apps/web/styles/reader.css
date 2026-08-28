@@ -640,9 +640,9 @@ a.license-row-name:hover {
   font-size: var(--reader-font-size);
   line-height: 1.9;
 }
-/* 散文段落首行缩进（诗体/对照模式不加） */
-.reader-prose .verse-paragraph {
-  text-indent: 2em;
+/* 散文段首缩进：仅段内首节经文，不含段落小标题 */
+.reader-prose .verse-para-start .verse-text-body {
+  text-indent: 1em;
 }
 /* 滑动预览与正式正文：统一经节排版容器 */
 .reader-turn-panel-active .reader-turn-peek,

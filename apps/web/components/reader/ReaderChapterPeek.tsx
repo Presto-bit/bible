@@ -82,7 +82,7 @@ export default function ReaderChapterPeek({
   const renderProseParagraph = (para: (typeof paragraphs)[0]) => (
       <div key={para.startVerse}>
         <div className={`verse-paragraph verse-no-${verseNo}`} style={verseBlockStyle}>
-          {para.verses.map((v) => {
+          {para.verses.map((v, vi) => {
             const displayText = textByVerse.get(v.verse) ?? v.text;
             const markInfo = underlinesOn
               ? markForVerse(highlightMap, bookId, chapter, v.verse)
@@ -95,7 +95,7 @@ export default function ReaderChapterPeek({
                   <SectionTitle title={section.title} onRefClick={() => {}} />
                 ) : null}
                 <span
-                  className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
+                  className={`verse-inline verse-token${vi === 0 && !poetry ? ' verse-para-start' : ''} ${highlightClass(wholeMark)}`}
                 >
                   {verseNo !== 'hidden' && (
                     <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
@@ -117,7 +117,7 @@ export default function ReaderChapterPeek({
           className={`verse-paragraph verse-no-${verseNo}`}
           style={verseBlockStyle}
         >
-          {para.verses.map((v) => {
+          {para.verses.map((v, vi) => {
             const displayText = textByVerse.get(v.verse) ?? v.text;
             const markInfo = underlinesOn
               ? markForVerse(highlightMap, bookId, chapter, v.verse)
@@ -133,7 +133,7 @@ export default function ReaderChapterPeek({
                 <div className="reader-parallel-verse">
                   <div className="reader-parallel-primary">
                     <span
-                      className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
+                      className={`verse-inline verse-token${vi === 0 && !poetry ? ' verse-para-start' : ''} ${highlightClass(wholeMark)}`}
                     >
                       {verseNo !== 'hidden' && (
                         <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>

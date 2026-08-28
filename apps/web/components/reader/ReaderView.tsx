@@ -442,6 +442,11 @@ export default function ReaderView({
   const skipChapterHydrateRef = useRef(false);
   /** 当前章是否已触发过章末 tick（防 scroll 连发 + 换章误用旧 tick） */
   const chapterBottomArrivedRef = useRef<string | null>(null);
+  /** 当前章段落范围锁定，避免索引晚到或 state 抖动造成翻页后重排 */
+  const paragraphRangesLockRef = useRef<{ key: string; ranges: [number, number][] | null }>({
+    key: '',
+    ranges: null,
+  });
   const overlayOpenRef = useRef(false);
   /** 划词结束后短时忽略横滑 */
   const swipeIgnoreUntilRef = useRef(0);
@@ -543,6 +548,11 @@ export default function ReaderView({
 
   useLayoutEffect(() => {
     if (skipChapterHydrateRef.current) return;
+    const key = `${book.id}.${chapter}`;
+    paragraphRangesLockRef.current = {
+      key,
+      ranges: paragraphRangesFor(book.id, chapter),
+    };
     setParagraphRanges(paragraphRangesFor(book.id, chapter));
   }, [book.id, chapter]);
 
@@ -553,7 +563,11 @@ export default function ReaderView({
       if (!cancelled) setOutline(marks);
     });
     void paragraphRangesForAsync(book.id, chapter).then((ranges) => {
-      if (!cancelled) setParagraphRanges(ranges);
+      if (!cancelled && ranges?.length) {
+        const key = `${book.id}.${chapter}`;
+        paragraphRangesLockRef.current = { key, ranges };
+        setParagraphRanges(ranges);
+      }
     });
     return () => {
       cancelled = true;
@@ -564,7 +578,20 @@ export default function ReaderView({
     () => {
       const verseLines = structureVerses.map((v) => ({ verse: v.verse, text: v.text }));
       const sectionStarts = outline.map((s) => s.verse);
-      const ranges = paragraphRangesForChapter(book.id, chapter, paragraphRanges);
+      const chapterKey = `${book.id}.${chapter}`;
+      const locked =
+        paragraphRangesLockRef.current.key === chapterKey
+          ? paragraphRangesLockRef.current.ranges
+          : null;
+      const ranges =
+        paragraphRanges?.length
+          ? paragraphRanges
+          : locked?.length
+            ? locked
+            : paragraphRangesForChapter(book.id, chapter, paragraphRanges);
+      if (ranges?.length) {
+        paragraphRangesLockRef.current = { key: chapterKey, ranges };
+      }
       return groupVersesIntoParagraphs(
         book.id,
         verseLines,
@@ -1762,11 +1789,15 @@ export default function ReaderView({
             setLayoutVerses(structureSource);
             setVerses(instant);
             setOutline(outlineReady ?? []);
-            setParagraphRanges(
+            const committedRanges =
               peekBundle?.paragraphRanges?.length
                 ? peekBundle.paragraphRanges
-                : paragraphRangesFor(target.book.id, target.chapter),
-            );
+                : paragraphRangesFor(target.book.id, target.chapter);
+            paragraphRangesLockRef.current = {
+              key: `${target.book.id}.${target.chapter}`,
+              ranges: committedRanges ?? null,
+            };
+            setParagraphRanges(committedRanges);
             setChapterLoading(false);
           });
           if (contentRef.current) resetReaderScroll(contentRef.current);
@@ -1781,11 +1812,15 @@ export default function ReaderView({
           setLayoutVerses(structureSource);
           setVerses(instant);
           setOutline(outlineReady ?? []);
-          setParagraphRanges(
+          const committedRanges =
             peekBundle?.paragraphRanges?.length
               ? peekBundle.paragraphRanges
-              : paragraphRangesFor(target.book.id, target.chapter),
-          );
+              : paragraphRangesFor(target.book.id, target.chapter);
+          paragraphRangesLockRef.current = {
+            key: `${target.book.id}.${target.chapter}`,
+            ranges: committedRanges ?? null,
+          };
+          setParagraphRanges(committedRanges);
           setChapterLoading(false);
         }
         if (!cached?.length) {
@@ -2790,7 +2825,7 @@ export default function ReaderView({
                         <div className="reader-parallel-primary">
                           <span
                             id={`verse-anchor-${v.verse}`}
-                            className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
+                            className={`verse-inline verse-token${vi === 0 ? ' verse-para-start' : ''} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
                             onClick={(e) => handleVerseClick(e, v.verse, text)}
                             onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                           >
@@ -2888,7 +2923,7 @@ export default function ReaderView({
                 className={`verse-paragraph verse-no-${verseNo}`}
                 style={verseBlockStyle}
               >
-                {para.verses.map((v) => {
+                {para.verses.map((v, vi) => {
                   const markInfo = underlinesOn
                     ? markForVerse(highlightMap, book.id, chapter, v.verse)
                     : null;
@@ -2905,7 +2940,7 @@ export default function ReaderView({
                       {renderFeedHint(v.verse)}
                       <span
                         id={`verse-anchor-${v.verse}`}
-                        className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
+                        className={`verse-inline verse-token${vi === 0 ? ' verse-para-start' : ''} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
                         onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
                         onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                       >
