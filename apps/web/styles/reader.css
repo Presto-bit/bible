@@ -640,8 +640,8 @@ a.license-row-name:hover {
   font-size: var(--reader-font-size);
   line-height: 1.9;
 }
-/* 散文段首缩进 2 汉字：仅段内首节经文，不含段落小标题 */
-.reader-prose .verse-para-start .verse-text-body::before {
+/* 散文段首缩进 2 汉字：段内首节（含节号），不含段落小标题 */
+.reader-prose .verse-para-start::before {
   content: '\3000\3000';
   white-space: pre;
 }

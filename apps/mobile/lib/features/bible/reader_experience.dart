@@ -3852,6 +3852,9 @@ class _ChapterPeekContent extends StatelessWidget {
     bool proseIndent = false,
   }) {
     final spans = <InlineSpan>[];
+    if (proseIndent) {
+      spans.add(TextSpan(text: kProseParagraphIndent, style: style));
+    }
     if (showNumber && verseNo != ReaderVerseNumberMode.hidden) {
       spans.add(
         WidgetSpan(
@@ -3880,9 +3883,6 @@ class _ChapterPeekContent extends StatelessWidget {
           child: SizedBox(width: fontPx * 0.22),
         ),
       );
-    }
-    if (proseIndent) {
-      spans.add(TextSpan(text: kProseParagraphIndent, style: style));
     }
 
     final markInfo = underlinesEnabled
@@ -3994,7 +3994,12 @@ class _ChapterPeekContent extends StatelessWidget {
               if (sectionByVerse[verse.verse] case final t?)
                 _sectionTitle(t.trim()),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
+                padding: EdgeInsets.fromLTRB(
+                  prose && i == 0 ? fontPx * 2 : 0,
+                  3,
+                  0,
+                  3,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -4015,10 +4020,7 @@ class _ChapterPeekContent extends StatelessWidget {
                     SizedBox(width: fontPx * 0.35),
                     Expanded(
                       child: Padding(
-                        padding: EdgeInsets.only(
-                          right: 4,
-                          left: prose && i == 0 ? fontPx * 2 : 0,
-                        ),
+                        padding: const EdgeInsets.only(right: 4),
                         child: RichText(
                           textAlign: TextAlign.justify,
                           text: TextSpan(
@@ -4369,7 +4371,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                 chapter: widget.chapter,
                 baseStyle: baseStyle,
                 fontPx: fontPx,
-                textIndentPx: !widget.poetry && i == 0 ? fontPx * 2 : 0,
+                rowIndentPx: !widget.poetry && i == 0 ? fontPx * 2 : 0,
                 selectionActive: selectionActive,
                 selBg: selBg,
                 wordRange: widget.wordRange,
@@ -4448,6 +4450,16 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           ? widget.resumeAnchorKey
           : null;
 
+      if (indentHere) {
+        spans.add(TextSpan(text: kProseParagraphIndent, style: baseStyle));
+        index.text(
+          value: kProseParagraphIndent,
+          verse: v.verse,
+          verseStart: 0,
+          words: const [],
+        );
+      }
+
       // 节号：inline 真上标（对齐 PWA .verse-sup：0.65em + super + 0.25em）
       if (widget.verseNo == ReaderVerseNumberMode.inline) {
         spans.add(
@@ -4494,16 +4506,6 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           ),
         );
         index.placeholder();
-      }
-
-      if (indentHere) {
-        spans.add(TextSpan(text: kProseParagraphIndent, style: baseStyle));
-        index.text(
-          value: kProseParagraphIndent,
-          verse: v.verse,
-          verseStart: 0,
-          words: const [],
-        );
       }
 
       final dictSpans = !selectionActive && widget.dictKeys.isNotEmpty
@@ -4629,7 +4631,7 @@ class _MarginVerseRow extends StatefulWidget {
     required this.chapter,
     required this.baseStyle,
     required this.fontPx,
-    this.textIndentPx = 0,
+    this.rowIndentPx = 0,
     required this.selectionActive,
     required this.selBg,
     required this.wordRange,
@@ -4658,7 +4660,7 @@ class _MarginVerseRow extends StatefulWidget {
   final int chapter;
   final TextStyle baseStyle;
   final double fontPx;
-  final double textIndentPx;
+  final double rowIndentPx;
   final bool selectionActive;
   final Color selBg;
   final WordRange? wordRange;
@@ -4754,7 +4756,7 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
       onOpenDict: onOpenDict,
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: EdgeInsets.fromLTRB(widget.rowIndentPx, 3, 0, 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4788,7 +4790,7 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
               onTap: selectionActive ? () => onToggle(v.verse, v.text) : null,
               child: Container(
                 key: anchorKey,
-                padding: EdgeInsets.only(right: 4, left: widget.textIndentPx),
+                padding: const EdgeInsets.only(right: 4),
                 child: SelectionContainer.disabled(
                   child: readerLocatedRichText(
                     locator: index.build(),

@@ -37,7 +37,7 @@ bool isPoetryBook(String bookId) =>
 bool _endsSentence(String text) {
   final t = text.trim();
   if (t.isEmpty) return false;
-  return RegExp(r'[。！？；….!?;:]["\'」』)]*$').hasMatch(t);
+  return RegExp('[。！？；….!?;:]["\'\u300d\u300f)]*\$').hasMatch(t);
 }
 
 int _charCount(List<Verse> buf) =>
