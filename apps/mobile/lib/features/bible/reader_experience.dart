@@ -3995,7 +3995,7 @@ class _ChapterPeekContent extends StatelessWidget {
                 _sectionTitle(t.trim()),
               Padding(
                 padding: EdgeInsets.fromLTRB(
-                  prose && i == 0 ? fontPx * 2 : 0,
+                  prose && i == 0 ? fontPx : 0,
                   3,
                   0,
                   3,
@@ -4371,7 +4371,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                 chapter: widget.chapter,
                 baseStyle: baseStyle,
                 fontPx: fontPx,
-                rowIndentPx: !widget.poetry && i == 0 ? fontPx * 2 : 0,
+                rowIndentPx: !widget.poetry && i == 0 ? fontPx : 0,
                 selectionActive: selectionActive,
                 selBg: selBg,
                 wordRange: widget.wordRange,

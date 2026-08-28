@@ -640,9 +640,9 @@ a.license-row-name:hover {
   font-size: var(--reader-font-size);
   line-height: 1.9;
 }
-/* 散文段首缩进 2 汉字：段内首节（含节号），不含段落小标题 */
+/* 散文段首缩进 1 汉字：段内首节（含节号），不含段落小标题 */
 .reader-prose .verse-para-start::before {
-  content: '\3000\3000';
+  content: '\3000';
   white-space: pre;
 }
 /* 滑动预览与正式正文：统一经节排版容器 */
