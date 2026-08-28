@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""从 CNV 经文 + sections 生成阅读段落表 data/bible/cnv/paragraphs.json。
+"""从 CNV 经文 + sections 生成阅读段落表（L2 兜底）。
 
-策略（出版段落不可用时）：
+出版段落请优先使用 USFM \\p：
+  python scripts/build_paragraphs_from_usfm.py
+
+本脚本仅在无 USFM 时作算法近似。
 - 强断点：sections.json 小标题节
 - 散文：段内 2–6 节 / ≤320 字；弱断点仅当 ≥3 节且 ≥120 字且上一节句末
 - 诗体卷：逐节

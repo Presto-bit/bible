@@ -5,11 +5,17 @@ import {
 } from './chapter_prefetch';
 import { outlineFor, outlineForAsync } from './section_titles';
 import type { SectionMark } from './section_titles';
+import {
+  paragraphRangesFor,
+  paragraphRangesForAsync,
+} from './paragraph_ranges';
+import type { ParagraphRange } from './paragraphs';
 
 export type ChapterReaderBundle = {
   verses: Verse[];
   layoutVerses: Verse[];
   outline: SectionMark[];
+  paragraphRanges: ParagraphRange[];
   /** 对照阅读次列（与主阅读器 parallel 模式一致） */
   parallelVerses: Verse[] | null;
 };
@@ -34,15 +40,17 @@ export async function loadChapterReaderBundle(
     ? loadChapterVerses(bookId, chapter, null)
     : versesP;
   const outlineP = outlineForAsync(bookId, chapter);
+  const rangesP = paragraphRangesForAsync(bookId, chapter);
   const parallelP =
     parallelVer
       ? loadChapterVerses(bookId, chapter, parallelVer)
       : Promise.resolve(null);
 
-  const [verses, layoutVerses, outline, parallelVerses] = await Promise.all([
+  const [verses, layoutVerses, outline, paragraphRanges, parallelVerses] = await Promise.all([
     versesP,
     layoutP,
     outlineP,
+    rangesP,
     parallelP,
   ]);
 
@@ -52,6 +60,7 @@ export async function loadChapterReaderBundle(
     verses,
     layoutVerses: layoutVerses?.length ? layoutVerses : verses,
     outline: outline ?? [],
+    paragraphRanges: paragraphRanges ?? [],
     parallelVerses: parallelVerses?.length ? parallelVerses : null,
   };
 }
@@ -85,6 +94,7 @@ export function getChapterReaderBundleSync(
     verses,
     layoutVerses,
     outline: outlineFor(bookId, chapter),
+    paragraphRanges: paragraphRangesFor(bookId, chapter) ?? [],
     parallelVerses,
   };
 }

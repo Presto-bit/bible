@@ -136,10 +136,12 @@ import { outlineFor, outlineForAsync, preloadSectionTitles, type SectionMark } f
 import {
   paragraphRangesFor,
   paragraphRangesForAsync,
+  paragraphRangesForChapter,
   preloadParagraphRanges,
 } from '@/lib/paragraph_ranges';
 import { resolveSelectionTextForAi, versesForNativeLineHighlight, nativeSelectionCoversVerses } from '@/lib/reader_selection_text';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
+import { sectionMarkAt } from '@/lib/reader_section_marks';
 import { buildCheckinRef } from '@/lib/group_checkin';
 import { saveGroupCheckinDraft } from '@/lib/group_checkin_draft';
 import {
@@ -540,6 +542,7 @@ export default function ReaderView({
   useEffect(() => {
     if (skipChapterHydrateRef.current) return;
     let cancelled = false;
+    setParagraphRanges(paragraphRangesFor(book.id, chapter));
     void outlineForAsync(book.id, chapter).then((marks) => {
       if (!cancelled) setOutline(marks);
     });
@@ -555,10 +558,7 @@ export default function ReaderView({
     () => {
       const verseLines = structureVerses.map((v) => ({ verse: v.verse, text: v.text }));
       const sectionStarts = outline.map((s) => s.verse);
-      const ranges =
-        paragraphRanges
-        ?? paragraphRangesFor(book.id, chapter)
-        ?? null;
+      const ranges = paragraphRangesForChapter(book.id, chapter, paragraphRanges);
       return groupVersesIntoParagraphs(
         book.id,
         verseLines,
@@ -1750,6 +1750,11 @@ export default function ReaderView({
             setLayoutVerses(structureSource);
             setVerses(instant);
             setOutline(outlineReady ?? []);
+            setParagraphRanges(
+              peekBundle?.paragraphRanges?.length
+                ? peekBundle.paragraphRanges
+                : paragraphRangesFor(target.book.id, target.chapter),
+            );
             setChapterLoading(false);
           });
           if (contentRef.current) resetReaderScroll(contentRef.current);
@@ -2733,17 +2738,8 @@ export default function ReaderView({
         <p className="muted reader-version-banner">{versionBanner}</p>
       ) : verses.length === 0 ? null : layout === 'parallel' ? (
         <div className="reader-parallel">
-          {paragraphs.map((para) => {
-            const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
-            const firstMark = marks.find((m) => m.verse === para.startVerse) || marks[0];
-            return (
+          {paragraphs.map((para) => (
               <div key={para.startVerse} className="reader-parallel-block">
-                {firstMark && firstMark.verse === para.startVerse && (
-                  <SectionTitle
-                    title={firstMark.title}
-                    onRefClick={(osis, label) => setVersePreview({ osis, label })}
-                  />
-                )}
                 <div
                   className={`verse-paragraph verse-no-${verseNo}`}
                   style={verseBlockStyle}
@@ -2755,8 +2751,16 @@ export default function ReaderView({
                       : null;
                     const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
                     const p2 = parallelVerses.find((x) => x.verse === v.verse);
+                    const section = sectionMarkAt(outline, v.verse);
                     return (
-                      <div key={v.verse} className="reader-parallel-verse">
+                      <Fragment key={v.verse}>
+                        {section ? (
+                          <SectionTitle
+                            title={section.title}
+                            onRefClick={(osis, label) => setVersePreview({ osis, label })}
+                          />
+                        ) : null}
+                        <div className="reader-parallel-verse">
                         {renderFeedHint(v.verse)}
                         <div className="reader-parallel-primary">
                           <span
@@ -2845,25 +2849,16 @@ export default function ReaderView({
                           })()}
                         </div>
                       </div>
+                      </Fragment>
                     );
                   })}
                 </div>
               </div>
-            );
-          })}
+            ))}
         </div>
       ) : (
-        paragraphs.map((para) => {
-          const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
-          const firstMark = marks.find((m) => m.verse === para.startVerse) || marks[0];
-          return (
+        paragraphs.map((para) => (
             <div key={para.startVerse}>
-              {firstMark && firstMark.verse === para.startVerse && (
-                <SectionTitle
-                  title={firstMark.title}
-                  onRefClick={(osis, label) => setVersePreview({ osis, label })}
-                />
-              )}
               <div
                 className={`verse-paragraph verse-no-${verseNo}`}
                 style={verseBlockStyle}
@@ -2873,8 +2868,15 @@ export default function ReaderView({
                     ? markForVerse(highlightMap, book.id, chapter, v.verse)
                     : null;
                   const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
+                  const section = sectionMarkAt(outline, v.verse);
                   return (
                     <Fragment key={v.verse}>
+                      {section ? (
+                        <SectionTitle
+                          title={section.title}
+                          onRefClick={(osis, label) => setVersePreview({ osis, label })}
+                        />
+                      ) : null}
                       {renderFeedHint(v.verse)}
                       <span
                         id={`verse-anchor-${v.verse}`}
@@ -2900,8 +2902,7 @@ export default function ReaderView({
                 })}
               </div>
             </div>
-          );
-        })
+          ))
       )}
     </>
   );
@@ -3070,6 +3071,7 @@ export default function ReaderView({
                     verses={peekPrevBundle?.verses ?? null}
                     structureVerses={peekPrevBundle?.layoutVerses ?? null}
                     outline={peekPrevBundle?.outline ?? []}
+                    paragraphRanges={peekPrevBundle?.paragraphRanges}
                     layout={layout}
                     parallelVerses={peekPrevBundle?.parallelVerses}
                     englishUI={englishUI}
@@ -3094,6 +3096,7 @@ export default function ReaderView({
                     verses={peekNextBundle?.verses ?? null}
                     structureVerses={peekNextBundle?.layoutVerses ?? null}
                     outline={peekNextBundle?.outline ?? []}
+                    paragraphRanges={peekNextBundle?.paragraphRanges}
                     layout={layout}
                     parallelVerses={peekNextBundle?.parallelVerses}
                     englishUI={englishUI}

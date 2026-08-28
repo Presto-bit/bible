@@ -1,4 +1,6 @@
-# Dependencies
+# Bible source caches (USFM zips are copyrighted — not committed)
+data/bible/cnv/.usfm-cache/
+
 node_modules/
 .dart_tool/
 .packages

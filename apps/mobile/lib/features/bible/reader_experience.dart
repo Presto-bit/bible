@@ -2578,8 +2578,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       paragraphRanges: paragraphRanges,
     );
     for (final para in paras) {
-      final t = sectionByVerse[para.startVerse];
-      if (t != null) rows.add(t);
       rows.add(para);
     }
 
@@ -2685,14 +2683,12 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                 return segmentFooter!;
               }
               final r = rows[i - 1 - planHead];
-              if (r is String) {
-                return _sectionTitle(r);
-              }
               final para = r as VerseParagraph;
               return _ParagraphBlock(
                 book: widget.book,
                 chapter: widget.chapter,
                 paragraph: displayPara(para),
+                sectionByVerse: sectionByVerse,
                 verseNo: verseNo,
                 poetry: poetry,
                 selected: _selected,
@@ -3014,8 +3010,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     );
     final rows = <Object>[];
     for (final para in paras) {
-      final t = sections[para.startVerse];
-      if (t != null) rows.add(t);
       rows.add(para);
     }
 
@@ -3126,12 +3120,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           );
         }
         final r = rows[i - 1];
-        if (r is String) {
-          return _sectionTitle(r);
-        }
         final para = r as VerseParagraph;
-        final primarySpans = <InlineSpan>[];
-        final compareSpans = <InlineSpan>[];
         final selBg = Paint()..color = AppColors.accentWash;
         final mainBase = TextStyle(
           color: theme.ink,
@@ -3151,87 +3140,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           fontFamily: fontFamily.fontFamily,
           fontFamilyFallback: fontFamily.fontFamilyFallback,
         );
-        for (final v in para.verses) {
-          final isSel = _selected.contains(v.verse);
-          final mainT = verseText(primary, v.verse);
-          final parallelT = verseText(compare, v.verse);
-          final diff = showDiff && sameScriptRoughly(mainT, parallelT)
-              ? cachedVerseDiff(
-                  '${widget.book.id}.${widget.chapter}.${v.verse}',
-                  mainT,
-                  parallelT,
-                )
-              : const VerseDiffResult(main: [], parallel: [], heavy: false);
-          if (verseNo != ReaderVerseNumberMode.hidden) {
-            primarySpans.add(
-              TextSpan(
-                text: '${v.verse}\u2009',
-                style: TextStyle(
-                  color: AppColors.accentDeep,
-                  fontSize: fontPx * 0.65,
-                  fontWeight: FontWeight.w700,
-                  height: 1.0,
-                  background: isSel ? selBg : null,
-                ),
-              ),
-            );
-          }
-          if (diff.heavy) {
-            primarySpans.add(
-              TextSpan(
-                text: '$mainT ',
-                style: mainBase.copyWith(
-                  backgroundColor: isSel
-                      ? AppColors.accentWash
-                      : const Color(0x18B8860B),
-                ),
-              ),
-            );
-          } else {
-            primarySpans.addAll(
-              textSpans(
-                text: mainT,
-                diffs: diff.main,
-                base: mainBase,
-                selected: isSel,
-                selBg: selBg,
-              ),
-            );
-          }
-          if (verseNo != ReaderVerseNumberMode.hidden) {
-            compareSpans.add(
-              TextSpan(
-                text: '${v.verse} ',
-                style: TextStyle(
-                  color: AppColors.accentDeep.withValues(alpha: 0.55),
-                  fontSize: fontPx * 0.6,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            );
-          }
-          if (diff.heavy) {
-            compareSpans.add(
-              TextSpan(
-                text: '$parallelT ',
-                style: parallelBase.copyWith(
-                  backgroundColor: const Color(0x18B8860B),
-                ),
-              ),
-            );
-          } else {
-            compareSpans.addAll(
-              textSpans(
-                text: parallelT,
-                diffs: diff.parallel,
-                base: parallelBase,
-                diffStyle: parallelBase.copyWith(
-                  backgroundColor: const Color(0x22C4A35A),
-                ),
-              ),
-            );
-          }
-        }
         return RepaintBoundary(
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: 4),
@@ -3239,15 +3147,113 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RichText(
-                  textAlign: TextAlign.justify,
-                  text: TextSpan(style: mainBase, children: primarySpans),
-                ),
-                const SizedBox(height: 6),
-                RichText(
-                  textAlign: TextAlign.justify,
-                  text: TextSpan(style: parallelBase, children: compareSpans),
-                ),
+                for (final v in para.verses) ...[
+                  if (sections[v.verse] case final t?) _sectionTitle(t),
+                  Builder(
+                    builder: (context) {
+                      final isSel = _selected.contains(v.verse);
+                      final mainT = verseText(primary, v.verse);
+                      final parallelT = verseText(compare, v.verse);
+                      final diff = showDiff && sameScriptRoughly(mainT, parallelT)
+                          ? cachedVerseDiff(
+                              '${widget.book.id}.${widget.chapter}.${v.verse}',
+                              mainT,
+                              parallelT,
+                            )
+                          : const VerseDiffResult(
+                              main: [],
+                              parallel: [],
+                              heavy: false,
+                            );
+                      final versePrimary = <InlineSpan>[];
+                      final verseCompare = <InlineSpan>[];
+                      if (verseNo != ReaderVerseNumberMode.hidden) {
+                        versePrimary.add(
+                          TextSpan(
+                            text: '${v.verse}\u2009',
+                            style: TextStyle(
+                              color: AppColors.accentDeep,
+                              fontSize: fontPx * 0.65,
+                              fontWeight: FontWeight.w700,
+                              height: 1.0,
+                              background: isSel ? selBg : null,
+                            ),
+                          ),
+                        );
+                      }
+                      if (diff.heavy) {
+                        versePrimary.add(
+                          TextSpan(
+                            text: '$mainT ',
+                            style: mainBase.copyWith(
+                              backgroundColor: isSel
+                                  ? AppColors.accentWash
+                                  : const Color(0x18B8860B),
+                            ),
+                          ),
+                        );
+                      } else {
+                        versePrimary.addAll(
+                          textSpans(
+                            text: mainT,
+                            diffs: diff.main,
+                            base: mainBase,
+                            selected: isSel,
+                            selBg: selBg,
+                          ),
+                        );
+                      }
+                      if (verseNo != ReaderVerseNumberMode.hidden) {
+                        verseCompare.add(
+                          TextSpan(
+                            text: '${v.verse} ',
+                            style: TextStyle(
+                              color: AppColors.accentDeep.withValues(alpha: 0.55),
+                              fontSize: fontPx * 0.6,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        );
+                      }
+                      if (diff.heavy) {
+                        verseCompare.add(
+                          TextSpan(
+                            text: '$parallelT ',
+                            style: parallelBase.copyWith(
+                              backgroundColor: const Color(0x18B8860B),
+                            ),
+                          ),
+                        );
+                      } else {
+                        verseCompare.addAll(
+                          textSpans(
+                            text: parallelT,
+                            diffs: diff.parallel,
+                            base: parallelBase,
+                            diffStyle: parallelBase.copyWith(
+                              backgroundColor: const Color(0x22C4A35A),
+                            ),
+                          ),
+                        );
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RichText(
+                            textAlign: TextAlign.justify,
+                            text: TextSpan(style: mainBase, children: versePrimary),
+                          ),
+                          const SizedBox(height: 6),
+                          RichText(
+                            textAlign: TextAlign.justify,
+                            text: TextSpan(style: parallelBase, children: verseCompare),
+                          ),
+                          if (v != para.verses.last) const SizedBox(height: 8),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -3902,7 +3908,9 @@ class _ChapterPeekContent extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final verse in display)
+          for (final verse in display) ...[
+            if (sectionByVerse[verse.verse] case final t?)
+              _sectionTitle(t.trim()),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(
@@ -3964,23 +3972,29 @@ class _ChapterPeekContent extends StatelessWidget {
         ],
       );
     }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: RichText(
-        textAlign: TextAlign.justify,
-        text: TextSpan(
-          style: _mainStyle,
-          children: [
-            for (final verse in display)
-              ..._verseSpans(
-                verse,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final verse in display) ...[
+          if (sectionByVerse[verse.verse] case final t?)
+            _sectionTitle(t.trim()),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: RichText(
+              textAlign: TextAlign.justify,
+              text: TextSpan(
                 style: _mainStyle,
-                showNumber: true,
-                appendNoteIcon: true,
+                children: _verseSpans(
+                  verse,
+                  style: _mainStyle,
+                  showNumber: true,
+                  appendNoteIcon: true,
+                ),
               ),
-          ],
-        ),
-      ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -3990,6 +4004,8 @@ class _ChapterPeekContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final layoutVerse in para.verses) ...[
+          if (sectionByVerse[layoutVerse.verse] case final t?)
+            _sectionTitle(t.trim()),
           RichText(
             textAlign: TextAlign.justify,
             text: TextSpan(
@@ -4028,8 +4044,6 @@ class _ChapterPeekContent extends StatelessWidget {
       paragraphRanges: paragraphRanges,
     );
     for (final paragraph in paragraphs) {
-      final title = sectionByVerse[paragraph.startVerse];
-      if (title != null && title.trim().isNotEmpty) rows.add(title.trim());
       rows.add(paragraph);
     }
     final itemCount = rows.length;
@@ -4044,9 +4058,7 @@ class _ChapterPeekContent extends StatelessWidget {
           if (headerBar != null && i == 0) return headerBar!;
           final row = rows[i - (headerBar != null ? 1 : 0)];
           return RepaintBoundary(
-            child: row is String
-                ? _sectionTitle(row)
-                : parallel == null
+            child: parallel == null
                 ? _proseParagraph(row as VerseParagraph)
                 : _parallelParagraph(row as VerseParagraph),
           );
@@ -4061,6 +4073,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     required this.book,
     required this.chapter,
     required this.paragraph,
+    this.sectionByVerse = const {},
     required this.verseNo,
     required this.poetry,
     required this.selected,
@@ -4094,6 +4107,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final BibleBook book;
   final int chapter;
   final VerseParagraph paragraph;
+  final Map<int, String> sectionByVerse;
   final ReaderVerseNumberMode verseNo;
   final bool poetry;
   final Set<int> selected;
@@ -4172,6 +4186,49 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     }
   }
 
+  Widget? _sectionTitleForVerse(int verse) {
+    final title = widget.sectionByVerse[verse]?.trim();
+    if (title == null || title.isEmpty) return null;
+    final fontPx = ref.watch(readerFontProvider).px;
+    final fontFamily = ref.watch(readerFontFamilyProvider);
+    final style = TextStyle(
+      fontSize: (fontPx * 0.88).roundToDouble().clamp(13, 32),
+      fontWeight: FontWeight.w700,
+      color: AppColors.accentDeep,
+      fontFamily: fontFamily.fontFamily,
+      fontFamilyFallback: fontFamily.fontFamilyFallback,
+    );
+    final parts = splitInlineRefs(title);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 16, 0, 4),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            for (final p in parts)
+              if (p.kind == InlineRefKind.ref && p.osis != null)
+                TextSpan(
+                  text: p.value,
+                  style: style.copyWith(
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.accentDeep,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () {
+                      showInlineVersePreview(
+                        context,
+                        refParam: p.osis!,
+                        label: p.value,
+                      );
+                    },
+                )
+              else
+                TextSpan(text: p.value, style: style),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     for (final r in _tapByKey.values) {
@@ -4209,6 +4266,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final v in widget.paragraph.verses) ...[
+              if (_sectionTitleForVerse(v.verse) case final t?) t,
               if (widget.feedHintForVerse?.call(v.verse) != null)
                 widget.feedHintForVerse!(v.verse)!,
               _MarginVerseRow(
@@ -4259,6 +4317,12 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     final spans = <InlineSpan>[];
     final index = SpanIndexBuilder();
     for (final v in widget.paragraph.verses) {
+      if (_sectionTitleForVerse(v.verse) case final t?) {
+        spans.add(
+          WidgetSpan(alignment: PlaceholderAlignment.top, child: t),
+        );
+        index.placeholder();
+      }
       final feedHint = widget.feedHintForVerse?.call(v.verse);
       if (feedHint != null) {
         spans.add(
