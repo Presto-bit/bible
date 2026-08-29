@@ -11,9 +11,9 @@ def test_paragraph_ranges_jhn3():
 
 def test_paragraph_ranges_psalm_poetry():
     ranges = loader.paragraph_ranges("PSA", 23)
-    # USFM \\p：整首为一个出版段落
-    assert len(ranges) == 1
-    assert ranges[0] == [1, 6]
+    assert len(ranges) == 6
+    assert ranges[0] == [1, 1]
+    assert ranges[-1] == [6, 6]
 
 
 def test_paragraph_ranges_gen1():

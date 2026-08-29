@@ -645,6 +645,18 @@ a.license-row-name:hover {
   content: '\3000';
   white-space: pre;
 }
+/* 诗体 / 智慧文学：一行一节（兜底：段落表未拆时仍分行） */
+.reader-poetry .verse-paragraph .verse-inline {
+  display: block;
+}
+.reader-poetry .verse-paragraph {
+  line-height: 2.1;
+  margin-bottom: 10px;
+}
+.reader-poetry .reader-parallel-verse {
+  display: block;
+  margin-bottom: 6px;
+}
 /* 滑动预览与正式正文：统一经节排版容器 */
 .reader-turn-panel-active .reader-turn-peek,
 .reader-turn-panel-peek .reader-turn-peek {

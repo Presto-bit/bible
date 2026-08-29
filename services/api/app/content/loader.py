@@ -275,6 +275,26 @@ def section_titles(book: str, chapter: int) -> list[dict]:
 
 
 # ── 阅读段落边界（CNV paragraphs.json） ──
+POETRY_BOOKS = frozenset(
+    {
+        "PSA", "PRO", "ECC", "SNG", "LAM", "AMO", "MIC", "HAB", "ZEP", "NAH",
+        "HAG", "ZEC", "MAL", "JOB",
+    }
+)
+
+
+def _normalize_paragraph_ranges(book: str, ranges: list[list[int]]) -> list[list[int]]:
+    """诗体卷：一行一节，避免 \\p 整块在 UI 里排成散文段。"""
+    bid = book.upper()
+    if bid not in POETRY_BOOKS or not ranges:
+        return ranges
+    out: list[list[int]] = []
+    for start, end in ranges:
+        for n in range(int(start), int(end) + 1):
+            out.append([n, n])
+    return out
+
+
 @lru_cache(maxsize=1)
 def paragraph_ranges_index() -> dict[str, list[list[int]]]:
     path = _data_dir() / "bible/cnv/paragraphs.json"
@@ -286,7 +306,8 @@ def paragraph_ranges_index() -> dict[str, list[list[int]]]:
 
 def paragraph_ranges(book: str, chapter: int) -> list[list[int]]:
     key = f"{book.upper()}.{chapter}"
-    return paragraph_ranges_index().get(key, [])
+    raw = paragraph_ranges_index().get(key, [])
+    return _normalize_paragraph_ranges(book, raw)
 
 
 # ── 插画 ──

@@ -34,6 +34,21 @@ const _minWeakChars = 120;
 bool isPoetryBook(String bookId) =>
     _poetryBooks.contains(bookId.toUpperCase());
 
+/// 诗体卷：paragraphs.json 按 \\p 整块存，阅读需一行一节。
+List<ParagraphRange> normalizeParagraphRanges(
+  String bookId,
+  List<ParagraphRange> ranges,
+) {
+  if (!isPoetryBook(bookId) || ranges.isEmpty) return ranges;
+  final out = <ParagraphRange>[];
+  for (final (start, end) in ranges) {
+    for (var n = start; n <= end; n++) {
+      out.add((n, n));
+    }
+  }
+  return out;
+}
+
 bool _endsSentence(String text) {
   final t = text.trim();
   if (t.isEmpty) return false;
@@ -165,9 +180,12 @@ List<VerseParagraph> groupVersesIntoParagraphs(
   List<ParagraphRange>? paragraphRanges,
 }) {
   if (verses.isEmpty) return [];
-  final ranges = (paragraphRanges != null && paragraphRanges.isNotEmpty)
-      ? paragraphRanges
-      : computeParagraphRanges(bookId, verses, sectionStarts);
+  final ranges = normalizeParagraphRanges(
+    bookId,
+    (paragraphRanges != null && paragraphRanges.isNotEmpty)
+        ? paragraphRanges
+        : computeParagraphRanges(bookId, verses, sectionStarts),
+  );
   return paragraphsFromRanges(verses, ranges);
 }
 

@@ -28,6 +28,21 @@ export function isPoetryBook(bookId: string): boolean {
   return POETRY_BOOKS.has(bookId.toUpperCase());
 }
 
+/** 诗体卷：出版段落表按 \\p 整块存储，阅读需拆成一行一节（对齐纸书）。 */
+export function normalizeParagraphRanges(
+  bookId: string,
+  ranges: ParagraphRange[],
+): ParagraphRange[] {
+  if (!isPoetryBook(bookId) || !ranges.length) return ranges;
+  const out: ParagraphRange[] = [];
+  for (const [start, end] of ranges) {
+    for (let n = start; n <= end; n++) {
+      out.push([n, n]);
+    }
+  }
+  return out;
+}
+
 function endsSentence(text: string): boolean {
   return /[。！？；….!?;:]["'」』)]*$/.test(text.trim());
 }
@@ -157,9 +172,11 @@ export function groupVersesIntoParagraphs(
   paragraphRanges?: ParagraphRange[] | null,
 ): VerseParagraph[] {
   if (!verses.length) return [];
-  const ranges =
+  const ranges = normalizeParagraphRanges(
+    bookId,
     paragraphRanges && paragraphRanges.length
       ? paragraphRanges
-      : computeParagraphRanges(bookId, verses, sectionStarts);
+      : computeParagraphRanges(bookId, verses, sectionStarts),
+  );
   return paragraphsFromRanges(verses, ranges);
 }

@@ -2,7 +2,7 @@
 """从 CNV USFM（\\p 出版段落）+ L1.5 段内 refinement 生成 paragraphs.json。
 
 L0：USFM \\p 外框（绝不跨 \\p 合并）
-L1：诗体不切；福音/历史等大段不切；书信 7–12 节 \\p 块段内再切
+L1：诗体 \\p 块输出一行一节；福音/历史等大段不切；书信 7–12 节 \\p 块段内再切
 L2：硬上限 6 节/320 字 + 话语标记软切 + 孤节合并
 L3：paragraphs.overrides.json 人工覆盖（纸书标杆章）
 
@@ -183,7 +183,10 @@ def chapter_paragraphs(
         span = end - start + 1
 
         if book in POETRY_BOOKS:
-            out.append([start, end])
+            # 诗体：L1 不切 \\p 块，但输出一行一节（纸书排法）
+            for n in range(start, end + 1):
+                if n in verse_map:
+                    out.append([n, n])
         elif book in EPISTLE_BOOKS and EPISTLE_MIN_SPAN <= span <= EPISTLE_MAX_SPAN:
             refined = refine_epistle_block(seg)
             out.extend(merge_singleton_ranges(refined, verse_map))
