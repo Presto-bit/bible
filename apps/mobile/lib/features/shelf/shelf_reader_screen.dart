@@ -471,13 +471,13 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         key: ValueKey(
           '${section.id}:${prefs.fontPx}:${prefs.lineHeight}:${prefs.fontFamily.name}',
         ),
+        bookId: widget.bookId,
+        sectionId: section.id,
         html: section.html,
-        pageIndex: _pageIndex,
         fontPx: prefs.fontPx,
         lineHeight: prefs.lineHeight,
         fontFamily: prefs.fontFamily,
         variantDocx: section.kind == 'lesson',
-        onPageCount: _onPageCount,
         onTap: _toggleChrome,
       );
     }

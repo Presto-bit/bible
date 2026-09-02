@@ -123,8 +123,8 @@ export default function ShelfCoverTile({ book, onManage }: Props) {
         }
       }}
     >
-      <span className="shelf-cover-badge">平台</span>
       <span className="shelf-cover-title">{book.title}</span>
+      <span className="shelf-cover-badge">平台</span>
     </div>
   );
 }

@@ -1,31 +1,103 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import ShelfFocusBar from '@/components/shelf/ShelfFocusBar';
+import { addThought } from '@/lib/reader_thoughts';
+import {
+  getHighlightMap,
+  removeHighlight,
+  setHighlight,
+  type HighlightColor,
+} from '@/lib/reader_highlights';
+import { linkifyShelfProseHtml } from '@/lib/shelf_prose_html';
+import {
+  findShelfHighlightRef,
+  paintShelfHighlights,
+  pickShelfHighlight,
+  shelfMarksForPage,
+  supportsShelfCssHighlight,
+} from '@/lib/shelf_highlight_paint';
+import { buildShelfMarkRef } from '@/lib/shelf_mark_ref';
+import { shelfThoughtSpansForPage } from '@/lib/shelf_annotations';
+import {
+  clearShelfTextSelection,
+  readShelfTextSelection,
+  type ShelfTextSelection,
+} from '@/lib/shelf_selection';
+
+const ThoughtWriteSheet = dynamic(
+  () => import('@/components/reader/ThoughtWriteSheet').then((m) => m.default),
+  { ssr: false },
+);
+const VersePreviewSheet = dynamic(
+  () => import('@/components/reader/VersePreviewSheet').then((m) => m.VersePreviewSheet),
+  { ssr: false },
+);
 
 type Props = {
   html: string;
   contentKey: string;
-  /** flow 续读：0–1 滚动比例 */
+  bookId?: string;
+  sectionId?: string;
+  pageIndex?: number;
   scrollOffset?: number;
-  /** 进入上一节时滚到末尾 */
   scrollToEnd?: boolean;
   variant?: 'html' | 'docx';
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
+  chromeHidden?: boolean;
 };
+
+function focusBarStyleFromRect(rect: DOMRect, chromeHidden?: boolean): React.CSSProperties {
+  const barH = 56;
+  const margin = 12;
+  const topReserve = chromeHidden ? 12 : 64;
+  const bottomReserve = chromeHidden ? 24 : 72;
+  let top = rect.bottom + margin;
+  if (top + barH > window.innerHeight - bottomReserve) {
+    top = rect.top - barH - margin;
+  }
+  top = Math.max(topReserve, Math.min(top, window.innerHeight - barH - bottomReserve));
+  const left = Math.max(80, Math.min(rect.left + rect.width / 2, window.innerWidth - 80));
+  return {
+    top: `${top}px`,
+    left: `${left}px`,
+    bottom: 'auto',
+    transform: 'translateX(-50%)',
+  };
+}
 
 export default function ShelfPaginatedProse({
   html,
   contentKey,
+  bookId,
+  sectionId,
+  pageIndex = 0,
   scrollOffset = 0,
   scrollToEnd = false,
   variant = 'html',
   onScrollProgress,
   onTap,
+  chromeHidden = false,
 }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const articleRef = useRef<HTMLElement>(null);
   const syncRef = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
+  const [selection, setSelection] = useState<ShelfTextSelection | null>(null);
+  const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
+  const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
+  const [highlightTick, setHighlightTick] = useState(0);
+  const [versePreview, setVersePreview] = useState<{ osis: string; label: string } | null>(null);
+  const [thoughtWrite, setThoughtWrite] = useState<{
+    ref: string;
+    label: string;
+    verseText?: string;
+  } | null>(null);
+
+  const linkedHtml = useMemo(() => linkifyShelfProseHtml(html), [html]);
+  const annotationsEnabled = Boolean(bookId && sectionId);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -33,35 +105,50 @@ export default function ShelfPaginatedProse({
     syncRef.current = true;
     requestAnimationFrame(() => {
       const max = Math.max(0, el.scrollHeight - el.clientHeight);
-      if (scrollToEnd) {
-        el.scrollTop = max;
-      } else if (scrollOffset > 0) {
-        el.scrollTop = scrollOffset * max;
-      } else {
-        el.scrollTop = 0;
-      }
+      if (scrollToEnd) el.scrollTop = max;
+      else if (scrollOffset > 0) el.scrollTop = scrollOffset * max;
+      else el.scrollTop = 0;
       syncRef.current = false;
     });
-  }, [contentKey, html, scrollOffset, scrollToEnd]);
+  }, [contentKey, linkedHtml, scrollOffset, scrollToEnd]);
+
+  const repaintHighlights = useCallback(() => {
+    if (!annotationsEnabled || !articleRef.current || !supportsShelfCssHighlight()) return;
+    const map = getHighlightMap();
+    const marks = shelfMarksForPage(bookId!, sectionId!, pageIndex, map);
+    const thoughtSpans = shelfThoughtSpansForPage(bookId!, sectionId!, pageIndex);
+    paintShelfHighlights(articleRef.current, marks, thoughtSpans);
+  }, [annotationsEnabled, bookId, sectionId, pageIndex, highlightTick]);
 
   useEffect(() => {
-    let cancelled = false;
-    const run = () => {
-      if (cancelled) return;
-      const el = viewportRef.current;
-      if (!el) return;
-      const imgs = el.querySelectorAll('img');
-      imgs.forEach((img) => {
-        if (img.complete) return;
-        img.addEventListener('load', run, { once: true });
-        img.addEventListener('error', run, { once: true });
-      });
-    };
-    run();
+    repaintHighlights();
     return () => {
-      cancelled = true;
+      if (supportsShelfCssHighlight()) {
+        paintShelfHighlights(null, [], []);
+      }
     };
-  }, [html]);
+  }, [linkedHtml, contentKey, repaintHighlights]);
+
+  const syncSelection = useCallback(() => {
+    const article = articleRef.current;
+    const sel = readShelfTextSelection(article);
+    setSelection(sel);
+    if (sel) {
+      setFocusBarStyle(focusBarStyleFromRect(sel.rect, chromeHidden));
+    } else {
+      setMarkPaletteOpen(false);
+      setFocusBarStyle({});
+    }
+  }, [chromeHidden]);
+
+  useEffect(() => {
+    document.addEventListener('selectionchange', syncSelection);
+    return () => document.removeEventListener('selectionchange', syncSelection);
+  }, [syncSelection]);
+
+  useEffect(() => {
+    if (selection) syncSelection();
+  }, [chromeHidden, selection, syncSelection]);
 
   const handleScroll = useCallback(() => {
     if (scrollRafRef.current != null) return;
@@ -70,10 +157,10 @@ export default function ShelfPaginatedProse({
       const el = viewportRef.current;
       if (!el || syncRef.current) return;
       const max = Math.max(0, el.scrollHeight - el.clientHeight);
-      const ratio = max > 0 ? el.scrollTop / max : 0;
-      onScrollProgress?.(ratio);
+      onScrollProgress?.(max > 0 ? el.scrollTop / max : 0);
+      if (selection) syncSelection();
     });
-  }, [onScrollProgress]);
+  }, [onScrollProgress, selection, syncSelection]);
 
   useEffect(() => {
     return () => {
@@ -81,19 +168,149 @@ export default function ShelfPaginatedProse({
     };
   }, []);
 
+  const clearSelection = useCallback(() => {
+    clearShelfTextSelection();
+    setSelection(null);
+    setMarkPaletteOpen(false);
+    setFocusBarStyle({});
+  }, []);
+
+  const currentMarkRef = useMemo(() => {
+    if (!selection || !annotationsEnabled) return null;
+    const map = getHighlightMap();
+    return findShelfHighlightRef(
+      bookId!,
+      sectionId!,
+      pageIndex,
+      { start: selection.start, end: selection.end },
+      map,
+    );
+  }, [selection, annotationsEnabled, bookId, sectionId, pageIndex, highlightTick]);
+
+  const currentMarkColor = currentMarkRef ? getHighlightMap()[currentMarkRef]?.color ?? null : null;
+
+  const onPickColor = useCallback(
+    (color: HighlightColor) => {
+      if (!selection || !annotationsEnabled) return;
+      const ref = buildShelfMarkRef(bookId!, sectionId!, pageIndex, {
+        start: selection.start,
+        end: selection.end,
+      });
+      const map = getHighlightMap();
+      pickShelfHighlight(ref, color, map, setHighlight, removeHighlight);
+      setHighlightTick((n) => n + 1);
+      setMarkPaletteOpen(false);
+      clearSelection();
+    },
+    [selection, annotationsEnabled, bookId, sectionId, pageIndex, clearSelection],
+  );
+
+  const onToggleMark = useCallback(() => {
+    if (currentMarkRef) {
+      removeHighlight(currentMarkRef);
+      setHighlightTick((n) => n + 1);
+      clearSelection();
+      return;
+    }
+    setMarkPaletteOpen((v) => !v);
+  }, [currentMarkRef, clearSelection]);
+
+  const onCopy = useCallback(async () => {
+    if (!selection) return;
+    try {
+      await navigator.clipboard.writeText(selection.text);
+    } catch {
+      /* ignore */
+    }
+    clearSelection();
+  }, [selection, clearSelection]);
+
+  const onNote = useCallback(() => {
+    if (!selection || !annotationsEnabled) return;
+    const ref = buildShelfMarkRef(bookId!, sectionId!, pageIndex, {
+      start: selection.start,
+      end: selection.end,
+    });
+    setThoughtWrite({ ref, label: '书架笔记', verseText: selection.text });
+    clearSelection();
+  }, [selection, annotationsEnabled, bookId, sectionId, pageIndex, clearSelection]);
+
+  const handleArticleClick = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      const target = e.target as HTMLElement;
+      const btn = target.closest('.shelf-inline-ref') as HTMLElement | null;
+      if (btn?.dataset.osis) {
+        e.preventDefault();
+        e.stopPropagation();
+        setVersePreview({
+          osis: btn.dataset.osis,
+          label: btn.dataset.label || btn.textContent || '',
+        });
+        return;
+      }
+      if (selection) {
+        if (!(e.target as Node) || !document.getSelection()?.toString()) {
+          clearSelection();
+        }
+        return;
+      }
+      onTap?.();
+    },
+    [onTap, selection, clearSelection],
+  );
+
   const proseClass = variant === 'docx' ? 'shelf-docx-prose' : 'shelf-prose';
 
   return (
-    <div
-      ref={viewportRef}
-      className="shelf-flow-viewport"
-      onScroll={handleScroll}
-      onClick={onTap}
-    >
-      <article
-        className={`shelf-flow-article ${proseClass}`}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    </div>
+    <>
+      <div
+        ref={viewportRef}
+        className="shelf-flow-viewport shelf-flow-viewport-annotated"
+        onScroll={handleScroll}
+      >
+        <article
+          ref={articleRef}
+          className={`shelf-flow-article ${proseClass}`}
+          dangerouslySetInnerHTML={{ __html: linkedHtml }}
+          onClick={handleArticleClick}
+        />
+        <div className="shelf-flow-bottom-spacer" aria-hidden />
+      </div>
+
+      {selection && annotationsEnabled ? (
+        <ShelfFocusBar
+          style={focusBarStyle}
+          markPaletteOpen={markPaletteOpen}
+          currentMark={currentMarkColor}
+          onNote={onNote}
+          onToggleMark={onToggleMark}
+          onPickColor={onPickColor}
+          onCopy={onCopy}
+        />
+      ) : null}
+
+      {versePreview ? (
+        <VersePreviewSheet
+          refParam={versePreview.osis}
+          refLabel={versePreview.label}
+          onClose={() => setVersePreview(null)}
+        />
+      ) : null}
+
+      {thoughtWrite ? (
+        <ThoughtWriteSheet
+          mode="new"
+          refStr={thoughtWrite.ref}
+          refLabel={thoughtWrite.label}
+          verseText={thoughtWrite.verseText}
+          onSave={(body, visibility) => {
+            addThought(thoughtWrite.ref, body, visibility);
+            setHighlightTick((n) => n + 1);
+            setThoughtWrite(null);
+          }}
+          onClose={() => setThoughtWrite(null)}
+        />
+      ) : null}
+    </>
   );
 }

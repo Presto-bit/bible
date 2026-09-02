@@ -66,6 +66,28 @@ def _source_for_style(style: str | None) -> str:
     return "inferred"
 
 
+_DIALOGUE_SPEAKER_RE = re.compile(r"^(信徒|牧者)[：:]\s*(.*)$", re.DOTALL)
+
+
+def _dialogue_html(text: str) -> str:
+    m = _DIALOGUE_SPEAKER_RE.match(text.strip())
+    if not m:
+        return f'<p class="shelf-dialogue">{html.escape(text)}</p>'
+    speaker, body = m.group(1), m.group(2)
+    return (
+        f'<p class="shelf-dialogue">'
+        f'<span class="shelf-dialogue-speaker">{html.escape(speaker)}</span>：'
+        f'<span class="shelf-dialogue-text">{html.escape(body)}</span></p>'
+    )
+
+
+def _body_html(text: str) -> str:
+    esc = html.escape(text)
+    if text.strip() == "继续对话的问题":
+        return f'<p class="shelf-dialogue-q-head">{esc}</p>'
+    return f'<p class="shelf-body">{esc}</p>
+
+
 def _para_html(p: _Para) -> str:
     esc = html.escape(p.text)
     st = p.style or ""
@@ -78,8 +100,29 @@ def _para_html(p: _Para) -> str:
     if st.startswith("Heading2"):
         return f'<h3 class="shelf-h2">{esc}</h3>'
     if st == "Dialogue":
-        return f'<p class="shelf-dialogue">{esc}</p>'
-    return f'<p class="shelf-body">{esc}</p>'
+        return _dialogue_html(p.text)
+    return _body_html(p.text)
+
+
+def _mark_dialogue_questions(html: str) -> str:
+    chunks = html.split("</p>")
+    out: list[str] = []
+    in_q = False
+    for chunk in chunks:
+        if not chunk.strip():
+            continue
+        piece = chunk + "</p>"
+        if 'class="shelf-dialogue-q-head"' in piece:
+            in_q = True
+            out.append(piece)
+            continue
+        if in_q and 'class="shelf-body"' in piece:
+            out.append(piece.replace('class="shelf-body"', 'class="shelf-dialogue-q"', 1))
+            continue
+        if in_q:
+            in_q = False
+        out.append(piece)
+    return "".join(out)
 
 
 def _match_toc_to_section(toc_title: str, section_title: str) -> bool:
@@ -148,7 +191,7 @@ def parse_docx_bytes(data: bytes) -> dict[str, Any]:
         nonlocal current, buf
         if current is None:
             return
-        current["html"] = "\n".join(buf)
+        current["html"] = _mark_dialogue_questions("\n".join(buf))
         sections.append(current)
         # 目录只保留一级标题（二十场对话 + 三个附录），附录内经文/第几天不入目录
         if current["level"] <= 1:

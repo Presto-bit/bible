@@ -23,6 +23,7 @@ type Props = {
   onPageIndexChange?: (index: number) => void;
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
+  chromeHidden?: boolean;
   pdfFullscreen?: boolean;
   onExitPdfFullscreen?: () => void;
   onOpenPdfFullscreen?: () => void;
@@ -54,6 +55,7 @@ export default function ShelfLessonPanel({
   onPageIndexChange,
   onScrollProgress,
   onTap,
+  chromeHidden = false,
   pdfFullscreen = false,
   onExitPdfFullscreen,
   onOpenPdfFullscreen,
@@ -89,6 +91,7 @@ export default function ShelfLessonPanel({
         onPageIndexChange={onPageIndexChange}
         onScrollProgress={onScrollProgress}
         onTap={onTap}
+        chromeHidden={chromeHidden}
         pdfFullscreen={pdfFullscreen}
         onExitPdfFullscreen={onExitPdfFullscreen}
       />
@@ -110,7 +113,7 @@ export default function ShelfLessonPanel({
       {!pdfFullscreen && onOpenPdfFullscreen && isPdf ? (
         <button
           type="button"
-          className="shelf-pdf-toolbar-btn shelf-pdf-enter-fullscreen"
+          className="shelf-pdf-toolbar-btn shelf-pdf-enter-fullscreen shelf-pdf-enter-fullscreen-br"
           aria-label="全屏阅读 PDF"
           onClick={(e) => {
             e.stopPropagation();
@@ -144,6 +147,7 @@ function ShelfPrimaryView({
   onPageIndexChange,
   onScrollProgress,
   onTap,
+  chromeHidden,
   pdfFullscreen,
   onExitPdfFullscreen,
 }: {
@@ -157,6 +161,7 @@ function ShelfPrimaryView({
   onPageIndexChange?: (index: number) => void;
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
+  chromeHidden?: boolean;
   pdfFullscreen?: boolean;
   onExitPdfFullscreen?: () => void;
 }) {
@@ -170,12 +175,16 @@ function ShelfPrimaryView({
     return (
       <ShelfPaginatedProse
         html={section.html}
+        bookId={bookId}
+        sectionId={section.id}
+        pageIndex={0}
         contentKey={contentKey}
         scrollOffset={scrollOffset}
         scrollToEnd={scrollToEnd}
         variant="docx"
         onScrollProgress={onScrollProgress}
         onTap={onTap}
+        chromeHidden={chromeHidden}
       />
     );
   }
@@ -208,10 +217,13 @@ function ShelfPrimaryView({
         url={url}
         title={section.title}
         contentKey={contentKey}
+        bookId={bookId}
+        sectionId={section.id}
         scrollOffset={scrollOffset}
         scrollToEnd={scrollToEnd}
         onScrollProgress={onScrollProgress}
         onTap={onTap}
+        chromeHidden={chromeHidden}
       />
     );
   }
@@ -229,18 +241,24 @@ function ShelfDocxPaginated({
   url,
   title,
   contentKey,
+  bookId,
+  sectionId,
   scrollOffset = 0,
   scrollToEnd = false,
   onScrollProgress,
   onTap,
+  chromeHidden = false,
 }: {
   url: string;
   title: string;
   contentKey: string;
+  bookId: string;
+  sectionId: string;
   scrollOffset?: number;
   scrollToEnd?: boolean;
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
+  chromeHidden?: boolean;
 }) {
   const [html, setHtml] = useState('');
   const [err, setErr] = useState('');
@@ -279,12 +297,16 @@ function ShelfDocxPaginated({
   return (
     <ShelfPaginatedProse
       html={html}
+      bookId={bookId}
+      sectionId={sectionId}
+      pageIndex={0}
       contentKey={`${contentKey}:${title}`}
       scrollOffset={scrollOffset}
       scrollToEnd={scrollToEnd}
       variant="docx"
       onScrollProgress={onScrollProgress}
       onTap={onTap}
+      chromeHidden={chromeHidden}
     />
   );
 }

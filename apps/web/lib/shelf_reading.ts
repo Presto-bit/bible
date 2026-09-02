@@ -116,6 +116,10 @@ export const SHELF_DOCX_STYLE_MAP = [
   "p[style-name='标题 1'] => h2.shelf-docx-h1:fresh",
   "p[style-name='标题 2'] => h3.shelf-docx-h2:fresh",
   "p[style-name='标题 3'] => h4.shelf-docx-h3:fresh",
+  "p[style-name='List Paragraph'] => p.shelf-docx-p:fresh",
+  "p[style-name='列表段落'] => p.shelf-docx-p:fresh",
+  "p[style-name='Quote'] => blockquote.shelf-docx-quote:fresh",
+  "p[style-name='引用'] => blockquote.shelf-docx-quote:fresh",
   "r[style-name='Strong'] => strong",
   "r[style-name='Emphasis'] => em",
 ];
@@ -168,6 +172,14 @@ export function adaptShelfDocxHtml(raw: string): string {
 
     root.querySelectorAll('strong, b').forEach((el) => {
       el.classList.add('shelf-docx-strong');
+    });
+
+    root.querySelectorAll('blockquote').forEach((bq) => {
+      bq.classList.add('shelf-docx-quote');
+    });
+
+    root.querySelectorAll('li').forEach((li) => {
+      if (!li.classList.length) li.classList.add('shelf-docx-li');
     });
 
     return root.innerHTML;

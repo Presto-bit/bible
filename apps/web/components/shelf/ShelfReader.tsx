@@ -400,6 +400,7 @@ export default function ShelfReader({
           onPageIndexChange={interactive && shelfSectionIsPdf(sec) ? setPageIndex : undefined}
           onScrollProgress={interactive && !shelfSectionIsPdf(sec) ? onFlowScrollProgress : undefined}
           onTap={interactive ? onContentTap : undefined}
+          chromeHidden={interactive && chromeHidden}
           pdfFullscreen={interactive && pdfFullscreen}
           onExitPdfFullscreen={interactive ? () => setPdfFullscreen(false) : undefined}
           onOpenPdfFullscreen={interactive ? () => setPdfFullscreen(true) : undefined}
@@ -410,11 +411,15 @@ export default function ShelfReader({
       return (
         <ShelfPaginatedProse
           html={sec.html}
+          bookId={bookId}
+          sectionId={sec.id}
+          pageIndex={0}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
           scrollOffset={interactive ? (scrollBySectionRef.current[sec.id] ?? flowScrollRatio) : 0}
           scrollToEnd={interactive ? Boolean(opts?.scrollToEnd) : false}
           onScrollProgress={interactive ? onFlowScrollProgress : undefined}
           onTap={interactive ? onContentTap : undefined}
+          chromeHidden={interactive && chromeHidden}
         />
       );
     }
@@ -490,13 +495,13 @@ export default function ShelfReader({
           ) : null}
           <div className="shelf-turn-track" ref={pageTurn.trackRef}>
             <div className="shelf-turn-panel shelf-turn-panel-peek">
-              {renderSectionContent(prevSection, false, { scrollToEnd: true })}
+              {!isPdfSection ? renderSectionContent(prevSection, false, { scrollToEnd: true }) : null}
             </div>
             <div className="shelf-turn-panel shelf-turn-panel-active">
               {renderSectionContent(section, true, { scrollToEnd: pendingScrollEnd })}
             </div>
             <div className="shelf-turn-panel shelf-turn-panel-peek">
-              {renderSectionContent(nextSection, false)}
+              {!isPdfSection ? renderSectionContent(nextSection, false) : null}
             </div>
           </div>
         </div>

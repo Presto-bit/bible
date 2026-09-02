@@ -13,10 +13,20 @@ type Props = {
   onExitFullscreen?: () => void;
 };
 
-function computePdfLayout(containerWidth: number, pageWidth: number, pageHeight: number) {
+function computePdfLayout(
+  containerWidth: number,
+  pageWidth: number,
+  pageHeight: number,
+  fullscreen: boolean,
+) {
   const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 2 : 2, 2);
   const fitW = containerWidth / pageWidth;
-  const scale = fitW;
+  let scale = fitW;
+  if (fullscreen && typeof window !== 'undefined') {
+    const maxH = window.innerHeight - 72;
+    const fitH = maxH / pageHeight;
+    scale = Math.min(fitW, fitH);
+  }
   return {
     dpr,
     renderScale: scale * dpr,
@@ -49,12 +59,14 @@ function PdfPageTile({
   url,
   containerWidth,
   title,
+  fullscreen,
 }: {
   pdf: import('pdfjs-dist').PDFDocumentProxy;
   pageNum: number;
   url: string;
   containerWidth: number;
   title: string;
+  fullscreen: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [visible, setVisible] = useState(false);
@@ -71,7 +83,7 @@ function PdfPageTile({
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) setVisible(true);
       },
-      { rootMargin: '400px 0px' },
+      { rootMargin: fullscreen ? '120px 0px' : '240px 0px' },
     );
     io.observe(el);
     return () => io.disconnect();
@@ -92,6 +104,7 @@ function PdfPageTile({
           w,
           base.width,
           base.height,
+          fullscreen,
         );
         setPlaceholderH(cssHeight);
         const scaled = page.getViewport({ scale: renderScale });
@@ -129,7 +142,7 @@ function PdfPageTile({
     return () => {
       cancelled = true;
     };
-  }, [visible, pdf, pageNum, url, containerWidth]);
+  }, [visible, pdf, pageNum, url, containerWidth, fullscreen]);
 
   return (
     <div ref={rootRef} className="shelf-pdf-scroll-page" style={{ minHeight: placeholderH }}>
@@ -202,7 +215,13 @@ export default function ShelfPdfPager({
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const update = () => setContainerWidth(host.clientWidth || Math.min(window.innerWidth - 24, 720));
+    const update = () => {
+      if (fullscreen && typeof window !== 'undefined') {
+        setContainerWidth(Math.max(280, window.innerWidth - 24));
+        return;
+      }
+      setContainerWidth(host.clientWidth || Math.min(window.innerWidth - 24, 720));
+    };
     update();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => {
@@ -274,14 +293,14 @@ export default function ShelfPdfPager({
       {fullscreen && onExitFullscreen ? (
         <button
           type="button"
-          className="shelf-pdf-toolbar-btn shelf-pdf-exit-fullscreen"
+          className="shelf-pdf-toolbar-btn shelf-pdf-exit-fullscreen-br"
           aria-label="退出全屏"
           onClick={(e) => {
             e.stopPropagation();
             onExitFullscreen();
           }}
         >
-          ✕
+          ✕ 退出
         </button>
       ) : null}
 
@@ -321,6 +340,7 @@ export default function ShelfPdfPager({
                     url={url}
                     containerWidth={containerWidth}
                     title={title}
+                    fullscreen={fullscreen}
                   />
                 </div>
               ))}
