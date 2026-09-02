@@ -13,6 +13,7 @@ import '../../app/app_shell.dart'
         navIndexProvider,
         peiaiTabBarOverlayExtent,
         PeiaiShellMetrics,
+        readerChromeToggleProvider,
         readerImmersiveProvider;
 import '../../core/badge_stats.dart';
 import '../../core/api_client.dart' show prefsProvider;
@@ -148,6 +149,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   final _locKey = GlobalKey();
   final _chapterBodyKey = GlobalKey<ReaderChapterBodyState>();
   Offset? _chromeTapStart;
+  Offset? _immersiveTapStart;
   /// 外部跳转指定轻闪节（如每日经文）；消费后清空。
   int? _pendingFlashVerse;
   FeedActivityHint? _pendingFeedHint;
@@ -276,6 +278,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       }
     });
 
+    // 壳层再次点「圣经」Tab 或外部清沉浸时同步顶栏。
+    ref.listen(readerImmersiveProvider, (prev, next) {
+      if (!next && _chromeHidden) {
+        setState(() => _chromeHidden = false);
+      }
+    });
+    ref.listen(readerChromeToggleProvider, (prev, next) {
+      if (next == prev) return;
+      if (ref.read(navIndexProvider) != 1 || _book == null) return;
+      _toggleChrome();
+    });
+
     final readerReturn = ref.watch(readerReturnProvider);
     final englishUI = _mainVersionId == 'kjv';
 
@@ -387,11 +401,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           Listener(
             behavior: HitTestBehavior.deferToChild,
             onPointerDown: (e) {
-              if (_book == null || _catalogOverlay) return;
+              if (_book == null || _catalogOverlay || _chromeHidden) return;
               _chromeTapStart = e.position;
             },
             onPointerUp: (e) {
-              if (_book == null || _catalogOverlay || _hasSelection) return;
+              if (_book == null || _catalogOverlay || _hasSelection || _chromeHidden) {
+                return;
+              }
               final start = _chromeTapStart;
               _chromeTapStart = null;
               if (start == null) return;
@@ -554,6 +570,25 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           },
         ),
           ),
+          // 沉浸态：经文层会吃掉点击，透明层负责「再点一次退出全屏」。
+          if (_book != null &&
+              _chromeHidden &&
+              !_catalogOverlay &&
+              !_hasSelection)
+            Positioned.fill(
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (e) => _immersiveTapStart = e.position,
+                onPointerUp: (e) {
+                  final start = _immersiveTapStart;
+                  _immersiveTapStart = null;
+                  if (start == null) return;
+                  if ((e.position - start).distance >= 8) return;
+                  _toggleChrome();
+                },
+                onPointerCancel: (_) => _immersiveTapStart = null,
+              ),
+            ),
           // 不用 Scaffold.floatingActionButton：父壳 extendBody 下会沉到胶囊底栏下。
           if (_book != null &&
               !_catalogOverlay &&

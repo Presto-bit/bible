@@ -26,6 +26,11 @@ export function clearReaderChrome() {
  * - 卸空 portal 层；通知翻页 hook cancelDrag
  * 性能：O(DOM 小选择器)，仅在关层路径调用。
  */
+export function dispatchReaderToggleChrome() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event('peiai-reader-toggle-chrome'));
+}
+
 export function unlockReaderSurface() {
   if (typeof document === 'undefined') return;
   try {

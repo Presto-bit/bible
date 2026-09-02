@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { dispatchReaderToggleChrome } from '@/lib/reader_chrome';
 import { markReaderTabEntry } from '@/lib/reading';
 import { isTabKeepAliveEnabled } from '@/lib/platform';
 import {
@@ -169,7 +170,10 @@ export default function BottomTabs() {
 
   const go = (href: string) => {
     if (href === '/reader') markReaderTabEntry();
-    if (pathname === href) return;
+    if (pathname === href) {
+      if (href === '/reader') dispatchReaderToggleChrome();
+      return;
+    }
     if (isTabKeepAliveEnabled() && isPwaMainTabHref(href)) {
       navigatePwaTab(href);
       return;

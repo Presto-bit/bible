@@ -51,6 +51,18 @@ final readerImmersiveProvider = NotifierProvider<ReaderImmersiveNotifier, bool>(
   ReaderImmersiveNotifier.new,
 );
 
+/// 底栏再次点「圣经」时通知阅读器切换顶栏/沉浸（壳层 → ReaderScreen）。
+class ReaderChromeToggleNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+  void ping() => state++;
+}
+
+final readerChromeToggleProvider =
+    NotifierProvider<ReaderChromeToggleNotifier, int>(
+  ReaderChromeToggleNotifier.new,
+);
+
 /// 发现 Tab：私聊 / 群聊全屏时隐藏壳底栏（对齐 iOS PWA 聊天页无底栏）。
 class DiscoverImmersiveNotifier extends Notifier<bool> {
   @override
@@ -295,6 +307,11 @@ class _AppShellState extends ConsumerState<AppShell> {
                   online: online,
                   scrolling: scrolling,
                   onSelect: (i) {
+                    // 已在圣经 Tab 时再点一次：切换沉浸/顶栏（对齐 PWA 底栏 re-tap）
+                    if (i == index && i == 1) {
+                      ref.read(readerChromeToggleProvider.notifier).ping();
+                      return;
+                    }
                     // 切走圣经 / 发现时清沉浸，避免返回仍是 hidden
                     if (i != 1) {
                       ref.read(readerImmersiveProvider.notifier).set(false);
