@@ -466,7 +466,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     final b = _book;
                     if (b == null) return;
                     _onOpenOverlay();
-                    audioCtrl.toggle(
+                    audioCtrl.tapTopBar(
                       bookId: b.id,
                       bookName: b.name,
                       chapter: _chapter,
@@ -670,14 +670,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               ref.watch(readingModeProvider) != ReadingMode.focus)
             Positioned(
               right: 16,
-              bottom: _readerFabBottomInset(context) +
-                  (audioSession.visible && !audioSession.collapsed ? 64 : 0),
+              bottom: _readerFabBottomInset(context),
               child: _readerFab(),
             ),
-          if (_book != null)
-            ReaderAudioMiniBar(
+          if (_book != null &&
+              audioSession.visible &&
+              audioSession.minimized &&
+              !audioSession.focusOpen &&
+              !audioSession.settingsOpen &&
+              !_catalogOverlay &&
+              ref.watch(readingModeProvider) != ReadingMode.focus)
+            ReaderAudioOrb(
               session: audioSession,
-              bottomInset: _readerFabBottomInset(context) - 12,
+              bottomInset: _readerFabBottomInset(context),
+              immersive: _chromeHidden,
               onToggle: () {
                 audioCtrl.toggle(
                   bookId: _book!.id,
@@ -686,10 +692,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                   screenVersion: screenVer,
                 );
               },
-              onExpand: () => audioCtrl.setFocusOpen(true),
-              onSeek: (ms) => audioCtrl.seek(Duration(milliseconds: ms.round())),
-              onRetry: () => audioCtrl.retry(),
-              onDismiss: () => audioCtrl.stop(),
+              onRestore: audioCtrl.restorePanel,
+              onStop: () => audioCtrl.stop(),
             ),
           const ReaderAudioFocusOverlay(),
         ],

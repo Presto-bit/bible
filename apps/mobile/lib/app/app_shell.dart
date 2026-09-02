@@ -20,6 +20,7 @@ import '../features/assistant/assistant_screen.dart';
 import '../features/bible/offline_notice.dart'
     show OfflineStatusBar, networkOkProvider;
 import '../features/bible/reading_repository.dart' show markReaderTabEntry;
+import '../features/bible/reader_audio.dart' show readerAudioProvider;
 import '../features/bible/reader_screen.dart';
 import '../features/home/home_screen.dart';
 import '../core/widgets/lazy_indexed_stack.dart';
@@ -255,7 +256,10 @@ class _AppShellState extends ConsumerState<AppShell> {
     final readerImmersive = ref.watch(readerImmersiveProvider) && index == 1;
     final discoverImmersive =
         ref.watch(discoverImmersiveProvider) && index == 3;
-    final immersive = readerImmersive || discoverImmersive;
+    final readerAudioFocus =
+        ref.watch(readerAudioProvider.select((s) => s.focusOpen)) && index == 1;
+    final immersive =
+        readerImmersive || discoverImmersive || readerAudioFocus;
     final scrolling = ref.watch(shellScrollBusyProvider);
     final theme = Theme.of(context);
     final bg = theme.scaffoldBackgroundColor;

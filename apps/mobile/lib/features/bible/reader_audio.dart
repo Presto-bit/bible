@@ -109,6 +109,7 @@ class ReaderAudioSession {
     this.state = ReaderAudioState.off,
     this.available = true,
     this.collapsed = false,
+    this.minimized = false,
     this.focusOpen = false,
     this.settingsOpen = false,
     this.coachVisible = false,
@@ -127,6 +128,7 @@ class ReaderAudioSession {
   final ReaderAudioState state;
   final bool available;
   final bool collapsed;
+  final bool minimized;
   final bool focusOpen;
   final bool settingsOpen;
   final bool coachVisible;
@@ -152,6 +154,7 @@ class ReaderAudioSession {
     ReaderAudioState? state,
     bool? available,
     bool? collapsed,
+    bool? minimized,
     bool? focusOpen,
     bool? settingsOpen,
     bool? coachVisible,
@@ -171,6 +174,7 @@ class ReaderAudioSession {
         state: state ?? this.state,
         available: available ?? this.available,
         collapsed: collapsed ?? this.collapsed,
+        minimized: minimized ?? this.minimized,
         focusOpen: focusOpen ?? this.focusOpen,
         settingsOpen: settingsOpen ?? this.settingsOpen,
         coachVisible: coachVisible ?? this.coachVisible,
@@ -529,11 +533,17 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
       bookId: bookId,
       bookName: bookName,
       chapter: chapter,
+      focusOpen: true,
+      minimized: false,
     );
     _prefetchedNextKey = null;
     _checkpointSaveMs = 0;
     if (!await _networkOk()) {
-      state = state.copyWith(state: ReaderAudioState.error);
+      state = state.copyWith(
+        state: ReaderAudioState.error,
+        focusOpen: true,
+        minimized: false,
+      );
       return;
     }
     final meta = await _fetchMeta(
@@ -547,7 +557,11 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
     }
     final path = meta['stream_path'] as String?;
     if (path == null) {
-      state = state.copyWith(state: ReaderAudioState.error);
+      state = state.copyWith(
+        state: ReaderAudioState.error,
+        focusOpen: true,
+        minimized: false,
+      );
       return;
     }
     final audioVersion = meta['audio_version'] as String? ?? 'cuvs';
@@ -557,7 +571,11 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
     final handler = _handler;
     final player = _player;
     if (handler == null || player == null) {
-      state = state.copyWith(state: ReaderAudioState.error);
+      state = state.copyWith(
+        state: ReaderAudioState.error,
+        focusOpen: true,
+        minimized: false,
+      );
       return;
     }
     final url = '${AppConfig.baseUrl}$path';
@@ -598,6 +616,8 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
         coachVisible: !coachSeen,
         duration: player.duration ?? Duration.zero,
         timestamps: _timestamps,
+        focusOpen: true,
+        minimized: false,
       );
       if (!coachSeen) {
         await prefs.setBool('reader_audio_coach_seen', true);
@@ -606,7 +626,11 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
         });
       }
     } catch (_) {
-      state = state.copyWith(state: ReaderAudioState.error);
+      state = state.copyWith(
+        state: ReaderAudioState.error,
+        focusOpen: true,
+        minimized: false,
+      );
     }
   }
 
@@ -626,6 +650,7 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
       position: Duration.zero,
       duration: Duration.zero,
       collapsed: false,
+      minimized: false,
       focusOpen: false,
       clearCurrentVerse: true,
       timestamps: const [],
@@ -648,9 +673,65 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
 
   void setCollapsed(bool v) => state = state.copyWith(collapsed: v);
 
-  void setFocusOpen(bool v) => state = state.copyWith(focusOpen: v);
+  void minimizePanel() {
+    if (!state.visible) {
+      state = state.copyWith(focusOpen: false);
+      return;
+    }
+    state = state.copyWith(focusOpen: false, minimized: true);
+  }
 
-  void setSettingsOpen(bool v) => state = state.copyWith(settingsOpen: v);
+  void restorePanel() => state = state.copyWith(focusOpen: true, minimized: false);
+
+  void setFocusOpen(bool v) {
+    if (v) {
+      restorePanel();
+    } else {
+      minimizePanel();
+    }
+  }
+
+  Future<void> tapTopBar({
+    required String bookId,
+    required String bookName,
+    required int chapter,
+    required String screenVersion,
+  }) async {
+    if (!state.available) return;
+    if (state.state == ReaderAudioState.off ||
+        state.state == ReaderAudioState.error) {
+      restorePanel();
+      await play(
+        bookId: bookId,
+        bookName: bookName,
+        chapter: chapter,
+        screenVersion: screenVersion,
+      );
+      return;
+    }
+    if (state.minimized || !state.focusOpen) {
+      restorePanel();
+      return;
+    }
+    await toggle(
+      bookId: bookId,
+      bookName: bookName,
+      chapter: chapter,
+      screenVersion: screenVersion,
+    );
+  }
+
+  void setSettingsOpen(bool v) {
+    if (v) {
+      state = state.copyWith(
+        focusOpen: false,
+        settingsOpen: true,
+        minimized: false,
+      );
+      return;
+    }
+    state = state.copyWith(settingsOpen: false);
+  }
 
   Future<void> updateSettings(ReaderAudioSettings next) async {
     _settings = next;
@@ -792,148 +873,206 @@ class ReaderAudioTopButton extends StatelessWidget {
   }
 }
 
-class ReaderAudioMiniBar extends StatelessWidget {
-  const ReaderAudioMiniBar({
+class ReaderAudioOrb extends StatefulWidget {
+  const ReaderAudioOrb({
     super.key,
     required this.session,
     required this.bottomInset,
+    required this.immersive,
     required this.onToggle,
-    required this.onExpand,
-    required this.onSeek,
-    this.onRetry,
-    this.onDismiss,
+    required this.onRestore,
+    required this.onStop,
   });
 
   final ReaderAudioSession session;
   final double bottomInset;
+  final bool immersive;
   final VoidCallback onToggle;
-  final VoidCallback onExpand;
-  final ValueChanged<double> onSeek;
-  final VoidCallback? onRetry;
-  final VoidCallback? onDismiss;
+  final VoidCallback onRestore;
+  final VoidCallback onStop;
+
+  @override
+  State<ReaderAudioOrb> createState() => _ReaderAudioOrbState();
+}
+
+class _ReaderAudioOrbState extends State<ReaderAudioOrb> {
+  static const _ringR = 20.0;
+  double _dragX = 0;
+  double _dragY = 0;
+  bool _gestureHandled = false;
+
+  bool get _visible =>
+      widget.session.visible &&
+      widget.session.minimized &&
+      !widget.session.focusOpen &&
+      !widget.session.settingsOpen;
 
   @override
   Widget build(BuildContext context) {
-    if (!session.visible || session.focusOpen || session.settingsOpen) {
-      return const SizedBox.shrink();
-    }
-    final loading = session.state == ReaderAudioState.loading;
-    final errored = session.state == ReaderAudioState.error;
-    if (session.collapsed && !errored) {
-      final pct = session.duration.inMilliseconds > 0
-          ? session.position.inMilliseconds / session.duration.inMilliseconds
-          : 0.0;
-      return Positioned(
-        left: 12,
-        right: 12,
-        bottom: bottomInset + 8,
-        child: Container(
-          height: 4,
-          decoration: BoxDecoration(
-            color: AppColors.line,
-            borderRadius: BorderRadius.circular(2),
-          ),
-          alignment: Alignment.centerLeft,
-          child: FractionallySizedBox(
-            widthFactor: pct.clamp(0.0, 1.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.accentDeep,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    final playing = session.state == ReaderAudioState.playing;
-    return Positioned(
-      left: 12,
-      right: 12,
-      bottom: bottomInset + 8,
-      child: Material(
-        elevation: 0,
-        color: AppColors.surface.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.line),
-          ),
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    if (!_visible) return const SizedBox.shrink();
+
+    final loading = widget.session.state == ReaderAudioState.loading;
+    final playing = widget.session.state == ReaderAudioState.playing;
+    final pct = widget.session.duration.inMilliseconds > 0
+        ? (widget.session.position.inMilliseconds /
+                widget.session.duration.inMilliseconds)
+            .clamp(0.0, 1.0)
+        : 0.0;
+
+    final orb = GestureDetector(
+      onHorizontalDragStart: (_) {
+        _gestureHandled = false;
+        _dragX = 0;
+        _dragY = 0;
+      },
+      onHorizontalDragUpdate: (d) {
+        setState(() => _dragX += d.delta.dx);
+      },
+      onHorizontalDragEnd: (d) {
+        if (_dragX.abs() > 36 || (d.primaryVelocity ?? 0).abs() > 420) {
+          _gestureHandled = true;
+          widget.onRestore();
+        }
+        setState(() {
+          _dragX = 0;
+          _dragY = 0;
+        });
+      },
+      onVerticalDragStart: (_) {
+        _gestureHandled = false;
+        _dragY = 0;
+      },
+      onVerticalDragUpdate: (d) {
+        if (d.delta.dy > 0) setState(() => _dragY += d.delta.dy);
+      },
+      onVerticalDragEnd: (d) {
+        if (_dragY > 40 || (d.primaryVelocity ?? 0) > 520) {
+          _gestureHandled = true;
+          widget.onStop();
+        }
+        setState(() => _dragY = 0);
+      },
+      onTap: () {
+        if (_gestureHandled) {
+          _gestureHandled = false;
+          return;
+        }
+        widget.onToggle();
+      },
+      child: Transform.translate(
+        offset: Offset(_dragX, _dragY),
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
             children: [
-              if (loading)
-                const LinearProgressIndicator(minHeight: 3)
-              else if (!errored)
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 3,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                  ),
-                  child: Slider(
-                    value: session.duration.inMilliseconds > 0
-                        ? session.position.inMilliseconds
-                            .clamp(0, session.duration.inMilliseconds)
-                            .toDouble()
-                        : 0,
-                    max: session.duration.inMilliseconds > 0
-                        ? session.duration.inMilliseconds.toDouble()
-                        : 1,
-                    onChanged: onSeek,
+              Material(
+                color: AppColors.surface.withValues(alpha: 0.94),
+                elevation: 2,
+                shape: const CircleBorder(),
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CustomPaint(
+                        size: const Size(48, 48),
+                        painter: _OrbRingPainter(
+                          pct: pct,
+                          loading: loading,
+                        ),
+                      ),
+                      Icon(
+                        loading
+                            ? Icons.more_horiz
+                            : playing
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                        size: loading ? 16 : 20,
+                        color: AppColors.accentDeep,
+                      ),
+                    ],
                   ),
                 ),
-              Row(
-                children: [
-                  if (errored) ...[
-                    TextButton(
-                      onPressed: onRetry,
-                      child: const Text('重试'),
-                    ),
-                    Expanded(
-                      child: Text(
-                        '${session.bookName} ${session.chapter} · 加载失败',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13),
+              ),
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Material(
+                  color: AppColors.ink.withValues(alpha: 0.72),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: widget.onStop,
+                    child: const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: Center(
+                        child: Text(
+                          '×',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            height: 1,
+                          ),
+                        ),
                       ),
                     ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      onPressed: onDismiss,
-                      icon: const Icon(Icons.close),
-                    ),
-                  ] else ...[
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      onPressed: loading ? null : onToggle,
-                      icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-                    ),
-                    Expanded(
-                      child: Text(
-                        loading
-                            ? '${session.bookName} ${session.chapter} · 加载中…'
-                            : '${session.bookName} ${session.chapter} · ${session.audioLabel}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      onPressed: onExpand,
-                      icon: const Icon(Icons.keyboard_arrow_up),
-                    ),
-                  ],
-                ],
+                  ),
+                ),
               ),
             ],
           ),
         ),
       ),
     );
+
+    if (widget.immersive) {
+      return Positioned(
+        right: 16,
+        bottom: widget.bottomInset,
+        child: orb,
+      );
+    }
+    return Positioned(
+      right: 16,
+      bottom: widget.bottomInset + 56,
+      child: orb,
+    );
   }
+}
+
+class _OrbRingPainter extends CustomPainter {
+  _OrbRingPainter({required this.pct, required this.loading});
+
+  final double pct;
+  final bool loading;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const r = _ReaderAudioOrbState._ringR;
+    final center = Offset(size.width / 2, size.height / 2);
+    final rect = Rect.fromCircle(center: center, radius: r);
+    final track = Paint()
+      ..color = AppColors.line.withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawCircle(center, r, track);
+    final prog = Paint()
+      ..color = AppColors.accentDeep
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    final sweep = loading ? 1.8 : (6.283185307179586 * pct.clamp(0.0, 1.0));
+    canvas.drawArc(rect, -1.5707963267948966, sweep, false, prog);
+  }
+
+  @override
+  bool shouldRepaint(covariant _OrbRingPainter oldDelegate) =>
+      oldDelegate.pct != pct || oldDelegate.loading != loading;
 }
 
 Future<void> showReaderAudioSettingsSheet(
@@ -941,6 +1080,7 @@ Future<void> showReaderAudioSettingsSheet(
   WidgetRef ref,
 ) async {
   final ctrl = ref.read(readerAudioProvider.notifier);
+  ctrl.setSettingsOpen(true);
   var settings = ctrl.settings;
   final copyright = ref.read(readerAudioProvider).copyright;
   await showReaderSheet(
@@ -1115,108 +1255,253 @@ class _AudioToggleRow extends StatelessWidget {
   }
 }
 
-class ReaderAudioFocusOverlay extends ConsumerWidget {
+class ReaderAudioFocusOverlay extends ConsumerStatefulWidget {
   const ReaderAudioFocusOverlay({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReaderAudioFocusOverlay> createState() =>
+      _ReaderAudioFocusOverlayState();
+}
+
+class _ReaderAudioFocusOverlayState extends ConsumerState<ReaderAudioFocusOverlay> {
+  double _dragX = 0;
+  double _dragY = 0;
+
+  void _resetDrag() {
+    if (_dragX == 0 && _dragY == 0) return;
+    setState(() {
+      _dragX = 0;
+      _dragY = 0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(readerAudioProvider);
     final ctrl = ref.read(readerAudioProvider.notifier);
     if (!session.focusOpen) return const SizedBox.shrink();
+
     final playing = session.state == ReaderAudioState.playing;
+    final loading = session.state == ReaderAudioState.loading;
+    final errored = session.state == ReaderAudioState.error;
     final pct = session.duration.inMilliseconds > 0
         ? session.position.inMilliseconds / session.duration.inMilliseconds
         : 0.0;
+    final maxSheetHeight = MediaQuery.sizeOf(context).height * 0.88;
 
-    return Material(
-      color: Colors.black.withValues(alpha: 0.42),
-      child: SafeArea(
-        child: Center(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.line),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: () => ctrl.setFocusOpen(false),
-                    child: const Text('回到阅读'),
-                  ),
-                ),
-                Text(
-                  '${session.bookName} ${session.chapter}',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                ),
-                Text(session.audioLabel, style: const TextStyle(color: AppColors.inkSoft)),
-                if (session.hasTimestamps && session.chapterVerses.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.36),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: session.chapterVerses.length,
-                      itemBuilder: (ctx, i) {
-                        final row = session.chapterVerses[i];
-                        final verse = (row['verse'] as num).toInt();
-                        final text = row['text'] as String? ?? '';
-                        final active = session.currentVerse == verse;
-                        return ListTile(
-                          dense: true,
-                          selected: active,
-                          selectedTileColor: AppColors.accentWash.withValues(alpha: 0.45),
-                          title: Text('$verse  $text', maxLines: 3, overflow: TextOverflow.ellipsis),
-                          onTap: () => ctrl.seekToVerse(verse),
-                        );
-                      },
+    void minimize() => ctrl.minimizePanel();
+
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: minimize,
+            child: Container(color: Colors.black.withValues(alpha: 0.18)),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: GestureDetector(
+              onHorizontalDragUpdate: (d) {
+                if (d.delta.dx > 0) {
+                  setState(() => _dragX += d.delta.dx);
+                }
+              },
+              onHorizontalDragEnd: (d) {
+                if (_dragX > 72 || (d.primaryVelocity ?? 0) > 520) {
+                  minimize();
+                }
+                _resetDrag();
+              },
+              onVerticalDragUpdate: (d) {
+                if (d.delta.dy > 0) setState(() => _dragY += d.delta.dy);
+              },
+              onVerticalDragEnd: (d) {
+                if (_dragY > 56 || (d.primaryVelocity ?? 0) > 520) {
+                  minimize();
+                }
+                _resetDrag();
+              },
+              child: Transform.translate(
+                offset: Offset(_dragX, _dragY),
+                child: Material(
+                  color: AppColors.surface,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: SafeArea(
+                    top: false,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: maxSheetHeight),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 4,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.line,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton(
+                                onPressed: minimize,
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  foregroundColor: AppColors.inkFaint,
+                                ),
+                                child: const Text('回到阅读', style: TextStyle(fontSize: 12)),
+                              ),
+                            ),
+                            Text(
+                              '${session.bookName} ${session.chapter}',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            Text(
+                              session.audioLabel,
+                              style: const TextStyle(color: AppColors.inkSoft),
+                              textAlign: TextAlign.center,
+                            ),
+                            if (loading)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 16, bottom: 8),
+                                child: Text(
+                                  '正在加载本章朗读…',
+                                  style: TextStyle(fontSize: 13, color: AppColors.inkFaint),
+                                ),
+                              ),
+                            if (errored)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16, bottom: 8),
+                                child: Column(
+                                  children: [
+                                    const Text('朗读加载失败'),
+                                    TextButton(
+                                      onPressed: () => ctrl.retry(),
+                                      child: const Text('重试'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (session.hasTimestamps &&
+                                session.chapterVerses.isNotEmpty &&
+                                !loading &&
+                                !errored) ...[
+                              const SizedBox(height: 12),
+                              Flexible(
+                                child: ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: session.chapterVerses.length,
+                                  itemBuilder: (ctx, i) {
+                                    final row = session.chapterVerses[i];
+                                    final verse = (row['verse'] as num).toInt();
+                                    final text = row['text'] as String? ?? '';
+                                    final active = session.currentVerse == verse;
+                                    final hasTs = session.timestamps
+                                        .any((t) => t.verse == verse);
+                                    return ListTile(
+                                      dense: true,
+                                      enabled: hasTs,
+                                      selected: active,
+                                      selectedTileColor:
+                                          AppColors.accentWash.withValues(alpha: 0.45),
+                                      title: Text(
+                                        '$verse  $text',
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      onTap: hasTs
+                                          ? () => ctrl.seekToVerse(verse)
+                                          : null,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(99),
+                              child: LinearProgressIndicator(
+                                value: pct.clamp(0.0, 1.0),
+                                minHeight: 4,
+                              ),
+                            ),
+                            Text(
+                              loading
+                                  ? '加载中…'
+                                  : errored
+                                      ? '—'
+                                      : '${formatAudioTime(session.position)} / ${formatAudioTime(session.duration)}',
+                              style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
+                            ),
+                            IconButton(
+                              iconSize: 44,
+                              onPressed: loading
+                                  ? null
+                                  : () => ctrl.toggle(
+                                        bookId: session.bookId,
+                                        bookName: session.bookName,
+                                        chapter: session.chapter,
+                                      ),
+                              icon: Icon(
+                                playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                              ),
+                            ),
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 4,
+                              children: [
+                                TextButton(
+                                  onPressed: loading || errored
+                                      ? null
+                                      : () => ctrl.seek(
+                                            session.position - const Duration(seconds: 15),
+                                          ),
+                                  child: const Text('−15s'),
+                                ),
+                                TextButton(
+                                  onPressed: loading || errored
+                                      ? null
+                                      : () => ctrl.seek(
+                                            session.position + const Duration(seconds: 15),
+                                          ),
+                                  child: const Text('+15s'),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    ctrl.setSettingsOpen(true);
+                                    showReaderAudioSettingsSheet(context, ref);
+                                  },
+                                  child: const Text('设置'),
+                                ),
+                                TextButton(
+                                  onPressed: () => ctrl.stop(),
+                                  child: const Text(
+                                    '结束朗读',
+                                    style: TextStyle(color: AppColors.accentDeep),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ],
-                const SizedBox(height: 8),
-                LinearProgressIndicator(value: pct.clamp(0.0, 1.0)),
-                Text(
-                  '${formatAudioTime(session.position)} / ${formatAudioTime(session.duration)}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
                 ),
-                IconButton(
-                  iconSize: 44,
-                  onPressed: () => ctrl.toggle(
-                    bookId: session.bookId,
-                    bookName: session.bookName,
-                    chapter: session.chapter,
-                  ),
-                  icon: Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_filled),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextButton(
-                      onPressed: () => ctrl.seek(session.position - const Duration(seconds: 15)),
-                      child: const Text('−15s'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        ctrl.setFocusOpen(false);
-                        showReaderAudioSettingsSheet(context, ref);
-                      },
-                      child: const Text('设置'),
-                    ),
-                    TextButton(
-                      onPressed: () => ctrl.seek(session.position + const Duration(seconds: 15)),
-                      child: const Text('+15s'),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
