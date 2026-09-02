@@ -451,6 +451,16 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 
 .shelf-turn-panel-active {
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.shelf-turn-panel-active > .shelf-page-viewport,
+.shelf-turn-panel-active > .shelf-lesson-viewport {
+  flex: 1;
+  min-height: 0;
+  height: auto;
 }
 
 .shelf-turn-panel-peek {
@@ -489,12 +499,15 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   max-width: var(--shelf-text-width);
   margin: 0 auto;
   width: 100%;
-  font-size: var(--shelf-font-size, 18px);
-  line-height: var(--shelf-line-height, 1.9);
   color: var(--ink, #2c2825);
   font-family: var(--shelf-font-family, var(--font-reader));
   text-align: justify;
   text-wrap: pretty;
+}
+
+.shelf-prose {
+  font-size: var(--shelf-font-size, 18px);
+  line-height: var(--shelf-line-height, 1.9);
 }
 
 .shelf-prose .shelf-title:first-child,
@@ -798,6 +811,14 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   flex-direction: column;
 }
 
+.shelf-lesson-viewport > .shelf-pdf-pager,
+.shelf-lesson-viewport > .shelf-page-viewport,
+.shelf-lesson-viewport .shelf-page-viewport {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
 .shelf-lesson-empty {
   padding: 24px 18px;
   text-align: center;
@@ -824,14 +845,40 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
+  touch-action: pan-x;
 }
 
 .shelf-pdf-pager-stage {
   flex: 1;
   min-height: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  padding: 4px 0 12px;
+}
+
+.shelf-pdf-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14%;
+  max-width: 56px;
+  z-index: 1;
+  touch-action: pan-x;
+}
+
+.shelf-pdf-edge-prev {
+  left: 0;
+}
+
+.shelf-pdf-edge-next {
+  right: 0;
 }
 
 .shelf-pdf-pager.is-fullscreen {
@@ -1195,30 +1242,42 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   line-height: var(--shelf-line-height, 1.82);
 }
 
+.shelf-docx-prose {
+  max-width: var(--shelf-text-width);
+  margin: 0 auto;
+  width: 100%;
+  font-size: calc(var(--shelf-font-size, 18px) * 0.9);
+  line-height: calc(var(--shelf-line-height, 1.9) * 0.97);
+  color: var(--ink, #2c2825);
+  font-family: var(--shelf-font-family, var(--font-reader));
+  text-align: justify;
+  text-wrap: pretty;
+}
+
 .shelf-docx-prose .shelf-docx-title {
-  font-size: calc(var(--shelf-font-size, 18px) + 6px);
+  font-size: calc(var(--shelf-font-size, 18px) * 1.08);
   font-weight: 700;
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   line-height: 1.35;
 }
 
 .shelf-docx-prose .shelf-docx-h1 {
-  font-size: calc(var(--shelf-font-size, 18px) + 3px);
+  font-size: calc(var(--shelf-font-size, 18px) * 1.02);
   font-weight: 700;
-  margin: 1.6em 0 0.6em;
+  margin: 1.2em 0 0.5em;
   line-height: 1.4;
 }
 
 .shelf-docx-prose .shelf-docx-h2 {
-  font-size: calc(var(--shelf-font-size, 18px) + 1px);
+  font-size: calc(var(--shelf-font-size, 18px) * 0.98);
   font-weight: 600;
-  margin: 1.4em 0 0.5em;
+  margin: 1em 0 0.45em;
 }
 
 .shelf-docx-prose .shelf-docx-h3 {
-  font-size: var(--shelf-font-size, 18px);
+  font-size: calc(var(--shelf-font-size, 18px) * 0.94);
   font-weight: 600;
-  margin: 1.2em 0 0.4em;
+  margin: 0.85em 0 0.35em;
 }
 
 .shelf-docx-prose .shelf-docx-p {

@@ -17,24 +17,42 @@ export function useShelfSectionPages(
     if (!vp || !art) return;
     const h = vp.clientHeight;
     if (h <= 0) return;
+    const prevTransform = art.style.transform;
     art.style.removeProperty('transform');
     const total = Math.max(1, Math.ceil(art.scrollHeight / h));
+    art.style.transform = prevTransform;
     setPageHeight(h);
     setPageCount(total);
   }, [articleRef, viewportRef]);
 
   useLayoutEffect(() => {
-    remeasure();
+    let cancelled = false;
+    const run = () => {
+      if (cancelled) return;
+      remeasure();
+      const vp = viewportRef.current;
+      if (vp && vp.clientHeight <= 0) {
+        window.setTimeout(run, 80);
+      }
+    };
+    run();
     const vp = viewportRef.current;
-    if (!vp || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => remeasure());
+    const art = articleRef.current;
+    if (!vp || typeof ResizeObserver === 'undefined') return () => {
+      cancelled = true;
+    };
+    const ro = new ResizeObserver(() => run());
     ro.observe(vp);
+    if (art) ro.observe(art);
     const fonts = document.fonts;
     if (fonts?.ready) {
-      void fonts.ready.then(() => remeasure());
+      void fonts.ready.then(() => run());
     }
-    return () => ro.disconnect();
-  }, [contentKey, remeasure, viewportRef]);
+    return () => {
+      cancelled = true;
+      ro.disconnect();
+    };
+  }, [contentKey, remeasure, viewportRef, articleRef]);
 
   return { pageCount, pageHeight, remeasure };
 }

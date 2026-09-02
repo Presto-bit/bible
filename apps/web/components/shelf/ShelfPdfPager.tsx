@@ -6,18 +6,29 @@ type Props = {
   url: string;
   title: string;
   pageIndex: number;
+  /** 教案 PDF 默认略放大，便于阅读 */
+  zoom?: number;
   onPageCount?: (count: number) => void;
   onTap?: () => void;
   fullscreen?: boolean;
   onExitFullscreen?: () => void;
 };
 
-function computePdfScale(containerWidth: number, containerHeight: number, pageWidth: number, pageHeight: number) {
+function computePdfScale(
+  containerWidth: number,
+  pageWidth: number,
+  pageHeight: number,
+  zoom = 1,
+) {
   const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 2 : 2, 2.5);
-  const fitW = containerWidth / pageWidth;
-  const fitH = containerHeight / pageHeight;
-  const fit = Math.min(fitW, fitH);
-  return { dpr, renderScale: fit * dpr, cssWidth: pageWidth * fit, cssHeight: pageHeight * fit };
+  // 贴宽放大（教案 PDF 字小）；超出视口高度由 stage 纵向滚动
+  const fitW = (containerWidth / pageWidth) * zoom;
+  return {
+    dpr,
+    renderScale: fitW * dpr,
+    cssWidth: pageWidth * fitW,
+    cssHeight: pageHeight * fitW,
+  };
 }
 
 export default function ShelfPdfPager({
@@ -25,6 +36,7 @@ export default function ShelfPdfPager({
   title,
   pageIndex,
   onPageCount,
+  zoom = 1.18,
   onTap,
   fullscreen = false,
   onExitFullscreen,
@@ -34,6 +46,7 @@ export default function ShelfPdfPager({
   const pdfRef = useRef<import('pdfjs-dist').PDFDocumentProxy | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [pageCount, setPageCount] = useState(0);
+  const [layoutTick, setLayoutTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,12 +91,11 @@ export default function ShelfPdfPager({
         if (cancelled) return;
         const base = page.getViewport({ scale: 1 });
         const w = host.clientWidth || Math.min(window.innerWidth - 32, 720);
-        const h = host.clientHeight || Math.min(window.innerHeight - 160, 900);
         const { dpr, renderScale, cssWidth, cssHeight } = computePdfScale(
           w,
-          h,
           base.width,
           base.height,
+          zoom,
         );
         const scaled = page.getViewport({ scale: renderScale });
         canvas.width = scaled.width;
@@ -101,7 +113,22 @@ export default function ShelfPdfPager({
     return () => {
       cancelled = true;
     };
-  }, [status, pageIndex, pageCount]);
+  }, [status, pageIndex, pageCount, zoom, layoutTick]);
+
+  useEffect(() => {
+    hostRef.current?.scrollTo({ top: 0, left: 0 });
+  }, [pageIndex]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      if (status !== 'ready' || !pdfRef.current) return;
+      setLayoutTick((n) => n + 1);
+    });
+    ro.observe(host);
+    return () => ro.disconnect();
+  }, [status]);
 
   if (status === 'error') {
     return <p className="muted shelf-pdf-status">无法加载 PDF</p>;
@@ -125,6 +152,7 @@ export default function ShelfPdfPager({
           </a>
         </div>
       ) : null}
+      <div className="shelf-pdf-edge shelf-pdf-edge-prev" aria-hidden />
       <div ref={hostRef} className="shelf-pdf-pager-stage" aria-busy={status === 'loading'}>
         <canvas
           ref={canvasRef}
@@ -133,6 +161,7 @@ export default function ShelfPdfPager({
           aria-label={`${title} 第 ${pageIndex + 1} 页`}
         />
       </div>
+      <div className="shelf-pdf-edge shelf-pdf-edge-next" aria-hidden />
       {fullscreen && onExitFullscreen ? (
         <button
           type="button"

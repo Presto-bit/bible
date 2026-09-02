@@ -153,8 +153,17 @@ export function adaptShelfDocxHtml(raw: string): string {
       else if (!p.classList.length) p.classList.add('shelf-docx-p');
     });
 
-    root.querySelectorAll('h1,h2,h3,h4').forEach((h) => {
+    root.querySelectorAll('h1').forEach((h) => {
+      if (!h.classList.length) h.classList.add('shelf-docx-title');
+    });
+    root.querySelectorAll('h2').forEach((h) => {
       if (!h.classList.length) h.classList.add('shelf-docx-h1');
+    });
+    root.querySelectorAll('h3').forEach((h) => {
+      if (!h.classList.length) h.classList.add('shelf-docx-h2');
+    });
+    root.querySelectorAll('h4').forEach((h) => {
+      if (!h.classList.length) h.classList.add('shelf-docx-h3');
     });
 
     root.querySelectorAll('strong, b').forEach((el) => {

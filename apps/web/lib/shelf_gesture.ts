@@ -4,7 +4,14 @@ import {
 } from './reader_gesture';
 
 const SHELF_INTERACTIVE_SEL =
-  'video,a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.shelf-reader-bottom-btn,.shelf-reader-bottom,.shelf-pdf-toolbar-btn,.shelf-media-tile,.shelf-lesson-lightbox,.shelf-fullscreen-overlay';
+  'video,a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.shelf-reader-bottom-btn,.shelf-reader-bottom,.shelf-pdf-toolbar-btn,.shelf-pdf-edge,.shelf-media-tile,.shelf-lesson-lightbox,.shelf-fullscreen-overlay';
+
+function isPdfScrollSurface(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  const stage = target.closest('.shelf-pdf-pager-stage');
+  if (!stage) return false;
+  return stage.scrollHeight > stage.clientHeight + 4;
+}
 
 function isShelfInteractiveElement(el: Element | null | undefined): boolean {
   if (!el) return false;
@@ -21,6 +28,7 @@ export function shouldYieldShelfTurn(
   clientY: number,
   event?: Event,
 ): boolean {
+  if (isPdfScrollSurface(target)) return true;
   if (isReaderInteractiveEventTarget(target, event)) return true;
   if (target instanceof Element && isShelfInteractiveElement(target)) return true;
   if (target instanceof Node && !(target instanceof Element)) {

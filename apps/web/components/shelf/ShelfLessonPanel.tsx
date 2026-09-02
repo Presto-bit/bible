@@ -212,6 +212,7 @@ function ShelfDocxPaginated({
       html={html}
       contentKey={`${contentKey}:${title}`}
       pageIndex={pageIndex}
+      variant="docx"
       onPageCount={onPageCount}
       onTap={onTap}
     />
