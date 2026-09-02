@@ -23,7 +23,15 @@ import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
 import { shelfReadingStyleVars } from '@/lib/shelf_reading';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
-import { maybeShowShelfReadingHint, shelfSectionIsPdf } from '@/lib/shelf_reader_contract';
+import {
+  clampShelfPdfZoom,
+  readShelfPdfZoom,
+  SHELF_PDF_ZOOM_KEY,
+  SHELF_PDF_ZOOM_MAX,
+  SHELF_PDF_ZOOM_MIN,
+  SHELF_PDF_ZOOM_STEP,
+  shelfSectionIsPdf,
+} from '@/lib/shelf_reader_contract';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
 import '@/styles/plans.css';
@@ -70,6 +78,8 @@ export default function ShelfReader({
   const [pendingScrollEnd, setPendingScrollEnd] = useState(false);
   const [flowScrollRatio, setFlowScrollRatio] = useState(0);
   const [pdfFullscreen, setPdfFullscreen] = useState(false);
+  const [pdfPinching, setPdfPinching] = useState(false);
+  const [pdfZoom, setPdfZoom] = useState(readShelfPdfZoom);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [mediaVideo, setMediaVideo] = useState<ShelfAttachment | null>(null);
   const { fontPx, lineHeight, setFontPx, setLineHeight, setFontFamily } = useShelfReadingPrefs();
@@ -77,7 +87,16 @@ export default function ShelfReader({
   const pageBySectionRef = useRef<Record<string, number>>({});
   const scrollBySectionRef = useRef<Record<string, number>>({});
   const pageCountBySectionRef = useRef<Record<string, number>>({});
-  const hintShownRef = useRef(false);
+
+  const onPdfZoomChange = useCallback((next: number) => {
+    const z = clampShelfPdfZoom(next);
+    setPdfZoom(z);
+    try {
+      localStorage.setItem(SHELF_PDF_ZOOM_KEY, String(z));
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const isLesson = section?.kind === 'lesson';
   const lessonMedia = useMemo(
@@ -242,7 +261,7 @@ export default function ShelfReader({
     setPageCount(1);
   }, [sectionId, contentKey]);
 
-  const overlayOpen = tocOpen || fontOpen || shareOpen || pdfFullscreen || mediaOpen;
+  const overlayOpen = tocOpen || fontOpen || shareOpen || pdfFullscreen || mediaOpen || pdfPinching;
 
   const setPageCountForSection = useCallback(
     (count: number) => {
@@ -277,12 +296,6 @@ export default function ShelfReader({
       if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
     };
   }, [bookId, sectionId, book?.title, section?.title, pageIndex, flowScrollRatio, isPdfSection]);
-
-  useEffect(() => {
-    if (!section || hintShownRef.current) return;
-    hintShownRef.current = true;
-    maybeShowShelfReadingHint(flashToast);
-  }, [section, flashToast]);
 
   const prefetchNeighbor = useCallback(
     (delta: number) => {
@@ -417,6 +430,12 @@ export default function ShelfReader({
           pdfFullscreen={interactive && pdfFullscreen}
           onExitPdfFullscreen={interactive ? () => setPdfFullscreen(false) : undefined}
           onOpenPdfFullscreen={interactive ? () => setPdfFullscreen(true) : undefined}
+          pdfZoom={pdfZoom}
+          onPdfZoomChange={interactive ? onPdfZoomChange : undefined}
+          pdfZoomMin={SHELF_PDF_ZOOM_MIN}
+          pdfZoomMax={SHELF_PDF_ZOOM_MAX}
+          pdfZoomStep={SHELF_PDF_ZOOM_STEP}
+          onPdfPinchActive={interactive ? setPdfPinching : undefined}
           onOpenMedia={interactive && hasLessonMedia ? () => setMediaOpen(true) : undefined}
           onOpenVideo={
             interactive && hasLessonMedia

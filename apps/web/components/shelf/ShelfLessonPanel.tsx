@@ -28,6 +28,12 @@ type Props = {
   pdfFullscreen?: boolean;
   onExitPdfFullscreen?: () => void;
   onOpenPdfFullscreen?: () => void;
+  pdfZoom?: number;
+  onPdfZoomChange?: (zoom: number) => void;
+  pdfZoomMin?: number;
+  pdfZoomMax?: number;
+  pdfZoomStep?: number;
+  onPdfPinchActive?: (active: boolean) => void;
   onOpenMedia?: () => void;
   onOpenVideo?: (item: ShelfAttachment) => void;
 };
@@ -49,6 +55,12 @@ export default function ShelfLessonPanel({
   pdfFullscreen = false,
   onExitPdfFullscreen,
   onOpenPdfFullscreen,
+  pdfZoom = 1.25,
+  onPdfZoomChange,
+  pdfZoomMin = 1,
+  pdfZoomMax = 2,
+  pdfZoomStep = 0.25,
+  onPdfPinchActive,
   onOpenMedia,
   onOpenVideo,
 }: Props) {
@@ -107,6 +119,12 @@ export default function ShelfLessonPanel({
         chromeHidden={chromeHidden}
         pdfFullscreen={pdfFullscreen}
         onExitPdfFullscreen={onExitPdfFullscreen}
+        pdfZoom={pdfZoom}
+        onPdfZoomChange={onPdfZoomChange}
+        pdfZoomMin={pdfZoomMin}
+        pdfZoomMax={pdfZoomMax}
+        pdfZoomStep={pdfZoomStep}
+        onPdfPinchActive={onPdfPinchActive}
       />
 
       {hasMedia && !pdfFullscreen ? (
@@ -135,6 +153,40 @@ export default function ShelfLessonPanel({
         >
           ⛶
         </button>
+      ) : null}
+
+      {isPdf && onPdfZoomChange ? (
+        <div className="shelf-pdf-inline-tools">
+          <div className="shelf-pdf-zoom-controls">
+            <button
+              type="button"
+              className="shelf-pdf-toolbar-btn"
+              aria-label="缩小 PDF"
+              disabled={pdfZoom <= pdfZoomMin + 0.001}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPdfZoomChange(pdfZoom - pdfZoomStep);
+              }}
+            >
+              −
+            </button>
+            <span className="shelf-pdf-zoom-label" aria-live="polite">
+              {Math.round(pdfZoom * 100)}%
+            </span>
+            <button
+              type="button"
+              className="shelf-pdf-toolbar-btn"
+              aria-label="放大 PDF"
+              disabled={pdfZoom >= pdfZoomMax - 0.001}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPdfZoomChange(pdfZoom + pdfZoomStep);
+              }}
+            >
+              +
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {!mediaControlled ? (
@@ -167,6 +219,12 @@ function ShelfPrimaryView({
   chromeHidden,
   pdfFullscreen,
   onExitPdfFullscreen,
+  pdfZoom = 1.25,
+  onPdfZoomChange,
+  pdfZoomMin = 1,
+  pdfZoomMax = 2,
+  pdfZoomStep = 0.25,
+  onPdfPinchActive,
 }: {
   bookId: string;
   section: ShelfSection;
@@ -181,6 +239,12 @@ function ShelfPrimaryView({
   chromeHidden?: boolean;
   pdfFullscreen?: boolean;
   onExitPdfFullscreen?: () => void;
+  pdfZoom?: number;
+  onPdfZoomChange?: (zoom: number) => void;
+  pdfZoomMin?: number;
+  pdfZoomMax?: number;
+  pdfZoomStep?: number;
+  onPdfPinchActive?: (active: boolean) => void;
 }) {
   const primary = section.primary;
   const url = useMemo(() => {
@@ -224,6 +288,12 @@ function ShelfPrimaryView({
         onTap={onTap}
         fullscreen={pdfFullscreen}
         onExitFullscreen={onExitPdfFullscreen}
+        zoom={pdfZoom}
+        onZoomChange={onPdfZoomChange}
+        zoomMin={pdfZoomMin}
+        zoomMax={pdfZoomMax}
+        zoomStep={pdfZoomStep}
+        onPinchActive={onPdfPinchActive}
       />
     );
   }

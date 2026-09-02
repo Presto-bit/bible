@@ -15,15 +15,16 @@ import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
  * - 提交阈值：大位移 OR 够快；上一页（右滑）略松
  * - 专有名词/按钮：composedPath + 邻点让路，避免「点词典没反应」
  */
-const THRESHOLD_NEXT = 0.05;
-const THRESHOLD_PREV = 0.04;
-const VELOCITY_MIN = 0.055;
-const VELOCITY_MIN_PREV = 0.04;
+const THRESHOLD_NEXT = 0.035;
+const THRESHOLD_PREV = 0.028;
+const VELOCITY_MIN = 0.04;
+const VELOCITY_MIN_PREV = 0.032;
 /** 大滑动：忽略速度强制翻页 */
-const FORCE_RATIO_NEXT = 0.1;
-const FORCE_RATIO_PREV = 0.08;
-const AXIS_RATIO = 1.02;
-const AXIS_MIN_PX = 4;
+const FORCE_RATIO_NEXT = 0.08;
+const FORCE_RATIO_PREV = 0.06;
+const AXIS_RATIO = 1.0;
+const AXIS_MIN_PX = 3;
+const EDGE_SWIPE_PX = 72;
 const EDGE_RESIST = 0.22;
 const ANIM_MS = 280;
 const PREFETCH_RATIO = 0.04;
@@ -35,6 +36,11 @@ function sleep(ms: number) {
   return new Promise<void>((resolve) => {
     window.setTimeout(resolve, ms);
   });
+}
+
+function isEdgeSwipeZone(clientX: number) {
+  if (typeof window === 'undefined') return false;
+  return clientX < EDGE_SWIPE_PX || clientX > window.innerWidth - EDGE_SWIPE_PX;
 }
 
 export type ShelfTurnKind = 'page' | 'section' | 'none';
@@ -84,6 +90,7 @@ export function useShelfTurn({
     prefetched: false,
     source: 'pointer' as 'pointer' | 'touch',
     inVerticalScroll: false,
+    fromEdge: false,
   });
   const applyOffset = useCallback((px: number, withAnim: boolean) => {
     offsetRef.current = px;
@@ -309,6 +316,7 @@ export function useShelfTurn({
         prefetched: false,
         source,
         inVerticalScroll: shelfTurnStartsInVerticalScroll(target ?? null, clientX),
+        fromEdge: isEdgeSwipeZone(clientX),
       };
       return true;
     },
@@ -327,7 +335,10 @@ export function useShelfTurn({
         const ady = Math.abs(dy);
         const hRatio = drag.current.inVerticalScroll ? 1.04 : AXIS_RATIO;
         if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
-        if (adx >= AXIS_MIN_PX && adx > ady * hRatio) {
+        if (drag.current.fromEdge && adx >= 4 && adx > ady * 0.55) {
+          drag.current.axis = 'x';
+          setTurning(true);
+        } else if (adx >= AXIS_MIN_PX && adx > ady * hRatio) {
           drag.current.axis = 'x';
           setTurning(true);
         } else if (ady >= AXIS_MIN_PX && ady >= adx * AXIS_RATIO) {
@@ -462,6 +473,10 @@ export function useShelfTurn({
     if (!el || !enabled) return;
 
     const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        cancelDrag();
+        return;
+      }
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       if (shouldYieldShelfTurn(e.target, t.clientX, t.clientY, e)) return;
@@ -475,6 +490,10 @@ export function useShelfTurn({
       beginDrag(t.clientX, t.clientY, t.identifier, 'touch', e.target);
     };
     const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        cancelDrag();
+        return;
+      }
       if (!drag.current.active || drag.current.source !== 'touch') return;
       if (e.touches.length !== 1) return;
       const t = e.touches[0];

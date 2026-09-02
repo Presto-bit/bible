@@ -134,7 +134,6 @@ export function VersePreviewSheet({
                 关闭
               </button>
             </div>
-            <p className="muted shelf-verse-preview-hint">上下滑动查看更多 · 拖顶栏下滑关闭</p>
           </div>
           <div ref={scrollRef} className="verse-preview-scroll shelf-verse-preview-scroll">
             {loading && <p className="muted">加载中…</p>}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { clampShelfPdfZoom } from '@/lib/shelf_reader_contract';
 
 type Props = {
   url: string;
@@ -11,6 +12,12 @@ type Props = {
   onTap?: () => void;
   fullscreen?: boolean;
   onExitFullscreen?: () => void;
+  zoom?: number;
+  onZoomChange?: (zoom: number) => void;
+  zoomMin?: number;
+  zoomMax?: number;
+  zoomStep?: number;
+  onPinchActive?: (active: boolean) => void;
 };
 
 function computePdfLayout(
@@ -18,14 +25,15 @@ function computePdfLayout(
   pageWidth: number,
   pageHeight: number,
   fullscreen: boolean,
+  zoom = 1,
 ) {
   const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 2 : 2, 2);
   const fitW = containerWidth / pageWidth;
-  let scale = fitW;
+  let scale = fitW * zoom;
   if (fullscreen && typeof window !== 'undefined') {
     const maxH = window.innerHeight - 72;
     const fitH = maxH / pageHeight;
-    scale = Math.min(fitW, fitH);
+    scale = Math.min(fitW, fitH) * zoom;
   }
   return {
     dpr,
@@ -53,8 +61,8 @@ function measurePdfContainerWidth(host: HTMLElement | null, fullscreen: boolean)
   return 720;
 }
 
-function pdfCacheKey(url: string, pageNum: number, w: number) {
-  return `${url}|${pageNum}|${Math.round(w)}`;
+function pdfCacheKey(url: string, pageNum: number, w: number, zoom: number) {
+  return `${url}|${pageNum}|${Math.round(w)}|${Math.round(zoom * 100)}`;
 }
 
 function trimPdfCache() {
@@ -67,6 +75,13 @@ function trimPdfCache() {
   }
 }
 
+function touchSpan(touches: TouchList): number {
+  if (touches.length < 2) return 0;
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+}
+
 function PdfPageTile({
   pdf,
   pageNum,
@@ -74,6 +89,7 @@ function PdfPageTile({
   containerWidth,
   title,
   fullscreen,
+  zoom,
   scrollRootRef,
 }: {
   pdf: import('pdfjs-dist').PDFDocumentProxy;
@@ -82,6 +98,7 @@ function PdfPageTile({
   containerWidth: number;
   title: string;
   fullscreen: boolean;
+  zoom: number;
   scrollRootRef: RefObject<HTMLElement | null>;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -131,10 +148,11 @@ function PdfPageTile({
           base.width,
           base.height,
           fullscreen,
+          zoom,
         );
         setPlaceholderH(cssHeight);
         const scaled = page.getViewport({ scale: renderScale });
-        const cacheKey = pdfCacheKey(url, pageNum, w);
+        const cacheKey = pdfCacheKey(url, pageNum, w, zoom);
         const cached = pdfPageCache.get(cacheKey);
         if (cached) {
           canvas.width = cached.width;
@@ -168,7 +186,9 @@ function PdfPageTile({
     return () => {
       cancelled = true;
     };
-  }, [visible, pdf, pageNum, url, containerWidth, fullscreen]);
+  }, [visible, pdf, pageNum, url, containerWidth, fullscreen, zoom]);
+
+  const zoomed = zoom > 1.001;
 
   return (
     <div ref={rootRef} className="shelf-pdf-scroll-page" style={{ minHeight: placeholderH }}>
@@ -177,7 +197,7 @@ function PdfPageTile({
       ) : null}
       <canvas
         ref={canvasRef}
-        className="shelf-pdf-page-canvas"
+        className={`shelf-pdf-page-canvas${zoomed ? ' is-zoomed' : ''}`}
         role="img"
         aria-label={`${title} 第 ${pageNum} 页`}
       />
@@ -194,6 +214,11 @@ export default function ShelfPdfPager({
   onTap,
   fullscreen = false,
   onExitFullscreen,
+  zoom = 1,
+  onZoomChange,
+  zoomMin = 1,
+  zoomMax = 2,
+  onPinchActive,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -205,14 +230,84 @@ export default function ShelfPdfPager({
   const pageFromScrollRef = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
   const suppressTapRef = useRef(false);
+  const pinchRef = useRef({ active: false, startSpan: 0, startZoom: 1 });
+  const zoomRafRef = useRef<number | null>(null);
+  const pendingZoomRef = useRef<number | null>(null);
+  const [pinching, setPinching] = useState(false);
+  const zoomRef = useRef(zoom);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [pageCount, setPageCount] = useState(0);
   const [containerWidth, setContainerWidth] = useState(() => measurePdfContainerWidth(null, false));
   const [pdfDoc, setPdfDoc] = useState<import('pdfjs-dist').PDFDocumentProxy | null>(null);
 
   useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  const scheduleZoom = useCallback(
+    (next: number) => {
+      if (!onZoomChange) return;
+      pendingZoomRef.current = clampShelfPdfZoom(next);
+      if (zoomRafRef.current != null) return;
+      zoomRafRef.current = window.requestAnimationFrame(() => {
+        zoomRafRef.current = null;
+        const z = pendingZoomRef.current;
+        pendingZoomRef.current = null;
+        if (z != null) onZoomChange(z);
+      });
+    },
+    [onZoomChange],
+  );
+
+  useEffect(() => {
     activePageRef.current = pageIndex;
   }, [pageIndex]);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || !onZoomChange) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      const span = touchSpan(e.touches);
+      if (span <= 0) return;
+      pinchRef.current = { active: true, startSpan: span, startZoom: zoomRef.current };
+      onPinchActive?.(true);
+      setPinching(true);
+      suppressTapRef.current = true;
+      e.preventDefault();
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pinchRef.current.active || e.touches.length !== 2) return;
+      const span = touchSpan(e.touches);
+      if (pinchRef.current.startSpan <= 0) return;
+      e.preventDefault();
+      const ratio = span / pinchRef.current.startSpan;
+      scheduleZoom(pinchRef.current.startZoom * ratio);
+    };
+    const endPinch = (e: TouchEvent) => {
+      if (!pinchRef.current.active) return;
+      if (e.touches.length >= 2) return;
+      pinchRef.current.active = false;
+      onPinchActive?.(false);
+      setPinching(false);
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', endPinch, { passive: true });
+    el.addEventListener('touchcancel', endPinch, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', endPinch);
+      el.removeEventListener('touchcancel', endPinch);
+      if (zoomRafRef.current != null) window.cancelAnimationFrame(zoomRafRef.current);
+      pinchRef.current.active = false;
+      onPinchActive?.(false);
+      setPinching(false);
+    };
+  }, [onZoomChange, onPinchActive, scheduleZoom, status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -351,10 +446,11 @@ export default function ShelfPdfPager({
   }
 
   const pdf = pdfDoc;
+  const zoomed = zoom > 1.001;
 
   return (
     <div
-      className={`shelf-pdf-pager shelf-pdf-pager-scroll${fullscreen ? ' is-fullscreen' : ''}`}
+      className={`shelf-pdf-pager shelf-pdf-pager-scroll${fullscreen ? ' is-fullscreen' : ''}${pinching ? ' is-pinching' : ''}`}
       onClick={fullscreen ? undefined : handleContentClick}
     >
       {fullscreen && onExitFullscreen ? (
@@ -392,7 +488,7 @@ export default function ShelfPdfPager({
       <div ref={hostRef} className="shelf-pdf-pager-host">
         <div
           ref={stageRef}
-          className="shelf-pdf-pager-stage is-scrollable"
+          className={`shelf-pdf-pager-stage is-scrollable${zoomed ? ' is-zoomed' : ''}`}
           aria-busy={status === 'loading'}
           onScroll={handleScroll}
         >
@@ -412,6 +508,7 @@ export default function ShelfPdfPager({
                     containerWidth={containerWidth}
                     title={title}
                     fullscreen={fullscreen}
+                    zoom={zoom}
                     scrollRootRef={stageRef}
                   />
                 </div>

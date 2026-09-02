@@ -21,13 +21,35 @@ export function shelfSectionIsPdf(section: ShelfSection | null | undefined): boo
 
 const HINT_KEY = 'shelf_reading_hint_v1';
 
-export function maybeShowShelfReadingHint(flash: (msg: string) => void) {
+/** @deprecated 已取消首次进入滑动提示 */
+export function maybeShowShelfReadingHint(_flash: (msg: string) => void) {
   if (typeof window === 'undefined') return;
   try {
-    if (localStorage.getItem(HINT_KEY)) return;
     localStorage.setItem(HINT_KEY, '1');
-    flash('上下滑动阅读，左右切换章节');
   } catch {
     /* ignore */
   }
+}
+
+export const SHELF_PDF_ZOOM_KEY = 'shelf_pdf_zoom_v1';
+export const SHELF_PDF_ZOOM_DEFAULT = 1.25;
+export const SHELF_PDF_ZOOM_MIN = 1;
+export const SHELF_PDF_ZOOM_MAX = 2;
+export const SHELF_PDF_ZOOM_STEP = 0.25;
+
+export function readShelfPdfZoom(): number {
+  if (typeof window === 'undefined') return SHELF_PDF_ZOOM_DEFAULT;
+  try {
+    const raw = localStorage.getItem(SHELF_PDF_ZOOM_KEY);
+    const n = raw ? parseFloat(raw) : SHELF_PDF_ZOOM_DEFAULT;
+    if (!Number.isFinite(n)) return SHELF_PDF_ZOOM_DEFAULT;
+    return Math.min(SHELF_PDF_ZOOM_MAX, Math.max(SHELF_PDF_ZOOM_MIN, n));
+  } catch {
+    return SHELF_PDF_ZOOM_DEFAULT;
+  }
+}
+
+export function clampShelfPdfZoom(z: number): number {
+  if (!Number.isFinite(z)) return SHELF_PDF_ZOOM_DEFAULT;
+  return Math.min(SHELF_PDF_ZOOM_MAX, Math.max(SHELF_PDF_ZOOM_MIN, z));
 }

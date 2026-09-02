@@ -4,12 +4,12 @@ import {
 } from './reader_gesture';
 
 const SHELF_INTERACTIVE_SEL =
-  'video,a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.shelf-reader-bottom-btn,.shelf-reader-bottom,.shelf-pdf-toolbar-btn,.shelf-pdf-exit-fullscreen,.shelf-lesson-media-fab,.shelf-media-tile,.shelf-lesson-lightbox,.shelf-fullscreen-overlay,.shelf-focus-bar,.reader-focus-bar';
+  'video,a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.shelf-reader-bottom-btn,.shelf-reader-bottom,.shelf-pdf-toolbar-btn,.shelf-pdf-inline-tools,.shelf-pdf-exit-fullscreen,.shelf-lesson-media-fab,.shelf-media-tile,.shelf-lesson-lightbox,.shelf-fullscreen-overlay,.shelf-focus-bar,.reader-focus-bar';
 
-const SHELF_VERTICAL_SCROLL_SEL = '.shelf-pdf-pager-stage,.shelf-flow-viewport';
+const SHELF_VERTICAL_SCROLL_SEL = '';
 
 function isShelfVerticalScrollElement(el: Element | null | undefined): boolean {
-  if (!el) return false;
+  if (!el || !SHELF_VERTICAL_SCROLL_SEL) return false;
   try {
     return Boolean(el.closest(SHELF_VERTICAL_SCROLL_SEL));
   } catch {
@@ -17,14 +17,19 @@ function isShelfVerticalScrollElement(el: Element | null | undefined): boolean {
   }
 }
 
+/**
+ * 章级横滑与 PDF / Word 共用同一套轴判定；不再因落在可竖滚容器内而抬高横滑门槛。
+ * 竖滚由 moveDrag 识别 axis=y 后放行，与 PDF 区域行为一致。
+ */
 export function shelfTurnStartsInVerticalScroll(
   target: EventTarget | null,
   clientX?: number,
 ): boolean {
   if (typeof clientX === 'number' && typeof window !== 'undefined') {
-    const edge = 44;
+    const edge = 72;
     if (clientX < edge || clientX > window.innerWidth - edge) return false;
   }
+  if (!SHELF_VERTICAL_SCROLL_SEL) return false;
   if (!(target instanceof Element)) {
     if (target instanceof Node) return isShelfVerticalScrollElement(target.parentElement);
     return false;
