@@ -125,7 +125,7 @@ export function ReaderAudioSettingsSheet({
         ]}
       />
       <p className="reader-audio-settings-foot">
-        朗读需联网流式播放，不提供音频文件下载。iOS 锁屏可能因系统限制暂停，可重新点朗读。
+        音频来自 Faith Comes By Hearing（FCBH）专业录制，需联网流式播放，不提供下载。iOS 锁屏可能因系统限制暂停，可重新点朗读。
       </p>
       {copyright ? <p className="reader-audio-settings-copy">{copyright}</p> : null}
     </ReaderSheetPortal>

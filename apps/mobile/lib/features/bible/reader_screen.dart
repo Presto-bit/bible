@@ -187,7 +187,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         );
   }
 
-  Future<void> _navWithAudio(int delta) async {
+  Future<void> _navWithAudio(int delta, {bool forcePlay = false}) async {
     final ctrl = ref.read(readerAudioProvider.notifier);
     final wasPlaying =
         ref.read(readerAudioProvider).state == ReaderAudioState.playing;
@@ -196,7 +196,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     if (!mounted) return;
     final b = _book;
     if (b == null) return;
-    if (wasPlaying || continuous) {
+    if (wasPlaying || continuous || forcePlay) {
       await ctrl.play(
         bookId: b.id,
         bookName: b.name,
@@ -206,6 +206,36 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       );
     }
   }
+
+  bool _canNavChapter(int delta) {
+    final b = _book;
+    if (b == null || delta == 0) return false;
+    final books = ref.read(booksProvider).value;
+    if (books == null) return false;
+    if (_planMeta != null && _planMeta!.steps.isNotEmpty) {
+      return resolvePlanNav(
+            books,
+            _planMeta!.steps,
+            b.id,
+            _chapter,
+            delta,
+          ) !=
+          null;
+    }
+    final bi = books.indexWhere((x) => x.id == b.id);
+    if (bi < 0) return false;
+    final chapter = _chapter + delta;
+    if (chapter > books[bi].chapterCount) {
+      return bi < books.length - 1;
+    }
+    if (chapter < 1) {
+      return bi > 0;
+    }
+    return true;
+  }
+
+  Future<void> _navWithAudioFromPanel(int delta) =>
+      _navWithAudio(delta, forcePlay: true);
 
   @override
   void initState() {
@@ -695,7 +725,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               onRestore: audioCtrl.restorePanel,
               onStop: () => audioCtrl.stop(),
             ),
-          const ReaderAudioFocusOverlay(),
+          ReaderAudioFocusOverlay(
+            canPrevChapter: _canNavChapter(-1),
+            canNextChapter: _canNavChapter(1),
+            onPrevChapter: () => unawaited(_navWithAudioFromPanel(-1)),
+            onNextChapter: () => unawaited(_navWithAudioFromPanel(1)),
+          ),
         ],
       ),
     );

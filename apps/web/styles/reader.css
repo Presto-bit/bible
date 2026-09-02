@@ -2255,7 +2255,25 @@ body.reader-overlay-open .reader-page {
   background: var(--accent-wash);
   color: var(--accent-deep);
   font-size: 18px;
-  margin: 0 auto 16px;
+  margin: 0 auto 8px;
+}
+.reader-audio-focus-chapter-nav {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin: 0 0 12px;
+}
+.reader-audio-focus-chapter-nav button {
+  border: none;
+  background: transparent;
+  color: var(--accent-deep);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.reader-audio-focus-chapter-nav button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 .reader-audio-focus-links {
   display: flex;

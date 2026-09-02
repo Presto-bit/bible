@@ -116,7 +116,7 @@ class ReaderAudioSession {
     this.bookId = '',
     this.bookName = '',
     this.chapter = 1,
-    this.audioLabel = '和合本朗读',
+    this.audioLabel = 'FCBH 专业朗读',
     this.position = Duration.zero,
     this.duration = Duration.zero,
     this.copyright = '',
@@ -467,7 +467,7 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
       bookName: bookName,
       chapter: chapter,
       available: available,
-      audioLabel: meta?['audio_label'] as String? ?? '和合本朗读',
+      audioLabel: meta?['audio_label'] as String? ?? 'FCBH 专业朗读',
       copyright: meta?['copyright'] as String? ?? '',
     );
     if (pausedByOverlay && _player != null) {
@@ -579,7 +579,7 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
       return;
     }
     final url = '${AppConfig.baseUrl}$path';
-    final audioLabel = meta['audio_label'] as String? ?? '和合本朗读';
+    final audioLabel = meta['audio_label'] as String? ?? 'FCBH 专业朗读';
     try {
       await handler.setChapterMedia(
         bookId: bookId,
@@ -611,7 +611,7 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
       state = state.copyWith(
         state: ReaderAudioState.playing,
         available: true,
-        audioLabel: meta['audio_label'] as String? ?? '和合本朗读',
+        audioLabel: meta['audio_label'] as String? ?? 'FCBH 专业朗读',
         copyright: meta['copyright'] as String? ?? '',
         coachVisible: !coachSeen,
         duration: player.duration ?? Duration.zero,
@@ -1171,7 +1171,7 @@ Future<void> showReaderAudioSettingsSheet(
               ),
               const SizedBox(height: 8),
               const Text(
-                '朗读需联网流式播放，不提供音频文件下载。iOS 锁屏可能因系统限制暂停，可重新点朗读。',
+                '音频来自 Faith Comes By Hearing（FCBH）专业录制，需联网流式播放，不提供下载。iOS 锁屏可能因系统限制暂停，可重新点朗读。',
                 style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
               ),
               if (copyright.isNotEmpty)
@@ -1256,7 +1256,18 @@ class _AudioToggleRow extends StatelessWidget {
 }
 
 class ReaderAudioFocusOverlay extends ConsumerStatefulWidget {
-  const ReaderAudioFocusOverlay({super.key});
+  const ReaderAudioFocusOverlay({
+    super.key,
+    this.canPrevChapter = false,
+    this.canNextChapter = false,
+    this.onPrevChapter,
+    this.onNextChapter,
+  });
+
+  final bool canPrevChapter;
+  final bool canNextChapter;
+  final VoidCallback? onPrevChapter;
+  final VoidCallback? onNextChapter;
 
   @override
   ConsumerState<ReaderAudioFocusOverlay> createState() =>
@@ -1455,6 +1466,36 @@ class _ReaderAudioFocusOverlayState extends ConsumerState<ReaderAudioFocusOverla
                               icon: Icon(
                                 playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
                               ),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                TextButton(
+                                  onPressed: loading ||
+                                          errored ||
+                                          !widget.canPrevChapter ||
+                                          widget.onPrevChapter == null
+                                      ? null
+                                      : widget.onPrevChapter,
+                                  child: const Text(
+                                    '上一章',
+                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                const SizedBox(width: 24),
+                                TextButton(
+                                  onPressed: loading ||
+                                          errored ||
+                                          !widget.canNextChapter ||
+                                          widget.onNextChapter == null
+                                      ? null
+                                      : widget.onNextChapter,
+                                  child: const Text(
+                                    '下一章',
+                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
                             ),
                             Wrap(
                               alignment: WrapAlignment.center,

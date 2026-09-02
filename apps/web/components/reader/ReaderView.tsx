@@ -668,6 +668,7 @@ export default function ReaderView({
     retryPlay: audioRetryPlay,
     updateSettings: audioUpdateSettings,
     openSettings: audioOpenSettings,
+    playChapter: audioPlayChapter,
     meta: audioMeta,
     currentVerse: audioCurrentVerse,
     timestamps: audioTimestamps,
@@ -1996,6 +1997,29 @@ export default function ReaderView({
       setChapterAnim(swipeTurn ? '' : 'chapter-enter');
     }, 180);
   };
+
+  const audioNavChapter = useCallback(
+    (delta: number) => {
+      if (delta < 0 && !canNavPrev) return;
+      if (delta > 0 && !canNavNext) return;
+      const target = planNavActive
+        ? resolvePlanNav(books, planMeta!.steps, readerLocation, delta)
+        : resolveChapterNav(books, readerLocation, delta);
+      if (!target) return;
+      navChapter(delta);
+      void audioPlayChapter(target.book.id, target.chapter, { skipCheckpoint: true });
+    },
+    [
+      audioPlayChapter,
+      books,
+      canNavNext,
+      canNavPrev,
+      navChapter,
+      planMeta,
+      planNavActive,
+      readerLocation,
+    ],
+  );
 
   const turn = useReaderPageTurn({
     enabled: swipeTurn,
@@ -3890,6 +3914,10 @@ export default function ReaderView({
           setAudioSettingsOpen(true);
         }}
         onStop={audioStop}
+        canPrevChapter={canNavPrev}
+        canNextChapter={canNavNext}
+        onPrevChapter={() => audioNavChapter(-1)}
+        onNextChapter={() => audioNavChapter(1)}
       />
 
       <ReaderAudioSettingsSheet

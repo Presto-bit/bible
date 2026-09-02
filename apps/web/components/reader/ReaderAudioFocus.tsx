@@ -26,6 +26,10 @@ export function ReaderAudioFocus({
   onOpenSettings,
   onStop,
   onRetry,
+  canPrevChapter = false,
+  canNextChapter = false,
+  onPrevChapter,
+  onNextChapter,
 }: {
   open: boolean;
   title: string;
@@ -44,6 +48,10 @@ export function ReaderAudioFocus({
   onOpenSettings: () => void;
   onStop: () => void;
   onRetry?: () => void;
+  canPrevChapter?: boolean;
+  canNextChapter?: boolean;
+  onPrevChapter?: () => void;
+  onNextChapter?: () => void;
 }) {
   const lyricsRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
@@ -175,6 +183,24 @@ export function ReaderAudioFocus({
         >
           {playing ? '‖' : '▶'}
         </button>
+        <div className="reader-audio-focus-chapter-nav">
+          <button
+            type="button"
+            onClick={onPrevChapter}
+            disabled={loading || errored || !canPrevChapter || !onPrevChapter}
+            aria-label="上一章"
+          >
+            上一章
+          </button>
+          <button
+            type="button"
+            onClick={onNextChapter}
+            disabled={loading || errored || !canNextChapter || !onNextChapter}
+            aria-label="下一章"
+          >
+            下一章
+          </button>
+        </div>
         <div className="reader-audio-focus-links">
           <button type="button" onClick={() => onSeek(-15)} disabled={loading || errored}>−15s</button>
           <button type="button" onClick={() => onSeek(15)} disabled={loading || errored}>+15s</button>

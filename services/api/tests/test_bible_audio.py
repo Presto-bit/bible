@@ -25,7 +25,7 @@ def test_audio_chapter_jhn3():
     body = r.json()
     assert body["available"] is True
     assert body["audio_version"] == "cuvs"
-    assert body["audio_label"] == "和合本朗读"
+    assert body["audio_label"] == "FCBH 专业朗读"
     assert body["stream_path"] == "/bible/audio/stream/cuvs/JHN/3"
 
 
@@ -38,7 +38,7 @@ def test_audio_chapter_kjv_unavailable():
 def test_audio_stream_uses_cache(tmp_path, monkeypatch):
     dest = tmp_path / "cuvs" / "JHN" / "3.mp3"
     dest.parent.mkdir(parents=True)
-    dest.write_bytes(b"ID3" + b"\x00" * 128)
+    dest.write_bytes(b"ID3" + b"\x00" * (32 * 1024))
 
     monkeypatch.setattr(audio, "_storage_root", lambda: tmp_path)
     audio._manifest_for.cache_clear()
@@ -47,6 +47,11 @@ def test_audio_stream_uses_cache(tmp_path, monkeypatch):
     assert r.status_code == 200
     assert r.headers.get("content-type", "").startswith("audio/")
     assert r.content[:3] == b"ID3"
+
+
+def test_fhl_direct_mp3_url():
+    assert audio._fhl_direct_mp3_url(43, 3) == "https://media.fhl.net/unv1/43/43_003.mp3"
+    assert audio._fhl_direct_mp3_url(1, 1) == "https://media.fhl.net/unv1/1/1_001.mp3"
 
 
 def test_audio_timestamps_without_key(monkeypatch):
