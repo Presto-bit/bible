@@ -78,6 +78,11 @@ def _fhl_direct_mp3_url(bid: int, chapter: int) -> str:
     return f"{FHL_MP3_CDN}/{bid}/{bid}_{chapter:03d}.mp3"
 
 
+def fhl_direct_mp3_url(bid: int, chapter: int) -> str:
+    """公开：供 stream 502 时重定向至 FHL CDN。"""
+    return _fhl_direct_mp3_url(bid, chapter)
+
+
 def _http_request(url: str, *, method: str = "GET", timeout: int = 60) -> bytes:
     req = urllib.request.Request(
         url,
@@ -113,10 +118,15 @@ def _download_mp3(url: str, dest: Path) -> None:
         try:
             req = urllib.request.Request(url, headers={"User-Agent": _HTTP_UA})
             with urllib.request.urlopen(req, timeout=120) as resp:
-                data = resp.read()
-            if len(data) < _MIN_MP3_BYTES:
-                raise ValueError(f"mp3 too small ({len(data)} bytes)")
-            tmp.write_bytes(data)
+                with tmp.open("wb") as out:
+                    while True:
+                        chunk = resp.read(65536)
+                        if not chunk:
+                            break
+                        out.write(chunk)
+            size = tmp.stat().st_size
+            if size < _MIN_MP3_BYTES:
+                raise ValueError(f"mp3 too small ({size} bytes)")
             tmp.replace(dest)
             return
         except Exception as e:
@@ -214,6 +224,7 @@ def chapter_entry(
         "has_timestamps": has_ts,
         "cached": cached,
         "stream_path": f"/bible/audio/stream/{av}/{b['id']}/{chapter}",
+        "fallback_stream_url": _fhl_direct_mp3_url(int(b["sort_order"]), chapter),
         "timestamps_path": f"/bible/audio/timestamps/{av}/{b['id']}/{chapter}",
         "copyright": src["copyright"],
     }

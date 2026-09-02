@@ -16,6 +16,7 @@ import {
   isReaderAudioNetworkAvailable,
   readerAudioChapterToastSeen,
   readerAudioCoachSeen,
+  resolveBibleAudioStreamUrls,
   resolveCurrentVerse,
   saveReaderAudioCheckpoint,
   saveReaderAudioSettings,
@@ -111,6 +112,32 @@ function streamUrlMatches(el: HTMLAudioElement, streamPath: string): boolean {
   } catch {
     return false;
   }
+}
+
+async function assignAndPlayStream(
+  el: HTMLAudioElement,
+  meta: BibleAudioChapterMeta,
+  speed: number,
+): Promise<void> {
+  const urls = resolveBibleAudioStreamUrls(meta);
+  let lastErr: unknown;
+  for (const url of urls) {
+    try {
+      el.src = url;
+      el.load();
+      el.playbackRate = speed;
+      await tryStartPlayback(el);
+      return;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr ?? new Error('audio_load_failed');
+}
+
+function streamMatchesMeta(el: HTMLAudioElement, meta: BibleAudioChapterMeta): boolean {
+  if (!el.src) return false;
+  return resolveBibleAudioStreamUrls(meta).some((url) => el.src.includes(url));
 }
 
 export function useReaderAudio({
@@ -486,14 +513,7 @@ export function useReaderAudio({
         void loadTimestamps(m);
         bindMediaListeners(el, m, targetBook, targetChapter, opts);
 
-        const url = bibleAudioStreamUrl(m.stream_path);
-        if (!streamUrlMatches(el, m.stream_path)) {
-          el.src = url;
-          el.load();
-        }
-        el.playbackRate = settings.speed;
-
-        await tryStartPlayback(el);
+        await assignAndPlayStream(el, m, settings.speed);
         setState('playing');
         if (!opts?.auto && !readerAudioCoachSeen()) {
           setCoachVisible(true);
@@ -566,14 +586,7 @@ export function useReaderAudio({
       void loadTimestamps(cached);
       bindMediaListeners(el, cached, targetBook, targetChapter);
 
-      const url = bibleAudioStreamUrl(cached.stream_path);
-      if (!streamUrlMatches(el, cached.stream_path)) {
-        el.src = url;
-        el.load();
-      }
-      el.playbackRate = settings.speed;
-
-      void tryStartPlayback(el)
+      void assignAndPlayStream(el, cached, settings.speed)
         .then(() => {
           setState('playing');
           if (!readerAudioCoachSeen()) {
@@ -754,11 +767,10 @@ export function useReaderAudio({
     if (warmupPathRef.current === m.stream_path) return;
 
     warmupPathRef.current = m.stream_path;
-    const url = bibleAudioStreamUrl(m.stream_path);
-    if (!streamUrlMatches(el, m.stream_path)) {
-      el.src = url;
-      el.load();
-    }
+    const url = resolveBibleAudioStreamUrls(m)[0];
+    if (!url || streamMatchesMeta(el, m)) return;
+    el.src = url;
+    el.load();
   }, [meta, bookId, chapter, state]);
 
   return {

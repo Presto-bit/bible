@@ -579,6 +579,7 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
       return;
     }
     final url = '${AppConfig.baseUrl}$path';
+    final fallback = meta['fallback_stream_url'] as String?;
     final audioLabel = meta['audio_label'] as String? ?? 'FCBH 专业朗读';
     try {
       await handler.setChapterMedia(
@@ -587,7 +588,15 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
         bookName: bookName,
         audioLabel: audioLabel,
       );
-      await handler.loadUrl(url);
+      try {
+        await handler.loadUrl(url);
+      } catch (_) {
+        if (fallback != null && fallback.isNotEmpty) {
+          await handler.loadUrl(fallback);
+        } else {
+          rethrow;
+        }
+      }
       await player.setSpeed(_settings.speed);
       for (var i = 0; i < 40; i++) {
         final dur = player.duration;
@@ -772,15 +781,17 @@ String formatAudioTime(Duration d) {
 class ReaderAudioWaveform extends StatelessWidget {
   const ReaderAudioWaveform({
     super.key,
-    required this.playing,
+    required this.state,
     required this.unavailable,
   });
 
-  final bool playing;
+  final ReaderAudioState state;
   final bool unavailable;
 
   @override
   Widget build(BuildContext context) {
+    final playing = state == ReaderAudioState.playing;
+    final paused = state == ReaderAudioState.paused;
     final c = unavailable
         ? AppColors.inkFaint.withValues(alpha: 0.35)
         : playing
@@ -790,17 +801,28 @@ class ReaderAudioWaveform extends StatelessWidget {
       width: 12,
       height: 12,
       child: CustomPaint(
-        painter: _WavePainter(color: c, unavailable: unavailable, paused: !playing && !unavailable),
+        painter: _WavePainter(
+          color: c,
+          unavailable: unavailable,
+          playing: playing,
+          paused: paused,
+        ),
       ),
     );
   }
 }
 
 class _WavePainter extends CustomPainter {
-  _WavePainter({required this.color, required this.unavailable, required this.paused});
+  _WavePainter({
+    required this.color,
+    required this.unavailable,
+    required this.playing,
+    required this.paused,
+  });
 
   final Color color;
   final bool unavailable;
+  final bool playing;
   final bool paused;
 
   @override
@@ -813,9 +835,15 @@ class _WavePainter extends CustomPainter {
       canvas.drawLine(const Offset(1, 11), const Offset(11, 1), paint);
       return;
     }
-    if (paused && !unavailable) {
+    if (paused) {
       canvas.drawLine(const Offset(3.5, 4), const Offset(3.5, 8), paint);
       canvas.drawLine(const Offset(8.5, 4), const Offset(8.5, 8), paint);
+      return;
+    }
+    if (!playing) {
+      canvas.drawLine(const Offset(2, 8), const Offset(2, 8), paint);
+      canvas.drawLine(const Offset(6, 8), const Offset(6, 8), paint);
+      canvas.drawLine(const Offset(10, 8), const Offset(10, 8), paint);
       return;
     }
     canvas.drawLine(const Offset(2, 10), const Offset(2, 6), paint);
@@ -827,6 +855,7 @@ class _WavePainter extends CustomPainter {
   bool shouldRepaint(covariant _WavePainter oldDelegate) =>
       oldDelegate.color != color ||
       oldDelegate.unavailable != unavailable ||
+      oldDelegate.playing != playing ||
       oldDelegate.paused != paused;
 }
 
@@ -861,7 +890,7 @@ class ReaderAudioTopButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ReaderAudioWaveform(
-              playing: playing,
+              state: session.state,
               unavailable: !session.available,
             ),
             const SizedBox(width: 4),
@@ -1454,69 +1483,73 @@ class _ReaderAudioFocusOverlayState extends ConsumerState<ReaderAudioFocusOverla
                                       : '${formatAudioTime(session.position)} / ${formatAudioTime(session.duration)}',
                               style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
                             ),
-                            IconButton(
-                              iconSize: 44,
-                              onPressed: loading
-                                  ? null
-                                  : () => ctrl.toggle(
-                                        bookId: session.bookId,
-                                        bookName: session.bookName,
-                                        chapter: session.chapter,
-                                      ),
-                              icon: Icon(
-                                playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  TextButton(
+                                    onPressed: loading ||
+                                            errored ||
+                                            !widget.canPrevChapter ||
+                                            widget.onPrevChapter == null
+                                        ? null
+                                        : widget.onPrevChapter,
+                                    child: const Text(
+                                      '上一章',
+                                      style: TextStyle(fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: loading || errored
+                                        ? null
+                                        : () => ctrl.seek(
+                                              session.position - const Duration(seconds: 15),
+                                            ),
+                                    child: const Text('−15s'),
+                                  ),
+                                  IconButton(
+                                    iconSize: 44,
+                                    onPressed: loading
+                                        ? null
+                                        : () => ctrl.toggle(
+                                              bookId: session.bookId,
+                                              bookName: session.bookName,
+                                              chapter: session.chapter,
+                                            ),
+                                    icon: Icon(
+                                      playing
+                                          ? Icons.pause_circle_filled
+                                          : Icons.play_circle_filled,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: loading || errored
+                                        ? null
+                                        : () => ctrl.seek(
+                                              session.position + const Duration(seconds: 15),
+                                            ),
+                                    child: const Text('+15s'),
+                                  ),
+                                  TextButton(
+                                    onPressed: loading ||
+                                            errored ||
+                                            !widget.canNextChapter ||
+                                            widget.onNextChapter == null
+                                        ? null
+                                        : widget.onNextChapter,
+                                    child: const Text(
+                                      '下一章',
+                                      style: TextStyle(fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                TextButton(
-                                  onPressed: loading ||
-                                          errored ||
-                                          !widget.canPrevChapter ||
-                                          widget.onPrevChapter == null
-                                      ? null
-                                      : widget.onPrevChapter,
-                                  child: const Text(
-                                    '上一章',
-                                    style: TextStyle(fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                                const SizedBox(width: 24),
-                                TextButton(
-                                  onPressed: loading ||
-                                          errored ||
-                                          !widget.canNextChapter ||
-                                          widget.onNextChapter == null
-                                      ? null
-                                      : widget.onNextChapter,
-                                  child: const Text(
-                                    '下一章',
-                                    style: TextStyle(fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                              ],
                             ),
                             Wrap(
                               alignment: WrapAlignment.center,
                               spacing: 4,
                               children: [
-                                TextButton(
-                                  onPressed: loading || errored
-                                      ? null
-                                      : () => ctrl.seek(
-                                            session.position - const Duration(seconds: 15),
-                                          ),
-                                  child: const Text('−15s'),
-                                ),
-                                TextButton(
-                                  onPressed: loading || errored
-                                      ? null
-                                      : () => ctrl.seek(
-                                            session.position + const Duration(seconds: 15),
-                                          ),
-                                  child: const Text('+15s'),
-                                ),
                                 TextButton(
                                   onPressed: () {
                                     ctrl.setSettingsOpen(true);

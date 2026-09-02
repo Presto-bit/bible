@@ -2248,32 +2248,40 @@ body.reader-overlay-open .reader-page {
   font-variant-numeric: tabular-nums;
 }
 .reader-audio-focus-main {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border: none;
   border-radius: 999px;
   background: var(--accent-wash);
   color: var(--accent-deep);
   font-size: 18px;
-  margin: 0 auto 8px;
+  flex-shrink: 0;
+  cursor: pointer;
 }
-.reader-audio-focus-chapter-nav {
+.reader-audio-focus-controls {
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 24px;
+  gap: 10px;
   margin: 0 0 12px;
+  flex-wrap: nowrap;
 }
-.reader-audio-focus-chapter-nav button {
+.reader-audio-focus-ctl {
   border: none;
   background: transparent;
   color: var(--accent-deep);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  min-width: 44px;
+  padding: 8px 4px;
   cursor: pointer;
 }
-.reader-audio-focus-chapter-nav button:disabled {
+.reader-audio-focus-ctl:disabled {
   opacity: 0.35;
   cursor: default;
+}
+.reader-audio-focus-chapter-nav {
+  display: none;
 }
 .reader-audio-focus-links {
   display: flex;

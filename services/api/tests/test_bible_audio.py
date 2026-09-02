@@ -27,6 +27,7 @@ def test_audio_chapter_jhn3():
     assert body["audio_version"] == "cuvs"
     assert body["audio_label"] == "FCBH 专业朗读"
     assert body["stream_path"] == "/bible/audio/stream/cuvs/JHN/3"
+    assert body["fallback_stream_url"] == "https://media.fhl.net/unv1/43/43_003.mp3"
 
 
 def test_audio_chapter_kjv_unavailable():

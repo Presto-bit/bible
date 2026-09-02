@@ -16,6 +16,7 @@ export interface BibleAudioChapterMeta {
   has_timestamps?: boolean;
   cached?: boolean;
   stream_path?: string;
+  fallback_stream_url?: string;
   timestamps_path?: string;
   copyright?: string;
 }
@@ -148,6 +149,16 @@ export function markReaderAudioChapterToastSeen(): void {
 export function bibleAudioStreamUrl(streamPath: string): string {
   const p = streamPath.startsWith('/') ? streamPath : `/${streamPath}`;
   return `${API_BASE}${p}`;
+}
+
+/** API 流优先；服务端缓存失败时可回退 FHL CDN 直链。 */
+export function resolveBibleAudioStreamUrls(meta: BibleAudioChapterMeta): string[] {
+  const urls: string[] = [];
+  if (meta.stream_path) urls.push(bibleAudioStreamUrl(meta.stream_path));
+  if (meta.fallback_stream_url && !urls.includes(meta.fallback_stream_url)) {
+    urls.push(meta.fallback_stream_url);
+  }
+  return urls;
 }
 
 export async function fetchBibleAudioTimestamps(

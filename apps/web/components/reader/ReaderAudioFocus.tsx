@@ -174,18 +174,10 @@ export function ReaderAudioFocus({
               ? '—'
               : `${formatTime(currentSec)} / ${formatTime(durationSec)}`}
         </p>
-        <button
-          type="button"
-          className="reader-audio-focus-main"
-          onClick={onToggle}
-          disabled={loading}
-          aria-label={playing ? '暂停' : '播放'}
-        >
-          {playing ? '‖' : '▶'}
-        </button>
-        <div className="reader-audio-focus-chapter-nav">
+        <div className="reader-audio-focus-controls">
           <button
             type="button"
+            className="reader-audio-focus-ctl"
             onClick={onPrevChapter}
             disabled={loading || errored || !canPrevChapter || !onPrevChapter}
             aria-label="上一章"
@@ -194,6 +186,34 @@ export function ReaderAudioFocus({
           </button>
           <button
             type="button"
+            className="reader-audio-focus-ctl"
+            onClick={() => onSeek(-15)}
+            disabled={loading || errored}
+            aria-label="后退 15 秒"
+          >
+            −15s
+          </button>
+          <button
+            type="button"
+            className="reader-audio-focus-main"
+            onClick={onToggle}
+            disabled={loading}
+            aria-label={playing ? '暂停' : '播放'}
+          >
+            {playing ? '‖' : '▶'}
+          </button>
+          <button
+            type="button"
+            className="reader-audio-focus-ctl"
+            onClick={() => onSeek(15)}
+            disabled={loading || errored}
+            aria-label="快进 15 秒"
+          >
+            +15s
+          </button>
+          <button
+            type="button"
+            className="reader-audio-focus-ctl"
             onClick={onNextChapter}
             disabled={loading || errored || !canNextChapter || !onNextChapter}
             aria-label="下一章"
@@ -202,8 +222,6 @@ export function ReaderAudioFocus({
           </button>
         </div>
         <div className="reader-audio-focus-links">
-          <button type="button" onClick={() => onSeek(-15)} disabled={loading || errored}>−15s</button>
-          <button type="button" onClick={() => onSeek(15)} disabled={loading || errored}>+15s</button>
           <button type="button" onClick={onOpenSettings}>设置</button>
           <button type="button" className="reader-audio-focus-stop" onClick={onStop}>结束朗读</button>
         </div>

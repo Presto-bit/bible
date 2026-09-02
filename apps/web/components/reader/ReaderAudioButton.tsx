@@ -12,6 +12,7 @@ export function ReaderAudioWaveform({
   const playing = state === 'playing';
   const unavailable = state === 'unavailable';
   const paused = state === 'paused';
+  const idle = state === 'off' || state === 'loading' || state === 'error';
   return (
     <svg
       width="12"
@@ -23,6 +24,7 @@ export function ReaderAudioWaveform({
         'reader-audio-wave',
         playing ? 'is-playing' : '',
         paused ? 'is-paused' : '',
+        idle ? 'is-idle' : '',
         unavailable ? 'is-unavailable' : '',
         className,
       ]
@@ -35,6 +37,12 @@ export function ReaderAudioWaveform({
         <>
           <line x1="3.5" y1="4" x2="3.5" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
           <line x1="8.5" y1="4" x2="8.5" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </>
+      ) : idle ? (
+        <>
+          <line x1="2" y1="8" x2="2" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <line x1="6" y1="8" x2="6" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <line x1="10" y1="8" x2="10" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         </>
       ) : (
         <>

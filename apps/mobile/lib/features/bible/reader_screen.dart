@@ -301,6 +301,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   void _toggleChrome() {
     if (_book == null) return;
+    final audio = ref.read(readerAudioProvider);
+    if (audio.focusOpen) {
+      ref.read(readerAudioProvider.notifier).minimizePanel();
+      return;
+    }
     _setChrome(!_chromeHidden);
   }
 
@@ -383,6 +388,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     });
 
     ref.listen(readerAudioProvider, (prev, next) {
+      if (next.focusOpen && prev?.focusOpen != true) {
+        _revealChrome();
+      }
       if (next.state != ReaderAudioState.error) return;
       if (prev?.state != ReaderAudioState.loading) return;
       final net = ref.read(networkOkProvider).value;

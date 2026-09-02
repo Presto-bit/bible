@@ -454,6 +454,7 @@ export default function ReaderView({
     ranges: null,
   });
   const overlayOpenRef = useRef(false);
+  const audioFocusOpenRef = useRef(false);
   /** 划词结束后短时忽略横滑 */
   const swipeIgnoreUntilRef = useRef(0);
   const applyWordRangeRef = useRef<
@@ -674,6 +675,7 @@ export default function ReaderView({
     timestamps: audioTimestamps,
     notifyManualScroll: audioNotifyManualScroll,
   } = readerAudio;
+  audioFocusOpenRef.current = audioFocusOpen;
   const audioVerseClass = useCallback(
     (verse: number) =>
       audioCurrentVerse === verse && (audioState === 'playing' || audioState === 'paused')
@@ -1138,8 +1140,12 @@ export default function ReaderView({
 
   const toggleChrome = useCallback(() => {
     if (overlayOpenRef.current) return;
+    if (audioFocusOpenRef.current) {
+      audioMinimizePanel();
+      return;
+    }
     setChromeHidden((hidden) => !hidden);
-  }, []);
+  }, [audioMinimizePanel]);
 
   useEffect(() => {
     if (!paneActive) return;
@@ -1235,6 +1241,7 @@ export default function ReaderView({
       document.body.classList.remove('reader-audio-focus-open');
       return;
     }
+    setChromeHidden(false);
     document.body.classList.add('reader-audio-focus-open');
     return () => {
       document.body.classList.remove('reader-audio-focus-open');

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from . import audio, reader
 from .refs import parse_ref
@@ -138,12 +138,21 @@ def audio_timestamps(audio_version: str, book: str, chapter: int) -> dict:
 
 
 @router.get("/audio/stream/{audio_version}/{book}/{chapter}")
-def audio_stream(audio_version: str, book: str, chapter: int) -> FileResponse:
+def audio_stream(audio_version: str, book: str, chapter: int):
     b = reader.resolve_book(book)
     if not b:
         raise HTTPException(status_code=404, detail=f"未知卷：{book}")
     ver = audio_version.strip().lower()
-    path = audio.ensure_cached(ver, b["id"], chapter)
+    try:
+        path = audio.ensure_cached(ver, b["id"], chapter)
+    except HTTPException as exc:
+        if exc.status_code != 502:
+            raise
+        bid = int(b["sort_order"])
+        return RedirectResponse(
+            audio.fhl_direct_mp3_url(bid, chapter),
+            status_code=307,
+        )
     return FileResponse(
         path,
         media_type="audio/mpeg",
