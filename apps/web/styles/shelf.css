@@ -432,13 +432,13 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   min-height: 0;
   overflow: hidden;
   overflow-x: hidden;
-  touch-action: manipulation;
+  touch-action: pan-y;
   overscroll-behavior: none;
 }
 
 .shelf-reader-pdf-scroll .shelf-turn-viewport:not(.is-turning),
 .shelf-reader-flow-scroll .shelf-turn-viewport:not(.is-turning) {
-  touch-action: manipulation;
+  touch-action: pan-y;
 }
 
 .shelf-turn-viewport.is-turning {
@@ -477,7 +477,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-turn-panel-active > .shelf-lesson-viewport {
   flex: 1;
   min-height: 0;
-  height: auto;
+  height: 100%;
 }
 
 .shelf-turn-panel-peek {
@@ -489,6 +489,21 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 
 .shelf-reader-pdf-scroll .shelf-turn-panel-peek {
   display: none;
+}
+
+/* PDF 教案：单栏固定，不做三屏跟手位移 */
+.shelf-reader-pdf-scroll .shelf-turn-track {
+  width: 100%;
+  transform: none !important;
+}
+
+.shelf-reader-pdf-scroll .shelf-turn-panel {
+  flex: 0 0 100%;
+  width: 100%;
+}
+
+.shelf-reader-pdf-scroll .shelf-turn-panel-active {
+  flex: 1 1 100%;
 }
 
 .shelf-section-loading {
@@ -1006,7 +1021,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-turn-viewport-lesson .shelf-lesson-viewport {
   flex: 1;
   min-height: 0;
-  height: auto;
+  height: 100%;
   overflow: hidden;
   padding: 0;
 }
@@ -1038,7 +1053,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   position: absolute;
   right: 14px;
   bottom: 14px;
-  z-index: 4;
+  z-index: 8;
   min-height: 36px;
   padding: 0 14px;
   border-radius: 999px;
@@ -1052,6 +1067,96 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 
 .shelf-lesson-media-fab-pdf {
   bottom: 18px;
+}
+
+.shelf-lesson-media-dock {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line, rgba(0, 0, 0, 0.06));
+  background: color-mix(in srgb, var(--paper, #f7f3ec) 96%, var(--surface, #fff));
+}
+
+.shelf-lesson-media-dock-all {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface, #fff);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.shelf-lesson-media-dock-label {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.shelf-lesson-media-dock-count {
+  color: var(--ink-soft, #666);
+  font-size: 11px;
+}
+
+.shelf-lesson-media-dock-scroll {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
+.shelf-lesson-media-dock-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.shelf-lesson-media-dock-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface, #fff);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.shelf-lesson-media-dock-chip span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shelf-lesson-media-dock-chip-video {
+  border-color: color-mix(in srgb, var(--accent-deep, #3d5a46) 35%, var(--line));
+}
+
+.shelf-lesson-media-dock-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent-deep, #3d5a46) 12%, transparent);
+  font-size: 9px;
+}
+
+.shelf-reader-bottom-btn-media {
+  border-color: color-mix(in srgb, var(--accent-deep, #3d5a46) 28%, var(--line));
 }
 
 .shelf-pdf-pager {
@@ -1117,6 +1222,14 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-reader-pdf-scroll .shelf-pdf-pager {
   flex: 1;
   min-height: 0;
+  height: 100%;
+}
+
+.shelf-reader-pdf-scroll .shelf-pdf-pager-host,
+.shelf-reader-pdf-scroll .shelf-pdf-pager-stage {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
 }
 
 .shelf-reader-native-shell .shelf-reader-top {
@@ -1126,6 +1239,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-pdf-page-canvas {
   display: block;
   max-width: 100%;
+  height: auto;
 }
 
 .shelf-pdf-inline-tools {

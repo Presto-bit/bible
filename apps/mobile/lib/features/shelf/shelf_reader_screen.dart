@@ -453,7 +453,8 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   Future<void> _openMediaSheet(ShelfSection section) async {
     final images = section.attachments.where((a) => a.kind == 'image').toList();
     final videos = section.attachments.where((a) => a.kind == 'video').toList();
-    if (images.isEmpty && videos.isEmpty) return;
+    final audios = section.attachments.where((a) => a.kind == 'audio').toList();
+    if (images.isEmpty && videos.isEmpty && audios.isEmpty) return;
     await _withOverlay(
       () => showShelfMediaSheet(
         context,
@@ -506,7 +507,8 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final repo = ref.read(shelfRepoProvider);
     final images = section.attachments.where((a) => a.kind == 'image').toList();
     final videos = section.attachments.where((a) => a.kind == 'video').toList();
-    final hasMedia = images.isNotEmpty || videos.isNotEmpty;
+    final audios = section.attachments.where((a) => a.kind == 'audio').toList();
+    final hasMedia = images.isNotEmpty || videos.isNotEmpty || audios.isNotEmpty;
 
     return Stack(
       fit: StackFit.expand,
@@ -564,6 +566,10 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final title = section?.title ?? book.title;
     final showBar = !_chromeHidden;
     final showPageIndicator = _pageCount > 1 && showBar;
+    final hasLessonMedia = section != null
+        && section.attachments.any(
+          (a) => a.kind == 'image' || a.kind == 'video' || a.kind == 'audio',
+        );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
@@ -635,6 +641,14 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                               label: const Text('字体'),
                             ),
                           ),
+                          if (hasLessonMedia && section != null)
+                            Expanded(
+                              child: TextButton.icon(
+                                onPressed: () => unawaited(_openMediaSheet(section)),
+                                icon: const Icon(Icons.perm_media_outlined, size: 20),
+                                label: const Text('素材'),
+                              ),
+                            ),
                           Expanded(
                             child: TextButton.icon(
                               onPressed: _sectionId == null

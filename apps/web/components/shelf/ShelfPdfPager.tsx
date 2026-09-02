@@ -87,6 +87,7 @@ function PdfPageTile({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [visible, setVisible] = useState(pageNum === 1);
   const [placeholderH, setPlaceholderH] = useState(480);
+  const [renderError, setRenderError] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -116,6 +117,7 @@ function PdfPageTile({
   useEffect(() => {
     if (!visible || !canvasRef.current || containerWidth <= 0) return;
     let cancelled = false;
+    setRenderError(false);
     const render = async () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -159,7 +161,7 @@ function PdfPageTile({
           /* ignore */
         }
       } catch {
-        /* ignore */
+        if (!cancelled) setRenderError(true);
       }
     };
     void render();
@@ -170,6 +172,9 @@ function PdfPageTile({
 
   return (
     <div ref={rootRef} className="shelf-pdf-scroll-page" style={{ minHeight: placeholderH }}>
+      {renderError ? (
+        <p className="muted shelf-pdf-status">本页渲染失败</p>
+      ) : null}
       <canvas
         ref={canvasRef}
         className="shelf-pdf-page-canvas"
@@ -245,6 +250,7 @@ export default function ShelfPdfPager({
 
   useEffect(() => {
     const host = hostRef.current;
+    const stage = stageRef.current;
     if (!host) return;
     const update = () => {
       setContainerWidth((prev) => {
@@ -255,7 +261,15 @@ export default function ShelfPdfPager({
       });
     };
     update();
-    if (typeof ResizeObserver === 'undefined') return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(update, 0));
+    timers.push(setTimeout(update, 120));
+    timers.push(setTimeout(update, 320));
+    if (typeof ResizeObserver === 'undefined') {
+      return () => {
+        timers.forEach(clearTimeout);
+      };
+    }
     const ro = new ResizeObserver(() => {
       if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
       resizeTimerRef.current = setTimeout(() => {
@@ -263,8 +277,10 @@ export default function ShelfPdfPager({
       }, RESIZE_DEBOUNCE_MS);
     });
     ro.observe(host);
+    if (stage) ro.observe(stage);
     return () => {
       ro.disconnect();
+      timers.forEach(clearTimeout);
       if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
     };
   }, [status, fullscreen]);
@@ -380,7 +396,7 @@ export default function ShelfPdfPager({
           aria-busy={status === 'loading'}
           onScroll={handleScroll}
         >
-          {status === 'ready' && pdf && pageCount > 0 ? (
+          {status === 'ready' && pdf && pageCount > 0 && containerWidth > 0 ? (
             <div className="shelf-pdf-scroll-stack">
               {Array.from({ length: pageCount }, (_, i) => (
                 <div
@@ -401,6 +417,10 @@ export default function ShelfPdfPager({
                 </div>
               ))}
             </div>
+          ) : status === 'ready' && pdf && pageCount > 0 ? (
+            <p className="muted shelf-pdf-status" role="status">
+              正在排版 PDF…
+            </p>
           ) : null}
         </div>
       </div>

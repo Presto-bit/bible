@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { shelfAssetUrl, type ShelfAttachment } from '@/lib/shelf_api';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import ShelfVideoFullscreen from '@/components/shelf/ShelfVideoFullscreen';
@@ -12,11 +12,26 @@ type Props = {
   videos: ShelfAttachment[];
   audios?: ShelfAttachment[];
   onClose: () => void;
+  initialVideo?: ShelfAttachment | null;
+  onVideoConsumed?: () => void;
 };
 
-export default function ShelfMediaSheet({ open, bookId, images, videos, audios = [], onClose }: Props) {
+export default function ShelfMediaSheet({
+  open,
+  bookId,
+  images,
+  videos,
+  audios = [],
+  onClose,
+  initialVideo = null,
+  onVideoConsumed,
+}: Props) {
   const [video, setVideo] = useState<ShelfAttachment | null>(null);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialVideo) setVideo(initialVideo);
+  }, [initialVideo]);
 
   if (!open) return null;
 
@@ -102,7 +117,10 @@ export default function ShelfMediaSheet({ open, bookId, images, videos, audios =
         open={Boolean(video)}
         src={video ? shelfAssetUrl(bookId, video.storage_key) : ''}
         title={video?.title || '视频'}
-        onClose={() => setVideo(null)}
+        onClose={() => {
+          setVideo(null);
+          onVideoConsumed?.();
+        }}
       />
 
       {expandedImage ? (

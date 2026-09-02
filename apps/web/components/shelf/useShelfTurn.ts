@@ -15,15 +15,15 @@ import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
  * - 提交阈值：大位移 OR 够快；上一页（右滑）略松
  * - 专有名词/按钮：composedPath + 邻点让路，避免「点词典没反应」
  */
-const THRESHOLD_NEXT = 0.07;
-const THRESHOLD_PREV = 0.05;
-const VELOCITY_MIN = 0.07;
-const VELOCITY_MIN_PREV = 0.05;
+const THRESHOLD_NEXT = 0.05;
+const THRESHOLD_PREV = 0.04;
+const VELOCITY_MIN = 0.055;
+const VELOCITY_MIN_PREV = 0.04;
 /** 大滑动：忽略速度强制翻页 */
-const FORCE_RATIO_NEXT = 0.14;
-const FORCE_RATIO_PREV = 0.1;
-const AXIS_RATIO = 1.05;
-const AXIS_MIN_PX = 5;
+const FORCE_RATIO_NEXT = 0.1;
+const FORCE_RATIO_PREV = 0.08;
+const AXIS_RATIO = 1.02;
+const AXIS_MIN_PX = 4;
 const EDGE_RESIST = 0.22;
 const ANIM_MS = 280;
 const PREFETCH_RATIO = 0.04;
@@ -223,7 +223,7 @@ export function useShelfTurn({
     const commit =
       ratio >= forceRatio
       || ratio >= threshold
-      || (ratio >= (goingPrev ? 0.07 : 0.09) && velocity >= velMin);
+      || (ratio >= (goingPrev ? 0.05 : 0.06) && velocity >= velMin);
 
     if (finalOffset < 0 && commit && canNext) {
       const kind = resolveTurn(1);
@@ -325,7 +325,7 @@ export function useShelfTurn({
       if (!drag.current.axis) {
         const adx = Math.abs(dx);
         const ady = Math.abs(dy);
-        const hRatio = drag.current.inVerticalScroll ? 1.12 : AXIS_RATIO;
+        const hRatio = drag.current.inVerticalScroll ? 1.04 : AXIS_RATIO;
         if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
         if (adx >= AXIS_MIN_PX && adx > ady * hRatio) {
           drag.current.axis = 'x';
@@ -339,7 +339,7 @@ export function useShelfTurn({
           setDragProgress(0);
           applyOffset(0, false);
           return;
-        } else if (adx >= AXIS_MIN_PX && adx > ady * (drag.current.inVerticalScroll ? 1.08 : 0.95)) {
+        } else if (adx >= AXIS_MIN_PX && adx > ady * (drag.current.inVerticalScroll ? 1.0 : 0.95)) {
           drag.current.axis = 'x';
           setTurning(true);
         } else if (ady >= AXIS_MIN_PX && ady > adx * 1.2) {

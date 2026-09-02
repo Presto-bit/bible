@@ -4,7 +4,7 @@ import type { ShelfBookDetail, ShelfGroup, ShelfBookSummary, ShelfSection } from
 import { getJson } from './api_core';
 
 const LIST_KEY = 'shelf_platform_list_v2';
-const SECTION_PREFIX = 'shelf_section_v1:';
+const SECTION_PREFIX = 'shelf_section_v2:';
 const SECTION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const LIST_TTL_MS = 30 * 60 * 1000;
 

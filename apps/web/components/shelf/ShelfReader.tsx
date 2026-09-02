@@ -13,7 +13,10 @@ import {
   saveShelfProgress,
   type ShelfBookDetail,
   type ShelfSection,
+  type ShelfAttachment,
 } from '@/lib/shelf_api';
+import ShelfMediaSheet from '@/components/shelf/ShelfMediaSheet';
+import { shelfLessonMedia } from '@/lib/shelf_lesson_media';
 import { useShelfReadingPrefs } from '@/components/shelf/ShelfReadingBar';
 import ShelfFontSheet from '@/components/shelf/ShelfFontSheet';
 import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
@@ -67,6 +70,8 @@ export default function ShelfReader({
   const [pendingScrollEnd, setPendingScrollEnd] = useState(false);
   const [flowScrollRatio, setFlowScrollRatio] = useState(0);
   const [pdfFullscreen, setPdfFullscreen] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [mediaVideo, setMediaVideo] = useState<ShelfAttachment | null>(null);
   const { fontPx, lineHeight, setFontPx, setLineHeight, setFontFamily } = useShelfReadingPrefs();
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pageBySectionRef = useRef<Record<string, number>>({});
@@ -75,6 +80,14 @@ export default function ShelfReader({
   const hintShownRef = useRef(false);
 
   const isLesson = section?.kind === 'lesson';
+  const lessonMedia = useMemo(
+    () => (section && isLesson ? shelfLessonMedia(section) : null),
+    [section, isLesson],
+  );
+  const hasLessonMedia = Boolean(
+    lessonMedia
+    && (lessonMedia.images.length > 0 || lessonMedia.videos.length > 0 || lessonMedia.audios.length > 0),
+  );
   const contentKey = `${bookId}:${sectionId}:${fontPx}:${lineHeight}`;
 
   const isPdfSection = shelfSectionIsPdf(section);
@@ -229,7 +242,7 @@ export default function ShelfReader({
     setPageCount(1);
   }, [sectionId, contentKey]);
 
-  const overlayOpen = tocOpen || fontOpen || shareOpen || pdfFullscreen;
+  const overlayOpen = tocOpen || fontOpen || shareOpen || pdfFullscreen || mediaOpen;
 
   const setPageCountForSection = useCallback(
     (count: number) => {
@@ -348,7 +361,7 @@ export default function ShelfReader({
     canPrev,
     canNext,
     blocked: overlayOpen,
-    snapOnly: false,
+    snapOnly: true,
     resolveTurn,
     onSectionChange: (delta) => {
       if (delta > 0) goNextSection();
@@ -404,6 +417,15 @@ export default function ShelfReader({
           pdfFullscreen={interactive && pdfFullscreen}
           onExitPdfFullscreen={interactive ? () => setPdfFullscreen(false) : undefined}
           onOpenPdfFullscreen={interactive ? () => setPdfFullscreen(true) : undefined}
+          onOpenMedia={interactive && hasLessonMedia ? () => setMediaOpen(true) : undefined}
+          onOpenVideo={
+            interactive && hasLessonMedia
+              ? (item) => {
+                  setMediaVideo(item);
+                  setMediaOpen(true);
+                }
+              : undefined
+          }
         />
       );
     }
@@ -521,6 +543,17 @@ export default function ShelfReader({
             <span className="shelf-reader-bottom-icon" aria-hidden>Aa</span>
             <span>字体</span>
           </button>
+          {hasLessonMedia ? (
+            <button
+              type="button"
+              className="shelf-reader-bottom-btn shelf-reader-bottom-btn-media"
+              aria-label="本课素材"
+              onClick={() => setMediaOpen(true)}
+            >
+              <span className="shelf-reader-bottom-icon" aria-hidden>🎬</span>
+              <span>素材</span>
+            </button>
+          ) : null}
           <span className="shelf-reader-bottom-spacer" aria-hidden />
           <button
             type="button"
@@ -604,6 +637,22 @@ export default function ShelfReader({
         onLineHeightChange={setLineHeight}
         onFontFamilyChange={setFontFamily}
       />
+
+      {hasLessonMedia && lessonMedia ? (
+        <ShelfMediaSheet
+          open={mediaOpen}
+          bookId={bookId}
+          images={lessonMedia.images}
+          videos={lessonMedia.videos}
+          audios={lessonMedia.audios}
+          initialVideo={mediaVideo}
+          onVideoConsumed={() => setMediaVideo(null)}
+          onClose={() => {
+            setMediaOpen(false);
+            setMediaVideo(null);
+          }}
+        />
+      ) : null}
 
       {shareOpen && sectionId ? (
         <ShelfCheckinSheet

@@ -40,6 +40,16 @@ const CN_FULL: Record<string, string> = {
 const CN_ALL: Record<string, string> = { ...CN_FULL, ...CN_ABBR };
 const CN_NAMES_SORTED = Object.keys(CN_ALL).sort((a, b) => b.length - a.length);
 
+const FW_MAP: Record<string, string> = {
+  '０': '0', '１': '1', '２': '2', '３': '3', '４': '4',
+  '５': '5', '６': '6', '７': '7', '８': '8', '９': '9',
+  '：': ':', '．': '.', '～': '~', '－': '-', '—': '-', '–': '-',
+};
+
+function normalizeRefText(text: string): string {
+  return text.replace(/[０-９：．～－—–]/g, (ch) => FW_MAP[ch] ?? ch);
+}
+
 function formatOsis(
   book: string,
   chapter: string,
@@ -55,9 +65,21 @@ function osisFromCnBook(bookId: string, chapter: string, verseStart?: string, ve
   return formatOsis(bookId, chapter, verseStart, verseEnd);
 }
 
+function osisCrossChapter(
+  bookId: string,
+  ch1: string,
+  v1: string,
+  ch2: string,
+  v2: string,
+): string {
+  if (ch1 === ch2) return formatOsis(bookId, ch1, v1, v2);
+  // API 仅支持单段引用；跨章取起始节，完整范围保留在按钮 label
+  return formatOsis(bookId, ch1, v1);
+}
+
 /** 将常见中文缩写/全名转为 OSIS 书卷 id + 章:节 */
 export function normalizeInlineRef(raw: string): string | null {
-  const s = raw.trim().replace(/[（）()]/g, '');
+  const s = normalizeRefText(raw.trim().replace(/[（）()]/g, ''));
   if (!s) return null;
 
   const osisMatch = s.match(
@@ -74,24 +96,36 @@ export function normalizeInlineRef(raw: string): string | null {
 
   for (const name of CN_NAMES_SORTED) {
     if (!s.startsWith(name)) continue;
-    const tail = s.slice(name.length);
+    const tail = s.slice(name.length).trimStart();
     const book = CN_ALL[name];
-    const verseMatch = tail.match(/^(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?$/);
+
+    const chVerseMatch = tail.match(/^(\d+)章\s*(\d+)\s*(?:至\s*(\d+))?\s*节$/);
+    if (chVerseMatch) {
+      return osisFromCnBook(book, chVerseMatch[1], chVerseMatch[2], chVerseMatch[3]);
+    }
+
+    const crossMatch = tail.match(/^(\d+)[:：](\d+)\s*[-~–—]\s*(\d+)[:：](\d+)/);
+    if (crossMatch) {
+      return osisCrossChapter(book, crossMatch[1], crossMatch[2], crossMatch[3], crossMatch[4]);
+    }
+
+    const verseMatch = tail.match(/^(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?/);
     if (verseMatch) {
       return osisFromCnBook(book, verseMatch[1], verseMatch[2], verseMatch[3]);
     }
-    const chMatch = tail.match(/^(\d+)章?$/);
+
+    const chRangeMatch = tail.match(/^(\d+)\s*[-~–—]\s*(\d+)\s*章/);
+    if (chRangeMatch) return `${book}.${chRangeMatch[1]}`;
+
+    const chMatch = tail.match(/^(\d+)\s*章/);
     if (chMatch) return `${book}.${chMatch[1]}`;
   }
 
-  const cnMatch = s.match(/^([\u4e00-\u9fff]{1,3})(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?$/);
+  const cnMatch = s.match(/^([\u4e00-\u9fff]{1,4})\s*(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?$/);
   if (cnMatch) {
-    const book = CN_ABBR[cnMatch[1]];
+    const book = CN_ALL[cnMatch[1]];
     if (book) return formatOsis(book, cnMatch[2], cnMatch[3], cnMatch[4]);
   }
-
-  const bare = s.match(/^(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?$/);
-  if (bare) return null;
 
   return null;
 }
@@ -106,11 +140,18 @@ type RefHit = {
   value: string;
   osis: string;
   bookId: string;
+  chapter?: string;
+};
+
+type RefContext = {
+  bookId: string | null;
+  chapter: string | null;
 };
 
 function canStartBareRef(text: string, index: number): boolean {
   if (index === 0) return true;
-  return /[；;，,\s：:]/.test(text[index - 1] ?? '');
+  const prev = text[index - 1] ?? '';
+  return /[；;，,\s：:、（(）)]/.test(prev);
 }
 
 function matchBookRefAt(text: string, index: number): RefHit | null {
@@ -118,7 +159,34 @@ function matchBookRefAt(text: string, index: number): RefHit | null {
     if (!text.startsWith(name, index)) continue;
     const tail = text.slice(index + name.length);
     const bookId = CN_ALL[name];
-    const verseMatch = tail.match(/^(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?/);
+
+    const chVerseMatch = tail.match(/^\s*(\d+)章\s*(\d+)\s*(?:至\s*(\d+))?\s*节/);
+    if (chVerseMatch) {
+      const value = name + chVerseMatch[0];
+      return {
+        start: index,
+        end: index + value.length,
+        value,
+        osis: osisFromCnBook(bookId, chVerseMatch[1], chVerseMatch[2], chVerseMatch[3]),
+        bookId,
+        chapter: chVerseMatch[1],
+      };
+    }
+
+    const crossMatch = tail.match(/^\s*(\d+)[:：](\d+)\s*[-~–—]\s*(\d+)[:：](\d+)/);
+    if (crossMatch) {
+      const value = name + crossMatch[0];
+      return {
+        start: index,
+        end: index + value.length,
+        value,
+        osis: osisCrossChapter(bookId, crossMatch[1], crossMatch[2], crossMatch[3], crossMatch[4]),
+        bookId,
+        chapter: crossMatch[3],
+      };
+    }
+
+    const verseMatch = tail.match(/^\s*(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?/);
     if (verseMatch) {
       const value = name + verseMatch[0];
       return {
@@ -127,9 +195,24 @@ function matchBookRefAt(text: string, index: number): RefHit | null {
         value,
         osis: osisFromCnBook(bookId, verseMatch[1], verseMatch[2], verseMatch[3]),
         bookId,
+        chapter: verseMatch[1],
       };
     }
-    const chMatch = tail.match(/^(\d+)章/);
+
+    const chRangeMatch = tail.match(/^\s*(\d+)\s*[-~–—]\s*(\d+)\s*章/);
+    if (chRangeMatch) {
+      const value = name + chRangeMatch[0];
+      return {
+        start: index,
+        end: index + value.length,
+        value,
+        osis: `${bookId}.${chRangeMatch[1]}`,
+        bookId,
+        chapter: chRangeMatch[1],
+      };
+    }
+
+    const chMatch = tail.match(/^\s*(\d+)\s*章/);
     if (chMatch) {
       const value = name + chMatch[0];
       return {
@@ -138,12 +221,13 @@ function matchBookRefAt(text: string, index: number): RefHit | null {
         value,
         osis: `${bookId}.${chMatch[1]}`,
         bookId,
+        chapter: chMatch[1],
       };
     }
   }
 
   const enSlice = text.slice(index);
-  const enMatch = enSlice.match(/^([A-Za-z]{2,4})\s*(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?/);
+  const enMatch = enSlice.match(/^([0-9]?[A-Za-z]{2,4})\s*(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?/);
   if (enMatch) {
     const bookId = enMatch[1].toUpperCase();
     const value = enMatch[0];
@@ -153,15 +237,75 @@ function matchBookRefAt(text: string, index: number): RefHit | null {
       value,
       osis: formatOsis(bookId, enMatch[2], enMatch[3], enMatch[4]),
       bookId,
+      chapter: enMatch[2],
     };
   }
 
   return null;
 }
 
-function matchBareRefAt(text: string, index: number, bookId: string): RefHit | null {
-  if (!canStartBareRef(text, index)) return null;
+function matchContinuationAt(text: string, index: number, ctx: RefContext): RefHit | null {
+  if (!ctx.bookId || !ctx.chapter) return null;
+
+  const andChapter = text.slice(index).match(/^和\s*(\d+)\s*章/);
+  if (andChapter) {
+    const value = andChapter[0];
+    return {
+      start: index,
+      end: index + value.length,
+      value,
+      osis: `${ctx.bookId}.${andChapter[1]}`,
+      bookId: ctx.bookId,
+      chapter: andChapter[1],
+    };
+  }
+
+  const commaVerse = text.slice(index).match(/^,\s*(\d+)/);
+  if (commaVerse) {
+    const value = commaVerse[0];
+    return {
+      start: index,
+      end: index + value.length,
+      value,
+      osis: osisFromCnBook(ctx.bookId, ctx.chapter, commaVerse[1]),
+      bookId: ctx.bookId,
+      chapter: ctx.chapter,
+    };
+  }
+
+  const enumRange = text.slice(index).match(/^、(\d+)(?:\s*[-~–—]\s*(\d+))?/);
+  if (enumRange) {
+    const value = enumRange[0];
+    return {
+      start: index,
+      end: index + value.length,
+      value,
+      osis: osisFromCnBook(ctx.bookId, ctx.chapter, enumRange[1], enumRange[2]),
+      bookId: ctx.bookId,
+      chapter: ctx.chapter,
+    };
+  }
+
+  return null;
+}
+
+function matchBareRefAt(text: string, index: number, ctx: RefContext): RefHit | null {
+  if (!ctx.bookId || !canStartBareRef(text, index)) return null;
   const slice = text.slice(index);
+
+  const crossMatch = slice.match(/^(\d+)[:：](\d+)\s*[-~–—]\s*(\d+)[:：](\d+)/);
+  if (crossMatch) {
+    const value = crossMatch[0];
+    return {
+      start: index,
+      end: index + value.length,
+      value,
+      osis: osisCrossChapter(ctx.bookId, crossMatch[1], crossMatch[2], crossMatch[3], crossMatch[4]),
+      bookId: ctx.bookId,
+      chapter: crossMatch[3],
+    };
+  }
+
   const m = slice.match(/^(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?/);
   if (!m) return null;
   const value = m[0];
@@ -169,32 +313,46 @@ function matchBareRefAt(text: string, index: number, bookId: string): RefHit | n
     start: index,
     end: index + value.length,
     value,
-    osis: osisFromCnBook(bookId, m[1], m[2], m[3]),
-    bookId,
+    osis: osisFromCnBook(ctx.bookId, m[1], m[2], m[3]),
+    bookId: ctx.bookId,
+    chapter: m[1],
   };
 }
 
 /** 将含经节引用的文本拆成可点击片段 */
 export function splitInlineRefs(text: string): InlineRefPart[] {
+  const normalized = normalizeRefText(text);
   const hits: RefHit[] = [];
-  let lastBook: string | null = null;
+  const ctx: RefContext = { bookId: null, chapter: null };
   let i = 0;
-  while (i < text.length) {
-    const bookHit = matchBookRefAt(text, i);
+
+  while (i < normalized.length) {
+    const bookHit = matchBookRefAt(normalized, i);
     if (bookHit) {
       hits.push(bookHit);
-      lastBook = bookHit.bookId;
+      ctx.bookId = bookHit.bookId;
+      ctx.chapter = bookHit.chapter ?? null;
       i = bookHit.end;
       continue;
     }
-    if (lastBook) {
-      const bareHit = matchBareRefAt(text, i, lastBook);
+
+    if (ctx.bookId) {
+      const contHit = matchContinuationAt(normalized, i, ctx);
+      if (contHit) {
+        hits.push(contHit);
+        i = contHit.end;
+        continue;
+      }
+
+      const bareHit = matchBareRefAt(normalized, i, ctx);
       if (bareHit) {
         hits.push(bareHit);
+        ctx.chapter = bareHit.chapter ?? ctx.chapter;
         i = bareHit.end;
         continue;
       }
     }
+
     i += 1;
   }
 
@@ -204,7 +362,7 @@ export function splitInlineRefs(text: string): InlineRefPart[] {
   let last = 0;
   for (const hit of hits) {
     if (hit.start > last) parts.push({ kind: 'text', value: text.slice(last, hit.start) });
-    parts.push({ kind: 'ref', value: hit.value, osis: hit.osis });
+    parts.push({ kind: 'ref', value: text.slice(hit.start, hit.end), osis: hit.osis });
     last = hit.end;
   }
   if (last < text.length) parts.push({ kind: 'text', value: text.slice(last) });

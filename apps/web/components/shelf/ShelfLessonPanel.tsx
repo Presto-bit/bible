@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { shelfAssetUrl, type ShelfAttachment, type ShelfSection } from '@/lib/shelf_api';
 import { adaptShelfDocxHtml, SHELF_DOCX_STYLE_MAP } from '@/lib/shelf_reading';
 import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
+import ShelfLessonMediaDock from '@/components/shelf/ShelfLessonMediaDock';
 import ShelfMediaSheet from '@/components/shelf/ShelfMediaSheet';
 
 const ShelfPdfPager = dynamic(() => import('@/components/shelf/ShelfPdfPager'), {
@@ -27,22 +28,11 @@ type Props = {
   pdfFullscreen?: boolean;
   onExitPdfFullscreen?: () => void;
   onOpenPdfFullscreen?: () => void;
+  onOpenMedia?: () => void;
+  onOpenVideo?: (item: ShelfAttachment) => void;
 };
 
-function isAudioAttachment(item: ShelfAttachment): boolean {
-  if (item.kind === 'audio') return true;
-  const mime = (item.mime || '').toLowerCase();
-  return mime.startsWith('audio/');
-}
-
-function shelfSectionAttachments(section: ShelfSection) {
-  const all = section.attachments ?? [];
-  return {
-    images: all.filter((a) => a.kind === 'image'),
-    videos: all.filter((a) => a.kind === 'video'),
-    audios: all.filter(isAudioAttachment),
-  };
-}
+import { shelfSectionAttachments } from '@/lib/shelf_lesson_media';
 
 export default function ShelfLessonPanel({
   bookId,
@@ -59,11 +49,24 @@ export default function ShelfLessonPanel({
   pdfFullscreen = false,
   onExitPdfFullscreen,
   onOpenPdfFullscreen,
+  onOpenMedia,
+  onOpenVideo,
 }: Props) {
-  const [mediaOpen, setMediaOpen] = useState(false);
+  const [mediaOpenInternal, setMediaOpenInternal] = useState(false);
+  const [videoPreview, setVideoPreview] = useState<ShelfAttachment | null>(null);
 
   const { images, videos, audios } = shelfSectionAttachments(section);
   const hasMedia = images.length > 0 || videos.length > 0 || audios.length > 0;
+  const mediaControlled = Boolean(onOpenMedia);
+  const openMedia = onOpenMedia ?? (() => setMediaOpenInternal(true));
+
+  const handleOpenVideo = (item: ShelfAttachment) => {
+    if (onOpenVideo) {
+      onOpenVideo(item);
+      return;
+    }
+    setVideoPreview(item);
+  };
 
   const primary = section.primary;
   const isPdf = Boolean(
@@ -80,6 +83,16 @@ export default function ShelfLessonPanel({
 
   return (
     <div className="shelf-lesson-viewport">
+      {hasMedia && !pdfFullscreen ? (
+        <ShelfLessonMediaDock
+          videos={videos}
+          images={images}
+          audios={audios}
+          onOpenAll={openMedia}
+          onOpenVideo={handleOpenVideo}
+        />
+      ) : null}
+
       <ShelfPrimaryView
         bookId={bookId}
         section={section}
@@ -103,7 +116,7 @@ export default function ShelfLessonPanel({
           aria-label={`本课${mediaFabLabel}`}
           onClick={(e) => {
             e.stopPropagation();
-            setMediaOpen(true);
+            openMedia();
           }}
         >
           {mediaFabLabel}
@@ -124,14 +137,18 @@ export default function ShelfLessonPanel({
         </button>
       ) : null}
 
-      <ShelfMediaSheet
-        open={mediaOpen}
-        bookId={bookId}
-        images={images}
-        videos={videos}
-        audios={audios}
-        onClose={() => setMediaOpen(false)}
-      />
+      {!mediaControlled ? (
+        <ShelfMediaSheet
+          open={mediaOpenInternal}
+          bookId={bookId}
+          images={images}
+          videos={videos}
+          audios={audios}
+          onClose={() => setMediaOpenInternal(false)}
+          initialVideo={videoPreview}
+          onVideoConsumed={() => setVideoPreview(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -315,10 +332,4 @@ export function shelfLessonHasPrimary(section: ShelfSection): boolean {
   return Boolean(section.primary?.storage_key || section.html);
 }
 
-export function shelfLessonMedia(section: ShelfSection): {
-  images: ShelfAttachment[];
-  videos: ShelfAttachment[];
-  audios: ShelfAttachment[];
-} {
-  return shelfSectionAttachments(section);
-}
+export { shelfLessonMedia } from '@/lib/shelf_lesson_media';

@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from ..db import get_pool
-from .assets import book_asset_keys
+from .assets import book_asset_keys, asset_allowed, infer_section_attachments
 from .docx_parse import docx_bytes_to_prose_html, file_sha256, parse_docx_bytes
 from .file_catalog import (
     DEFAULT_GROUPS,
@@ -298,7 +298,7 @@ def get_platform_section(book_id: str, section_id: str) -> dict[str, Any]:
         "unit": s.get("unit"),
         "html": html,
         "primary": primary,
-        "attachments": s.get("attachments") or [],
+        "attachments": infer_section_attachments(s),
     }
 
 
@@ -306,9 +306,8 @@ def get_platform_asset_path(book_id: str, storage_key: str):
     fb = get_file_book(book_id)
     if not fb:
         raise HTTPException(status_code=404, detail="书目不存在")
-    allowed = book_asset_keys(fb)
     name = storage_key.split("/")[-1]
-    if name not in allowed:
+    if not asset_allowed(fb, name):
         raise HTTPException(status_code=404, detail="文件不存在")
     path = shelf_file_path(name)
     if not path.is_file():
