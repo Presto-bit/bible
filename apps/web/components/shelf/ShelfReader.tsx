@@ -11,6 +11,7 @@ import {
   type ShelfSection,
   type ShelfTocItem,
 } from '@/lib/shelf_api';
+import ShelfLessonPanel from '@/components/shelf/ShelfLessonPanel';
 import '@/styles/shelf.css';
 
 type Props = {
@@ -42,6 +43,8 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
   const [tocOpen, setTocOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
 
+  const isLesson = section?.kind === 'lesson';
+
   const sections = book?.sections ?? [];
   const sectionIndex = useMemo(
     () => sections.findIndex((s) => s.id === sectionId),
@@ -59,6 +62,12 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
         const saved = loadShelfProgress(bookId);
         const first = detail.sections?.[0]?.id ?? null;
         const pick = initialSectionId || saved || first;
+        const isCollection = detail.book_type === 'collection';
+        if (isCollection && !initialSectionId && !saved) {
+          setSectionId(null);
+          setTocOpen(true);
+          return;
+        }
         setSectionId(pick);
       })
       .catch(() => {
@@ -75,6 +84,7 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
   useEffect(() => {
     if (!sectionId) return;
     let cancelled = false;
+    setSection(null);
     getPlatformShelfSection(bookId, sectionId)
       .then((s) => {
         if (cancelled) return;
@@ -132,10 +142,10 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
     );
   }
 
-  const title = section?.title || book?.title || '阅读';
+  const title = section?.title || (tocOpen && !sectionId ? book?.title : '') || book?.title || '阅读';
 
   return (
-    <main className={`shelf-reader${chromeHidden ? ' shelf-reader-hidden' : ''}`}>
+    <main className={`shelf-reader${chromeHidden && !isLesson ? ' shelf-reader-hidden' : ''}${isLesson ? ' shelf-reader-lesson' : ''}`}>
       <header className="shelf-reader-top">
         <Link href="/shelf" className="nav-back nav-back-page" aria-label="返回书架">
           ‹
@@ -151,11 +161,21 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
         </button>
       </header>
 
-      <article
-        className="shelf-reader-body"
-        onClick={() => setChromeHidden((v) => !v)}
-        dangerouslySetInnerHTML={{ __html: section?.html || '' }}
-      />
+      {isLesson && section ? (
+        <div className="shelf-reader-body shelf-reader-body-lesson">
+          <ShelfLessonPanel bookId={bookId} section={section} />
+        </div>
+      ) : section ? (
+        <article
+          className="shelf-reader-body"
+          onClick={() => setChromeHidden((v) => !v)}
+          dangerouslySetInnerHTML={{ __html: section.html || '' }}
+        />
+      ) : (
+        <div className="shelf-reader-body shelf-reader-body-pick">
+          <p className="muted">请从目录选择一课</p>
+        </div>
+      )}
 
       <nav className="shelf-reader-nav" aria-label="章节导航">
         <button type="button" onClick={goPrev} disabled={sectionIndex <= 0}>
@@ -193,6 +213,13 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
                 <div key={group.key}>
                   <div className="shelf-toc-group">{group.label}</div>
                   {group.items.map((item) => {
+                    if (item.level === 1 && !item.section_id) {
+                      return (
+                        <div key={item.id} className="shelf-toc-unit">
+                          {item.title}
+                        </div>
+                      );
+                    }
                     const sid = resolveSectionId(item, sections);
                     const active = sid === sectionId;
                     return (

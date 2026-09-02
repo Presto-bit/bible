@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 
 from .service import (
+    get_platform_asset_path,
     get_platform_book,
     get_platform_file_bytes,
     get_platform_section,
@@ -27,6 +28,27 @@ def shelf_platform_detail(book_id: str) -> dict:
 @router.get("/platform/{book_id}/sections/{section_id}")
 def shelf_platform_section(book_id: str, section_id: str) -> dict:
     return get_platform_section(book_id, section_id)
+
+
+@router.get("/platform/{book_id}/files/{storage_key}")
+def shelf_platform_asset(book_id: str, storage_key: str) -> FileResponse:
+    """节内 PDF / 图片 / 视频等资源（storage_key 须在该书资产白名单内）。"""
+    try:
+        path = get_platform_asset_path(book_id, storage_key)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="文件不存在") from None
+    suffix = path.suffix.lower()
+    media = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".mov": "video/quicktime",
+    }.get(suffix, "application/octet-stream")
+    return FileResponse(path, media_type=media, filename=path.name)
 
 
 @router.get("/platform/{book_id}/file")

@@ -1,4 +1,4 @@
-import { getJson } from './api_core';
+import { getJson, API_BASE } from './api_core';
 
 export type ShelfTocItem = {
   id: string;
@@ -18,7 +18,22 @@ export type ShelfBookSummary = {
   mime: string;
   file_size: number;
   section_count: number;
+  book_type?: 'document' | 'collection' | string;
   source: 'platform' | 'local';
+};
+
+export type ShelfAttachment = {
+  id: string;
+  title: string;
+  kind: 'image' | 'video' | string;
+  storage_key: string;
+  mime: string;
+};
+
+export type ShelfPrimaryAsset = {
+  storage_key: string;
+  mime: string;
+  title?: string;
 };
 
 export type ShelfBookDetail = ShelfBookSummary & {
@@ -28,7 +43,14 @@ export type ShelfBookDetail = ShelfBookSummary & {
     body?: ShelfTocItem[];
     appendix?: ShelfTocItem[];
   };
-  sections?: { id: string; title: string; zone?: string; level?: number }[];
+  sections?: {
+    id: string;
+    title: string;
+    zone?: string;
+    level?: number;
+    kind?: string;
+    unit?: string;
+  }[];
 };
 
 export type ShelfSection = {
@@ -36,8 +58,17 @@ export type ShelfSection = {
   title: string;
   zone?: string;
   level?: number;
+  kind?: 'html' | 'lesson' | string;
+  unit?: string;
   html: string;
+  primary?: ShelfPrimaryAsset | null;
+  attachments?: ShelfAttachment[];
 };
+
+export function shelfAssetUrl(bookId: string, storageKey: string): string {
+  const key = encodeURIComponent(storageKey.split('/').pop() || storageKey);
+  return `${API_BASE}/shelf/platform/${encodeURIComponent(bookId)}/files/${key}`;
+}
 
 export async function listPlatformShelf(): Promise<ShelfBookSummary[]> {
   const data = await getJson<{ items: ShelfBookSummary[] }>('/shelf/platform');

@@ -8,10 +8,11 @@ from typing import Any
 from fastapi import HTTPException
 
 from ..db import get_pool
+from .assets import book_asset_keys
 from .docx_parse import file_sha256, parse_docx_bytes
 from .file_catalog import get_file_book, load_file_catalog
 from .schema import ensure_shelf_schema
-from .store import read_shelf_bytes, save_shelf_bytes
+from .store import read_shelf_bytes, save_shelf_bytes, shelf_file_path
 
 
 def _db_available() -> bool:
@@ -36,6 +37,7 @@ def _list_from_file() -> list[dict[str, Any]]:
             "status": b.get("status") or "published",
             "sort_order": int(b.get("sort_order") or 0),
             "section_count": len(b.get("sections") or []),
+            "book_type": b.get("book_type") or "document",
             "created_at": None,
             "source": "platform",
         }
@@ -107,12 +109,20 @@ def _book_detail_from_file(fb: dict[str, Any], *, include_sections: bool) -> dic
         "file_sha256": fb.get("file_sha256"),
         "toc": fb.get("toc") or {},
         "status": fb.get("status") or "published",
+        "book_type": fb.get("book_type") or "document",
         "source": "platform",
         "created_at": None,
     }
     if include_sections:
         out["sections"] = [
-            {"id": s["id"], "title": s["title"], "zone": s.get("zone"), "level": s.get("level")}
+            {
+                "id": s["id"],
+                "title": s["title"],
+                "zone": s.get("zone"),
+                "level": s.get("level"),
+                "kind": s.get("kind") or "html",
+                "unit": s.get("unit"),
+            }
             for s in (fb.get("sections") or [])
         ]
     return out
@@ -148,12 +158,20 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                     "file_sha256": row[7],
                     "toc": toc,
                     "status": row[10],
+                    "book_type": "document",
                     "source": "platform",
                     "created_at": row[12].isoformat() if row[12] else None,
                 }
                 if include_sections:
                     out["sections"] = [
-                        {"id": s["id"], "title": s["title"], "zone": s.get("zone"), "level": s.get("level")}
+                        {
+                            "id": s["id"],
+                            "title": s["title"],
+                            "zone": s.get("zone"),
+                            "level": s.get("level"),
+                            "kind": s.get("kind") or "html",
+                            "unit": s.get("unit"),
+                        }
                         for s in sections
                     ]
                 return out
@@ -186,14 +204,33 @@ def get_platform_section(book_id: str, section_id: str) -> dict[str, Any]:
         sections = fb.get("sections") or []
     for s in sections:
         if s.get("id") == section_id:
+            kind = s.get("kind") or "html"
             return {
                 "id": s["id"],
                 "title": s.get("title") or "",
                 "zone": s.get("zone"),
                 "level": s.get("level"),
+                "kind": kind,
+                "unit": s.get("unit"),
                 "html": s.get("html") or "",
+                "primary": s.get("primary"),
+                "attachments": s.get("attachments") or [],
             }
     raise HTTPException(status_code=404, detail="章节不存在")
+
+
+def get_platform_asset_path(book_id: str, storage_key: str):
+    fb = get_file_book(book_id)
+    if not fb:
+        raise HTTPException(status_code=404, detail="书目不存在")
+    allowed = book_asset_keys(fb)
+    name = storage_key.split("/")[-1]
+    if name not in allowed:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    path = shelf_file_path(name)
+    if not path.is_file():
+        raise FileNotFoundError(name)
+    return path
 
 
 def get_platform_file_bytes(book_id: str) -> tuple[bytes, str, str]:

@@ -1517,6 +1517,729 @@
       ],
       "status": "published",
       "sort_order": 100
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "book_type": "collection",
+      "title": "幼儿教案 · 第一二季度",
+      "subtitle": "第一～第六单元",
+      "author": "",
+      "mime": "application/collection+json",
+      "storage_key": "cur-front-outline.pdf",
+      "file_size": 112927312,
+      "file_sha256": null,
+      "status": "published",
+      "sort_order": 90,
+      "toc": {
+        "front": [
+          {
+            "id": "toc-sec-cur-front-outline",
+            "title": "第二季度大纲（12 期）",
+            "level": 1,
+            "zone": "front",
+            "source": "lesson",
+            "section_id": "sec-cur-front-outline"
+          },
+          {
+            "id": "toc-sec-cur-front-letter",
+            "title": "家长沟通信",
+            "level": 1,
+            "zone": "front",
+            "source": "lesson",
+            "section_id": "sec-cur-front-letter"
+          }
+        ],
+        "body": [
+          {
+            "id": "unit-第一单元",
+            "title": "第一单元",
+            "level": 1,
+            "zone": "body",
+            "source": "unit",
+            "section_id": null
+          },
+          {
+            "id": "toc-sec-cur-u1-w1",
+            "title": "第一周 · 奇妙的光与暗",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u1-w1"
+          },
+          {
+            "id": "toc-sec-cur-u1-w2",
+            "title": "第二周 · 蓝蓝的天空与大海",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u1-w2"
+          },
+          {
+            "id": "toc-sec-cur-u1-w3",
+            "title": "第三周 · 活泼的生命",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u1-w3"
+          },
+          {
+            "id": "toc-sec-cur-u1-w4",
+            "title": "第四周",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u1-w4"
+          },
+          {
+            "id": "unit-第二单元",
+            "title": "第二单元",
+            "level": 1,
+            "zone": "body",
+            "source": "unit",
+            "section_id": null
+          },
+          {
+            "id": "toc-sec-cur-u2-outline",
+            "title": "单元概要",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u2-outline"
+          },
+          {
+            "id": "toc-sec-cur-u2-w1",
+            "title": "第一周 · 奇妙的身体",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u2-w1"
+          },
+          {
+            "id": "toc-sec-cur-u2-w2",
+            "title": "第二周 · 独一无二的我",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u2-w2"
+          },
+          {
+            "id": "toc-sec-cur-u2-w3",
+            "title": "第三周 · 温暖的家",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u2-w3"
+          },
+          {
+            "id": "unit-第三单元",
+            "title": "第三单元",
+            "level": 1,
+            "zone": "body",
+            "source": "unit",
+            "section_id": null
+          },
+          {
+            "id": "toc-sec-cur-u3-outline",
+            "title": "单元概要",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u3-outline"
+          },
+          {
+            "id": "toc-sec-cur-u3-w1",
+            "title": "第一周",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u3-w1"
+          },
+          {
+            "id": "toc-sec-cur-u3-w2",
+            "title": "第二课",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u3-w2"
+          },
+          {
+            "id": "toc-sec-cur-u3-l3",
+            "title": "第三课 · 五饼二鱼",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u3-l3"
+          },
+          {
+            "id": "toc-sec-cur-u3-w4",
+            "title": "第四周",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u3-w4"
+          },
+          {
+            "id": "unit-第四单元",
+            "title": "第四单元",
+            "level": 1,
+            "zone": "body",
+            "source": "unit",
+            "section_id": null
+          },
+          {
+            "id": "toc-sec-cur-u4-p1",
+            "title": "第一期",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u4-p1"
+          },
+          {
+            "id": "toc-sec-cur-u4-p2",
+            "title": "第二期",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u4-p2"
+          },
+          {
+            "id": "toc-sec-cur-u4-p3",
+            "title": "第三期 · 树上的矮个子",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u4-p3"
+          },
+          {
+            "id": "toc-sec-cur-u4-p4",
+            "title": "第四期 · 最温暖的洗脚水",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u4-p4"
+          },
+          {
+            "id": "unit-第五单元",
+            "title": "第五单元",
+            "level": 1,
+            "zone": "body",
+            "source": "unit",
+            "section_id": null
+          },
+          {
+            "id": "toc-sec-cur-u5-p1",
+            "title": "第一期 · 平静风浪的指挥官",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u5-p1"
+          },
+          {
+            "id": "toc-sec-cur-u5-w2",
+            "title": "第二周 · 黑暗中的光芒",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u5-w2"
+          },
+          {
+            "id": "toc-sec-cur-u5-w3",
+            "title": "第三周 · 守信的牧羊人",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u5-w3"
+          },
+          {
+            "id": "toc-sec-cur-u5-w4",
+            "title": "第四周 · 勇敢前行的脚步",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u5-w4"
+          },
+          {
+            "id": "unit-第六单元",
+            "title": "第六单元",
+            "level": 1,
+            "zone": "body",
+            "source": "unit",
+            "section_id": null
+          },
+          {
+            "id": "toc-sec-cur-u6-p1",
+            "title": "第一期",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u6-p1"
+          },
+          {
+            "id": "toc-sec-cur-u6-p2",
+            "title": "第二期",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u6-p2"
+          },
+          {
+            "id": "toc-sec-cur-u6-p4",
+            "title": "第四期 · 大牧长的小羊群",
+            "level": 2,
+            "zone": "body",
+            "source": "lesson",
+            "section_id": "sec-cur-u6-p4"
+          },
+          {
+            "id": "unit-第三单元",
+            "title": "第三单元",
+            "level": 1,
+            "zone": "body",
+            "source": "unit",
+            "section_id": null
+          }
+        ],
+        "appendix": [
+          {
+            "id": "toc-sec-cur-appendix-cutout",
+            "title": "打印剪裁人物形象",
+            "level": 1,
+            "zone": "appendix",
+            "source": "lesson",
+            "section_id": "sec-cur-appendix-cutout"
+          }
+        ]
+      },
+      "sections": [
+        {
+          "id": "sec-cur-front-outline",
+          "title": "第二季度大纲（12 期）",
+          "zone": "front",
+          "level": 1,
+          "kind": "lesson",
+          "unit": null,
+          "primary": {
+            "storage_key": "cur-front-outline.pdf",
+            "mime": "application/pdf",
+            "title": "第二季度大纲共12期）.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-front-letter",
+          "title": "家长沟通信",
+          "zone": "front",
+          "level": 1,
+          "kind": "lesson",
+          "unit": null,
+          "primary": {
+            "storage_key": "cur-front-letter.pdf",
+            "mime": "application/pdf",
+            "title": "第二季度家长沟通信.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u1-w1",
+          "title": "第一周 · 奇妙的光与暗",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第一单元",
+          "primary": {
+            "storage_key": "cur-u1-w1.pdf",
+            "mime": "application/pdf",
+            "title": "第一单元第一周奇妙的光与暗.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u1-w2",
+          "title": "第二周 · 蓝蓝的天空与大海",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第一单元",
+          "primary": {
+            "storage_key": "cur-u1-w2.pdf",
+            "mime": "application/pdf",
+            "title": "第一单元第二周教案蓝蓝的天空与大海.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u1-w3",
+          "title": "第三周 · 活泼的生命",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第一单元",
+          "primary": {
+            "storage_key": "cur-u1-w3.pdf",
+            "mime": "application/pdf",
+            "title": "第一单元第三周教案活泼的生命.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u1-w4",
+          "title": "第四周",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第一单元",
+          "primary": {
+            "storage_key": "cur-u1-w4.pdf",
+            "mime": "application/pdf",
+            "title": "第一单元第四周.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u2-outline",
+          "title": "单元概要",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第二单元",
+          "primary": {
+            "storage_key": "cur-u2-outline.pdf",
+            "mime": "application/pdf",
+            "title": "第二单元简要大纲.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u2-w1",
+          "title": "第一周 · 奇妙的身体",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第二单元",
+          "primary": {
+            "storage_key": "cur-u2-w1.pdf",
+            "mime": "application/pdf",
+            "title": "第二单元第一周教案.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u2-w2",
+          "title": "第二周 · 独一无二的我",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第二单元",
+          "primary": {
+            "storage_key": "cur-u2-w2.pdf",
+            "mime": "application/pdf",
+            "title": "第二单元第二周-独一无二的我.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u2-w3",
+          "title": "第三周 · 温暖的家",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第二单元",
+          "primary": {
+            "storage_key": "cur-u2-w3.pdf",
+            "mime": "application/pdf",
+            "title": "第二单元第三周——温暖的家（爱的礼物）.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u3-outline",
+          "title": "单元概要",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第三单元",
+          "primary": {
+            "storage_key": "cur-u3-outline.pdf",
+            "mime": "application/pdf",
+            "title": "第三单元简要大纲.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u3-w1",
+          "title": "第一周",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第三单元",
+          "primary": {
+            "storage_key": "cur-u3-w1.docx",
+            "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "title": "第三单元第一周教案.docx"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u3-w2",
+          "title": "第二课",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第三单元",
+          "primary": {
+            "storage_key": "cur-u3-w2.pdf",
+            "mime": "application/pdf",
+            "title": "第三单元第二课.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u3-l3",
+          "title": "第三课 · 五饼二鱼",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第三单元",
+          "primary": {
+            "storage_key": "cur-u3-l3.pdf",
+            "mime": "application/pdf",
+            "title": "第三单元第三课.pdf"
+          },
+          "attachments": [
+            {
+              "id": "att-cur-u3-l3-p1",
+              "title": "P1",
+              "kind": "image",
+              "storage_key": "cur-u3-l3-p1.png",
+              "mime": "image/png"
+            },
+            {
+              "id": "att-cur-u3-l3-p2",
+              "title": "P2",
+              "kind": "image",
+              "storage_key": "cur-u3-l3-p2.png",
+              "mime": "image/png"
+            },
+            {
+              "id": "att-cur-u3-l3-p3",
+              "title": "P3",
+              "kind": "image",
+              "storage_key": "cur-u3-l3-p3.png",
+              "mime": "image/png"
+            },
+            {
+              "id": "att-cur-u3-l3-p4",
+              "title": "P4",
+              "kind": "image",
+              "storage_key": "cur-u3-l3-p4.png",
+              "mime": "image/png"
+            },
+            {
+              "id": "att-cur-u3-l3-p5",
+              "title": "P5",
+              "kind": "image",
+              "storage_key": "cur-u3-l3-p5.png",
+              "mime": "image/png"
+            },
+            {
+              "id": "att-cur-u3-l3-story",
+              "title": "五饼二鱼的故事",
+              "kind": "video",
+              "storage_key": "cur-u3-l3-story.mp4",
+              "mime": "video/mp4"
+            },
+            {
+              "id": "att-cur-u3-l3-craft",
+              "title": "五饼二鱼手工",
+              "kind": "video",
+              "storage_key": "cur-u3-l3-craft.mp4",
+              "mime": "video/mp4"
+            }
+          ]
+        },
+        {
+          "id": "sec-cur-u3-w4",
+          "title": "第四周",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第三单元",
+          "primary": {
+            "storage_key": "cur-u3-w4.docx",
+            "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "title": "第三单元第四周教案 (1).docx"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u4-p1",
+          "title": "第一期",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第四单元",
+          "primary": {
+            "storage_key": "cur-u4-p1.pdf",
+            "mime": "application/pdf",
+            "title": "第四单元第一期.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u4-p2",
+          "title": "第二期",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第四单元",
+          "primary": {
+            "storage_key": "cur-u4-p2.pdf",
+            "mime": "application/pdf",
+            "title": "第四单元第二期.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u4-p3",
+          "title": "第三期 · 树上的矮个子",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第四单元",
+          "primary": {
+            "storage_key": "cur-u4-p3.pdf",
+            "mime": "application/pdf",
+            "title": "第四单元第3期：树上的矮个子__品格：接纳不完美的人.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u4-p4",
+          "title": "第四期 · 最温暖的洗脚水",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第四单元",
+          "primary": {
+            "storage_key": "cur-u4-p4.pdf",
+            "mime": "application/pdf",
+            "title": "第四单元第4期：最温暖的洗脚水__品格：谦卑与服务.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u5-p1",
+          "title": "第一期 · 平静风浪的指挥官",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第五单元",
+          "primary": {
+            "storage_key": "cur-u5-p1.pdf",
+            "mime": "application/pdf",
+            "title": "第五单元第一期：平静风浪的指挥官.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u5-w2",
+          "title": "第二周 · 黑暗中的光芒",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第五单元",
+          "primary": {
+            "storage_key": "cur-u5-w2.pdf",
+            "mime": "application/pdf",
+            "title": "第五单元第二周：黑暗中的光芒.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u5-w3",
+          "title": "第三周 · 守信的牧羊人",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第五单元",
+          "primary": {
+            "storage_key": "cur-u5-w3.pdf",
+            "mime": "application/pdf",
+            "title": "第五单元第三周教案-守信的牧羊人.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u5-w4",
+          "title": "第四周 · 勇敢前行的脚步",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第五单元",
+          "primary": {
+            "storage_key": "cur-u5-w4.pdf",
+            "mime": "application/pdf",
+            "title": "第五单元第四周教案：勇敢前行的脚步.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u6-p1",
+          "title": "第一期",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第六单元",
+          "primary": {
+            "storage_key": "cur-u6-p1.pdf",
+            "mime": "application/pdf",
+            "title": "第六单元第一期.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u6-p2",
+          "title": "第二期",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第六单元",
+          "primary": {
+            "storage_key": "cur-u6-p2.docx",
+            "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "title": "第六单元第二期.docx"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-u6-p4",
+          "title": "第四期 · 大牧长的小羊群",
+          "zone": "body",
+          "level": 2,
+          "kind": "lesson",
+          "unit": "第六单元",
+          "primary": {
+            "storage_key": "cur-u6-p4.pdf",
+            "mime": "application/pdf",
+            "title": "第六单元第4期 ：大牧长的小羊群.pdf"
+          },
+          "attachments": []
+        },
+        {
+          "id": "sec-cur-appendix-cutout",
+          "title": "打印剪裁人物形象",
+          "zone": "appendix",
+          "level": 1,
+          "kind": "lesson",
+          "unit": null,
+          "primary": {
+            "storage_key": "cur-appendix-cutout.docx",
+            "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "title": "打印剪裁人物形象.docx"
+          },
+          "attachments": []
+        }
+      ]
     }
   ]
 }
