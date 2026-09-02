@@ -29,5 +29,14 @@ function ShelfBookInner({ params }: { params: Promise<{ id: string }> }) {
   const search = useSearchParams();
   const section = search.get('section');
   const group = search.get('group');
-  return <ShelfReader bookId={id} initialSectionId={section} presetGroupId={group} />;
+  const pageRaw = search.get('page');
+  const initialPageIndex = pageRaw != null && pageRaw !== '' ? Number(pageRaw) : null;
+  return (
+    <ShelfReader
+      bookId={id}
+      initialSectionId={section}
+      initialPageIndex={Number.isFinite(initialPageIndex) ? initialPageIndex : null}
+      presetGroupId={group}
+    />
+  );
 }

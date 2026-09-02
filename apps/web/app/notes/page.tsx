@@ -27,6 +27,7 @@ import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import { listHighlightRefs, removeHighlight, type HighlightMark } from '@/lib/reader_highlights';
 import { formatMarkRefLabel, readerMarkHref } from '@/lib/mark_ref';
+import { formatShelfMarkRefLabel, isShelfMarkRef, shelfMarkHref } from '@/lib/shelf_mark_ref';
 import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
 import { noteForMarkRef, upsertMarkNote } from '@/lib/mark_notes';
 import { listMarksDetailed } from '@/lib/mark_stats';
@@ -34,6 +35,7 @@ import { useConfirm } from '@/components/ui/ConfirmProvider';
 import type { HighlightColor } from '@/lib/reader_highlights';
 import ThoughtBody from '@/components/ThoughtBody';
 import { plainThoughtPreview, thoughtTitleLine } from '@/lib/thought_display';
+import { refToChineseLabel } from '@/lib/ref_label';
 
 /** 无经文关联的自定义想法 */
 const FREE_THOUGHT_REF = 'FREE';
@@ -52,7 +54,18 @@ function formatDateTimeMs(ms: number): string {
 }
 
 function bookIdFromRef(ref: string): string {
+  if (ref.startsWith('SHELF.')) return 'SHELF';
   return (ref || '').split('.')[0] || 'FREE';
+}
+
+function markRefLabel(ref: string, bookNames: Record<string, string>): string {
+  if (isShelfMarkRef(ref)) return formatShelfMarkRefLabel(ref);
+  return formatMarkRefLabel(ref, bookNames);
+}
+
+function markRefHref(ref: string): string {
+  if (isShelfMarkRef(ref)) return shelfMarkHref(ref);
+  return readerMarkHref(ref);
 }
 
 function bookLabel(bookId: string, bookNames: Record<string, string>): string {
@@ -119,6 +132,8 @@ function NotesInner() {
 
   const refLabel = (ref: string) => {
     if (!ref || ref === FREE_THOUGHT_REF) return '随想';
+    const shelf = refToChineseLabel(ref);
+    if (ref.startsWith('SHELF.') && shelf) return shelf;
     const [bookId, ch, tail] = ref.split('.');
     const name = bookNames[bookId] || bookId;
     if (!ch) return name;
@@ -364,7 +379,7 @@ function NotesInner() {
                 </span>
                 {thoughtDetail.ref && thoughtDetail.ref !== FREE_THOUGHT_REF ? (
                   <Link
-                    href={readerMarkHref(thoughtDetail.ref)}
+                    href={markRefHref(thoughtDetail.ref)}
                     className="text-link"
                     onClick={() => markRouteNavigation()}
                   >
@@ -518,7 +533,7 @@ function NotesInner() {
                       {sem.label}
                     </span>
                     <span style={{ fontWeight: 700, color: 'var(--accent-deep)', flex: 1 }}>
-                      {formatMarkRefLabel(h.ref, bookNames)}
+                      {markRefLabel(h.ref, bookNames)}
                     </span>
                     {formatDateTimeMs(h.createdAt) ? (
                       <span className="muted notes-item-time">
@@ -534,10 +549,10 @@ function NotesInner() {
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     <Link
                       className="text-link"
-                      href={readerMarkHref(h.ref)}
+                      href={markRefHref(h.ref)}
                       onClick={() => markRouteNavigation()}
                     >
-                      跳转经文
+                      {isShelfMarkRef(h.ref) ? '继续阅读' : '跳转经文'}
                     </Link>
                     <button type="button" className="text-link" onClick={() => openHighlightEdit(h.ref)}>
                       {note?.body ? '编辑笔记' : '加笔记'}
@@ -590,7 +605,7 @@ function NotesInner() {
       {highlightWrite && (
         <ThoughtWriteSheet
           refStr={highlightWrite.ref}
-          refLabel={formatMarkRefLabel(highlightWrite.ref, bookNames)}
+          refLabel={markRefLabel(highlightWrite.ref, bookNames)}
           mode="new"
           initialBody={highlightWrite.body}
           initialVisibility="private"

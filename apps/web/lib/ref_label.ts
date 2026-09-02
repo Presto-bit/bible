@@ -1,7 +1,8 @@
 /** 将 GEN.1.1 / JHN 3:16 / GEN.2:7 等 ref 转为中文展示（约翰福音 3:16） */
 
 import { normalizeInlineRef } from './inline_ref';
-import { getShelfRefLabel, isShelfRef } from './shelf_checkin';
+import { formatShelfCheckinLabel, getShelfRefLabel, isShelfRef } from './shelf_checkin';
+import { parseShelfMarkRef } from './shelf_mark_ref';
 
 /** 圣经卷序（用于阅读进度「更远者优先」比较） */
 export const CANON_BOOK_IDS = [
@@ -47,7 +48,13 @@ export function refToChineseLabel(ref: string | undefined | null): string | null
   const trimmed = ref.trim();
 
   if (isShelfRef(trimmed)) {
-    return getShelfRefLabel(trimmed) ?? '书架阅读';
+    const mark = parseShelfMarkRef(trimmed);
+    if (mark && mark.pageIndex > 0) {
+      const base = getShelfRefLabel(`SHELF.${mark.bookId}.${mark.sectionId}`)
+        ?? formatShelfCheckinLabel('书架', '');
+      return `${base} · 第 ${mark.pageIndex + 1} 页`;
+    }
+    return getShelfRefLabel(trimmed.split('@')[0] ?? trimmed) ?? '书架阅读';
   }
 
   const range = trimmed.match(/^([A-Za-z0-9]+)\.(\d+)-([A-Za-z0-9]+)\.(\d+)$/);

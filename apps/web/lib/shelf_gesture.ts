@@ -4,7 +4,7 @@ import {
 } from './reader_gesture';
 
 const SHELF_INTERACTIVE_SEL =
-  'video,a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.shelf-reader-bottom-btn,.shelf-reader-bottom,.shelf-pdf-toolbar-btn,.shelf-pdf-edge,.shelf-media-tile,.shelf-lesson-lightbox,.shelf-fullscreen-overlay';
+  'video,a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.shelf-reader-bottom-btn,.shelf-reader-bottom,.shelf-pdf-toolbar-btn,.shelf-pdf-edge,.shelf-media-tile,.shelf-lesson-lightbox,.shelf-fullscreen-overlay,.shelf-focus-bar,.reader-focus-bar';
 
 function isPdfScrollSurface(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;

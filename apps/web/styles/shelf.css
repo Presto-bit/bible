@@ -479,12 +479,48 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   overflow: hidden;
   padding: 6px 16px 8px;
   box-sizing: border-box;
+  touch-action: pan-x pan-y;
 }
 
 .shelf-turn-page {
   width: 100%;
   box-sizing: border-box;
   will-change: transform;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.shelf-focus-bar {
+  pointer-events: auto;
+}
+
+::highlight(shelf-mark-yellow) {
+  background: rgba(255, 230, 120, 0.62);
+  color: inherit;
+}
+
+::highlight(shelf-mark-green) {
+  background: rgba(180, 220, 170, 0.58);
+  color: inherit;
+}
+
+::highlight(shelf-mark-blue) {
+  background: rgba(170, 205, 255, 0.58);
+  color: inherit;
+}
+
+::highlight(shelf-mark-pink) {
+  background: rgba(255, 190, 205, 0.58);
+  color: inherit;
+}
+
+::highlight(shelf-mark-orange) {
+  background: rgba(255, 210, 150, 0.58);
+  color: inherit;
+}
+
+::highlight(shelf-thought-hint) {
+  text-decoration: underline dashed 1.5px rgba(74, 107, 82, 0.55);
 }
 
 .shelf-turn-scroll {

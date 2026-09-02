@@ -22,7 +22,36 @@ import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/l
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
+import '@/styles/plans.css';
 import '@/styles/shelf.css';
+import ShelfFocusBar from '@/components/shelf/ShelfFocusBar';
+import {
+  addThought,
+  updateThought,
+  type ThoughtRow,
+  type ThoughtVisibility,
+} from '@/lib/reader_thoughts';
+import {
+  getHighlightMap,
+  removeHighlight,
+  setHighlight,
+  type HighlightColor,
+} from '@/lib/reader_highlights';
+import { buildShelfMarkRef, formatShelfMarkRefLabel } from '@/lib/shelf_mark_ref';
+import {
+  clearShelfTextSelection,
+  readShelfTextSelection,
+  type ShelfTextSelection,
+} from '@/lib/shelf_selection';
+import { findShelfHighlightRef, pickShelfHighlight } from '@/lib/shelf_highlight_paint';
+import { notifyLocalDataChanged, subscribeLocalDataChanged } from '@/lib/local_data_events';
+
+const ThoughtWriteSheet = dynamic(() => import('@/components/reader/ThoughtWriteSheet'), {
+  ssr: false,
+});
+const ThoughtHubSheet = dynamic(() => import('@/components/reader/ThoughtHubSheet'), {
+  ssr: false,
+});
 
 const ShelfLessonPanel = dynamic(() => import('@/components/shelf/ShelfLessonPanel'), {
   ssr: false,
@@ -36,10 +65,11 @@ const ShelfCheckinSheet = dynamic(() => import('@/components/shelf/ShelfCheckinS
 type Props = {
   bookId: string;
   initialSectionId?: string | null;
+  initialPageIndex?: number | null;
   presetGroupId?: string | null;
 };
 
-export default function ShelfReader({ bookId, initialSectionId, presetGroupId }: Props) {
+export default function ShelfReader({ bookId, initialSectionId, initialPageIndex, presetGroupId }: Props) {
   const flashToast = useToast();
   const [book, setBook] = useState<ShelfBookDetail | null>(null);
   const [sectionId, setSectionId] = useState<string | null>(initialSectionId ?? null);
@@ -57,6 +87,26 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
   const [pageCount, setPageCount] = useState(1);
   const [pendingLastPage, setPendingLastPage] = useState(false);
   const [pdfFullscreen, setPdfFullscreen] = useState(false);
+  const [annotationRevision, setAnnotationRevision] = useState(0);
+  const [textSelection, setTextSelection] = useState<ShelfTextSelection | null>(null);
+  const [selectionRefStr, setSelectionRefStr] = useState('');
+  const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
+  const [highlightMap, setHighlightMap] = useState<ReturnType<typeof getHighlightMap>>({});
+  const [thoughtHub, setThoughtHub] = useState<null | {
+    ref: string;
+    label: string;
+    text: string;
+  }>(null);
+  const [thoughtWrite, setThoughtWrite] = useState<null | {
+    ref: string;
+    label: string;
+    verseText?: string;
+    mode: 'new' | 'edit';
+    thoughtId?: string;
+    initialBody?: string;
+    initialVisibility?: ThoughtVisibility;
+    returnHub?: { ref: string; label: string; text: string };
+  }>(null);
   const { fontPx, lineHeight, setFontPx, setLineHeight } = useShelfReadingPrefs();
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pageBySectionRef = useRef<Record<string, number>>({});
@@ -122,6 +172,14 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
         if (pick && typeof saved?.pageIndex === 'number') {
           pageBySectionRef.current[pick] = saved.pageIndex;
           setPageIndex(saved.pageIndex);
+        } else if (
+          pick &&
+          initialSectionId &&
+          pick === initialSectionId &&
+          typeof initialPageIndex === 'number'
+        ) {
+          pageBySectionRef.current[pick] = initialPageIndex;
+          setPageIndex(initialPageIndex);
         }
       })
       .catch(() => {
@@ -133,7 +191,7 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
     return () => {
       cancelled = true;
     };
-  }, [bookId, initialSectionId]);
+  }, [bookId, initialSectionId, initialPageIndex]);
 
   useEffect(() => {
     if (!sectionId) return;
@@ -191,6 +249,126 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
   useEffect(() => {
     setPageCount(1);
   }, [sectionId, contentKey]);
+
+  useEffect(() => {
+    setPageCount(1);
+    setTextSelection(null);
+    setMarkPaletteOpen(false);
+    clearShelfTextSelection();
+  }, [sectionId, contentKey]);
+
+  useEffect(() => {
+    setTextSelection(null);
+    setMarkPaletteOpen(false);
+    clearShelfTextSelection();
+  }, [pageIndex]);
+
+  useEffect(() => {
+    const refresh = () => {
+      setHighlightMap(getHighlightMap());
+      setAnnotationRevision((n) => n + 1);
+    };
+    refresh();
+    return subscribeLocalDataChanged(refresh);
+  }, []);
+
+  const bumpAnnotations = useCallback(() => {
+    setHighlightMap(getHighlightMap());
+    setAnnotationRevision((n) => n + 1);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    let raf = 0;
+    const onSelectionChange = () => {
+      if (thoughtWrite || thoughtHub || tocOpen || fontOpen || shareOpen) return;
+      cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(() => {
+        const article = document.querySelector<HTMLElement>(
+          '.shelf-turn-panel-active [data-shelf-prose="1"]',
+        );
+        if (!article) {
+          setTextSelection(null);
+          setSelectionRefStr('');
+          return;
+        }
+        const sel = readShelfTextSelection(article);
+        if (!sel) {
+          setTextSelection(null);
+          setSelectionRefStr('');
+          setMarkPaletteOpen(false);
+          return;
+        }
+        const sb = article.dataset.shelfBook || bookId;
+        const ss = article.dataset.shelfSection || sectionId || '';
+        const sp = Number(article.dataset.shelfPage ?? pageIndex);
+        const ref = buildShelfMarkRef(sb, ss, sp, { start: sel.start, end: sel.end });
+        setTextSelection(sel);
+        setSelectionRefStr(ref);
+      });
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('selectionchange', onSelectionChange);
+    };
+  }, [
+    bookId,
+    sectionId,
+    pageIndex,
+    thoughtWrite,
+    thoughtHub,
+    tocOpen,
+    fontOpen,
+    shareOpen,
+  ]);
+
+  const selectionMark = useMemo(() => {
+    if (!selectionRefStr || !textSelection || !sectionId) return null;
+    const ref = findShelfHighlightRef(
+      bookId,
+      sectionId,
+      pageIndex,
+      { start: textSelection.start, end: textSelection.end },
+      highlightMap,
+    );
+    return ref ? highlightMap[ref]?.color ?? null : null;
+  }, [selectionRefStr, textSelection, sectionId, bookId, pageIndex, highlightMap]);
+
+  const selectionLabel = useMemo(() => {
+    if (!sectionId) return '';
+    return formatShelfMarkRefLabel(
+      selectionRefStr || buildShelfMarkRef(bookId, sectionId, pageIndex),
+      book?.title,
+      section?.title,
+    );
+  }, [selectionRefStr, bookId, sectionId, pageIndex, book?.title, section?.title]);
+
+  const focusBarStyle = useMemo(() => {
+    if (!textSelection) return { display: 'none' } as React.CSSProperties;
+    const rect = textSelection.rect;
+    const barW = Math.min(window.innerWidth - 16, 320);
+    const barH = markPaletteOpen && !selectionMark ? 96 : 52;
+    const margin = 12;
+    let top = rect.bottom + margin;
+    if (top + barH > window.innerHeight - 24) {
+      top = Math.max(8, rect.top - barH - margin);
+    }
+    const left = Math.min(
+      Math.max(8, rect.left + rect.width / 2 - barW / 2),
+      window.innerWidth - barW - 8,
+    );
+    return {
+      position: 'fixed',
+      top,
+      left,
+      width: barW,
+      zIndex: 130,
+    } as React.CSSProperties;
+  }, [textSelection, markPaletteOpen, selectionMark]);
+
+  const overlayOpen = tocOpen || fontOpen || shareOpen || Boolean(thoughtHub || thoughtWrite);
+  const hasTextSelection = Boolean(textSelection && selectionRefStr);
 
   useEffect(() => {
     if (pageIndex >= pageCount) {
@@ -283,10 +461,10 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
   );
 
   const pageTurn = useShelfTurn({
-    enabled: Boolean(section) && !tocOpen && !fontOpen && !shareOpen,
+    enabled: Boolean(section) && !overlayOpen && !hasTextSelection && !markPaletteOpen,
     canPrev,
     canNext,
-    blocked: tocOpen || fontOpen || shareOpen,
+    blocked: overlayOpen || hasTextSelection || markPaletteOpen,
     resolveTurn,
     onSectionChange: (delta) => {
       if (delta > 0) goNextSection();
@@ -300,11 +478,61 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
     [book?.toc, book?.book_type],
   );
 
-  const showBottomBar = !chromeHidden && !tocOpen && !fontOpen && !shareOpen && !pdfFullscreen;
+  const showBottomBar =
+    !chromeHidden && !tocOpen && !fontOpen && !shareOpen && !pdfFullscreen && !hasTextSelection;
 
   const onContentTap = useCallback(() => {
+    if (hasTextSelection) {
+      clearShelfTextSelection();
+      setTextSelection(null);
+      setMarkPaletteOpen(false);
+      return;
+    }
     setChromeHidden((v) => !v);
-  }, []);
+  }, [hasTextSelection]);
+
+  const openThoughtWriteNew = useCallback(
+    (ref: string, label: string, verseText?: string) => {
+      setThoughtHub(null);
+      setThoughtWrite({
+        ref,
+        label,
+        verseText,
+        mode: 'new',
+      });
+      clearShelfTextSelection();
+      setTextSelection(null);
+      setMarkPaletteOpen(false);
+    },
+    [],
+  );
+
+  const applyMarkChoice = useCallback(
+    (color: HighlightColor) => {
+      if (!selectionRefStr) return;
+      pickShelfHighlight(
+        selectionRefStr,
+        color,
+        highlightMap,
+        (ref, c) => setHighlight(ref, c),
+        removeHighlight,
+      );
+      bumpAnnotations();
+      clearShelfTextSelection();
+      setTextSelection(null);
+      setMarkPaletteOpen(false);
+    },
+    [selectionRefStr, highlightMap, bumpAnnotations],
+  );
+
+  const clearMark = useCallback(() => {
+    if (!selectionRefStr) return;
+    removeHighlight(selectionRefStr);
+    bumpAnnotations();
+    clearShelfTextSelection();
+    setTextSelection(null);
+    setMarkPaletteOpen(false);
+  }, [selectionRefStr, bumpAnnotations]);
 
   const renderSectionContent = (
     sec: ShelfSection | null,
@@ -319,6 +547,7 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
           section={sec}
           pageIndex={idx}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
+          annotationRevision={interactive ? annotationRevision : 0}
           onPageCount={interactive ? setPageCount : undefined}
           onTap={interactive ? onContentTap : undefined}
           pdfFullscreen={interactive && pdfFullscreen}
@@ -333,6 +562,9 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
           html={sec.html}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
           pageIndex={idx}
+          bookId={interactive ? bookId : undefined}
+          sectionId={interactive ? sec.id : undefined}
+          annotationRevision={interactive ? annotationRevision : 0}
           onPageCount={interactive ? setPageCount : undefined}
           onTap={interactive ? onContentTap : undefined}
         />
@@ -508,6 +740,95 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
           presetGroupId={presetGroupId}
           onClose={() => setShareOpen(false)}
           onDone={() => flashToast('已分享到共读群')}
+        />
+      ) : null}
+
+      {hasTextSelection && !overlayOpen ? (
+        <ShelfFocusBar
+          style={focusBarStyle}
+          markPaletteOpen={markPaletteOpen}
+          currentMark={selectionMark}
+          onNote={() =>
+            openThoughtWriteNew(selectionRefStr, selectionLabel, textSelection?.text)
+          }
+          onToggleMark={() => {
+            if (selectionMark) {
+              clearMark();
+              return;
+            }
+            setMarkPaletteOpen((v) => !v);
+          }}
+          onPickColor={applyMarkChoice}
+          onCopy={() => {
+            const text = `${selectionLabel} ${textSelection?.text ?? ''}`.trim();
+            void navigator.clipboard.writeText(text).then(
+              () => flashToast('已复制'),
+              () => flashToast('已复制'),
+            );
+            clearShelfTextSelection();
+            setTextSelection(null);
+            setMarkPaletteOpen(false);
+          }}
+        />
+      ) : null}
+
+      {thoughtHub && !thoughtWrite ? (
+        <ThoughtHubSheet
+          refStr={thoughtHub.ref}
+          refLabel={thoughtHub.label}
+          verseText={thoughtHub.text}
+          onChanged={bumpAnnotations}
+          onClose={() => setThoughtHub(null)}
+          onWriteNew={() =>
+            openThoughtWriteNew(thoughtHub.ref, thoughtHub.label, thoughtHub.text)
+          }
+          onEdit={(t: ThoughtRow) => {
+            setThoughtWrite({
+              ref: thoughtHub.ref,
+              label: thoughtHub.label,
+              verseText: thoughtHub.text,
+              mode: 'edit',
+              thoughtId: t.id,
+              initialBody: t.body,
+              initialVisibility: t.visibility,
+              returnHub: thoughtHub,
+            });
+          }}
+        />
+      ) : null}
+
+      {thoughtWrite ? (
+        <ThoughtWriteSheet
+          refStr={thoughtWrite.ref}
+          refLabel={thoughtWrite.label}
+          verseText={thoughtWrite.verseText}
+          mode={thoughtWrite.mode}
+          initialBody={thoughtWrite.initialBody}
+          initialVisibility={thoughtWrite.initialVisibility}
+          onClose={() => {
+            setThoughtWrite(null);
+            if (thoughtWrite.returnHub) setThoughtHub(thoughtWrite.returnHub);
+          }}
+          onBack={
+            thoughtWrite.returnHub
+              ? () => {
+                  setThoughtWrite(null);
+                  setThoughtHub(thoughtWrite.returnHub ?? null);
+                }
+              : undefined
+          }
+          onSave={(body, visibility) => {
+            if (thoughtWrite.mode === 'edit' && thoughtWrite.thoughtId) {
+              updateThought(thoughtWrite.thoughtId, body, visibility);
+            } else {
+              addThought(thoughtWrite.ref, body, visibility);
+            }
+            bumpAnnotations();
+            notifyLocalDataChanged('thoughts');
+            setThoughtWrite(null);
+            if (thoughtWrite.returnHub) setThoughtHub(thoughtWrite.returnHub);
+            else flashToast('已保存想法');
+          }}
         />
       ) : null}
     </main>
