@@ -443,17 +443,11 @@ export default function ShelfReader({ bookId, initialSectionId, initialPageIndex
   const resolveTurn = useCallback(
     (delta: 1 | -1): ShelfTurnKind => {
       if (delta > 0) {
-        if (pageIndex < pageCount - 1) {
-          setPageIndex((i) => i + 1);
-          return 'page';
-        }
+        if (pageIndex < pageCount - 1) return 'page';
         if (canNextSection) return 'section';
         return 'none';
       }
-      if (pageIndex > 0) {
-        setPageIndex((i) => i - 1);
-        return 'page';
-      }
+      if (pageIndex > 0) return 'page';
       if (canPrevSection) return 'section';
       return 'none';
     },
@@ -466,6 +460,9 @@ export default function ShelfReader({ bookId, initialSectionId, initialPageIndex
     canNext,
     blocked: overlayOpen || hasTextSelection || markPaletteOpen,
     resolveTurn,
+    onPageChange: (delta) => {
+      setPageIndex((i) => Math.max(0, Math.min(pageCount - 1, i + delta)));
+    },
     onSectionChange: (delta) => {
       if (delta > 0) goNextSection();
       else goPrevSection();

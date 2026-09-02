@@ -47,6 +47,7 @@ export function useShelfTurn({
   blocked,
   resolveTurn,
   onSectionChange,
+  onPageChange,
   onDragApproach,
   onBoundary,
 }: {
@@ -56,6 +57,7 @@ export function useShelfTurn({
   blocked: boolean;
   resolveTurn: (delta: 1 | -1) => ShelfTurnKind;
   onSectionChange: (delta: number, meta?: { fromSwipe?: boolean }) => void | Promise<void>;
+  onPageChange?: (delta: 1 | -1) => void | Promise<void>;
   onDragApproach?: (delta: number) => void;
   onBoundary?: (edge: 'prev' | 'next') => void;
 }) {
@@ -212,9 +214,8 @@ export function useShelfTurn({
       const kind = resolveTurn(1);
       clearDragHint();
       if (kind === 'page') {
-        applyOffset(0, true);
-        await sleep(ANIM_MS);
         applyOffset(0, false);
+        await Promise.resolve(onPageChange?.(1));
         return;
       }
       if (kind === 'section') {
@@ -237,9 +238,8 @@ export function useShelfTurn({
       const kind = resolveTurn(-1);
       clearDragHint();
       if (kind === 'page') {
-        applyOffset(0, true);
-        await sleep(ANIM_MS);
         applyOffset(0, false);
+        await Promise.resolve(onPageChange?.(-1));
         return;
       }
       if (kind === 'section') {
@@ -276,7 +276,7 @@ export function useShelfTurn({
     await sleep(ANIM_MS);
     applyOffset(0, false);
     setAnimating(false);
-  }, [enabled, canPrev, canNext, resolveTurn, onSectionChange, onBoundary, applyOffset]);
+  }, [enabled, canPrev, canNext, resolveTurn, onSectionChange, onPageChange, onBoundary, applyOffset]);
 
   const beginDrag = useCallback(
     (clientX: number, clientY: number, pointerId: number, source: 'pointer' | 'touch') => {
@@ -314,12 +314,25 @@ export function useShelfTurn({
           setTurning(true);
         } else if (ady >= AXIS_MIN_PX && ady >= adx * AXIS_RATIO) {
           drag.current.axis = 'y';
+          drag.current.active = false;
+          drag.current.pointerId = -1;
+          setTurning(false);
+          setDragSide(null);
+          setDragProgress(0);
+          applyOffset(0, false);
+          return;
         } else if (adx >= AXIS_MIN_PX * 1.2 && adx > ady) {
-          // 横略大于竖也认 X（右滑上一页更容易抢走竖滚）
           drag.current.axis = 'x';
           setTurning(true);
         } else {
           drag.current.axis = 'y';
+          drag.current.active = false;
+          drag.current.pointerId = -1;
+          setTurning(false);
+          setDragSide(null);
+          setDragProgress(0);
+          applyOffset(0, false);
+          return;
         }
       }
 

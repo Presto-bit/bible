@@ -49,6 +49,7 @@ export default function ShelfPaginatedProse({
   useEffect(() => {
     const art = articleRef.current;
     if (!art || pageHeight <= 0) return;
+    art.style.transition = 'transform 280ms ease-out';
     art.style.transform = `translate3d(0, ${-pageIndex * pageHeight}px, 0)`;
   }, [pageIndex, pageHeight]);
 
