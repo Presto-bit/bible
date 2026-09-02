@@ -189,7 +189,7 @@ export const QUICK_HREFS: Array<{ label: string; href: string }> = [
   { label: '首页', href: '/' },
   { label: '读经', href: '/reader' },
   { label: '计划', href: '/plans' },
-  { label: '发现', href: '/discover' },
+  { label: '消息', href: '/discover' },
   { label: '闯关', href: '/challenge' },
   { label: '小爱', href: '/assistant' },
 ];

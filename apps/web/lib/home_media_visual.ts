@@ -68,7 +68,7 @@ export function homeMediaIconForTone(tone: HomeMediaTone): HomeMediaIconId {
 }
 
 export function toneFromAnchorTag(
-  tag: '小组' | '同行' | '发现',
+  tag: '小组' | '同行' | '消息',
 ): HomeMediaTone {
   if (tag === '小组') return 'group';
   if (tag === '同行') return 'peers';

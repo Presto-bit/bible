@@ -682,7 +682,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           ),
         ),
         Tooltip(
-          message: '问小爱',
+          message: '解释',
           child: Material(
             color: AppColors.accentDeep,
             elevation: 3,
@@ -697,7 +697,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 child: Text(
-                  '✦ 小爱',
+                  '解释',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 14,

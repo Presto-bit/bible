@@ -89,5 +89,5 @@ export function buildHomeSocialLine(
   if (line) return { text: line.title, href: line.href };
   const friends = formatFriendsCheckedLine(summary);
   if (friends) return { text: friends.title, href: friends.href };
-  return { text: '去发现，找人一起读', href: '/discover' };
+  return { text: '进入消息，找人一起读', href: '/discover' };
 }

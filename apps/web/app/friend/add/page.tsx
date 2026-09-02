@@ -117,7 +117,7 @@ export default function AddFriendPage() {
   return (
     <main className="container add-friend-page h5-form-page">
       <header className="page-head">
-        <PageBackBar href="/discover" label="发现" />
+        <PageBackBar href="/discover" label="消息" />
         <h2 className="page-head-title">加好友</h2>
       </header>
       <p className="muted" style={{ marginBottom: 16 }}>

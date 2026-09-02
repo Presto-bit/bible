@@ -182,7 +182,7 @@ class _GroupCheckinBodyState extends ConsumerState<_GroupCheckinBody> {
                         Navigator.pop(context);
                         ref.read(navIndexProvider.notifier).set(3);
                       },
-                      child: const Text('去发现看看'),
+                      child: const Text('进入消息看看'),
                     ),
                   ],
                 )

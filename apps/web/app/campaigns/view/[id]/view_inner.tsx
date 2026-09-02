@@ -289,7 +289,7 @@ export default function CampaignViewInner() {
                 peiaiOpenNative({ type: 'close_h5' });
               }}
             >
-              去发现找群
+              进入消息找群
             </Link>
             <Link
               href="/"

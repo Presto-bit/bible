@@ -87,7 +87,7 @@ function JoinGroupInner() {
   return (
     <main className="container join-group-page">
       <header className="page-head">
-        <PageBackBar href="/discover" label="发现" />
+        <PageBackBar href="/discover" label="消息" />
         <h2 className="page-head-title">加入共读群</h2>
       </header>
 

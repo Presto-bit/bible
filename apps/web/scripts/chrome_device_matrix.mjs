@@ -92,6 +92,6 @@ export const CHROME_SCREEN_ROUTES = [
   { id: 'home', path: '/', title: '首页' },
   { id: 'reader', path: '/reader', title: '圣经' },
   { id: 'assistant', path: '/assistant', title: '小爱' },
-  { id: 'discover', path: '/discover', title: '发现' },
+  { id: 'discover', path: '/discover', title: '消息' },
   { id: 'profile', path: '/profile', title: '我的' },
 ];

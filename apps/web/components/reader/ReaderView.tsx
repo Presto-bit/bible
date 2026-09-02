@@ -3226,9 +3226,9 @@ export default function ReaderView({
             softRecover: true,
             onTap: () => openAiSheet(),
           })}
-          aria-label="问小爱"
+          aria-label="解释"
         >
-          ✦ 小爱
+          解释
         </button>
       </div>
       ) : null}

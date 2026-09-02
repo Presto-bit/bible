@@ -330,7 +330,7 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
     (Icons.home_outlined, Icons.home, '首页'),
     (Icons.menu_book_outlined, Icons.menu_book, '圣经'),
     (Icons.auto_awesome_outlined, Icons.auto_awesome, '小爱'),
-    (Icons.explore_outlined, Icons.explore, '发现'),
+    (Icons.chat_bubble_outline, Icons.chat_bubble, '消息'),
     (Icons.person_outline, Icons.person, '我的'),
   ];
 

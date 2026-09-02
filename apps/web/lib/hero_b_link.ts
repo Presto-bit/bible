@@ -87,7 +87,7 @@ export const DEFAULT_LINK_CATALOG: LinkCatalog = {
   tabs: [
     { id: 'home', label: '首页' },
     { id: 'reader', label: '读经' },
-    { id: 'discover', label: '发现' },
+    { id: 'discover', label: '消息' },
     { id: 'challenge', label: '闯关' },
     { id: 'assistant', label: '小爱' },
     { id: 'profile', label: '我的' },
@@ -113,7 +113,7 @@ export const DEFAULT_LINK_CATALOG: LinkCatalog = {
     { id: 'paul-companions', label: '保罗与同工' },
   ],
   discoverViews: [
-    { id: 'home', label: '发现首页' },
+    { id: 'home', label: '消息首页' },
     { id: 'join', label: '加入群组' },
   ],
 };

@@ -61,7 +61,7 @@ export default function CreateGroupPage() {
   return (
     <main className="container h5-form-page">
       <header className="page-head">
-        <PageBackBar href="/discover" label="发现" />
+        <PageBackBar href="/discover" label="消息" />
         <h2 className="page-head-title">建群</h2>
       </header>
       <input

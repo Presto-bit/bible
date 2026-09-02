@@ -114,7 +114,7 @@ export default function GroupCheckinSheet({
           <div>
             <p className="muted" style={{ fontSize: 13 }}>你还没有加入共读群。</p>
             <a href="/discover" className="font-pill" style={{ marginTop: 8, display: 'inline-block', fontSize: 12 }}>
-              去发现创建或加入
+              进入消息创建或加入
             </a>
           </div>
         ) : submitted ? (

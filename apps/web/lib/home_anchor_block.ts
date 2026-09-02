@@ -17,7 +17,7 @@ import {
 } from './home_media_visual';
 
 export type HomeAnchorBlockModel = {
-  tag: '小组' | '同行' | '发现';
+  tag: '小组' | '同行' | '消息';
   title: string;
   href: string;
   pillActive?: boolean;
@@ -70,8 +70,8 @@ export function buildHomeAnchorBlock(
       });
     }
     return withMedia({
-      tag: '发现',
-      title: '去发现，找人一起读',
+      tag: '消息',
+      title: '进入消息，找人一起读',
       href: '/discover',
     });
   }
@@ -99,8 +99,8 @@ export function buildHomeAnchorBlock(
 
   // 冷启动：与推荐区「创建共读」错开（U5）
   return withMedia({
-    tag: '发现',
-    title: hasGroups ? '去发现逛一逛' : '去发现，找人一起读',
+    tag: '消息',
+    title: hasGroups ? '进入消息看看' : '进入消息，找人一起读',
     href: '/discover',
   });
 }
@@ -126,8 +126,8 @@ export function buildHomeAnchorFromGroupRail(
       });
     }
     return withMedia({
-      tag: '发现',
-      title: '去发现，找人一起读',
+      tag: '消息',
+      title: '进入消息，找人一起读',
       href: '/discover',
     });
   }
@@ -145,15 +145,15 @@ export function buildHomeAnchorFromGroupRail(
 
   if (group.title === '创建共读') {
     return withMedia({
-      tag: '发现',
-      title: '去发现，找人一起读',
+      tag: '消息',
+      title: '进入消息，找人一起读',
       href: '/discover',
     });
   }
 
   return withMedia({
-    tag: '发现',
-    title: group.title || '去发现逛一逛',
+    tag: '消息',
+    title: group.title || '进入消息看看',
     href: group.href || '/discover',
   });
 }
