@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AppBodyPortal from '@/components/AppBodyPortal';
 import ShelfFocusBar from '@/components/shelf/ShelfFocusBar';
 import { addThought } from '@/lib/reader_thoughts';
 import {
@@ -147,6 +148,20 @@ export default function ShelfPaginatedProse({
   }, [syncSelection]);
 
   useEffect(() => {
+    const article = articleRef.current;
+    if (!article) return;
+    const onEnd = () => {
+      window.requestAnimationFrame(() => syncSelection());
+    };
+    article.addEventListener('mouseup', onEnd);
+    article.addEventListener('touchend', onEnd);
+    return () => {
+      article.removeEventListener('mouseup', onEnd);
+      article.removeEventListener('touchend', onEnd);
+    };
+  }, [syncSelection, linkedHtml, contentKey]);
+
+  useEffect(() => {
     if (selection) syncSelection();
   }, [chromeHidden, selection, syncSelection]);
 
@@ -278,15 +293,17 @@ export default function ShelfPaginatedProse({
       </div>
 
       {selection && annotationsEnabled ? (
-        <ShelfFocusBar
-          style={focusBarStyle}
-          markPaletteOpen={markPaletteOpen}
-          currentMark={currentMarkColor}
-          onNote={onNote}
-          onToggleMark={onToggleMark}
-          onPickColor={onPickColor}
-          onCopy={onCopy}
-        />
+        <AppBodyPortal>
+          <ShelfFocusBar
+            style={focusBarStyle}
+            markPaletteOpen={markPaletteOpen}
+            currentMark={currentMarkColor}
+            onNote={onNote}
+            onToggleMark={onToggleMark}
+            onPickColor={onPickColor}
+            onCopy={onCopy}
+          />
+        </AppBodyPortal>
       ) : null}
 
       {versePreview ? (

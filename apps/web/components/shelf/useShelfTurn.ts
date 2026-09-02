@@ -181,6 +181,17 @@ export function useShelfTurn({
 
   const finishDrag = useCallback(async () => {
     if (!enabled || !drag.current.active) return;
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) {
+      drag.current.active = false;
+      drag.current.pointerId = -1;
+      drag.current.axis = null;
+      setTurning(false);
+      setDragSide(null);
+      setDragProgress(0);
+      applyOffset(0, false);
+      return;
+    }
     const wasHorizontal = drag.current.axis === 'x';
     const finalOffset = offsetRef.current;
     const elapsed = Math.max(1, performance.now() - drag.current.startTime);
