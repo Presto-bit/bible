@@ -352,13 +352,16 @@ def _summarize(
     r = (ref or "").strip()
     ref_label = ""
     if r:
-        try:
-            from ..bible.refs import parse_ref
+        if r.startswith("SHELF."):
+            ref_label = "书架阅读"
+        else:
+            try:
+                from ..bible.refs import parse_ref
 
-            parsed = parse_ref(r)
-            ref_label = (parsed.display if parsed else r)[:48]
-        except Exception:
-            ref_label = r[:48]
+                parsed = parse_ref(r)
+                ref_label = (parsed.display if parsed else r)[:48]
+            except Exception:
+                ref_label = r[:48]
     if k == "checkin":
         if ref_label and b:
             return f"[打卡] {ref_label}"

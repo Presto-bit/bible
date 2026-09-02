@@ -2,14 +2,12 @@
 
 import { useCallback, useLayoutEffect, useState, type RefObject } from 'react';
 
-/** 节内按视口高度分页，配合左右滑切换页/章。 */
+/** 节内按视口高度测量页数（配合 translateY 分页，禁止节内纵向滚动）。 */
 export function useShelfSectionPages(
   articleRef: RefObject<HTMLElement | null>,
   viewportRef: RefObject<HTMLElement | null>,
   contentKey: string,
-  initialPageIndex = 0,
 ) {
-  const [pageIndex, setPageIndex] = useState(initialPageIndex);
   const [pageCount, setPageCount] = useState(1);
   const [pageHeight, setPageHeight] = useState(0);
 
@@ -23,32 +21,20 @@ export function useShelfSectionPages(
     const total = Math.max(1, Math.ceil(art.scrollHeight / h));
     setPageHeight(h);
     setPageCount(total);
-    setPageIndex((prev) => Math.min(Math.max(0, prev), total - 1));
   }, [articleRef, viewportRef]);
 
   useLayoutEffect(() => {
-    setPageIndex(Math.max(0, initialPageIndex));
     remeasure();
     const vp = viewportRef.current;
     if (!vp || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => remeasure());
     ro.observe(vp);
+    const fonts = document.fonts;
+    if (fonts?.ready) {
+      void fonts.ready.then(() => remeasure());
+    }
     return () => ro.disconnect();
-  }, [contentKey, initialPageIndex, remeasure, viewportRef]);
+  }, [contentKey, remeasure, viewportRef]);
 
-  const goPage = useCallback(
-    (delta: number) => {
-      setPageIndex((i) => Math.min(pageCount - 1, Math.max(0, i + delta)));
-    },
-    [pageCount],
-  );
-
-  return {
-    pageIndex,
-    pageCount,
-    pageHeight,
-    setPageIndex,
-    goPage,
-    remeasure,
-  };
+  return { pageCount, pageHeight, remeasure };
 }

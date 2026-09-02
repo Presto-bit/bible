@@ -4,8 +4,10 @@ import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import { shelfAssetUrl, type ShelfAttachment, type ShelfSection } from '@/lib/shelf_api';
 import { adaptShelfDocxHtml, SHELF_DOCX_STYLE_MAP } from '@/lib/shelf_reading';
+import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
+import ShelfMediaSheet from '@/components/shelf/ShelfMediaSheet';
 
-const ShelfPdfViewer = dynamic(() => import('@/components/shelf/ShelfPdfViewer'), {
+const ShelfPdfPager = dynamic(() => import('@/components/shelf/ShelfPdfPager'), {
   ssr: false,
   loading: () => <p className="muted shelf-pdf-status">正在加载 PDF…</p>,
 });
@@ -13,99 +15,107 @@ const ShelfPdfViewer = dynamic(() => import('@/components/shelf/ShelfPdfViewer')
 type Props = {
   bookId: string;
   section: ShelfSection;
+  pageIndex: number;
+  contentKey: string;
+  onPageCount?: (count: number) => void;
+  onTap?: () => void;
+  pdfFullscreen?: boolean;
+  onExitPdfFullscreen?: () => void;
+  onOpenPdfFullscreen?: () => void;
 };
 
-export default function ShelfLessonPanel({ bookId, section }: Props) {
-  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+export default function ShelfLessonPanel({
+  bookId,
+  section,
+  pageIndex,
+  contentKey,
+  onPageCount,
+  onTap,
+  pdfFullscreen = false,
+  onExitPdfFullscreen,
+  onOpenPdfFullscreen,
+}: Props) {
+  const [mediaOpen, setMediaOpen] = useState(false);
 
   const images = section.attachments?.filter((a) => a.kind === 'image') ?? [];
   const videos = section.attachments?.filter((a) => a.kind === 'video') ?? [];
   const hasMedia = images.length > 0 || videos.length > 0;
 
   return (
-    <div className="shelf-lesson">
-      <header className="shelf-lesson-head">
-        {section.unit ? <p className="shelf-lesson-unit">{section.unit}</p> : null}
-        <h2 className="shelf-lesson-title">{section.title}</h2>
-      </header>
+    <div className="shelf-lesson-viewport">
+      <ShelfPrimaryView
+        bookId={bookId}
+        section={section}
+        pageIndex={pageIndex}
+        contentKey={contentKey}
+        onPageCount={onPageCount}
+        onTap={onTap}
+        pdfFullscreen={pdfFullscreen}
+        onExitPdfFullscreen={onExitPdfFullscreen}
+      />
 
-      {hasMedia ? (
-        <nav className="shelf-lesson-jump" aria-label="本课内容">
-          <a href="#shelf-lesson-primary">教案</a>
-          {images.length > 0 ? <a href="#shelf-lesson-images">图片</a> : null}
-          {videos.length > 0 ? <a href="#shelf-lesson-videos">视频</a> : null}
-        </nav>
-      ) : null}
-
-      <div id="shelf-lesson-primary">
-        <ShelfPrimaryView bookId={bookId} section={section} />
-      </div>
-
-      {images.length > 0 ? (
-        <section className="shelf-lesson-media" id="shelf-lesson-images">
-          <h2 className="shelf-lesson-media-title">图片素材</h2>
-          <div className="shelf-lesson-image-grid">
-            {images.map((item) => (
-              <ShelfImageTile
-                key={item.id}
-                bookId={bookId}
-                item={item}
-                onExpand={() => setExpandedImage(item.id)}
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {videos.length > 0 ? (
-        <section className="shelf-lesson-media" id="shelf-lesson-videos">
-          <h2 className="shelf-lesson-media-title">视频素材</h2>
-          <div className="shelf-lesson-video-list">
-            {videos.map((item) => (
-              <ShelfVideoPlayer key={item.id} bookId={bookId} item={item} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {expandedImage ? (
-        <div
-          className="shelf-lesson-lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label="查看大图"
-          onClick={() => setExpandedImage(null)}
+      {hasMedia && !pdfFullscreen ? (
+        <button
+          type="button"
+          className="shelf-lesson-media-fab"
+          aria-label="本课素材"
+          onClick={() => setMediaOpen(true)}
         >
-          <img
-            src={shelfAssetUrl(
-              bookId,
-              images.find((i) => i.id === expandedImage)?.storage_key ?? '',
-            )}
-            alt=""
-            onClick={(e) => e.stopPropagation()}
-          />
-          <button
-            type="button"
-            className="icon-btn shelf-lesson-lightbox-close"
-            aria-label="关闭"
-            onClick={() => setExpandedImage(null)}
-          >
-            ✕
-          </button>
-        </div>
+          素材
+        </button>
       ) : null}
+
+      {!pdfFullscreen && onOpenPdfFullscreen && section.primary?.mime?.includes('pdf') ? (
+        <button
+          type="button"
+          className="shelf-pdf-toolbar-btn shelf-pdf-enter-fullscreen"
+          aria-label="全屏阅读 PDF"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenPdfFullscreen();
+          }}
+        >
+          ⛶
+        </button>
+      ) : null}
+
+      <ShelfMediaSheet
+        open={mediaOpen}
+        bookId={bookId}
+        images={images}
+        videos={videos}
+        onClose={() => setMediaOpen(false)}
+      />
     </div>
   );
 }
 
-function ShelfPrimaryView({ bookId, section }: { bookId: string; section: ShelfSection }) {
+function ShelfPrimaryView({
+  bookId,
+  section,
+  pageIndex,
+  contentKey,
+  onPageCount,
+  onTap,
+  pdfFullscreen,
+  onExitPdfFullscreen,
+}: {
+  bookId: string;
+  section: ShelfSection;
+  pageIndex: number;
+  contentKey: string;
+  onPageCount?: (count: number) => void;
+  onTap?: () => void;
+  pdfFullscreen?: boolean;
+  onExitPdfFullscreen?: () => void;
+}) {
   const primary = section.primary;
   const url = useMemo(() => {
     if (!primary?.storage_key) return '';
     return shelfAssetUrl(bookId, primary.storage_key);
   }, [bookId, primary?.storage_key]);
 
-  if (!primary || !url) return <p className="muted">暂无内容</p>;
+  if (!primary || !url) return <p className="muted shelf-lesson-empty">暂无内容</p>;
 
   const mime = primary.mime || '';
   const isPdf = mime.includes('pdf') || primary.storage_key.endsWith('.pdf');
@@ -114,14 +124,29 @@ function ShelfPrimaryView({ bookId, section }: { bookId: string; section: ShelfS
 
   if (isPdf) {
     return (
-      <div className="shelf-lesson-pdf-wrap">
-        <ShelfPdfViewer url={url} title={section.title} />
-      </div>
+      <ShelfPdfPager
+        url={url}
+        title={section.title}
+        pageIndex={pageIndex}
+        onPageCount={onPageCount}
+        onTap={onTap}
+        fullscreen={pdfFullscreen}
+        onExitFullscreen={onExitPdfFullscreen}
+      />
     );
   }
 
   if (isDocx) {
-    return <ShelfDocxView url={url} title={section.title} />;
+    return (
+      <ShelfDocxPaginated
+        url={url}
+        title={section.title}
+        pageIndex={pageIndex}
+        contentKey={contentKey}
+        onPageCount={onPageCount}
+        onTap={onTap}
+      />
+    );
   }
 
   return (
@@ -133,7 +158,21 @@ function ShelfPrimaryView({ bookId, section }: { bookId: string; section: ShelfS
   );
 }
 
-function ShelfDocxView({ url, title }: { url: string; title: string }) {
+function ShelfDocxPaginated({
+  url,
+  title,
+  pageIndex,
+  contentKey,
+  onPageCount,
+  onTap,
+}: {
+  url: string;
+  title: string;
+  pageIndex: number;
+  contentKey: string;
+  onPageCount?: (count: number) => void;
+  onTap?: () => void;
+}) {
   const [html, setHtml] = useState('');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
@@ -169,40 +208,25 @@ function ShelfDocxView({ url, title }: { url: string; title: string }) {
   if (err) return <p className="muted">{err}</p>;
 
   return (
-    <article
-      className="shelf-lesson-docx shelf-docx-prose"
-      aria-label={title}
-      dangerouslySetInnerHTML={{ __html: html }}
+    <ShelfPaginatedProse
+      html={html}
+      contentKey={`${contentKey}:${title}`}
+      pageIndex={pageIndex}
+      onPageCount={onPageCount}
+      onTap={onTap}
     />
   );
 }
 
-function ShelfImageTile({
-  bookId,
-  item,
-  onExpand,
-}: {
-  bookId: string;
-  item: ShelfAttachment;
-  onExpand: () => void;
-}) {
-  const src = shelfAssetUrl(bookId, item.storage_key);
-  return (
-    <button type="button" className="shelf-lesson-image-tile" onClick={onExpand}>
-      <img src={src} alt={item.title} loading="lazy" />
-      <span>{item.title}</span>
-    </button>
-  );
+export function shelfLessonHasPrimary(section: ShelfSection): boolean {
+  return Boolean(section.primary?.storage_key || section.html);
 }
 
-function ShelfVideoPlayer({ bookId, item }: { bookId: string; item: ShelfAttachment }) {
-  const src = shelfAssetUrl(bookId, item.storage_key);
-  return (
-    <figure className="shelf-lesson-video">
-      <video controls playsInline preload="metadata" src={src}>
-        您的浏览器不支持视频播放
-      </video>
-      <figcaption>{item.title}</figcaption>
-    </figure>
-  );
+export function shelfLessonMedia(section: ShelfSection): {
+  images: ShelfAttachment[];
+  videos: ShelfAttachment[];
+} {
+  const images = section.attachments?.filter((a) => a.kind === 'image') ?? [];
+  const videos = section.attachments?.filter((a) => a.kind === 'video') ?? [];
+  return { images, videos };
 }

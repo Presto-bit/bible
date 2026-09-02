@@ -3,6 +3,7 @@
 import { loadFavoriteRefs } from './favorites';
 import { formatGroupRefLabel } from './ref_label';
 import { chapterRef, chapterSpanRef, verseRangeRef } from './group_checkin';
+import { isShelfRef, shelfHrefFromRef } from './shelf_checkin';
 import { getChapterVerseRange, readEvents, todayChaptersInBook } from './reading';
 import { getActivePlan, getPlanDay } from './plan_progress';
 import { getLastRead } from './reading';
@@ -139,6 +140,10 @@ export function readerHrefFromRef(
   ref: string,
   opts?: { group?: string; task?: string },
 ): string | null {
+  if (isShelfRef(ref)) {
+    return shelfHrefFromRef(ref, opts);
+  }
+
   const span = ref.match(/^([A-Za-z0-9]+)\.(\d+)-([A-Za-z0-9]+)\.(\d+)$/);
   if (span && span[1].toUpperCase() === span[3].toUpperCase()) {
     const params = new URLSearchParams({ book: span[1], chapter: span[2] });

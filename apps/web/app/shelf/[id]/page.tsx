@@ -28,5 +28,6 @@ function ShelfBookInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const search = useSearchParams();
   const section = search.get('section');
-  return <ShelfReader bookId={id} initialSectionId={section} />;
+  const group = search.get('group');
+  return <ShelfReader bookId={id} initialSectionId={section} presetGroupId={group} />;
 }

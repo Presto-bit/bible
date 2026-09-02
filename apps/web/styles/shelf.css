@@ -389,8 +389,8 @@ body.shelf-reader-active .tabbar {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  touch-action: pan-x pan-y;
-  overscroll-behavior-x: none;
+  touch-action: pan-x;
+  overscroll-behavior: none;
 }
 
 .shelf-turn-viewport.is-turning {
@@ -431,7 +431,7 @@ body.shelf-reader-active .tabbar {
 .shelf-page-viewport {
   height: 100%;
   overflow: hidden;
-  padding: 6px 16px calc(var(--safe-bottom, 0px) + 56px);
+  padding: 6px 16px 8px;
   box-sizing: border-box;
 }
 
@@ -443,11 +443,9 @@ body.shelf-reader-active .tabbar {
 
 .shelf-turn-scroll {
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 6px 16px calc(var(--safe-bottom, 0px) + 56px);
+  overflow: hidden;
+  padding: 6px 16px 8px;
   box-sizing: border-box;
-  -webkit-overflow-scrolling: touch;
 }
 
 .shelf-prose,
@@ -550,6 +548,18 @@ body.shelf-reader-active .tabbar {
   background: var(--surface, #fff);
   font-size: 14px;
   color: var(--ink);
+}
+
+.shelf-reader-bottom-spacer {
+  flex: 1;
+}
+
+.shelf-reader-bottom-btn-share {
+  margin-left: auto;
+}
+
+.shelf-reader-bottom-btn:disabled {
+  opacity: 0.45;
 }
 
 .shelf-reader-bottom-icon {
@@ -737,28 +747,178 @@ body.shelf-reader-active .tabbar {
   bottom: calc(var(--safe-bottom, 0px) + 10px);
 }
 
-.shelf-turn-viewport-lesson .shelf-reader-body-lesson {
+.shelf-turn-viewport-lesson .shelf-reader-body-lesson,
+.shelf-turn-viewport-lesson .shelf-lesson-viewport {
   height: 100%;
-  overflow: auto;
-  padding: 0 0 calc(var(--safe-bottom, 0px) + 56px);
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
+  padding: 0;
 }
 
-.shelf-reader-body-pick {
+.shelf-lesson-viewport {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.shelf-lesson-empty {
+  padding: 24px 18px;
+  text-align: center;
+}
+
+.shelf-lesson-media-fab {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 2;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper, #f7f3ec) 92%, transparent);
+  font-size: 13px;
+  color: var(--ink);
+  backdrop-filter: blur(8px);
+}
+
+.shelf-pdf-pager {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.shelf-pdf-pager-stage {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.shelf-reader-lesson .shelf-reader-body-lesson {
-  padding: 0;
+.shelf-pdf-pager.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--paper, #f7f3ec);
+  padding: calc(var(--safe-top, 0px) + 8px) 8px calc(var(--safe-bottom, 0px) + 8px);
 }
 
-.shelf-lesson {
+.shelf-pdf-toolbar-btn {
+  z-index: 3;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface, #fff) 92%, transparent);
+  color: var(--ink);
+  font-size: 16px;
+  backdrop-filter: blur(8px);
+}
+
+.shelf-pdf-enter-fullscreen {
+  position: absolute;
+  right: 14px;
+  top: 10px;
+}
+
+.shelf-pdf-exit-fullscreen {
+  position: fixed;
+  top: calc(var(--safe-top, 0px) + 10px);
+  right: 14px;
+}
+
+.shelf-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  background: #000;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding-bottom: 12px;
+}
+
+.shelf-fullscreen-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(var(--safe-top, 0px) + 10px) 14px 10px;
+  color: #fff;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+}
+
+.shelf-fullscreen-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 calc(var(--safe-bottom, 0px) + 8px);
+}
+
+.shelf-fullscreen-video {
+  width: 100%;
+  max-height: 100%;
+  background: #000;
+}
+
+.shelf-media-sheet {
+  width: min(92vw, 420px);
+  margin: auto;
+  max-height: min(78vh, 640px);
+  overflow: auto;
+}
+
+.shelf-media-section h3 {
+  margin: 12px 0 8px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.shelf-media-video-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shelf-media-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface, #fff);
+  text-align: left;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.shelf-media-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #4a6b52) 16%, transparent);
+  color: var(--accent-deep, #3d5a46);
+  font-size: 12px;
+}
+
+.shelf-reader-pdf-fullscreen .shelf-reader-top,
+.shelf-reader-pdf-fullscreen .shelf-reader-bottom,
+.shelf-reader-pdf-fullscreen .shelf-page-indicator {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.shelf-reader-lesson .shelf-reader-body-lesson {
+  padding: 0;
 }
 
 .shelf-lesson-head {

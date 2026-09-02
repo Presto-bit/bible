@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { contentAssetUrl, effectiveId, type GroupMember, type GroupMessage } from '@/lib/api';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { ensureShelfRefLabel, isShelfRef } from '@/lib/shelf_checkin';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
   GROUP_EMOJIS,
@@ -173,10 +174,27 @@ function ChatBubble({
     m.kind === 'chat' || m.kind === 'image' || m.kind === 'file' || m.kind === 'video' || m.kind === 'audio' || m.kind === 'verse';
   const dueLabel = isTask ? formatDueCountdown(m.task_due_at) : null;
   const completeTitle = isTaskDone ? taskCompleteTitle(m.body) : null;
-  const refLabel = m.ref ? formatGroupRefLabel(m.ref) : '';
+  const [shelfRefLabel, setShelfRefLabel] = useState<string | null>(null);
+  const refLabel = m.ref
+    ? (shelfRefLabel || formatGroupRefLabel(m.ref))
+    : '';
   const refHref = m.ref
     ? readerHrefFromRef(m.ref, { group: gid, task: m.task_id || undefined })
     : null;
+
+  useEffect(() => {
+    if (!m.ref || !isShelfRef(m.ref)) {
+      setShelfRefLabel(null);
+      return;
+    }
+    let cancelled = false;
+    void ensureShelfRefLabel(m.ref).then((label) => {
+      if (!cancelled) setShelfRefLabel(label);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [m.ref]);
   const memberFromDetail = m.user_id ? membersById.get(m.user_id) : undefined;
   const member: GroupMember = memberFromDetail || {
     user_id: m.user_id,
@@ -595,7 +613,7 @@ function ChatBubble({
                       className="text-link group-checkin-read-link"
                       onClick={beforeReader}
                     >
-                      去读
+                      {isShelfRef(m.ref) ? '继续阅读' : '去读'}
                     </Link>
                   ) : null}
                 </div>
