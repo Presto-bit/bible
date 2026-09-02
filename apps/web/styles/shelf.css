@@ -432,13 +432,13 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   min-height: 0;
   overflow: hidden;
   overflow-x: hidden;
-  touch-action: pan-y;
+  touch-action: manipulation;
   overscroll-behavior: none;
 }
 
 .shelf-reader-pdf-scroll .shelf-turn-viewport:not(.is-turning),
 .shelf-reader-flow-scroll .shelf-turn-viewport:not(.is-turning) {
-  touch-action: pan-y;
+  touch-action: manipulation;
 }
 
 .shelf-turn-viewport.is-turning {
@@ -555,7 +555,25 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 }
 
 .shelf-verse-preview-sheet {
-  max-height: min(78vh, 640px);
+  max-height: min(82vh, 680px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.shelf-verse-preview-head {
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.shelf-verse-preview-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 .shelf-verse-preview-handle {

@@ -15,17 +15,17 @@ import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
  * - 提交阈值：大位移 OR 够快；上一页（右滑）略松
  * - 专有名词/按钮：composedPath + 邻点让路，避免「点词典没反应」
  */
-const THRESHOLD_NEXT = 0.08;
-const THRESHOLD_PREV = 0.06;
-const VELOCITY_MIN = 0.08;
-const VELOCITY_MIN_PREV = 0.06;
+const THRESHOLD_NEXT = 0.07;
+const THRESHOLD_PREV = 0.05;
+const VELOCITY_MIN = 0.07;
+const VELOCITY_MIN_PREV = 0.05;
 /** 大滑动：忽略速度强制翻页 */
-const FORCE_RATIO_NEXT = 0.16;
-const FORCE_RATIO_PREV = 0.12;
+const FORCE_RATIO_NEXT = 0.14;
+const FORCE_RATIO_PREV = 0.1;
 const AXIS_RATIO = 1.05;
-const AXIS_MIN_PX = 6;
-const EDGE_RESIST = 0.28;
-const ANIM_MS = 320;
+const AXIS_MIN_PX = 5;
+const EDGE_RESIST = 0.22;
+const ANIM_MS = 280;
 const PREFETCH_RATIO = 0.04;
 const BOUNDARY_RATIO = 0.1;
 /** is-turning + touch-action:none 硬超时，防粘死 */
@@ -297,7 +297,7 @@ export function useShelfTurn({
         axis: null,
         prefetched: false,
         source,
-        inVerticalScroll: shelfTurnStartsInVerticalScroll(target ?? null),
+        inVerticalScroll: shelfTurnStartsInVerticalScroll(target ?? null, clientX),
       };
       return true;
     },
@@ -314,7 +314,7 @@ export function useShelfTurn({
       if (!drag.current.axis) {
         const adx = Math.abs(dx);
         const ady = Math.abs(dy);
-        const hRatio = drag.current.inVerticalScroll ? 2 : AXIS_RATIO;
+        const hRatio = drag.current.inVerticalScroll ? 1.12 : AXIS_RATIO;
         if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
         if (adx >= AXIS_MIN_PX && adx > ady * hRatio) {
           drag.current.axis = 'x';
@@ -328,10 +328,10 @@ export function useShelfTurn({
           setDragProgress(0);
           applyOffset(0, false);
           return;
-        } else if (adx >= AXIS_MIN_PX * 1.2 && adx > ady * (drag.current.inVerticalScroll ? 1.35 : 1)) {
+        } else if (adx >= AXIS_MIN_PX && adx > ady * (drag.current.inVerticalScroll ? 1.08 : 0.95)) {
           drag.current.axis = 'x';
           setTurning(true);
-        } else {
+        } else if (ady >= AXIS_MIN_PX && ady > adx * 1.2) {
           drag.current.axis = 'y';
           drag.current.active = false;
           drag.current.pointerId = -1;
@@ -339,6 +339,8 @@ export function useShelfTurn({
           setDragSide(null);
           setDragProgress(0);
           applyOffset(0, false);
+          return;
+        } else {
           return;
         }
       }

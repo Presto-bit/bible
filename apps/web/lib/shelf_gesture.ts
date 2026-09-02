@@ -17,7 +17,14 @@ function isShelfVerticalScrollElement(el: Element | null | undefined): boolean {
   }
 }
 
-export function shelfTurnStartsInVerticalScroll(target: EventTarget | null): boolean {
+export function shelfTurnStartsInVerticalScroll(
+  target: EventTarget | null,
+  clientX?: number,
+): boolean {
+  if (typeof clientX === 'number' && typeof window !== 'undefined') {
+    const edge = 44;
+    if (clientX < edge || clientX > window.innerWidth - edge) return false;
+  }
   if (!(target instanceof Element)) {
     if (target instanceof Node) return isShelfVerticalScrollElement(target.parentElement);
     return false;

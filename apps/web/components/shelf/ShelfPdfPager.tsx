@@ -199,9 +199,9 @@ export default function ShelfPdfPager({
   const scrollSyncRef = useRef(false);
   const pageFromScrollRef = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
+  const suppressTapRef = useRef(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [pageCount, setPageCount] = useState(0);
-  const [layoutTick, setLayoutTick] = useState(0);
   const [containerWidth, setContainerWidth] = useState(() => measurePdfContainerWidth(null, false));
   const [pdfDoc, setPdfDoc] = useState<import('pdfjs-dist').PDFDocumentProxy | null>(null);
 
@@ -249,7 +249,9 @@ export default function ShelfPdfPager({
     const update = () => {
       setContainerWidth((prev) => {
         const next = measurePdfContainerWidth(host, fullscreen);
-        return next > 0 ? next : prev;
+        if (next <= 0) return prev;
+        if (prev > 0 && Math.abs(next - prev) < 8) return prev;
+        return next;
       });
     };
     update();
@@ -258,7 +260,6 @@ export default function ShelfPdfPager({
       if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
       resizeTimerRef.current = setTimeout(() => {
         update();
-        setLayoutTick((n) => n + 1);
       }, RESIZE_DEBOUNCE_MS);
     });
     ro.observe(host);
@@ -292,9 +293,10 @@ export default function ShelfPdfPager({
     requestAnimationFrame(() => {
       scrollSyncRef.current = false;
     });
-  }, [pageIndex, url, pageCount, layoutTick]);
+  }, [pageIndex, url, pageCount]);
 
   const handleScroll = useCallback(() => {
+    suppressTapRef.current = true;
     if (scrollRafRef.current != null) return;
     scrollRafRef.current = window.requestAnimationFrame(() => {
       scrollRafRef.current = null;
@@ -314,6 +316,14 @@ export default function ShelfPdfPager({
     });
   }, [onPageIndexChange]);
 
+  const handleContentClick = useCallback(() => {
+    if (suppressTapRef.current) {
+      suppressTapRef.current = false;
+      return;
+    }
+    onTap?.();
+  }, [onTap]);
+
   useEffect(() => {
     return () => {
       if (scrollRafRef.current != null) window.cancelAnimationFrame(scrollRafRef.current);
@@ -329,7 +339,7 @@ export default function ShelfPdfPager({
   return (
     <div
       className={`shelf-pdf-pager shelf-pdf-pager-scroll${fullscreen ? ' is-fullscreen' : ''}`}
-      onClick={fullscreen ? undefined : onTap}
+      onClick={fullscreen ? undefined : handleContentClick}
     >
       {fullscreen && onExitFullscreen ? (
         <button
@@ -370,11 +380,11 @@ export default function ShelfPdfPager({
           aria-busy={status === 'loading'}
           onScroll={handleScroll}
         >
-          {status === 'ready' && pdf && pageCount > 0 && containerWidth > 0 ? (
+          {status === 'ready' && pdf && pageCount > 0 ? (
             <div className="shelf-pdf-scroll-stack">
               {Array.from({ length: pageCount }, (_, i) => (
                 <div
-                  key={`${url}-${i}-${layoutTick}`}
+                  key={`${url}-${i}`}
                   ref={(el) => {
                     pageRefs.current[i] = el;
                   }}
@@ -391,8 +401,6 @@ export default function ShelfPdfPager({
                 </div>
               ))}
             </div>
-          ) : status === 'ready' && pdf && pageCount > 0 ? (
-            <p className="muted shelf-pdf-status" role="status">正在排版 PDF…</p>
           ) : null}
         </div>
       </div>
