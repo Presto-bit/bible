@@ -186,12 +186,14 @@ import {
   fontFamilyCss,
   getFontFamily,
   getPageTurn,
+  getReaderFontPx,
   getReadingMode,
   getShowParallelDiff,
   getThoughtsOn,
   getUnderlinesOn,
   setFontFamily,
   setPageTurn,
+  setReaderFontPx,
   setReadingMode as persistReadingMode,
   setShowParallelDiff as persistShowParallelDiff,
   setThoughtsOn as persistThoughtsOn,
@@ -229,10 +231,6 @@ const ShareToSocialSheet = dynamic(
 );
 const ReaderAudioButton = dynamic(
   () => import('@/components/reader/ReaderAudioButton').then((m) => m.ReaderAudioButton),
-  { ssr: false },
-);
-const ReaderAudioMiniBar = dynamic(
-  () => import('@/components/reader/ReaderAudioMiniBar').then((m) => m.ReaderAudioMiniBar),
   { ssr: false },
 );
 const ReaderAudioFocus = dynamic(
@@ -659,13 +657,10 @@ export default function ReaderView({
     settingsOpen: audioSettingsOpen,
     setSettingsOpen: setAudioSettingsOpen,
     coachVisible: audioCoachVisible,
-    collapsed: audioCollapsed,
-    setCollapsed: setAudioCollapsed,
     minimized: audioMinimized,
     setMinimized: setAudioMinimized,
     currentSec: audioCurrentSec,
     durationSec: audioDurationSec,
-    currentLabel: audioCurrentLabel,
     formatTime: audioFormatTime,
     togglePlay: audioTogglePlay,
     stop: audioStop,
@@ -686,8 +681,6 @@ export default function ReaderView({
     [audioCurrentVerse, audioState],
   );
   const audioVisible = audioState !== 'off';
-  const audioMiniBarVisible =
-    audioVisible && !audioFocusOpen && !audioSettingsOpen && !audioMinimized;
   const audioOrbVisible =
     audioVisible
     && audioMinimized
@@ -695,8 +688,40 @@ export default function ReaderView({
     && !audioSettingsOpen
     && paneActive
     && readingMode !== 'focus';
-  const audioBottomPad =
-    audioVisible && !audioMinimized && !(audioCollapsed && hasSel);
+
+  const audioMinimizePanel = useCallback(() => {
+    setAudioFocusOpen(false);
+    setAudioMinimized(true);
+  }, [setAudioFocusOpen, setAudioMinimized]);
+
+  const audioRestorePanel = useCallback(() => {
+    setAudioMinimized(false);
+    setAudioFocusOpen(true);
+  }, [setAudioFocusOpen, setAudioMinimized]);
+
+  const handleReaderAudioTap = useCallback(() => {
+    if (audioUnavailable) return;
+    if (audioState === 'off' || audioState === 'error') {
+      setAudioMinimized(false);
+      setAudioFocusOpen(true);
+      void audioTogglePlay();
+      return;
+    }
+    if (audioMinimized || !audioFocusOpen) {
+      audioRestorePanel();
+      return;
+    }
+    void audioTogglePlay();
+  }, [
+    audioFocusOpen,
+    audioMinimized,
+    audioRestorePanel,
+    audioState,
+    audioTogglePlay,
+    audioUnavailable,
+    setAudioFocusOpen,
+    setAudioMinimized,
+  ]);
   const audioNotifyManualScrollRef = useRef(audioNotifyManualScroll);
   const audioPlayingRef = useRef(audioState === 'playing');
   audioNotifyManualScrollRef.current = audioNotifyManualScroll;
@@ -708,9 +733,6 @@ export default function ReaderView({
     }
   }, [paneActive, readerAudio.settings.pauseOnTabLeave, readerAudio.state, audioStop]);
 
-  useEffect(() => {
-    setAudioCollapsed(hasSel);
-  }, [hasSel, setAudioCollapsed]);
   useEffect(() => {
     hasSelRef.current = hasSel;
   }, [hasSel]);
@@ -1230,9 +1252,11 @@ export default function ReaderView({
     } else {
       setVersionLabel(versionDisplayLabel(FALLBACK_PRIMARY_VERSION));
     }
-    const saved = Number(localStorage.getItem('readerFont'));
-    if (saved && FONT_SIZES.some((f) => f.px === saved)) setFontPx(saved);
-    else if (saved === 17) setFontPx(18); // 旧「中」字号迁移
+    const saved = getReaderFontPx();
+    setFontPx(saved);
+    if (typeof window !== 'undefined' && !localStorage.getItem('readerFont')) {
+      setReaderFontPx(saved);
+    }
     setFontFamilyState(getFontFamily());
     setPageTurnState(getPageTurn());
     setUnderlinesOn(getUnderlinesOn());
@@ -3042,7 +3066,7 @@ export default function ReaderView({
 
   return (
     <main
-      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}${audioBottomPad ? ' reader-audio-active' : ''}${audioMinimized ? ' reader-audio-minimized' : ''}${audioFocusOpen ? ' reader-audio-focus-open' : ''}`}
+      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}${audioMinimized ? ' reader-audio-minimized' : ''}${audioFocusOpen ? ' reader-audio-focus-open' : ''}`}
       onClick={(e) => {
         if (focusBarRef.current?.contains(e.target as Node)) return;
         const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
@@ -3155,7 +3179,7 @@ export default function ReaderView({
             <ReaderAudioButton
               state={audioState}
               unavailable={audioUnavailable}
-              onTap={() => void audioTogglePlay()}
+              onTap={handleReaderAudioTap}
               onLongPress={audioOpenSettings}
             />
             {audioCoachVisible ? (
@@ -3265,7 +3289,7 @@ export default function ReaderView({
 
       {paneActive && !chromeHidden && readingMode !== 'focus' ? (
       <div
-        className={`reader-fab-stack${hasSel ? ' is-hidden' : ''}${audioMiniBarVisible ? ' is-audio-playing' : ''}`}
+        className={`reader-fab-stack${hasSel ? ' is-hidden' : ''}${audioOrbVisible ? ' is-audio-playing' : ''}`}
         aria-hidden={hasSel}
       >
         {planMeta && onPlanExit && (
@@ -3284,7 +3308,7 @@ export default function ReaderView({
           currentSec={audioCurrentSec}
           durationSec={audioDurationSec}
           onToggle={() => void audioTogglePlay()}
-          onRestore={() => setAudioMinimized(false)}
+          onRestore={audioRestorePanel}
         />
         <button
           type="button"
@@ -3308,7 +3332,7 @@ export default function ReaderView({
         durationSec={audioDurationSec}
         immersive
         onToggle={() => void audioTogglePlay()}
-        onRestore={() => setAudioMinimized(false)}
+        onRestore={audioRestorePanel}
       />
 
       {hasSel && !overlayOpen && (
@@ -3665,7 +3689,7 @@ export default function ReaderView({
             <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>{ui.fontSize}</p>
             <div className="font-pills">
               {FONT_SIZES.map((f) => (
-                <button key={f.px} type="button" className={`font-pill ${fontPx === f.px ? 'font-pill-active' : ''}`} onClick={() => { setFontPx(f.px); localStorage.setItem('readerFont', String(f.px)); }}>{f.label}</button>
+                <button key={f.px} type="button" className={`font-pill ${fontPx === f.px ? 'font-pill-active' : ''}`} onClick={() => { setFontPx(f.px); setReaderFontPx(f.px); }}>{f.label}</button>
               ))}
             </div>
             <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>字体样式</p>
@@ -3832,24 +3856,6 @@ export default function ReaderView({
         />
       )}
 
-      <ReaderAudioMiniBar
-        visible={audioMiniBarVisible}
-        collapsed={audioCollapsed}
-        state={audioState}
-        title={audioCurrentLabel}
-        currentSec={audioCurrentSec}
-        durationSec={audioDurationSec}
-        formatTime={audioFormatTime}
-        chromeHidden={chromeHidden}
-        onToggle={() => void audioTogglePlay()}
-        onSeek={audioSeekTo}
-        onExpand={() => setAudioFocusOpen(true)}
-        onMinimize={() => setAudioMinimized(true)}
-        onDismiss={audioStop}
-        onOpenSettings={audioOpenSettings}
-        onRetry={() => void audioRetryPlay()}
-      />
-
       <ReaderAudioFocus
         open={audioFocusOpen}
         title={`${book.name} ${chapter}`}
@@ -3861,7 +3867,7 @@ export default function ReaderView({
         verses={verses}
         timestamps={audioTimestamps}
         currentVerse={audioCurrentVerse}
-        onClose={() => setAudioFocusOpen(false)}
+        onMinimize={audioMinimizePanel}
         onToggle={() => void audioTogglePlay()}
         onSeek={(delta) => audioSeekTo(Math.max(0, audioCurrentSec + delta))}
         onSeekToVerse={audioSeekTo}

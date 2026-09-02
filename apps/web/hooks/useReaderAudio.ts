@@ -85,6 +85,17 @@ function waitForAudioReady(el: HTMLAudioElement, timeoutMs: number): Promise<voi
   });
 }
 
+async function tryStartPlayback(el: HTMLAudioElement): Promise<void> {
+  try {
+    await el.play();
+    return;
+  } catch {
+    /* 流未就绪时等待 canplay/loadeddata 后再试 */
+  }
+  await waitForAudioReady(el, 60_000);
+  await el.play();
+}
+
 export function useReaderAudio({
   bookId,
   bookName,
@@ -208,7 +219,6 @@ export function useReaderAudio({
     setState('off');
     setCurrentSec(0);
     setDurationSec(0);
-    setCollapsed(false);
     setMinimized(false);
     setFocusOpen(false);
     prefetchedNextRef.current = null;
@@ -295,23 +305,31 @@ export function useReaderAudio({
         return;
       }
       setState('loading');
+      if (!opts?.auto) {
+        setFocusOpen(true);
+        setMinimized(false);
+      }
       releasePreviousAudio();
       const el = new Audio();
+      el.crossOrigin = 'anonymous';
       primeAudioElement(el);
       audioRef.current = el;
       try {
-        const m = await fetchBibleAudioChapter(targetBook, targetChapter, screenVersion);
+        let m = metaRef.current;
+        if (!m || m.book !== targetBook || m.chapter !== targetChapter) {
+          m = await fetchBibleAudioChapter(targetBook, targetChapter, screenVersion);
+        }
         metaRef.current = m;
         setMeta(m);
         if (!m.available || !m.stream_path) {
           releasePreviousAudio();
           setState('off');
-          if (!opts?.auto) toast('此译本暂无朗读');
+          if (!opts?.auto) {
+            setFocusOpen(false);
+            toast('此译本暂无朗读');
+          }
           return;
         }
-        el.src = bibleAudioStreamUrl(m.stream_path);
-        el.preload = 'auto';
-        el.playbackRate = settings.speed;
         playingBookRef.current = targetBook;
         playingChapterRef.current = targetChapter;
         attachMediaSession(el, m);
@@ -392,12 +410,15 @@ export function useReaderAudio({
         el.addEventListener('error', () => {
           if (audioRef.current !== el) return;
           setState('error');
-          toast('朗读加载失败');
         }, { signal });
 
-        await waitForAudioReady(el, 90_000);
+        el.src = bibleAudioStreamUrl(m.stream_path);
+        el.preload = 'auto';
+        el.playbackRate = settings.speed;
+
         if (audioRef.current !== el) return;
-        await el.play();
+        await tryStartPlayback(el);
+        if (audioRef.current !== el) return;
         setState('playing');
         if (!readerAudioCoachSeen()) {
           setCoachVisible(true);
@@ -450,9 +471,10 @@ export function useReaderAudio({
     if (state === 'error' && el?.src) {
       primeAudioElement(el);
       setState('loading');
+      setFocusOpen(true);
+      setMinimized(false);
       try {
-        await waitForAudioReady(el, 90_000);
-        await el.play();
+        await tryStartPlayback(el);
         setState('playing');
       } catch {
         setState('error');
@@ -460,6 +482,8 @@ export function useReaderAudio({
       }
       return;
     }
+    setFocusOpen(true);
+    setMinimized(false);
     await playChapter(bookId, chapter);
   }, [bookId, chapter, playChapter, state, toast]);
 
@@ -549,9 +573,16 @@ export function useReaderAudio({
   useEffect(() => {
     let cancelled = false;
     void fetchBibleAudioChapter(bookId, chapter, screenVersion).then((m) => {
-      if (!cancelled) setMeta(m);
+      if (!cancelled) {
+        metaRef.current = m;
+        setMeta(m);
+      }
     }).catch(() => {
-      if (!cancelled) setMeta({ available: false, book: bookId, chapter });
+      if (!cancelled) {
+        const fallback = { available: false, book: bookId, chapter };
+        metaRef.current = fallback;
+        setMeta(fallback);
+      }
     });
     return () => {
       cancelled = true;

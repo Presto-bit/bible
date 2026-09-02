@@ -42,12 +42,14 @@ export function ReaderAudioOrb({
 }) {
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggeredRef = useRef(false);
-  const swipeLeftRef = useRef(false);
+  const swipeHandledRef = useRef(false);
+  const restoreFromSwipe = () => {
+    swipeHandledRef.current = true;
+    onRestore();
+  };
   const horizontal = useHorizontalSwipeAction({
-    onSwipeLeft: () => {
-      swipeLeftRef.current = true;
-      onRestore();
-    },
+    onSwipeLeft: restoreFromSwipe,
+    onSwipeRight: restoreFromSwipe,
   });
 
   if (!visible) return null;
@@ -85,7 +87,7 @@ export function ReaderAudioOrb({
       }}
       onTouchStart={(e) => {
         e.stopPropagation();
-        swipeLeftRef.current = false;
+        swipeHandledRef.current = false;
         horizontal.onTouchStart(e);
       }}
       onTouchMove={(e) => {
@@ -100,8 +102,8 @@ export function ReaderAudioOrb({
       onPointerUp={(e) => {
         e.stopPropagation();
         clearLongPress();
-        if (swipeLeftRef.current) {
-          swipeLeftRef.current = false;
+        if (swipeHandledRef.current) {
+          swipeHandledRef.current = false;
           return;
         }
         if (longPressTriggeredRef.current) return;

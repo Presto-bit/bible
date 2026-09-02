@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { AudioTimestampVerse, ReaderAudioState } from '@/lib/reader_audio';
+import { useHorizontalSwipeAction } from '@/lib/use_horizontal_swipe_action';
 import { useSheetOpenGuard } from '@/lib/use_sheet_open_guard';
 import { SHEET_OPEN_GUARD_MS } from '@/lib/reader_gesture';
 import { useVerticalSwipeDismiss } from '@/lib/use_vertical_swipe_dismiss';
@@ -17,7 +18,7 @@ export function ReaderAudioFocus({
   verses,
   timestamps,
   currentVerse,
-  onClose,
+  onMinimize,
   onToggle,
   onSeek,
   onSeekToVerse,
@@ -34,7 +35,7 @@ export function ReaderAudioFocus({
   verses: { verse: number; text: string }[];
   timestamps: AudioTimestampVerse[];
   currentVerse: number | null;
-  onClose: () => void;
+  onMinimize: () => void;
   onToggle: () => void;
   onSeek: (delta: number) => void;
   onSeekToVerse: (sec: number) => void;
@@ -45,10 +46,13 @@ export function ReaderAudioFocus({
   const headerRef = useRef<HTMLDivElement | null>(null);
   const { guardedClose } = useSheetOpenGuard(SHEET_OPEN_GUARD_MS);
   const swipe = useVerticalSwipeDismiss({
-    onDismiss: onClose,
+    onDismiss: onMinimize,
     scrollRef: lyricsRef,
     dismissFromHeaderOnly: true,
     headerRef,
+  });
+  const horizontal = useHorizontalSwipeAction({
+    onSwipeRight: onMinimize,
   });
 
   const playing = state === 'playing';
@@ -56,6 +60,12 @@ export function ReaderAudioFocus({
   const errored = state === 'error';
   const pct = durationSec > 0 ? Math.min(100, (currentSec / durationSec) * 100) : 0;
   const hasLyrics = timestamps.length > 0 && verses.length > 0;
+  const dragX = horizontal.dragX > 0 ? horizontal.dragX : 0;
+  const dragY = swipe.dragOffset > 0 ? swipe.dragOffset : 0;
+  const dragStyle =
+    dragX || dragY
+      ? { transform: `translate(${dragX}px, ${dragY}px)`, transition: 'none' as const }
+      : undefined;
 
   useEffect(() => {
     if (!open || !hasLyrics || !currentVerse) return;
@@ -66,30 +76,38 @@ export function ReaderAudioFocus({
   if (!open) return null;
 
   return (
-    <div className="reader-audio-focus-backdrop" onClick={() => guardedClose(onClose)}>
+    <div className="reader-audio-focus-backdrop" onClick={() => guardedClose(onMinimize)}>
       <div
         className={[
           'reader-audio-focus',
           loading ? 'is-loading' : '',
           errored ? 'is-error' : '',
         ].filter(Boolean).join(' ')}
-        style={
-          swipe.dragOffset > 0
-            ? { transform: `translateY(${swipe.dragOffset}px)`, transition: 'none' }
-            : undefined
-        }
+        style={dragStyle}
         onClick={(e) => e.stopPropagation()}
-        onTouchStart={swipe.onTouchStart}
-        onTouchMove={swipe.onTouchMove}
-        onTouchEnd={swipe.onTouchEnd}
-        onTouchCancel={swipe.onTouchCancel}
+        onTouchStart={(e) => {
+          horizontal.onTouchStart(e);
+          swipe.onTouchStart(e);
+        }}
+        onTouchMove={(e) => {
+          horizontal.onTouchMove(e);
+          swipe.onTouchMove(e);
+        }}
+        onTouchEnd={(e) => {
+          horizontal.onTouchEnd(e);
+          swipe.onTouchEnd(e);
+        }}
+        onTouchCancel={(e) => {
+          horizontal.onTouchCancel(e);
+          swipe.onTouchCancel(e);
+        }}
         role="dialog"
         aria-modal="true"
-        aria-label="专注朗读"
+        aria-label="本章朗读"
       >
         <div className="reader-audio-focus-head" ref={headerRef}>
           <div className="half-sheet-grab" aria-hidden />
-          <button type="button" className="reader-audio-focus-back" onClick={onClose}>
+          <button type="button" className="reader-audio-focus-back" onClick={onMinimize}>
             回到阅读
           </button>
         </div>
