@@ -1,39 +1,47 @@
-/** 书架阅读偏好与 DOCX 可读性适配。 */
+/** 书架阅读偏好：与圣经 Tab 共用字号与字体族。 */
 import { sanitizePreviewHtml } from './sanitize_html';
+import { fontFamilyCss, getFontFamily } from './reader_preferences';
 
-const FONT_KEY = 'shelf_font_px';
-const MIN_PX = 15;
-const MAX_PX = 22;
+const FONT_KEY = 'readerFont';
+export const SHELF_FONT_SIZES = [18, 20, 24] as const;
 const DEFAULT_PX = 18;
 
 export function getShelfFontPx(): number {
   if (typeof window === 'undefined') return DEFAULT_PX;
   const n = Number(localStorage.getItem(FONT_KEY));
-  if (!Number.isFinite(n)) return DEFAULT_PX;
-  return Math.min(MAX_PX, Math.max(MIN_PX, Math.round(n)));
+  if (SHELF_FONT_SIZES.includes(n as (typeof SHELF_FONT_SIZES)[number])) return n;
+  return DEFAULT_PX;
 }
 
 export function setShelfFontPx(px: number) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(FONT_KEY, String(Math.min(MAX_PX, Math.max(MIN_PX, Math.round(px)))));
+  const nearest = SHELF_FONT_SIZES.reduce((a, b) =>
+    Math.abs(b - px) < Math.abs(a - px) ? b : a,
+  );
+  localStorage.setItem(FONT_KEY, String(nearest));
 }
 
 export function bumpShelfFontPx(delta: number): number {
-  const next = getShelfFontPx() + delta;
+  const current = getShelfFontPx();
+  const idx = SHELF_FONT_SIZES.indexOf(current as (typeof SHELF_FONT_SIZES)[number]);
+  const base = idx >= 0 ? idx : 0;
+  const next = SHELF_FONT_SIZES[Math.min(SHELF_FONT_SIZES.length - 1, Math.max(0, base + (delta > 0 ? 1 : -1)))];
   setShelfFontPx(next);
-  return getShelfFontPx();
+  return next;
 }
 
 export const SHELF_FONT_STEPS = [
-  { px: 15, label: '小' },
   { px: 18, label: '中' },
-  { px: 22, label: '大' },
+  { px: 20, label: '大' },
+  { px: 24, label: '特大' },
 ] as const;
 
 export function shelfReadingStyleVars(fontPx: number): Record<string, string> {
+  const family = getFontFamily();
   return {
     ['--shelf-font-size' as string]: `${fontPx}px`,
     ['--shelf-line-height' as string]: fontPx >= 20 ? '1.9' : '1.82',
+    ['--shelf-font-family' as string]: fontFamilyCss(family),
   };
 }
 
@@ -81,11 +89,15 @@ export function adaptShelfDocxHtml(raw: string): string {
     root.querySelectorAll('p').forEach((p) => {
       const text = (p.textContent || '').replace(/\u00a0/g, ' ').trim();
       if (!text && !p.querySelector('img, table')) p.remove();
-      else p.classList.add('shelf-docx-p');
+      else if (!p.classList.length) p.classList.add('shelf-docx-p');
     });
 
     root.querySelectorAll('h1,h2,h3,h4').forEach((h) => {
       if (!h.classList.length) h.classList.add('shelf-docx-h1');
+    });
+
+    root.querySelectorAll('strong, b').forEach((el) => {
+      el.classList.add('shelf-docx-strong');
     });
 
     return root.innerHTML;

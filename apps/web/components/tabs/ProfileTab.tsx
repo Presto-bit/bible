@@ -111,11 +111,10 @@ import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
 import { activePlanTodayHrefSync } from '@/lib/plan_today_href';
 import {
   listPlatformShelf,
-  loadShelfProgress,
-  shelfCoverHue,
+  loadShelfLastRead,
   type ShelfBookSummary,
 } from '@/lib/shelf_api';
-import '@/styles/shelf.css';
+import { peekShelfListCache } from '@/lib/shelf_cache';
 
 const AVATAR_KEY = 'profile_avatar';
 const BIO_KEY = 'profile_bio';
@@ -440,7 +439,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     typeof window !== 'undefined' ? syncStateLabel(getSyncState()) : '已同步到云端',
   );
   const [bookNames, setBookNames] = useState<Record<string, string>>({});
-  const [shelfBooks, setShelfBooks] = useState<ShelfBookSummary[]>([]);
+  const [shelfBooks, setShelfBooks] = useState<ShelfBookSummary[]>(() => peekShelfListCache(true)?.items ?? []);
   const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -1381,28 +1380,35 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           </Link>
         </div>
         {shelfBooks.length > 0 ? (
-          <div className="shelf-profile-preview">
-            {shelfBooks.slice(0, 6).map((book) => {
-              const hue = shelfCoverHue(book.title);
-              const progress = loadShelfProgress(book.id);
-              const href = progress
-                ? `/shelf/${book.id}?section=${encodeURIComponent(progress)}`
-                : `/shelf/${book.id}`;
-              return (
-                <Link
-                  key={book.id}
-                  href={href}
-                  className="shelf-profile-thumb"
-                  title={book.title}
-                  onClick={() => markRouteNavigation()}
-                  style={{
-                    background: `linear-gradient(145deg, hsl(${hue} 42% 38%), hsl(${(hue + 36) % 360} 36% 28%))`,
-                  }}
-                  aria-label={book.title}
-                />
-              );
-            })}
-          </div>
+          (() => {
+            const last = loadShelfLastRead();
+            const href =
+              last?.bookId && last?.sectionId
+                ? `/shelf/${last.bookId}?section=${encodeURIComponent(last.sectionId)}`
+                : '/shelf';
+            return (
+              <Link
+                href={href}
+                className="card profile-shelf-summary"
+                onClick={() => markRouteNavigation()}
+              >
+                <p className="profile-shelf-summary-count">
+                  共 {shelfBooks.length} 本书
+                </p>
+                {last?.bookTitle ? (
+                  <>
+                    <p className="profile-shelf-summary-label">上次阅读</p>
+                    <p className="profile-shelf-summary-title">{last.bookTitle}</p>
+                    {last.sectionTitle ? (
+                      <p className="profile-shelf-summary-section muted">{last.sectionTitle}</p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="profile-shelf-summary-hint muted">打开书架，开始阅读</p>
+                )}
+              </Link>
+            );
+          })()
         ) : (
           <Link
             href="/shelf"

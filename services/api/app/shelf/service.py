@@ -21,6 +21,52 @@ from .file_catalog import (
 from .schema import ensure_shelf_schema
 from .store import read_shelf_bytes, save_shelf_bytes, shelf_file_path
 
+# 书目章节内存索引，避免每次按 id 线性扫描全书 sections
+_sections_by_book: dict[str, dict[str, dict[str, Any]]] = {}
+
+
+def _index_sections(book_id: str, sections: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    cached = _sections_by_book.get(book_id)
+    if cached is not None and len(cached) == len(sections):
+        return cached
+    indexed = {str(s["id"]): s for s in sections if s.get("id")}
+    _sections_by_book[book_id] = indexed
+    return indexed
+
+
+def _load_book_sections(book_id: str) -> dict[str, dict[str, Any]] | None:
+    cached = _sections_by_book.get(book_id)
+    if cached is not None:
+        return cached
+
+    sections: list[dict[str, Any]] | None = None
+    if _db_available():
+        try:
+            pool = get_pool()
+            with pool.connection() as conn:
+                cur = conn.execute(
+                    "SELECT sections_json FROM shelf_platform_book WHERE id = %s AND status = 'published'",
+                    (book_id,),
+                )
+                row = cur.fetchone()
+            if row:
+                sections = row[0] if isinstance(row[0], list) else json.loads(row[0] or "[]")
+        except Exception:
+            sections = None
+    if sections is None:
+        fb = get_file_book(book_id)
+        if not fb:
+            return None
+        sections = fb.get("sections") or []
+    return _index_sections(book_id, sections)
+
+
+def invalidate_shelf_section_cache(book_id: str | None = None) -> None:
+    if book_id:
+        _sections_by_book.pop(book_id, None)
+    else:
+        _sections_by_book.clear()
+
 
 def _db_available() -> bool:
     try:
@@ -204,40 +250,24 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
 
 
 def get_platform_section(book_id: str, section_id: str) -> dict[str, Any]:
-    sections: list[dict[str, Any]] | None = None
-    if _db_available():
-        try:
-            pool = get_pool()
-            with pool.connection() as conn:
-                cur = conn.execute(
-                    "SELECT sections_json FROM shelf_platform_book WHERE id = %s AND status = 'published'",
-                    (book_id,),
-                )
-                row = cur.fetchone()
-            if row:
-                sections = row[0] if isinstance(row[0], list) else json.loads(row[0] or "[]")
-        except Exception:
-            sections = None
-    if sections is None:
-        fb = get_file_book(book_id)
-        if not fb:
-            raise HTTPException(status_code=404, detail="书目不存在")
-        sections = fb.get("sections") or []
-    for s in sections:
-        if s.get("id") == section_id:
-            kind = s.get("kind") or "html"
-            return {
-                "id": s["id"],
-                "title": s.get("title") or "",
-                "zone": s.get("zone"),
-                "level": s.get("level"),
-                "kind": kind,
-                "unit": s.get("unit"),
-                "html": s.get("html") or "",
-                "primary": s.get("primary"),
-                "attachments": s.get("attachments") or [],
-            }
-    raise HTTPException(status_code=404, detail="章节不存在")
+    indexed = _load_book_sections(book_id)
+    if indexed is None:
+        raise HTTPException(status_code=404, detail="书目不存在")
+    s = indexed.get(section_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="章节不存在")
+    kind = s.get("kind") or "html"
+    return {
+        "id": s["id"],
+        "title": s.get("title") or "",
+        "zone": s.get("zone"),
+        "level": s.get("level"),
+        "kind": kind,
+        "unit": s.get("unit"),
+        "html": s.get("html") or "",
+        "primary": s.get("primary"),
+        "attachments": s.get("attachments") or [],
+    }
 
 
 def get_platform_asset_path(book_id: str, storage_key: str):
@@ -378,6 +408,7 @@ def update_platform_book_meta(
     if sort_order is not None:
         book["sort_order"] = int(sort_order)
     save_catalog_document(doc)
+    invalidate_shelf_section_cache(book_id)
     return {"ok": True, "id": book_id, "title": book.get("title"), "group_id": book.get("group_id")}
 
 
@@ -388,6 +419,7 @@ def archive_platform_book(book_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="书目不存在")
     book["status"] = "archived"
     save_catalog_document(doc)
+    invalidate_shelf_section_cache(book_id)
     return {"ok": True, "id": book_id, "status": "archived"}
 
 

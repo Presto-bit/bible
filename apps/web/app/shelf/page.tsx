@@ -9,10 +9,12 @@ import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContex
 import { adminCheck } from '@/lib/admin_rag';
 import { canManageShelf } from '@/lib/shelf_admin';
 import {
+  invalidateShelfListCache,
   listPlatformShelfFull,
   type ShelfBookSummary,
   type ShelfGroup,
 } from '@/lib/shelf_api';
+import { peekShelfListCache } from '@/lib/shelf_cache';
 import '@/styles/shelf.css';
 
 export default function ShelfPage() {
@@ -24,14 +26,16 @@ export default function ShelfPage() {
 function ShelfListInner() {
   useEdgeSwipeBack({ href: '/profile' });
 
-  const [groups, setGroups] = useState<ShelfGroup[]>([]);
-  const [items, setItems] = useState<ShelfBookSummary[]>([]);
+  const cached = peekShelfListCache(true);
+  const [groups, setGroups] = useState<ShelfGroup[]>(() => cached?.groups ?? []);
+  const [items, setItems] = useState<ShelfBookSummary[]>(() => cached?.items ?? []);
   const [err, setErr] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cached);
   const [canManage, setCanManage] = useState(false);
   const [manageBook, setManageBook] = useState<ShelfBookSummary | null>(null);
 
-  const reload = useCallback(() => {
+  const reload = useCallback((force = false) => {
+    if (force) invalidateShelfListCache();
     setLoading(true);
     setErr('');
     return listPlatformShelfFull()
@@ -116,7 +120,7 @@ function ShelfListInner() {
         book={manageBook}
         groups={groups}
         onClose={() => setManageBook(null)}
-        onChanged={() => void reload()}
+        onChanged={() => void reload(true)}
       />
     </main>
   );

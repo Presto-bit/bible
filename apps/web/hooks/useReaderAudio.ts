@@ -36,13 +36,17 @@ function formatTime(sec: number): string {
 const SILENT_WAV =
   'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
 
+let audioGesturePrimed = false;
+
 function primeAudioElement(el: HTMLAudioElement): void {
+  if (audioGesturePrimed && el.src && el.src !== SILENT_WAV) return;
   el.muted = true;
   const unlockSrc = SILENT_WAV;
   el.src = unlockSrc;
   const p = el.play();
   if (!p) {
     el.muted = false;
+    audioGesturePrimed = true;
     return;
   }
   void p.catch(() => {}).then(() => {
@@ -51,6 +55,7 @@ function primeAudioElement(el: HTMLAudioElement): void {
     el.currentTime = 0;
     el.muted = false;
     el.removeAttribute('src');
+    audioGesturePrimed = true;
   });
 }
 
@@ -102,6 +107,8 @@ export function useReaderAudio({
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefetchedNextRef = useRef<string | null>(null);
   const checkpointSaveRef = useRef(0);
+  const uiTickRef = useRef(0);
+  const verseTickRef = useRef(0);
   const playingBookRef = useRef('');
   const playingChapterRef = useRef(0);
 
@@ -290,7 +297,6 @@ export function useReaderAudio({
           if (!opts?.auto) toast('此译本暂无朗读');
           return;
         }
-        await loadTimestamps(m);
         el.src = bibleAudioStreamUrl(m.stream_path);
         el.preload = 'auto';
         el.playbackRate = settings.speed;
@@ -298,6 +304,7 @@ export function useReaderAudio({
         playingChapterRef.current = targetChapter;
         attachMediaSession(el, m);
         applySleepTimer(settings);
+        void loadTimestamps(m);
 
         const maybeRestoreCheckpoint = () => {
           if (opts?.skipCheckpoint || opts?.auto) return;
@@ -314,11 +321,17 @@ export function useReaderAudio({
 
         el.addEventListener('timeupdate', () => {
           const t = el.currentTime;
-          setCurrentSec(t);
-          if (Number.isFinite(el.duration)) setDurationSec(el.duration);
-          updateVerseFromTime(t);
-          if (el.duration > 0 && t / el.duration > 0.7) prefetchNextChapter(m);
           const now = Date.now();
+          if (now - uiTickRef.current > 250) {
+            uiTickRef.current = now;
+            setCurrentSec(t);
+            if (Number.isFinite(el.duration)) setDurationSec(el.duration);
+          }
+          if (now - verseTickRef.current > 500) {
+            verseTickRef.current = now;
+            updateVerseFromTime(t);
+          }
+          if (el.duration > 0 && t / el.duration > 0.7) prefetchNextChapter(m);
           if (now - checkpointSaveRef.current > 5000) {
             checkpointSaveRef.current = now;
             persistCheckpoint(targetBook, targetChapter, t, el.duration);
@@ -406,12 +419,12 @@ export function useReaderAudio({
     }
     if (state === 'paused' && el) {
       hapticLight();
-      primeAudioElement(el);
+      if (!audioGesturePrimed) primeAudioElement(el);
       await el.play();
       return;
     }
     if (state === 'error' && el?.src) {
-      primeAudioElement(el);
+      if (!audioGesturePrimed) primeAudioElement(el);
       setState('loading');
       try {
         await waitForAudioReady(el, 90_000);
@@ -423,7 +436,6 @@ export function useReaderAudio({
       }
       return;
     }
-    primeAudioElement(new Audio());
     await playChapter(bookId, chapter);
   }, [bookId, chapter, playChapter, state, toast]);
 

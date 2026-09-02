@@ -14,6 +14,15 @@ UPLOADS = ROOT / "data" / "shelf_uploads"
 CATALOG = ROOT / "data" / "shelf" / "platform_catalog.json"
 BOOK_ID = "00000000-0000-4000-8000-000000000002"
 
+UNIT_DISPLAY = {
+    "第一单元": "第一单元 · 创造与天地万物",
+    "第二单元": "第二单元 · 奇妙的身体与家",
+    "第三单元": "第三单元 · 耶稣的神迹与呼召",
+    "第四单元": "第四单元 · 品格故事与服事",
+    "第五单元": "第五单元 · 信心、勇气与守信",
+    "第六单元": "第六单元 · 好牧人与小羊群",
+}
+
 DEFAULT_SRC = Path.home() / "Desktop" / "第一二季度教案"
 
 # (relative path, storage_key, display title, unit or None, zone)
@@ -23,17 +32,17 @@ ENTRIES: list[tuple[str, str, str, str | None, str]] = [
     ("第一单元第一周奇妙的光与暗.pdf", "cur-u1-w1.pdf", "第一周 · 奇妙的光与暗", "第一单元", "body"),
     ("第一单元第二周教案蓝蓝的天空与大海.pdf", "cur-u1-w2.pdf", "第二周 · 蓝蓝的天空与大海", "第一单元", "body"),
     ("第一单元第三周教案活泼的生命.pdf", "cur-u1-w3.pdf", "第三周 · 活泼的生命", "第一单元", "body"),
-    ("第一单元第四周.pdf", "cur-u1-w4.pdf", "第四周", "第一单元", "body"),
+    ("第一单元第四周.pdf", "cur-u1-w4.pdf", "第四周 · 本单元回顾", "第一单元", "body"),
     ("第二单元简要大纲.pdf", "cur-u2-outline.pdf", "单元概要", "第二单元", "body"),
     ("第二单元第一周教案.pdf", "cur-u2-w1.pdf", "第一周 · 奇妙的身体", "第二单元", "body"),
     ("第二单元第二周-独一无二的我.pdf", "cur-u2-w2.pdf", "第二周 · 独一无二的我", "第二单元", "body"),
     ("第二单元第三周——温暖的家（爱的礼物）.pdf", "cur-u2-w3.pdf", "第三周 · 温暖的家", "第二单元", "body"),
     ("第三单元简要大纲.pdf", "cur-u3-outline.pdf", "单元概要", "第三单元", "body"),
-    ("第三单元第一周教案.docx", "cur-u3-w1.docx", "第一周", "第三单元", "body"),
-    ("第三单元第二课.pdf", "cur-u3-w2.pdf", "第二课", "第三单元", "body"),
-    ("第三单元第四周教案 (1).docx", "cur-u3-w4.docx", "第四周", "第三单元", "body"),
-    ("第四单元第一期.pdf", "cur-u4-p1.pdf", "第一期", "第四单元", "body"),
-    ("第四单元第二期.pdf", "cur-u4-p2.pdf", "第二期", "第四单元", "body"),
+    ("第三单元第一周教案.docx", "cur-u3-w1.docx", "第一周 · 教案", "第三单元", "body"),
+    ("第三单元第二课.pdf", "cur-u3-w2.pdf", "第二课 · 教案", "第三单元", "body"),
+    ("第三单元第四周教案 (1).docx", "cur-u3-w4.docx", "第四周 · 教案", "第三单元", "body"),
+    ("第四单元第一期.pdf", "cur-u4-p1.pdf", "第一期 · 教案", "第四单元", "body"),
+    ("第四单元第二期.pdf", "cur-u4-p2.pdf", "第二期 · 教案", "第四单元", "body"),
     (
         "第四单元第3期：树上的矮个子__品格：接纳不完美的人.pdf",
         "cur-u4-p3.pdf",
@@ -52,8 +61,8 @@ ENTRIES: list[tuple[str, str, str, str | None, str]] = [
     ("第五单元第二周：黑暗中的光芒.pdf", "cur-u5-w2.pdf", "第二周 · 黑暗中的光芒", "第五单元", "body"),
     ("第五单元第三周教案-守信的牧羊人.pdf", "cur-u5-w3.pdf", "第三周 · 守信的牧羊人", "第五单元", "body"),
     ("第五单元第四周教案：勇敢前行的脚步.pdf", "cur-u5-w4.pdf", "第四周 · 勇敢前行的脚步", "第五单元", "body"),
-    ("第六单元第一期.pdf", "cur-u6-p1.pdf", "第一期", "第六单元", "body"),
-    ("第六单元第二期.docx", "cur-u6-p2.docx", "第二期", "第六单元", "body"),
+    ("第六单元第一期.pdf", "cur-u6-p1.pdf", "第一期 · 教案", "第六单元", "body"),
+    ("第六单元第二期.docx", "cur-u6-p2.docx", "第二期 · 教案", "第六单元", "body"),
     ("第六单元第4期 ：大牧长的小羊群.pdf", "cur-u6-p4.pdf", "第四期 · 大牧长的小羊群", "第六单元", "body"),
     ("打印剪裁人物形象.docx", "cur-appendix-cutout.docx", "打印剪裁人物形象", None, "appendix"),
 ]
@@ -123,7 +132,7 @@ def main() -> None:
         toc_body.append(
             {
                 "id": f"unit-{unit}",
-                "title": unit,
+                "title": UNIT_DISPLAY.get(unit, unit),
                 "level": 1,
                 "zone": "body",
                 "source": "unit",

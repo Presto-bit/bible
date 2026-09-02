@@ -165,16 +165,45 @@
   scrollbar-width: none;
 }
 
-.shelf-profile-preview::-webkit-scrollbar {
-  display: none;
+.profile-shelf-summary {
+  display: block;
+  margin-top: 10px;
+  padding: 14px 16px;
+  text-decoration: none;
+  color: inherit;
 }
 
-.shelf-profile-thumb {
-  flex: 0 0 72px;
-  width: 72px;
-  aspect-ratio: 3 / 4.2;
-  border-radius: 6px;
-  box-shadow: var(--elev-1);
+.profile-shelf-summary-count {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.profile-shelf-summary-label {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.profile-shelf-summary-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.profile-shelf-summary-section {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.profile-shelf-summary-hint {
+  margin: 0;
+  font-size: 13px;
 }
 
 .profile-shelf-block {
@@ -208,14 +237,16 @@
 }
 
 .shelf-reader {
+  height: 100dvh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--paper, #f7f3ec);
   --shelf-font-size: 18px;
   --shelf-line-height: 1.82;
   --shelf-text-width: min(100%, 42rem);
-  font-family: var(--font-reader, Georgia, 'Songti SC', 'STSong', serif);
+  font-family: var(--shelf-font-family, var(--font-reader, Georgia, 'Songti SC', 'STSong', serif));
 }
 
 .shelf-reader-title-wrap {
@@ -272,6 +303,8 @@
   border-bottom: 1px solid var(--line, rgba(0, 0, 0, 0.06));
   background: color-mix(in srgb, var(--paper, #f7f3ec) 92%, transparent);
   backdrop-filter: blur(12px);
+  flex-shrink: 0;
+  z-index: 2;
 }
 
 .shelf-reader-top h1 {
@@ -286,12 +319,65 @@
 
 .shelf-reader-body {
   flex: 1;
+  min-height: 0;
   overflow: auto;
-  padding: 20px 18px 88px;
+  padding: 20px 18px calc(var(--safe-bottom, 0px) + 72px);
   font-size: var(--shelf-font-size, 17px);
   line-height: var(--shelf-line-height, 1.85);
   color: var(--ink, #2c2825);
   -webkit-font-smoothing: antialiased;
+}
+
+.shelf-turn-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: none;
+}
+
+.shelf-turn-viewport.is-turning {
+  touch-action: none;
+}
+
+.shelf-turn-track {
+  display: flex;
+  width: 300%;
+  height: 100%;
+  will-change: transform;
+  transform: translateX(-33.3333%);
+}
+
+.shelf-turn-panel {
+  flex: 0 0 33.3333%;
+  width: 33.3333%;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.shelf-turn-panel-active {
+  overflow: hidden;
+}
+
+.shelf-turn-panel-peek {
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.92;
+}
+
+.shelf-section-loading {
+  padding: 24px 18px;
+  text-align: center;
+}
+
+.shelf-turn-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 18px calc(var(--safe-bottom, 0px) + 72px);
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
 }
 
 .shelf-prose,
@@ -302,36 +388,53 @@
 }
 
 .shelf-reader-body .shelf-title {
-  font-size: 22px;
-  margin: 0 0 12px;
+  font-size: calc(var(--shelf-font-size, 18px) * 1.28);
+  margin: 0 0 0.65em;
   line-height: 1.35;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .shelf-reader-body .shelf-subtitle {
+  font-size: calc(var(--shelf-font-size, 18px) * 0.94);
   color: var(--ink-soft);
-  margin: 0 0 20px;
+  margin: 0 0 1.25em;
+  line-height: 1.55;
+  font-weight: 400;
 }
 
 .shelf-reader-body .shelf-h1 {
-  font-size: 19px;
-  margin: 28px 0 12px;
+  font-size: calc(var(--shelf-font-size, 18px) * 1.12);
+  margin: 1.6em 0 0.65em;
   font-weight: 700;
+  line-height: 1.4;
 }
 
 .shelf-reader-body .shelf-h2 {
-  font-size: 17px;
-  margin: 20px 0 8px;
+  font-size: calc(var(--shelf-font-size, 18px) * 1.05);
+  margin: 1.35em 0 0.5em;
   font-weight: 600;
+  line-height: 1.45;
 }
 
 .shelf-reader-body .shelf-dialogue {
-  margin: 0 0 14px;
+  margin: 0 0 0.85em;
   text-indent: 0;
+  font-weight: 500;
 }
 
 .shelf-reader-body .shelf-body {
-  margin: 0 0 14px;
+  margin: 0 0 0.85em;
   text-indent: 2em;
+  font-weight: 400;
+  text-align: justify;
+  text-wrap: pretty;
+}
+
+.shelf-prose strong,
+.shelf-prose b,
+.shelf-docx-strong {
+  font-weight: 650;
 }
 
 .shelf-reader-nav {
@@ -339,12 +442,14 @@
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 3;
   display: flex;
   gap: 8px;
   padding: 10px 12px calc(var(--safe-bottom, 0px) + 10px);
   background: color-mix(in srgb, var(--paper, #f7f3ec) 94%, transparent);
   border-top: 1px solid var(--line, rgba(0, 0, 0, 0.06));
   backdrop-filter: blur(12px);
+  transition: opacity 0.2s ease;
 }
 
 .shelf-reader-nav button {
@@ -362,7 +467,7 @@
   z-index: 120;
   background: rgba(0, 0, 0, 0.35);
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .shelf-toc-panel {
@@ -372,6 +477,16 @@
   box-shadow: var(--elev-3);
   display: flex;
   flex-direction: column;
+  animation: shelf-toc-slide-in 0.28s ease-out;
+}
+
+@keyframes shelf-toc-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .shelf-toc-head {
@@ -442,8 +557,14 @@
   pointer-events: none;
 }
 
-.shelf-reader-hidden .shelf-reader-body {
-  padding-bottom: 20px;
+.shelf-reader-hidden .shelf-turn-scroll {
+  padding-bottom: calc(var(--safe-bottom, 0px) + 20px);
+}
+
+.shelf-reader-body-pick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .shelf-reader-lesson .shelf-reader-body-lesson {
@@ -528,13 +649,26 @@
   padding: 0 10px;
 }
 
-.shelf-pdf-page-canvas {
+.shelf-pdf-page-placeholder {
+  min-height: min(72vh, 640px);
   width: 100%;
+  max-width: min(100%, 520px);
+  border-radius: 4px;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.03) 0%,
+    rgba(0, 0, 0, 0.06) 100%
+  );
+}
+
+.shelf-pdf-page-canvas {
+  max-width: 100%;
   height: auto;
   display: block;
   border-radius: 4px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   background: #fff;
+  image-rendering: auto;
 }
 
 .shelf-pdf-page-num {
@@ -776,6 +910,8 @@
   font-size: 14px;
   font-weight: 700;
   color: var(--ink);
+  line-height: 1.45;
+  white-space: normal;
   position: sticky;
   top: 0;
   background: color-mix(in srgb, var(--surface, #fff) 96%, transparent);

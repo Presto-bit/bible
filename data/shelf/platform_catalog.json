@@ -1585,7 +1585,7 @@
           },
           {
             "id": "toc-sec-cur-u1-w4",
-            "title": "第四周",
+            "title": "第四周 · 本单元回顾",
             "level": 2,
             "zone": "body",
             "source": "lesson",
@@ -1649,7 +1649,7 @@
           },
           {
             "id": "toc-sec-cur-u3-w1",
-            "title": "第一周",
+            "title": "第一周 · 教案",
             "level": 2,
             "zone": "body",
             "source": "lesson",
@@ -1657,7 +1657,7 @@
           },
           {
             "id": "toc-sec-cur-u3-w2",
-            "title": "第二课",
+            "title": "第二课 · 教案",
             "level": 2,
             "zone": "body",
             "source": "lesson",
@@ -1673,7 +1673,7 @@
           },
           {
             "id": "toc-sec-cur-u3-w4",
-            "title": "第四周",
+            "title": "第四周 · 教案",
             "level": 2,
             "zone": "body",
             "source": "lesson",
@@ -1790,14 +1790,6 @@
             "zone": "body",
             "source": "lesson",
             "section_id": "sec-cur-u6-p4"
-          },
-          {
-            "id": "unit-第三单元",
-            "title": "第三单元",
-            "level": 1,
-            "zone": "body",
-            "source": "unit",
-            "section_id": null
           }
         ],
         "appendix": [

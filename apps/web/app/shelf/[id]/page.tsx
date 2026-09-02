@@ -1,9 +1,18 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { Suspense, use } from 'react';
 import { useSearchParams } from 'next/navigation';
-import ShelfReader from '@/components/shelf/ShelfReader';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
+
+const ShelfReader = dynamic(() => import('@/components/shelf/ShelfReader'), {
+  ssr: false,
+  loading: () => (
+    <main className="shelf-reader">
+      <p className="muted" style={{ padding: 24 }}>加载阅读器…</p>
+    </main>
+  ),
+});
 
 export default function ShelfBookPage({ params }: { params: Promise<{ id: string }> }) {
   const suppress = useSuppressKeepAliveRoute();
