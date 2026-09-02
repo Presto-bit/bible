@@ -17,7 +17,6 @@ type Props = {
   section: ShelfSection;
   pageIndex: number;
   contentKey: string;
-  annotationRevision?: number;
   onPageCount?: (count: number) => void;
   onTap?: () => void;
   pdfFullscreen?: boolean;
@@ -30,7 +29,6 @@ export default function ShelfLessonPanel({
   section,
   pageIndex,
   contentKey,
-  annotationRevision = 0,
   onPageCount,
   onTap,
   pdfFullscreen = false,
@@ -50,7 +48,6 @@ export default function ShelfLessonPanel({
         section={section}
         pageIndex={pageIndex}
         contentKey={contentKey}
-        annotationRevision={annotationRevision}
         onPageCount={onPageCount}
         onTap={onTap}
         pdfFullscreen={pdfFullscreen}
@@ -98,7 +95,6 @@ function ShelfPrimaryView({
   section,
   pageIndex,
   contentKey,
-  annotationRevision = 0,
   onPageCount,
   onTap,
   pdfFullscreen,
@@ -108,7 +104,6 @@ function ShelfPrimaryView({
   section: ShelfSection;
   pageIndex: number;
   contentKey: string;
-  annotationRevision?: number;
   onPageCount?: (count: number) => void;
   onTap?: () => void;
   pdfFullscreen?: boolean;
@@ -144,13 +139,10 @@ function ShelfPrimaryView({
   if (isDocx) {
     return (
       <ShelfDocxPaginated
-        bookId={bookId}
         url={url}
         title={section.title}
-        sectionId={section.id}
         pageIndex={pageIndex}
         contentKey={contentKey}
-        annotationRevision={annotationRevision}
         onPageCount={onPageCount}
         onTap={onTap}
       />
@@ -167,23 +159,17 @@ function ShelfPrimaryView({
 }
 
 function ShelfDocxPaginated({
-  bookId,
   url,
   title,
-  sectionId,
   pageIndex,
   contentKey,
-  annotationRevision = 0,
   onPageCount,
   onTap,
 }: {
-  bookId: string;
   url: string;
   title: string;
-  sectionId: string;
   pageIndex: number;
   contentKey: string;
-  annotationRevision?: number;
   onPageCount?: (count: number) => void;
   onTap?: () => void;
 }) {
@@ -226,9 +212,6 @@ function ShelfDocxPaginated({
       html={html}
       contentKey={`${contentKey}:${title}`}
       pageIndex={pageIndex}
-      bookId={bookId}
-      sectionId={sectionId}
-      annotationRevision={annotationRevision}
       variant="docx"
       onPageCount={onPageCount}
       onTap={onTap}

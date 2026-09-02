@@ -163,11 +163,10 @@ bool isDiscoverChatPath(String path) {
   return p.startsWith('/discover/dm/') || p.startsWith('/discover/group/');
 }
 
-/// 发现 Tab 内嵌 H5 需沉浸全屏的路径（IM + 书架阅读，对齐 iOS PWA）。
+/// 发现 Tab 内嵌 H5 需沉浸全屏的路径（IM，对齐 iOS PWA）。
 bool isDiscoverImmersiveH5Path(String path) {
   final p = path.split('?').first;
   if (isDiscoverChatPath(p)) return true;
-  if (p == '/shelf' || p.startsWith('/shelf/')) return true;
   return false;
 }
 

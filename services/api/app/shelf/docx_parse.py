@@ -92,6 +92,16 @@ def _match_toc_to_section(toc_title: str, section_title: str) -> bool:
     return False
 
 
+def docx_bytes_to_prose_html(data: bytes) -> str:
+    """单份 DOCX → 书架阅读 HTML（教案 primary 等）。"""
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        doc = z.read("word/document.xml")
+    paras = _iter_paragraphs(doc)
+    if not paras:
+        return '<p class="shelf-body muted">（空文档）</p>'
+    return "\n".join(_para_html(p) for p in paras)
+
+
 def parse_docx_bytes(data: bytes) -> dict[str, Any]:
     with zipfile.ZipFile(io.BytesIO(data)) as zf:
         doc_xml = zf.read("word/document.xml")

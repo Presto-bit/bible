@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from ..db import get_pool
 from .assets import book_asset_keys
-from .docx_parse import file_sha256, parse_docx_bytes
+from .docx_parse import docx_bytes_to_prose_html, file_sha256, parse_docx_bytes
 from .file_catalog import (
     DEFAULT_GROUPS,
     get_file_book,
@@ -278,6 +278,17 @@ def get_platform_section(book_id: str, section_id: str) -> dict[str, Any]:
     if not s:
         raise HTTPException(status_code=404, detail="章节不存在")
     kind = s.get("kind") or "html"
+    html = s.get("html") or ""
+    primary = s.get("primary")
+    if not (html or "").strip() and primary:
+        sk = str(primary.get("storage_key") or "")
+        mime = str(primary.get("mime") or "")
+        if "wordprocessingml" in mime or sk.lower().endswith(".docx"):
+            try:
+                path = get_platform_asset_path(book_id, sk.split("/")[-1])
+                html = docx_bytes_to_prose_html(path.read_bytes())
+            except Exception:
+                html = html or ""
     return {
         "id": s["id"],
         "title": s.get("title") or "",
@@ -285,8 +296,8 @@ def get_platform_section(book_id: str, section_id: str) -> dict[str, Any]:
         "level": s.get("level"),
         "kind": kind,
         "unit": s.get("unit"),
-        "html": s.get("html") or "",
-        "primary": s.get("primary"),
+        "html": html,
+        "primary": primary,
         "attachments": s.get("attachments") or [],
     }
 

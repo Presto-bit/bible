@@ -21,6 +21,7 @@ type Props = {
   bookTitle: string;
   sectionId: string;
   sectionTitle: string;
+  pageIndex?: number;
   presetGroupId?: string | null;
   onClose: () => void;
   onDone?: () => void;
@@ -31,6 +32,7 @@ export default function ShelfCheckinSheet({
   bookTitle,
   sectionId,
   sectionTitle,
+  pageIndex = 0,
   presetGroupId,
   onClose,
   onDone,
@@ -43,7 +45,7 @@ export default function ShelfCheckinSheet({
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
 
-  const checkinRef = () => buildShelfCheckinRef(bookId, sectionId);
+  const checkinRef = () => buildShelfCheckinRef(bookId, sectionId, pageIndex);
 
   const checkinLabel = () => {
     const ref = checkinRef();

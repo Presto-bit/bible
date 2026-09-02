@@ -50,6 +50,8 @@ dependencies:
   flutter_svg: ^2.0.10+1
   speech_to_text: ^7.0.0
   archive: ^4.0.7
+  flutter_html: ^3.0.0
+  pdfx: ^2.9.2
   webview_flutter: ^4.13.0
   webview_flutter_android: ^4.10.0
   app_links: ^6.4.0

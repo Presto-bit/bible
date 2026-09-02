@@ -26,6 +26,8 @@ import '../features/knowledge/knowledge_explore.dart';
 import '../features/assistant/knowledge_bases_screen.dart';
 import '../features/bible/reading_report_screen.dart';
 import '../features/bible/wrapped_screen.dart';
+import '../features/shelf/shelf_reader_screen.dart';
+import '../features/shelf/shelf_screen.dart';
 import 'app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -195,6 +197,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             initialPeriod: period == 'year' ? 'year' : 'month',
           );
         },
+      ),
+      GoRoute(
+        path: '/shelf',
+        builder: (context, state) => const ShelfScreen(),
+      ),
+      GoRoute(
+        path: '/shelf/:id',
+        builder: (context, state) => ShelfReaderScreen(
+          bookId: state.pathParameters['id']!,
+          sectionId: state.uri.queryParameters['section'],
+          pageIndex: int.tryParse(state.uri.queryParameters['page'] ?? ''),
+          groupId: state.uri.queryParameters['group'],
+        ),
       ),
       GoRoute(
         path: '/profile/appearance',

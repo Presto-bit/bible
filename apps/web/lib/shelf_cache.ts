@@ -4,6 +4,8 @@ import type { ShelfBookDetail, ShelfGroup, ShelfBookSummary, ShelfSection } from
 import { getJson } from './api_core';
 
 const LIST_KEY = 'shelf_platform_list_v2';
+const SECTION_PREFIX = 'shelf_section_v1:';
+const SECTION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const LIST_TTL_MS = 30 * 60 * 1000;
 
 type ListPayload = { groups: ShelfGroup[]; items: ShelfBookSummary[]; savedAt: number };
@@ -48,8 +50,35 @@ export function peekShelfListCache(allowStale = true): ListPayload | null {
   return null;
 }
 
+function readSectionStorage(key: string): ShelfSection | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`${SECTION_PREFIX}${key}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { savedAt: number; section: ShelfSection };
+    if (!parsed?.section?.id) return null;
+    if (Date.now() - (parsed.savedAt || 0) > SECTION_TTL_MS) return null;
+    return parsed.section;
+  } catch {
+    return null;
+  }
+}
+
+function writeSectionStorage(key: string, section: ShelfSection) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(
+      `${SECTION_PREFIX}${key}`,
+      JSON.stringify({ savedAt: Date.now(), section }),
+    );
+  } catch {
+    /* ignore quota */
+  }
+}
+
 export function peekShelfSectionCache(bookId: string, sectionId: string): ShelfSection | null {
-  return sectionMem.get(sectionKey(bookId, sectionId)) ?? null;
+  const key = sectionKey(bookId, sectionId);
+  return sectionMem.get(key) ?? readSectionStorage(key);
 }
 
 export async function fetchShelfList(force = false): Promise<ListPayload> {
@@ -113,10 +142,16 @@ export async function fetchShelfSection(
     const inflight = sectionInflight.get(key);
     if (inflight) return inflight;
   }
+  const stored = readSectionStorage(key);
+  if (stored && !force) {
+    sectionMem.set(key, stored);
+    return Promise.resolve(stored);
+  }
   const p = getJson<ShelfSection>(
     `/shelf/platform/${encodeURIComponent(bookId)}/sections/${encodeURIComponent(sectionId)}`,
   ).then((section) => {
     sectionMem.set(key, section);
+    writeSectionStorage(key, section);
     return section;
   }).finally(() => {
     sectionInflight.delete(key);

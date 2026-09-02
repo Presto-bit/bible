@@ -715,7 +715,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         p == '/knowledge-bases' ||
         p.startsWith('/knowledge-bases/') ||
         p == '/wrapped' ||
-        p.startsWith('/wrapped/');
+        p.startsWith('/wrapped/') ||
+        p == '/shelf' ||
+        p.startsWith('/shelf/');
   }
 
   /// Next.js SPA 内链（pushState）不会触发 [onNavigationRequest]，在此补拦截。
@@ -798,6 +800,12 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
           path: '/wrapped',
           queryParameters: qp.isEmpty ? null : qp,
         ).toString(),
+      );
+      return;
+    }
+    if (p == '/shelf' || p.startsWith('/shelf/')) {
+      context.push(
+        Uri(path: p, queryParameters: qp.isEmpty ? null : qp).toString(),
       );
     }
   }

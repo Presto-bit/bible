@@ -45,6 +45,7 @@ export function useShelfTurn({
   canPrev,
   canNext,
   blocked,
+  snapOnly = true,
   resolveTurn,
   onSectionChange,
   onPageChange,
@@ -55,6 +56,8 @@ export function useShelfTurn({
   canPrev: boolean;
   canNext: boolean;
   blocked: boolean;
+  /** 为 true 时横滑不跟手拖动页面，仅在阈值提交时翻页 */
+  snapOnly?: boolean;
   resolveTurn: (delta: 1 | -1) => ShelfTurnKind;
   onSectionChange: (delta: number, meta?: { fromSwipe?: boolean }) => void | Promise<void>;
   onPageChange?: (delta: 1 | -1) => void | Promise<void>;
@@ -270,13 +273,18 @@ export function useShelfTurn({
       return;
     }
 
-    setAnimating(true);
     clearDragHint();
+    if (snapOnly) {
+      applyOffset(0, false);
+      return;
+    }
+
+    setAnimating(true);
     applyOffset(0, true);
     await sleep(ANIM_MS);
     applyOffset(0, false);
     setAnimating(false);
-  }, [enabled, canPrev, canNext, resolveTurn, onSectionChange, onPageChange, onBoundary, applyOffset]);
+  }, [enabled, canPrev, canNext, resolveTurn, onSectionChange, onPageChange, onBoundary, applyOffset, snapOnly]);
 
   const beginDrag = useCallback(
     (clientX: number, clientY: number, pointerId: number, source: 'pointer' | 'touch') => {
@@ -340,8 +348,11 @@ export function useShelfTurn({
       preventDefault?.();
 
       const next = clampOffset(dx);
-      applyOffset(next, false);
-      updateDragHint(next);
+      offsetRef.current = next;
+      if (!snapOnly) {
+        applyOffset(next, false);
+        updateDragHint(next);
+      }
 
       const w = viewportRef.current?.clientWidth ?? window.innerWidth;
       const ratio = Math.abs(next) / w;
@@ -350,7 +361,7 @@ export function useShelfTurn({
         onDragApproach(next < 0 ? 1 : -1);
       }
     },
-    [enabled, isIgnored, clampOffset, applyOffset, updateDragHint, onDragApproach],
+    [enabled, isIgnored, clampOffset, applyOffset, updateDragHint, onDragApproach, snapOnly],
   );
 
   // window 级 pointer 跟踪：与 Chrome 已安装 PWA 一致，不依赖元素上的 capture

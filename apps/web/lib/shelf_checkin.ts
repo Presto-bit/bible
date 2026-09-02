@@ -35,22 +35,36 @@ function writeLabelStore(store: LabelStore) {
   }
 }
 
-export function buildShelfCheckinRef(bookId: string, sectionId: string): string {
-  return `SHELF.${bookId}.${sectionId}`;
+export function buildShelfCheckinRef(
+  bookId: string,
+  sectionId: string,
+  pageIndex?: number,
+): string {
+  const base = `SHELF.${bookId}.${sectionId}`;
+  if (typeof pageIndex === 'number' && pageIndex > 0) return `${base}.p${pageIndex}`;
+  return base;
 }
 
-/** bookId 可含 UUID 连字符；sectionId 为最后一段。 */
-export function parseShelfRef(ref: string | null | undefined): { bookId: string; sectionId: string } | null {
+/** bookId 可含 UUID 连字符；sectionId 为最后一段；可选 `.p{n}` 页码后缀。 */
+export function parseShelfRef(
+  ref: string | null | undefined,
+): { bookId: string; sectionId: string; pageIndex?: number } | null {
   if (!ref) return null;
   const trimmed = ref.trim();
   if (!trimmed.startsWith('SHELF.')) return null;
-  const rest = trimmed.slice(6);
+  let rest = trimmed.slice(6);
+  let pageIndex: number | undefined;
+  const pageMatch = rest.match(/\.p(\d+)$/);
+  if (pageMatch) {
+    pageIndex = Number(pageMatch[1]);
+    rest = rest.slice(0, -pageMatch[0].length);
+  }
   const dot = rest.lastIndexOf('.');
   if (dot <= 0) return null;
   const bookId = rest.slice(0, dot);
   const sectionId = rest.slice(dot + 1);
   if (!bookId || !sectionId) return null;
-  return { bookId, sectionId };
+  return { bookId, sectionId, pageIndex };
 }
 
 export function isShelfRef(ref: string | null | undefined): boolean {
@@ -82,11 +96,13 @@ export function formatShelfCheckinLabel(
 
 export function shelfHrefFromRef(
   ref: string,
-  opts?: { group?: string; task?: string },
+  opts?: { group?: string; task?: string; pageIndex?: number },
 ): string | null {
   const parsed = parseShelfRef(ref);
   if (!parsed) return null;
   const params = new URLSearchParams({ section: parsed.sectionId });
+  const page = opts?.pageIndex ?? parsed.pageIndex;
+  if (typeof page === 'number' && page > 0) params.set('page', String(page));
   if (opts?.group) params.set('group', opts.group);
   if (opts?.task) params.set('task', opts.task);
   return `/shelf/${encodeURIComponent(parsed.bookId)}?${params.toString()}`;

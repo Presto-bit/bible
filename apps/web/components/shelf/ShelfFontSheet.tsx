@@ -3,9 +3,13 @@
 import { SheetCloseButton } from '@/components/PageBackBar';
 import {
   SHELF_FONT_STEPS,
+  SHELF_FONT_FAMILIES,
   SHELF_LINE_HEIGHT_STEPS,
+  getShelfFontFamily,
+  setShelfFontFamily,
   setShelfFontPx,
   setShelfLineHeight,
+  type ShelfFontFamily,
 } from '@/lib/shelf_reading';
 
 type Props = {
@@ -15,6 +19,7 @@ type Props = {
   onClose: () => void;
   onFontChange: (px: number) => void;
   onLineHeightChange: (value: number) => void;
+  onFontFamilyChange?: (family: ShelfFontFamily) => void;
 };
 
 export default function ShelfFontSheet({
@@ -24,8 +29,10 @@ export default function ShelfFontSheet({
   onClose,
   onFontChange,
   onLineHeightChange,
+  onFontFamilyChange,
 }: Props) {
   if (!open) return null;
+  const fontFamily = getShelfFontFamily();
 
   return (
     <div
@@ -54,6 +61,22 @@ export default function ShelfFontSheet({
                 }}
               >
                 {step.label}
+              </button>
+            ))}
+          </div>
+          <p className="shelf-font-label">字体</p>
+          <div className="font-pills">
+            {SHELF_FONT_FAMILIES.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                className={`font-pill ${fontFamily === f.id ? 'font-pill-active' : ''}`}
+                onClick={() => {
+                  setShelfFontFamily(f.id);
+                  onFontFamilyChange?.(f.id);
+                }}
+              >
+                {f.label}
               </button>
             ))}
           </div>

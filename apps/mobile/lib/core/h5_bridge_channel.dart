@@ -148,13 +148,19 @@ void attachPeiaiJsChannel(
                   );
             }
             return;
-          } else if (path.startsWith('/discover')) {
+          } else           if (path.startsWith('/discover')) {
             ref.read(navIndexProvider.notifier).set(3);
             ref.read(discoverH5PathProvider.notifier).go(path);
             Future.microtask(() {
               if (!context.mounted) return;
               // 叠层 H5 内 open_path：回主壳，由发现 Tab WebView 消费路径
               if (context.canPop()) context.go('/');
+            });
+            return;
+          }
+          if (path.startsWith('/shelf')) {
+            Future.microtask(() {
+              if (context.mounted) context.push(path);
             });
             return;
           }

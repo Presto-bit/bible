@@ -4,10 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   bumpShelfFontPx,
   getShelfFontPx,
+  getShelfFontFamily,
   getShelfLineHeight,
   setShelfFontPx,
+  setShelfFontFamily,
   setShelfLineHeight,
   SHELF_FONT_STEPS,
+  type ShelfFontFamily,
 } from '@/lib/shelf_reading';
 
 type Props = {
@@ -49,11 +52,13 @@ export function useShelfFontPx(): [number, (px: number) => void] {
 export function useShelfReadingPrefs() {
   const [fontPx, setFontPxState] = useState(18);
   const [lineHeight, setLineHeightState] = useState(1.9);
+  const [fontFamily, setFontFamilyState] = useState<ShelfFontFamily>('serif');
   const [, syncTick] = useState(0);
 
   const sync = useCallback(() => {
     setFontPxState(getShelfFontPx());
     setLineHeightState(getShelfLineHeight());
+    setFontFamilyState(getShelfFontFamily());
     syncTick((n) => n + 1);
   }, []);
 
@@ -80,5 +85,10 @@ export function useShelfReadingPrefs() {
     setLineHeightState(getShelfLineHeight());
   }, []);
 
-  return { fontPx, lineHeight, setFontPx, setLineHeight };
+  const setFontFamily = useCallback((family: ShelfFontFamily) => {
+    setShelfFontFamily(family);
+    setFontFamilyState(getShelfFontFamily());
+  }, []);
+
+  return { fontPx, lineHeight, fontFamily, setFontPx, setLineHeight, setFontFamily };
 }

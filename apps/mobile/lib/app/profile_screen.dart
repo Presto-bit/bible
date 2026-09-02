@@ -43,6 +43,7 @@ import '../core/notif_prefs.dart';
 import '../core/share_card.dart';
 import '../core/user_storage.dart';
 import '../features/social/social_repository.dart';
+import '../features/shelf/shelf_progress.dart';
 
 /// 官方客服账号（用户 ID），设置「帮助与反馈」直达私信。
 const kOfficialSupportUserCode = '70625146';
@@ -924,25 +925,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () => openH5IfAllowed(context, '/shelf'),
+                  onPressed: () => context.push('/shelf'),
                   child: const Text('全部'),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _ShelfCoverThumb(
-                    title: '恩典的安慰与活出来的救恩',
-                    onTap: () => openH5IfAllowed(
-                      context,
-                      '/shelf/00000000-0000-4000-8000-000000000001',
-                    ),
+            Builder(
+              builder: (context) {
+                final lastShelf = ShelfProgressStore(prefs).loadLastRead();
+                if (lastShelf == null) {
+                  return const SizedBox.shrink();
+                }
+                final q = lastShelf.sectionId.isNotEmpty
+                    ? '?section=${Uri.encodeComponent(lastShelf.sectionId)}&page=${lastShelf.pageIndex}'
+                    : '';
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _ShelfCoverThumb(
+                        title: lastShelf.bookTitle,
+                        subtitle: lastShelf.sectionTitle,
+                        onTap: () => context.push('/shelf/${lastShelf.bookId}$q'),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
             const SizedBox(height: 20),
             const Text(
@@ -1079,9 +1089,14 @@ class _JourneyRing extends StatelessWidget {
 }
 
 class _ShelfCoverThumb extends StatelessWidget {
-  const _ShelfCoverThumb({required this.title, required this.onTap});
+  const _ShelfCoverThumb({
+    required this.title,
+    required this.onTap,
+    this.subtitle = '',
+  });
 
   final String title;
+  final String subtitle;
   final VoidCallback onTap;
 
   @override

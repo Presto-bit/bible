@@ -2,21 +2,11 @@
 
 import { useEffect, useRef } from 'react';
 import { useShelfSectionPages } from '@/hooks/useShelfSectionPages';
-import { getHighlightMap } from '@/lib/reader_highlights';
-import {
-  clearShelfPaintedHighlights,
-  paintShelfHighlights,
-  shelfMarksForPage,
-} from '@/lib/shelf_highlight_paint';
-import { shelfThoughtSpansForPage } from '@/lib/shelf_annotations';
 
 type Props = {
   html: string;
   contentKey: string;
   pageIndex: number;
-  bookId?: string;
-  sectionId?: string;
-  annotationRevision?: number;
   /** docx 教案走独立排版（字号更小） */
   variant?: 'html' | 'docx';
   onPageCount?: (count: number) => void;
@@ -27,9 +17,6 @@ export default function ShelfPaginatedProse({
   html,
   contentKey,
   pageIndex,
-  bookId,
-  sectionId,
-  annotationRevision = 0,
   variant = 'html',
   onPageCount,
   onTap,
@@ -78,21 +65,6 @@ export default function ShelfPaginatedProse({
     };
   }, [html, remeasure]);
 
-  useEffect(() => {
-    const art = articleRef.current;
-    if (!art || !bookId || !sectionId) {
-      clearShelfPaintedHighlights();
-      return;
-    }
-    const map = getHighlightMap();
-    const marks = shelfMarksForPage(bookId, sectionId, pageIndex, map);
-    const thoughtSpans = shelfThoughtSpansForPage(bookId, sectionId, pageIndex);
-    paintShelfHighlights(art, marks, thoughtSpans);
-    return () => {
-      clearShelfPaintedHighlights();
-    };
-  }, [bookId, sectionId, pageIndex, html, contentKey, annotationRevision]);
-
   const proseClass = variant === 'docx' ? 'shelf-docx-prose' : 'shelf-prose';
 
   return (
@@ -100,10 +72,6 @@ export default function ShelfPaginatedProse({
       <article
         ref={articleRef}
         className={`shelf-turn-page ${proseClass}`}
-        data-shelf-prose="1"
-        data-shelf-book={bookId ?? ''}
-        data-shelf-section={sectionId ?? ''}
-        data-shelf-page={String(pageIndex)}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>

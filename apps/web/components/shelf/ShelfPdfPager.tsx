@@ -12,8 +12,8 @@ type Props = {
   onExitFullscreen?: () => void;
 };
 
-/** actual = PDF 100%（1pt≈1px）；page = 适页缩放进视口 */
-type ViewMode = 'actual' | 'page';
+/** actual = PDF 100%（1pt≈1px）；page = 适页缩放进视口；width = 贴宽 */
+type ViewMode = 'actual' | 'page' | 'width';
 
 function computePdfLayout(
   containerWidth: number,
@@ -27,7 +27,8 @@ function computePdfLayout(
   const fitW = containerWidth / pageWidth;
   const fitH = containerHeight / pageHeight;
   const fitPage = Math.min(fitW, fitH);
-  const base = viewMode === 'page' ? fitPage : 1;
+  const base =
+    viewMode === 'page' ? fitPage : viewMode === 'width' ? fitW : 1;
   const scale = base * userZoom;
   return {
     dpr,
@@ -35,11 +36,36 @@ function computePdfLayout(
     cssWidth: pageWidth * scale,
     cssHeight: pageHeight * scale,
     effectiveScale: scale,
+    overflows: pageHeight * scale > containerHeight + 2 || pageWidth * scale > containerWidth + 2,
   };
 }
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
+const RESIZE_DEBOUNCE_MS = 180;
+const PDF_PAGE_CACHE_MAX = 48;
+const pdfPageCache = new Map<string, ImageBitmap>();
+
+function pdfCacheKey(
+  url: string,
+  pageNum: number,
+  viewMode: ViewMode,
+  userZoom: number,
+  w: number,
+  h: number,
+) {
+  return `${url}|${pageNum}|${viewMode}|${userZoom}|${Math.round(w)}x${Math.round(h)}`;
+}
+
+function trimPdfCache() {
+  while (pdfPageCache.size > PDF_PAGE_CACHE_MAX) {
+    const first = pdfPageCache.keys().next().value;
+    if (!first) break;
+    const bmp = pdfPageCache.get(first);
+    bmp?.close?.();
+    pdfPageCache.delete(first);
+  }
+}
 
 export default function ShelfPdfPager({
   url,
@@ -55,25 +81,18 @@ export default function ShelfPdfPager({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfRef = useRef<import('pdfjs-dist').PDFDocumentProxy | null>(null);
   const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [pageCount, setPageCount] = useState(0);
   const [layoutTick, setLayoutTick] = useState(0);
-  /** 相对当前 viewMode 的缩放；1 = 100% 原始尺寸（actual 模式） */
   const [userZoom, setUserZoom] = useState(1);
-  /** 默认 100% 原始尺寸，非贴宽/适页 */
-  const [viewMode, setViewMode] = useState<ViewMode>('actual');
+  /** 默认适页：整页可见、字号可读 */
+  const [viewMode, setViewMode] = useState<ViewMode>('page');
 
   useEffect(() => {
     setUserZoom(1);
-    setViewMode('actual');
-  }, [pageIndex, url]);
-
-  useEffect(() => {
-    if (!fullscreen) {
-      setUserZoom(1);
-      setViewMode('actual');
-    }
-  }, [fullscreen]);
+    setViewMode(fullscreen ? 'page' : 'page');
+  }, [pageIndex, url, fullscreen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +142,7 @@ export default function ShelfPdfPager({
           stage?.clientHeight
           || host.clientHeight
           || Math.min(window.innerHeight - 160, 900);
-        const { dpr, renderScale, cssWidth, cssHeight } = computePdfLayout(
+        const { dpr, renderScale, cssWidth, cssHeight, overflows } = computePdfLayout(
           w,
           h,
           base.width,
@@ -131,6 +150,7 @@ export default function ShelfPdfPager({
           viewMode,
           userZoom,
         );
+        stage?.classList.toggle('is-scrollable', overflows);
         const scaled = page.getViewport({ scale: renderScale });
         canvas.width = scaled.width;
         canvas.height = scaled.height;
@@ -138,7 +158,23 @@ export default function ShelfPdfPager({
         canvas.style.height = `${cssHeight}px`;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
+        const cacheKey = pdfCacheKey(url, pageNum, viewMode, userZoom, w, h);
+        const cached = pdfPageCache.get(cacheKey);
+        if (cached) {
+          canvas.width = cached.width;
+          canvas.height = cached.height;
+          ctx.drawImage(cached, 0, 0);
+          return;
+        }
         await page.render({ canvasContext: ctx, viewport: scaled }).promise;
+        if (cancelled) return;
+        try {
+          const bitmap = await createImageBitmap(canvas);
+          pdfPageCache.set(cacheKey, bitmap);
+          trimPdfCache();
+        } catch {
+          /* ignore cache errors */
+        }
       } catch {
         /* ignore render errors */
       }
@@ -147,31 +183,42 @@ export default function ShelfPdfPager({
     return () => {
       cancelled = true;
     };
-  }, [status, pageIndex, pageCount, viewMode, userZoom, layoutTick]);
+  }, [status, pageIndex, pageCount, viewMode, userZoom, layoutTick, url]);
 
   useEffect(() => {
     stageRef.current?.scrollTo({ top: 0, left: 0 });
-  }, [pageIndex, viewMode, userZoom]);
+  }, [pageIndex, viewMode]);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => {
-      if (status !== 'ready' || !pdfRef.current) return;
-      setLayoutTick((n) => n + 1);
-    });
+    const schedule = () => {
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+      resizeTimerRef.current = setTimeout(() => {
+        if (status !== 'ready' || !pdfRef.current) return;
+        setLayoutTick((n) => n + 1);
+      }, RESIZE_DEBOUNCE_MS);
+    };
+    const ro = new ResizeObserver(schedule);
     ro.observe(host);
-    if (stageRef.current) ro.observe(stageRef.current);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+    };
   }, [status]);
-
-  const resetToActual = useCallback(() => {
-    setViewMode('actual');
-    setUserZoom(1);
-  }, []);
 
   const resetToFitPage = useCallback(() => {
     setViewMode('page');
+    setUserZoom(1);
+  }, []);
+
+  const resetToFitWidth = useCallback(() => {
+    setViewMode('width');
+    setUserZoom(1);
+  }, []);
+
+  const resetToActual = useCallback(() => {
+    setViewMode('actual');
     setUserZoom(1);
   }, []);
 
@@ -211,7 +258,9 @@ export default function ShelfPdfPager({
   const zoomLabel =
     viewMode === 'actual'
       ? `${Math.round(userZoom * 100)}%`
-      : `${Math.round(userZoom * 100)}%·适页`;
+      : viewMode === 'width'
+        ? `${Math.round(userZoom * 100)}%·贴宽`
+        : `${Math.round(userZoom * 100)}%·适页`;
 
   const zoomToolbar = (compact?: boolean) => (
     <>
@@ -242,17 +291,6 @@ export default function ShelfPdfPager({
         <>
           <button
             type="button"
-            className={`shelf-pdf-toolbar-btn${viewMode === 'actual' ? ' is-active' : ''}`}
-            aria-label="100% 原始尺寸"
-            onClick={(e) => {
-              e.stopPropagation();
-              resetToActual();
-            }}
-          >
-            100%
-          </button>
-          <button
-            type="button"
             className={`shelf-pdf-toolbar-btn${viewMode === 'page' ? ' is-active' : ''}`}
             aria-label="适页"
             onClick={(e) => {
@@ -262,18 +300,29 @@ export default function ShelfPdfPager({
           >
             适页
           </button>
+          <button
+            type="button"
+            className={`shelf-pdf-toolbar-btn${viewMode === 'width' ? ' is-active' : ''}`}
+            aria-label="贴宽"
+            onClick={(e) => {
+              e.stopPropagation();
+              resetToFitWidth();
+            }}
+          >
+            贴宽
+          </button>
         </>
       ) : (
         <button
           type="button"
-          className={`shelf-pdf-toolbar-btn${viewMode === 'actual' ? ' is-active' : ''}`}
-          aria-label="100% 原始尺寸"
+          className={`shelf-pdf-toolbar-btn${viewMode === 'page' ? ' is-active' : ''}`}
+          aria-label="适页"
           onClick={(e) => {
             e.stopPropagation();
-            resetToActual();
+            resetToFitPage();
           }}
         >
-          100%
+          适页
         </button>
       )}
     </>

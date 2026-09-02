@@ -19,7 +19,11 @@ export default function ShelfCoverTile({ book, onManage }: Props) {
 
   const progress = loadShelfBookProgress(book.id);
   const href = progress
-    ? `/shelf/${book.id}?section=${encodeURIComponent(progress.sectionId)}`
+    ? `/shelf/${book.id}?section=${encodeURIComponent(progress.sectionId)}${
+        typeof progress.pageIndex === 'number' && progress.pageIndex > 0
+          ? `&page=${progress.pageIndex}`
+          : ''
+      }`
     : `/shelf/${book.id}`;
   const hue = shelfCoverHue(book.title);
 

@@ -35,6 +35,13 @@ bool openH5IfAllowed(BuildContext context, String href, {String? title}) {
     parsed.path.isEmpty ? '/' : parsed.path,
   );
   pathAndQuery = '$pathOnly${parsed.hasQuery ? '?${parsed.query}' : ''}';
+
+  // 书架：Android 原生列表 + 阅读器（对齐 §24，不走叠层 H5）
+  if (pathOnly == '/shelf' || pathOnly.startsWith('/shelf/')) {
+    context.push(pathAndQuery);
+    return true;
+  }
+
   if (!H5Whitelist.allows(pathOnly)) return false;
 
   // 创世记 50 桥接页走 Custom Tabs（Chrome 内核），不能进叠层 H5 WebView。
