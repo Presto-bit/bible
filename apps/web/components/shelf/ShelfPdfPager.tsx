@@ -202,7 +202,8 @@ export default function ShelfPdfPager({
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [pageCount, setPageCount] = useState(0);
   const [layoutTick, setLayoutTick] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(() => measurePdfContainerWidth(null, false));
+  const [pdfDoc, setPdfDoc] = useState<import('pdfjs-dist').PDFDocumentProxy | null>(null);
 
   useEffect(() => {
     activePageRef.current = pageIndex;
@@ -213,15 +214,20 @@ export default function ShelfPdfPager({
     const run = async () => {
       setStatus('loading');
       pdfRef.current = null;
+      setPdfDoc(null);
       try {
         const pdfjs = await import('pdfjs-dist');
         pdfjs.GlobalWorkerOptions.workerSrc = new URL(
           'pdfjs-dist/build/pdf.worker.min.mjs',
           import.meta.url,
         ).toString();
-        const pdf = await pdfjs.getDocument({ url, withCredentials: false }).promise;
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data }).promise;
         if (cancelled) return;
         pdfRef.current = pdf;
+        setPdfDoc(pdf);
         setPageCount(pdf.numPages);
         onPageCount?.(pdf.numPages);
         setStatus('ready');
@@ -233,6 +239,7 @@ export default function ShelfPdfPager({
     return () => {
       cancelled = true;
       pdfRef.current = null;
+      setPdfDoc(null);
     };
   }, [url, onPageCount]);
 
@@ -317,7 +324,7 @@ export default function ShelfPdfPager({
     return <p className="muted shelf-pdf-status">无法加载 PDF</p>;
   }
 
-  const pdf = pdfRef.current;
+  const pdf = pdfDoc;
 
   return (
     <div
@@ -345,13 +352,17 @@ export default function ShelfPdfPager({
       ) : null}
       {status === 'fallback' ? (
         <div className="shelf-pdf-fallback">
-          <p className="muted">本机预览失败，可尝试系统阅读器打开。</p>
+          <p className="muted">预览引擎不可用，已切换系统阅读器。</p>
+          <iframe
+            src={url}
+            className="shelf-pdf-fallback-frame"
+            title={title}
+          />
           <a className="shelf-pdf-open-link" href={url} target="_blank" rel="noopener noreferrer">
-            打开 PDF
+            在新窗口打开 PDF
           </a>
         </div>
-      ) : null}
-
+      ) : (
       <div ref={hostRef} className="shelf-pdf-pager-host">
         <div
           ref={stageRef}
@@ -359,7 +370,7 @@ export default function ShelfPdfPager({
           aria-busy={status === 'loading'}
           onScroll={handleScroll}
         >
-          {status === 'ready' && pdf && pageCount > 0 ? (
+          {status === 'ready' && pdf && pageCount > 0 && containerWidth > 0 ? (
             <div className="shelf-pdf-scroll-stack">
               {Array.from({ length: pageCount }, (_, i) => (
                 <div
@@ -380,9 +391,12 @@ export default function ShelfPdfPager({
                 </div>
               ))}
             </div>
+          ) : status === 'ready' && pdf && pageCount > 0 ? (
+            <p className="muted shelf-pdf-status" role="status">正在排版 PDF…</p>
           ) : null}
         </div>
       </div>
+      )}
     </div>
   );
 }

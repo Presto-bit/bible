@@ -1108,7 +1108,6 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-pdf-page-canvas {
   display: block;
   max-width: 100%;
-  height: auto;
 }
 
 .shelf-pdf-inline-tools {
@@ -1448,20 +1447,27 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 }
 
 .shelf-pdf-fallback {
-  padding: 12px 18px;
+  flex: 1;
+  min-height: 0;
+  padding: 8px 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.shelf-pdf-fallback-frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: none;
+  background: #fff;
+  border-radius: 4px;
 }
 
 .shelf-pdf-open-link {
   align-self: flex-start;
   font-size: 14px;
   color: var(--accent-deep, #3d5a46);
-}
-
-.shelf-pdf-fallback-frame {
-  min-height: 60vh;
 }
 
 .shelf-lesson-pdf {

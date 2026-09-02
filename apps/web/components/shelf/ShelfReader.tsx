@@ -348,7 +348,7 @@ export default function ShelfReader({
     canPrev,
     canNext,
     blocked: overlayOpen,
-    snapOnly: isPdfSection || isFlowSection,
+    snapOnly: false,
     resolveTurn,
     onSectionChange: (delta) => {
       if (delta > 0) goNextSection();
