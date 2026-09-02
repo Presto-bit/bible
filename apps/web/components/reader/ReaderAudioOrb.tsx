@@ -2,6 +2,7 @@
 
 import { useRef } from 'react';
 import type { ReaderAudioState } from '@/lib/reader_audio';
+import { useHorizontalSwipeAction } from '@/lib/use_horizontal_swipe_action';
 
 const R = 20;
 const C = 2 * Math.PI * R;
@@ -41,6 +42,13 @@ export function ReaderAudioOrb({
 }) {
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggeredRef = useRef(false);
+  const swipeLeftRef = useRef(false);
+  const horizontal = useHorizontalSwipeAction({
+    onSwipeLeft: () => {
+      swipeLeftRef.current = true;
+      onRestore();
+    },
+  });
 
   if (!visible) return null;
 
@@ -75,9 +83,27 @@ export function ReaderAudioOrb({
           onRestore();
         }, 520);
       }}
+      onTouchStart={(e) => {
+        e.stopPropagation();
+        swipeLeftRef.current = false;
+        horizontal.onTouchStart(e);
+      }}
+      onTouchMove={(e) => {
+        horizontal.onTouchMove(e);
+      }}
+      onTouchEnd={(e) => {
+        horizontal.onTouchEnd(e);
+      }}
+      onTouchCancel={(e) => {
+        horizontal.onTouchCancel(e);
+      }}
       onPointerUp={(e) => {
         e.stopPropagation();
         clearLongPress();
+        if (swipeLeftRef.current) {
+          swipeLeftRef.current = false;
+          return;
+        }
         if (longPressTriggeredRef.current) return;
         onToggle();
       }}

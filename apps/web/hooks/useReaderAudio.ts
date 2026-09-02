@@ -39,7 +39,7 @@ const SILENT_WAV =
 let audioGesturePrimed = false;
 
 function primeAudioElement(el: HTMLAudioElement): void {
-  if (audioGesturePrimed && el.src && el.src !== SILENT_WAV) return;
+  if (el.src && el.src !== SILENT_WAV) return;
   el.muted = true;
   const unlockSrc = SILENT_WAV;
   el.src = unlockSrc;
@@ -55,6 +55,7 @@ function primeAudioElement(el: HTMLAudioElement): void {
     el.currentTime = 0;
     el.muted = false;
     el.removeAttribute('src');
+    el.load();
     audioGesturePrimed = true;
   });
 }
@@ -67,6 +68,7 @@ function waitForAudioReady(el: HTMLAudioElement, timeoutMs: number): Promise<voi
       if (done) return;
       done = true;
       clearTimeout(timer);
+      el.removeEventListener('loadeddata', onReady);
       el.removeEventListener('canplay', onReady);
       el.removeEventListener('error', onError);
       fn();
@@ -77,6 +79,7 @@ function waitForAudioReady(el: HTMLAudioElement, timeoutMs: number): Promise<voi
       () => finish(() => reject(new Error('audio_load_timeout'))),
       timeoutMs,
     );
+    el.addEventListener('loadeddata', onReady, { once: true });
     el.addEventListener('canplay', onReady, { once: true });
     el.addEventListener('error', onError, { once: true });
   });
@@ -99,6 +102,7 @@ export function useReaderAudio({
 }) {
   const toast = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const mediaListenersRef = useRef<AbortController | null>(null);
   const metaRef = useRef<BibleAudioChapterMeta | null>(null);
   const timestampsRef = useRef<AudioTimestampVerse[]>([]);
   const chapterRef = useRef(chapter);
@@ -168,6 +172,22 @@ export function useReaderAudio({
     saveReaderAudioCheckpoint(book, ch, sec);
   }, []);
 
+  const detachAudioListeners = useCallback(() => {
+    mediaListenersRef.current?.abort();
+    mediaListenersRef.current = null;
+  }, []);
+
+  const releaseAudioElement = useCallback(
+    (el: HTMLAudioElement | null) => {
+      if (!el) return;
+      if (audioRef.current === el) detachAudioListeners();
+      el.pause();
+      el.removeAttribute('src');
+      el.load();
+    },
+    [detachAudioListeners],
+  );
+
   const stopInternal = useCallback(() => {
     clearSleepTimer();
     const el = audioRef.current;
@@ -179,11 +199,7 @@ export function useReaderAudio({
         Number.isFinite(el.duration) ? el.duration : undefined,
       );
     }
-    if (el) {
-      el.pause();
-      el.removeAttribute('src');
-      el.load();
-    }
+    releaseAudioElement(el);
     audioRef.current = null;
     timestampsRef.current = [];
     setTimestamps([]);
@@ -196,7 +212,7 @@ export function useReaderAudio({
     setMinimized(false);
     setFocusOpen(false);
     prefetchedNextRef.current = null;
-  }, [clearSleepTimer, onCurrentVerseChange, persistCheckpoint]);
+  }, [clearSleepTimer, onCurrentVerseChange, persistCheckpoint, releaseAudioElement]);
 
   /** 切章/重载时释放旧音频，但不把 UI 打回 off（保留 loading/playing 语义）。 */
   const releasePreviousAudio = useCallback(() => {
@@ -210,14 +226,10 @@ export function useReaderAudio({
         Number.isFinite(el.duration) ? el.duration : undefined,
       );
     }
-    if (el) {
-      el.pause();
-      el.removeAttribute('src');
-      el.load();
-    }
+    releaseAudioElement(el);
     audioRef.current = null;
     prefetchedNextRef.current = null;
-  }, [clearSleepTimer, persistCheckpoint]);
+  }, [clearSleepTimer, persistCheckpoint, releaseAudioElement]);
 
   const attachMediaSession = useCallback(
     (el: HTMLAudioElement, m: BibleAudioChapterMeta) => {
@@ -306,6 +318,11 @@ export function useReaderAudio({
         applySleepTimer(settings);
         void loadTimestamps(m);
 
+        detachAudioListeners();
+        const ac = new AbortController();
+        mediaListenersRef.current = ac;
+        const { signal } = ac;
+
         const maybeRestoreCheckpoint = () => {
           if (opts?.skipCheckpoint || opts?.auto) return;
           const cp = loadReaderAudioCheckpoint(targetBook, targetChapter);
@@ -320,6 +337,7 @@ export function useReaderAudio({
         };
 
         el.addEventListener('timeupdate', () => {
+          if (audioRef.current !== el) return;
           const t = el.currentTime;
           const now = Date.now();
           if (now - uiTickRef.current > 250) {
@@ -336,12 +354,14 @@ export function useReaderAudio({
             checkpointSaveRef.current = now;
             persistCheckpoint(targetBook, targetChapter, t, el.duration);
           }
-        });
+        }, { signal });
         el.addEventListener('loadedmetadata', () => {
+          if (audioRef.current !== el) return;
           if (Number.isFinite(el.duration)) setDurationSec(el.duration);
           maybeRestoreCheckpoint();
-        });
+        }, { signal });
         el.addEventListener('ended', () => {
+          if (audioRef.current !== el) return;
           clearReaderAudioCheckpoint();
           if (settings.sleepTimer === 'chapter') {
             stopInternal();
@@ -357,22 +377,26 @@ export function useReaderAudio({
           } else {
             stopInternal();
           }
-        });
+        }, { signal });
         el.addEventListener('pause', () => {
+          if (audioRef.current !== el) return;
           if (el.ended) return;
           persistCheckpoint(targetBook, targetChapter, el.currentTime, el.duration);
           setState('paused');
-        });
+        }, { signal });
         el.addEventListener('play', () => {
+          if (audioRef.current !== el) return;
           hapticLight();
           setState('playing');
-        });
+        }, { signal });
         el.addEventListener('error', () => {
+          if (audioRef.current !== el) return;
           setState('error');
           toast('朗读加载失败');
-        });
+        }, { signal });
 
         await waitForAudioReady(el, 90_000);
+        if (audioRef.current !== el) return;
         await el.play();
         setState('playing');
         if (!readerAudioCoachSeen()) {
@@ -419,12 +443,12 @@ export function useReaderAudio({
     }
     if (state === 'paused' && el) {
       hapticLight();
-      if (!audioGesturePrimed) primeAudioElement(el);
+      primeAudioElement(el);
       await el.play();
       return;
     }
     if (state === 'error' && el?.src) {
-      if (!audioGesturePrimed) primeAudioElement(el);
+      primeAudioElement(el);
       setState('loading');
       try {
         await waitForAudioReady(el, 90_000);

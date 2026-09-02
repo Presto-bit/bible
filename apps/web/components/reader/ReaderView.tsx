@@ -693,7 +693,6 @@ export default function ReaderView({
     && audioMinimized
     && !audioFocusOpen
     && !audioSettingsOpen
-    && !hasSel
     && paneActive
     && readingMode !== 'focus';
   const audioBottomPad =
@@ -1118,6 +1117,13 @@ export default function ReaderView({
     if (overlayOpenRef.current) return;
     setChromeHidden((hidden) => !hidden);
   }, []);
+
+  useEffect(() => {
+    if (!paneActive) return;
+    const onToggle = () => toggleChrome();
+    window.addEventListener('peiai-reader-toggle-chrome', onToggle);
+    return () => window.removeEventListener('peiai-reader-toggle-chrome', onToggle);
+  }, [paneActive, toggleChrome]);
 
   useEffect(() => {
     const syncTheme = () => {
@@ -2667,16 +2673,22 @@ export default function ReaderView({
 
   const handleVerseClick = useCallback(
     (e: React.MouseEvent, verse: number, text: string) => {
-      e.stopPropagation();
       const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
       if (hasSel || hasPinned) {
+        e.stopPropagation();
         if (Date.now() - lastSelectAt.current < 280) return;
         dismissNativeSelection();
         return;
       }
+      if (chromeHidden) {
+        e.stopPropagation();
+        toggleChrome();
+        return;
+      }
+      e.stopPropagation();
       handleVerseThoughtClick(e, verse, text);
     },
-    [hasSel, handleVerseThoughtClick, dismissNativeSelection],
+    [hasSel, chromeHidden, toggleChrome, handleVerseThoughtClick, dismissNativeSelection],
   );
 
   useEffect(() => {

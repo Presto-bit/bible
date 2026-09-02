@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReaderAudioState } from '@/lib/reader_audio';
+import { useHorizontalSwipeAction } from '@/lib/use_horizontal_swipe_action';
 import { useVerticalSwipeDismiss } from '@/lib/use_vertical_swipe_dismiss';
 
 function PlayPauseIcon({ playing }: { playing: boolean }) {
@@ -52,17 +53,28 @@ export function ReaderAudioMiniBar({
   onRetry?: () => void;
   title: string;
 }) {
+  const loading = state === 'loading';
+  const errored = state === 'error';
+
   const swipe = useVerticalSwipeDismiss({
     onDismiss,
     onExpand,
   });
+  const horizontal = useHorizontalSwipeAction({
+    onSwipeRight: onMinimize,
+    enabled: !collapsed && !errored,
+  });
 
   if (!visible) return null;
 
-  const loading = state === 'loading';
-  const errored = state === 'error';
   const pct = durationSec > 0 ? Math.min(100, (currentSec / durationSec) * 100) : 0;
   const playing = state === 'playing';
+  const dragX = horizontal.dragX > 0 ? horizontal.dragX : 0;
+  const dragY = swipe.dragOffset > 0 ? swipe.dragOffset : 0;
+  const dragStyle =
+    dragX || dragY
+      ? { transform: `translate(${dragX}px, ${dragY}px)`, transition: 'none' as const }
+      : undefined;
 
   if (collapsed && !errored) {
     return (
@@ -90,16 +102,24 @@ export function ReaderAudioMiniBar({
       ].join(' ')}
       role="region"
       aria-label="本章朗读控制"
-      style={
-        swipe.dragOffset > 0
-          ? { transform: `translateY(${swipe.dragOffset}px)`, transition: 'none' }
-          : undefined
-      }
+      style={dragStyle}
       onPointerDown={(e) => e.stopPropagation()}
-      onTouchStart={swipe.onTouchStart}
-      onTouchMove={swipe.onTouchMove}
-      onTouchEnd={swipe.onTouchEnd}
-      onTouchCancel={swipe.onTouchCancel}
+      onTouchStart={(e) => {
+        horizontal.onTouchStart(e);
+        swipe.onTouchStart(e);
+      }}
+      onTouchMove={(e) => {
+        horizontal.onTouchMove(e);
+        swipe.onTouchMove(e);
+      }}
+      onTouchEnd={(e) => {
+        horizontal.onTouchEnd(e);
+        swipe.onTouchEnd(e);
+      }}
+      onTouchCancel={(e) => {
+        horizontal.onTouchCancel(e);
+        swipe.onTouchCancel(e);
+      }}
     >
       <div className="half-sheet-grab reader-audio-mini-grab" aria-hidden />
       <div className="reader-audio-mini-track">
