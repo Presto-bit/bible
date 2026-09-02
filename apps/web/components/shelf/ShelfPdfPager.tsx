@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 
 type Props = {
   url: string;
@@ -39,6 +39,20 @@ const RESIZE_DEBOUNCE_MS = 200;
 const PDF_PAGE_CACHE_MAX = 48;
 const pdfPageCache = new Map<string, ImageBitmap>();
 
+function measurePdfContainerWidth(host: HTMLElement | null, fullscreen: boolean): number {
+  if (fullscreen && typeof window !== 'undefined') {
+    return Math.max(280, window.innerWidth - 24);
+  }
+  const fromHost = host?.getBoundingClientRect().width ?? host?.clientWidth ?? 0;
+  if (fromHost > 0) return fromHost;
+  const fromParent = host?.parentElement?.clientWidth ?? 0;
+  if (fromParent > 0) return fromParent;
+  if (typeof window !== 'undefined') {
+    return Math.max(280, Math.min(window.innerWidth - 32, 720));
+  }
+  return 720;
+}
+
 function pdfCacheKey(url: string, pageNum: number, w: number) {
   return `${url}|${pageNum}|${Math.round(w)}`;
 }
@@ -60,6 +74,7 @@ function PdfPageTile({
   containerWidth,
   title,
   fullscreen,
+  scrollRootRef,
 }: {
   pdf: import('pdfjs-dist').PDFDocumentProxy;
   pageNum: number;
@@ -67,13 +82,18 @@ function PdfPageTile({
   containerWidth: number;
   title: string;
   fullscreen: boolean;
+  scrollRootRef: RefObject<HTMLElement | null>;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(pageNum === 1);
   const [placeholderH, setPlaceholderH] = useState(480);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (pageNum === 1) {
+      setVisible(true);
+      return;
+    }
     const el = rootRef.current;
     if (!el || typeof IntersectionObserver === 'undefined') {
       setVisible(true);
@@ -83,11 +103,15 @@ function PdfPageTile({
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) setVisible(true);
       },
-      { rootMargin: fullscreen ? '120px 0px' : '240px 0px' },
+      {
+        root: scrollRootRef.current,
+        rootMargin: fullscreen ? '120px 0px' : '320px 0px',
+        threshold: 0.01,
+      },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [pageNum, scrollRootRef, fullscreen]);
 
   useEffect(() => {
     if (!visible || !canvasRef.current || containerWidth <= 0) return;
@@ -216,11 +240,10 @@ export default function ShelfPdfPager({
     const host = hostRef.current;
     if (!host) return;
     const update = () => {
-      if (fullscreen && typeof window !== 'undefined') {
-        setContainerWidth(Math.max(280, window.innerWidth - 24));
-        return;
-      }
-      setContainerWidth(host.clientWidth || Math.min(window.innerWidth - 24, 720));
+      setContainerWidth((prev) => {
+        const next = measurePdfContainerWidth(host, fullscreen);
+        return next > 0 ? next : prev;
+      });
     };
     update();
     if (typeof ResizeObserver === 'undefined') return;
@@ -237,6 +260,17 @@ export default function ShelfPdfPager({
       if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
     };
   }, [status, fullscreen]);
+
+  useEffect(() => {
+    if (status !== 'ready') return;
+    const host = hostRef.current;
+    if (!host) return;
+    const raf = window.requestAnimationFrame(() => {
+      const w = measurePdfContainerWidth(host, fullscreen);
+      if (w > 0) setContainerWidth(w);
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [status, fullscreen, pageCount]);
 
   useEffect(() => {
     if (pageFromScrollRef.current) {
@@ -341,6 +375,7 @@ export default function ShelfPdfPager({
                     containerWidth={containerWidth}
                     title={title}
                     fullscreen={fullscreen}
+                    scrollRootRef={stageRef}
                   />
                 </div>
               ))}

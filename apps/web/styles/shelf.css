@@ -431,13 +431,14 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  touch-action: pan-x pan-y;
+  overflow-x: hidden;
+  touch-action: pan-y;
   overscroll-behavior: none;
 }
 
 .shelf-reader-pdf-scroll .shelf-turn-viewport:not(.is-turning),
 .shelf-reader-flow-scroll .shelf-turn-viewport:not(.is-turning) {
-  touch-action: manipulation;
+  touch-action: pan-y;
 }
 
 .shelf-turn-viewport.is-turning {
@@ -451,6 +452,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   will-change: transform;
   transform: translateX(-33.3333%);
   backface-visibility: hidden;
+  overflow: hidden;
 }
 
 .shelf-turn-panel {
@@ -467,6 +469,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  max-width: 100%;
 }
 
 .shelf-turn-panel-active > .shelf-page-viewport,
@@ -668,6 +671,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-prose {
   font-size: var(--shelf-font-size, 18px);
   line-height: var(--shelf-line-height, 1.9);
+  overflow-x: hidden;
 }
 
 .shelf-prose .shelf-title:first-child,
@@ -980,9 +984,11 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   bottom: calc(var(--safe-bottom, 0px) + 10px);
 }
 
-.shelf-turn-viewport-lesson .shelf-reader-body-lesson,
+.shelf-reader-lesson .shelf-lesson-viewport,
 .shelf-turn-viewport-lesson .shelf-lesson-viewport {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  height: auto;
   overflow: hidden;
   padding: 0;
 }
@@ -1050,7 +1056,8 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-pdf-pager-stage {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y pinch-zoom;
   overscroll-behavior: contain;
@@ -1072,8 +1079,10 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 
 .shelf-pdf-scroll-page {
   width: 100%;
+  max-width: 100%;
   display: flex;
   justify-content: center;
+  overflow-x: hidden;
 }
 
 .shelf-pdf-scroll-tail {
@@ -1098,7 +1107,8 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 
 .shelf-pdf-page-canvas {
   display: block;
-  max-width: none;
+  max-width: 100%;
+  height: auto;
 }
 
 .shelf-pdf-inline-tools {
