@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import html
 import io
+import re
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -85,7 +86,7 @@ def _body_html(text: str) -> str:
     esc = html.escape(text)
     if text.strip() == "继续对话的问题":
         return f'<p class="shelf-dialogue-q-head">{esc}</p>'
-    return f'<p class="shelf-body">{esc}</p>
+    return f'<p class="shelf-body">{esc}</p>'
 
 
 def _para_html(p: _Para) -> str:
