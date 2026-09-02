@@ -17,6 +17,8 @@ type PeiaiNativePayload =
   | { type: 'check_app_update' }
   | { type: 'close_h5' }
   | { type: 'go_back' }
+  | { type: 'path_changed'; path: string }
+  | { type: 'h5_path'; path: string }
   | { type: 'open_offline_download' }
   | { type: 'request_notifications' }
   | {

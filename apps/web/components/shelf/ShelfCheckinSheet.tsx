@@ -14,6 +14,7 @@ import {
   GROUP_CHECKIN_BODY_MAX,
 } from '@/lib/shelf_checkin';
 import AppBodyPortal from '@/components/AppBodyPortal';
+import { leaveFlutterH5ToDiscover } from '@/lib/flutter_h5_bridge';
 
 type Props = {
   bookId: string;
@@ -110,7 +111,14 @@ export default function ShelfCheckinSheet({
           ) : groups.length === 0 ? (
             <div>
               <p className="muted" style={{ fontSize: 13 }}>你还没有加入共读群。</p>
-              <a href="/discover" className="font-pill" style={{ marginTop: 8, display: 'inline-block', fontSize: 12 }}>
+              <a
+                href="/discover"
+                className="font-pill"
+                style={{ marginTop: 8, display: 'inline-block', fontSize: 12 }}
+                onClick={(e) => {
+                  if (leaveFlutterH5ToDiscover('/discover')) e.preventDefault();
+                }}
+              >
                 进入消息创建或加入
               </a>
             </div>

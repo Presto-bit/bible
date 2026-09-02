@@ -136,7 +136,7 @@ export function useShelfTurn({
     }
     try {
       document
-        .querySelectorAll('.reader-turn-viewport.is-turning')
+        .querySelectorAll('.shelf-turn-viewport.is-turning')
         .forEach((el) => el.classList.remove('is-turning'));
     } catch {
       /* ignore */

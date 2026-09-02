@@ -5,6 +5,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject
 import { contentAssetUrl, effectiveId, type GroupMember, type GroupMessage } from '@/lib/api';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { ensureShelfRefLabel, isShelfRef } from '@/lib/shelf_checkin';
+import { notifyFlutterShelfPath } from '@/lib/shelf_host';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
   GROUP_EMOJIS,
@@ -611,7 +612,10 @@ function ChatBubble({
                     <Link
                       href={refHref}
                       className="text-link group-checkin-read-link"
-                      onClick={beforeReader}
+                      onClick={() => {
+                        beforeReader();
+                        if (isShelfRef(m.ref)) notifyFlutterShelfPath(refHref);
+                      }}
                     >
                       {isShelfRef(m.ref) ? '继续阅读' : '去读'}
                     </Link>

@@ -239,7 +239,10 @@
 }
 
 /* 书架阅读器全屏：避免 .app-body 与顶栏双重 safe-top。 */
+html.shelf-reader-open,
 body.shelf-reader-active {
+  overflow: hidden !important;
+  overscroll-behavior: none;
   background: var(--paper, #f7f3ec) !important;
 }
 
@@ -255,9 +258,42 @@ body.shelf-reader-active .tabbar {
   display: none !important;
 }
 
+/* Flutter H5：100dvh 在裁切 WebView 内会塌高，贴宿主 --peiai-vv-h */
+html.android-flutter-h5.shelf-reader-open,
+html.android-flutter-h5.shelf-reader-open body,
+html.android-flutter-h5 body.shelf-reader-active {
+  height: var(--peiai-vv-h, 100%) !important;
+  min-height: var(--peiai-vv-h, 100%) !important;
+  max-height: var(--peiai-vv-h, 100%);
+  overflow: hidden !important;
+}
+
+html.android-flutter-h5 body.shelf-reader-active .app-body {
+  height: var(--peiai-vv-h, 100%) !important;
+  min-height: var(--peiai-vv-h, 100%) !important;
+  max-height: var(--peiai-vv-h, 100%);
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+html.android-flutter-h5 .shelf-reader {
+  position: fixed;
+  inset: 0;
+  height: var(--peiai-vv-h, 100%) !important;
+  min-height: var(--peiai-vv-h, 100%) !important;
+  max-height: var(--peiai-vv-h, 100%);
+}
+
+html.android-flutter-h5 .shelf-fullscreen-overlay,
+html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
+  height: var(--peiai-vv-h, 100%) !important;
+  max-height: var(--peiai-vv-h, 100%);
+}
+
 .shelf-reader {
   height: 100dvh;
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
   width: 100%;
   position: fixed;
   inset: 0;

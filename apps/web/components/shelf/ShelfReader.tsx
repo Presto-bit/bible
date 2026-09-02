@@ -20,6 +20,7 @@ import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
 import { shelfReadingStyleVars } from '@/lib/shelf_reading';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
+import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
 import '@/styles/shelf.css';
 
@@ -75,11 +76,12 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
   const canNext = pageIndex < pageCount - 1 || canNextSection;
 
   useEffect(() => {
-    document.body.classList.add('shelf-reader-active');
+    setShelfReaderChrome(true);
+    notifyFlutterShelfPath();
     return () => {
-      document.body.classList.remove('shelf-reader-active');
+      setShelfReaderChrome(false);
     };
-  }, []);
+  }, [bookId, sectionId]);
 
   const neighborId = useCallback(
     (delta: number) => {

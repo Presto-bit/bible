@@ -18,12 +18,6 @@ export default function ShelfVideoFullscreen({ open, src, title, onClose }: Prop
     const v = videoRef.current;
     if (!v) return;
     void v.play().catch(() => {});
-    const el = v as HTMLVideoElement & { webkitEnterFullscreen?: () => void };
-    if (typeof el.requestFullscreen === 'function') {
-      void el.requestFullscreen().catch(() => {});
-    } else if (typeof el.webkitEnterFullscreen === 'function') {
-      el.webkitEnterFullscreen();
-    }
     return () => {
       v.pause();
     };
