@@ -1142,7 +1142,7 @@ export default function ReaderView({
 
   const toggleChrome = useCallback(() => {
     if (overlayOpenRef.current) return;
-    if (audioFocusOpenRef.current) {
+    if (READER_AUDIO_ENABLED && audioFocusOpenRef.current) {
       audioMinimizePanel();
       return;
     }

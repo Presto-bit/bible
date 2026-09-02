@@ -13,6 +13,7 @@ import '../../app/app_shell.dart'
         navIndexProvider,
         peiaiTabBarOverlayExtent,
         PeiaiShellMetrics,
+        readerChromeToggleProvider,
         readerImmersiveProvider;
 import '../../core/badge_stats.dart';
 import '../../core/api_client.dart' show prefsProvider;
@@ -367,6 +368,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       if (next == 1 && _chromeHidden) {
         ref.read(readerImmersiveProvider.notifier).set(true);
       }
+    });
+
+    // 底栏再次点「圣经」：切换顶栏/沉浸（对齐 PWA peiai-reader-toggle-chrome）。
+    ref.listen(readerChromeToggleProvider, (prev, next) {
+      if (prev == next) return;
+      if (_book == null || _catalogOverlay) return;
+      _toggleChrome();
     });
 
     final readerReturn = ref.watch(readerReturnProvider);
