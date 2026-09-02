@@ -11,10 +11,16 @@
  */
 
 export const READER_INTERACTIVE_SEL =
-  'a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.proper-noun,.reader-focus-bar,.vsb-icon-btn,.reader-fab,.reader-topbar';
+  'a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.proper-noun,.reader-focus-bar,.vsb-icon-btn,.reader-fab,.reader-topbar,.reader-audio-mini,.reader-audio-focus,.reader-audio-focus-backdrop';
 
 /** 半屏挂上后忽略遮罩关闭（同按压 click 落到 backdrop） */
 export const SHEET_OPEN_GUARD_MS = 400;
+
+/** 底部 Sheet / 朗读条下滑关闭阈值（与 ReaderSheetPortal 一致） */
+export const SHEET_DISMISS_DY = 72;
+
+/** 迷你条上滑展开专注层阈值 */
+export const AUDIO_MINI_EXPAND_DY = 48;
 
 const INTERACTIVE_HIT_RADIUS = 10;
 

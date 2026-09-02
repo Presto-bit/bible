@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReaderAudioState } from '@/lib/reader_audio';
+import { useVerticalSwipeDismiss } from '@/lib/use_vertical_swipe_dismiss';
 
 function PlayPauseIcon({ playing }: { playing: boolean }) {
   if (playing) {
@@ -37,7 +38,6 @@ export function ReaderAudioMiniBar({
   visible: boolean;
   collapsed: boolean;
   state: ReaderAudioState;
-  title: string;
   currentSec: number;
   durationSec: number;
   formatTime: (n: number) => string;
@@ -48,7 +48,13 @@ export function ReaderAudioMiniBar({
   onDismiss: () => void;
   onOpenSettings: () => void;
   onRetry?: () => void;
+  title: string;
 }) {
+  const swipe = useVerticalSwipeDismiss({
+    onDismiss,
+    onExpand,
+  });
+
   if (!visible) return null;
 
   const loading = state === 'loading';
@@ -82,8 +88,18 @@ export function ReaderAudioMiniBar({
       ].join(' ')}
       role="region"
       aria-label="本章朗读控制"
+      style={
+        swipe.dragOffset > 0
+          ? { transform: `translateY(${swipe.dragOffset}px)`, transition: 'none' }
+          : undefined
+      }
       onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={swipe.onTouchStart}
+      onTouchMove={swipe.onTouchMove}
+      onTouchEnd={swipe.onTouchEnd}
+      onTouchCancel={swipe.onTouchCancel}
     >
+      <div className="half-sheet-grab reader-audio-mini-grab" aria-hidden />
       <div className="reader-audio-mini-track">
         {loading ? (
           <div className="reader-audio-mini-shimmer" aria-hidden />

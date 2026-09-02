@@ -3910,6 +3910,7 @@ export default function ReaderView({
         onToggle={() => void audioTogglePlay()}
         onSeek={(delta) => audioSeekTo(Math.max(0, audioCurrentSec + delta))}
         onSeekToVerse={audioSeekTo}
+        onRetry={() => void audioRetryPlay()}
         onOpenSettings={() => {
           setAudioFocusOpen(false);
           setAudioSettingsOpen(true);

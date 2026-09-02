@@ -32,6 +32,51 @@ function formatTime(sec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+/** iOS：在用户手势栈内解锁 Audio，避免 await 后 play() 被拦。 */
+const SILENT_WAV =
+  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
+
+function primeAudioElement(el: HTMLAudioElement): void {
+  el.muted = true;
+  const unlockSrc = SILENT_WAV;
+  el.src = unlockSrc;
+  const p = el.play();
+  if (!p) {
+    el.muted = false;
+    return;
+  }
+  void p.catch(() => {}).then(() => {
+    if (el.src !== unlockSrc) return;
+    el.pause();
+    el.currentTime = 0;
+    el.muted = false;
+    el.removeAttribute('src');
+  });
+}
+
+function waitForAudioReady(el: HTMLAudioElement, timeoutMs: number): Promise<void> {
+  if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const finish = (fn: () => void) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      el.removeEventListener('canplay', onReady);
+      el.removeEventListener('error', onError);
+      fn();
+    };
+    const onReady = () => finish(resolve);
+    const onError = () => finish(() => reject(new Error('audio_load_failed')));
+    const timer = window.setTimeout(
+      () => finish(() => reject(new Error('audio_load_timeout'))),
+      timeoutMs,
+    );
+    el.addEventListener('canplay', onReady, { once: true });
+    el.addEventListener('error', onError, { once: true });
+  });
+}
+
 export function useReaderAudio({
   bookId,
   bookName,
@@ -144,6 +189,27 @@ export function useReaderAudio({
     prefetchedNextRef.current = null;
   }, [clearSleepTimer, onCurrentVerseChange, persistCheckpoint]);
 
+  /** 切章/重载时释放旧音频，但不把 UI 打回 off（保留 loading/playing 语义）。 */
+  const releasePreviousAudio = useCallback(() => {
+    clearSleepTimer();
+    const el = audioRef.current;
+    if (el && playingBookRef.current && playingChapterRef.current > 0) {
+      persistCheckpoint(
+        playingBookRef.current,
+        playingChapterRef.current,
+        el.currentTime,
+        Number.isFinite(el.duration) ? el.duration : undefined,
+      );
+    }
+    if (el) {
+      el.pause();
+      el.removeAttribute('src');
+      el.load();
+    }
+    audioRef.current = null;
+    prefetchedNextRef.current = null;
+  }, [clearSleepTimer, persistCheckpoint]);
+
   const attachMediaSession = useCallback(
     (el: HTMLAudioElement, m: BibleAudioChapterMeta) => {
       if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
@@ -208,21 +274,24 @@ export function useReaderAudio({
         return;
       }
       setState('loading');
+      releasePreviousAudio();
+      const el = new Audio();
+      primeAudioElement(el);
+      audioRef.current = el;
       try {
         const m = await fetchBibleAudioChapter(targetBook, targetChapter, screenVersion);
         metaRef.current = m;
         setMeta(m);
         if (!m.available || !m.stream_path) {
+          releasePreviousAudio();
           setState('off');
           if (!opts?.auto) toast('此译本暂无朗读');
           return;
         }
-        stopInternal();
         await loadTimestamps(m);
-        const el = new Audio(bibleAudioStreamUrl(m.stream_path));
+        el.src = bibleAudioStreamUrl(m.stream_path);
         el.preload = 'auto';
         el.playbackRate = settings.speed;
-        audioRef.current = el;
         playingBookRef.current = targetBook;
         playingChapterRef.current = targetChapter;
         attachMediaSession(el, m);
@@ -283,7 +352,12 @@ export function useReaderAudio({
           hapticLight();
           setState('playing');
         });
+        el.addEventListener('error', () => {
+          setState('error');
+          toast('朗读加载失败');
+        });
 
+        await waitForAudioReady(el, 90_000);
         await el.play();
         setState('playing');
         if (!readerAudioCoachSeen()) {
@@ -292,6 +366,7 @@ export function useReaderAudio({
           window.setTimeout(() => setCoachVisible(false), 2500);
         }
       } catch {
+        releasePreviousAudio();
         setState('error');
         toast(
           isReaderAudioNetworkAvailable()
@@ -307,6 +382,7 @@ export function useReaderAudio({
       loadTimestamps,
       prefetchNextChapter,
       persistCheckpoint,
+      releasePreviousAudio,
       screenVersion,
       settings,
       stopInternal,
@@ -328,11 +404,26 @@ export function useReaderAudio({
     }
     if (state === 'paused' && el) {
       hapticLight();
+      primeAudioElement(el);
       await el.play();
       return;
     }
+    if (state === 'error' && el?.src) {
+      primeAudioElement(el);
+      setState('loading');
+      try {
+        await waitForAudioReady(el, 90_000);
+        await el.play();
+        setState('playing');
+      } catch {
+        setState('error');
+        toast('朗读加载失败');
+      }
+      return;
+    }
+    primeAudioElement(new Audio());
     await playChapter(bookId, chapter);
-  }, [bookId, chapter, playChapter, state]);
+  }, [bookId, chapter, playChapter, state, toast]);
 
   const seekTo = useCallback(
     (sec: number) => {

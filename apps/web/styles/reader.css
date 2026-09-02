@@ -2144,6 +2144,30 @@ body.reader-overlay-open .reader-page {
   padding: 12px 20px calc(20px + var(--safe-bottom));
   text-align: center;
 }
+.reader-audio-mini-grab {
+  margin: 2px auto 4px;
+  opacity: 0.45;
+}
+.reader-audio-focus-head {
+  margin-bottom: 4px;
+}
+.reader-audio-focus-status {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+.reader-audio-focus-status-error p {
+  margin: 0 0 10px;
+  color: var(--ink);
+}
+.reader-audio-focus-retry {
+  border: none;
+  background: transparent;
+  color: var(--accent-deep);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
 .reader-audio-focus-back {
   border: none;
   background: transparent;
