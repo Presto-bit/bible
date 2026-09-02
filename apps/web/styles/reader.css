@@ -1388,52 +1388,6 @@ body.reader-overlay-open .reader-page {
     animation: none;
   }
 }
-.chapter-complete-tip {
-  position: fixed;
-  left: 50%;
-  bottom: calc(72px + var(--safe-bottom));
-  transform: translateX(-50%);
-  z-index: 40;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  max-width: min(520px, calc(100vw - 24px));
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface) 92%, var(--accent-wash));
-  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
-  box-shadow: 0 8px 28px rgba(20, 24, 28, 0.12);
-}
-.chapter-complete-tip-text {
-  font-size: 13px;
-  color: var(--ink-soft);
-  font-weight: 600;
-}
-.chapter-complete-tip-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-left: auto;
-}
-.chapter-complete-tip-primary,
-.chapter-complete-tip-skip {
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: 12px;
-  padding: 5px 9px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.chapter-complete-tip-primary {
-  background: var(--accent-deep);
-  color: #fff;
-  font-weight: 600;
-}
-.chapter-complete-tip-skip {
-  color: var(--ink-faint);
-}
 .verse-diff-mark {
   background: color-mix(in srgb, var(--gold) 28%, transparent);
   border-radius: 3px;

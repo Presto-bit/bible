@@ -293,8 +293,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   Set<int> _selected = {};
   WordRange? _wordRange;
   bool _bookDone = false;
-  bool _chapterTipVisible = false;
-  bool _chapterBottomFired = false;
   bool _guideTipVisible = false;
   bool _guideTipCompact = false;
   Timer? _guideDwellTimer;
@@ -747,8 +745,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         _selected.clear();
         _wordRange = null;
         _bookDone = false;
-        _chapterTipVisible = false;
-        _chapterBottomFired = false;
         _guideTipVisible = false;
         _guideTipCompact = false;
         _resumeFlashVerse = null;
@@ -935,25 +931,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       if (now - _focusBarScrollThrottleMs > 80) {
         _focusBarScrollThrottleMs = now;
         _scheduleFocusBarLayout();
-      }
-    }
-
-    // 章末读完轻提示（对齐 PWA ChapterCompleteTip；专注模式 / 计划模式关闭）
-    if (!_chapterBottomFired &&
-        widget.planMeta == null &&
-        cur >= _scroll.position.maxScrollExtent - 100) {
-      _chapterBottomFired = true;
-      final mode = ref.read(readingModeProvider);
-      final tipOn = ref.read(chapterCompleteTipOnProvider);
-      final prefs = ref.read(readerPreferencesProvider);
-      if (tipOn && mode != ReadingMode.focus) {
-        if (!prefs.hasShownChapterCompleteTip(widget.book.id, widget.chapter)) {
-          // 内存先标记，再异步落盘，避免快速翻章重复弹。
-          unawaited(
-            prefs.markChapterCompleteTipShown(widget.book.id, widget.chapter),
-          );
-          if (mounted) setState(() => _chapterTipVisible = true);
-        }
       }
     }
 
@@ -2620,34 +2597,6 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                   await disableChapterGuideAuto(ref.read(prefsProvider));
                   if (mounted) setState(() => _guideTipVisible = false);
                 },
-              ),
-            ),
-          if (_chapterTipVisible &&
-              _selected.isEmpty &&
-              widget.planMeta == null)
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: widget.chromeHidden ? 24 : 80,
-              child: _ChapterCompleteTip(
-                bookName: widget.book.name,
-                chapter: widget.chapter,
-                meditate: readingMode == ReadingMode.meditate,
-                onThought: () {
-                  setState(() => _chapterTipVisible = false);
-                  showWriteThoughtSheet(
-                    context,
-                    ref,
-                    refStr: '${widget.book.id}.${widget.chapter}.1',
-                    refLabel: '${widget.book.name} ${widget.chapter}:1',
-                  );
-                },
-                onNext: () {
-                  setState(() => _chapterTipVisible = false);
-                  widget.onNextChapter?.call();
-                  if (widget.onNextChapter == null) widget.onNav(1);
-                },
-                onDismiss: () => setState(() => _chapterTipVisible = false),
               ),
             ),
         ],
@@ -5081,86 +5030,6 @@ class _ChapterGuideTipBar extends StatelessWidget {
                   ),
                   child: const Text('不再提示', style: TextStyle(fontSize: 11.5)),
                 ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 章末轻提示：对齐 PWA ChapterCompleteTip。
-class _ChapterCompleteTip extends StatelessWidget {
-  const _ChapterCompleteTip({
-    required this.bookName,
-    required this.chapter,
-    required this.meditate,
-    required this.onThought,
-    required this.onNext,
-    required this.onDismiss,
-  });
-  final String bookName;
-  final int chapter;
-  final bool meditate;
-  final VoidCallback onThought;
-  final VoidCallback onNext;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 0.5,
-      shadowColor: AppColors.ink.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(12),
-      color: AppColors.paper,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.line.withValues(alpha: 0.9)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 11, 8, 11),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '本章读完 · $bookName 第 $chapter 章',
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.inkSoft,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: onThought,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.accentDeep,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  meditate ? '写想法' : '留一句',
-                  style: const TextStyle(fontSize: 12.5),
-                ),
-              ),
-              TextButton(
-                onPressed: onNext,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.accentDeep,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text('下一章', style: TextStyle(fontSize: 12.5)),
-              ),
-              IconButton(
-                onPressed: onDismiss,
-                icon: const Icon(Icons.close, size: 18),
-                visualDensity: VisualDensity.compact,
-                color: AppColors.inkFaint,
-              ),
             ],
           ),
         ),

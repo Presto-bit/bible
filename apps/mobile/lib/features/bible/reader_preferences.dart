@@ -1,4 +1,4 @@
-/// 阅读器偏好：翻页、字体、划线/想法、阅读模式、章末提示等。
+/// 阅读器偏好：翻页、字体、划线/想法、阅读模式等。
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,12 +78,7 @@ const _underlinesOffKey = 'reader_underlines_off';
 const _thoughtsOffKey = 'reader_thoughts_off';
 const _readingModeKey = 'reader_reading_mode';
 const _layoutKey = 'reader_layout';
-const _chapterTipOffKey = 'reader_chapter_complete_tip_off';
-const _chapterTipShownKey = 'reader_chapter_complete_tip_shown_v1';
 const _parallelDiffOffKey = 'reader_parallel_diff_off';
-
-/// 会话内已展示（先于 SharedPreferences 写入，防快速翻章重复弹）。
-final _chapterTipShownMemory = <String>{};
 
 class ReaderPreferences {
   ReaderPreferences(this._prefs);
@@ -135,35 +130,6 @@ class ReaderPreferences {
 
   Future<void> setLayout(ReadingLayout v) =>
       _prefs.setString(_layoutKey, v.name);
-
-  bool get chapterCompleteTipOn =>
-      !(_prefs.getBool(_chapterTipOffKey) ?? false);
-
-  Future<void> setChapterCompleteTipOn(bool v) =>
-      _prefs.setBool(_chapterTipOffKey, !v);
-
-  bool hasShownChapterCompleteTip(String bookId, int chapter) {
-    final key = '${bookId.toUpperCase()}.$chapter';
-    if (_chapterTipShownMemory.contains(key)) return true;
-    final raw = _prefs.getStringList(_chapterTipShownKey) ?? const [];
-    return raw.contains(key);
-  }
-
-  Future<void> markChapterCompleteTipShown(String bookId, int chapter) async {
-    final key = '${bookId.toUpperCase()}.$chapter';
-    if (_chapterTipShownMemory.contains(key)) return;
-    _chapterTipShownMemory.add(key);
-    final raw = List<String>.from(
-      _prefs.getStringList(_chapterTipShownKey) ?? const <String>[],
-    );
-    if (raw.contains(key)) return;
-    raw.add(key);
-    // 控制增长：只留最近 120 条
-    while (raw.length > 120) {
-      raw.removeAt(0);
-    }
-    await _prefs.setStringList(_chapterTipShownKey, raw);
-  }
 
   /// 对照阅读时标示措辞差（默认关，对齐 PWA；仅查经模式可开启）。
   bool get parallelDiffOn => !(_prefs.getBool(_parallelDiffOffKey) ?? true);
@@ -258,21 +224,6 @@ class ReadingLayoutNotifier extends Notifier<ReadingLayout> {
 final readingLayoutProvider =
     NotifierProvider<ReadingLayoutNotifier, ReadingLayout>(
       ReadingLayoutNotifier.new,
-    );
-
-class ChapterCompleteTipToggleNotifier extends Notifier<bool> {
-  @override
-  bool build() => ref.read(readerPreferencesProvider).chapterCompleteTipOn;
-
-  Future<void> set(bool v) async {
-    state = v;
-    await ref.read(readerPreferencesProvider).setChapterCompleteTipOn(v);
-  }
-}
-
-final chapterCompleteTipOnProvider =
-    NotifierProvider<ChapterCompleteTipToggleNotifier, bool>(
-      ChapterCompleteTipToggleNotifier.new,
     );
 
 class ParallelDiffToggleNotifier extends Notifier<bool> {

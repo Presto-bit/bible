@@ -39,7 +39,6 @@ Future<void> showReaderSettingsSheet(
           final toggles = ref.watch(readerFeatureTogglesProvider);
           final mode = ref.watch(readingModeProvider);
           final layout = ref.watch(readingLayoutProvider);
-          final tipOn = ref.watch(chapterCompleteTipOnProvider);
           return ListView(
             controller: scroll,
             padding: EdgeInsets.fromLTRB(
@@ -203,14 +202,6 @@ Future<void> showReaderSettingsSheet(
                 onChanged: (v) => ref
                     .read(readerFeatureTogglesProvider.notifier)
                     .setThoughts(v),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('读完提示'),
-                subtitle: const Text('滑到章末时轻提示写想法 / 下一章'),
-                value: tipOn,
-                onChanged: (v) =>
-                    ref.read(chapterCompleteTipOnProvider.notifier).set(v),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

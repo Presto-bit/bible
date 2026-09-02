@@ -184,14 +184,12 @@ import {
   PAGE_TURN_MODES,
   READING_MODES,
   fontFamilyCss,
-  getChapterCompleteTipOn,
   getFontFamily,
   getPageTurn,
   getReadingMode,
   getShowParallelDiff,
   getThoughtsOn,
   getUnderlinesOn,
-  setChapterCompleteTipOn as persistChapterCompleteTipOn,
   setFontFamily,
   setPageTurn,
   setReadingMode as persistReadingMode,
@@ -202,10 +200,6 @@ import {
   type ReaderFontFamily,
   type ReadingMode,
 } from '@/lib/reader_preferences';
-import {
-  hasShownChapterCompleteTip,
-  markChapterCompleteTipShown,
-} from '@/lib/chapter_complete_tip';
 import {
   cachedVerseDiff,
   renderTextWithDiffSpans,
@@ -231,10 +225,6 @@ const VersePreviewSheet = dynamic(
 );
 const ShareToSocialSheet = dynamic(
   () => import('@/components/ShareToSocialSheet').then((m) => m.ShareToSocialSheet),
-  { ssr: false },
-);
-const ChapterCompleteTip = dynamic(
-  () => import('@/components/reader/ChapterCompleteTip').then((m) => m.ChapterCompleteTip),
   { ssr: false },
 );
 const ReaderAudioButton = dynamic(
@@ -427,8 +417,6 @@ export default function ReaderView({
   const [thoughtsOn, setThoughtsOn] = useState(true);
   const [readingMode, setReadingMode] = useState<ReadingMode>('study');
   const [showParallelDiff, setShowParallelDiff] = useState(false);
-  const [chapterCompleteTipOn, setChapterCompleteTipOn] = useState(true);
-  const [chapterCompleteVisible, setChapterCompleteVisible] = useState(false);
   const [verseCardOpen, setVerseCardOpen] = useState(false);
   const [verseCardSnapshot, setVerseCardSnapshot] = useState<{
     refLabel: string;
@@ -1245,7 +1233,6 @@ export default function ReaderView({
     setThoughtsOn(getThoughtsOn());
     setReadingMode(getReadingMode());
     setShowParallelDiff(getShowParallelDiff());
-    setChapterCompleteTipOn(getChapterCompleteTipOn());
   }, []);
 
   // 对照差异：idle 分片计算，不挡翻页
@@ -1307,25 +1294,7 @@ export default function ReaderView({
     chapter,
   ]);
 
-  // 日常章末「读完」轻提示（计划模式走 PlanReadingLayer）
   useEffect(() => {
-    if (!chapterBottomTick) return;
-    if (planMeta) return;
-    if (!chapterCompleteTipOn || readingMode === 'focus') return;
-    if (hasShownChapterCompleteTip(book.id, chapter)) return;
-    markChapterCompleteTipShown(book.id, chapter);
-    setChapterCompleteVisible(true);
-  }, [
-    chapterBottomTick,
-    planMeta,
-    chapterCompleteTipOn,
-    readingMode,
-    book.id,
-    chapter,
-  ]);
-
-  useEffect(() => {
-    setChapterCompleteVisible(false);
     chapterBottomArrivedRef.current = null;
     setChapterBottomTick(0);
   }, [book.id, chapter]);
@@ -3708,17 +3677,6 @@ export default function ReaderView({
               <span>显示想法</span>
               <input type="checkbox" checked={thoughtsOn} onChange={(e) => { setThoughtsOn(e.target.checked); persistThoughtsOn(e.target.checked); }} />
             </label>
-            <label className="reader-toggle-row">
-              <span>读完提示</span>
-              <input
-                type="checkbox"
-                checked={chapterCompleteTipOn}
-                onChange={(e) => {
-                  setChapterCompleteTipOn(e.target.checked);
-                  persistChapterCompleteTipOn(e.target.checked);
-                }}
-              />
-            </label>
         </ReaderSheetPortal>
       )}
 
@@ -3859,30 +3817,6 @@ export default function ReaderView({
             clearSelection();
           }}
           onDone={(msg) => flashToast(msg)}
-        />
-      )}
-
-      {chapterCompleteVisible && !planMeta && !hasSel && (
-        <ChapterCompleteTip
-          bookName={book.name}
-          chapter={chapter}
-          englishUI={englishUI}
-          meditate={readingMode === 'meditate'}
-          onThought={() => {
-            setChapterCompleteVisible(false);
-            const v = verses[0]?.verse ?? 1;
-            const text = verses.find((x) => x.verse === v)?.text || '';
-            openThoughtWriteNew(
-              `${book.id}.${chapter}.${v}`,
-              `${book.name} ${chapter}:${v}`,
-              text || undefined,
-            );
-          }}
-          onNextChapter={() => {
-            setChapterCompleteVisible(false);
-            if (canNavNext) navChapter(1);
-          }}
-          onDismiss={() => setChapterCompleteVisible(false)}
         />
       )}
 

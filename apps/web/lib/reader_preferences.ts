@@ -13,7 +13,6 @@ const UNDERLINES_OFF_KEY = 'reader_underlines_off';
 const THOUGHTS_OFF_KEY = 'reader_thoughts_off';
 const READING_MODE_KEY = 'reader_reading_mode';
 const PARALLEL_DIFF_KEY = 'reader_parallel_diff';
-const CHAPTER_COMPLETE_TIP_OFF_KEY = 'reader_chapter_complete_tip_off';
 
 function read(key: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
@@ -129,12 +128,4 @@ export function getShowParallelDiff(): boolean {
 
 export function setShowParallelDiff(on: boolean) {
   localStorage.setItem(PARALLEL_DIFF_KEY, on ? '1' : '0');
-}
-
-export function getChapterCompleteTipOn(): boolean {
-  return read(CHAPTER_COMPLETE_TIP_OFF_KEY, '0') !== '1';
-}
-
-export function setChapterCompleteTipOn(on: boolean) {
-  localStorage.setItem(CHAPTER_COMPLETE_TIP_OFF_KEY, on ? '0' : '1');
 }
