@@ -6,6 +6,9 @@ export type PageTurnMode = 'swipe' | 'scroll';
 export type ReadingMode = 'focus' | 'meditate' | 'study';
 
 const FONT_FAMILY_KEY = 'reader_font_family';
+const READER_FONT_KEY = 'readerFont';
+export const READER_FONT_SIZES = [18, 20, 24] as const;
+const READER_FONT_DEFAULT = 18;
 const PAGE_TURN_KEY = 'reader_page_turn';
 /** 安卓（浏览器/壳）：一次性把历史「滚动」默认迁到跟手翻页 */
 const PAGE_TURN_ANDROID_SWIPE_MIGRATE = 'reader_page_turn_android_swipe_v1';
@@ -45,6 +48,23 @@ export function setFontFamily(f: ReaderFontFamily) {
 
 export function fontFamilyCss(f: ReaderFontFamily): string {
   return FONT_FAMILIES.find((x) => x.id === f)?.css ?? FONT_FAMILIES[0].css;
+}
+
+/** 无效或未设置时默认「中」(18px)；兼容旧 17px。 */
+export function getReaderFontPx(): number {
+  if (typeof window === 'undefined') return READER_FONT_DEFAULT;
+  const n = Number(localStorage.getItem(READER_FONT_KEY));
+  if (READER_FONT_SIZES.includes(n as (typeof READER_FONT_SIZES)[number])) return n;
+  if (n === 17) return READER_FONT_DEFAULT;
+  return READER_FONT_DEFAULT;
+}
+
+export function setReaderFontPx(px: number) {
+  if (typeof window === 'undefined') return;
+  const nearest = READER_FONT_SIZES.reduce((a, b) =>
+    Math.abs(b - px) < Math.abs(a - px) ? b : a,
+  );
+  localStorage.setItem(READER_FONT_KEY, String(nearest));
 }
 
 function defaultPageTurn(): PageTurnMode {

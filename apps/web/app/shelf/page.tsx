@@ -48,7 +48,7 @@ function ShelfListInner() {
   }, []);
 
   useEffect(() => {
-    void reload();
+    void reload(true);
   }, [reload]);
 
   useEffect(() => {

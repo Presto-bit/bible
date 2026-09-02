@@ -39,6 +39,7 @@ def _load_book_sections(book_id: str) -> dict[str, dict[str, Any]] | None:
     if cached is not None:
         return cached
 
+    fb = get_file_book(book_id)
     sections: list[dict[str, Any]] | None = None
     if _db_available():
         try:
@@ -54,10 +55,12 @@ def _load_book_sections(book_id: str) -> dict[str, dict[str, Any]] | None:
         except Exception:
             sections = None
     if sections is None:
-        fb = get_file_book(book_id)
         if not fb:
             return None
         sections = fb.get("sections") or []
+    elif fb and (fb.get("book_type") == "collection" or fb.get("kind") == "collection"):
+        # 教案合集以文件 catalog 为准（含 PDF/DOCX 课节与附件）
+        sections = fb.get("sections") or sections
     return _index_sections(book_id, sections)
 
 
@@ -130,9 +133,22 @@ def _row_to_summary(row: tuple) -> dict[str, Any]:
     }
 
 
+def _merge_file_catalog(db_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """DB 有数据时也合并 platform_catalog.json 中的书目（如教案合集）。"""
+    by_id = {str(i["id"]): i for i in db_items}
+    for fi in _list_from_file():
+        fid = str(fi["id"])
+        if fid not in by_id:
+            by_id[fid] = fi
+    merged = list(by_id.values())
+    merged.sort(key=lambda b: int(b.get("sort_order") or 0), reverse=True)
+    return merged
+
+
 def list_platform_books() -> list[dict[str, Any]]:
+    file_items = _list_from_file()
     if not _db_available():
-        return _list_from_file()
+        return file_items
     pool = get_pool()
     ensure_shelf_schema(pool)
     try:
@@ -147,10 +163,10 @@ def list_platform_books() -> list[dict[str, Any]]:
             )
             rows = cur.fetchall()
         if rows:
-            return [_row_to_summary(r) for r in rows]
+            return _merge_file_catalog([_row_to_summary(r) for r in rows])
     except Exception:
         pass
-    return _list_from_file()
+    return file_items
 
 
 def list_platform_groups() -> list[dict[str, Any]]:
@@ -227,6 +243,8 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                     "source": "platform",
                     "created_at": row[12].isoformat() if row[12] else None,
                 }
+                if fb and fb.get("book_type") == "collection":
+                    return _book_detail_from_file(fb, include_sections=include_sections)
                 if include_sections:
                     out["sections"] = [
                         {
@@ -239,6 +257,9 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                         }
                         for s in sections
                     ]
+                if fb:
+                    out["group_id"] = fb.get("group_id")
+                    out["book_type"] = fb.get("book_type") or out["book_type"]
                 return out
         except Exception:
             pass

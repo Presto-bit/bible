@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useRef } from 'react';
 import { loadShelfBookProgress, shelfCoverHue, type ShelfBookSummary } from '@/lib/shelf_api';
 
 type Props = {
@@ -9,41 +9,56 @@ type Props = {
   onManage?: (book: ShelfBookSummary) => void;
 };
 
+const LONG_PRESS_MS = 520;
+
 export default function ShelfCoverTile({ book, onManage }: Props) {
+  const router = useRouter();
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const startXY = useRef<{ x: number; y: number } | null>(null);
 
   const progress = loadShelfBookProgress(book.id);
   const href = progress
-    ? `/shelf/${book.id}?section=${encodeURIComponent(progress.sectionId)}${
-        progress.pageIndex ? `&page=${progress.pageIndex}` : ''
-      }`
+    ? `/shelf/${book.id}?section=${encodeURIComponent(progress.sectionId)}`
     : `/shelf/${book.id}`;
   const hue = shelfCoverHue(book.title);
 
-  const clearTimer = () => {
+  const clearTimer = useCallback(() => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
-  };
+  }, []);
+
+  const triggerManage = useCallback(() => {
+    if (!onManage) return;
+    longPressFired.current = true;
+    try {
+      navigator.vibrate?.(10);
+    } catch {
+      /* ignore */
+    }
+    onManage(book);
+  }, [book, onManage]);
+
+  const startLongPress = useCallback(
+    (x: number, y: number) => {
+      if (!onManage) return;
+      longPressFired.current = false;
+      clearTimer();
+      startXY.current = { x, y };
+      longPressTimer.current = setTimeout(() => {
+        longPressTimer.current = null;
+        triggerManage();
+      }, LONG_PRESS_MS);
+    },
+    [clearTimer, onManage, triggerManage],
+  );
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (!onManage || e.pointerType === 'mouse' && e.button !== 0) return;
-    longPressFired.current = false;
-    clearTimer();
-    startXY.current = { x: e.clientX, y: e.clientY };
-    longPressTimer.current = setTimeout(() => {
-      longPressTimer.current = null;
-      longPressFired.current = true;
-      try {
-        navigator.vibrate?.(10);
-      } catch {
-        /* ignore */
-      }
-      onManage?.(book);
-    }, 520);
+    if (!onManage) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    startLongPress(e.clientX, e.clientY);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -58,16 +73,31 @@ export default function ShelfCoverTile({ book, onManage }: Props) {
     startXY.current = null;
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!onManage) return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    startLongPress(t.clientX, t.clientY);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!onManage) return;
+    e.preventDefault();
+    triggerManage();
+  };
+
+  const handleActivate = () => {
     if (longPressFired.current) {
       longPressFired.current = false;
-      e.preventDefault();
+      return;
     }
+    router.push(href);
   };
 
   return (
-    <Link
-      href={href}
+    <div
+      role="link"
+      tabIndex={0}
       className="shelf-cover"
       style={{
         background: `linear-gradient(145deg, hsl(${hue} 42% 38%), hsl(${(hue + 36) % 360} 36% 28%))`,
@@ -77,10 +107,20 @@ export default function ShelfCoverTile({ book, onManage }: Props) {
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      onClick={handleClick}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handlePointerUp}
+      onTouchCancel={handlePointerUp}
+      onContextMenu={handleContextMenu}
+      onClick={handleActivate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleActivate();
+        }
+      }}
     >
       <span className="shelf-cover-badge">平台</span>
       <span className="shelf-cover-title">{book.title}</span>
-    </Link>
+    </div>
   );
 }

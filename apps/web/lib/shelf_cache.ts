@@ -3,7 +3,7 @@
 import type { ShelfBookDetail, ShelfGroup, ShelfBookSummary, ShelfSection } from './shelf_api';
 import { getJson } from './api_core';
 
-const LIST_KEY = 'shelf_platform_list_v1';
+const LIST_KEY = 'shelf_platform_list_v2';
 const LIST_TTL_MS = 30 * 60 * 1000;
 
 type ListPayload = { groups: ShelfGroup[]; items: ShelfBookSummary[]; savedAt: number };

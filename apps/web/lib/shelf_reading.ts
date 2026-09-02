@@ -1,12 +1,20 @@
-/** 书架阅读偏好：与圣经 Tab 共用字号与字体族。 */
+/** 书架阅读偏好（与圣经 Tab 独立存储）。 */
 import { sanitizePreviewHtml } from './sanitize_html';
-import { fontFamilyCss, getFontFamily } from './reader_preferences';
 
-const FONT_KEY = 'readerFont';
+const SHELF_FONT_KEY = 'shelf_font_px';
+const SHELF_FONT_FAMILY_KEY = 'shelf_font_family';
 const LINE_HEIGHT_KEY = 'shelf_line_height';
+
 export const SHELF_FONT_SIZES = [18, 20, 24] as const;
 const DEFAULT_PX = 18;
 const DEFAULT_LINE_HEIGHT = 1.9;
+
+export type ShelfFontFamily = 'serif' | 'sans';
+
+export const SHELF_FONT_FAMILIES: { id: ShelfFontFamily; label: string; css: string }[] = [
+  { id: 'serif', label: '衬线', css: "Georgia, 'Songti SC', 'STSong', serif" },
+  { id: 'sans', label: '黑体', css: "system-ui, -apple-system, 'PingFang SC', sans-serif" },
+];
 
 export const SHELF_LINE_HEIGHT_STEPS = [
   { value: 1.75, label: '紧凑' },
@@ -17,7 +25,7 @@ export const SHELF_LINE_HEIGHT_STEPS = [
 
 export function getShelfFontPx(): number {
   if (typeof window === 'undefined') return DEFAULT_PX;
-  const n = Number(localStorage.getItem(FONT_KEY));
+  const n = Number(localStorage.getItem(SHELF_FONT_KEY));
   if (SHELF_FONT_SIZES.includes(n as (typeof SHELF_FONT_SIZES)[number])) return n;
   return DEFAULT_PX;
 }
@@ -27,7 +35,22 @@ export function setShelfFontPx(px: number) {
   const nearest = SHELF_FONT_SIZES.reduce((a, b) =>
     Math.abs(b - px) < Math.abs(a - px) ? b : a,
   );
-  localStorage.setItem(FONT_KEY, String(nearest));
+  localStorage.setItem(SHELF_FONT_KEY, String(nearest));
+}
+
+export function getShelfFontFamily(): ShelfFontFamily {
+  if (typeof window === 'undefined') return 'serif';
+  const v = localStorage.getItem(SHELF_FONT_FAMILY_KEY);
+  return v === 'sans' ? 'sans' : 'serif';
+}
+
+export function setShelfFontFamily(family: ShelfFontFamily) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SHELF_FONT_FAMILY_KEY, family);
+}
+
+export function shelfFontFamilyCss(family: ShelfFontFamily = getShelfFontFamily()): string {
+  return SHELF_FONT_FAMILIES.find((x) => x.id === family)?.css ?? SHELF_FONT_FAMILIES[0].css;
 }
 
 export function bumpShelfFontPx(delta: number): number {
@@ -48,7 +71,6 @@ export function cycleShelfFontPx(): number {
   return next;
 }
 
-/** 默认行高（无用户偏好时，与圣经 Tab 散文一致） */
 export function shelfDefaultLineHeight(fontPx: number): number {
   return fontPx >= 24 ? 2.05 : 1.9;
 }
@@ -75,13 +97,12 @@ export const SHELF_FONT_STEPS = [
 ] as const;
 
 export function shelfReadingStyleVars(fontPx: number, lineHeight?: number): Record<string, string> {
-  const family = getFontFamily();
+  const family = getShelfFontFamily();
   const lh = lineHeight ?? getShelfLineHeight();
   return {
-    ['--reader-font-size' as string]: `${fontPx}px`,
     ['--shelf-font-size' as string]: `${fontPx}px`,
     ['--shelf-line-height' as string]: String(lh),
-    ['--shelf-font-family' as string]: fontFamilyCss(family),
+    ['--shelf-font-family' as string]: shelfFontFamilyCss(family),
   };
 }
 

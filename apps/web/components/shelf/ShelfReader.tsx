@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { forwardRef, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PageBackBar from '@/components/PageBackBar';
 import {
   getPlatformShelfBook,
@@ -18,7 +18,6 @@ import ShelfFontSheet from '@/components/shelf/ShelfFontSheet';
 import { shelfReadingStyleVars } from '@/lib/shelf_reading';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
-import { useShelfSectionPages } from '@/hooks/useShelfSectionPages';
 import '@/styles/shelf.css';
 
 const ShelfLessonPanel = dynamic(() => import('@/components/shelf/ShelfLessonPanel'), {
@@ -29,46 +28,25 @@ const ShelfLessonPanel = dynamic(() => import('@/components/shelf/ShelfLessonPan
 type Props = {
   bookId: string;
   initialSectionId?: string | null;
-  initialPageIndex?: number;
 };
 
-const SectionPage = memo(
-  forwardRef<
-    HTMLElement,
-    {
-      html: string;
-      pageOffset?: number;
-      onTap?: () => void;
-    }
-  >(function SectionPage({ html, pageOffset = 0, onTap }, ref) {
-    return (
-      <article
-        ref={ref}
-        className="shelf-turn-page shelf-prose"
-        style={pageOffset > 0 ? { transform: `translateY(-${pageOffset}px)` } : undefined}
-        onClick={onTap}
-        dangerouslySetInnerHTML={{ __html: html || '' }}
-      />
-    );
-  }),
-);
+const SectionPage = memo(function SectionPage({
+  html,
+  onTap,
+}: {
+  html: string;
+  onTap?: () => void;
+}) {
+  return (
+    <article
+      className="shelf-turn-scroll shelf-prose"
+      onClick={onTap}
+      dangerouslySetInnerHTML={{ __html: html || '' }}
+    />
+  );
+});
 
-function resolveSectionStartPage(
-  bookId: string,
-  sectionId: string | null,
-  initialSectionId?: string | null,
-  initialPageIndex?: number,
-): number {
-  if (!sectionId) return 0;
-  if (initialSectionId === sectionId && initialPageIndex != null) {
-    return Math.max(0, initialPageIndex);
-  }
-  const saved = loadShelfBookProgress(bookId);
-  if (saved?.sectionId === sectionId) return Math.max(0, saved.pageIndex ?? 0);
-  return 0;
-}
-
-export default function ShelfReader({ bookId, initialSectionId, initialPageIndex }: Props) {
+export default function ShelfReader({ bookId, initialSectionId }: Props) {
   const [book, setBook] = useState<ShelfBookDetail | null>(null);
   const [sectionId, setSectionId] = useState<string | null>(initialSectionId ?? null);
   const [section, setSection] = useState<ShelfSection | null>(null);
@@ -81,10 +59,7 @@ export default function ShelfReader({ bookId, initialSectionId, initialPageIndex
   const [fontOpen, setFontOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
   const { fontPx, lineHeight, setFontPx, setLineHeight } = useShelfReadingPrefs();
-  const [sectionPageSeed, setSectionPageSeed] = useState(0);
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pageViewportRef = useRef<HTMLDivElement>(null);
-  const articleRef = useRef<HTMLElement>(null);
 
   const isLesson = section?.kind === 'lesson';
 
@@ -97,17 +72,12 @@ export default function ShelfReader({ bookId, initialSectionId, initialPageIndex
   const canPrevSection = sectionIndex > 0;
   const canNextSection = sectionIndex >= 0 && sectionIndex < sections.length - 1;
 
-  const pageContentKey = `${sectionId ?? ''}-${fontPx}-${lineHeight}-${sectionPageSeed}`;
-
-  const { pageIndex, pageCount, pageHeight, goPage } = useShelfSectionPages(
-    articleRef,
-    pageViewportRef,
-    pageContentKey,
-    sectionPageSeed,
-  );
-
-  const canPrevTurn = pageIndex > 0 || canPrevSection;
-  const canNextTurn = pageIndex < pageCount - 1 || canNextSection;
+  useEffect(() => {
+    document.body.classList.add('shelf-reader-active');
+    return () => {
+      document.body.classList.remove('shelf-reader-active');
+    };
+  }, []);
 
   const neighborId = useCallback(
     (delta: number) => {
@@ -159,13 +129,6 @@ export default function ShelfReader({ bookId, initialSectionId, initialPageIndex
 
   useEffect(() => {
     if (!sectionId) return;
-    setSectionPageSeed(
-      resolveSectionStartPage(bookId, sectionId, initialSectionId, initialPageIndex),
-    );
-  }, [bookId, sectionId, initialSectionId, initialPageIndex]);
-
-  useEffect(() => {
-    if (!sectionId) return;
     let cancelled = false;
 
     const cached = peekShelfSectionCache(bookId, sectionId);
@@ -201,20 +164,15 @@ export default function ShelfReader({ bookId, initialSectionId, initialPageIndex
     if (!sectionId) return;
     if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
     progressTimerRef.current = setTimeout(() => {
-      saveShelfProgress(
-        bookId,
-        sectionId,
-        {
-          bookTitle: book?.title,
-          sectionTitle: section?.title,
-        },
-        isLesson ? 0 : pageIndex,
-      );
+      saveShelfProgress(bookId, sectionId, {
+        bookTitle: book?.title,
+        sectionTitle: section?.title,
+      });
     }, 350);
     return () => {
       if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
     };
-  }, [bookId, sectionId, pageIndex, isLesson, book?.title, section?.title]);
+  }, [bookId, sectionId, book?.title, section?.title]);
 
   const prefetchNeighbor = useCallback(
     (delta: number) => {
@@ -249,20 +207,10 @@ export default function ShelfReader({ bookId, initialSectionId, initialPageIndex
 
   const pageTurn = useReaderPageTurn({
     enabled: !!section && (!isLesson ? !!section.html : true) && !tocOpen && !fontOpen,
-    canPrev: canPrevTurn,
-    canNext: canNextTurn,
+    canPrev: canPrevSection,
+    canNext: canNextSection,
     blocked: tocOpen || fontOpen,
     onChapterChange: (delta) => {
-      if (!isLesson && pageCount > 1) {
-        if (delta > 0 && pageIndex < pageCount - 1) {
-          goPage(1);
-          return;
-        }
-        if (delta < 0 && pageIndex > 0) {
-          goPage(-1);
-          return;
-        }
-      }
       if (delta < 0) goPrev();
       else goNext();
     },
@@ -304,8 +252,6 @@ export default function ShelfReader({ bookId, initialSectionId, initialPageIndex
   }
 
   const title = section?.title || book?.title || '阅读';
-  const pageOffset = pageIndex * pageHeight;
-  const showPageIndicator = !isLesson && pageCount > 1 && !chromeHidden;
 
   return (
     <main
@@ -367,24 +313,16 @@ export default function ShelfReader({ bookId, initialSectionId, initialPageIndex
           ) : null}
           <div className="shelf-turn-track" ref={pageTurn.trackRef}>
             <div className="shelf-turn-panel shelf-turn-panel-peek">
-              <div className="shelf-page-viewport">
-                <SectionPage html={prevSection?.html ?? ''} />
-              </div>
+              <SectionPage html={prevSection?.html ?? ''} />
             </div>
             <div className="shelf-turn-panel shelf-turn-panel-active">
-              <div className="shelf-page-viewport" ref={pageViewportRef}>
-                <SectionPage
-                  ref={articleRef}
-                  html={section.html}
-                  pageOffset={pageOffset}
-                  onTap={() => setChromeHidden((v) => !v)}
-                />
-              </div>
+              <SectionPage
+                html={section.html}
+                onTap={() => setChromeHidden((v) => !v)}
+              />
             </div>
             <div className="shelf-turn-panel shelf-turn-panel-peek">
-              <div className="shelf-page-viewport">
-                <SectionPage html={nextSection?.html ?? ''} />
-              </div>
+              <SectionPage html={nextSection?.html ?? ''} />
             </div>
           </div>
         </div>
@@ -393,12 +331,6 @@ export default function ShelfReader({ bookId, initialSectionId, initialPageIndex
           <p className="muted">{sectionLoading ? '加载中…' : '暂无内容'}</p>
         </div>
       )}
-
-      {showPageIndicator ? (
-        <div className="shelf-page-indicator" aria-live="polite">
-          {pageIndex + 1} / {pageCount}
-        </div>
-      ) : null}
 
       {showBottomBar ? (
         <nav className="shelf-reader-bottom" aria-label="阅读工具">
