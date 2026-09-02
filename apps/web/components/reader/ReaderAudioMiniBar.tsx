@@ -31,6 +31,7 @@ export function ReaderAudioMiniBar({
   onToggle,
   onSeek,
   onExpand,
+  onMinimize,
   onDismiss,
   onOpenSettings,
   onRetry,
@@ -45,6 +46,7 @@ export function ReaderAudioMiniBar({
   onToggle: () => void;
   onSeek: (sec: number) => void;
   onExpand: () => void;
+  onMinimize: () => void;
   onDismiss: () => void;
   onOpenSettings: () => void;
   onRetry?: () => void;
@@ -155,6 +157,22 @@ export function ReaderAudioMiniBar({
               }}
             >
               {title}
+            </button>
+            <button
+              type="button"
+              className="reader-audio-mini-minimize"
+              onClick={onMinimize}
+              aria-label="最小化朗读"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+                <path
+                  d="M4 5.5L7 8.5L10 5.5"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
             <button type="button" className="reader-audio-mini-expand" onClick={onExpand} aria-label="展开专注朗读">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>

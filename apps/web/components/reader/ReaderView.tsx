@@ -249,6 +249,10 @@ const ReaderAudioFocus = dynamic(
   () => import('@/components/reader/ReaderAudioFocus').then((m) => m.ReaderAudioFocus),
   { ssr: false },
 );
+const ReaderAudioOrb = dynamic(
+  () => import('@/components/reader/ReaderAudioOrb').then((m) => m.ReaderAudioOrb),
+  { ssr: false },
+);
 const ReaderAudioSettingsSheet = dynamic(
   () => import('@/components/reader/ReaderAudioSettingsSheet').then((m) => m.ReaderAudioSettingsSheet),
   { ssr: false },
@@ -673,6 +677,8 @@ export default function ReaderView({
     coachVisible: audioCoachVisible,
     collapsed: audioCollapsed,
     setCollapsed: setAudioCollapsed,
+    minimized: audioMinimized,
+    setMinimized: setAudioMinimized,
     currentSec: audioCurrentSec,
     durationSec: audioDurationSec,
     currentLabel: audioCurrentLabel,
@@ -696,6 +702,18 @@ export default function ReaderView({
     [audioCurrentVerse, audioState],
   );
   const audioVisible = audioState !== 'off';
+  const audioMiniBarVisible =
+    audioVisible && !audioFocusOpen && !audioSettingsOpen && !audioMinimized;
+  const audioOrbVisible =
+    audioVisible
+    && audioMinimized
+    && !audioFocusOpen
+    && !audioSettingsOpen
+    && !hasSel
+    && paneActive
+    && readingMode !== 'focus';
+  const audioBottomPad =
+    audioVisible && !audioMinimized && !(audioCollapsed && hasSel);
   const audioNotifyManualScrollRef = useRef(audioNotifyManualScroll);
   const audioPlayingRef = useRef(audioState === 'playing');
   audioNotifyManualScrollRef.current = audioNotifyManualScroll;
@@ -3047,7 +3065,7 @@ export default function ReaderView({
 
   return (
     <main
-      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}${audioVisible ? ' reader-audio-active' : ''}${audioFocusOpen ? ' reader-audio-focus-open' : ''}`}
+      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}${audioBottomPad ? ' reader-audio-active' : ''}${audioMinimized ? ' reader-audio-minimized' : ''}${audioFocusOpen ? ' reader-audio-focus-open' : ''}`}
       onClick={(e) => {
         if (focusBarRef.current?.contains(e.target as Node)) return;
         const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
@@ -3270,7 +3288,7 @@ export default function ReaderView({
 
       {paneActive && !chromeHidden && readingMode !== 'focus' ? (
       <div
-        className={`reader-fab-stack${hasSel ? ' is-hidden' : ''}${audioVisible ? ' is-audio-playing' : ''}`}
+        className={`reader-fab-stack${hasSel ? ' is-hidden' : ''}${audioMiniBarVisible ? ' is-audio-playing' : ''}`}
         aria-hidden={hasSel}
       >
         {planMeta && onPlanExit && (
@@ -3307,6 +3325,14 @@ export default function ReaderView({
             打卡
           </button>
         )}
+        <ReaderAudioOrb
+          visible={audioOrbVisible && !chromeHidden}
+          state={audioState}
+          currentSec={audioCurrentSec}
+          durationSec={audioDurationSec}
+          onToggle={() => void audioTogglePlay()}
+          onRestore={() => setAudioMinimized(false)}
+        />
         <button
           type="button"
           className="reader-fab"
@@ -3321,6 +3347,16 @@ export default function ReaderView({
         </button>
       </div>
       ) : null}
+
+      <ReaderAudioOrb
+        visible={audioOrbVisible && chromeHidden}
+        state={audioState}
+        currentSec={audioCurrentSec}
+        durationSec={audioDurationSec}
+        immersive
+        onToggle={() => void audioTogglePlay()}
+        onRestore={() => setAudioMinimized(false)}
+      />
 
       {hasSel && !overlayOpen && (
         <div
@@ -3879,7 +3915,7 @@ export default function ReaderView({
       )}
 
       <ReaderAudioMiniBar
-        visible={audioVisible && !audioFocusOpen && !audioSettingsOpen}
+        visible={audioMiniBarVisible}
         collapsed={audioCollapsed}
         state={audioState}
         title={audioCurrentLabel}
@@ -3890,6 +3926,7 @@ export default function ReaderView({
         onToggle={() => void audioTogglePlay()}
         onSeek={audioSeekTo}
         onExpand={() => setAudioFocusOpen(true)}
+        onMinimize={() => setAudioMinimized(true)}
         onDismiss={audioStop}
         onOpenSettings={audioOpenSettings}
         onRetry={() => void audioRetryPlay()}

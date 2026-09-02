@@ -114,6 +114,7 @@ export function useReaderAudio({
   const [currentSec, setCurrentSec] = useState(0);
   const [durationSec, setDurationSec] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const [currentVerse, setCurrentVerse] = useState<number | null>(null);
   const [timestamps, setTimestamps] = useState<AudioTimestampVerse[]>([]);
 
@@ -185,6 +186,7 @@ export function useReaderAudio({
     setCurrentSec(0);
     setDurationSec(0);
     setCollapsed(false);
+    setMinimized(false);
     setFocusOpen(false);
     prefetchedNextRef.current = null;
   }, [clearSleepTimer, onCurrentVerseChange, persistCheckpoint]);
@@ -534,6 +536,8 @@ export function useReaderAudio({
     coachVisible,
     collapsed,
     setCollapsed,
+    minimized,
+    setMinimized,
     currentSec,
     durationSec,
     currentLabel: `${bookName} ${chapter}${meta?.audio_label ? ` · ${meta.audio_label}` : ''}`,

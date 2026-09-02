@@ -11,7 +11,7 @@
  */
 
 export const READER_INTERACTIVE_SEL =
-  'a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.proper-noun,.reader-focus-bar,.vsb-icon-btn,.reader-fab,.reader-topbar,.reader-audio-mini,.reader-audio-focus,.reader-audio-focus-backdrop';
+  'a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.proper-noun,.reader-focus-bar,.vsb-icon-btn,.reader-fab,.reader-topbar,.reader-audio-mini,.reader-audio-focus,.reader-audio-focus-backdrop,.reader-audio-orb';
 
 /** 半屏挂上后忽略遮罩关闭（同按压 click 落到 backdrop） */
 export const SHEET_OPEN_GUARD_MS = 400;
