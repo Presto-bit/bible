@@ -1,0 +1,1522 @@
+{
+  "items": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "title": "恩典的安慰与活出来的救恩",
+      "subtitle": "一位渴望抓住恩典安慰的信徒，与一位重视圣经历史背景和上下文的牧者之间，二十次深入而漫长的对话",
+      "author": "",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "storage_key": "shelf-grace-comfort-salvation.docx",
+      "file_size": 146217,
+      "file_sha256": "f0c3c3c6668bcb12eae9f006290df85bbd671a9fe42862dd57e0b618c923bc97",
+      "toc": {
+        "front": [
+          {
+            "id": "tb-front",
+            "title": "阅读本书之前",
+            "level": 0,
+            "zone": "front",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-front"
+          }
+        ],
+        "outline": [
+          {
+            "id": "ft-0",
+            "title": "第一场对话｜我越来越找不到去教会的理由",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-1"
+          },
+          {
+            "id": "ft-1",
+            "title": "第二场对话｜信仰是安慰，还是一条生活的道路？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-2"
+          },
+          {
+            "id": "ft-2",
+            "title": "第三场对话｜知道几节经文，不等于真正了解圣经",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-3"
+          },
+          {
+            "id": "ft-3",
+            "title": "第四场对话｜只要口里承认，就能得救吗？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-4"
+          },
+          {
+            "id": "ft-4",
+            "title": "第五场对话｜“赎价”这个词对我们提出了什么要求？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-5"
+          },
+          {
+            "id": "ft-5",
+            "title": "第六场对话｜立约的血与圣餐，是免除责任的仪式吗？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-6"
+          },
+          {
+            "id": "ft-6",
+            "title": "第七场对话｜羔羊、救赎、赎罪、和好、罪得赦免，是同一个意思吗？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-7"
+          },
+          {
+            "id": "ft-7",
+            "title": "第八场对话｜为什么“一次献上”之后仍然谈审判？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-8"
+          },
+          {
+            "id": "ft-8",
+            "title": "第九场对话｜罪疚感等于悔改吗？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-9"
+          },
+          {
+            "id": "ft-9",
+            "title": "第十场对话｜向上帝求赦免之后，其他责任就结束了吗？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-10"
+          },
+          {
+            "id": "ft-10",
+            "title": "第十一场对话｜救恩如何显现在今天的人际关系中？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-11"
+          },
+          {
+            "id": "ft-11",
+            "title": "第十二场对话｜努力工作就一定会得到物质上的祝福吗？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-12"
+          },
+          {
+            "id": "ft-12",
+            "title": "第十三场对话｜饶恕能使我从仇恨中得救吗？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-13"
+          },
+          {
+            "id": "ft-13",
+            "title": "第十四场对话｜爱人以后，关系就一定会变好吗？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-14"
+          },
+          {
+            "id": "ft-14",
+            "title": "第十五场对话｜同时讲恩典和顺服，就是靠行为得救吗？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-15"
+          },
+          {
+            "id": "ft-15",
+            "title": "第十六场对话｜“把耶稣重新钉十字架”的警告",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-16"
+          },
+          {
+            "id": "ft-16",
+            "title": "第十七场对话｜怎样面对对救恩的不安？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-17"
+          },
+          {
+            "id": "ft-17",
+            "title": "第十八场对话｜恩典的安慰怎样与生活相连？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-18"
+          },
+          {
+            "id": "ft-18",
+            "title": "第十九场对话｜得救的确据从哪里生长出来？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-19"
+          },
+          {
+            "id": "ft-19",
+            "title": "第二十场对话｜不信的人如果行善，也能得救吗？",
+            "level": 2,
+            "zone": "body",
+            "source": "front_toc",
+            "confidence": 0.9,
+            "section_id": "sec-20"
+          }
+        ],
+        "body": [
+          {
+            "id": "tb-1",
+            "title": "第一场对话｜我越来越找不到去教会的理由",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-1"
+          },
+          {
+            "id": "tb-2",
+            "title": "第二场对话｜信仰是安慰，还是一条生活的道路？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-2"
+          },
+          {
+            "id": "tb-3",
+            "title": "第三场对话｜知道几节经文，不等于真正了解圣经",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-3"
+          },
+          {
+            "id": "tb-4",
+            "title": "第四场对话｜只要口里承认，就能得救吗？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-4"
+          },
+          {
+            "id": "tb-5",
+            "title": "第五场对话｜“赎价”这个词对我们提出了什么要求？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-5"
+          },
+          {
+            "id": "tb-6",
+            "title": "第六场对话｜立约的血与圣餐，是免除责任的仪式吗？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-6"
+          },
+          {
+            "id": "tb-7",
+            "title": "第七场对话｜羔羊、救赎、赎罪、和好、罪得赦免，是同一个意思吗？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-7"
+          },
+          {
+            "id": "tb-8",
+            "title": "第八场对话｜为什么“一次献上”之后仍然谈审判？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-8"
+          },
+          {
+            "id": "tb-9",
+            "title": "第九场对话｜罪疚感等于悔改吗？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-9"
+          },
+          {
+            "id": "tb-10",
+            "title": "第十场对话｜向上帝求赦免之后，其他责任就结束了吗？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-10"
+          },
+          {
+            "id": "tb-11",
+            "title": "第十一场对话｜救恩如何显现在今天的人际关系中？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-11"
+          },
+          {
+            "id": "tb-12",
+            "title": "第十二场对话｜努力工作就一定会得到物质上的祝福吗？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-12"
+          },
+          {
+            "id": "tb-13",
+            "title": "第十三场对话｜饶恕能使我从仇恨中得救吗？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-13"
+          },
+          {
+            "id": "tb-14",
+            "title": "第十四场对话｜爱人以后，关系就一定会变好吗？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-14"
+          },
+          {
+            "id": "tb-15",
+            "title": "第十五场对话｜同时讲恩典和顺服，就是靠行为得救吗？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-15"
+          },
+          {
+            "id": "tb-16",
+            "title": "第十六场对话｜“把耶稣重新钉十字架”的警告",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-16"
+          },
+          {
+            "id": "tb-17",
+            "title": "第十七场对话｜怎样面对对救恩的不安？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-17"
+          },
+          {
+            "id": "tb-18",
+            "title": "第十八场对话｜恩典的安慰怎样与生活相连？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-18"
+          },
+          {
+            "id": "tb-19",
+            "title": "第十九场对话｜得救的确据从哪里生长出来？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-19"
+          },
+          {
+            "id": "tb-20",
+            "title": "第二十场对话｜不信的人如果行善，也能得救吗？",
+            "level": 1,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-20"
+          },
+          {
+            "id": "tb-22",
+            "title": "马可福音1:14-15；罗马书1:1-5；哥林多前书15:1-5｜圣经中的“福音”指什么？",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-22"
+          },
+          {
+            "id": "tb-23",
+            "title": "罗马书10:8-17｜口里的告白与信而顺服",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-23"
+          },
+          {
+            "id": "tb-24",
+            "title": "马可福音10:35-45｜赎价与服事",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-24"
+          },
+          {
+            "id": "tb-25",
+            "title": "出埃及记6:6；利未记25:47-55；以赛亚书43:1｜救赎与赎回的语言",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-25"
+          },
+          {
+            "id": "tb-26",
+            "title": "马太福音26:26-29｜立约的血与罪得赦免",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-26"
+          },
+          {
+            "id": "tb-27",
+            "title": "约翰福音1:29",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-27"
+          },
+          {
+            "id": "tb-28",
+            "title": "利未记5-6章、16章｜献祭与“担当罪”",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-28"
+          },
+          {
+            "id": "tb-29",
+            "title": "罗马书3:21-31｜救赎、赎罪与排除夸口",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-29"
+          },
+          {
+            "id": "tb-30",
+            "title": "罗马书5:6-11；12:9-21｜和好与和平的生活",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-30"
+          },
+          {
+            "id": "tb-31",
+            "title": "哥林多后书5:18-21｜和好与“使祂为我们成为罪”",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-31"
+          },
+          {
+            "id": "tb-32",
+            "title": "希伯来书5:8-10",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-32"
+          },
+          {
+            "id": "tb-33",
+            "title": "希伯来书6:4-12",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-33"
+          },
+          {
+            "id": "tb-34",
+            "title": "希伯来书9:11-28｜祭仪语言、一次献上与审判",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-34"
+          },
+          {
+            "id": "tb-35",
+            "title": "希伯来书10:19-39",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-35"
+          },
+          {
+            "id": "tb-36",
+            "title": "路加福音19:1-10",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-36"
+          },
+          {
+            "id": "tb-37",
+            "title": "彼得前书2:21-24",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-37"
+          },
+          {
+            "id": "tb-38",
+            "title": "羔羊、救赎、赎罪、和好、罪得赦免｜五幅不同的图景",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-38"
+          },
+          {
+            "id": "tb-39",
+            "title": "约翰福音6:35-71｜吃生命的粮意味着什么",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-39"
+          },
+          {
+            "id": "tb-40",
+            "title": "罗马书6:3-4等｜洗礼与新生命",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-40"
+          },
+          {
+            "id": "tb-41",
+            "title": "路加福音10:25-37；罗马书2:6-16；马太福音25:31-46；使徒行传10章｜行善的非基督徒与上帝的判断",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-41"
+          },
+          {
+            "id": "tb-42",
+            "title": "约翰福音14:6｜“耶稣是道路”的告白与上帝的判断",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-42"
+          },
+          {
+            "id": "tb-44",
+            "title": "从仇恨转向爱",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-44"
+          },
+          {
+            "id": "tb-45",
+            "title": "从孤立转向群体",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-45"
+          },
+          {
+            "id": "tb-46",
+            "title": "从虚假转向诚实",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-46"
+          },
+          {
+            "id": "tb-47",
+            "title": "从懒惰转向责任",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-47"
+          },
+          {
+            "id": "tb-48",
+            "title": "从贪婪转向知足与分享",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-48"
+          },
+          {
+            "id": "tb-49",
+            "title": "从报复转向饶恕",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-49"
+          },
+          {
+            "id": "tb-50",
+            "title": "从剥削转向赔偿",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-50"
+          },
+          {
+            "id": "tb-51",
+            "title": "从恐惧转向坦然无惧",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-51"
+          },
+          {
+            "id": "tb-52",
+            "title": "从焦虑转向信靠与今天的责任",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-52"
+          },
+          {
+            "id": "tb-53",
+            "title": "从愤怒转向温柔",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-53"
+          },
+          {
+            "id": "tb-54",
+            "title": "从辖制转向服事",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-54"
+          },
+          {
+            "id": "tb-55",
+            "title": "从死亡的恐惧中得自由",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-55"
+          },
+          {
+            "id": "tb-57",
+            "title": "第1天｜马太福音7:21-27",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-57"
+          },
+          {
+            "id": "tb-58",
+            "title": "第2天｜罗马书10:8-17",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-58"
+          },
+          {
+            "id": "tb-59",
+            "title": "第3天｜马可福音10:35-45",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-59"
+          },
+          {
+            "id": "tb-60",
+            "title": "第4天｜马太福音26:26-29",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-60"
+          },
+          {
+            "id": "tb-61",
+            "title": "第5天｜罗马书5:6-11；12:17-21",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-61"
+          },
+          {
+            "id": "tb-62",
+            "title": "第6天｜罗马书6:1-14",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-62"
+          },
+          {
+            "id": "tb-63",
+            "title": "第7天｜希伯来书5:7-10",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-63"
+          },
+          {
+            "id": "tb-64",
+            "title": "第8天｜希伯来书6:4-12",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-64"
+          },
+          {
+            "id": "tb-65",
+            "title": "第9天｜希伯来书6:13-20",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-65"
+          },
+          {
+            "id": "tb-66",
+            "title": "第10天｜希伯来书9:11-28",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-66"
+          },
+          {
+            "id": "tb-67",
+            "title": "第11天｜希伯来书10:19-39",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-67"
+          },
+          {
+            "id": "tb-68",
+            "title": "第12天｜路加福音19:1-10",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-68"
+          },
+          {
+            "id": "tb-69",
+            "title": "第13天｜以弗所书4:25-32",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-69"
+          },
+          {
+            "id": "tb-70",
+            "title": "第14天｜希伯来书12:1-15",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-70"
+          },
+          {
+            "id": "tb-71",
+            "title": "延伸阅读｜圣餐与洗礼",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-71"
+          },
+          {
+            "id": "tb-72",
+            "title": "补记｜对话结束以后，问题仍然存在",
+            "level": 2,
+            "zone": "body",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-72"
+          }
+        ],
+        "appendix": [
+          {
+            "id": "tb-21",
+            "title": "附录一｜在上下文中阅读主要经文",
+            "level": 1,
+            "zone": "appendix",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-21"
+          },
+          {
+            "id": "tb-43",
+            "title": "附录二｜救恩显现在当下生活中的圣经实例",
+            "level": 1,
+            "zone": "appendix",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-43"
+          },
+          {
+            "id": "tb-56",
+            "title": "附录三｜十四天对话式阅读与实践",
+            "level": 1,
+            "zone": "appendix",
+            "source": "structured",
+            "confidence": 1.0,
+            "section_id": "sec-56"
+          }
+        ]
+      },
+      "sections": [
+        {
+          "id": "sec-front",
+          "title": "阅读本书之前",
+          "level": 0,
+          "zone": "front",
+          "source": "structured",
+          "toc_id": "tb-front",
+          "html": "<p class=\"shelf-body\">不削弱恩典的安慰，而是帮助这恩典落实为悔改、纠正错误的行动、爱、顺服和盼望</p>\n<p class=\"shelf-body\">2SC群体对话材料</p>\n<h2 class=\"shelf-h1\">阅读本书之前</h2>\n<p class=\"shelf-body\">这本书并不是为了削弱上帝的恩典，也不是为了缩小耶稣之死的意义。对于常常因自己的罪和上帝的审判而害怕的人，罪得赦免与恩典的安慰十分必要。问题在于，当这种安慰只被用来暂时盖住焦虑时，同样的不安一再回来，人就会不断寻求更强的保证，而生活中真正需要纠正的问题却可能仍旧留在那里。</p>\n<p class=\"shelf-body\">这些对话承认耶稣被钉十字架是真实发生在历史中的事件，也明确承认这一事件的重要性。不过，牧者把解释十字架时所使用的“赎罪”“血洗净罪”“祭物”等表达，理解为来自旧约献祭与洁净传统的祭仪性、象征性语言；信徒则更倾向于把这些表达理解为直接的代赎与刑罚转移。两个人谈的是同一个十字架，但他们解释其意义的方式确实存在差异。本书不回避这种差异，而是尝试把耶稣的死与祂的生活和教导、祂对上帝忠实的顺服、真实的悔改、纠正错误的行动、爱的果子，以及忍耐到底的盼望一同来阅读。</p>\n<p class=\"shelf-body\">书中的信徒并不是某一个现实人物的原样翻版。这个角色汇集了中国许多新教群体中常见的观点，也把一些对救恩深感不安的信徒的疑问集中在一个人身上。牧者同样不是一个早已掌握所有答案的人。他曾经用与信徒相近的方式理解十字架和救恩，也经历过自己的解经与牧养必须在圣经面前被修正的过程。两个人多次碰撞、误解，有时也会被对方的话刺痛。但他们没有放弃：比起在争论中获胜，他们更愿意继续追求对圣经更完整的理解。</p>\n<p class=\"shelf-body\">这不是一篇神学论文，而是一份借着对话帮助人重新阅读圣经的牧养材料。因此，书中会在需要的地方呈现信徒的自我辩解、羞耻与恐惧，也会呈现牧者的犹豫和过去的错误。这里的心理描写并不是为了营造气氛而加上的装饰，而是为了让人看见，为什么两个人都很难轻易放下自己熟悉的教义和解释。在文学表达上，本书参考了陀思妥耶夫斯基《罪与罚》展现罪疚感与自我欺骗复杂内心的方式，也参考了远藤周作《沉默》和《伟大的没落》追问信仰告白、背教、人之野心与上帝旨意之间张力的方式。但本书没有搬用这些作品的句子或场景，而是围绕这个群体所面对的问题，重新塑造人物与对话。</p>\n<p class=\"shelf-body\">历史背景并不是用来取代经文的装饰。看清是谁对谁说话、身处怎样的冲突、为什么说这些话，常常能帮助我们看见那些被熟悉的教义句子遮住的经文意义。但历史背景本身也不能把经文的意思全部确定下来。因此，对无法确定的部分，本书不会武断下结论，而会同时察看前后文、同一卷书的整体脉络，以及整本圣经中其他相关的声音。</p>\n<p class=\"shelf-body\">本书所说的“救恩”，并不只是死后逃过刑罚的某个瞬间。它指上帝所赐的整体福分：人从罪、虚假、仇恨、贪婪和死亡的恐惧中被救出来，进入爱上帝、爱邻舍的生活。这救恩今天已经会在人际关系、言语、金钱和责任中显出形状，并将在将来的上帝国里得以完成。</p>\n<p class=\"shelf-body\">说救恩会显现在今天的生活里，并不等于说只要顺服，就一定会得到自己想要的好结果。爱人也可能被拒绝，诚实工作也可能遭受损失；有信心的人也可能生病、贫穷，甚至遭受逼迫。信心不是制造自己想要结果的力量，而是因为信靠上帝的品格和应许，即使结果还没有显出来，仍愿意照着祂的话去行动。</p>\n<p class=\"shelf-body\">每一次对话的末尾，都附有可以一起阅读的经文和问题。不要先把答案定好，再去寻找支持自己的经文。请先读完整的段落，避免把一句话从前后文中抽出来配合自己的主张，也就是避免断章取义。要留意历史背景、上下文、同一卷书的整体脉络，然后思考这段话今天要求我们过怎样的生活。</p>\n<h3 class=\"shelf-h2\">人物介绍</h3>\n<p class=\"shelf-dialogue\">信徒：长期生活在新教教会中。从培灵会和主日讲道里，他学到十字架的代赎与罪得赦免是信仰的中心。哪怕只说错一句话，或有一天漏了祷告，他也会担心自己与上帝的关系就此断裂。生意不顺，或家人生病时，他容易觉得这是因为某个隐藏的罪而受到了惩罚。听到关于十字架和赦免的讲道，他会暂时安心，可几天之后，同样的焦虑又会更猛烈地回来。他试图用熟悉的教义句子保护自己，却又无法解释为什么这些句子始终不能长久改变自己的生活，这使他十分痛苦。</p>\n<p class=\"shelf-dialogue\">牧者：重视圣经的历史背景和上下文，也承认耶稣被钉十字架是真实发生在历史中的事件。不过，他把解释十字架时所使用的赎罪、血、祭物等语言，看作来自旧约献祭与洁净传统的祭仪性、象征性语言。他不把耶稣的死从祂的生活、教导和顺服中割裂出来，并尝试把救恩说明为上帝所赐的整体福分：它从今天真实的关系和行动中开始，并将在将来的上帝国里得以完成。但他也不是从一开始就这样理解。年轻时，他曾相信，只要用简短的教义句子使人安心，就是把福音传好了；他也曾把自己的热心、教会的增长与上帝的旨意混为一谈。因此，他不急着责备信徒，而是愿意提问，也不隐藏自己的过去，盼望和对方一起学习。</p>\n<h2 class=\"shelf-h1\">目录</h2>"
+        },
+        {
+          "id": "sec-1",
+          "title": "第一场对话｜我越来越找不到去教会的理由",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-1",
+          "html": "<h2 class=\"shelf-h1\">第一场对话｜我越来越找不到去教会的理由</h2>\n<p class=\"shelf-body\">晚间聚会结束了。雨已经停了，人们也都回去了。那位许久没有出现的信徒却仍穿着外套，站在门边。牧者递给他一杯热茶，没有催促他。</p>\n<p class=\"shelf-body\">过去三个月里，信徒曾多次打开教会的群聊，又默默关上。只要讲道题目里没有“十字架”这个词，他心里就会冒出一点抵触：“又是讲生活吗？又是讲顺服吗？”他觉得自己竟有这种念头很不敬虔，马上向上帝求赦免，可心里的感觉并没有改变。相反，他越来越觉得，似乎只有自己还在守住福音真正的核心。</p>\n<p class=\"shelf-dialogue\">信徒：其实今天我也想直接回去。不管我说什么，最后好像都会被看成一个信心软弱、不愿顺服的人。</p>\n<p class=\"shelf-dialogue\">牧者：如果我的话或态度曾让你有这种感觉，我想先听你说。我希望我们可以谈，而不让你觉得必须一直防卫自己。</p>\n<p class=\"shelf-dialogue\">信徒：我不可能不防卫。我就是靠抓住十字架才勉强撑得住。可在这里，连十字架都好像被说成是我逃避责任时拿来利用的东西。</p>\n<p class=\"shelf-dialogue\">牧者：最近在教会里不太常见到你。我可以问问，你为什么渐渐少来了吗？</p>\n<p class=\"shelf-dialogue\">信徒：工作很忙，这是真的。不过，我也觉得自己不像从前那样，有很强的理由一定要继续来教会。</p>\n<p class=\"shelf-dialogue\">牧者：这句话很重要。你说继续来教会的理由变弱了，具体是什么意思？</p>\n<p class=\"shelf-dialogue\">信徒：我觉得2SC没有充分讲耶稣基督十字架的救赎。我认为这才是圣经的核心。讲道最后不都应该回到这个事实吗——耶稣担当了我们的罪，我们已经蒙赦免？</p>\n<p class=\"shelf-dialogue\">牧者：看来，罪得赦免和恩典的安慰对你非常重要。</p>\n<p class=\"shelf-dialogue\">信徒：不只是重要。我常常很不安。哪怕犯了一个小错，心里也会很沉重。事情不顺利时，我就觉得好像是上帝在惩罚我。每当教会讲到十字架和赦免，我会暂时轻松一点。</p>\n<p class=\"shelf-dialogue\">牧者：你说的是“暂时”。</p>\n<p class=\"shelf-dialogue\">信徒：是的。听讲道的时候还好，可过几天又开始不安。然后我又想听关于十字架的讲道，想再次确认上帝没有丢弃我。</p>\n<p class=\"shelf-dialogue\">牧者：我明白你为什么寻找这样的安慰。长时间活在罪疚感和对审判的恐惧里，确实很辛苦。我不想夺走这种安慰，只是也想和你一起看看，为什么它不能持久。</p>\n<p class=\"shelf-dialogue\">信徒：会不会是因为我没有真正相信十字架，所以安慰才不能持久？</p>\n<p class=\"shelf-body\">话一出口，他立刻避开了牧者的目光。几天前，他曾对妻子说过一句尖刻的话。那天晚上，他在网上找到一篇题为“那一次洗净一切罪的宝血”的讲道。听完以后，胸口的压迫感终于松了一些。可是第二天，当他想向妻子道歉时，羞耻感又涌了上来。最后他什么也没说。“上帝已经赦免我了，何必把事情弄得更大呢？”他这样想，可妻子的沉默却变得更冷了。</p>\n<p class=\"shelf-dialogue\">信徒：我听讲道的时候明明哭了。我也相信上帝赦免了我。可为什么回到家里什么都没变？是因为我的信心不够，还是因为我妻子太刚硬？</p>\n<p class=\"shelf-dialogue\">牧者：很多年前，我也经历过类似的事。有一次在同工会上，我当众把一个人逼得很难堪。那天晚上，我却用“我们都在恩典之下”这句话安慰自己。我觉得已经向上帝祷告了，事情就结束了。可是那位弟兄躲了我好几个月。后来我才明白，我把恩典当成了逃避道歉的门，而不是走向悔改的路。</p>\n<p class=\"shelf-dialogue\">信徒：牧者，你也有过这样的事吗？</p>\n<p class=\"shelf-dialogue\">牧者：有过。所以我不能轻易责备你。眼前的安慰，有时会给我们面对真相的力量，有时也会变成逃避真相的借口。要分辨是哪一种，就要看这种安慰接下来怎样转化成行动（林后7:10-11；来9:14）。</p>\n<p class=\"shelf-dialogue\">信徒：这样说来，我没有向妻子道歉，也许真的是把十字架用错了。</p>\n<p class=\"shelf-dialogue\">牧者：我只是想和你一起看看这种可能。恩典的安慰不会让你一直瘫在定罪感里；但它也不会让你无视被自己伤害的人，只求自己心里舒服。既然你已经得到不必向上帝躲藏、可以来到祂面前的勇气，就可以用这份勇气说出真话，把关系中该做的事一步步纠正过来（来4:14-16；太5:23-24）。</p>\n<p class=\"shelf-dialogue\">信徒：可我心里现在还是会反抗。我还是会想：“说到底，你又是在讲我要做什么。”</p>\n<p class=\"shelf-dialogue\">牧者：你不必把这份抵触藏起来。今天也不用勉强自己马上同意。只是我想和你一起看看，你现在想要的安慰究竟保护了什么，又让你避开了什么。如果只把十字架和赦免当成暂时遮住焦虑的话，现实生活中的问题可能仍然留在那里。做错了事，就需要改正；心里有仇恨，就需要面对那份仇恨；逃避责任，就需要重新承担责任。若没有这些实际的行动，只是一遍又一遍地说“我已经蒙赦免了”，心里也许会短暂轻松，不安却仍可能再次回来。</p>\n<p class=\"shelf-dialogue\">信徒：那么，牧者是不是觉得我只是在寻找安慰？</p>\n<p class=\"shelf-dialogue\">牧者：我不是在论断你。我自己害怕的时候，也会急着寻找一个迅速的答案。只是，如果安慰没有把我们带向诚实和顺服，我们就需要重新问：我们究竟怎样理解、又怎样使用这种安慰？</p>\n<p class=\"shelf-dialogue\">信徒：牧者所说的救恩，好像和我理解的不太一样。</p>\n<p class=\"shelf-dialogue\">牧者：先不要急着给这种差异下结论。我想先准确听懂你一直以来相信的是什么，然后我们再一起查考圣经。你的问题也许会修正我的理解，我的解释也可能帮助你扩展原有的认识。</p>\n<p class=\"shelf-dialogue\">信徒：说到底，你不还是想说服我吗？</p>\n<p class=\"shelf-dialogue\">牧者：我确实想说服你，但不是为了赢你。我希望把彼此的观点都放在圣经面前查验，一起寻找更完整的理解。</p>\n<p class=\"shelf-dialogue\">信徒：那我们就谈谈吧。</p>\n<p class=\"shelf-body\">信徒喝了一口已经凉透的茶。他心里仍觉得，牧者可能想夺走自己的信仰。可是听见牧者先说出自己的失败以后，他已经很难只把对方当成敌人。心并没有因此完全放松；如果放开那些熟悉的句子，仿佛连支撑自己的东西也会一起消失，这种恐惧仍然存在。</p>\n<p class=\"shelf-dialogue\">信徒：我今天还不能立刻下结论。不过有一件事我得承认：我想要的安慰，或许正是一种可以让我不用向妻子道歉的安慰。</p>\n<p class=\"shelf-dialogue\">牧者：能承认这一点，对话就已经真正开始了。下一次，我们可以看看“救恩”这个词，在你和我口中究竟有哪些不同的意思。</p>\n<p class=\"shelf-dialogue\">信徒：我还是觉得你的解释把福音弄得太复杂了。</p>\n<p class=\"shelf-dialogue\">牧者：把这个疑问原样带来。到底是在把福音复杂化，还是在把圣经原本同时说的内容重新连起来，我们读经以后再判断。</p>\n<p class=\"shelf-body\">一起阅读：马太福音11:28-30；希伯来书4:14-16；6:9-12</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我在教会里最常寻找哪一种安慰？</p>\n<p class=\"shelf-body\">这种安慰真实改变了我生活中的什么问题？</p>\n<p class=\"shelf-body\">当不安再次来到时，我是否在反复确认同一个保证？</p>"
+        },
+        {
+          "id": "sec-2",
+          "title": "第二场对话｜信仰是安慰，还是一条生活的道路？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-2",
+          "html": "<h2 class=\"shelf-h1\">第二场对话｜信仰是安慰，还是一条生活的道路？</h2>\n<p class=\"shelf-body\">几天后，两个人再次见面。信徒带来一本小笔记本，上面写着几个问题。第一页用粗体写着“救恩=上天堂”，下面密密麻麻写着：“是行为还是恩典？”“生活若没有改变，就要下地狱吗？”信了几十年，如今却要重新问“救恩到底是什么”，他感到有些羞耻，仿佛自己正在怀疑整个信仰人生。</p>\n<p class=\"shelf-dialogue\">信徒：小时候我在培灵会上听过关于天堂和地狱的讲道。牧师问：“如果今天就死，你确信自己能上天堂吗？”那天我一边哭一边举手。那个记忆，是我信仰的起点。</p>\n<p class=\"shelf-dialogue\">牧者：这个记忆里，大概一直同时留着恐惧和安慰。</p>\n<p class=\"shelf-dialogue\">信徒：是的。从那以后，救恩对我来说，就是死了以后去哪里的事情。所以当牧者把家庭关系、金钱或说话方式也和救恩联系起来时，我会觉得，好像把救恩变成了一件过分日常的事。</p>\n<p class=\"shelf-dialogue\">牧者：在谈救恩之前，我想先问一个问题。你认为什么是信仰？</p>\n<p class=\"shelf-dialogue\">信徒：就是相信上帝存在，也相信耶稣救了我。</p>\n<p class=\"shelf-dialogue\">牧者：那么，这份相信也会影响你看世界、看自己人生的方式吗？</p>\n<p class=\"shelf-dialogue\">信徒：当然会。不过我觉得，信仰的核心还是心里相信。</p>\n<p class=\"shelf-dialogue\">牧者：我认为，信仰是一个人整体的生命方向：相信什么是真实的，判断什么是善的，并照着所信的去生活。我们很难把“相信什么”和“实际怎样选择”彻底分开。</p>\n<p class=\"shelf-dialogue\">信徒：这样一说，信仰的范围就太大了。</p>\n<p class=\"shelf-dialogue\">牧者：圣经并没有把信仰只放在礼拜时间里。它会问我们怎样用钱，怎样对人说话，怎样对待仇敌，怎样照顾家人。如果“相信上帝”与日常生活彼此分离，就会离圣经所说的信心越来越远（申 6:4-9； 太 5:43-48； 弗 4:25-32； 提前 5:8）。</p>\n<p class=\"shelf-dialogue\">信徒：可是人不可能活得完全。</p>\n<p class=\"shelf-dialogue\">牧者：我不是说只有完全的人才能得救。我说的是人生的方向。若你相信耶稣的教导是对的，就应当有意志地选择照着祂的教导生活，并付诸行动。失败时，再学习、再回转。信心不能只停留在头脑的认同里（太 7:21-27； 约 14:21-24； 雅 2:14-18）。</p>\n<p class=\"shelf-dialogue\">信徒：可是信仰最终的目的，不就是死后上天堂吗？</p>\n<p class=\"shelf-dialogue\">牧者：那当然也是救恩重要的盼望。但圣经所说的救恩，并不只指未来。上帝把以色列人从埃及的奴役中救出来，医治病人，使受邪灵压制的人得自由，也使人脱离罪与虚假的辖制。救恩不是等到死后才开始（出14:13-31；路7:50；8:48；罗6:17-23；来2:14-15）。</p>\n<p class=\"shelf-dialogue\">信徒：那你的意思是，过好生活就是得救吗？</p>\n<p class=\"shelf-dialogue\">牧者：只说“过好生活”还不够，因为每个人对“好”的标准都可能不同。圣经所说的救恩，是上帝把人从罪、压迫和死亡的恐惧中救出来，引导人进入爱上帝、爱邻舍的生活。出埃及并不是以色列人死后去一个好地方的故事，而是他们此时此地离开奴役，成为事奉上帝的百姓（出3:7-10；6:6-8）。</p>\n<p class=\"shelf-dialogue\">信徒：可出埃及毕竟是旧约的民族历史，福音说的不是灵魂得救吗？</p>\n<p class=\"shelf-dialogue\">牧者：不过，在这里我们需要先确认一下“福音”这个词。你现在所说的福音，主要是指“耶稣代替我担当了罪，只要相信这件事，就能罪得赦免、进入天堂”，对吗？</p>\n<p class=\"shelf-dialogue\">信徒：对。我一直被教导，这就是福音的核心。</p>\n<p class=\"shelf-dialogue\">牧者：这确实是福音中很重要的一部分。但圣经使用“福音”这个词时，范围比这更宽。耶稣宣告上帝的国近了，并把这称为福音；保罗则以耶稣的死与复活为福音的中心，同时又把福音与“信而顺服”联系起来（可1:14-15；罗1:1-5；林前15:1-5）。我们先来看看，我们现在所说的“福音”，是否和圣经使用这个词的方式一致。</p>\n<p class=\"shelf-dialogue\">信徒：那么，牧者的意思不是说我讲的福音错了，而是可能讲得太窄了？</p>\n<p class=\"shelf-dialogue\">牧者：这样说更准确。不是要拿掉罪得赦免，也不是要拿掉耶稣的死，而是要把上帝的统治、耶稣的生活、死亡与复活、悔改与信心、信而顺服，以及新群体的生活一起看见。</p>\n<p class=\"shelf-dialogue\">牧者：耶稣所宣告的上帝国，同样涉及人的身体、关系、食物、债务和饶恕。病人得医治、被排斥的人重新回到群体、撒该归还钱财，这些场景里都出现了“得救”的宣告（路 4:18-19； 7:50； 19:8-10）。未来的复活和上帝国当然重要，但那将来的生命，今天已经开始在我们里面发生（罗 6:4； 8:18-25）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，与邻舍建立好的关系，就是救恩吗？</p>\n<p class=\"shelf-dialogue\">牧者：不是说所有看起来和睦的关系都等于上帝的救恩。有些关系只是把不义盖住、避开冲突，外表也会显得平静。但如果一段关系原本被仇恨和羞辱支配，如今人开始按着上帝的话倾听、道歉、彼此尊重，那就是在真实地脱离仇恨的辖制（约一3:14-18；弗4:25-32）。</p>\n<p class=\"shelf-body\">信徒想起上周那次艰难地向妻子道歉。妻子没有马上露出笑容，只说：“比起你说对不起，我更想看你下一次怎么做。”一开始他有些委屈，但后来每当声音快要提高时，他会先停一下，尽量把对方的话听完。他一直只把这种变化看作“夫妻关系稍微好了一点”，从未想过这也和信仰、和救恩有关。</p>\n<p class=\"shelf-dialogue\">信徒：我不再大喊以后，家里确实安静了一些。这样的变化，也可以叫作救恩的一种表现吗？</p>\n<p class=\"shelf-dialogue\">牧者：一个原本总被愤怒牵着走的人，若开始能够停下来听别人说话，可以说，这是上帝的救恩正在今天生活中显现的一种样子。它不是救恩的全部，也不是救恩的完成，却说明这个人正在脱离愤怒的辖制，开始用新的方式生活（罗6:12-18；加5:22-23）。</p>\n<p class=\"shelf-dialogue\">信徒：听你这样说，我心里竟有一点暖，也有一点害怕。过去我只是在确认自己有没有上天堂的资格，很少去看家里有什么正在死去，又有什么正在活过来。</p>\n<p class=\"shelf-dialogue\">牧者：我们不需要削弱将来的救恩。我们仍然等候有一天上帝终结死亡和眼泪（林前15:20-28；启21:1-5）。只是，不要因为盼望未来，就轻看今天的生命和爱。我再说得准确一点：救恩是上帝把人从罪、死亡、恐惧和仇恨的辖制中救出来，使人进入爱上帝、爱邻舍的生命道路。这救恩会在当下生活中结出果子，并将在将来的上帝国里完成（罗6:17-23；约一3:14-18；罗8:18-25；启21:1-5）。</p>\n<p class=\"shelf-dialogue\">信徒：这样说来，心里的安慰就不重要了吗？</p>\n<p class=\"shelf-dialogue\">牧者：非常重要。疲惫的心需要安慰。但安慰不是终点，更像是让人重新上路的休息站。若得了安慰以后，仍然继续说谎、伤害别人、逃避责任，我们就必须问自己：我们到底正走向哪里？</p>\n<p class=\"shelf-dialogue\">信徒：我只是想得到一点安慰，牧者却总是在说责任。</p>\n<p class=\"shelf-dialogue\">牧者：安慰和责任并不是敌人。正因为有上帝没有丢弃我们的安慰，我们才能不再隐藏错误，而愿意承认。正因为重新开始的路已经打开，我们才有力量承担责任（来 4:14-16； 约一 1:8-2:2）。</p>\n<p class=\"shelf-dialogue\">信徒：所以，十字架的意义比消除罪疚感更大。</p>\n<p class=\"shelf-dialogue\">牧者：是的。十字架不是一句暂时压下罪疚感的话，而是一个使人回到上帝面前、修复关系，并重新走上耶稣道路的事件。</p>\n<p class=\"shelf-dialogue\">信徒：“按着上帝的话生活就是救恩”这句话，我还是觉得太激进了。别人很容易误会成：人只要活得好，就能买到天堂。</p>\n<p class=\"shelf-dialogue\">牧者：这样说会更准确：上帝把我们从罪、仇恨和谎言的辖制中救出来，呼召我们进入一种按耶稣的话生活的生命。当我们顺服祂的话，真实的关系和行动因此发生改变，这就是我们现在所经历的救恩的一种样子。我们要在这条路上走到底，等候将来完成的上帝国（太7:21-27；来5:9；12:14）。</p>\n<p class=\"shelf-dialogue\">信徒：如果只把救恩想成进天堂的门票，那么现在的关系和行动，就会被挤到救恩之外。</p>\n<p class=\"shelf-dialogue\">牧者：是的。若把救恩只理解成天堂的入场资格，顺服就会变成“得救以后表示感谢的附录”，耶稣那么多教导也容易被缩减为“已经得救以后，有条件就做得更好”。可是耶稣吩咐人去使万民作门徒，并教导他们遵守祂所吩咐的一切（太28:19-20）。</p>\n<p class=\"shelf-dialogue\">信徒：过去我只把那段经文当作宣教和洗礼的命令。至于“教导他们遵守”，我几乎没记住。</p>\n<p class=\"shelf-dialogue\">牧者：以后我们就一起把这些被忽略的部分重新读出来。</p>\n<p class=\"shelf-body\">一起阅读：马太福音7:21-27；约翰福音14:21-24；雅各书2:14-18</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我所相信的内容，怎样改变了我实际的选择？</p>\n<p class=\"shelf-body\">若只把救恩理解为死后的事，我们会错过什么？</p>\n<p class=\"shelf-body\">得到安慰之后，我需要重新承担什么责任？</p>"
+        },
+        {
+          "id": "sec-3",
+          "title": "第三场对话｜知道几节经文，不等于真正了解圣经",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-3",
+          "html": "<h2 class=\"shelf-h1\">第三场对话｜知道几节经文，不等于真正了解圣经</h2>\n<p class=\"shelf-body\">信徒把几段经文存进手机里，带来给牧者看。</p>\n<p class=\"shelf-body\">他把在搜索栏里输入“十字架 救恩 圣经经文”后找到的资料整理了出来。屏幕上满是红色下划线。经文越多，他越觉得自己的立场坚不可摧；可与此同时，他又紧张牧者会不会把其中哪一节解释成别的意思。对他来说，这份清单不是资料，而是一面盾牌。</p>\n<p class=\"shelf-dialogue\">信徒：坦白说，我今天来，是想证明我没有错。圣经里明明有这么多经文，如果2SC还是不充分强调十字架，那我觉得问题不在我，而在教会。</p>\n<p class=\"shelf-dialogue\">牧者：谢谢你没有把这个心情藏起来。如果我今天读经时，心里也只想着“无论如何都要把你的想法驳倒”，那我同样可能犯错。</p>\n<p class=\"shelf-dialogue\">信徒：上次牧者问我有什么根据。关于十字架救恩的经文实在太多了。</p>\n<p class=\"shelf-dialogue\">牧者：谢谢你认真找出来。你想先从哪一段开始？</p>\n<p class=\"shelf-dialogue\">信徒：罗马书10章9至10节，说口里承认耶稣为主，心里相信，就必得救。马可福音10章45节说，耶稣舍命作多人的赎价。马太福音26章28节说，祂的血是为使罪得赦而流。约翰福音称耶稣为除去世人罪孽的上帝羔羊。罗马书3章和5章也谈到救赎与和好。</p>\n<p class=\"shelf-dialogue\">牧者：你找了很多经文。我也同意，这些经文都在说明耶稣之死的重要性。不过，我不会把“血”“羔羊”“赎罪”“祭物”等表达都当成字面意义上的运作机制。我把这些语言理解为借用献祭与洁净传统来解释耶稣之死意义的祭仪性、象征性语言。</p>\n<p class=\"shelf-dialogue\">信徒：那为什么2SC总是在强调耶稣的教导和顺服？听起来好像十字架本身还不够。</p>\n<p class=\"shelf-dialogue\">牧者：你有没有也读过这些经文前后的上下文？</p>\n<p class=\"shelf-dialogue\">信徒：经文本身已经很清楚了，真的一定要看上下文吗？</p>\n<p class=\"shelf-dialogue\">牧者：我们想一个例子。假如有人说：“我杀了他。”如果不知道前后文，听起来像是在承认杀人。但如果完整的话是：“我在心里杀死了对他的期待”，意思就不同。句子总是在具体位置中产生意义。</p>\n<p class=\"shelf-dialogue\">信徒：圣经经文和普通句子不一样吧？毕竟那是上帝的话。</p>\n<p class=\"shelf-dialogue\">牧者：正因为是上帝的话，我们更应当谨慎阅读。圣经是在真实的历史和群体中赐下的。若不看是谁对谁说、为什么说，我们就很容易把自己熟悉的想法塞进经文里。</p>\n<p class=\"shelf-dialogue\">信徒：牧者的意思是，我对经文断章取义了吗？</p>\n<p class=\"shelf-body\">他的声音提高了。“断章取义”这几个字听起来不像只是指出一个普通的解经错误，更像是在指责他一直利用圣经。连他多年来尊敬的牧师和自己整个信仰生活，都仿佛一下子被轻视了。</p>\n<p class=\"shelf-dialogue\">信徒：难道因为平信徒不懂上下文，就要把我们的信心看低吗？听起来好像所有人都必须去神学院，才有资格读懂圣经。</p>\n<p class=\"shelf-dialogue\">牧者：如果让你听成这样，是我说得不够谨慎。了解历史和上下文，不是为了让只有专家才有权读圣经。恰恰相反，是把经文从讲道者的权威和我们熟悉的教义里重新拿回来，让任何人都能读前后文、提出问题（徒 17:11）。</p>\n<p class=\"shelf-dialogue\">信徒：可牧师毕竟读过神学。平信徒若开始怀疑他的解释，教会的秩序不会乱吗？</p>\n<p class=\"shelf-dialogue\">牧者：尊重教导者，和不把他的解释放在圣经面前查验，是两回事。保罗也叫人分辨预言，雅各也说作师傅的人要受更重的判断（林前 14:29； 雅 3:1）。牧师同样可能把一节经文从上下文里抽出来，为自己的主张服务。我自己也这样做过。</p>\n<p class=\"shelf-dialogue\">信徒：你做过什么？</p>\n<p class=\"shelf-dialogue\">牧者：以前为了鼓励大家参加教会聚会，我常常引用希伯来书10章“不可停止聚会，好像那些停止惯了的人”的话。可是，我没有充分看见疲惫之人的处境，也没有认真读那个上下文里彼此鼓励、彼此扶持到底的责任。可以说，我把一节经文放在最前面，用来配合自己的目的。</p>\n<p class=\"shelf-dialogue\">信徒：这么说，经文引用得越多，也可能越容易伤害人。</p>\n<p class=\"shelf-dialogue\">牧者：是的。引用经文的数量不能保证解释就是正确的。我们必须同时看历史背景、上下文、作者的论证，以及这个解释实际结出怎样的果子（太 7:15-20）。</p>\n<p class=\"shelf-dialogue\">信徒：可如果拿“果子”来判断，不就可能变成：凡是让大家喜欢的解释都是对的吗？</p>\n<p class=\"shelf-dialogue\">牧者：好果子不等于舒服的感觉。真实的话有时会让我们不舒服。我们要看的是，这种不舒服最终把人带向爱、公义和责任，还是带向恐惧、控制和逃避责任（赛1:16-17；雅3:13-18）。我的意思是，我们需要一起察看这种可能。“断章取义”就是把一段话从前后文中抽出来，配合自己的主张。牧师会这样做，信徒也会这样做。引用很多经文，并不自动等于合乎圣经的解释。</p>\n<p class=\"shelf-dialogue\">牧者：先看历史背景，再读前后文，看看作者正在回答什么问题，也要确认同一卷书整体的脉络。最后还要问：这种解释今天要求我们过怎样的生活？</p>\n<p class=\"shelf-dialogue\">信徒：用生活的果子来判断解释对不对，会不会很危险？</p>\n<p class=\"shelf-dialogue\">牧者：我不是说单凭果子判断一切。但耶稣确实说过，可以凭果子认出树来。若某种解释为虚假、暴力和逃避责任辩护，那就需要重新检验。相反，若一种解释使人更诚实、更有爱、更肯负责，我们至少可以察看，它是否更接近经文的方向（太7:15-23；加5:19-23；雅3:13-18）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，牧者也承认自己的解释可能有错吗？</p>\n<p class=\"shelf-dialogue\">牧者：当然。我不认为自己的理解已经完全。你的反驳可能指出我思考中的弱点。我的主张也不能只停在批判既有解释或教义传统上。我们都要把自己的看法放在圣经面前，一起寻找更完整的理解。</p>\n<p class=\"shelf-dialogue\">信徒：也就是说，这不是一个掌握标准答案的人在教导另一个人。</p>\n<p class=\"shelf-dialogue\">牧者：是的。不过，开放的心并不等于永远不下结论。当经文把我们带到必须选择的地方时，我们仍然要作出决定。</p>\n<p class=\"shelf-dialogue\">信徒：刚才我说得太有攻击性了。我直接认定牧者在轻视其他牧师。对不起。</p>\n<p class=\"shelf-dialogue\">牧者：我不想把你的道歉轻轻带过。我自己在强调历史和上下文时，也可能生出轻看平信徒单纯信心的态度。如果我有哪一刻用难懂的话堵住了对话，请你马上指出来。</p>\n<p class=\"shelf-dialogue\">信徒：其实我一直有个疑问。同一节经文，不同牧师会作出不同解释，却都说自己的解释是“按圣经原意”。我一直不明白为什么。现在听你说，要把上下文和历史处境一起确认，我好像开始明白为什么解释会出现差异。</p>\n<p class=\"shelf-dialogue\">牧者：下一次，我们把你最有把握的罗马书10章放回当时的处境和上下文中一起读。那时，“口里承认”到底只是说出一段规定好的话，还是一种会显明生活忠诚的告白，应该会看得更清楚。</p>\n<p class=\"shelf-body\">一起阅读：路加福音10:25-37；使徒行传17:10-12；希伯来书1:1-4</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我常引用的经文，前后段落在说什么？</p>\n<p class=\"shelf-body\">我是让圣经修正自己的想法，还是先定好观点，再用圣经加以确认？</p>\n<p class=\"shelf-body\">我所相信的解释，正在结出怎样的生活果子？</p>"
+        },
+        {
+          "id": "sec-4",
+          "title": "第四场对话｜只要口里承认，就能得救吗？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-4",
+          "html": "<h2 class=\"shelf-h1\">第四场对话｜只要口里承认，就能得救吗？</h2>\n<p class=\"shelf-body\">牧者翻开罗马书。信徒再次读出自己最有把握的那节经文。</p>\n<p class=\"shelf-body\">牧者慢慢翻着罗马书前面的章节，信徒却一直用手指按着10章9节。他背过这句话无数次。睡前、坐飞机时、等医院检查结果时，他都会反复告诉自己：“我已经用口承认，所以我得救了。”他觉得，如果这句话的意思发生变化，过去一直保护着自己的最后一道栏杆也会消失。</p>\n<p class=\"shelf-dialogue\">牧者：罗马书大约写于公元57年，当时保罗还没有到过罗马。罗马的耶稣信徒群体里既有犹太人，也有外邦人。克劳狄皇帝时期被逐出罗马的犹太人中，已有一些人重新回到城里。许多学者认为，这种处境很可能是犹太信徒与外邦信徒需要重新调整彼此关系和生活方式的背景之一（徒18:2；罗14:1-15:13；16:3-5）。</p>\n<p class=\"shelf-dialogue\">信徒：这些背景跟“口里承认”有什么关系？</p>\n<p class=\"shelf-dialogue\">牧者：这个告白并不只发生在个人心里。对犹太人来说，希腊文圣经里的“主”常常用来指称上帝的名；而保罗紧接着又把约珥书“凡求告主名的”这句话应用到耶稣身上（珥 2:32； 罗 10:9-13）。对外邦人来说，“主”也是一个有社会分量的词，可以用来称呼家主、恩主、统治者，甚至皇帝。所以，说“耶稣是主”，是在表明：我生命中最终的忠诚究竟归给谁（林前 8:5-6； 腓 2:9-11）。</p>\n<p class=\"shelf-dialogue\">信徒：那是不是像人们常说的，是一种“耶稣是主，皇帝不是主”的政治宣言？</p>\n<p class=\"shelf-dialogue\">牧者：若说无论在哪里，这个告白一出口就会被当成叛国罪，或说在罗马一讲这句话就会立刻被处死，那都是过度简化。但一个把耶稣当作最重要的主、愿意跟随祂的人，在现实生活里确实可能遇到冲突。家人或同事可能要求他向别的神献祭、参加宗教活动；给他工作或帮助的人，也可能期待他一同参加这些仪式。有时还会遇到纪念皇帝或城市诸神的活动。在这样的处境里，忠于耶稣的人必须艰难选择：是顺从人的要求，还是守住自己的信仰（林前8:1-13；彼前4:3-4）。</p>\n<p class=\"shelf-dialogue\">牧者：比如，给你工作的人家里举行宗教仪式。你若不参加，也许下一份工作就没有了。那个时候，因为自己属于耶稣而犹豫要不要参加，就不只是“嘴上说哪一句告白”的问题，而可能牵涉生计和人际关系。</p>\n<p class=\"shelf-dialogue\">信徒：那么，当时用口作这个告白，确实可能要付出实际的代价。</p>\n<p class=\"shelf-dialogue\">牧者：是的。告白把内心的信与真实的选择连在一起。时代和处境当然不同，但在毫无代价的地方说一句信仰告白，和在必须承担损失的处境中作出选择，分量确实不同。</p>\n<p class=\"shelf-dialogue\">信徒：我是在教会里大家都说同一句话的时候跟着说的。我几乎没有因为这个告白吃过什么亏。那我的告白就是假的吗？</p>\n<p class=\"shelf-dialogue\">牧者：我不是要这样定你的罪。在安全的处境里作出的告白也可以是真实的。关键在于，当真正的选择来到时，这个告白会让你跟随谁的意思。若口里说耶稣是主，可金钱、面子和恐惧总是拥有最后决定权，那就需要看看告白与生活之间有没有裂缝（路 6:46； 罗 6:16-18）。</p>\n<p class=\"shelf-dialogue\">信徒：“口里承认，就可以得救。”还有比这更清楚的话吗？</p>\n<p class=\"shelf-dialogue\">牧者：这确实是一句很清楚的话。不过，我想先问，“承认”到底是什么意思？</p>\n<p class=\"shelf-dialogue\">信徒：就是用口承认耶稣是主。</p>\n<p class=\"shelf-dialogue\">牧者：在当时，“耶稣是主”并不是一句关于耶稣的标准答案，也不是只要正确说出来就能通过的考试题。那是表明自己把最终忠诚放在谁身上的告白。既然称耶稣为主，也就包含愿意接受祂的教导和治理。</p>\n<p class=\"shelf-dialogue\">信徒：可是保罗说的是信心，不是行为。</p>\n<p class=\"shelf-dialogue\">牧者：保罗没有把信心和顺服变成敌人。他在罗马书开头和结尾都说到“信而顺服”，在第10章又把“不信福音”表达为“不顺服福音”。听见、相信、承认、顺服，这个过程并没有被彼此切开（罗1:5；10:8-17；16:25-27）。</p>\n<p class=\"shelf-dialogue\">信徒：那你的意思是，口里承认还不够吗？</p>\n<p class=\"shelf-dialogue\">牧者：告白很重要，因为它是一种不再隐藏、公开说明自己属于耶稣的行动。但如果嘴上说耶稣是主，生活却持续拒绝祂的命令，就必须问：这样的告白究竟有多真实？</p>\n<p class=\"shelf-dialogue\">信徒：人人都有言行不一致的时候。照牧者的解释，我反而开始怀疑自己的告白。我活得并不完美。我曾因为怕在单位吃亏而沉默，也曾因为顾虑家人的眼光而隐藏信仰。那是不是说明我其实没有承认耶稣是主？</p>\n<p class=\"shelf-dialogue\">牧者：不要用“完美的英雄主义”来衡量告白是否真实。彼得也曾因惧怕否认耶稣，但那次失败并没有成为他故事的结局。他流泪，又重新被呼召，回到牧养羊群的责任中（路 22:54-62； 约 21:15-19）。问题不是你有没有害怕过，而是在因害怕跌倒以后，你回到谁那里。</p>\n<p class=\"shelf-dialogue\">信徒：我也许把“口里承认就可以了”说得太轻了。</p>\n<p class=\"shelf-dialogue\">牧者：不是这句话本身太轻，而是我们可能把它缩成了一句压住焦虑的“暗号”。保罗在同一封信的开头和结尾都说到“信而顺服”，第10章也把不信福音说成不顺服福音（罗1:5；10:16；16:26）。</p>\n<p class=\"shelf-dialogue\">信徒：有件事我以前一直想不通。耶稣为什么说，不是每一个喊“主啊，主啊”的人都能进上帝国？我每次读到那里都觉得不舒服，好像它和罗马书10章冲突。</p>\n<p class=\"shelf-dialogue\">牧者：没有必要把两段经文变成彼此相反的话。“耶稣是主”的告白，是接受祂权柄的信。马太福音警告说，嘴上不断喊“主啊，主啊”，却持续拒绝天父旨意的告白并不够（太7:21-27）。罗马书同样没有把信心和顺服分开。口里的告白与生活中的顺服，可以说是同一份忠诚的内外两面。</p>\n<p class=\"shelf-dialogue\">信徒：刚才我太有把握了，把牧者说得像一个削弱福音的人。对不起。现在我明白，不是我引用的经文错了，而是我把它读得太窄了。</p>\n<p class=\"shelf-dialogue\">牧者：我接受你的道歉，也要小心，不让自己因此觉得“我赢了”。我过去也只把这节经文用作确认人是否“决志”的句子。让人跟着念完以后，却没有好好教导这个告白应当走向怎样的生活。我们两个人都需要重新学习。这里说的不是一次失败。跌倒以后愿意回转、重新上路的人，和把告白当成挡箭牌、继续为不顺服辩护的人，并不是同一种情形。</p>\n<p class=\"shelf-dialogue\">信徒：那我从哪里得到自己已经得救的确据？如果看行为，我永远都会觉得不够。</p>\n<p class=\"shelf-dialogue\">牧者：确据不是从完美成绩得来的。我们信靠上帝的信实，同时也看自己的生命正朝哪个方向走。做错时，你是隐藏，还是回转？伤害人以后，你只是强调恩典，还是愿意道歉并修正？你是否仍在继续哪怕很小的顺服？这些方向能显明信心是活的（来 6:9-12, 17-20； 约一 3:18-24）。</p>\n<p class=\"shelf-dialogue\">信徒：原来得救的确据不只是心里的一种感觉。</p>\n<p class=\"shelf-dialogue\">牧者：对。感受会摇摆。确据是在我们抓住上帝信实的应许，并回应这应许、今天重新走上顺服道路时，一同生长起来的。</p>\n<p class=\"shelf-dialogue\">信徒：我每次不安时都会重复说：“我已经口里承认了，所以我得救了。”这样做错了吗？</p>\n<p class=\"shelf-dialogue\">牧者：这句告白本身没有错。只是不要把它当成暂时压住焦虑的咒语。如果你告白“耶稣是主”，就试着在今天实行祂所吩咐的一件事。这样，告白就会重新与生活连在一起。</p>\n<p class=\"shelf-body\">信徒在笔记本上“救恩公式”的旁边画了一条小箭头：“耶稣是主 → 接受祂的统治 → 具体的忠诚。”他还舍不得删掉“公式”这个词，却已经感觉到，那条箭头正在动摇从前那个简单的等号。</p>\n<p class=\"shelf-dialogue\">信徒：以后再说“耶稣是主”时，我会同时问：今天，我愿意把哪一件事的决定权交给祂？</p>\n<p class=\"shelf-dialogue\">牧者：这个问题会把告白从安抚焦虑的咒语，带回作门徒的道路。告白从嘴唇开始，却不会被困在嘴唇里（罗 10:9-10； 林前 12:3）。</p>\n<p class=\"shelf-body\">一起阅读：罗马书1:5；10:8-17；16:25-27；马太福音7:21</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">“耶稣是主”这一告白，对我的选择具有怎样的权威？</p>\n<p class=\"shelf-body\">我是否只把告白当成一句缓解焦虑的话？</p>\n<p class=\"shelf-body\">今天有什么顺服，可以和我的告白连接起来？</p>"
+        },
+        {
+          "id": "sec-5",
+          "title": "第五场对话｜“赎价”这个词对我们提出了什么要求？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-5",
+          "html": "<h2 class=\"shelf-h1\">第五场对话｜“赎价”这个词对我们提出了什么要求？</h2>\n<p class=\"shelf-body\">信徒翻开马可福音10章45节。</p>\n<p class=\"shelf-body\">这一次，信徒似乎多了一点把握。“赎价”这个词对他来说，像是最清楚、最不会动摇的根据。既然有人替自己付了代价，那么自己唯一要做的，就是相信这件事。他一直觉得，这种简单正是福音的美。</p>\n<p class=\"shelf-dialogue\">信徒：即使看上下文，“赎价”这个词本身不还是有“代替我付出代价”的意思吗？我担心连这一点也会被削弱。</p>\n<p class=\"shelf-dialogue\">牧者：没有必要削弱“为别人献上自己、替人担当”的意义。不过，古代“赎回、释放”的语言，让人想到的图景比法庭里把刑罚分数转移给另一个人宽得多。奴隶得自由、俘虏被释放、因债务失去的生活被重新赎回——这是一种释放的语言（出6:6；利25:47-55；赛43:1）。</p>\n<p class=\"shelf-dialogue\">牧者：旧约谈救赎时，经常会遇到两个希伯来词：“גאל”（ga&#x27;al）和“פדה”（padah）。“גאל”与近亲为家族赎回失去的土地或自由的图景有关；“פדה”则常用于付上代价、使人得释放。两个词的用法并不总是相同，但都让我们看见一个共同的运动：人在捆绑中，上帝介入，把人赎回、释放，并带进新的生活（出6:6；利25:47-55；赛43:1）。</p>\n<p class=\"shelf-dialogue\">信徒：到底是谁收了这个“价钱”，不重要吗？</p>\n<p class=\"shelf-dialogue\">牧者：后来的各种理论对这个问题给出了不同的回答。不过，马可福音本文并没有说明这笔代价是付给谁的。本文清楚呈现的是：耶稣以服事献上自己的生命，走的是与那些辖制人的权力完全相反的道路（可10:42-45）。</p>\n<p class=\"shelf-dialogue\">信徒：耶稣说，祂舍命作多人的赎价。这不就是代替我们而死的救赎吗？</p>\n<p class=\"shelf-dialogue\">牧者：是的。耶稣的死，是祂把自己献上，使人从捆绑中得释放。不过，这句话前面在讲什么？</p>\n<p class=\"shelf-dialogue\">信徒：雅各和约翰要求坐高位。</p>\n<p class=\"shelf-dialogue\">牧者：对。门徒想分享耶稣的荣耀，却还不明白该怎样使用权力。耶稣说，世上的统治者喜欢辖制人，但门徒的群体不应当这样。想成为大的人，就要成为服事人的人。然后，祂才说自己来，是要舍命作多人的赎价。</p>\n<p class=\"shelf-dialogue\">信徒：那么，救赎是在教导人怎样使用权力吗？</p>\n<p class=\"shelf-dialogue\">牧者：当然不是只讲权力，但也不能把“赎价”从这个上下文中抽离。耶稣面对当时宗教领袖和权力的反对与威胁，仍宣告上帝的旨意，接纳被推到边缘的人，并以服事而不是辖制、支配来生活。祂的死不是与这一生分开的另一套“救恩装置”，而是祂对上帝的忠实与自我献上一直走到最后的事件（可10:35-45；腓2:5-11）。</p>\n<p class=\"shelf-dialogue\">信徒：可是“赎价”不就是代人付出代价吗？</p>\n<p class=\"shelf-dialogue\">牧者：“赎价”会让人想到付上代价，使受捆绑的人得释放。但马可福音并没有解释谁收到了这笔代价。这段经文清楚表达的是：耶稣不以权力辖制人，而是献上自己，使人从罪、死亡和支配人的权势中得自由。</p>\n<p class=\"shelf-dialogue\">信徒：可如果祂已经代替我死了，那我不是就没有什么需要做的吗？一旦再说“我还需要做什么”，听起来好像就削弱了“耶稣已经完成一切”。如果代赎是完全的，为什么我还需要去服事？</p>\n<p class=\"shelf-dialogue\">牧者：可以想象，有人替你打开了监狱的门。开门这件事，不是被囚的人自己能做的；可门开了以后，他也可能仍抱住牢房的角落，不肯走出去。解放既包括门被打开的事件，也包括穿过那扇门、进入新生活（罗 6:6-14）。</p>\n<p class=\"shelf-dialogue\">信徒：你的意思是，人也可能拒绝救恩？</p>\n<p class=\"shelf-dialogue\">牧者：上帝先打开自由之路，并不等于人会自动接受这条路的目的。人可以回应这个呼召，也可以想回到熟悉的奴役中。旷野里的以色列人曾想回埃及，这正说明了这一点（民 14:1-4； 来 3:16-19）。</p>\n<p class=\"shelf-body\">牧者停了一会儿。他想起自己从前曾把个人的热心当成上帝旨意的那些日子。</p>\n<p class=\"shelf-dialogue\">牧者：就像《伟大的没落》里的主人公一样，我过去也曾确信，把教会做大就是上帝的旨意。我嘴上说服事人，实际上却把人当成自己计划里的工具。只要结果好，我就觉得自己的方法也是义的。直到失败以后，我才看见：我一面传讲耶稣的代赎，一面却违背了祂的降卑和服事。</p>\n<p class=\"shelf-dialogue\">信徒：你的意思是，你曾为了教会增长利用人？</p>\n<p class=\"shelf-dialogue\">牧者：具体说，我不断要求更多服事和奉献，把疲惫之人的处境看成软弱。我说这是“为了福音”，可里面也夹杂着自己的成就欲。耶稣的自我舍弃，是用服事使别人得生命；我却是在消耗别人的生命来建立自己的事工（腓 2:3-8； 彼前 5:2-3）。</p>\n<p class=\"shelf-dialogue\">信徒：听了这个故事，我好像不能再只把代赎说成“我得到好处的事件”了。耶稣是以什么方式把自己交出来的，也很重要。</p>\n<p class=\"shelf-dialogue\">牧者：我们不能重复耶稣所做的事。但参与祂的救恩，就是进入祂所打开的道路：从辖制人的生活转向服事人的生活，从只顾自保转向照顾邻舍生命的生活（可 8:34-35； 10:42-45； 约 13:12-17）。</p>\n<p class=\"shelf-dialogue\">信徒：那只是效法十字架的伦理，不是救恩本身吧？</p>\n<p class=\"shelf-dialogue\">牧者：为什么一定要把两者完全分开？从罪的辖制中被救出来的人，会开始服事新的主人。一个过去利用别人的人开始服事别人，这种改变既是救恩的果子，也是救恩正在他现实生活中发生的样子。</p>\n<p class=\"shelf-dialogue\">信徒：如果牧师只讲代赎，却不讲服事，就是忽略上下文了吗？</p>\n<p class=\"shelf-dialogue\">牧者：至少忽略了马可福音10章45节很重要的一半。“耶稣替我死了”绝不可能导向“所以我可以继续支配别人”。它更应该导向：“祂既然献上自己，我也要把自己的力量用来使邻舍得生命。”</p>\n<p class=\"shelf-dialogue\">信徒：原来相信十字架，也会改变我们使用权力、金钱和关系的方式。</p>\n<p class=\"shelf-dialogue\">牧者：是的。救赎并不止于处理罪疚感。它也包括一种自由：离开支配、利用别人的生活，成为一个愿意服事人的人。</p>\n<p class=\"shelf-dialogue\">信徒：过去我把“代赎是救恩，服事只是得救以后的伦理”分得很开。现在我发现，这种分法可能把经文本身切成两半。</p>\n<p class=\"shelf-dialogue\">牧者：为了说明问题，作区分有时有帮助，但区分不能变成割裂。耶稣的死，是祂一生所教导、所活出的服事达到最高峰的地方（可 10:45； 腓 2:5-11）。</p>\n<p class=\"shelf-dialogue\">信徒：以前每次听你的解释，我都怀疑你是想“在福音上再加行为”。这一次，这个疑虑松了一点。因为上下文本身确实就在讲服事。</p>\n<p class=\"shelf-body\">一起阅读：马可福音10:35-45；8:34-35；腓立比书2:5-11</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我是否把自己的力量和地位用来使别人得生命？</p>\n<p class=\"shelf-body\">我是否把十字架从耶稣服事人的一生中分开来理解？</p>\n<p class=\"shelf-body\">今天我需要放下哪一种辖制人的态度？</p>"
+        },
+        {
+          "id": "sec-6",
+          "title": "第六场对话｜立约的血与圣餐，是免除责任的仪式吗？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-6",
+          "html": "<h2 class=\"shelf-h1\">第六场对话｜立约的血与圣餐，是免除责任的仪式吗？</h2>\n<p class=\"shelf-body\">这一次，两个人读了马太福音中最后晚餐的场景。</p>\n<p class=\"shelf-body\">桌上并没有摆着小杯和饼，信徒却想起教会每三个月一次的圣餐。每逢圣餐主日，他总会比平时更早到教会。那一天，他会有一种过去三个月所犯的罪终于一次清算完毕的安心感。所以每当听见有人主张每周都应该领圣餐时，他心里其实是赞同的。</p>\n<p class=\"shelf-dialogue\">信徒：我们教会三个月才有一次圣餐，会不会太少？有些教会每周都有，也有人说至少一个月一次，才能不断确认罪得赦免的恩典。</p>\n<p class=\"shelf-dialogue\">牧者：常常举行圣餐的传统很宝贵，间隔久一些、充分预备后再举行的传统也有其价值。新约说“如此行，为的是记念我”，也说“每逢吃这饼、喝这杯，是表明主的死”，却没有规定一套所有教会都必须遵守的准确周期（林前 11:24-26）。使徒行传里的群体常常擘饼，这当然是重要的榜样，但仅凭这一点，很难制定出“必须每周”或“必须每月”的单一规则（徒 2:42, 46； 20:7）。</p>\n<p class=\"shelf-dialogue\">信徒：即使次数没有规定，不是领得越勤，罪也洗得越勤吗？</p>\n<p class=\"shelf-dialogue\">牧者：正是在这里，我们容易把圣餐变成一套机械性的赦罪装置。哥林多教会很常举行圣餐，可富足的人先吃，让贫穷的人蒙羞。保罗甚至说，那样吃并不是吃主的晚餐；若不分辨身体就吃喝，反而是在吃喝自己的审判（林前 11:17-22, 27-34）。所以，单单重复仪式，并不会在群体继续不义的同时自动把罪抹掉。</p>\n<p class=\"shelf-dialogue\">信徒：耶稣明明说，祂流血是为了使罪得赦免。</p>\n<p class=\"shelf-dialogue\">牧者：是的。祂又把这血称为什么？</p>\n<p class=\"shelf-dialogue\">信徒：祂称它为“立约的血”。</p>\n<p class=\"shelf-dialogue\">牧者：约不只是把罪的记录擦掉的一道手续。它是上帝与祂的百姓所立的应许，规定双方要在怎样的关系中生活。出埃及记中，立约的血洒下时，百姓回应说，他们要听从并遵行上帝的话（出 24:3-8； 耶 31:31-34）。</p>\n<p class=\"shelf-dialogue\">信徒：那是不是说，罪得赦免也附带了顺服的义务？</p>\n<p class=\"shelf-dialogue\">牧者：在约的关系里，赦免和顺服并不分离。上帝把做错的人重新接纳进关系中，而被接纳的人要照着这关系生活。赦免不是准许人回到旧生活，而是赐给人重新生活的机会（耶 31:31-34； 路 19:1-10； 罗 6:1-4）。</p>\n<p class=\"shelf-dialogue\">信徒：可我学到的是，恩典没有条件。</p>\n<p class=\"shelf-dialogue\">牧者：从上帝先施怜悯这个意义上说，恩典确实是礼物。但领受礼物，并不意味着人会自动领受这礼物所指向的心意。人可以回应，也可以拒绝。以色列已经领受出埃及的恩典，却仍在旷野因不顺服而没有进入应许；希伯来书也把这段故事作为对信徒的警告（民 14:20-23； 来 3:16-19）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，赦免也可能被取消吗？</p>\n<p class=\"shelf-dialogue\">牧者：我们首先需要放下只把赦免想成一份法律文件的习惯。圣经中的赦免，是人回到上帝面前，关系得以恢复。如果一个人持续拒绝上帝、伤害邻舍，却说“我早就拿到赦免证明了”，那我们就必须追问：这段关系在现实中究竟还剩下什么？</p>\n<p class=\"shelf-dialogue\">信徒：我一直学的是，犯罪以后只要倚靠耶稣的血，就会被洁净。</p>\n<p class=\"shelf-dialogue\">牧者：圣经从没有说，献祭这个动作本身会自动把人变成顺服上帝的人。撒母耳说，听命胜于献祭；诗篇和先知也宣告，上帝不喜悦那种丢弃公义、只剩献祭的敬拜（撒上 15:22； 诗 40:6-8； 51:16-17； 赛 1:11-17； 摩 5:21-24； 何 6:6）。希伯来书承接这条脉络，把耶稣的顺服与祂献上自己连在一起（来 10:5-10）。</p>\n<p class=\"shelf-dialogue\">信徒：那是不是说明，献祭原本就没有必要？</p>\n<p class=\"shelf-dialogue\">牧者：不是。献祭是上帝赐给群体的仪式，让他们用身体表达罪、感恩和关系的恢复。问题在于，人把仪式从顺服和公义中割裂出来，以为只要献上祭物，就能安抚上帝，自己仍可以继续过原来的生活。上帝正是在献祭的礼仪中呼召人进入真实的悔改和新的生活（利 5:5-6； 6:1-7）。</p>\n<p class=\"shelf-dialogue\">信徒：约翰福音6章说，必须吃耶稣的肉、喝祂的血才有生命。那不就是领圣餐才能得救吗？</p>\n<p class=\"shelf-dialogue\">牧者：这段经文当然可以和圣餐深刻地联系起来读，但不能把它缩减成圣餐仪式本身。同一章里，耶稣把“到我这里来”和“信我”解释为吃生命的粮；祂又说，使人活着的是灵，祂的话就是灵，就是生命（约 6:35, 47, 56-57, 63）。“吃耶稣”意味着接受祂、住在祂里面，并像祂靠父而活一样，靠祂而活。圣餐是用身体记念这生命、让群体一同参与的记号，并不是说饼和杯成了某种魔法物质，可以与生活方向毫无关系地自动除掉罪（约 15:4-10； 林前 10:16-17）。</p>\n<p class=\"shelf-dialogue\">信徒：这样说，如果领了圣餐以后还是不按祂的话生活，其实是在拒绝圣餐所表达的意义。</p>\n<p class=\"shelf-dialogue\">牧者：是的。圣餐中我们记念那位把自己交出来的耶稣。所以，如果一面轻看弟兄、无视穷人，一面只领饼和杯，那么身体虽然参加了仪式，生活却可能否定这个仪式所指向的群体之爱（林前 11:20-22, 33-34）。</p>\n<p class=\"shelf-dialogue\">信徒：每次有圣餐，我都会觉得过去的罪又一次被洗干净了。这样的感受是错的吗？</p>\n<p class=\"shelf-dialogue\">牧者：借着圣餐记住上帝的怜悯，重新得到开始的勇气，这是很宝贵的。只是不要让这种安心感取代道歉、赔偿和顺服。圣餐不是一个宣告“什么都没发生过”的仪式，而是一张桌子：我们记念耶稣如何舍己，也重新回应祂——我们愿意作为一个身体彼此照顾（路 22:19-20； 林前 10:16-17）。</p>\n<p class=\"shelf-dialogue\">信徒：那就不能简单说，三个月一次一定是错的。</p>\n<p class=\"shelf-dialogue\">牧者：很难只凭次数判断是否忠实。更重要的是，群体怎样认真预备圣餐，怎样记念耶稣的生活与死亡，又怎样照顾彼此的需要。即使每周举行，也可能仍然固守不义；三个月一次，也可以深深思想并活出它的意义。至于更频繁举行是否有益，群体可以一起讨论，但不要把次数变成一种增加“罪得赦免的量”的计算。希伯来书说“基督的血洁净良心”时，我并不理解为一种叫作“血”的物质自动洗净人的内心。这是用献祭中的洁净语言来解释耶稣的顺服与自我献上，其目的在于使人不再躲避上帝，而是来到祂面前，服事永生的上帝（来9:13-14；10:19-25）。</p>\n<p class=\"shelf-dialogue\">信徒：你这样说，我心里反而更沉重了。</p>\n<p class=\"shelf-dialogue\">牧者：刚开始也许会觉得沉重。但靠逃避责任得来的轻松不会持久。能够说出真相、纠正错误，反而会成为更深的安慰。上帝为人打开了一条路，使我们不必隐藏错误，而可以回转。</p>\n<p class=\"shelf-dialogue\">信徒：所以，立约的血是一条回到关系中的路。</p>\n<p class=\"shelf-dialogue\">牧者：是的。回到与上帝的关系，也回到与那些上帝吩咐我们去爱之人的关系中。</p>\n<p class=\"shelf-body\">信徒开始想，自己每次圣餐时那种强烈的安心感究竟是什么。他曾想象，只要接过饼，上帝就会把过去三个月的记录全部清空，让他重新开始。可他与那个自己一直厌恶的人站在同一排，却从来不肯和对方对视。</p>\n<p class=\"shelf-dialogue\">信徒：下一次圣餐，我不想只等着“罪被清除”的那一刻。我也会想一想，我到底要和谁作为一个身体一起生活。</p>\n<p class=\"shelf-dialogue\">牧者：这正是把圣餐重新连回关系与顺服的重要开始。回到上帝的路，与爱邻舍的路，从来不是两条彼此分开的路（太22:37-40；约一4:20-21）。</p>\n<p class=\"shelf-body\">一起阅读：出埃及记24:3-8；马太福音26:26-29；耶利米书31:31-34</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我把赦免理解为修复关系的道路，还是免除责任的文件？</p>\n<p class=\"shelf-body\">当我回到上帝面前时，还需要修复哪一段与邻舍的关系？</p>\n<p class=\"shelf-body\">在约的关系中，我需要重新实行哪一句上帝的话？</p>"
+        },
+        {
+          "id": "sec-7",
+          "title": "第七场对话｜羔羊、救赎、赎罪、和好、罪得赦免，是同一个意思吗？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-7",
+          "html": "<h2 class=\"shelf-h1\">第七场对话｜羔羊、救赎、赎罪、和好、罪得赦免，是同一个意思吗？</h2>\n<p class=\"shelf-body\">信徒摊开一张纸，上面写着几个词：羔羊、救赎、赎罪、和好、罪得赦免。</p>\n<p class=\"shelf-body\">纸的正中央画着一条粗箭头：“全部 = 耶稣替我受刑罚。”每次讲道里出现陌生的词，信徒都会用这一句话把它们翻译过来。这样一来，复杂的圣经仿佛一下就被整理好了。可当牧者说，每个词背后都有不同的历史时，他突然害怕，自己好不容易整理好的世界会再次变得混乱。</p>\n<p class=\"shelf-dialogue\">信徒：把这些图像分开讲，会不会反而让福音变得模糊？人总得有一个明确的解释，才能有确信。</p>\n<p class=\"shelf-dialogue\">牧者：一个解释当然容易记住。但若把圣经在不同年代、不同处境里使用的语言全部压进同一套理论，就可能错过每个表达本身的意义。羔羊、救赎、赎罪、和好、罪得赦免彼此相连，却不是同一个词。它们从不同角度显明上帝的救恩。</p>\n<p class=\"shelf-dialogue\">信徒：在教会里，这些词几乎都被当作同一个意思。我们学到的是：耶稣替我们死了，所以从此上帝不再看我们的罪。</p>\n<p class=\"shelf-dialogue\">牧者：这些词彼此相关，却并不完全相同。每个词都呈现出不同的图画。</p>\n<p class=\"shelf-dialogue\">信徒：有什么不同？</p>\n<p class=\"shelf-dialogue\">牧者：“羔羊”会让人想起逾越节和献祭；“救赎”描绘从奴役或被掳中得释放；“和好”描绘破裂的关系重新建立；“罪得赦免”则像债务和过犯被解除，人得以重新出发。圣经并不只用一种方式解释耶稣之死的意义。我们先看“羔羊”。出埃及记里的逾越节羔羊，并没有只被描写成替道德上不完全的以色列人承受刑罚的个人祭物。它的血在死亡灾祸中成为房屋的记号，而百姓就在那一夜准备离开为奴之家（出12:1-14、31-42）。“羔羊”的图景里同时有免于死亡的保护、从压迫中得释放，以及一个新百姓的出发。</p>\n<p class=\"shelf-dialogue\">信徒：可约翰福音说“看哪，上帝的羔羊，除去世人罪孽的”，那不就是祭物吗？</p>\n<p class=\"shelf-dialogue\">牧者：这里可以同时听见献祭、逾越节和以赛亚书受苦仆人等多重记忆（赛53:4-7；约1:29、36；19:14、36）。重要的是，不要把“担当、除去罪”只想象成一种叫作“罪”的物质机械地转移到耶稣身上。这个表达显明祂的使命：承担罪及其后果，将罪除去，使人脱离罪的辖制。约翰福音整卷书中，耶稣呼召人、教导人、赐人生命，爱他们到底，最后走向死亡并从死里复活。“羔羊”的意义也应当放在这个完整的脉络里来读。</p>\n<p class=\"shelf-dialogue\">信徒：那你这样解释“担当罪”，是不是在否定“祂替我们受刑罚”的意思？</p>\n<p class=\"shelf-dialogue\">牧者：其中确实有代表人、代替人，为别人承担痛苦的意义。但我们不能把祭仪语言完全缩减成“刑罚机械转移”。利未记16章里，大祭司承认百姓的罪，然后举行仪式，让羊把这些罪担当到旷野去。这不是在科学地说明一种叫作“罪”的物质怎样转移到羊身上，而是用身体性的仪式表现：罪在群体中被处理、被除去，关系因此得以更新（利 16:20-22, 29-34）。</p>\n<p class=\"shelf-dialogue\">信徒：可我一直听说，按手在祭牲头上，罪就真的转过去了。</p>\n<p class=\"shelf-dialogue\">牧者：按手可以理解为一种象征行动，把献祭的人与祭物所承担的礼仪目的连在一起。圣经并没有解释那一瞬间某种“罪的物质”如何移动，反而把重点放在承认罪、认罪，并按上帝所定的方式修复关系的祭仪过程上（利 1:4； 5:5-6）。</p>\n<p class=\"shelf-dialogue\">信徒：那献祭只是为了消除罪疚感的心理治疗吗？</p>\n<p class=\"shelf-dialogue\">牧者：比那更广。罪疚感得释放当然重要，但献祭的目的不只是让一个人心里舒服。它也处理罪所破坏的与上帝的关系和群体秩序，使人能够重新事奉上帝、正直地与邻舍相处。若有人欺骗并夺取别人的财物，要先归还，再加上赔偿，然后才献赎愆祭。祭物没有代替归还（利 6:1-7； 民 5:5-8）。</p>\n<p class=\"shelf-dialogue\">信徒：现在连“赎罪”这个词听起来都不一样了。</p>\n<p class=\"shelf-dialogue\">牧者：“赎罪”来自希伯来圣经的献祭和洁净礼仪。它指的是：因罪和不洁而破裂的关系与群体空间得到洁净，使人能够重新站在上帝面前（利 16:15-19, 30）。它不只是把刑罚从一个对象转移到另一个对象的法律计算，而是一种祭仪性的语言，表达被罪破坏的生命如何得洁净、得恢复。</p>\n<p class=\"shelf-dialogue\">信徒：可是先知们不是说，上帝厌恶献祭吗？</p>\n<p class=\"shelf-dialogue\">牧者：他们并不是说上帝否定所有献祭，而是在拒绝一种态度：人继续不义和暴力，却想靠献祭让上帝满意。手上沾满血却不断献祭、践踏穷人却照样守节期，这种敬拜上帝并不喜悦（赛 1:11-17； 摩 5:21-24； 弥 6:6-8）。献祭真正的意义，不能与顺服和公义分开（撒上 15:22； 何 6:6）。</p>\n<p class=\"shelf-dialogue\">信徒：那“救赎”又有什么不同？</p>\n<p class=\"shelf-dialogue\">牧者：“救赎、赎回”背后有奴隶、俘虏、债务，以及赎回失去产业等社会记忆。出埃及里，上帝把以色列从法老的辖制下赎出来，使他们成为自己的百姓（出 6:6-8）。新约里，在基督里的救赎，不只是抹掉一份罪的记录，而是从罪、死亡和恐惧的主权下被释放，得着服事新主人的自由（罗 6:12-18； 西 1:13-14）。</p>\n<p class=\"shelf-dialogue\">信徒：那“和好”是不是说，上帝情绪上的怒气消了？</p>\n<p class=\"shelf-dialogue\">牧者：“和好”是敌对和隔绝结束、关系重新建立的语言。保罗在哥林多后书5章18至20节说，上帝在基督里使世人与自己和好；到了21节，他又说，上帝使那不知罪的“为我们成为罪”。这句话本身并没有出现一个表示“我们的罪在法律上被转归到耶稣身上”的独立动词。也有人认为这里的“罪”可以理解为“赎罪祭”，但把它保留为一种可能的解释会更谨慎。可以确定的是，保罗把罪的问题与和好放在同一个脉络中。耶稣的死处理罪的问题，并打开与上帝恢复关系的道路；而已经与上帝和好的群体，又领受了使人和好的使命（林后5:18-21；罗12:17-21）。</p>\n<p class=\"shelf-dialogue\">信徒：至少“罪得赦免”总该是指罪的记录被消掉吧？</p>\n<p class=\"shelf-dialogue\">牧者：“赦免”里面有释放、送走、免除债务的意思。上帝赦罪，不是假装过去没有发生，而是释放人，使罪不能继续抓住人、破坏关系，并赐下重新开始的机会（耶 31:31-34； 路 4:18-19； 7:47-50）。可一个债已经被免掉的人，若转身又掐住别人的脖子讨债，他就是在拒绝自己所领受之赦免的意义（太 18:23-35）。</p>\n<p class=\"shelf-dialogue\">信徒：这么说，这五个词都比“免受刑罚”宽得多。</p>\n<p class=\"shelf-dialogue\">牧者：是的。羔羊让我们看见一个被保护免于死亡、离开压迫的百姓；救赎让我们看见从辖制中得释放的自由；赎罪让我们看见罪和不洁被处理、关系与群体得洁净的礼仪；和好让我们看见敌对结束、关系恢复；罪得赦免让我们看见人从罪和债务的捆绑中被释放，得到重新开始的恩典。这些图景最终都把人带回一种重新事奉上帝、服事邻舍的生命（来 9:13-14； 彼前 2:24）。</p>\n<p class=\"shelf-dialogue\">信徒：可最终不还是免受刑罚吗？</p>\n<p class=\"shelf-dialogue\">牧者：其中当然包含从刑罚中被救出来。但想想逾越节。以色列人不仅免于死亡，也离开了埃及的奴役。得自由以后，他们要以服事上帝的百姓身份生活（出 12:29-42； 19:3-6）。</p>\n<p class=\"shelf-dialogue\">信徒：所以，救赎就是离开奴役的状态。</p>\n<p class=\"shelf-dialogue\">牧者：对。罪不只是法庭上的罪名，也是一种辖制人的力量。如果一个人停不下说谎，放不下仇恨，总被金钱和他人的认可牵着走，他其实就是某种力量的奴隶。救赎，就是从这种辖制中得释放，获得爱上帝、爱邻舍的自由（罗 6:12-23； 加 5:1, 13-14）。</p>\n<p class=\"shelf-dialogue\">信徒：那和好有什么不同？</p>\n<p class=\"shelf-dialogue\">牧者：和好是敌意和隔绝结束，关系重新恢复。罗马书5章说，我们与上帝和好。继续读到12章，就会看到保罗劝人不要以恶报恶，并要尽可能与众人和睦。与上帝和好，会影响我们怎样与邻舍生活（罗 5:6-11； 12:17-21）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，一边说自己与上帝和好，一边继续把别人当仇敌，确实很矛盾。</p>\n<p class=\"shelf-dialogue\">牧者：是的。这不表示每一段关系都能立刻变好。如果对方有暴力行为，有时必须保持距离。但一个人不能在自己心里不断培养报复和虚假，却只强调自己已经与上帝和好。</p>\n<p class=\"shelf-dialogue\">信徒：那“赎罪”呢？</p>\n<p class=\"shelf-dialogue\">牧者：赎罪是献祭的语言，表示罪所破坏的关系和群体中的污秽被处理。但这绝不表示献过祭的人就可以继续夺取别人的东西。旧约的赎愆祭要求人归还并赔偿（利 5:5-6； 6:1-7； 民 5:5-8）。</p>\n<p class=\"shelf-dialogue\">信徒：看来我一直想用一句话解释所有这些词。</p>\n<p class=\"shelf-dialogue\">牧者：把圣经这些不同的图画放在一起看，我们会更丰富地理解耶稣之死的意义。从死亡中蒙保守、从罪与辖制中得释放、与上帝和好、进入新约、走上服事的道路、胜过邪恶权势——这些意义彼此补充。</p>\n<p class=\"shelf-body\">信徒盯着纸中央那个粗粗的等号看了一会儿，随后把它擦掉。擦去熟悉的解释让他有些不安，可当他在五个词旁边分别写下不同的意思时，他开始发现，圣经的语言比一个公式宽广得多。</p>\n<p class=\"shelf-dialogue\">信徒：我一直以为自己是在守住“简单的福音”，其实却是把圣经不同的词都改造成我熟悉的同一个理论。之前我说你在削弱十字架，我向你道歉。</p>\n<p class=\"shelf-dialogue\">牧者：你的担心也提醒了我，不能轻率处理“代替”和“舍己”的意义。保留圣经的多重图景，不是在删除其中任何一个，而是在恢复圣经所说救恩原本的宽度。</p>\n<p class=\"shelf-dialogue\">信徒：我以前一直想不通，为什么圣经一方面说“上帝不喜悦祭物”，另一方面又说“若不流血，罪就不得赦免”。现在我开始明白，献祭仪式本身并不是自动消除罪，而是在表达悔改、顺服和关系恢复。这个解释把我以前的疑问连起来了。</p>\n<p class=\"shelf-dialogue\">牧者：把这个问题继续带着。希伯来书同样谈血和献祭，却把它的目的放在“洁净良心，好事奉永生上帝”上（来 9:14）。</p>\n<p class=\"shelf-body\">一起阅读：出埃及记12章；罗马书5:6-11；6:1-14；歌罗西书1:19-23</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我是否把十字架缩减成一种单一的法律解释？</p>\n<p class=\"shelf-body\">现在有哪些罪和恐惧正在支配我？</p>\n<p class=\"shelf-body\">与上帝和好，应当怎样显现在我与邻舍的关系中？</p>"
+        },
+        {
+          "id": "sec-8",
+          "title": "第八场对话｜为什么“一次献上”之后仍然谈审判？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-8",
+          "html": "<h2 class=\"shelf-h1\">第八场对话｜为什么“一次献上”之后仍然谈审判？</h2>\n<p class=\"shelf-body\">两个人慢慢读了希伯来书第9章。</p>\n<p class=\"shelf-body\">信徒读希伯来书第9章时，目光总停在“审判”两个字上。他从小听惯的两句话同时浮现出来：“一次相信，就得救了。”“罪无论多小，在圣洁的上帝面前都必须受审判。”抓住第一句，他能暂时安心；第二句很快又会把那份安心摇动。</p>\n<p class=\"shelf-dialogue\">信徒：我读这一章时有一种很奇怪的感觉。看到“只一次”，仿佛门一下被完全打开；可紧接着看到“审判”，又像那扇门重新关上了。我到底该相信哪一个？</p>\n<p class=\"shelf-dialogue\">牧者：不必删掉其中任何一个。希伯来书的作者把基督一次献上自己、死后的审判，以及将再次显现的基督放在同一个脉络中。借着耶稣，通向上帝的路已经打开；同时，经文也谈人在这条路上怎样生活的责任，以及将来得以完成的救恩盼望（来9:24-28）。</p>\n<p class=\"shelf-dialogue\">信徒：可我在教会一直学到的是：“一次献祭，过去、现在、将来所有的罪都已经处理完了。”如果是这样，审判还要看什么？</p>\n<p class=\"shelf-dialogue\">牧者：正因为有这个问题，我们更需要仔细读上下文。作者强调，耶稣献上自己与不断重复的圣殿祭祀不同，是决定性的；同时又说明，这次献上洁净人的良心，为要使人服事永生的上帝（来9:11-14）。“一次”不是抹去此后的生活，而是与这样的呼召相连：不要再等别的祭，借着耶稣来到上帝面前，服事祂。</p>\n<p class=\"shelf-dialogue\">信徒：希伯来书的那些人，为什么需要听这种解释？</p>\n<p class=\"shelf-dialogue\">牧者：希伯来书具体写在什么地方、什么年代，我们无法完全确定。不过，当时犹太社会中广泛存在期待以色列复兴、圣殿得到完全恢复的潮流，希伯来书的读者也可能受到这种期待的影响。从经文本身看，他们很熟悉犹太圣经和圣殿献祭的语言，也已经过了相当长时间的基督徒生活，但因受辱骂、财产被夺而疲惫（来5:11-14；10:32-36）。相比眼前对圣殿和民族复兴的期待，他们也许开始怀疑：眼下这条跟随耶稣、忍受苦难的路，真是上帝所应许的路吗？因此，有些人正试图从群体中退后。作者劝他们，不要因等待圣殿献祭制度重新完全恢复而退缩；借着耶稣，来到上帝面前的路已经打开，所以要抓住这条路，忍耐到底（来10:19-25、35-39）。</p>\n<p class=\"shelf-dialogue\">信徒：也就是说，“一次”与其说是在计算“我的罪单已经预先删到未来”，不如说是在问这个群体最终要忠于谁？</p>\n<p class=\"shelf-dialogue\">牧者：至少在希伯来书的大脉络里，这个意思非常重要。作者并没有把“一次”只用来说明过去发生了什么。恰恰因为那件事已经发生，他才劝人现在坦然进前来、彼此相顾、忍耐，不要退后（来 10:19-25, 35-39）。</p>\n<p class=\"shelf-dialogue\">信徒：每次听这种历史背景，我心里都有一点不舒服。好像我一直抓住的那个确定公式正在摇晃。</p>\n<p class=\"shelf-dialogue\">牧者：你会觉得失去了公式带来的安全感。我过去也曾以为，只要把圣经一句话迅速变成结论，就能让人更安全。可对有些人来说，那个公式反而成了反复确认的工具。他会不停问：“真的是所有罪吗？将来还没有犯的罪也算吗？”我越用力保证，他的问题反而越细。</p>\n<p class=\"shelf-dialogue\">信徒：听起来很像我。</p>\n<p class=\"shelf-dialogue\">牧者：那时我以为自己是在给人安慰，实际上却是在不断替焦虑开新的“证明书”。圣经不是叫我们无止境地重复确认同一份保证，而是呼召我们来到上帝面前，活出今天该有的爱与责任。</p>\n<p class=\"shelf-dialogue\">信徒：这里说，基督为担当多人的罪，只一次把自己献上。我认为这就是所有罪一次被解决的最有力根据。</p>\n<p class=\"shelf-dialogue\">牧者：这句话非常重要。但紧接着又说了什么？</p>\n<p class=\"shelf-dialogue\">信徒：说人只有一次死亡，之后且有审判，也说基督还要再显现。</p>\n<p class=\"shelf-dialogue\">牧者：是的。作者把一次献上、审判和再显现放在同一段上下文中。若把“一次献上”解释成一种与后来的生活毫无关系的自动赦免公式，那么紧接着谈审判就显得很奇怪。</p>\n<p class=\"shelf-dialogue\">信徒：那“一次”到底强调什么？</p>\n<p class=\"shelf-dialogue\">牧者：它是在和反复献上的祭作比较，强调耶稣忠实地献上自己，是具有决定性的行动。人不必等到圣殿献祭制度完全恢复，才能来到上帝面前。耶稣已经打开了道路。群体不需要把最终的忠诚转移到其他制度上。</p>\n<p class=\"shelf-dialogue\">信徒：可是“担当罪”不就是代受刑罚吗？</p>\n<p class=\"shelf-dialogue\">牧者：“担当罪”确实包含代人承担的意义。但不能把它改成“所以我不需要承担任何责任”。耶稣担当罪的目的，是把人带到上帝面前，洁净人的良心，使人能够服事永生的上帝（彼前 2:24； 3:18； 来 9:13-14）。</p>\n<p class=\"shelf-dialogue\">信徒：良心被洁净，不就是罪疚感消失吗？</p>\n<p class=\"shelf-dialogue\">牧者：其中也包括从罪疚感中得释放。但希伯来书9章14节说，洁净的目的是“使人服事永生的上帝”。“血洁净良心”是用献祭中的洁净语言来解释耶稣的顺服与自我献上。过去躲藏、逃避的人，如今能够再次来到上帝面前，说出真话，服事上帝和邻舍——这就是洁净良心所指向的方向。</p>\n<p class=\"shelf-dialogue\">信徒：一谈到审判，我就更不安。</p>\n<p class=\"shelf-body\">信徒的手指慢慢摩挲着桌角。他想起早晨对妻子发脾气、后来又道歉的事。明明已经道歉，心里却又接着冒出问题：“万一我的道歉不是真心的呢？万一上帝看见连我自己都不知道的恶意动机呢？”每当听见“审判”，他首先开始的往往不是面对某一个具体错误，而是一场没有尽头的自我审问。</p>\n<p class=\"shelf-dialogue\">信徒：一谈到审判，我脑子里就会一下涌出所有小事。今天早上提高了声音，祷告时走神了一下，短暂地嫉妒过别人……上帝既然是圣洁的，这些罪祂也不能就这样算了吧？</p>\n<p class=\"shelf-dialogue\">牧者：我不会说小的过错不重要。一句短短的话，也可能深深伤害别人；嫉妒和谎言若任其生长，也会变成更大的恶。既然看见了，就应该承认并改正（太 5:21-24； 雅 3:2-10）。</p>\n<p class=\"shelf-dialogue\">信徒：可是上帝是完全圣洁的。我们根本无法满足祂。所以我一直学的是：若上帝看我们的行为，没有一个人站立得住；只有把耶稣十字架的功劳算在我们身上，我们才能来到上帝面前。你的解释听起来，却像是在说，我的生活必须好到某种程度，上帝才接纳我。</p>\n<p class=\"shelf-dialogue\">牧者：我不想轻轻带过你的反驳。人不能靠自己的义在上帝面前夸口，而我们是借着耶稣坦然来到上帝面前，这确实是新约非常重要的教导（罗 3:21-27； 来 4:14-16）。可是，把上帝的圣洁理解成一种“等着人犯一个小错误就立刻断绝关系的敏感”，并不是合适的理解。</p>\n<p class=\"shelf-dialogue\">信徒：圣洁和你说的那种“敏感”，到底有什么不同？</p>\n<p class=\"shelf-dialogue\">牧者：上帝的圣洁，是祂绝不把恶和不义改名叫善的信实；但圣经同时说，祂有丰盛的怜悯，不轻易发怒，也记得我们不过是尘土所造、十分软弱的人（诗 103:8-14）。耶稣没有丢弃跌倒后又回转的门徒，反而再次把牧养羊群的责任交给彼得（约 21:15-19）。</p>\n<p class=\"shelf-dialogue\">信徒：当然，你不是在说上帝看不见罪吧？</p>\n<p class=\"shelf-dialogue\">牧者：当然不是。上帝知道我们的错。但祂并不只看错误。祂也记得人愿意回转的心、真诚道歉的行动，以及出于爱所担当的劳苦（来 6:9-12）。“我们不能欺骗上帝”并不只是令人害怕的话；它也意味着，那些无人知道、无人称赞的小小善行，在祂面前不会被遗忘。</p>\n<p class=\"shelf-dialogue\">信徒：那“唯靠耶稣的功劳来到上帝面前”该怎样理解？</p>\n<p class=\"shelf-dialogue\">牧者：可以这样理解：借着耶稣信实的一生、祂的死与复活，通向上帝的道路被打开，而这条路不是我们自己造出来的（来 10:19-22）。但这条路不是一块遮布，让上帝看不见我们真实的生活。在这条路上，我们不再隐藏，而是认罪、求怜悯、修正错误，再次去爱（约一 1:5-9； 2:1-6）。</p>\n<p class=\"shelf-dialogue\">信徒：我听人说，因为耶稣的义遮盖了我的罪，所以上帝看我的时候，其实只看见耶稣。</p>\n<p class=\"shelf-dialogue\">牧者：如果这个表达是为了强调上帝的怜悯，我可以理解。但如果因此说上帝根本不看真实的我们，圣经里许多劝勉就失去了意义。上帝不只看见我们的伤口和软弱，也看见责任和成长。祂的目的不只是把我们当作想象中已经完全的人，而是要真实地把我们更新成为有爱、有真理的人（林后3:18；多2:11-14）。</p>\n<p class=\"shelf-dialogue\">信徒：那审判不是一场数我犯了多少小错误的考试吗？</p>\n<p class=\"shelf-dialogue\">牧者：圣经里的审判，是把一生的真实显明出来。它不是一个陷阱，把某一次跌倒单独抽出来就作最终判决。审判会显明一个人究竟爱什么路、坚持什么路，怎样对待软弱的人，以及光来到时是否愿意走向真理（太 25:31-46； 约 3:19-21； 罗 2:6-11）。</p>\n<p class=\"shelf-dialogue\">信徒：我好像一直把“犯了一个小错误”和“持续拒绝上帝的生活”当成同一件事。</p>\n<p class=\"shelf-dialogue\">牧者：这正是必须分清的地方。看见自己的错而回转的人，和把错误当成自己的权利、拒绝承担责任的人，并不一样。不要轻看小罪，但也不要把一次错误立刻变成“我与上帝的关系已经彻底结束”的最终判决。</p>\n<p class=\"shelf-dialogue\">信徒：如果我已经向妻子道歉，今天也努力不再用同样的方式说话，那这件事以后该怎么面对？</p>\n<p class=\"shelf-dialogue\">牧者：先听妻子的感受，看看道歉是否足够，还有没有需要补做的事。之后，与其无限审问自己，不如把改变后的行动继续下去。罪疚感再次涌上来时，不要一遍遍重审同一案件，而要用今天更温柔地说话来回应。</p>\n<p class=\"shelf-dialogue\">信徒：很奇怪。我一直生气，怕牧者把罪说轻了，可你反而叫我把罪处理得更具体。与此同时，你所说的上帝，却比我原来想象的更不反复无常。</p>\n<p class=\"shelf-dialogue\">牧者：越具体地面对罪，人反而越能离开模糊的恐惧。上帝不是等着抓住我们的失误作借口、把我们赶出去的那一位；祂是借着真理使人回到生命道路的上帝（结18:23、32；路15:11-24）。不能把审判当作让焦虑的人一直发抖的工具。审判也宣告：我们的生活是有意义的。上帝不会忘记爱、诚实和忍耐中的微小行动，同时也不会轻看伤害别人以后仍逃避责任的行为（传12:13-14；太25:31-46；来6:9-12）。</p>\n<p class=\"shelf-dialogue\">信徒：基督再显现会带来怎样的盼望？</p>\n<p class=\"shelf-dialogue\">牧者：祂不是为了再一次牺牲、重新处理罪而来，而是要为等候祂的人完成所应许的救恩。所以，现在的生活是等候的时间。我们不是被恐惧麻痹，而是在等候中照着祂的教导生活（来 9:27-28； 10:35-39）。</p>\n<p class=\"shelf-dialogue\">信徒：原来“一次献上”不是取消责任，而是打开来到上帝面前的道路。</p>\n<p class=\"shelf-dialogue\">牧者：是的。既然道路已经打开，我们就不再隐藏，而是回转、服事，并等候将来完成的救恩。</p>\n<p class=\"shelf-body\">信徒又读了一遍希伯来书最后的句子。焦虑并没有完全消失，但他开始想到：自己脑中一再冒出的每一个恐惧，并不需要立刻当作上帝的判决。</p>\n<p class=\"shelf-dialogue\">信徒：我一个困惑了很久的问题，好像解开了一点。如果“一次献上”把所有责任都抹掉，为什么紧接着又讲审判？现在我可以理解成：它同时在讲已经打开的路，以及人在这条路上怎样生活的责任。还有，刚才我说话太有攻击性了。我事先就断定牧者是在否定十字架。对不起。</p>\n<p class=\"shelf-dialogue\">牧者：这是完全可以理解的反驳。也正因为你这样问，我必须把话说得更准确。重要的是，我们既守住恩典的安慰，又不让这份安慰变成一个抹去真实生活和责任的公式。</p>\n<p class=\"shelf-body\">一起阅读：希伯来书9:11-28；10:19-25；彼得前书2:21-24</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我把“一次献上”当成了怎样的公式？</p>\n<p class=\"shelf-body\">被洁净的良心，今天使我能够承担什么责任？</p>\n<p class=\"shelf-body\">我能否不只把审判理解为恐惧，也理解为生活的意义和责任？</p>"
+        },
+        {
+          "id": "sec-9",
+          "title": "第九场对话｜罪疚感等于悔改吗？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-9",
+          "html": "<h2 class=\"shelf-h1\">第九场对话｜罪疚感等于悔改吗？</h2>\n<p class=\"shelf-body\">信徒沉默了一会儿，然后小心地说出了自己的内心。</p>\n<p class=\"shelf-body\">前一晚睡觉前，他打开手机备忘录，把自己做错的事一件件写下来：敷衍妻子的话、对孩子的问题不耐烦、祷告时打瞌睡、嫉妒同事的成功……清单超过了十项。起初，他以为这是为了诚实悔改。可每划掉一项，马上又会出现新的问题：“我真的悔改得够彻底吗？”在自己内心的法庭里，他同时扮演检察官、被告和法官。</p>\n<p class=\"shelf-dialogue\">信徒：其实我几乎每天都列错误清单。我怕漏掉一个罪，上帝就没有真正赦免我。可清单越长，我没有变得更敬虔，反而越来越焦躁。</p>\n<p class=\"shelf-dialogue\">牧者：清单有时能帮助人找到具体要承担的责任。但如果你开始把每一个思想、每一种情绪都像犯罪档案一样盘查，悔改就可能不再是回到生命，而变成无止境的自我监控。</p>\n<p class=\"shelf-dialogue\">信徒：自我监控是坏事吗？圣经不也叫人省察自己吗？</p>\n<p class=\"shelf-dialogue\">牧者：省察自己当然需要（林后 13:5； 哀 3:40）。关键是你为什么省察。是为了发现错误、改正以后回到爱的路上，还是为了不断审讯自己，直到得到一种绝对完美的确信？</p>\n<p class=\"shelf-dialogue\">信徒：我更像第二种。我总想检查到自己感觉“完全干净”为止。</p>\n<p class=\"shelf-dialogue\">牧者：可这种感觉很少能维持很久。心会立刻制造下一个怀疑。我年轻时也有类似的经历。讲完道以后，我会一遍遍听录音，检查自己是不是说错了什么。只要有人表情沉重，我就会想：“是不是因为我的话，他离信仰更远了？”起初我把这叫责任感，可后来我发现，我关心的常常不是怎样爱人，而是自己看起来是不是一个毫无瑕疵的牧者。</p>\n<p class=\"shelf-dialogue\">信徒：你的意思是，罪疚感也可能很自我中心？</p>\n<p class=\"shelf-dialogue\">牧者：会的。如果一个人完全被“我到底有多坏”占据，他反而可能看不见真正受伤的人在感受什么、需要什么。自我厌恶看起来像谦卑，可目光有时仍然只围着自己打转。</p>\n<p class=\"shelf-dialogue\">信徒：我向妻子道歉时好像也是这样。我常说：“我真的太坏了，你原谅我吧。”反复说很多遍。妻子却说，她最后好像反而要来安慰我，所以很累。</p>\n<p class=\"shelf-dialogue\">牧者：这句话是一个很重要的线索。道歉不是要求受伤的人替我安抚自己的心。道歉是说清楚自己错在哪里，听对方说他怎样受了伤，并把自己能够改变的部分落实为实际行动，使同样的错误不再重复（太5:23-24；路3:8-14）。</p>\n<p class=\"shelf-dialogue\">信徒：看来即使在求饶恕的时候，我最先想的仍然是让自己舒服下来。</p>\n<p class=\"shelf-dialogue\">牧者：很多人都会这样，我也曾这样。所以看悔改，不要只看罪疚感有多重，更要看生命实际朝哪个方向移动。罪疚感可以成为提醒我们哪里错了的信号，但既然已经看清错在哪里，就应当转向需要采取的行动。</p>\n<p class=\"shelf-dialogue\">信徒：我常常有很强的罪疚感。那不就说明我常常悔改吗？</p>\n<p class=\"shelf-dialogue\">牧者：罪疚感可以成为悔改的开始，但两者并不相同。</p>\n<p class=\"shelf-dialogue\">信徒：有什么不同？</p>\n<p class=\"shelf-dialogue\">牧者：罪疚感是“我做错了”的痛苦。悔改则是承认自己具体做错了什么，停止错误的行为，尽可能修复所造成的伤害，并转向新的方向。</p>\n<p class=\"shelf-dialogue\">信徒：只要心里很悲伤，还不够吗？</p>\n<p class=\"shelf-dialogue\">牧者：如果悲伤没有转化成行动，它可能只在自己心里不断打转。有些人因为罪疚感而厌恶自己，却没有向被自己伤害的人道歉。他一直沉浸在“我是个坏人”的想法里，却看不见受害者的痛苦。</p>\n<p class=\"shelf-dialogue\">信徒：我也有过这种情况。我只想着自己多么糟糕，却没有问对方真正需要什么。</p>\n<p class=\"shelf-dialogue\">牧者：罪疚感有时会把人的目光锁在自己身上。悔改则把目光转向上帝、受伤的人，以及今后应当采取的行动。</p>\n<p class=\"shelf-dialogue\">信徒：那急着摆脱罪疚感，也有问题吗？</p>\n<p class=\"shelf-dialogue\">牧者：长期抓住罪疚感不放，并不等于圣洁。但若太急着消除它，也可能看不清需要面对的事实。可以先问几个问题：我具体做了什么？谁受到了什么伤害？现在我能承担什么责任？</p>\n<p class=\"shelf-dialogue\">信徒：如果已经改正了，心里还是很沉重，怎么办？</p>\n<p class=\"shelf-dialogue\">牧者：这时要抓住上帝重新扶起回转之人的应许。如果你已经道歉、赔偿并改变了行为，无休止地惩罚自己并不是更大的顺服。应当感谢上帝，并重新去行善（诗 32:1-5； 路 15:20-24； 林后 7:9-11）。</p>\n<p class=\"shelf-dialogue\">信徒：我总以为，只有心里轻松了，才表示已经蒙赦免。</p>\n<p class=\"shelf-dialogue\">牧者：感情有时会慢慢跟上。不要只按感受的强弱来判断赦免和悔改是否真实。如果有诚实的承认和具体的改变，即使心里仍然摇摆，也可以继续走这条路。</p>\n<p class=\"shelf-dialogue\">信徒：那没有强烈罪疚感的人，就不能悔改吗？</p>\n<p class=\"shelf-dialogue\">牧者：每个人感受的强度不同。重要的是，是否承认事实并承担责任。有人流很多眼泪，却没有改变；也有人不太表达情绪，却诚实地赔偿，并真正改变行为。</p>\n<p class=\"shelf-dialogue\">信徒：悔改更重要的是方向，不只是感受。</p>\n<p class=\"shelf-dialogue\">牧者：是的。这不是要忽视心里的痛苦。只是当那份痛苦真正带来停止错误、走向爱与责任的行动时，悔改才在生活中显出它的样子。</p>\n<p class=\"shelf-dialogue\">信徒：如果我已经努力弥补伤害，对方却说“你还是不是真心的”，怎么办？我会立刻又从头开始检查自己的内心。</p>\n<p class=\"shelf-dialogue\">牧者：先不要急着为自己辩护，要听对方说。你可能确实漏掉了某些责任。但你无法控制对方所有的评价。真诚道歉、继续必要的改变，却不要急着从对方那里取得一句“现在没事了”的判定。</p>\n<p class=\"shelf-dialogue\">信徒：那么，真实的悔改到底从什么地方看得出来？</p>\n<p class=\"shelf-dialogue\">牧者：不是从一种完美的情绪，而是从持续的改变看出来。施洗约翰要求人结出与悔改相称的果子，并具体谈到分享所有的、不滥用权力（路 3:8-14）。保罗也不只看人的忧愁本身，而看这样的忧愁是否产生了迫切和负责任的行动（林后 7:9-11）。</p>\n<p class=\"shelf-dialogue\">信徒：我不哭时觉得自己悔改得不够深，哭得多了又怕只是沉醉在情绪里。哪一种我都没有把握。</p>\n<p class=\"shelf-dialogue\">牧者：不要拿眼泪多少作标准。有些人容易哭，有些人不容易。要看的是：你在上帝面前有没有隐藏事实，有没有停止错误的行为，有没有尽可能修补伤害，有没有建立帮助和具体安排，使自己不轻易回到同一条路上。</p>\n<p class=\"shelf-dialogue\">信徒：过去我一直觉得，罪疚感越强，就说明我越认真对待上帝。</p>\n<p class=\"shelf-dialogue\">牧者：认真看待罪，和无止境地惩罚自己，是两回事。上帝所要的不是让人长期困在罪疚感里，而是面对真实、回转过来，重新开始生活（结18:30-32）。</p>\n<p class=\"shelf-dialogue\">信徒：那对于已经承担过责任的事，我要怎样真正放下？</p>\n<p class=\"shelf-dialogue\">牧者：先不要把它抹成“我什么都没有做错”。你可以这样记得：“我错了，我承认了，也尽自己所能承担了责任；为了减少同样的错误，我要用不同的方式生活。”记忆可以留下，但它不必一直做那个惩罚你的法官。</p>\n<p class=\"shelf-body\">信徒打开手机备忘录。一个项目旁写着“已经道歉三次”。他犹豫了一会儿，把那行字删掉，改成：“这周别人说话时不打断，听到最后。”原本记录罪的地方换成了行动，整张清单的性质也变了。</p>\n<p class=\"shelf-dialogue\">信徒：我好像很久以来都把罪疚感误当成悔改的证据。我花很多力气维持自己心里的沉重，却没有同样用力去为对方改变。在这个过程中，我还不断要求妻子来使我安心。我到现在才看清这一点，有些惭愧，也觉得对不起妻子。</p>\n<p class=\"shelf-dialogue\">牧者：不要让这份羞愧又掉回自我厌恶。把今天看见的事用在实际行动上：把对方的话听完，并改变自己的行为。悔改不是学习怎样恨自己，而是转回一种会爱人的方式。</p>\n<p class=\"shelf-body\">一起阅读：哥林多后书7:8-11；路加福音3:7-14；15:17-24</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我的罪疚感使我把目光放在谁身上？</p>\n<p class=\"shelf-body\">我需要具体承认并修正什么事实？</p>\n<p class=\"shelf-body\">即使已经承认错误、道过歉，也承担了必要的责任，我是否仍用同样的罪疚感不断惩罚自己？</p>"
+        },
+        {
+          "id": "sec-10",
+          "title": "第十场对话｜向上帝求赦免之后，其他责任就结束了吗？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-10",
+          "html": "<h2 class=\"shelf-h1\">第十场对话｜向上帝求赦免之后，其他责任就结束了吗？</h2>\n<p class=\"shelf-body\">牧者把利未记中赎愆祭的条例和撒该的故事并排翻开。</p>\n<p class=\"shelf-body\">牧者用手指沿着利未记6章的文字慢慢读。信徒的目光停在“另加五分之一”那句话上。他听过很多关于献祭的讲道，却几乎不记得：在献祭之前，原来先有归还和赔偿。</p>\n<p class=\"shelf-dialogue\">信徒：很奇怪。我过去只学到，旧约的献祭是替人付罪的代价。可这里却要求人在献祭以前先归还夺取的东西。</p>\n<p class=\"shelf-dialogue\">牧者：献祭没有取代责任。欺骗别人、夺取财物，或否认别人托付给自己的东西的人，要承认自己的罪，归还原物，还要加上赔偿，之后才献赎愆祭（利 6:1-7； 民 5:5-8）。上帝没有把人与祂的关系，和人对邻舍造成的伤害分开处理。</p>\n<p class=\"shelf-dialogue\">信徒：那么，就不能认为“献上祭物这个仪式本身”会自动把罪除掉。</p>\n<p class=\"shelf-dialogue\">牧者：对。圣经强烈批判那种不断重复献祭仪式、生活却仍然不义的方式。撒母耳说听命胜于献祭；诗篇说到忧伤痛悔的心和公义的生活；以赛亚和阿摩司则宣告，上帝不喜悦一面压迫弱者、一面献上的敬拜（撒上 15:22-23； 诗 51:16-19； 赛 1:10-17； 摩 5:21-24）。</p>\n<p class=\"shelf-dialogue\">信徒：那“借着献祭罪得赦免”这句话，也需要小心使用吗？</p>\n<p class=\"shelf-dialogue\">牧者：献祭是上帝所设立的恢复礼仪。但它不是一台独立运作、可以代替悔改和顺服的机器。其中同时有承认错误、承担群体中的责任，以及回到上帝面前的信。不能把它用成“只要献了祭，以后继续骗人也没关系”。</p>\n<p class=\"shelf-dialogue\">信徒：今天的教会里，礼拜和奉献也可能被人用成类似的东西。</p>\n<p class=\"shelf-dialogue\">牧者：是的。如果一个人在工作中剥削别人，却奉献一大笔钱，并拿这笔奉献作为自己信仰的证明，他需要听见先知的批判。上帝从不把礼拜中的歌声，与日常生活里的公义分开（摩 5:21-24； 弥 6:6-8）。</p>\n<p class=\"shelf-dialogue\">信徒：我学到的是，只要真心向上帝求赦免，罪就消失了。</p>\n<p class=\"shelf-dialogue\">牧者：向上帝求赦免非常重要。但圣经没有把这件事与对受害者的责任分开。</p>\n<p class=\"shelf-dialogue\">信徒：旧约的献祭和今天的恩典不是不同吗？</p>\n<p class=\"shelf-dialogue\">牧者：当然有不同。但其中显明上帝心意的原则仍然重要。欺骗别人、夺取他人财物的人，要先把东西归还，并额外赔偿损失，然后才献祭。献祭没有代替归还（利 6:1-7； 民 5:5-8）。</p>\n<p class=\"shelf-dialogue\">信徒：撒该的故事也是这样吧？</p>\n<p class=\"shelf-dialogue\">牧者：是的。撒该接待耶稣以后，宣布要把财物分给穷人，也要把不义取得的多倍偿还。耶稣随即宣告，救恩临到了这个家。救恩和赔偿的果子出现在同一个场景中（路 19:1-10）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，是不是必须先赔偿，才能蒙赦免？</p>\n<p class=\"shelf-dialogue\">牧者：不要把问题变成一笔交易。重点不是“我做多少，才能换到赦免证明”，而是：一个回到上帝面前的人，是否诚实地承担自己能够承担的责任。如果明明能归还，却拒绝归还，只要求赦免，就必须怀疑他悔改的方向。</p>\n<p class=\"shelf-dialogue\">信徒：有很多伤害不是用钱能补偿的。</p>\n<p class=\"shelf-dialogue\">牧者：对。不是所有伤害都能完全恢复。这时，人也许需要承认事实，不再辩解；承担治疗或恢复所需的费用；退出某种权力位置；并改变制度和环境，防止同样的伤害再次发生。</p>\n<p class=\"shelf-dialogue\">信徒：如果受害者不肯原谅我，怎么办？</p>\n<p class=\"shelf-dialogue\">牧者：你向上帝求了赦免，并不表示你有权要求受害者立刻原谅你，或马上恢复关系。受害者可以按照自己的安全和时间作决定。悔改的人不会试图控制对方的反应，而会持续做好自己该做的改变。</p>\n<p class=\"shelf-dialogue\">信徒：教会有时会对受害者说：“既然是弟兄，就应该饶恕。”</p>\n<p class=\"shelf-dialogue\">牧者：这句话可能再次给受害者压力。饶恕、和解、信任的恢复，以及法律责任，需要彼此区分。饶恕未必取消法律程序。和解必须以安全和真相为基础。信任则要靠长期稳定的行动重新建立。</p>\n<p class=\"shelf-dialogue\">信徒：这样说来，恩典好像很沉重。</p>\n<p class=\"shelf-dialogue\">牧者：让人逃避责任的“恩典”听起来很轻松，却不能改变人。赐人力量说出真相并修正错误的恩典，起初也许沉重，却会使人真正自由。需要隐藏的事情减少了，关系也有可能真实恢复。</p>\n<p class=\"shelf-dialogue\">信徒：钱和东西可以归还，可如果是用话毁坏了别人的名誉，要怎样负责？</p>\n<p class=\"shelf-dialogue\">牧者：应该尽可能在伤害发生的范围内把事实纠正过来。如果你在很多人面前说了谎，就需要让同一范围的人知道那是谎言。只在安静的地方向上帝求赦免，伤害仍然会继续存在。</p>\n<p class=\"shelf-dialogue\">信徒：我想到一件事。几年前，在小组里我听见一个人的家庭问题。我当时觉得自己是出于关心，把它当作祷告事项分享了。后来事情却传给很多人，那个人有一段时间甚至不来教会了。</p>\n<p class=\"shelf-dialogue\">牧者：你后来直接和那个人谈过这件事吗？</p>\n<p class=\"shelf-dialogue\">信徒：没有。我向上帝悔改过很多次。我总觉得如果再联系他，可能会让他更受伤，或者重新翻出旧事。坦白说，我也怕自己在他眼里变成一个坏人。</p>\n<p class=\"shelf-body\">说完最后一句，信徒闭紧了嘴。他忽然看见，自己一直称作“为对方着想”的沉默里，其实也混着自我保护。他紧张地等着牧者，也怕牧者马上命令他必须去联系对方。</p>\n<p class=\"shelf-dialogue\">牧者：并不是任何时候都应该直接联系。受伤的人可能不愿意，甚至联系本身就可能造成威胁。可以先和可信赖的中间人商量，把对方的安全和选择放在中心。不过至少可以想一想：能不能告诉那些听过传闻的人不要再传播；如果自己夸大过事实，也有责任纠正。</p>\n<p class=\"shelf-dialogue\">信徒：如果我道歉，可以同时请他原谅我吗？</p>\n<p class=\"shelf-dialogue\">牧者：最好不要把道歉和要求原谅绑在同一句话里。“我错了，所以你应该原谅我”，会在受害者身上再加一个义务。先承认自己的错和造成的伤害，并尊重对方需要的距离和时间。</p>\n<p class=\"shelf-dialogue\">信徒：教会里常说，要接纳已经悔改的人。所以如果受伤的人一直保持距离，我们有时会觉得他信心不够。</p>\n<p class=\"shelf-dialogue\">牧者：重新扶起悔改的人，和要求受害者立刻信任他，是两回事。信任需要长期行动才能重建。有些职分上，主动退下来本身可能是悔改的果子；有些事情也必须承担法律责任。向上帝求赦免，并不会自动抹掉社会层面的后果（路 19:8-10； 罗 13:1-7）。</p>\n<p class=\"shelf-dialogue\">信徒：如果恩典不把后果消掉，那恩典到底做什么？</p>\n<p class=\"shelf-dialogue\">牧者：恩典不是魔法般把后果抹掉，而是让人即使承认真相、承担后果，也不陷入绝望。它给人力量停止辩解和掩盖，重新选择善的道路（多 2:11-14）。</p>\n<p class=\"shelf-dialogue\">信徒：如果受伤的人最后始终不肯原谅我，我还是要继续承担责任吗？</p>\n<p class=\"shelf-dialogue\">牧者：是的。悔改不是用行动换取对方某种反应的交易。我能做的，是诚实地行动，并继续承担必要的责任。即使关系没有和好，仍可以纠正谎言、改变行为，使同样的伤害不再发生。保罗劝人，若是能行，就要尽力与众人和睦；但和睦不是靠一个人的努力就能完成。“若是能行，总要尽力”提醒我们：我要尽自己能做的，却不能连对方的选择也一并承担（罗12:18）。</p>\n<p class=\"shelf-dialogue\">信徒：我过去以为，“上帝已经赦免了，所以事情结束了”能很快整理所有问题。现在想来，这句话有时反而会被用来堵住受害者的嘴。</p>\n<p class=\"shelf-dialogue\">牧者：对。十字架和赦免不是擦除伤害的橡皮擦。它们反而给我们勇气，把隐藏的伤害真实地带到光中，并开始可能的修复。</p>\n<p class=\"shelf-body\">信徒一个个想起曾经听过自己传播那件事的人。那些脸让他不舒服，但这一次，他没有只滑进模糊的自我厌恶。他开始看见几件具体可以做的事，于是请求牧者和他一起讨论怎样找合适的中间人。</p>\n<p class=\"shelf-dialogue\">信徒：我好像太轻易把“恩典”和“免除责任”当成同一个意思。我从来没站在受伤者的位置想过，这句话听起来可能多残忍。对不起。以后在说“饶恕”以前，我想先问：究竟还有谁的伤害没有被处理？</p>\n<p class=\"shelf-dialogue\">牧者：能看见这一点，就是悔改很重要的开始。不要急，把受伤者的安全放在中心，我们一件件决定现在可以做什么。</p>\n<p class=\"shelf-body\">一起阅读：利未记6:1-7；民数记5:5-8；路加福音19:1-10；马太福音5:23-24</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">道歉、归还、赔偿和调整权力之间，我需要做什么？</p>\n<p class=\"shelf-body\">我是否在要求受害者尽快饶恕我，并立刻恢复关系？</p>"
+        },
+        {
+          "id": "sec-11",
+          "title": "第十一场对话｜救恩如何显现在今天的人际关系中？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-11",
+          "html": "<h2 class=\"shelf-h1\">第十一场对话｜救恩如何显现在今天的人际关系中？</h2>\n<p class=\"shelf-body\">信徒说，把救恩与当下生活连在一起，对他仍然有些陌生。</p>\n<p class=\"shelf-body\">每次说到“救恩”这个词，信徒的声音都会不自觉地低一点。对他而言，救恩像一张死后站在门前可以出示的通行证。所以每当牧者把夫妻对话、邻舍关系和救恩联系起来，他都会感到不舒服，仿佛一个神圣的词被拖到了过分日常的地方。</p>\n<p class=\"shelf-dialogue\">信徒：我还是过不去这一关。救恩不是决定天堂和地狱的最大问题吗？如果连夫妻好好说话、邻舍和睦都叫作救恩，救恩不会变得太普通吗？</p>\n<p class=\"shelf-dialogue\">牧者：恰恰相反，如果把救恩缩减成死后去哪里的题目，反而会丢掉圣经更宽的意义。圣经把上帝救人脱离奴役、暴力、罪的辖制和死亡恐惧，也称为救恩（出 14:13-31； 路 7:50； 罗 6:17-23； 来 2:14-15）。</p>\n<p class=\"shelf-dialogue\">信徒：可最终目的还是进入天堂吧？</p>\n<p class=\"shelf-dialogue\">牧者：将来在上帝国里分享生命，这个盼望当然重要（林前 15:50-58； 启 21:1-5）。可是，如果那个国的生命今天完全没有开始，未来的救恩就成了一张和现在断开的票。耶稣宣告上帝国近了，并呼召人回转，活在祂的统治之下（可 1:14-15）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，可以直接说“按着上帝的话生活本身就是救恩”吗？</p>\n<p class=\"shelf-dialogue\">牧者：要谨慎地说。不是把我们每一个善行都叫作最终救恩的全部。但当人顺服上帝的话，从仇恨的辖制转向爱，从谎言转向真实，从不负责任转向照顾别人，这样的生活就是救恩此刻实际发生的一种样子（约一 3:14-18； 弗 4:22-32）。</p>\n<p class=\"shelf-dialogue\">信徒：请举一个例子。</p>\n<p class=\"shelf-dialogue\">牧者：想象一个丈夫，过去总是忽略妻子的话，用大声吼叫来赢。如果他接受耶稣的话，开始倾听、道歉、停止辱骂，并尊重妻子的安全和尊严，会发生什么？</p>\n<p class=\"shelf-dialogue\">信徒：家里会没那么可怕，关系也会好一些。</p>\n<p class=\"shelf-dialogue\">牧者：那个家庭原本被怒吼和恐惧支配。若这个人接受耶稣的话，停止辱骂，开始倾听、道歉，也尊重对方的安全与尊严，这个家庭就真的在开始脱离暴力和恐惧的辖制。“彼此相爱”不是抽象的教训，而是呼召人离开伤害人的方式，进入生命的道路（太7:24-27；约13:34-35）。</p>\n<p class=\"shelf-dialogue\">信徒：可是没有信耶稣的人，也能有很好的夫妻关系。</p>\n<p class=\"shelf-dialogue\">牧者：当然。所有好关系都不是基督徒的专利。上帝也赐给所有人良善的智慧和良心。我并不是说“只有去教会的人才有好关系”，而是说：圣经谈救恩时，并没有把关系中的爱和公义当成无关紧要的附属品。</p>\n<p class=\"shelf-dialogue\">信徒：那教会里常说“已经得救，只是还没有成圣”，然后把关系问题往后拖，这样会有问题吗？</p>\n<p class=\"shelf-dialogue\">牧者：为了说明问题，可以区分救恩和成圣。但如果这个区分使爱与责任被推到救恩之外，仿佛只是可有可无的选项，那就离圣经的脉络远了。约翰一书把爱弟兄的生活，直接与“已经出死入生”的记号连在一起（约一3:14-18）。</p>\n<p class=\"shelf-dialogue\">信徒：你把救恩说得太日常了。与邻舍相处得好，真的也能叫作救恩吗？</p>\n<p class=\"shelf-dialogue\">牧者：我不是说，所有良好关系就是最终救恩的全部。但人从仇恨和敌意的辖制中得释放，开始学习去爱，这是救恩显现在当下生活中的重要样子（罗 12:9-21； 约一 3:14-18）。</p>\n<p class=\"shelf-dialogue\">信徒：如果我并不喜欢一个人，却勉强去爱他，这不是对自己的感受不诚实吗？</p>\n<p class=\"shelf-dialogue\">牧者：如果把爱等同于喜欢的感觉，就会这样想。但圣经中的爱，是选择对方的生命和益处。即使感情没有跟上，人仍然可以不以侮辱还侮辱，可以给予必要的帮助，也可以公平地对待对方（路 6:27-36； 林前 13:4-7； 约一 3:16-18）。</p>\n<p class=\"shelf-dialogue\">信徒：如果关系因此变好了，可以说这是救恩吗？</p>\n<p class=\"shelf-dialogue\">牧者：若关系从敌对转向和平，这确实是一种被拯救。一个家庭原本不断出现怒吼和冷漠，后来因为顺服上帝的话，开始倾听、道歉并彼此尊重，这个家庭就在一点一点从破坏性的力量中被救出来（弗 4:25-32； 西 3:12-15）。</p>\n<p class=\"shelf-dialogue\">信徒：如果对方没有改变呢？</p>\n<p class=\"shelf-dialogue\">牧者：爱不是操控对方的技术。我自己从仇恨和报复的辖制中得释放，本身就是救恩的果子。即使关系没有恢复，我仍然可以不以恶报恶；若有需要，也可以保持距离，保护自己。</p>\n<p class=\"shelf-dialogue\">信徒：我开始明白，救恩可以显现在关系的改变中。还有别的例子吗？</p>\n<p class=\"shelf-dialogue\">牧者：常说谎的人开始说真话，就是从虚假的奴役中出来；因贪婪而忽略家人的人开始正确使用金钱、照顾家人，就是从贪婪的辖制中出来；一个常被愤怒牵着走、伤害别人的人，学会在开口前停下来，用温和的话表达，就是从愤怒的权势下得释放。</p>\n<p class=\"shelf-dialogue\">信徒：这些通常不是叫“成圣”，而与救恩区分开吗？</p>\n<p class=\"shelf-dialogue\">牧者：教义上分阶段说明，有时确实有帮助。但圣经并没有把救恩与生活完全分开。耶稣医治病人时，也曾使用“得救了”这样的表达。保罗则把救恩说明为从罪的奴役中出来，成为义的仆人（可 5:34； 路 7:50； 罗 6:17-23）。</p>\n<p class=\"shelf-dialogue\">信徒：所以，救恩已经开始，却还没有完全完成？</p>\n<p class=\"shelf-dialogue\">牧者：是的。我们现在已经尝到脱离罪与恐惧辖制的生命，但死亡和痛苦还没有彻底消失。我们仍在等待上帝将来完成救恩（罗 8:18-25； 林前 15:50-58； 启 21:1-5）。</p>\n<p class=\"shelf-dialogue\">信徒：看来我过去太轻看那些小小的顺服了。</p>\n<p class=\"shelf-dialogue\">牧者：上帝不会忘记出于爱所付出的劳苦。小小的顺服，也是一个重要的痕迹，表明我们正在真实参与上帝所赐的新生命（来6:10-12）。</p>\n<p class=\"shelf-dialogue\">信徒：我已经好几年没和父亲联系了。他一直批评我的选择，我也很生气，最后把关系断了。教会告诉我，我信耶稣，所以已经得救。我就觉得，我和父亲的关系跟救恩没有关系。</p>\n<p class=\"shelf-dialogue\">牧者：你和父亲的关系里，有过暴力或严重的控制吗？</p>\n<p class=\"shelf-dialogue\">信徒：没有身体暴力，但语言上受过很多伤。我最后一次通话时，也对他说了很侮辱的话。后来我一直不先联系，因为总觉得如果我先低头，就像是我输了。</p>\n<p class=\"shelf-dialogue\">牧者：我不会叫你马上恢复到从前那种亲近。我们需要一起看伤害到底有多深，也要看今后保持怎样的距离才安全。不过，如果报复心和自尊已经使你连诚实说话的可能都彻底关上，那么从这种支配里得释放，也和信仰、救恩有关。</p>\n<p class=\"shelf-dialogue\">信徒：如果我先联系，我觉得父亲一定又只会说我的错。</p>\n<p class=\"shelf-dialogue\">牧者：爱不能控制对方怎样回应。你可以先写一封信，寄出去以前请可信赖的人一起看。你不需要撒谎说“父亲当年都是对的”。你可以承认自己曾对父亲说过侮辱的话，同时清楚说明：在怎样的方式下你愿意继续谈，比如“如果我们能够不互相侮辱、平静地说话，我愿意谈下去”，或者“如果再次开始指责，我会停止这次谈话”（罗12:18；弗4:15、25-27）。</p>\n<p class=\"shelf-dialogue\">信徒：这样一个很小的行动，真的和救恩有关吗？</p>\n<p class=\"shelf-dialogue\">牧者：如果你不再被仇恨和恐惧抓住，而开始选择真实与爱，那么有关。救恩不是一份只有死后才开始生效的文件。保罗既谈我们已经领受的救恩，也劝人“做成你们得救的工夫”，并且等候将来的救恩（弗2:8；腓2:12-13；罗5:9-10；8:23-25）。圣经同时谈救恩的过去、现在和未来。</p>\n<p class=\"shelf-dialogue\">信徒：“做成你们得救的工夫”，不是说我要靠自己的力量制造进天堂的资格吧？</p>\n<p class=\"shelf-dialogue\">牧者：那个上下文不是叫人在恐惧里独自累积分数，而是劝群体离开争竞和怨言，回应上帝在他们里面所赐的心志和能力，持守生命之道（腓 2:12-16）。它同时说上帝的工作，也说人负责任的回应。</p>\n<p class=\"shelf-dialogue\">信徒：我过去把救恩想得太窄，所以总把爱和顺服当成“得救以后可以选择加上的东西”。只要先拿到进天堂的资格，其余都是信仰更好的人多做一点。</p>\n<p class=\"shelf-dialogue\">牧者：问题正出在这种狭窄理解。上帝救我们的目的，不只是把我们搬到另一个地方，而是让我们成为爱上帝、爱邻舍的百姓（申 6:4-9； 耶 31:31-34； 多 2:11-14）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，“按着上帝的话生活就是救恩”这句话，怎样说会更准确？</p>\n<p class=\"shelf-dialogue\">牧者：可以这样说：“上帝把我们从罪、仇恨和死亡的辖制中救出来，呼召我们进入爱、真实和生命的道路。我们顺服祂的话，实际的关系和行动因此改变，这是我们现在所经历的救恩；同时，我们也在这条路上等候将来上帝国生命的完全实现。”</p>\n<p class=\"shelf-dialogue\">信徒：过去有一件事我一直没真正明白，现在好像连起来了。耶稣说撒该家里今天有救恩临到时，撒该不是只在心里确信自己能上天堂，他还说要把钱分给人，也要赔还自己讹诈的东西（路 19:1-10）。</p>\n<p class=\"shelf-dialogue\">牧者：是的。救恩已经开始在他的家庭和经济关系里显出来。</p>\n<p class=\"shelf-dialogue\">信徒：我曾好几次尖锐地说，你是在把救恩降低成人的善行。现在我才看见，你不是在否定未来的救恩，而是在同时说那救恩今天已经开始进入人的生活。对不起。</p>\n<p class=\"shelf-dialogue\">牧者：你的反驳是必要的问题。只是从现在起，不要只问“我能不能上天堂”，也一起问：“今天我要脱离什么样的辖制？上帝正在呼召我去爱谁？”</p>\n<p class=\"shelf-body\">信徒没有立刻按下父亲的电话号码。他先写下那封拖了很久的信的第一句：“爸，上次通话时我说的那些话，是我错了。”手指有些发抖，可这种颤抖和等待审判的恐惧并不完全一样，更像是一个人小心地推开一扇自己关了很久的门。</p>\n<p class=\"shelf-body\">一起阅读：路加福音10:25-37；罗马书12:9-21；约翰一书3:14-18</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">在我的关系中，哪一种破坏性的力量不断重复？</p>\n<p class=\"shelf-body\">即使没有喜欢的感觉，我仍能选择怎样的爱？</p>\n<p class=\"shelf-body\">有哪些微小的爱之劳苦，是上帝会记念的？</p>"
+        },
+        {
+          "id": "sec-12",
+          "title": "第十二场对话｜努力工作就一定会得到物质上的祝福吗？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-12",
+          "html": "<h2 class=\"shelf-h1\">第十二场对话｜努力工作就一定会得到物质上的祝福吗？</h2>\n<p class=\"shelf-body\">信徒再次追问牧者怎样把救恩与劳动连接起来。</p>\n<p class=\"shelf-body\">公司近来经营困难以后，信徒每天早上都会先查看账户余额。生意顺利的那些年，他很确信上帝认可自己。营业额一下降，同样的信仰语言便向相反方向转去：“我到底犯了什么罪，上帝才把手收回？”让他真正疲惫的，往往不是损失本身，而是这种解释。</p>\n<p class=\"shelf-dialogue\">信徒：以前生意一好，我就作见证说是上帝赐福。今年收入下降，我又觉得是因为自己得罪了上帝，所以失去了祝福。既然我把成功说成祝福，那我不把失败看成惩罚，好像反而自相矛盾。</p>\n<p class=\"shelf-dialogue\">牧者：为成功感谢上帝，和把成功当成“上帝认可我的证明书”，不是一回事。我们当然可以感谢上帝赐下好的机会和足够的收入。但如果只用财产多少判断一个人是否忠实，就容易犯约伯朋友们类似的错误。他们把约伯的苦难武断地解释成隐藏罪恶的证据，后来上帝却责备了他们的话（伯 4:7-8； 8:3-6； 42:7-8）。</p>\n<p class=\"shelf-dialogue\">信徒：可箴言不是也说，殷勤的人会富足吗？</p>\n<p class=\"shelf-dialogue\">牧者：箴言教导的是生活中一般性的智慧。殷勤通常确实有助于预备需要、减少不负责任的生活（箴 10:4； 12:11； 21:5）。但若把它变成没有例外的契约，就无法解释战争、疾病、不义的制度、经济衰退和他人的剥削。传道书、约伯记和诗篇也让我们看见，义人同样会遭遇不公正的苦难（诗 73:2-14； 传 9:11； 伯 1-2章）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，“要殷勤工作”这条命令，和怎样的救恩有关？</p>\n<p class=\"shelf-dialogue\">牧者：工作本身不决定人的价值。也不能定罪那些生病或找不到工作的人。但如果一个人明明有能力，却把所有责任都推给别人，那么从这样的生活出来，亲手劳作、照顾家人、和有需要的人分享，就是从不负责任和贪欲的辖制里走出来（弗 4:28； 帖后 3:10-13； 提前 5:8）。</p>\n<p class=\"shelf-dialogue\">信徒：好好供养家人，也可以算救恩的果子？</p>\n<p class=\"shelf-dialogue\">牧者：是的。照顾家人的爱与责任不是信仰边缘的小事。但如果以“为了家人赚钱”为名，把所有和家人在一起的时间都夺走，或者剥削工人来增加收入，那就彼此矛盾了。金钱应该成为照顾生命的工具，而不是变成新的主人（太 6:24； 雅 5:1-6）。</p>\n<p class=\"shelf-dialogue\">信徒：我为了给家人更多东西，一直工作到很晚。可儿子说，我只会给钱，从来不听他说话。我当时觉得他太不知感恩。</p>\n<p class=\"shelf-dialogue\">牧者：不是说你儿子每一句都一定正确。但“供养家人”不只包括物质，也包括时间、关注、安全和信任。不要把挣钱的责任和照顾关系的责任变成彼此竞争的两个东西，要寻找合适的平衡。</p>\n<p class=\"shelf-dialogue\">信徒：可如果少工作，我又怕收入更少。</p>\n<p class=\"shelf-dialogue\">牧者：所以需要现实地计算。我不是简单叫你少工作。可以和家人一起看预算，区分真正必要的支出和欲望带来的支出；也可以每周哪怕只留一小段不被打扰的时间，答应儿子专心听他说话。救恩不是无视现实的浪漫，而是在现实里重新建立秩序，不再让对金钱的恐惧决定一切。</p>\n<p class=\"shelf-dialogue\">信徒：你说努力工作、照顾家人，也可以理解为救恩的一部分。那是不是说，只要照圣经生活，物质上就会越来越好？</p>\n<p class=\"shelf-dialogue\">牧者：不能这样简单地说。人努力工作，也可能仍然贫穷。社会的不公、疾病、战争和经济衰退，都可能使人得不到与努力相称的回报。</p>\n<p class=\"shelf-dialogue\">信徒：那劳动和救恩怎样连接？</p>\n<p class=\"shelf-dialogue\">牧者：圣经唤醒人，使人离开懒惰和不负责任。它教导人亲手劳作，预备所需，照顾家人，并与有需要的人分享。这样的顺服使人从混乱、依赖和贪婪的辖制中被救出来（弗 4:28； 帖后 3:10-13； 提前 5:8）。</p>\n<p class=\"shelf-dialogue\">信徒：努力工作，为家人提供更好的生活，也算上帝的祝福吗？</p>\n<p class=\"shelf-dialogue\">牧者：当然。靠诚实劳动满足家人的需要，并愿意分享、心存感谢，是上帝的祝福。但不要只按财产多少判断祝福。一个人赚很多钱，却毁坏家庭、剥削弱者，很难把这种生活称为救恩的福分。</p>\n<p class=\"shelf-dialogue\">信徒：中国教会里常有人作见证，说生意成功就是上帝赐福。</p>\n<p class=\"shelf-dialogue\">牧者：生意成功当然可以感恩。但把成功直接等同于上帝的认可，是危险的公式。人也能靠恶的方法赚钱，反过来，也可能因为坚持诚实而受损失。希伯来书中的信徒甚至因信仰而被夺去财产（诗 73:2-14； 来 10:32-36）。</p>\n<p class=\"shelf-dialogue\">信徒：那怎样分辨物质上的祝福？</p>\n<p class=\"shelf-dialogue\">牧者：要看金钱是否成为实现生命、爱和责任的工具。若它被用来照顾家人的需要、公平对待劳动者、诚实偿还债务，并帮助有困难的人，物质就能成为祝福。若金钱反过来支配人、毁坏关系，即使很多，也未必是福。</p>\n<p class=\"shelf-dialogue\">信徒：所以，救恩不是从贫穷走向富有，而是从金钱的辖制中得自由。</p>\n<p class=\"shelf-dialogue\">牧者：这是很重要的理解。获得生活所需当然有喜乐，但更深的救恩，是不让金钱成为我的主人。对已有的心存感谢，诚实工作，与有需要的人分享，并能不执着于眼前的财物，这才是自由（太 6:24； 提前 6:6-10, 17-19； 来 13:5-6）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，处境艰难时，也不能立刻断定是上帝在惩罚我。</p>\n<p class=\"shelf-dialogue\">牧者：对。一个人在困难中仍然守住诚实和责任，并不表示他远离了上帝的道路。相反，这种忍耐可能正是宝贵的信心果子。</p>\n<p class=\"shelf-dialogue\">信徒：听那些事业成功的人的见证，我会羡慕，也会焦虑。如果他说自己因为晨祷、奉献而蒙福，我就觉得自己也应该做得更多。</p>\n<p class=\"shelf-dialogue\">牧者：可以尊重他的感恩。但若把个人经历变成适用于所有人的公式，就很危险。希伯来书里的信徒甚至因为信仰被夺去财产，作者却没有把他们看成远离上帝道路的人（来 10:32-36）。保罗也说，他经历过丰富和缺乏，在各种处境中学习知足（腓 4:11-13）。</p>\n<p class=\"shelf-dialogue\">信徒：那是不是连物质上的祝福都不该期待？</p>\n<p class=\"shelf-dialogue\">牧者：为日用饮食祈求，为劳动所得感恩，希望家人可以安全生活，这些都很自然（太 6:11； 提前 6:17）。只是不要把上帝变成获取财富的工具，也不要把贫穷的人判断成“信心不足”。</p>\n<p class=\"shelf-dialogue\">信徒：我曾经拖欠过公司员工的工资。我当时想，公司先活下来，对所有人最终都好。可我的生活费和车辆开支却几乎没有减少。</p>\n<p class=\"shelf-dialogue\">牧者：这件事需要具体地看。经营者在困难中有时不得不作痛苦的决定，但若把风险和牺牲只推给最弱的人，就不公义。圣经要求按时支付雇工的工价，也把经济责任当成信仰的问题（申 24:14-15； 雅 5:4）。</p>\n<p class=\"shelf-dialogue\">信徒：这么一说，我好像用“为了保护我的家庭”这句话，忘记了员工也有家庭。</p>\n<p class=\"shelf-dialogue\">牧者：把这个看见变成实际计划。透明地说明付款时间和公司的处境，先调整自己的开支，也一起寻找可能的补偿方式。问题未必马上解决，但你可以选择真诚和公平，而不是让对钱的恐惧支配所有决定。</p>\n<p class=\"shelf-dialogue\">信徒：我太怕变穷，所以连信仰都被我用成成功的保证。生意好时，我夸口说这是上帝认可我；困难来了，我又绝望地觉得上帝抛弃了我。两种时候，其实都是钱在判断我的信仰。</p>\n<p class=\"shelf-dialogue\">牧者：是的。更深的自由，是不让金钱成为人生的主人。多的时候不骄傲，愿意分享；少的时候也不靠谎言和剥削来保护自己，需要时能够诚实寻求帮助（提前6:6-10、17-19；来13:5-6）。</p>\n<p class=\"shelf-dialogue\">信徒：我也开始重新看自己过去那种“处境不好就是上帝惩罚”的想法。为了隐藏失败，我反而讲了更多听起来很属灵的成功故事。对家人和员工，我觉得很抱歉。</p>\n<p class=\"shelf-dialogue\">牧者：承认失败并不是失败本身。分享真实处境，一起寻找承担的方法，是负责任的开始。上帝记念的不只是经济上的成功，也记念人在困难中守住的诚实和爱。</p>\n<p class=\"shelf-body\">一起阅读：帖撒罗尼迦后书3:6-13；提摩太前书5:8；以弗所书4:28；希伯来书10:32-36；13:5-6</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我是否把物质上的成功看作上帝认可我的证据？</p>\n<p class=\"shelf-body\">我正在怎样使用金钱，来供应自己和家人的需要，也帮助邻舍？</p>\n<p class=\"shelf-body\">为了既不轻看今天的责任，也不执着于眼前的财物，我需要做什么？</p>"
+        },
+        {
+          "id": "sec-13",
+          "title": "第十三场对话｜饶恕能使我从仇恨中得救吗？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-13",
+          "html": "<h2 class=\"shelf-h1\">第十三场对话｜饶恕能使我从仇恨中得救吗？</h2>\n<p class=\"shelf-body\">信徒想起一段长久的伤痛，问起饶恕。</p>\n<p class=\"shelf-body\">信徒想起一个多年前一起做生意的朋友。那个人把共同资金转到自己名下，之后却不肯承认责任。官司早已结束，可在信徒心里，审判每天重新开庭。夜里躺下，他会想象自己当年没来得及说出的那些话；在街上只要看到相似的背影，心跳就会加快。他一直把这种感受叫作“正义感”，却也知道它已经蔓延到自己的家人身上。</p>\n<p class=\"shelf-dialogue\">信徒：我怕一旦原谅他，就好像承认他做得没错。仿佛只要我放下愤怒，他就赢了。</p>\n<p class=\"shelf-dialogue\">牧者：饶恕不是连对方为自己行为辩解的话也一并接受。你仍可以明确地把错叫作错，同时选择不让报复支配自己余下的人生（罗12:17-21）。</p>\n<p class=\"shelf-dialogue\">信徒：可我觉得，正因为有愤怒，我才不会再受伤害。若放下愤怒，会不会连对危险保持警觉的心也一起消失？</p>\n<p class=\"shelf-dialogue\">牧者：愤怒可以成为提醒危险和不义的信号。问题是，信号不能成为人生的主人。可以保留必要的警觉和安全距离；但如果开始把所有人都看成潜在的背叛者，甚至把冷嘲和怀疑带回家里，那么过去那个伤害你的人，就仍在支配你今天的关系。</p>\n<p class=\"shelf-dialogue\">信徒：妻子也这样说过。她说，自从我和那个朋友的事以后，我在家里也不再相信人。儿子有一次向我借钱，我第一个念头也是怀疑他会骗我。</p>\n<p class=\"shelf-dialogue\">牧者：正是在这里，饶恕和现在的救恩连在一起。不是把朋友的错误当作没发生过，而是不再让那件事继续支配你今天的关系和整个生活。</p>\n<p class=\"shelf-dialogue\">信徒：“你们不饶恕人，上帝也不饶恕你们”，这句话该怎样理解？我每次读到它，就觉得自己必须立刻把情绪消掉（太 6:14-15）。</p>\n<p class=\"shelf-dialogue\">牧者：耶稣的话很严肃地揭露一种矛盾：一面向上帝求怜悯，一面却坚持要永远毁掉邻舍。但不能把这句话变成威胁受伤者的咒语，要求他几分钟内改变情绪。饶恕有时需要很长的过程，也并不要求人放弃公义和安全。</p>\n<p class=\"shelf-dialogue\">信徒：我祷告时说“我已经原谅他了”，心里却还会想象他倒霉、毁掉的样子。那我的祷告是假的吗？</p>\n<p class=\"shelf-dialogue\">牧者：你不需要把现在的情绪藏起来，装成一个已经完全的人。可以诚实地祷告：“上帝，我还在生气，也还想报复。求你不要让这个欲望支配我。”诗篇也没有隐藏愤怒和冤屈，而是把它们带到上帝面前（诗 10篇； 13篇； 55篇）。</p>\n<p class=\"shelf-dialogue\">信徒：那我希望他受到惩罚，这本身就是错的吗？</p>\n<p class=\"shelf-dialogue\">牧者：寻求公共的公义和应有的责任，与报复不同。走法律程序、让伤害被看见、防止其他人受到同样的伤害，都可能是必要的。但若把对方看成不配做人，并开始享受他无止境受苦的想象，这同样会伤害你的灵魂。</p>\n<p class=\"shelf-dialogue\">信徒：你说过，照圣经去饶恕，会带来内心的平安。可我想饶恕，心里还是一直很痛。</p>\n<p class=\"shelf-dialogue\">牧者：饶恕不是一种让痛苦立刻消失的感情变化，也不是把伤害当作从未发生。</p>\n<p class=\"shelf-dialogue\">信徒：那什么才叫饶恕？</p>\n<p class=\"shelf-dialogue\">牧者：饶恕是放下以报复摧毁对方的权利，把最终的审判交给上帝。这并不表示对方没有错。你仍可以要求必要的责任，也可以为了保护自己和家人而保持距离。</p>\n<p class=\"shelf-dialogue\">信徒：我必须重新和他亲近吗？</p>\n<p class=\"shelf-dialogue\">牧者：不一定。饶恕与和解不同。和解需要真实的悔改、安全和信任。如果对方有暴力或反复操控的行为，保持距离可能更符合爱和智慧（罗 12:18； 箴 22:3）。</p>\n<p class=\"shelf-dialogue\">信徒：我明白饶恕和和解不是一回事。那么，饶恕究竟会在我的生活里改变什么？</p>\n<p class=\"shelf-dialogue\">牧者：饶恕不是命令你重新相信加害者，而是走上一条路，不让报复和仇恨继续支配你现在的生活和其他关系。你可以要求对方为错误负责，同时不再把自己人生的主导权一直交在加害者手里。</p>\n<p class=\"shelf-dialogue\">信徒：我现在还会生气。那是不是说明我没有饶恕？</p>\n<p class=\"shelf-dialogue\">牧者：愤怒仍在，并不表示你所作的一切选择都无效。感情需要很长时间。选择不去伤害对方，保持必要的距离，并重新活自己的生活，也属于饶恕的过程。</p>\n<p class=\"shelf-dialogue\">信徒：那祷告时应该求什么？</p>\n<p class=\"shelf-dialogue\">牧者：先不要向上帝隐藏你的伤痛和愤怒。求祂帮助你清楚判断是非，求祂不让你成为报复的奴隶，也求祂赐你智慧，找到安全的距离和必要的帮助。</p>\n<p class=\"shelf-dialogue\">信徒：饶恕不只是为了对方履行义务，也是我从仇恨的辖制中得救的道路。</p>\n<p class=\"shelf-dialogue\">牧者：是的。但不要催促受害者走这条路。上帝不会轻看受伤之人的速度和眼泪。</p>\n<p class=\"shelf-dialogue\">信徒：教会有一位领袖曾对我说：“既然是信徒，就应该撤诉、和好。”我一直因为没有照做而有罪疚感。</p>\n<p class=\"shelf-dialogue\">牧者：具体诉讼应该怎样处理，需要根据事实谨慎判断。但不能把饶恕和法律责任简单变成同一件事。为了阻止伤害、澄清事实而走必要程序，也可能属于爱与公义。保罗劝人，若是能行，就要尽力与众人和睦；但和睦不是靠一个人的努力就能完成。“若是能行，总要尽力”提醒我们：我要尽自己能做的，却不能连对方的选择也一并承担（罗12:18）。</p>\n<p class=\"shelf-dialogue\">信徒：如果以后不再见那个人，我仍然可以饶恕他吗？</p>\n<p class=\"shelf-dialogue\">牧者：可以。和解需要双方的诚实与安全，但饶恕可以先在上帝面前开始，让你离开报复的辖制。如果有反复的暴力和操控，保持距离可能反而是一种有智慧的爱。</p>\n<p class=\"shelf-dialogue\">信徒：我过去一直觉得，只要保持距离，就是在恨人。</p>\n<p class=\"shelf-dialogue\">牧者：保持距离，或为继续关系设定条件，不一定是在惩罚对方，也可以是保护生命的方法。和谁、在什么时候、保持多近的距离，都可以根据安全来判断。耶稣也没有把自己交给所有想伤害祂之人的要求，有时祂会离开危险的地方（路4:28-30；约7:1）。</p>\n<p class=\"shelf-dialogue\">信徒：如果饶恕是一个过程，我怎样知道自己是不是走在这条路上？</p>\n<p class=\"shelf-dialogue\">牧者：可以看看：你有没有停止报复的行动；回想那件事时，有没有寻求帮助，使自己的整个人生不再一次次崩塌；有没有重新学习在安全关系里信任；有没有把对加害者的怒气转嫁给无辜的人。需要时，也可以同时寻求心理咨询和法律帮助。</p>\n<p class=\"shelf-dialogue\">信徒：我一直怕“不能原谅朋友”会挡住我的救恩。所以我强迫自己压住情绪，不断重复“我已经原谅了”，结果回到家反而变得更尖锐。</p>\n<p class=\"shelf-dialogue\">牧者：被压下去的愤怒并没有消失。上帝没有要求你赶快把伤口收拾干净，装作什么都没发生。不要把悲伤和愤怒藏起来，可以把它们带到上帝面前，一点点学习不以恶报恶。</p>\n<p class=\"shelf-dialogue\">信徒：我一直觉得，那个人从我这里夺走的不只是钱，还夺走了我相信人的能力。现在想来，把这种能力重新找回来，也可以是我所经历救恩的一部分。</p>\n<p class=\"shelf-dialogue\">牧者：是的。这不是叫你重新无条件信任加害者，而是在安全的人际关系里慢慢恢复信任，不让过去那件事堵住你今天所有爱的可能。</p>\n<p class=\"shelf-body\">信徒不知不觉松开了紧握的手。他一直以为，放下愤怒就是让朋友赢；现在却开始觉得，没有必要连自己的今天也继续交给那份愤怒。</p>\n<p class=\"shelf-dialogue\">信徒：那些催促受害者赶快饶恕的讲道一直让我不舒服，可我自己也没有真正说出所受的伤和心里的愤怒。我还尖锐地反驳牧者，说你在削弱圣经。对不起。现在我开始明白：饶恕不是否定错误，而是脱离报复的辖制；同时仍可以要求必要的责任，也可以保护自己和家人。</p>\n<p class=\"shelf-dialogue\">牧者：你的愤怒有它的原因，不要把原因抹掉。只是要学习怎样处理这份愤怒：把事实说清楚，要求必要的责任，却不把愤怒倾倒在另一个人身上，不让它继续伤害下一个人。</p>\n<p class=\"shelf-body\">一起阅读：马太福音6:12-15；18:21-35；罗马书12:17-21；以弗所书4:31-32</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我是否区分了饶恕、和解和信任的恢复？</p>\n<p class=\"shelf-body\">仇恨正以怎样的方式支配我的生活？</p>\n<p class=\"shelf-body\">在不报复对方的同时，为了保护自己和家人，我需要保持怎样的距离、坚持哪些原则？</p>"
+        },
+        {
+          "id": "sec-14",
+          "title": "第十四场对话｜爱人以后，关系就一定会变好吗？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-14",
+          "html": "<h2 class=\"shelf-h1\">第十四场对话｜爱人以后，关系就一定会变好吗？</h2>\n<p class=\"shelf-body\">信徒提出了一个现实的反问。</p>\n<p class=\"shelf-body\">信徒想起一位姊妹。她长期忍受丈夫的辱骂，教会里的人却告诉她：“爱是恒久忍耐，也凡事忍耐。”当时信徒也认同这种说法。如今听牧者说，必要时可以保持距离、保护自己，他心里开始不安：自己会不会曾经拿圣经要求一个弱者继续沉默？</p>\n<p class=\"shelf-dialogue\">信徒：教会一直教我们，爱就要忍耐、牺牲。可如果开始说“必要时可以保持距离、保护自己”，会不会人人都照自己的方便放弃关系？</p>\n<p class=\"shelf-dialogue\">牧者：确实有这种危险。只因一点不舒服就丢掉关系，并不是爱。但要求人连暴力和反复羞辱都必须忍受，也不是爱。爱“不喜欢不义，只喜欢真理”（林前 13:6）。</p>\n<p class=\"shelf-dialogue\">信徒：那“凡事包容、凡事忍耐”该怎样理解？（林前 13:7）</p>\n<p class=\"shelf-dialogue\">牧者：不能把这句话从上下文里抽出来，变成要求受害者无限承担危险的命令。整卷哥林多前书里，爱不是只求自己的益处，而是建立群体。若放任暴力，加害者会进入更深的恶，受害者和群体也会一起被毁坏。阻止恶继续发生，有时正是对所有人的爱。</p>\n<p class=\"shelf-dialogue\">信徒：我曾对那位姊妹说：“你若更爱丈夫，他就会改变。”可她丈夫越来越严重，最后她带着孩子离开了家。我当时还觉得，是她信心不够，所以才走。</p>\n<p class=\"shelf-dialogue\">牧者：现在你怎样重新看自己那句话？</p>\n<p class=\"shelf-dialogue\">信徒：我好像把结果的责任推给了受害者。明明是丈夫选择暴力，我却觉得是妻子爱得不够。</p>\n<p class=\"shelf-dialogue\">牧者：对。爱不是改变别人的技术。对方的选择，是对方的责任。受害者逃到安全的地方并寻求帮助，不一定是没有信心，反而可能是保护生命的行动。</p>\n<p class=\"shelf-dialogue\">信徒：这么说，“爱仇敌”也不是不断给作恶的人机会。</p>\n<p class=\"shelf-dialogue\">牧者：爱仇敌，就是不因为对方作恶，我也变得和他一样，用仇恨和报复回应；也不是把他看成“连当人对待都不配的存在”。与此同时，我们仍可以把事实说清楚、阻止伤害，并要求对方为错误承担合宜的责任（太5:43-48；罗12:17-21）。爱与公义不是敌人。</p>\n<p class=\"shelf-dialogue\">信徒：前面我们说“好的关系”可以是救恩的结果。那如果关系最后断了，会不会看起来就是顺服失败？</p>\n<p class=\"shelf-dialogue\">牧者：好的关系不是一个人的顺服就能制造出来，需要双方都愿意真实和尊重。即使我选择爱，对方若持续坚持作恶，关系仍可能无法恢复。即便如此，不用仇恨和报复回应，必要时保持距离、保护自己和家人，也可能是忠于爱的选择。</p>\n<p class=\"shelf-dialogue\">信徒：所以，不能只用“关系有没有恢复”来判断顺服有没有果效。</p>\n<p class=\"shelf-dialogue\">牧者：对。顺服不是保证得到想要结果的咒语，而是因为信赖上帝而选择生命和爱的方向。耶稣也爱人，却被拒绝；祂也告诉门徒，在逼迫中仍要忠实（约 1:11； 15:18-21）。</p>\n<p class=\"shelf-dialogue\">信徒：就算照圣经去爱人，对方却只会利用我，怎么办？关系也可能根本不会变好。</p>\n<p class=\"shelf-dialogue\">牧者：你说得对。顺服不一定总能带来我们想要的结果。信心不是靠意志制造理想结果的力量。信心是因为信靠上帝的品格和应许，即使看不见结果，仍然选择顺服（来 11:1-8, 13-16）。</p>\n<p class=\"shelf-dialogue\">信徒：也就是说，爱人的结果不一定是良好的关系？</p>\n<p class=\"shelf-dialogue\">牧者：确实可能如此。耶稣爱人，却被人拒绝；保罗传福音，却遭受逼迫。顺服不是改变对方的魔法。</p>\n<p class=\"shelf-dialogue\">信徒：既然如此，为什么还要爱？</p>\n<p class=\"shelf-dialogue\">牧者：爱不是改变对方的技术。首先，它是我选择不被仇恨和报复的方式牵着走，而愿意遵行上帝的旨意。即使对方拒绝，我仍可以不变得像恶本身。</p>\n<p class=\"shelf-dialogue\">信徒：如果一直被人利用，不就成了傻瓜吗？</p>\n<p class=\"shelf-dialogue\">牧者：爱一个人，并不表示必须满足对方所有要求，或一直忍受危险的关系。耶稣也没有接受所有人的每一个要求，也曾离开危险的地方。为了保护弱者而制止恶行，同样是爱。</p>\n<p class=\"shelf-dialogue\">信徒：原来爱不只是一直对人和气。</p>\n<p class=\"shelf-dialogue\">牧者：是的。爱也会说真话，制止不义，保护受害者。是否让加害者心情舒服，并不是判断爱最重要的标准。</p>\n<p class=\"shelf-dialogue\">信徒：在看不见好结果的时候仍然顺服，真的很难。</p>\n<p class=\"shelf-dialogue\">牧者：看看希伯来书11章里的挪亚和亚伯拉罕。挪亚听见上帝所说、尚未发生的事，就开始预备方舟；亚伯拉罕甚至不知道要往哪里去，就离开了家乡，并且在应许之地长期像寄居者一样生活。希伯来书说，他们并没有在眼前看见所有应许完全实现，却从远处望见，凭信心生活。信心不是先确认好结果以后才顺服，而是因为信靠上帝的话和应许，即使结果还看不见，也照祂的话行动（来11:7-10、13）。</p>\n<p class=\"shelf-dialogue\">信徒：人的意志在信心中有什么作用？</p>\n<p class=\"shelf-dialogue\">牧者：信心不会消除人的意志。信心是因为信靠上帝的话，把自己的意志用在顺服的方向上。圣经中的人真实地作了选择，离开原地，付出预备，并且忍耐。</p>\n<p class=\"shelf-dialogue\">信徒：那我就不该用“上帝会完成一切”来削弱自己的决定。</p>\n<p class=\"shelf-dialogue\">牧者：是的。相信上帝的帮助，与人负责任的决定并不冲突。正因为上帝呼召并帮助我们，我们才甘心选择并采取行动。</p>\n<p class=\"shelf-dialogue\">信徒：可看不到结果时，我的意志还是会变弱。即使去爱，也没有任何改变，我就不知道为什么还要继续。</p>\n<p class=\"shelf-dialogue\">牧者：所以信心需要忍耐。但不要把忍耐误解成把同一种行为无止境重复下去。你可以改变方法、寻求帮助、保持距离，却仍不选择谎言和报复的方式——这也可以是忍耐（来 10:35-39； 12:1-3）。</p>\n<p class=\"shelf-dialogue\">信徒：一强调人的意志，我就觉得好像所有重担最后都要我一个人扛。</p>\n<p class=\"shelf-dialogue\">牧者：意志不是控制所有结果的力量，而是负责任地选择自己能够选择的事。改变对方、决定未来结果，都不在我的控制之内。所以我们祷告、接受群体的帮助，做好自己该做的，然后把结果交给上帝。</p>\n<p class=\"shelf-dialogue\">信徒：“上帝在做”与“我必须作决定”，这两句话真的可以同时说吗？</p>\n<p class=\"shelf-dialogue\">牧者：圣经就是同时这样说。因为上帝在我们里面运行，使我们立志并行动，所以我们也要以敬畏和认真来活出救恩的道路（腓 2:12-13）。上帝的帮助不是消灭人的意志，而是把意志唤醒，扶持它朝向善。</p>\n<p class=\"shelf-dialogue\">信徒：我过去学到的是，信心就是把自己的意志放下。</p>\n<p class=\"shelf-dialogue\">牧者：那种想用自己的欲望强迫结果发生的意志，需要放下。但如果连“我要去爱、诚实生活、坚持到底”的意志也一并放弃，就不是信心。信心不是消灭意志，而是使意志朝向上帝的旨意。正因为信靠上帝的性情和话语，即使结果还看不见，我们仍选择顺服（来11:7-10、13）。</p>\n<p class=\"shelf-dialogue\">信徒：我觉得应该向那位姊妹道歉。我嘴上讲爱，却没有看见她的安全。</p>\n<p class=\"shelf-dialogue\">牧者：道歉时，不要急着为自己当时的解释辩护。先听她说，那些话给她带来了怎样的压力。然后先问她希望彼此保持多大的距离、需要什么帮助，并尊重她的选择。</p>\n<p class=\"shelf-dialogue\">信徒：牧者，你过去也犯过类似的错吗？</p>\n<p class=\"shelf-dialogue\">牧者：犯过。年轻做牧者时，我曾太快地对一对陷入冲突的夫妻说“要背十字架”。后来才知道，那位妻子已经长期生活在威胁里。我当时以为自己在讲圣经，其实是在逃避认真聆听复杂处境的辛苦。后来我向她道歉。从那以后，在劝人和解以前，我会先看安全和事实。</p>\n<p class=\"shelf-dialogue\">信徒：听见你也犯过这样的错，不知为什么反而让我得安慰。我感觉你不是一个手里拿着所有答案、只来审判我的人。</p>\n<p class=\"shelf-dialogue\">牧者：我们都在上帝的话面前学习。重要的不是把错误藏起来，而是让自己的解释和行动不断被修正，朝更接近生命的方向走。</p>\n<p class=\"shelf-body\">信徒在手机里找到那位姊妹的名字，却没有马上打电话。他先写了一条短消息：“那时我一直对你讲爱和忍耐，却没有充分听见你的痛苦，也没有顾到你的安全。对不起。你不需要回复我。”写到这里，他没有再加一句要求答复的话。</p>\n<p class=\"shelf-dialogue\">信徒：我现在好像明白了，爱不一定等于无论如何都维持一段关系。有时候，爱也会选择离开来保护生命，说出真相，并阻止恶继续发生。</p>\n<p class=\"shelf-dialogue\">牧者：是的。即使看不见想要的结果，也不把自己交给恶的方式，这份自由本身就是救恩很重要的样子。</p>\n<p class=\"shelf-body\">一起阅读：马太福音5:43-48；希伯来书11:1-7；12:1-3</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我是否把爱当成改变对方的技术？</p>\n<p class=\"shelf-body\">即使看不见结果，我仍需要坚持哪一种顺服？</p>\n<p class=\"shelf-body\">在相信上帝帮助的同时，我必须有意识地作出什么选择？</p>"
+        },
+        {
+          "id": "sec-15",
+          "title": "第十五场对话｜同时讲恩典和顺服，就是靠行为得救吗？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-15",
+          "html": "<h2 class=\"shelf-h1\">第十五场对话｜同时讲恩典和顺服，就是靠行为得救吗？</h2>\n<p class=\"shelf-body\">信徒直接问出了整段对话的核心问题。</p>\n<p class=\"shelf-body\">说出“行为得救”几个字后，信徒靠在椅背上。这个词长期以来都是他结束争论的最后一张牌。只要有人强调顺服和责任，他心里就会把对方归类为“不懂福音的人”。可经过最近这些对话，那张牌已经不像以前那样坚硬。他在想防卫自己和真想弄明白之间犹豫了一会儿。</p>\n<p class=\"shelf-dialogue\">信徒：至少“能不能进天堂”这件事，我觉得必须和人的行为彻底分开才安全。只要稍微连上行为，人不就会开始夸口“我比那个人好”，或者每天计算自己的分数，怕失去救恩吗？</p>\n<p class=\"shelf-dialogue\">牧者：这种危险确实存在。把顺服变成彼此比较的分数，或用恐惧控制人，都需要警惕。但与此同时，如果只把救恩定义成“死后进入天堂的资格”，我们是不是也会把爱与顺服只看成两个选项：要么是获取救恩的功劳，要么与救恩完全无关？</p>\n<p class=\"shelf-dialogue\">信徒：什么意思？</p>\n<p class=\"shelf-dialogue\">牧者：如果救恩是从罪、仇恨和贪欲的辖制中被救出来，进入爱上帝、爱邻舍的生命，那么爱和顺服正是这救恩今天真实显现在我们的关系和行动中的方式（罗6:17-23；约一3:14-18）。</p>\n<p class=\"shelf-dialogue\">信徒：可是说“行为是救恩的样子”，听起来最后还是会变成：没有行为就没有救恩。</p>\n<p class=\"shelf-dialogue\">牧者：耶稣、雅各和约翰一书都很清楚地说，活的信心会在生活里显出来（太7:21-27；雅2:14-26；约一2:3-6）。不必把这些话变成让人不断焦虑的计算公式，但也不能反过来把信心和实际生活说成互不相干。</p>\n<p class=\"shelf-dialogue\">信徒：我学到的是：“我虽然不够好，但耶稣已经完全顺服了，所以我的顺服与救恩无关。”</p>\n<p class=\"shelf-dialogue\">牧者：耶稣的顺服为我们开路，和我们跟随祂去顺服，并不互相竞争。希伯来书说，耶稣在苦难中学了顺从，成为凡顺从祂之人永远得救的根源（来 5:7-10）。经文并没有说，耶稣的顺服让我们的顺服变得多余。</p>\n<p class=\"shelf-dialogue\">信徒：那耶稣的功劳，不是用来补上我分数不够的部分吗？</p>\n<p class=\"shelf-dialogue\">牧者：圣经并没有像计算学校成绩那样计算耶稣的生命和死亡。耶稣忠实顺服上帝，把自己的生命献上，为我们开了一条可以来到上帝面前、并跟随祂道路的新路（来 10:5-10, 19-25）。相信祂，就是信任这条路是真实的，并走进去。</p>\n<p class=\"shelf-dialogue\">信徒：我一直觉得，把救恩只解释成法庭判决最清楚。</p>\n<p class=\"shelf-dialogue\">牧者：法庭的图像当然重要。但圣经还使用很多图像：出埃及的解放、疾病得医治、失丧的人被寻回、出死入生、新创造、进入上帝国（出 14章； 路 15章； 约 5:24； 林后 5:17； 启 21:1-5）。不能让其中一幅图把其他所有图都消掉。</p>\n<p class=\"shelf-dialogue\">信徒：所以你的意思是，我把爱、工作、饶恕都赶到了“救恩以外的附录”里。</p>\n<p class=\"shelf-dialogue\">牧者：是的。人若拒绝“彼此相爱”的话，很难期待爱的关系自己出现；若不遵行“弃绝谎言”的话，也无法建立真实的群体。这些顺服正是上帝的救恩今天在我们的关系和行动中实际发生的地方。</p>\n<p class=\"shelf-dialogue\">信徒：我坦白说，你的解释听起来很像靠行为得救。</p>\n<p class=\"shelf-dialogue\">牧者：我理解你的担心。你能先说明一下，你所说的“靠行为得救”具体指什么吗？</p>\n<p class=\"shelf-dialogue\">信徒：我所说的“行为得救”，就是人靠积累善行，取得死后进入天堂的资格。我一直学到的是：我们在上帝面前没有可夸的功劳，唯独靠恩典进天堂。</p>\n<p class=\"shelf-dialogue\">牧者：我并不是说，人可以积累一定数量的善行，然后拿去向上帝索取救恩。但在圣经实际把顺服与救恩联系起来的地方，我们也不应该事先把这种联系删掉。</p>\n<p class=\"shelf-dialogue\">信徒：你所说的连接是什么？</p>\n<p class=\"shelf-dialogue\">牧者：耶稣说，不是只称呼祂“主啊，主啊”的人，而是遵行天父旨意的人。希伯来书说，耶稣为一切顺从祂的人成了永远得救的根源。雅各则说，没有行为的信心是死的。</p>\n<p class=\"shelf-dialogue\">信徒：可保罗不是说，人称义是因信，不是因行为吗？</p>\n<p class=\"shelf-dialogue\">牧者：我们需要在上下文里看，保罗反对的“行为”具体是什么。他反对拥有律法的犹太人因此夸口自己比外邦人优越，也反对用割礼、饮食规条等划分标准把外邦人排除在群体之外；他同样反对人把自己的行为拿出来，好像上帝因此欠他“义和奖赏”的债（罗2:17-29；3:27-30；4:1-5）。但保罗并没有反对所有顺服和爱的行动。他说信心借着爱运行，也劝人从罪的奴仆转为义的奴仆（加5:6；罗6:15-23）。</p>\n<p class=\"shelf-dialogue\">信徒：那恩典是什么？</p>\n<p class=\"shelf-dialogue\">牧者：恩典不是允许人继续犯罪的许可证。恩典是上帝先呼召人，给人回转的机会，并在跌倒时帮助人重新站起来的怜悯。提多书说，上帝的恩典会教导我们敬虔地生活、热心行善（多2:11-14）。因此，没有必要把恩典和顺服放在彼此对立的位置。</p>\n<p class=\"shelf-dialogue\">信徒：可是强调人的意志，不会使人自夸吗？</p>\n<p class=\"shelf-dialogue\">牧者：人使用意志，并不等于一定会自夸。比如，父母伸手扶一个孩子起来，孩子也要抓住那只手，并站起来。孩子真的站起来了，并不否定父母的帮助；同样，父母帮助了孩子，也不必因此说孩子完全没有动。</p>\n<p class=\"shelf-dialogue\">信徒：你的意思是，在救恩中，人并不是完全被动的。</p>\n<p class=\"shelf-dialogue\">牧者：圣经命令人去听、相信、回转、跟随、忍耐和爱。这些动词都表明，人需要真实地选择并行动。为了把人的角色说得尽量小，不应该把这些命令变成无关紧要的附录（可1:15；路9:23；来10:36；约13:34-35）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，顺服是救恩的原因，还是救恩的结果？</p>\n<p class=\"shelf-dialogue\">牧者：最好不要把圣经里所有关系都压缩成一个公式。顺服出于信靠上帝的信心；与此同时，我们也正是在顺服的道路上真实参与上帝的救恩，向着应许前进。希伯来书没有把今天的顺服和将来的安息彼此分开。</p>\n<p class=\"shelf-dialogue\">信徒：我以前觉得，只有把原因和结果分得很清楚，才是安全的。</p>\n<p class=\"shelf-dialogue\">牧者：公式看起来很安全，却可能把经文实际说出的关系切断。上帝先说话，先打开道路；人相信祂的话，作出选择并顺服；上帝记念爱的劳苦和忠实，把人带向应许。圣经把这些放在同一个脉络里说。</p>\n<p class=\"shelf-body\">牧者从桌边的书架上拿出一本小相册，里面放着几张洗礼照片。照片上的人穿着白衣，从水中起来。信徒想起自己受洗那天。那一天，他感到一种强烈的安心：“现在，救恩的问题终于结束了。”可受洗以后的人生究竟意味着什么，他几乎没有认真想过。</p>\n<p class=\"shelf-dialogue\">信徒：洗礼不是已经得救的记号吗？使徒行传说，要悔改、受洗，使罪得赦免（徒 2:38）。那受过洗的人，不就可以看作救恩已经确定了吗？</p>\n<p class=\"shelf-dialogue\">牧者：洗礼是公开显明信心的重要行动。但不能把“我已经受洗”单独拿出来，当成救恩已经确定的证明书。罗马书6章把洗礼解释为参与基督的死，从旧生活转回，在新生命中开始行走（罗6:3-4）。它没有把受过水洗的事实和此后的生活分开。</p>\n<p class=\"shelf-dialogue\">信徒：水本身不是把罪洗掉吗？</p>\n<p class=\"shelf-dialogue\">牧者：彼得前书并没有把洗礼只解释成洗去身体污垢的水，而是把它与向上帝求无亏的良心，以及耶稣基督的复活联系起来（彼前3:21）。所以，不能把水本身理解成会自动除去罪，或能够取代人的悔改、信心和生活。</p>\n<p class=\"shelf-dialogue\">信徒：可使徒行传2章明明把罪得赦免和洗礼直接连在一起。</p>\n<p class=\"shelf-dialogue\">牧者：是的。那时彼得宣讲耶稣以后，听的人心里被刺痛，问：“我们当怎样行？”彼得回答，要悔改，奉耶稣的名受洗（徒 2:36-41）。洗礼是听见福音以后回转、进入新的群体和新生活的公开回应。</p>\n<p class=\"shelf-dialogue\">信徒：也就是说，受过洗的人仍可能回到旧生活？</p>\n<p class=\"shelf-dialogue\">牧者：圣经在洗礼以后仍不断发出警告和劝勉，本身就说明有这种可能。洗礼不是一枚取消人的自由和责任的印章，而是一个开始，呼召人按着所领受恩典的意义继续生活。</p>\n<p class=\"shelf-dialogue\">信徒：哥林多前书说，我们都从一位圣灵受洗，成了一个身体（林前 12:13）。这和个人的救恩有什么关系？</p>\n<p class=\"shelf-dialogue\">牧者：这正是哥林多前书所说“都从一位圣灵受洗，成了一个身体”的意义。洗礼不是独自确认自己有天堂资格的仪式，而是犹太人和希腊人、为奴的和自主的这些不同的人，越过差别，成为同一个群体的肢体。因此，如果一面歧视不同的人，一面说“我已经受洗，所以我得救了”，就违背了洗礼所指向的意义（林前12:12-27；加3:27-28）。</p>\n<p class=\"shelf-dialogue\">信徒：马太福音里则说，要使人作门徒、给他们施洗。</p>\n<p class=\"shelf-dialogue\">牧者：而且紧接着又说，要教导他们遵守耶稣所吩咐的一切（太 28:19-20）。洗礼与门徒身份、洗礼与顺服，都在同一个使命里。洗礼不是课程结束后的毕业证，而是进入门徒生活的标志——从此学习并实行耶稣的教导。</p>\n<p class=\"shelf-dialogue\">信徒：我一直觉得，从受洗那天开始，我的名字就已经写在天堂名单上，以后的失败和那个名单没有关系。</p>\n<p class=\"shelf-dialogue\">牧者：这种想法也许曾给你安慰。但保罗正是对已经受洗的人说：“所以，不要容罪在你们必死的身上作王”（罗6:12-14）。洗礼不是保证人可以继续旧生活，而是一个记号：我们已经参与基督的死与复活，开始在新生命中行走。</p>\n<p class=\"shelf-dialogue\">信徒：洗礼不用反复受，这一点不也可以像“一次献上”一样，成为一种确定的保证吗？</p>\n<p class=\"shelf-dialogue\">牧者：不重复洗礼的传统，可以帮助人记住这个告白的重大，也记住上帝的信实。但“不需要重复洗礼”，并不等于不需要一再悔改和成长。我们是在每天活出那一次洗礼的意义。</p>\n<p class=\"shelf-dialogue\">信徒：那如果要总结，洗礼真正的意义是什么？</p>\n<p class=\"shelf-dialogue\">牧者：洗礼是一个公开的回应：人悔改，转离旧的辖制，参与耶稣的死与复活；披戴基督，在新生命中行走；在圣灵里成为一个群体的肢体，并愿意学习、实行耶稣的教导（罗 6:3-4； 加 3:27-28； 林前 12:13； 太 28:19-20）。</p>\n<p class=\"shelf-dialogue\">信徒：这么看，洗礼和圣餐有一个共同点：仪式本身都不是自动除罪的装置，而是群体一起参与耶稣道路的行动。</p>\n<p class=\"shelf-dialogue\">牧者：是的。仪式很重要。它让我们用身体记住，也让我们在群体面前作出约定。但圣经严肃警告人，不要一面拒绝仪式所指向的意义，一面只抓住仪式本身（赛1:10-17；林前11:27-32）。</p>\n<p class=\"shelf-dialogue\">信徒：现在我好像明白，为什么我每次听见顺服，就立刻反应成“靠行为得救”。我一直把救恩只想成死后进入天堂的资格，所以现在的爱和顺服，在我眼里不是取得资格的功劳，就是与救恩毫无关系。你解释说，保罗反对的并不是所有善行，而是夸口、排斥，以及把上帝当作交易对象的态度，这也解开了我很久的疑问。过去我一直不明白，为什么罗马书后面还要讲把身体献上当作活祭、又要爱仇敌（罗12:1-21）。我没有充分听你的意思，就指责你在否定福音。对不起。</p>\n<p class=\"shelf-dialogue\">牧者：我理解你想守住恩典的心。现在不要再把恩典和顺服变成彼此相反的东西，而要一起看圣经怎样说：上帝的恩典会真实地教导人去爱、去行善（多2:11-14）。</p>\n<p class=\"shelf-body\">一起阅读：马太福音7:21-27；28:19-20；罗马书6:1-14；加拉太书5:6；希伯来书5:8-10；雅各书2:14-26</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我是否把恩典当成与顺服对立的概念？</p>\n<p class=\"shelf-body\">我为什么总把人的意志和上帝的帮助放在竞争关系中？</p>\n<p class=\"shelf-body\">今天，我的信心需要在哪个具体位置显为行动？</p>"
+        },
+        {
+          "id": "sec-16",
+          "title": "第十六场对话｜“把耶稣重新钉十字架”的警告",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-16",
+          "html": "<h2 class=\"shelf-h1\">第十六场对话｜“把耶稣重新钉十字架”的警告</h2>\n<p class=\"shelf-body\">信徒担心，希伯来书那些严厉的警告会加重自己的不安。</p>\n<p class=\"shelf-body\">信徒把希伯来书6章摊在面前，在同一页停了很久。每次读到“不能叫他们重新懊悔”时，过去反复犯过的罪就浮现出来。与此刻“我还想回来”的心相比，那份“我已经跌倒很多次”的记录，反而更像真正的自己。</p>\n<p class=\"shelf-dialogue\">信徒：每次读这里，我都怕自己已经越过那条线了。我曾经很热心，可现在祷告没有以前那么多，同样的罪也反复犯。如果这就是“离弃”，那我是不是已经没有办法再回来了？</p>\n<p class=\"shelf-dialogue\">牧者：我不想把经文强烈的表达说轻。但我们需要看看：你现在虽然害怕、却仍想回来，和作者所警告的有意背叛，真的可以看成同一种状态吗？</p>\n<p class=\"shelf-dialogue\">信徒：经文说的是“尝过天恩的滋味、又于圣灵有分”的人。我也信了很多年，所以才更害怕。</p>\n<p class=\"shelf-dialogue\">牧者：“与圣灵有分”这句话也一点不轻。它比“听过关于圣灵的讲论”或“在旁边看见别人经历过什么”更强。在希伯来书中，“有分的人”指的是实际共同分享某样事物的人（来3:1、14；6:4）。所以，更自然的理解是：作者警告的不是群体外面的旁观者，而是那些真实经历过上帝恩典和圣灵工作的人，却转身离开耶稣的道路。</p>\n<p class=\"shelf-dialogue\">牧者：希伯来书的读者已经听道多年，在群体中生活信仰，也曾忍受苦难（来5:11-14；10:32-34）。但在压力和疲惫中，他们有危险离开耶稣的道路，回到一个让自己感觉更安全的旧有宗教秩序。作者警告的，不只是一次失误或暂时动摇，而是背对耶稣、选择另一条路的严重背叛。</p>\n<p class=\"shelf-dialogue\">信徒：“把上帝的儿子重钉十字架，明明地羞辱祂”，也是指这种公开的背叛吗？（来 6:6）</p>\n<p class=\"shelf-dialogue\">牧者：是的。不是说十字架事件在物理上再次发生，而是用强烈的讲道语言说明：一个已经知道耶稣道路的人，若公开拒绝祂，这个选择何等严重。</p>\n<p class=\"shelf-dialogue\">信徒：那它就不能用来讲一个人反复犯的罪吗？</p>\n<p class=\"shelf-dialogue\">牧者：不能说这种警告和反复犯罪完全没有关系。如果一个人嘴上说恩典，却持续剥削弱者，毫无回转之意，把恶当作自己的权利，这个警告就非常需要（来10:26-31）。但不能拿它去对一个因同样错误跌倒而痛苦、正在寻求帮助和改变的人说：“你已经永远完了。”</p>\n<p class=\"shelf-dialogue\">信徒：可怎样分辨这两种人？外表看起来，他们都可能反复犯罪。</p>\n<p class=\"shelf-dialogue\">牧者：我们很难完美判断。所以不要只数次数，而要看方向。一个人是在隐藏、合理化自己的错，让受害者闭嘴，还是在承认事实、寻求帮助、努力改变？他是在即使不舒服也继续抓住耶稣的话，还是为了保护自己的欲望，干脆拒绝耶稣这条道路本身？</p>\n<p class=\"shelf-dialogue\">信徒：我没有为罪辩护，可我的改变太慢了。那我的悔改会不会也是假的？</p>\n<p class=\"shelf-dialogue\">牧者：改变慢，不等于悔改就是假的。但不能只反复停留在模糊的后悔里，需要建立具体的帮助和安排。若是成瘾、暴力、习惯性说谎等反复问题，可能需要群体监督、专业帮助，甚至改变环境。悔改不只是心里某一次下决心，也是实际为新生活创造条件的过程。</p>\n<p class=\"shelf-dialogue\">信徒：希伯来书6章说，离弃的人不能重新悔改，还说他们把耶稣重新钉十字架。每次读到这些话，我都害怕自己是不是已经被丢弃了。</p>\n<p class=\"shelf-dialogue\">牧者：我不会轻看你的恐惧。我们先看，这个警告究竟是对谁说的。作者是想把那些犯了小错、后来后悔的人赶出去吗？</p>\n<p class=\"shelf-dialogue\">信徒：经文实在太严厉，所以读起来就是这种感觉。</p>\n<p class=\"shelf-dialogue\">牧者：但请继续读下去。作者称读者为亲爱的人，也记念他们服事圣徒时所显出的爱和劳苦，并相信他们有“更美的事，就是和救恩相连的事”。</p>\n<p class=\"shelf-dialogue\">信徒：既然如此，为什么还需要这样严厉的警告？</p>\n<p class=\"shelf-dialogue\">牧者：因为这个群体正面临一种危险：他们已经知道耶稣的道路，却可能故意离弃它，并把另一条道路重新放在救恩的中心。“重新钉十字架”并不是说十字架事件真的会再发生一次，而是用讲道的语言强调：一个人若在群体面前拒绝耶稣的道路，使祂受羞辱，这种背叛是何等严重。</p>\n<p class=\"shelf-dialogue\">信徒：这也可以用来警告那些习惯性犯罪的人吗？</p>\n<p class=\"shelf-dialogue\">牧者：如果一个人嘴上说相信耶稣的牺牲，却继续伤害弱者、隐藏真相，完全没有回转的意思，只要求别人告诉他已经蒙赦免，那么这的确是很切合的警告。希伯来书10章把这种态度称为践踏上帝的儿子、把立约的血当作平常。</p>\n<p class=\"shelf-dialogue\">信徒：可我也会反复犯同样的错误。</p>\n<p class=\"shelf-dialogue\">牧者：不要只因为“重复”这一个事实，就把两种人混为一谈。一个人虽然跌倒，却承认错误、寻求帮助并重新改变；另一个人则把罪当作权利，拿恩典为自己辩护。这两种态度完全不同。</p>\n<p class=\"shelf-dialogue\">信徒：每次听到警告，我就会不停寻找自己的不足。</p>\n<p class=\"shelf-dialogue\">牧者：希伯来书的警告不是让人每天计算自己是否得救的工具。它要人诚实察看：我现在到底固执地朝哪个方向走？与此同时，它也安慰人：上帝不会忘记你出于爱所付出的劳苦（来 6:9-12； 10:26-39）。</p>\n<p class=\"shelf-dialogue\">信徒：所以，警告和安慰是同时存在的。</p>\n<p class=\"shelf-dialogue\">牧者：是的。警告把人从安逸麻木中唤醒，安慰使疲惫的人重新走路。这两个声音都是牧养的话，为要守住群体，使人不离开耶稣的道路。</p>\n<p class=\"shelf-dialogue\">信徒：那么，我还想回转的心本身也很重要吗？</p>\n<p class=\"shelf-dialogue\">牧者：非常重要。这段经文的目的不是让一个愿意回来、愿意修正错误的人绝望。请从今天能做到的一件小小顺服开始。上帝也记得你过去出于爱所承担的劳苦。</p>\n<p class=\"shelf-dialogue\">信徒：你以前没有错误使用过这样的警告经文吗？</p>\n<p class=\"shelf-dialogue\">牧者：有。很久以前，一个年轻人告诉我，他开始怀疑自己的信仰。我就读希伯来书6章给他听，逼他说，如果不赶快作决定，以后可能再也回不来了。他更害怕了，后来有一段时间完全不和教会联系。</p>\n<p class=\"shelf-dialogue\">信徒：后来你又见过他吗？</p>\n<p class=\"shelf-dialogue\">牧者：几年以后偶然见到。他告诉我，他并不是想拒绝上帝，只是不知道怎样说出自己在教会里受过的伤，以及自己的抑郁。我却把他的提问判断成背叛。后来我向他道歉。我很羞愧，因为自己把警告经文变成了让人闭嘴的工具。</p>\n<p class=\"shelf-dialogue\">信徒：他接受你的道歉了吗？</p>\n<p class=\"shelf-dialogue\">牧者：没有马上接受。那是很自然的。在劝他“回来”以前，我先应该承认自己的错，并听完他的故事。那次经历以后，我每次讲警告经文，都会更谨慎地想：这句话是对谁说的？目的是什么？</p>\n<p class=\"shelf-dialogue\">信徒：这么说，希伯来书作者也不是只想把读者吓住。</p>\n<p class=\"shelf-dialogue\">牧者：是的。强烈警告之后，他马上称他们为“亲爱的弟兄们”，说上帝不会忘记他们服事圣徒所显出的爱和劳苦，并且相信他们有“更美的事，就是和救恩相连的事”（来 6:9-12）。警告的目的不是把门关上，而是把人从懒散中叫醒，使他们借着信心和忍耐承受应许。</p>\n<p class=\"shelf-dialogue\">信徒：我过去常听6章4到6节，9节以后几乎没印象。</p>\n<p class=\"shelf-dialogue\">牧者：如果只把前面抽出来，会变成绝望的句子；整段读，就会看见强烈的警告后面还有重新扶住读者的劝勉。作者让他们记得自己已经做过的爱的服事，又劝他们坚持同样的殷勤直到最后。</p>\n<p class=\"shelf-dialogue\">信徒：我一直有一个问题想不通：如果真的“不能再悔改”，为什么作者还继续劝他们，又记念他们爱的劳苦，还确信他们有更美、与救恩有关的事？现在听你的解释就连起来了——作者不是已经判定现实中的读者全都被弃绝，而是在用极强的语言把危险摆在他们面前，为的是把他们重新扶起来。</p>\n<p class=\"shelf-dialogue\">牧者：这正是关键。如果把这种强烈警告的表达像法律条文一样切下来，机械地用在每一个焦虑的人身上，就可能失去作者的牧养目的。</p>\n<p class=\"shelf-dialogue\">信徒：过去每次看到自己的小失败，我都会说“我又把耶稣钉十字架了”。结果不是更恨罪，而是绝望到什么都做不了。</p>\n<p class=\"shelf-dialogue\">牧者：不要把这个表达当作惩罚自己的锤子。若有具体错误，就去修正，然后重新回到耶稣的道路。也要一起看上帝没有忘记的那些爱的劳苦（来 6:10）。</p>\n<p class=\"shelf-dialogue\">信徒：起初，我因为坚持“强烈的警告就要原样接受”，所以怀疑你的解释是在削弱警告。可现在我才发现，你不是拿警告去定罪那些愿意回转的人；对于那些故意持续作恶、又拿恩典作借口的人，你反而把它用得更严肃。</p>\n<p class=\"shelf-dialogue\">牧者：关键是刀锋指向哪里。不要用警告去砍伤那些软弱却想回转的人，而要用它唤醒那些利用恩典、坚持作恶的心。</p>\n<p class=\"shelf-dialogue\">信徒：我误会你的意思了，对不起。以后再读这段经文，我不会只看恐惧，也会把警告后面的“亲爱的弟兄们”一起读进去。</p>\n<p class=\"shelf-body\">信徒在第6节和第9节之间画了一条细线。过去像互相矛盾的两个部分，现在看起来像是强烈警告之后，又接着出现一段重新扶住人的劝勉。</p>\n<p class=\"shelf-body\">一起阅读：希伯来书6:4-12；10:26-39；12:12-17</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我是否把警告当成只会怀疑自己救恩的工具？</p>\n<p class=\"shelf-body\">现在，我正在故意固守哪一个方向？</p>\n<p class=\"shelf-body\">上帝所记念的爱与劳苦是什么？</p>"
+        },
+        {
+          "id": "sec-17",
+          "title": "第十七场对话｜怎样面对对救恩的不安？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-17",
+          "html": "<h2 class=\"shelf-h1\">第十七场对话｜怎样面对对救恩的不安？</h2>\n<p class=\"shelf-body\">信徒问，自己的不安到底是神学问题，还是心理问题。</p>\n<p class=\"shelf-body\">信徒把手机里的播放列表给牧者看。里面存了几十篇讲道，题目包括“得救的确据”“你没有被上帝抛弃”“一切罪都已经赦免”。有的讲道，同一周里他听过三遍。他一直把这看作自己努力守住信仰的方式，可望着这份播放列表时，脸上的疲惫明显多过自豪。</p>\n<p class=\"shelf-dialogue\">信徒：我一焦虑就听这些讲道。最开始十分钟，心里会舒服一些。可很快就会出现新的问题：“我真的信了吗？”“我用口承认的时候是真心的吗？”“我受洗时真的悔改了吗？”然后我就去找另一篇讲道。</p>\n<p class=\"shelf-dialogue\">牧者：反复确认同一个确据，会让人暂时安心；但时间久了，也可能形成一种更强的习惯：“只有确认，我才能安心。”焦虑总说“这次再确认一下就够了”，可确认一结束，它很快又会制造新的怀疑。</p>\n<p class=\"shelf-dialogue\">信徒：可如果不确认，我又觉得自己在轻看上帝。万一我其实没有得救，只是安心地过日子，最后却受审判，怎么办？</p>\n<p class=\"shelf-dialogue\">牧者：对焦虑的人来说，“万一”这两个字力量很大。无论别人给怎样的答案，它都能再钻出一个新的洞。所以有时，只回答问题内容并不够。需要分辨：这个问题是在指向一个真实需要承担的责任，还是只是焦虑习惯要求“百分之百确定”。</p>\n<p class=\"shelf-dialogue\">信徒：可在上帝面前，不是应该有百分之百的确定吗？</p>\n<p class=\"shelf-dialogue\">牧者：信心不是所有怀疑和情绪波动都完全消失的状态。信心是信赖上帝的性情和话语，即使仍有不确定，也选择顺服（来11:7-10、13）。亚伯拉罕出发时，也不知道自己究竟要往哪里去。</p>\n<p class=\"shelf-dialogue\">信徒：但上帝是完全圣洁的，哪怕很小的罪也不能与祂同在。我既然不能靠自己的行为满足祂，最后不还是只能抓住耶稣完全的功劳吗？那么，反复确认自己有没有“正确地相信这个功劳”，不是很自然吗？</p>\n<p class=\"shelf-dialogue\">牧者：相信耶稣为我们打开了亲近上帝的路，当然重要（来 4:14-16； 10:19-22）。可如果又把这种信心变成一场新考试——“我的心理状态够准确吗？”——那么耶稣的道路就又成了一次令人焦虑的资格审查。</p>\n<p class=\"shelf-dialogue\">信徒：那上帝完全的圣洁，究竟该怎么理解？</p>\n<p class=\"shelf-dialogue\">牧者：上帝的圣洁，是祂绝不把恶称作爱，也不会对受压迫者的痛苦视而不见的信实；可与此同时，上帝有丰盛的怜悯，不轻易发怒，也知道人的软弱（出 34:6-7； 诗 103:8-14）。圣洁和慈悲并不是彼此相反的两种性情。</p>\n<p class=\"shelf-dialogue\">信徒：可一个很小的罪，不也可能破坏我和上帝的关系吗？</p>\n<p class=\"shelf-dialogue\">牧者：不要轻看小罪。短短一句谎言、一句尖锐的话，也需要改正和道歉。但不要把一次失误和持续拒绝上帝的生活说成同一回事。圣经对跌倒却愿意回转的人，讲的是怜悯和恢复的道路（诗 32:1-5； 路 15:11-24； 约一 1:9-2:2）。</p>\n<p class=\"shelf-dialogue\">信徒：我总觉得上帝看见我的失败以后，会说：“又失败了。这次结束了。”</p>\n<p class=\"shelf-dialogue\">牧者：你觉得这种感觉是从哪里学来的？</p>\n<p class=\"shelf-dialogue\">信徒：我父亲就是这样。考试错一道题，他不会看我答对了多少，只会一直问那一道错题。教会里也听过很多讲道，说一个很小的罪都能使全身下到地狱。所以我觉得，上帝好像也一直只在找我错的地方。</p>\n<p class=\"shelf-body\">牧者没有马上回答。信徒的话里，还留着那个拿着试卷站在父亲面前、害怕得发抖的孩子。此刻，比起再加上一套神学解释，更需要先承认这份恐惧从哪里来。</p>\n<p class=\"shelf-dialogue\">牧者：我能理解，你为什么会把上帝和父亲的表情重叠在一起。但圣经所显明的上帝，不是一个因为孩子错一道题就把他赶出家门的父亲。祂会指出错误，也呼召人回转；可我们不能把那种惹儿女的气、使他们灰心的人间父亲形象，原封不动地投射到上帝的完全上（诗103:13-14；路11:11-13；西3:21）。</p>\n<p class=\"shelf-dialogue\">信徒：那上帝会一直等到我真正改变吗？</p>\n<p class=\"shelf-dialogue\">牧者：祂不只是坐着等，也借着话语、群体和圣灵的帮助呼召你改变。但不要把成长缓慢立刻解释成关系断绝。耶稣曾长期与理解迟钝、不断失败的门徒同行（可 8:14-21； 9:33-37； 约 21:15-19）。</p>\n<p class=\"shelf-dialogue\">信徒：我连犯一个小错，都害怕上帝会惩罚我。事情一不顺，我就觉得一定是因为自己的罪。这是不是说明我信心太弱？</p>\n<p class=\"shelf-dialogue\">牧者：不一定。良心敏锐的人，往往更容易感到责任，这也有积极的一面。但当敏锐的良心与焦虑结合时，人可能把所有事情都解释成上帝惩罚自己的证据。</p>\n<p class=\"shelf-dialogue\">信徒：该怎么分辨？</p>\n<p class=\"shelf-dialogue\">牧者：先看有没有具体的过错。你是否说了谎？是否违背了承诺？是否伤害了人？若有，就道歉并修正。反过来，如果没有任何具体事实，只是一遍遍想：“会不会因为某个我不知道的罪，上帝正在惩罚我？”那就可能是焦虑不断要求新的保证。</p>\n<p class=\"shelf-dialogue\">信徒：我会把同一件事检查很多次，也会反复想自己的祷告是不是做得正确。</p>\n<p class=\"shelf-dialogue\">牧者：反复确认会带来短暂安心，但很快可能需要更强的确认。强调赦免和确据的讲道，也可能被用成同样的工具。听到安慰的那一刻很轻松，但若没有重新建立生活的行动，不安仍会回来。</p>\n<p class=\"shelf-dialogue\">信徒：那我焦虑时，不应该再思想十字架吗？</p>\n<p class=\"shelf-dialogue\">牧者：不是。你需要更准确地思想十字架。要记得，上帝借着耶稣打开了一条路，使你不用隐藏，可以来到祂面前。然后，不要把同一个保证确认十遍，而要选择今天能承担的一件责任。</p>\n<p class=\"shelf-dialogue\">信徒：比如什么？</p>\n<p class=\"shelf-dialogue\">牧者：去做那件拖延已久的道歉；诚实完成今天该做的事；身体疲惫时，不带罪疚地休息；向人求助；读一小段上帝的应许；也可以决定，不再把同一个问题重复问下去。</p>\n<p class=\"shelf-dialogue\">信徒：心里明明很不安，却停止确认，感觉就像放弃信仰。</p>\n<p class=\"shelf-dialogue\">牧者：停止确认不等于离弃上帝。相反，这也可能是一种信心的行动：因信靠上帝的品格，不再跟随焦虑的要求。</p>\n<p class=\"shelf-dialogue\">信徒：即使事情一直不顺，我怎么相信上帝没有丢弃我？</p>\n<p class=\"shelf-dialogue\">牧者：希伯来书中的信徒正是因为信仰而经历损失和羞辱。困难本身不是被上帝丢弃的证据。盼望并不是保证问题很快解决，而是一只锚，使人即使摇摆，仍把心重新系在上帝的应许上（来 6:13-20； 10:32-39）。</p>\n<p class=\"shelf-dialogue\">信徒：如果焦虑非常严重，也只能靠信仰解决吗？</p>\n<p class=\"shelf-dialogue\">牧者：如果焦虑长期破坏睡眠、工作和关系，使你无法停止反复确认，寻求专业咨询或治疗也是负责任的选择。照顾心灵和身体，并不表示信心不足。</p>\n<p class=\"shelf-dialogue\">信徒：牧者，你自己也经历过这种焦虑吗？</p>\n<p class=\"shelf-dialogue\">牧者：年轻时，讲完道以后我曾整夜检查，怕自己某一句话说错。有人没来聚会，我就担心是不是因为我的讲道让他失去了救恩。祷告时，我甚至觉得同一件事必须用最准确的措辞再说一次，上帝才会听见。</p>\n<p class=\"shelf-dialogue\">信徒：你是怎么走出来的？</p>\n<p class=\"shelf-dialogue\">牧者：我也不是一下子就走出来。有一天，一位和我一起服事多年的同工对我说：“你嘴上说信靠上帝，实际上却好像相信，所有结果都必须由你自己控制。”这句话很刺痛，却说中了我。我一直把它叫作责任感，其实是不肯承认自己的有限。</p>\n<p class=\"shelf-dialogue\">信徒：我好像也觉得，只要不断确认，就可以把救恩控制在自己手里。</p>\n<p class=\"shelf-dialogue\">牧者：是的。确认看起来像是在信靠上帝，有时其实是想亲手得到绝对安全。信心是在尽了该尽的责任以后，仍愿意把剩下的不确定交给上帝。</p>\n<p class=\"shelf-dialogue\">信徒：可你说，有些错误确实要改，有些念头只不过是焦虑。实际生活里怎样分？</p>\n<p class=\"shelf-dialogue\">牧者：可以问三个问题。第一，我具体做了什么？第二，谁受到了什么伤害？第三，现在我能够承担的责任是什么？如果事实和行动都很清楚，就去修正；若这三个问题都没有具体答案，只剩“会不会还有我不知道的罪”不断重复，那么与其继续确认，不如练习停止满足焦虑的要求。</p>\n<p class=\"shelf-dialogue\">信徒：比如祷告时突然走神，怎么办？</p>\n<p class=\"shelf-dialogue\">牧者：重新集中就可以。不要把它扩大成对上帝的背叛。若身体很疲惫，也可能只是需要休息的信号。人的注意力本来就有限。</p>\n<p class=\"shelf-dialogue\">信徒：走在路上，看见别人时突然有一点羡慕嫉妒呢？</p>\n<p class=\"shelf-dialogue\">牧者：如果你已经发现自己心里出现了羡慕，就不要继续喂大比较。先想想值得感谢的事，再把心转回今天该做的事和该爱的人。不要把一闪而过的情绪立刻变成最终判决：“我是个坏人。”</p>\n<p class=\"shelf-dialogue\">信徒：如果我对妻子发脾气，真的让她受伤呢？</p>\n<p class=\"shelf-dialogue\">牧者：这是一个有具体对象的行动。不要辩解，去道歉；也看看为什么总会重复发生，并预先准备下一次怎样暂停对话、让自己平静下来。把责任处理好以后，不要再无限重复“我的道歉是不是百分之百真心”这种问题。</p>\n<p class=\"shelf-dialogue\">信徒：我道歉以后，非得看到对方笑，我才会安心。</p>\n<p class=\"shelf-dialogue\">牧者：对方的感受不受你控制，他仍然可能生气。悔改不是一笔“我一说对不起，就立刻拿回安心”的交易。你要继续诚实地行动，也尊重对方所需要的时间。</p>\n<p class=\"shelf-dialogue\">信徒：如果焦虑告诉我“再祷告一次”，我要怎么拒绝？不祷告又会让我觉得像犯罪。</p>\n<p class=\"shelf-dialogue\">牧者：你可以告诉自己：“这件事我已经向上帝说过，也确认了需要承担的责任。现在我不再重复确认，而去做今天该做的事。”然后回到实际生活：洗碗、散步、听家人说话、完成一项工作。不要非得先在逻辑上把焦虑彻底压下去，而是把方向转向爱与责任的行动。</p>\n<p class=\"shelf-dialogue\">信徒：刚开始焦虑会不会反而更强？</p>\n<p class=\"shelf-dialogue\">牧者：可能会。减少确认以后，焦虑短时间里可能会升高。但如果不是每一次都照着它的要求做，你会慢慢学会：焦虑说的每一句话，都不需要服从。如果已经严重影响生活，最好寻求心理健康专业人士的帮助。反复确认和宗教性的罪疚感，有时会同时牵涉信仰问题与心理上的困难。</p>\n<p class=\"shelf-dialogue\">信徒：如果去做咨询，我怕别人觉得我“不能靠信心解决”。</p>\n<p class=\"shelf-dialogue\">牧者：就像我们会借着医生的帮助照顾身体，也可以借着心理咨询和治疗照顾心灵的习惯。这是负责任的选择。信仰群体和专业帮助不是竞争关系。</p>\n<p class=\"shelf-dialogue\">信徒：我原以为，必须先把焦虑消除，信心才能出现。</p>\n<p class=\"shelf-dialogue\">牧者：即使有焦虑，人仍然可以凭信心行动。下了锚的船也会感觉到风浪。关键不是海上完全没有浪，而是你正在抓住什么、又正往哪里去。</p>\n<p class=\"shelf-body\">信徒慢慢往下滑动播放列表。只要按下其中一篇讲道，熟悉的声音马上就会开始安慰他。手指停在屏幕上。他并不觉得那个声音是坏的，只是今天他必须作一个选择：再次把这安慰当成一次确认，还是按着已经听见的话去做一件真实的事。</p>\n<p class=\"shelf-dialogue\">信徒：我本来今天回家以后还想再听同一篇讲道。现在我想先向妻子道歉，昨天我又打断她说话。然后我不再搜索同样的救恩问题，而是陪孩子出去走一走。</p>\n<p class=\"shelf-dialogue\">牧者：这是一个很好的选择。即使焦虑还在，你也可以这样做。确据并不是等情绪完全稳定以后才行动，而是在信靠上帝的信实、选择跟随爱的命令而不是焦虑的命令时，逐渐长出来。</p>\n<p class=\"shelf-dialogue\">信徒：有一件事我还是想确认。你并不是在说“小罪无所谓”，对吧？</p>\n<p class=\"shelf-dialogue\">牧者：绝不是。小的错误也应该承认、修正。我只是说，不要把上帝想象成一位每碰到一个小失误就断绝关系、关上天堂之门的上帝。祂不轻看罪，却乐意接纳回转的人，也赐力量让人重新走下去（诗 103:8-14； 路 15:20-24； 来 4:14-16）。</p>\n<p class=\"shelf-dialogue\">信徒：我以前说“上帝太圣洁，所以除了耶稣的功劳以外什么都不能看”，现在想来，背后其实有一种恐惧：如果上帝直接看见真实的我，祂一定会丢弃我。</p>\n<p class=\"shelf-dialogue\">牧者：耶稣不是一张面具，用来遮住我们，使上帝看不见我们。借着耶稣，我们看见上帝不喜悦罪人的灭亡，而愿意他们回转得生（结18:23、32；约3:16-17）。也正是在这样的爱里，我们才有勇气不再隐藏错误，真实地改变。</p>\n<p class=\"shelf-dialogue\">信徒：为了得到救恩的确据，我一直在测量自己的信心到底够不够强。现在，我想试着换一种方式生活：相信上帝是怎样的一位上帝；具体的错误就具体纠正；对于没有根据、只会越长越大的焦虑，不再用同一个答案反复确认。也谢谢你从一开始没有把我的焦虑简单骂成“信心不足”。我好几次都很有攻击性，因为我以为你要夺走我的确据。对不起。</p>\n<p class=\"shelf-dialogue\">牧者：我知道，你一直是想保护自己的确据。我也经历过类似的恐惧，所以能理解你的反驳。现在，我们试着把“确据”从一张必须交给焦虑检查的证明书，变成一种使你今天能够去爱、能够承担责任的信赖。</p>\n<p class=\"shelf-dialogue\">信徒：以前还有一件事我一直想不通。为什么强调赦免和确据的讲道听得很多，我的焦虑反而有时越大。也许问题不一定在讲道，而在我把它用成了反复确认的工具，却没有真正去纠正错误、改变生活。</p>\n<p class=\"shelf-dialogue\">牧者：正是这样。听完安慰以后，如果我们实际去道歉、去做该做的事、把话落实成爱的行动，那安慰就不再只是暂时麻醉人的一句话，而会成为救恩的力量。</p>\n<p class=\"shelf-body\">一起阅读：马太福音6:25-34；希伯来书4:14-16；6:13-20；10:35-39</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我现在的不安，是在提醒我有一件实际需要纠正的事，还是只要求我进行模糊而反复的确认？</p>\n<p class=\"shelf-body\">除了再次确认同一个保证，我还能采取什么行动？</p>\n<p class=\"shelf-body\">如果焦虑正在破坏生活，我可以向谁寻求专业帮助？</p>"
+        },
+        {
+          "id": "sec-18",
+          "title": "第十八场对话｜恩典的安慰怎样与生活相连？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-18",
+          "html": "<h2 class=\"shelf-h1\">第十八场对话｜恩典的安慰怎样与生活相连？</h2>\n<p class=\"shelf-body\">信徒再次说明了自己所期待的讲道。</p>\n<p class=\"shelf-body\">信徒已经比第一次对话时平静了许多，可谈到这个题目，旧日的紧张又重新冒出来。因为他不想失去那些强调罪得赦免和恩典的讲道曾带给他的安慰。最近，2SC的主日讲道一直在讲出埃及记，群体则一起默想创世记，下一阶段还准备进入希伯来书。每当这样的内容里“十字架”这个词出现得不多，他心里还是会冒出一个怀疑：“是不是在避开核心？”</p>\n<p class=\"shelf-dialogue\">信徒：我还有一个不满。2SC有时连续几个星期都不以“十字架”为题直接讲道。十字架既然是圣经的中心，这不是问题吗？</p>\n<p class=\"shelf-dialogue\">牧者：如果教会否认耶稣的死与复活，或故意把它隐藏起来，那当然是问题。但不能只因为每周没有用同一种表达直接提到十字架，就说福音缺席了。2SC也不想把“十字架”三个字机械地当成每篇讲道最后必须重复的结论，而是希望把上帝的救恩与恩典、耶稣的生活、顺服和教导，以及回应这恩典的爱与现实生活连接起来。圣经用许多主题教导上帝的百姓：创造与圣约、智慧与公义、祷告与家庭、劳动与金钱、圣灵的果子、复活与上帝国、群体中的爱与忍耐等等（提后3:14-17；徒20:20、27；太28:19-20）。</p>\n<p class=\"shelf-dialogue\">信徒：可不是每篇讲道最后都应该回到“耶稣替你死了”，这样才算有福音吗？</p>\n<p class=\"shelf-dialogue\">牧者：当然可以常常宣讲这句话。但如果无论读什么经文，都把经文本身的问题抹掉，最后只贴上同一个结论，我们就很难听见圣经丰富的教导。箴言谈诚实的言语和懒惰，先知责备不义与偶像崇拜，耶稣教导爱仇敌、怎样使用财物、怎样祷告——这些话都应该被充分听见，并帮助信徒真正去行。</p>\n<p class=\"shelf-dialogue\">信徒：你的意思是，一篇没有直接说“十字架”的讲道，也可以是福音性的？</p>\n<p class=\"shelf-dialogue\">牧者：如果一篇讲道忠实传讲耶稣的教导和上帝国的旨意，引导信徒爱上帝、爱邻舍，就可以。耶稣的死与复活是圣经极重要的中心；但“中心”并不意味着用一句话抹去其他所有内容。我们要让人看见，耶稣的生活、死亡与复活，上帝的国和上帝的恩典，怎样与整本圣经的教导彼此连接。</p>\n<p class=\"shelf-dialogue\">信徒：我一直觉得，不直接讲十字架，讲道就会变成人的道德演讲。</p>\n<p class=\"shelf-dialogue\">牧者：确实有这种危险。如果讲道忘记上帝的慈悲和帮助，只剩“你要更努力”的压力，会把人压垮。但反过来，无论读什么经文都把人的责任删掉，只用“你已经被赦免了”结束，也会削弱圣经的教导。我们需要同时听见怜悯与命令、上帝的工作与人的回应。</p>\n<p class=\"shelf-dialogue\">信徒：那教会到底多久讲一次十字架，圣经没有规定吗？</p>\n<p class=\"shelf-dialogue\">牧者：新约没有规定“每隔几周必须用‘十字架’作标题讲一次”。重要的是，群体有没有忘记耶稣的生命、死亡与复活，以及这些意义有没有渗透到礼拜、教育、关系和整个事工中（林前 15:1-4； 腓 2:5-11）。</p>\n<p class=\"shelf-dialogue\">牧者：前面我们已经重新看过“福音”这个词本身。起初，你主要把福音理解为：“耶稣代替我担当了罪，我相信这件事，就能罪得赦免，并确信自己会进天堂。”这确实是福音中很重要的一部分。但耶稣把上帝国临近的消息称为福音；保罗传讲耶稣的死与复活时，又把福音与“信而顺服”和新群体的生活连接起来（可1:14-15；罗1:1-5；林前15:1-5）。</p>\n<p class=\"shelf-dialogue\">信徒：现在想想，我过去说“这里没有福音”，其实更准确的意思也许是：“这里没有多少我熟悉的那一种福音解释。”</p>\n<p class=\"shelf-dialogue\">信徒：我们教会连续讲出埃及记，又一起默想创世记，接下来还准备默想希伯来书。我若因此判断“这里没有福音”，可能确实太快了。</p>\n<p class=\"shelf-dialogue\">牧者：有可能。最近2SC的主日讲道主要沿着出埃及记进行。出埃及记讲上帝的拯救与圣约，也讲旷野中的信心与顺服；创世记的默想会看见创造与人的责任、罪与暴力、应许与信心；接下来的希伯来书默想，则可以更深入地看耶稣的信实、通向上帝的道路，以及群体的忍耐。重要的是，无论讲道还是默想，都要忠实阅读各段经文，学习上帝的救恩和恩典怎样进入真实生活。</p>\n<p class=\"shelf-dialogue\">信徒：我仍然认为，讲道最后应该回到十字架。人们在世界上已经很疲惫，至少来到教会，应该得到赦免和安慰吧？</p>\n<p class=\"shelf-dialogue\">牧者：我同意。讲道不能只是给疲惫的人增加沉重负担。它必须传讲上帝已经打开道路、施下怜悯的好消息。</p>\n<p class=\"shelf-dialogue\">信徒：可是牧者，你总是在加上顺服和责任。</p>\n<p class=\"shelf-dialogue\">牧者：我们谈顺服和生活，不是为了给恩典再加上一组附加条件。耶稣顺服上帝的旨意到底，把自己献上。希伯来书说“基督的血洁净良心”时，我并不把它理解成一种叫作“血”的物质自动洗净人的内心，而是用献祭中的洁净语言来解释耶稣的顺服与自我献上。它的目的，是使人不再躲避上帝，而是来到祂面前服事祂，也使群体彼此激励爱心和善行（来9:14；10:19-25）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，一篇把上帝的恩典讲得好的讲道，应当怎样安排？</p>\n<p class=\"shelf-dialogue\">牧者：重要的是，不要把上帝的恩典从耶稣的生活与教导、祂的死与复活中割裂出来。要说明上帝借着耶稣打开了怎样的道路，也要把罪具体地显明出来——虚假、仇恨、贪婪、暴力、不负责任。赦免应当走向悔改、纠正错误的行动和新的生活。对焦虑的人，要安慰他：不会因为一次小小失败就立刻被丢弃；对于拿恩典作借口、固执行不义的人，也要发出必要的警告。</p>\n<p class=\"shelf-dialogue\">信徒：同时讲安慰和警告，人不会更混乱吗？</p>\n<p class=\"shelf-dialogue\">牧者：圣经常常把安慰和警告放在一起。先知一面宣告上帝的怜悯，一面责备不义；耶稣给人安慰，也呼召人悔改、过门徒的生活；保罗谈恩典，也劝人去爱和顺服；希伯来书在强烈警告之后，又记念爱的劳苦，并确信读者有更美的事。根据人的状态，有时安慰需要先说，有时警告需要先说；但没有必要把两者彻底分开。</p>\n<p class=\"shelf-dialogue\">信徒：如果听完讲道，心里没有轻松下来，就是失败的讲道吗？</p>\n<p class=\"shelf-dialogue\">牧者：不一定。有些话使人看见错误，心里会不舒服。如果这种不舒服带来道歉和改变，就会结出生命的果子。反过来，心里虽然轻松了，生活却毫无改变，那安慰也可能没有达到目的。</p>\n<p class=\"shelf-dialogue\">牧者：可以看人是否变得更诚实，是否更愿意保护弱者，是否更负责任地照顾家人和邻舍；也要看人在焦虑和困难里，是否仍信靠上帝、继续行善。只用人数或一时的情绪，很难判断一篇讲道真正结出的果子。</p>\n<p class=\"shelf-dialogue\">牧者：要看人是否变得更诚实，是否更愿意保护弱者，是否更负责任地照顾家人和邻舍，是否能在不安中仍信靠上帝、继续行善。不能只看人数和情绪反应。</p>\n<p class=\"shelf-dialogue\">信徒：这么说，圣经整体的教导不能停在“你已经蒙赦免了”这一句话上。</p>\n<p class=\"shelf-dialogue\">牧者：这句话是起点。接下来还要说：“所以，不要再隐藏，要来到上帝面前；修正错误；爱邻舍；跌倒了也重新站起来；仰望上帝所应许的救恩，走到底。”</p>\n<p class=\"shelf-dialogue\">信徒：如果是这样的讲道，我觉得不是在削弱恩典，反而是在把恩典讲得更宽、更深。</p>\n<p class=\"shelf-dialogue\">牧者：这或许正是我们在寻找的共识：守住恩典的安慰，同时不把这份安慰从耶稣的教导和生命改变中割裂。</p>\n<p class=\"shelf-dialogue\">信徒：更常举行圣餐，不是可以更好记住十字架吗？我们教会三个月才举行一次。有些人主张每周举行，至少也应该每月一次。</p>\n<p class=\"shelf-dialogue\">牧者：常常举行圣餐的传统有很好的理由。群体可以用身体记住耶稣的自我舍弃和新约，又借着分享一个饼确认彼此同属一个身体（路 22:19-20； 林前 10:16-17）。三个月一次，不能仅凭频率就断定违背圣经；每周或每月举行也完全可以。新约并没有要求所有教会采用同一个次数。</p>\n<p class=\"shelf-dialogue\">信徒：可领圣餐越多，不就越常得到罪得赦免的恩典吗？</p>\n<p class=\"shelf-dialogue\">牧者：圣餐可以看作上帝赐给群体的重要恩典行动。但领饼和杯的次数本身并不会自动擦去罪。哥林多教会常常聚集吃主的晚餐，可富足的人先吃，让贫穷的人蒙羞。保罗没有称赞这样的聚会，反而严厉警告那种不分辨身体就吃喝的行为（林前 11:17-34）。</p>\n<p class=\"shelf-dialogue\">信徒：“分辨身体”，不就是正确相信那个饼是耶稣的身体吗？</p>\n<p class=\"shelf-dialogue\">牧者：这方面历来确实有不同讨论。但哥林多前书最直接的上下文，讲的是他们不彼此等待、使贫穷的肢体蒙羞。如果一面纪念基督的身体，一面把现实中的群体身体撕裂，就已经违背了圣餐的意义（林前 10:16-17； 11:20-22, 29-33）。</p>\n<p class=\"shelf-dialogue\">信徒：约翰福音6章说，必须吃耶稣的肉、喝祂的血才有生命。这不是说必须领圣餐才能得救吗？（约 6:51-58）</p>\n<p class=\"shelf-dialogue\">牧者：后来教会把这段话和圣餐联系起来读，是可以理解的。但在整章里，耶稣说到祂这里来的人必定不饿，信祂的人永远不渴（约 6:35）。所以“吃、喝”的表达，是指接受耶稣作为生命的粮，住在祂里面，并参与祂赐下的话语和生命（约 6:56-57, 63）。</p>\n<p class=\"shelf-dialogue\">信徒：63节说“叫人活着的乃是灵，肉体是无益的；我对你们所说的话就是灵，就是生命”，也和这个有关吗？</p>\n<p class=\"shelf-dialogue\">牧者：是的。这是一个很重要的线索：不能把“物质性地吃耶稣的肉”单独抽出来，变成一套自动赐生命的装置。吃生命的粮，是相信并接受耶稣的话，靠着祂而活。圣餐则让整个群体用身体记住并重新立约，要参与这样的生命。</p>\n<p class=\"shelf-dialogue\">信徒：那么，比起更频繁地举行圣餐，照它的意义去生活更重要？</p>\n<p class=\"shelf-dialogue\">牧者：最好不要把两者变成竞争关系。举行得很频繁，也可能失去意义；次数少，也可能预备不足。频率当然可以讨论，但更应该问：圣餐有没有把我们带向感恩、分享、和好和群体责任。</p>\n<p class=\"shelf-dialogue\">信徒：洗礼也类似吗？有些人也把“我受过洗”当成一张救恩证书。</p>\n<p class=\"shelf-dialogue\">牧者：洗礼与悔改和罪得赦免、参与基督死而复活的新生命、在一位圣灵里成为一个身体，以及学习并遵守耶稣教导的门徒生活相连（徒 2:38； 罗 6:3-4； 林前 12:13； 太 28:19-20）。不能轻看洗礼，但也不能把“受过水洗”变成一份与之后生活无关的自动保证。</p>\n<p class=\"shelf-dialogue\">信徒：这么说，讲道、圣餐和洗礼其实都指向同一个方向：借着耶稣经历上帝的赦免与恢复，参与祂所显明的道路，在群体里开始新的生活。</p>\n<p class=\"shelf-dialogue\">牧者：是的。上帝的话解释仪式的意义，圣餐和洗礼让人用身体记住这话，而生活则显明我们实际相信的是什么。</p>\n<p class=\"shelf-dialogue\">信徒：我过去判断2SC时，好像只会数“十字架”这个词出现几次、圣餐多久举行一次，却没有认真看讲道是不是把人带向爱和责任。</p>\n<p class=\"shelf-dialogue\">牧者：次数和明确的表达当然可以看，但不要只用这些判断信仰是否忠实。也要看有没有教导整本圣经，使人遵守耶稣的命令，保护弱小的人，建立真实的群体。</p>\n<p class=\"shelf-dialogue\">信徒：一开始我断言2SC“不讲十字架救恩”。现在才发现，我真正的意思其实是“我熟悉的那一种十字架讲道比较少”。因为教会讲了圣经其他教导，就判断它缺少福音，是我太草率了。对不起。</p>\n<p class=\"shelf-dialogue\">牧者：你的质疑也帮助我们反省，自己有没有充分传讲恩典的安慰。不要把彼此的担心推开，让我们更忠实地传讲：上帝的恩典怎样与整本圣经的教导、也与真实生活连接起来。</p>\n<p class=\"shelf-body\">两人之间的紧张已经比最初缓和许多，却没有完全消失。不过现在，信徒不会只因为意见不同，就立刻把牧者判断成一个否认福音的人。他也开始能在不丢掉自己一直想守住的恩典安慰的同时，把这份安慰放进更宽广的圣经脉络重新思考。</p>\n<p class=\"shelf-body\">一起阅读：约翰福音6:35-71；使徒行传20:20-27；罗马书6:3-4；哥林多前书10:16-17；11:17-34；希伯来书9:11-14；10:19-25</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我所期待的讲道，主要是为了带给人什么样的感受？</p>\n<p class=\"shelf-body\">恩典的安慰应当在现实生活中带来哪些改变？</p>\n<p class=\"shelf-body\">在同时传讲安慰和警告时，需要注意什么？</p>"
+        },
+        {
+          "id": "sec-19",
+          "title": "第十九场对话｜得救的确据从哪里生长出来？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-19",
+          "html": "<h2 class=\"shelf-h1\">第十九场对话｜得救的确据从哪里生长出来？</h2>\n<p class=\"shelf-body\">信徒看起来比最初轻松了许多。不过，关于救恩确据的问题仍然留着。</p>\n<p class=\"shelf-body\">对话开始前，信徒想起了第一次见面的那一天。当时他觉得牧者要夺走自己唯一的支撑，因此表面在提问，心里却早已判断对方的答案是错的。如今，他的疑问也没有全部消失；但他开始学会：问题出现，并不等于整个信仰立刻崩塌。</p>\n<p class=\"shelf-dialogue\">信徒：一开始我来和你谈，是想证明我自己的立场。我以为只要把足够多的圣经经文摆出来，你就会承认十字架有多重要，2SC也会改变讲道方向。</p>\n<p class=\"shelf-dialogue\">牧者：我也有过想赶快纠正你想法的时刻。虽然形式上我在提问，可有些时候，心里其实已经把答案定好了。这一点，我也要向你道歉。</p>\n<p class=\"shelf-dialogue\">信徒：你也一直想说服我？</p>\n<p class=\"shelf-dialogue\">牧者：是的。说服本身不一定错。但如果没有先听懂一个人为什么非要抓住某种信念，只想改掉他的结论，就会错过他的心。对你来说，那套熟悉的“十字架公式”不只是教义，也曾像一个避难所，让你暂时躲开父亲的评价和审判的恐惧。这一点，我明白得太晚了。</p>\n<p class=\"shelf-dialogue\">信徒：即使那个避难所让人喘不过气，走到外面还是更可怕。每次牧者谈圣经的上下文、谈顺服的生活，我都觉得，只要接受这些话，就会再次掉进审判的恐惧里。</p>\n<p class=\"shelf-dialogue\">牧者：所以首先必须守住恩典的安慰。一面告诉你，已经有一条不必向上帝隐藏、可以来到祂面前的路；一面也要让你看见，这条路会通向真实的悔改和爱（来4:14-16；10:19-25）。</p>\n<p class=\"shelf-dialogue\">信徒：我现在还是会想：“万一我改变得还不够呢？”</p>\n<p class=\"shelf-dialogue\">牧者：不要每天给自己的改变打分。但也不要把“方向”留在抽象口号里。看看今天你对谁说了真话，承担了什么责任，保护并爱了谁。若做错了，就具体回转，再重新开始。</p>\n<p class=\"shelf-dialogue\">信徒：你说确据要同时看上帝的应许和我生活的方向，这还是让我紧张。因为一看自己的行为，我就看见太多不足。</p>\n<p class=\"shelf-dialogue\">牧者：这种张力也许不会完全消失。圣经里的确据，不是闭上眼不看自己的生活，也不是只盯着自己的成绩夸口。它是一面抓住“上帝是信实的”这个应许，一面也看回应这应许的爱与顺服是否真实地出现在生活里（来6:9-20；约一3:18-24）。</p>\n<p class=\"shelf-dialogue\">信徒：如果爱的果子很少呢？</p>\n<p class=\"shelf-dialogue\">牧者：承认它少，然后今天开始一个。上帝不轻看像芥菜种一样小的开始（太 13:31-32）。但这和拿“小”作借口、一直什么都不做，是两回事。</p>\n<p class=\"shelf-dialogue\">信徒：说到底，又回到“方向”了。</p>\n<p class=\"shelf-dialogue\">牧者：是的。要看的是：跌倒以后，是否重新回到生命的道路；还是拿恩典作盾牌，继续为伤害人的生活辩护。</p>\n<p class=\"shelf-dialogue\">信徒：现在我大致明白你的意思了。但这个问题我还是想再问一次：我怎样才能确信自己已经得救？经过这些对话，我已经看见，罗马书10章和马太福音7章不一定互相冲突。过去我总以为，必须把其中一段说弱一点，另一段才能成立。</p>\n<p class=\"shelf-dialogue\">牧者：现在你怎么读？</p>\n<p class=\"shelf-dialogue\">信徒：放回罗马的历史处境，“耶稣是主”的告白并不只是正确发音一句话，而是公开选择把忠诚交给谁；而且整卷罗马书把这个告白和“信而顺服”连在一起（罗 1:5； 10:8-17； 16:25-27）。所以，它并不必然和马太福音关于行出来的警告相反（太 7:21-27）。</p>\n<p class=\"shelf-dialogue\">牧者：还有什么问题也解开了？</p>\n<p class=\"shelf-dialogue\">信徒：过去我一直想不明白，上帝明明命令献祭，为什么先知又说祂不喜悦祭物。现在我明白，仪式本身不是一台自动消除罪的机器；若把祭物与悔改、公义和顺服分开，反而违背上帝的心意（撒上15:22；赛1:10-17；摩5:21-24）。“担当罪”这句话，我以前也只想成一种计算：好像有一种叫“罪”的东西，从人身上转移到祭牲身上。现在我可以理解，它是一种祭仪性的表达：罪和责任在献祭礼仪中被承认、被处理、被除去，使人重新回到上帝和群体的关系中；需要时，还包括归还和赔偿（利5:5-6；6:1-7；16:20-22）。</p>\n<p class=\"shelf-dialogue\">牧者：那希伯来书的一次献上与审判呢？</p>\n<p class=\"shelf-dialogue\">信徒：如果把“一次”变成一个与后来的生活毫无关系的自动赦罪公式，就很难解释紧接着出现的审判、事奉和忍耐。现在我更愿意这样读：借着耶稣的自我舍弃，通向上帝的路决定性地打开了；人在这条路上以洁净的良心事奉，并等候将来完成的救恩（来 9:11-28； 10:19-25）。</p>\n<p class=\"shelf-dialogue\">牧者：圣餐和洗礼的理解也改变了吗？</p>\n<p class=\"shelf-dialogue\">信徒：是的。常举行圣餐可以很宝贵，但次数并不会增加“罪得赦免的分量”。若不分辨一个身体、反而使软弱的肢体蒙羞，就可能违背圣餐本身的意义（林前10:16-17；11:17-34）。约翰福音6章“生命的粮”也与相信耶稣、住在祂里面、按祂的话生活连在一起（约6:35、56-63）。洗礼也不能只看成在天堂名册上盖章。它是参与基督的死与复活、开始在新生命中行走、成为一个身体，也是在群体里学习并遵守耶稣教导的门徒生活之起点（罗6:3-4；林前12:13；太28:19-20）。</p>\n<p class=\"shelf-dialogue\">牧者：听见你自己这样整理，我觉得和最初的对话相比，已经很不一样了。</p>\n<p class=\"shelf-dialogue\">信徒：不过，我并没有完全放弃“十字架的功劳”这个表达。我仍然相信，我不能靠自己的力量造一条通往上帝的路，是耶稣为我们打开了路。只是现在我明白，不能一面根本不走这条路，一面只反复说“路已经开了”。</p>\n<p class=\"shelf-dialogue\">牧者：这是一个很重要的总结。相信上帝已经借着耶稣为我们打开救恩的道路，与跟随祂的教导去行，并不会彼此削弱。</p>\n<p class=\"shelf-dialogue\">信徒：而且，把救恩只理解成“进入天堂的资格”，确实是许多问题的起点。一旦这样定义，爱和顺服就只能变成两种东西：要么是购买资格的功劳，要么是与救恩无关的附录。现在我可以说，从仇恨转向爱、从谎言转向真实、从孤立转向群体的生活，也是我们此刻正在经历的救恩（罗 6:17-23； 约一 3:14-18）。</p>\n<p class=\"shelf-dialogue\">牧者：同时也要继续抓住将来在上帝国里完全实现的盼望（罗 8:18-25； 启 21:1-5）。</p>\n<p class=\"shelf-dialogue\">信徒：是的。我不会把现在的好关系或健康直接等同于最终的救恩。人顺服也可能受苦，关系也可能无法恢复。但即使结果还看不见，我仍可以选择爱和真实的方向，等候将来的生命（来 10:35-39； 11:13-16）。</p>\n<p class=\"shelf-dialogue\">牧者：首先，不要把确据理解成一种一旦得到，就再也不会摇动的感觉。有信心的人也会害怕，也会动摇。</p>\n<p class=\"shelf-dialogue\">信徒：那确据到底是什么？</p>\n<p class=\"shelf-dialogue\">牧者：确据是信靠上帝的品格和应许。上帝不会拒绝回转的人。祂已经借着耶稣打开来到祂面前的路。同时，我也因信这应许，在今天选择顺服。</p>\n<p class=\"shelf-dialogue\">信徒：这样我会不会又不停检查，自己到底顺服得够不够？</p>\n<p class=\"shelf-dialogue\">牧者：不要计算一个完美分数，而要看自己现在朝哪个方向走。你是想隐藏错误，还是愿意说真话？伤害别人以后，是继续为自己辩护，还是愿意纠正？你是想丢掉耶稣的话，还是即使跌倒，也愿意再回来？</p>\n<p class=\"shelf-dialogue\">信徒：小小的顺服也和确据有关吗？</p>\n<p class=\"shelf-dialogue\">牧者：是的。希伯来书说，上帝不会忘记人出于爱所做的服事。小小的顺服，也会成为一个痕迹，表明我们正在真实回应上帝的话，走在祂的道路上（来6:10-12）。</p>\n<p class=\"shelf-dialogue\">信徒：如果我的处境一直很艰难呢？</p>\n<p class=\"shelf-dialogue\">牧者：不要把环境是否顺利当成救恩的温度计。有信心的人也经历苦难。今天守住诚实，照顾家人，不以仇恨回应仇敌，而是选择善，并接受必要的休息，这些都是信心的道路。</p>\n<p class=\"shelf-dialogue\">信徒：如果我又犯罪了，怎么办？</p>\n<p class=\"shelf-dialogue\">牧者：具体承认自己的错误；若造成了伤害，就尽自己所能去纠正。向上帝求怜悯，也向可信任的人寻求帮助，然后重新上路。不要轻看失败，也不要把一次失败当成最后的判决。</p>\n<p class=\"shelf-dialogue\">信徒：以后想到十字架时，我应当记得什么？</p>\n<p class=\"shelf-dialogue\">牧者：要记得，上帝借着耶稣忠实地献上自己，为我们打开了一条不用隐藏、可以来到祂面前的路。同时也要记得，这条路不是无视错误的路，而是回到真理、爱和顺服中的路。</p>\n<p class=\"shelf-dialogue\">信徒：也就是说，救恩不是相信一句话以后得到安心，而是走在上帝已经打开的道路上。</p>\n<p class=\"shelf-dialogue\">牧者：是的。而且，这不是一条独自走的路。我们彼此鼓励信心和爱，一起前行。</p>\n<p class=\"shelf-dialogue\">信徒：我仍然需要恩典的安慰。</p>\n<p class=\"shelf-dialogue\">牧者：以后你仍会需要这样的安慰。只是盼望这份安慰不再停在暂时压住焦虑的一句话上，而会成为力量，使你重新去爱、纠正错误、选择顺服。</p>\n<p class=\"shelf-dialogue\">信徒：我也希望如此。我不能说已经得到了所有答案，但至少开始知道自己应该重新读什么，也知道应当怎样生活。</p>\n<p class=\"shelf-dialogue\">牧者：今天的对话到这里已经足够。我们不会一次得到所有答案。人在读上帝的话、照着去行、再回头学习的过程中，一点一点成长。</p>\n<p class=\"shelf-body\">信徒打开最初带来的那本笔记。第一页用粗体写着：“唯有十字架就足够了。”他没有把这句话擦掉，只在下面用小字补了一句：“十字架不能与耶稣的生命、教导和复活分开。上帝所打开的路，是为了让人实际走上去的路。”</p>\n<p class=\"shelf-dialogue\">信徒：我不想把这句话删掉。只是现在，“足够”对我来说不再等于“不需要责任、不需要顺服”，而是说：我们不必再等另一套救恩装置，也不必等待某种完美恢复的圣殿祭祀；借着耶稣，我们现在就可以来到上帝面前，活祂的道路。</p>\n<p class=\"shelf-dialogue\">牧者：这是很好的修正。信仰未必是把熟悉的句子全部丢掉，也可以是在圣经的历史、上下文和生活果子中，把那些句子的意思学得更完整。</p>\n<p class=\"shelf-dialogue\">信徒：一开始，我对牧者太敌对了。我以为你要夺走我的安慰，所以根本没有充分听完你的话。我已经道歉过几次，可还是想再说一次：对不起。</p>\n<p class=\"shelf-dialogue\">牧者：我也要道歉。有些时候，我还没有充分听见你的恐惧，就先指出你“不懂上下文”。即使解释本身是对的，如果看不见对方的恐惧和伤口，也可能听起来像一种攻击。</p>\n<p class=\"shelf-dialogue\">信徒：其实，每次牧者坦白自己的错误时，我的心反而更容易打开。这里不像是一个完美的牧者在修理一个不足的信徒，更像是两个人一起站在上帝的话面前，一起学习、一起被纠正。</p>\n<p class=\"shelf-dialogue\">牧者：我也希望我们的群体能成为这样。没有谁拥有所有答案，但我们也不是什么结论都不下。我们一起读经、彼此察看生活，一步步作出更真实、更合乎爱的选择。</p>\n<p class=\"shelf-dialogue\">信徒：我的焦虑以后大概还会回来。</p>\n<p class=\"shelf-dialogue\">牧者：会有可能。那时，不要把“焦虑又来了”本身当成信仰失败的证据。有具体的错，就去修正；若只是模糊的反复确认，就先停一次，简短抓住上帝信实的话，然后回到今天的爱里。</p>\n<p class=\"shelf-dialogue\">信徒：我会把写给父亲的信继续写完。公司员工工资的问题，我也会不再隐藏，认真谈清楚。面对妻子，我不再一遍遍要求她让我安心，而是把她的话听完。</p>\n<p class=\"shelf-dialogue\">牧者：这些行动不会立刻解决所有问题。但如果一个人原本被仇恨、谎言和恐惧牵着走，现在开始选择真实和爱，那么正是在这样的地方，救恩开始显现在今天的生活里。</p>\n<p class=\"shelf-dialogue\">信徒：以后我不再只把救恩确据理解成“维持一种我绝不会被审判的感觉”。我会相信上帝接纳回转的人，也相信祂借着耶稣打开了路；然后今天，再走回这条路。</p>\n<p class=\"shelf-dialogue\">牧者：而且不要一个人走。当我们彼此相顾，激发爱心、勉励善行，扶起疲乏的手时，群体也在一起走救恩的路（来 10:24-25； 12:12-15）。</p>\n<p class=\"shelf-body\">两个人站起身来。信徒的焦虑并没有全部消失，但他已经知道，有问题出现，并不表示自己必须再次停在原地。他带着一些仍未解开的疑问，同时想着自己下一步能够做什么，走出了门。</p>\n<p class=\"shelf-body\">一起阅读：希伯来书3:12-14；6:9-20；10:23-25；12:1-3</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我是否把环境和感受当成救恩的温度计？</p>\n<p class=\"shelf-body\">有哪些具体的选择，可以显明我现在的生命正在重新转向上帝？</p>\n<p class=\"shelf-body\">恩典的安慰今天应当带来怎样的爱和具体行动？</p>"
+        },
+        {
+          "id": "sec-20",
+          "title": "第二十场对话｜不信的人如果行善，也能得救吗？",
+          "level": 1,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-20",
+          "html": "<h2 class=\"shelf-h1\">第二十场对话｜不信的人如果行善，也能得救吗？</h2>\n<p class=\"shelf-body\">几天以后，信徒又带着一个问题来见牧者。这一次，他问的不是自己的救恩焦虑，而是应该怎样看待别人。</p>\n<p class=\"shelf-body\">他想起一个一起工作了很多年的人。那个人不去教会，却长期照顾生病的父母；遇到经济困难的员工，也常常默默帮助。相反，他也见过教会里一些信仰告白很明确、待人却很粗暴的人。过去，他总能很快下结论：“再怎么说，不信的人最终还是不能得救。”可现在，他开始怀疑，事情真的能这样简单判断吗？</p>\n<p class=\"shelf-dialogue\">信徒：不信的人如果活得很善良，也能得救吗？我认识一些人，虽然不去教会，却很负责任，也常常帮助别人。</p>\n<p class=\"shelf-dialogue\">牧者：这是一个重要的问题。我也不想用一句话匆匆把它关掉。圣经里有几段经文需要放在一起看。我们先读好撒玛利亚人的比喻。</p>\n<p class=\"shelf-dialogue\">信徒：那个比喻不是讲爱邻舍的吗？</p>\n<p class=\"shelf-dialogue\">牧者：是的。不过，这个比喻是从什么问题开始的？</p>\n<p class=\"shelf-dialogue\">信徒：律法师问：“我该做什么才可以承受永生？”（路10:25）</p>\n<p class=\"shelf-dialogue\">牧者：对。耶稣确认了爱上帝、爱邻舍以后，对他说：“你这样行，就必得生命。”接着，律法师又问“谁是我的邻舍”，耶稣就讲了好撒玛利亚人的故事（路10:25-37）。</p>\n<p class=\"shelf-dialogue\">信徒：当时犹太人并不把撒玛利亚人看作宗教上亲近的人，对吗？</p>\n<p class=\"shelf-dialogue\">牧者：对。可是耶稣没有把祭司或利未人摆成榜样，反而把撒玛利亚人描写成真正施怜悯的人。单凭这个比喻，当然不能解释所有人最终怎样得救；但至少，它会动摇一种想法：只凭“这个人是不是属于我们的宗教群体”，就把永生和爱邻舍的问题全部判断完。</p>\n<p class=\"shelf-dialogue\">信徒：那是不是说，实际的善行真的很重要？</p>\n<p class=\"shelf-dialogue\">牧者：圣经里确实有经文这样说。我们也看看罗马书第2章。保罗说，上帝要照各人的行为报应各人，而且祂不偏待人（罗2:6-11）。</p>\n<p class=\"shelf-dialogue\">信徒：可保罗后面不是马上又说，所有人都是罪人吗？</p>\n<p class=\"shelf-dialogue\">牧者：是，所以要读完整本罗马书。保罗并没有说人靠自己就已经完全。但我们也不能因此把第2章的话删掉。他没有说，犹太人只因为拥有律法就安全；他谈的是，不只是听律法，而是行律法的人。他也提到，那些没有律法的外邦人中，良心也会为他们作见证（罗2:12-16）。</p>\n<p class=\"shelf-dialogue\">信徒：那么，从来没有听过福音的人，只要照良心生活，就会自动得救吗？</p>\n<p class=\"shelf-dialogue\">牧者：没有必要用这段经文下这么确定的结论。我想强调的是另一点。保罗没有说，人只要拥有律法这个宗教标记，就自然安全。上帝不会因为人的出身或标签而偏心判断，祂也看每个人真实的生活。这一点使我们不能太轻易替别人作出最终命运的判决。</p>\n<p class=\"shelf-dialogue\">信徒：这么说，一个人即使去了很多年教会、懂很多圣经，也不能只凭这些就说，他在上帝面前一定比别人更安全。</p>\n<p class=\"shelf-dialogue\">牧者：是的。罗马书第2章首先要摇动的，正是这种宗教上的自信。听过、懂得律法，和真实回应上帝的话去生活，并不是同一件事。今天，我们也可能把“我受过洗”“我去教会很多年”当成高人一等的标记。但听得多，不是免除责任的许可证，反而可能意味着：我们更有责任忠实回应自己所听见的话（罗2:17-29）。</p>\n<p class=\"shelf-dialogue\">信徒：那在先把人分成“信的人”和“不信的人”以前，我也应该先问问自己，我到底怎样活出已经领受的话。</p>\n<p class=\"shelf-dialogue\">牧者：是的。如果只把保罗的问题拿来判断别人，我们自己反而没有站在经文面前。上帝看重的，不只是一个名字或标签，也看那个标签所指向的真实生活。</p>\n<p class=\"shelf-dialogue\">信徒：马太福音25章的绵羊和山羊的比喻，也可以一起这样看吗？</p>\n<p class=\"shelf-dialogue\">牧者：可以放在一起思考。在那个场景里，王问的是：有没有给饥饿的人吃的，有没有接待陌生人，有没有照顾生病和被囚的人（太25:31-46）。特别令人惊讶的是，那些义人反而问：“主啊，我们什么时候这样服事过你？”</p>\n<p class=\"shelf-dialogue\">信徒：他们甚至不知道自己是在服事耶稣。</p>\n<p class=\"shelf-dialogue\">牧者：对。这段经文同样不是一句组织神学公式，要在一个场景里解释救恩的所有条件。但它很清楚地表明，在审判的场景里，具体的怜悯和爱确实被认真对待。所以我们不能轻易说：“行为最终完全没有意义。”</p>\n<p class=\"shelf-dialogue\">信徒：那是不是说，比起去不去教会，一个人怎样对待别人更重要？</p>\n<p class=\"shelf-dialogue\">牧者：不要把两件事这样简单地放在一起竞争。认识并跟随耶稣的告白很重要；同时，也不能把这个告白和我们怎样对待软弱的人说成毫无关系。现在来看使徒行传10章的哥尼流。</p>\n<p class=\"shelf-dialogue\">信徒：哥尼流在彼得来以前，就已经敬畏上帝，常常周济人，也常常祷告，对吗？</p>\n<p class=\"shelf-dialogue\">牧者：是。天使说，他的祷告和周济已经达到上帝面前，被祂记念（徒10:1-4）。圣经并没有因为他当时还不认识耶稣，就说他的生活毫无意义。与此同时，上帝又差彼得去，让他听见关于耶稣的生活、死亡和复活的消息（徒10:34-48）。</p>\n<p class=\"shelf-dialogue\">信徒：这两件事是同时存在的。上帝看见了他已经做的善事，又让他听见关于耶稣的消息。</p>\n<p class=\"shelf-dialogue\">牧者：正是这一点很重要。使徒行传没有把哥尼流的祷告和周济变得毫无价值，同时也让他听见耶稣的生活、死亡和复活。它没有叫这两件事彼此竞争。</p>\n<p class=\"shelf-dialogue\">信徒：那么，哥尼流的善行也不是用来代替耶稣的。</p>\n<p class=\"shelf-dialogue\">牧者：是的。而且，更重要的变化也发生在彼得身上。借着上帝让他看见的事，彼得终于明白：“上帝是不偏待人的。无论哪一国的人，只要敬畏祂、行义，都为祂所悦纳。”（徒10:34-35）这里“不偏待人”并不只是一个抽象的说法，意思不是简单地说“上帝把每个人都看得一样”。它是一项令人震惊的发现：跨过犹太人与外邦人之间的墙，外邦人也被接纳进入上帝的百姓中。</p>\n<p class=\"shelf-dialogue\">信徒：这么说，哥尼流的故事重点不是“只要做个好人就自动得救”这条公式，而是上帝接纳人的范围，比我们划出的宗教和民族界线更宽。</p>\n<p class=\"shelf-dialogue\">牧者：对。而且，正是这些人听见了关于耶稣的消息，圣灵也临到他们。因此，没有必要用一种彼此排斥的方式来读：好像哥尼流先前的善行和关于耶稣的福音只能留下一个。上帝早已看见这个人；后来，福音的消息向他更清楚地打开，他也进入了新的群体（徒10:34-48）。</p>\n<p class=\"shelf-dialogue\">信徒：可约翰福音14章6节不是非常清楚吗？耶稣说：“若不借着我，没有人能到父那里去。”</p>\n<p class=\"shelf-dialogue\">牧者：没有必要把这句话说弱。如果问：“谁是通向上帝的道路？”约翰福音很清楚地回答：耶稣。耶稣不只是一个解释道路的老师，而是说自己就是道路、真理和生命（约14:6）。</p>\n<p class=\"shelf-dialogue\">信徒：那最后不还是应该下结论：凡没有明确相信耶稣的人，都不能得救吗？</p>\n<p class=\"shelf-dialogue\">牧者：在这里，需要清楚区分两个问题。一个是：“上帝成就救恩的道路，是借着谁显明的？”另一个是：“对于一个没有充分机会认识耶稣的具体的人，上帝最终会怎样判断他？”对第一个问题，基督徒会告白：是耶稣。但对第二个问题，我们并不知道那个人的内心、生活，以及他实际得到过怎样的机会，所以不能抢在上帝前面作出确定判决。</p>\n<p class=\"shelf-dialogue\">信徒：这样说，是不是等于我们不知道救恩是什么？</p>\n<p class=\"shelf-dialogue\">牧者：不是说我们不知道自己所信救恩的中心。我们相信，借着耶稣，通向上帝的道路已经打开。我只是说，我不能因为自己相信这一点，就认为自己也有权代替上帝，对我所遇见的每一个人作最终判决。罗马书第2章、马太福音25章和哥尼流的故事，都提醒我们：上帝的判断比我们简单的分类更深。</p>\n<p class=\"shelf-dialogue\">信徒：那对于没有去教会就离开世界的家人或朋友，我们该怎么说？有人很轻易地说：“他没信，所以一定下地狱了。”也有人为了安慰家属说：“他肯定上天堂了。”</p>\n<p class=\"shelf-dialogue\">牧者：对于我们并不知道的最终判决，最好不要替上帝说得那么确定。最深地知道那个人一生和内心的是上帝。我们可以相信上帝是公义又有怜悯的，把那个人交在祂的判断中。我们不必为了安慰家属就抢在上帝前面确定“他一定上天堂”，也没有权因为一个人不在教会里面，就替他宣判地狱。</p>\n<p class=\"shelf-dialogue\">信徒：那么，我们能对还活着的人说什么？</p>\n<p class=\"shelf-dialogue\">牧者：我们可以陪他们一起承受悲伤，也可以谈：仍然活着的我们，今天要怎样在上帝和邻舍面前生活。我们也可以诚实见证，自己借着耶稣认识到的上帝之爱和生命道路。比起利用死者制造恐惧，我觉得，邀请活着的人走向生命的道路，更是一种牧养的态度。</p>\n<p class=\"shelf-dialogue\">信徒：过去我很容易说：“既然不信耶稣，那他再怎么善良，最后也没用。”我以为，只有这样简单地说，福音才够清楚。</p>\n<p class=\"shelf-dialogue\">牧者：这种说法可能会把一个人真实的生活说得太轻。圣经本身认真看待好撒玛利亚人的怜悯，也认真看待哥尼流的祷告和周济。同时，我们当然也没有理由把关于耶稣的消息藏起来。传福音不是先宣布“你所有的善都毫无价值”，而是见证借着耶稣显明的上帝国和生命道路。</p>\n<p class=\"shelf-dialogue\">信徒：这样的话，传福音时讲悔改会不会也变弱？如果对方已经活得很善良，他到底要悔改什么？</p>\n<p class=\"shelf-dialogue\">牧者：悔改不是先宣布：“你身上一点善都没有。”耶稣呼召宗教里面的人，也呼召宗教外面的人，都把生命的方向转向上帝的国（可1:14-15）。看起来很善良的人也可能有贪欲、仇恨、自我中心；教会里面的人同样需要悔改。传福音不是先否定对方整个生活，好制造出一个“需要福音”的理由，而是显明借着耶稣打开的上帝国道路，邀请人一起走进去。</p>\n<p class=\"shelf-dialogue\">信徒：那对方已经显出来的善行，也可以承认吗？</p>\n<p class=\"shelf-dialogue\">牧者：当然可以。圣经也承认哥尼流的周济和祷告。把善称为善，并不会削弱福音。我们反而可以尊重对方已经珍惜的怜悯和责任，并见证：这些东西在耶稣里怎样与上帝国更大的故事连接起来。而且，我们自己也必须不只用嘴，更用生活把这好消息显出来。</p>\n<p class=\"shelf-dialogue\">信徒：这么说，传福音不是先替对方判断最终命运，而是把我所认识的生命道路显给他看，邀请他一起走。</p>\n<p class=\"shelf-dialogue\">牧者：对。不是爬上审判者的位置，而是站在见证人的位置。福音不需要靠贬低对方才能显得高贵。如果关于耶稣的消息真的是好消息，我们不必抹掉别人身上的善，也能喜乐而诚实地传讲它。</p>\n<p class=\"shelf-dialogue\">信徒：那么，我们既不能说“只要活得善良就自动得救”，我也不应该轻易判定：“没有充分认识耶稣的人，不管怎样生活，都自动被定罪。”</p>\n<p class=\"shelf-dialogue\">牧者：我认为，这样总结在圣经面前更谨慎。最终的判断属于上帝。在哥尼流的故事里，彼得明白，上帝不会按民族背景偏待人，任何民族中敬畏上帝、行义的人，都为祂所悦纳（徒10:34-35）。接着，关于耶稣的消息传给他们，圣灵也临到他们。因此，与其只凭一个宗教标记轻易切割、判断人，我们更应该忠实传讲借着耶稣显明的上帝旨意，也让自己的生活顺服这旨意（徒10:34-48）。</p>\n<p class=\"shelf-body\">信徒翻笔记的速度，比刚提出问题时慢了许多。一开始，他很想得到一个能够准确分类“谁得救、谁不得救”的答案。可是读过这些经文以后，一个更靠近自己的问题浮了出来：比起替别人写判决书，我自己要怎样回应已经领受的光？他又想起那位同事。过去，他常在心里下结论：“这个人虽然善良，最终还是与救恩无关。”现在，比起评判那个人的一生，他先开始问：我应该成为怎样的邻舍？</p>\n<p class=\"shelf-dialogue\">信徒：比起替那个人整理出一个关于最终命运的结论，我的责任应该是先尊重他、爱他，并诚实地让他看见我所相信的耶稣。</p>\n<p class=\"shelf-dialogue\">牧者：是的。圣经并不是教我们轻易判断别人的最终命运，而是说，上帝会公义地判断人的内心和生活。同时，圣经也呼召我们听从借着耶稣显明的上帝旨意，跟随祂，活出爱与顺服。</p>\n<p class=\"shelf-dialogue\">信徒：这个问题好像还没有完全结束。</p>\n<p class=\"shelf-dialogue\">牧者：没有关系。不是所有问题都必须用一句话关起来。能明确说的，就明确说；在圣经留下开放空间的地方，不抢在上帝前面作判决，也可能是一种信心的态度。</p>\n<p class=\"shelf-body\">信徒在笔记本上写了一句短短的话：“少判定，多见证，多去爱。”他不像从前那样确信，可以用一句话把所有人分类；但相反，他更清楚自己应该做什么。</p>\n<p class=\"shelf-body\">一起阅读：路加福音10:25-37；罗马书2:6-29；马太福音25:31-46；使徒行传10:1-48；约翰福音14:1-7；马可福音1:14-15</p>\n<p class=\"shelf-body\">继续对话的问题</p>\n<p class=\"shelf-body\">我是否只凭一个信仰标记，就太轻易地判断一个人的最终命运？</p>\n<p class=\"shelf-body\">“上帝会公义地判断人的内心和生活”这句话，应当怎样改变我判断别人的习惯？</p>\n<p class=\"shelf-body\">告白“耶稣是道路”，今天会给我怎样对待邻舍的责任？</p>"
+        },
+        {
+          "id": "sec-21",
+          "title": "附录一｜在上下文中阅读主要经文",
+          "level": 1,
+          "zone": "appendix",
+          "source": "structured",
+          "toc_id": "tb-21",
+          "html": "<h2 class=\"shelf-h1\">附录一｜在上下文中阅读主要经文</h2>\n<p class=\"shelf-body\">下面的整理，是为了帮助读者在把一节经文直接变成教义句子以前，先看看它是在怎样的时代、怎样的群体问题中被使用。历史背景不能代替经文，而是帮助我们理解当时读者可能听到的意义范围。对于写作地点或年代难以确定的书卷，本书不会武断下结论，而会以经文本身显出的社会、宗教处境为主要依据。</p>\n<p class=\"shelf-body\">读经时，可以同时看四件事。第一，谁在什么问题中对谁说话？第二，前后段落的论证怎样继续？第三，它与整本圣经的其他经文怎样连接？第四，这样的解释今天要求怎样的爱、真实和责任？如果历史知识很多，生活却没有果子，就已经失去了了解上下文的目的（太 7:16-27； 雅 1:22-25）。</p>"
+        },
+        {
+          "id": "sec-22",
+          "title": "马可福音1:14-15；罗马书1:1-5；哥林多前书15:1-5｜圣经中的“福音”指什么？",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-22",
+          "html": "<h3 class=\"shelf-h2\">马可福音1:14-15；罗马书1:1-5；哥林多前书15:1-5｜圣经中的“福音”指什么？</h3>\n<p class=\"shelf-body\">“福音”原本就是好消息、喜讯的意思。在新约里，这个词并不只指“个人怎样罪得赦免，死后进入天堂”。耶稣宣告上帝的国近了，并呼召人悔改、相信福音（可1:14-15）。福音既宣告上帝的统治已经临近，也呼召人回应这统治。</p>\n<p class=\"shelf-body\">保罗把福音介绍为关于上帝儿子耶稣基督的消息，并把自己的使命与在万国中带来“信而顺服”联系起来（罗1:1-5；16:25-27）。在哥林多前书15章，他再次确认，耶稣的死与复活是自己所传福音的核心（林前15:1-5）。</p>\n<p class=\"shelf-body\">因此，“耶稣为我们的罪而死，又从死里复活”确实是福音极重要的中心。但如果把这好消息只限制在个人罪疚感的解决和天堂确据上，就可能错过耶稣所宣告的上帝国、悔改、信而顺服、新群体和新生活这些更宽广的内容。本书里的信徒起初把“福音”当作一条较窄的公式，后来逐渐扩展自己的理解，原因就在这里。</p>"
+        },
+        {
+          "id": "sec-23",
+          "title": "罗马书10:8-17｜口里的告白与信而顺服",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-23",
+          "html": "<h3 class=\"shelf-h2\">罗马书10:8-17｜口里的告白与信而顺服</h3>\n<p class=\"shelf-body\">罗马书是公元一世纪中叶写给罗马各个家庭教会的书信。群体里既有犹太人，也有外邦人。克劳狄皇帝时期曾离开罗马、后来返回的犹太信徒，与他们离开期间逐渐承担群体领导的外邦信徒之间，很可能存在重新调整关系的张力。保罗不允许任何一方凭律法或血统夸口高人一等，而是劝他们在耶稣里作为一个百姓生活（罗 2:17-29； 3:27-30； 14:1-15:13）。</p>\n<p class=\"shelf-body\">“耶稣是主”并不是像考试答题一样，准确说出一句规定好的话。在犹太圣经里，“主”会使人想到上帝的统治和拯救；在罗马社会里，这个词也与对皇帝、主人和恩主表达忠诚的语言相接。不能断言每一个作出这种告白的人都会立刻被处死，但它确实可能带来现实代价：家人的反对、与会堂群体的冲突、恩主关系的损失，以及参与行会或城市祭礼时面对的压力。</p>\n<p class=\"shelf-body\">所以，“口里承认”不只是内心秘密的同意，也包含一种公开回应：即使有损失，我仍把最终忠诚交给耶稣。同一段经文说，有人听见福音却没有“顺服”（罗 10:16）；罗马书的开头和结尾，也把福音的目标称为“信而顺服”（罗 1:5； 16:25-27）。</p>\n<p class=\"shelf-body\">罗马书大约写于公元57年，当时保罗还没有到过罗马。罗马的耶稣信徒群体中既有犹太人，也有外邦人。克劳狄皇帝时期被逐出罗马的犹太人中，已有一些人重新回到城里。许多学者认为，这种处境很可能是犹太信徒与外邦信徒需要重新调整彼此关系和生活方式的背景之一（徒18:2；罗14:1-15:13；16:3-5）。</p>"
+        },
+        {
+          "id": "sec-24",
+          "title": "马可福音10:35-45｜赎价与服事",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-24",
+          "html": "<h3 class=\"shelf-h2\">马可福音10:35-45｜赎价与服事</h3>\n<p class=\"shelf-body\">“耶稣是主”的告白，不像考试答案那样，只是准确说出一句规定的话。在犹太圣经中，“主”会使人想到上帝的统治与拯救；在罗马社会，这个词也可以用来称呼主人、恩主或统治者。不能断言，只要作出这个告白，每个人都会立刻被处死；但把最终忠诚放在耶稣身上的人，在家庭、职业、宗教仪式和社会关系中，确实可能面对真实的冲突和损失。</p>\n<p class=\"shelf-body\">“舍命作多人的赎价”正是在这个服事与权力的上下文里作总结（可 10:45）。“赎价”会使人想到为释放奴隶或俘虏所付的代价，但经文没有计算这笔钱究竟付给谁。核心是：耶稣没有用辖制的方式，而是把自己的生命交出来，使人从罪、死亡和统治人的权势下得自由。</p>\n<p class=\"shelf-body\">所以，承认“我相信代赎”，不会自然推出“耶稣替我做了，所以我什么责任都没有”。参与耶稣所开启之自由的人，要离开支配、利用别人的生活，把自己的力量和地位用在使邻舍得生命上（可 8:34-35； 腓 2:5-11）。</p>"
+        },
+        {
+          "id": "sec-25",
+          "title": "出埃及记6:6；利未记25:47-55；以赛亚书43:1｜救赎与赎回的语言",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-25",
+          "html": "<h3 class=\"shelf-h2\">出埃及记6:6；利未记25:47-55；以赛亚书43:1｜救赎与赎回的语言</h3>\n<p class=\"shelf-body\">旧约谈“救赎”时，经常会遇到两个希伯来词：“גאל”（ga&#x27;al）和“פדה”（padah）。“גאל”与近亲为家族赎回失去的土地或自由的责任有关，承担这种责任的人称为“救赎者”（go&#x27;el）。“פדה”则常用于付上代价、使人得释放或被赎回。</p>\n<p class=\"shelf-body\">这两个词的用法并不完全相同，但圣经的救赎语言里有一个共同的运动：处在捆绑中 → 上帝介入 → 被赎回、被释放 → 得自由 → 进入新的归属与生活。因此，如果只把救赎解释成“把刑罚的分数转移给另一个人”，就很容易错过圣经中释放与恢复的宽度。</p>"
+        },
+        {
+          "id": "sec-26",
+          "title": "马太福音26:26-29｜立约的血与罪得赦免",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-26",
+          "html": "<h3 class=\"shelf-h2\">马太福音26:26-29｜立约的血与罪得赦免</h3>\n<p class=\"shelf-body\">最后的晚餐发生在逾越节的记忆中。逾越节使以色列记住，他们不只免受死亡，也从埃及的奴役中得释放，成为事奉上帝的百姓（出 12:1-32； 13:3-10）。耶稣把杯称为“为多人流出来、使罪得赦免的立约之血”（太 26:28）。</p>\n<p class=\"shelf-body\">“立约的血”会让人想起出埃及记24章。摩西宣读约书时，百姓回答愿意遵行上帝的话；血则用于确认上帝与百姓关系的礼仪（出 24:3-8）。所以，罪得赦免不只是“责任消失的一张法律文件”，而是与重新回到上帝的关系里、照祂的话开始新生活相连。</p>\n<p class=\"shelf-body\">圣餐是群体用身体记住这约和耶稣自我舍弃的行动。但领饼和杯本身不会自动除罪。哥林多教会在圣餐中使贫穷肢体蒙羞，保罗因此责备他们没有分辨主的身体（林前 11:17-34）。圣餐必须继续走向一个身体中的爱与分享（林前 10:16-17）。</p>"
+        },
+        {
+          "id": "sec-27",
+          "title": "约翰福音1:29",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-27",
+          "html": "<h3 class=\"shelf-h2\">约翰福音1:29</h3>\n<p class=\"shelf-body\">“上帝的羔羊”会唤起逾越节羔羊、圣殿献祭，以及以赛亚书受苦仆人等多重圣经记忆（出 12章； 赛 53:4-7）。逾越节羔羊是以色列免于死亡、离开为奴之家的解放记号；献祭的动物显明罪和破裂关系在群体中被处理；以赛亚的仆人则呈现一种信实的服事——不以暴力回应暴力，却担当众人的罪孽。</p>\n<p class=\"shelf-body\">在约翰福音里，耶稣并不只是一个为了死亡而存在的祭物。祂呼召、教导人，赐人生命，洗门徒的脚；即使面对当时宗教领袖和权力的反对与威胁，仍遵行上帝的旨意，爱到底，并在死后复活（约10:10-18；13:1-17；20章）。所以，不应该只抽出“羔羊”一个词，就据此确定某一整套赎罪理论；要把它放回约翰福音中耶稣的生活、神迹、教导、死亡与复活的整体脉络来读。</p>"
+        },
+        {
+          "id": "sec-28",
+          "title": "利未记5-6章、16章｜献祭与“担当罪”",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-28",
+          "html": "<h3 class=\"shelf-h2\">利未记5-6章、16章｜献祭与“担当罪”</h3>\n<p class=\"shelf-body\">古代以色列的献祭，并没有被描述成“罪像物质一样自动从人身上机械转移到动物身上”的过程。犯罪的人要意识到自己的错，承认罪，并带来祭物（利 5:5-6）。若欺骗并夺取别人的财物，要先归还原物，加上赔偿，再献赎愆祭（利 6:1-7）。仪式与责任并没有分开。</p>\n<p class=\"shelf-body\">赎罪日，大祭司承认百姓的罪，把它们放在羊的头上，羊则把这些罪担当到旷野去（利 16:20-22）。这不是在科学说明一种“罪的物质”怎样转移到动物身上，而是一种象征性的祭仪表达：罪与责任在群体礼仪中被承认、被处理并除去，使人与上帝、与群体的关系重新得更新。</p>\n<p class=\"shelf-body\">“担当罪”包含承担并除去错误后果的意思，但不能把它改造成一句“加害者不再有任何责任”。献祭没有代替悔改、归还和顺服。先知拒绝那种与不义生活分开的祭祀，也正因为如此（撒上 15:22； 赛 1:10-17； 摩 5:21-24； 何 6:6）。</p>\n<p class=\"shelf-body\">希伯来书说“基督的血洁净良心”时，目的不只是让人“不再感到罪疚”。这个表达是用献祭中的洁净语言来解释耶稣的顺服与自我献上。经文所指向的是：因谎言和恐惧躲藏的人，能够来到上帝面前，服事永生的上帝（来9:13-14）。洁净的良心不是忘掉责任的良心，而是能够纠正错误、服事上帝并服事邻舍的良心。</p>"
+        },
+        {
+          "id": "sec-29",
+          "title": "罗马书3:21-31｜救赎、赎罪与排除夸口",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-29",
+          "html": "<h3 class=\"shelf-h2\">罗马书3:21-31｜救赎、赎罪与排除夸口</h3>\n<p class=\"shelf-body\">保罗说，犹太人和外邦人都在罪之下，没有任何群体可以凭血统或“拥有律法”来夸口（罗 1:18-3:20）。他讲基督里的救赎、借着血而有的赎罪，是为了显明上帝不只是一个民族的上帝，也是犹太人和外邦人共同的上帝，并排除人的夸口（罗 3:21-31）。</p>\n<p class=\"shelf-body\">救赎是从奴隶和俘虏状态被释放的图像；赎罪则是罪、破裂的关系和群体的污秽在献祭礼仪中被处理的图像。保罗没有把这些带向“所以我什么责任都没有”的结论。紧接着第6章，他解释受洗的人参与基督的死和复活，要离开罪的辖制，成为义的奴仆（罗 6:1-23）。</p>\n<p class=\"shelf-body\">当我们说“保罗反对行为”时，必须看上下文。他反对人拿自己的行为出来，好像上帝因此欠他奖赏；也反对人以割礼和律法为根据排斥别人、夸耀自己（罗 2:17-29； 4:1-5）。他并没有反对所有爱与顺服。罗马书后半部反而劝人把身体献给上帝、厌恶恶、爱仇敌、彼此接纳（罗 12:1-21； 14:1-15:7）。</p>"
+        },
+        {
+          "id": "sec-30",
+          "title": "罗马书5:6-11；12:9-21｜和好与和平的生活",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-30",
+          "html": "<h3 class=\"shelf-h2\">罗马书5:6-11；12:9-21｜和好与和平的生活</h3>\n<p class=\"shelf-body\">和好，是敌对与隔绝结束、关系重新建立的图景。保罗说，我们还是仇敌的时候，就借着基督的死与上帝和好了（罗5:6-11）。接着在罗马书12章，他劝人不要以恶报恶，若是能行，总要尽力与众人和睦，也要照顾仇敌的需要（罗12:17-21）。与上帝和好，不能与我们怎样对待邻舍的生活分开。</p>\n<p class=\"shelf-body\">和好并不意味着每一段关系都必须立刻恢复。如果对方仍用同样的方式不断伤害你，可以保持距离、保护自己。要重新亲近，也需要对方发生改变，并重新建立信任。“若是能行，总要尽力与众人和睦”的劝勉，也显出一种现实的限度：我要尽自己能做的，却不能连对方的选择也一并负责（罗12:18）。</p>"
+        },
+        {
+          "id": "sec-31",
+          "title": "哥林多后书5:18-21｜和好与“使祂为我们成为罪”",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-31",
+          "html": "<h3 class=\"shelf-h2\">哥林多后书5:18-21｜和好与“使祂为我们成为罪”</h3>\n<p class=\"shelf-body\">在哥林多后书5章18至20节，保罗说，上帝在基督里使世人与自己和好，并把使人和好的职分托付给群体。接着第21节说，上帝使那不知罪的“为我们成为罪”。</p>\n<p class=\"shelf-body\">这个句子本身并没有出现一个独立的动词，专门说明“我们的罪在法律上被归算、转移到耶稣身上”。有一种解释认为，这里的“罪”可以理解为“赎罪祭”；但与其把这一解释确定成唯一意思，不如把它保留为一种可能。保罗明确连接在一起的是罪的问题和与上帝和好。借着基督的死，罪的问题被处理，关系得到恢复；而已经和好的人，又被呼召去过使人和好的生活。</p>"
+        },
+        {
+          "id": "sec-32",
+          "title": "希伯来书5:8-10",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-32",
+          "html": "<h3 class=\"shelf-h2\">希伯来书5:8-10</h3>\n<p class=\"shelf-body\">希伯来书并没有把耶稣的大祭司职分，仅仅解释成把别的生命的血带到上帝面前。耶稣在受苦和恳切祈求中，忠实地顺服上帝的旨意，并且为一切顺从祂的人成了永远救恩的根源（来5:7-10）。这段经文把耶稣的顺服和跟随祂之人的顺服，都放在救恩的进程之中。</p>"
+        },
+        {
+          "id": "sec-33",
+          "title": "希伯来书6:4-12",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-33",
+          "html": "<h3 class=\"shelf-h2\">希伯来书6:4-12</h3>\n<p class=\"shelf-body\">我们无法完全确定希伯来书6章所有具体历史背景，但读者已经听道多年，也曾在苦难中服事群体，如今却因疲惫和压力有后退的危险（来5:11-14；10:32-39）。作者用极强烈的语言警告一种情况：“尝过天恩的滋味、又与圣灵有分”的人，明知耶稣的道路却转身离开（来6:4-8）。“与圣灵有分”并不只是听过关于圣灵的讲论，或在旁边看过别人的经历；这个表达更强。把它理解为在群体中真实共同经历过圣灵的工作和上帝的恩典，是更自然的读法（来3:1、14；6:4）。</p>\n<p class=\"shelf-body\">可是紧接着，作者称他们为“亲爱的弟兄们”，确信他们有“更美的事，就是和救恩相连的事”，又说上帝没有忘记他们服事圣徒所显出的爱和劳苦（来 6:9-12）。所以，不能把这段警告当作工具，对一个因小错误而焦虑的人说：“你永远完了。”需要分清想回来的人，和利用恩典坚持作恶的人。</p>"
+        },
+        {
+          "id": "sec-34",
+          "title": "希伯来书9:11-28｜祭仪语言、一次献上与审判",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-34",
+          "html": "<h3 class=\"shelf-h2\">希伯来书9:11-28｜祭仪语言、一次献上与审判</h3>\n<p class=\"shelf-body\">希伯来书的读者熟悉会幕、赎罪日和献祭的语言。作者使用这些礼仪中的空间、血和大祭司图像，说明借着耶稣信实地献上自己，通向上帝的道路已经决定性地打开（来9:1-14）。这里的“基督的血”并不是在解释一种叫作“血”的物质怎样神奇地发挥作用，而是用献祭中的洁净语言表达耶稣的顺服与自我献上。</p>\n<p class=\"shelf-body\">这血洁净良心的目的，不是把过去的记忆和所有责任全部删除，而是使人离开死行，事奉永生上帝（来 9:14）。良心得洁净，是原本隐藏谎言的人能够真实来到上帝面前，修补造成的伤害，再次服事群体的恢复。</p>\n<p class=\"shelf-body\">作者刚说完基督一次献上，马上又说人有一死，死后且有审判，并说基督将再次显现，为等候祂的人完成救恩（来 9:26-28）。如果把“一次”变成一套与后来的生活毫无关系的自动赦罪公式，就很难解释这种连接。“一次献上”宣告不需要再有别的祭补充耶稣的工作，也呼召人在已经打开的路上坦然前行、事奉并忍耐（来 10:19-25, 35-39）。</p>"
+        },
+        {
+          "id": "sec-35",
+          "title": "希伯来书10:19-39",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-35",
+          "html": "<h3 class=\"shelf-h2\">希伯来书10:19-39</h3>\n<p class=\"shelf-body\">既然借着耶稣的血，通向上帝的路已经打开，群体就应当存着诚心来到祂面前，持守盼望，彼此激发爱心、勉励善行，并坚持相聚（来 10:19-25）。这条打开的路不会停在个人的安心，而会继续通向群体的责任。</p>\n<p class=\"shelf-body\">接下来关于故意犯罪的警告，指向一种态度：明知真理，却有意践踏耶稣的道路，把立约的血当作平常，又亵慢施恩的圣灵（来 10:26-31）。与此同时，作者也让读者记住他们过去怎样忍受苦难、甚至甘心承受财产损失，并劝他们不要丢弃勇敢的心，要继续忍耐（来 10:32-39）。警告和鼓励，是牧养同一个群体、把他们守在生命之路上的两种声音。</p>"
+        },
+        {
+          "id": "sec-36",
+          "title": "路加福音19:1-10",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-36",
+          "html": "<h3 class=\"shelf-h2\">路加福音19:1-10</h3>\n<p class=\"shelf-body\">撒该接待耶稣以后，承诺分享财物并作出赔偿。耶稣宣告救恩临到这个家。救恩与经济责任出现在同一个场景中。</p>"
+        },
+        {
+          "id": "sec-37",
+          "title": "彼得前书2:21-24",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-37",
+          "html": "<h3 class=\"shelf-h2\">彼得前书2:21-24</h3>\n<p class=\"shelf-body\">这段经文说明，耶稣担当人的罪，是要使人向罪死、向义活。十字架与新生活在这里被直接连在一起。</p>"
+        },
+        {
+          "id": "sec-38",
+          "title": "羔羊、救赎、赎罪、和好、罪得赦免｜五幅不同的图景",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-38",
+          "html": "<h3 class=\"shelf-h2\">羔羊、救赎、赎罪、和好、罪得赦免｜五幅不同的图景</h3>\n<p class=\"shelf-body\">圣经并没有只用一套理论说明耶稣的工作。“羔羊”唤起逾越节的解放与献祭记忆；“救赎”描绘奴隶或俘虏被释放的自由；“赎罪”展现因罪而破裂的关系和群体污秽怎样在献祭礼仪中被处理；“和好”描绘敌对与隔绝结束、关系恢复；“罪得赦免”则表现错误与债务被处理，人重新被接纳进入关系。</p>\n<p class=\"shelf-body\">羔羊的图像不会停在“免于死亡”。经过逾越节，以色列离开埃及的奴役，成为事奉上帝的百姓（出 12:31-42； 19:3-6）。所以，承认耶稣是羔羊，不只包含“免于死亡”的安慰，也包含离开罪和辖制之家、服事新主人的生活（林前 5:7-8）。</p>\n<p class=\"shelf-body\">救赎包含“付出代价”的图像，但重点与其说是所有权的计算，不如说是解放。保罗讲基督里的救赎以后，马上劝人不要再让罪支配身体，而要成为义的奴仆（罗 3:24； 6:12-23）。一面说“我已经被救赎”，一面继续作贪欲、谎言和暴力的奴隶，就违背救赎的目的。</p>\n<p class=\"shelf-body\">赎罪是祭仪性的语言。罪和责任在仪式中被承认、被处理，使群体重新回到与上帝的关系。献祭礼仪没有代替悔改和赔偿；与不义生活分开的献祭也被先知拒绝（利 5:5-6； 6:1-7； 赛 1:10-17）。</p>\n<p class=\"shelf-body\">和好是关系的语言。承认自己已经与上帝和好，会影响我们怎样对待仇敌和邻舍（罗 5:10-11； 12:17-21）。并非每一段关系都能立刻恢复，但人不能持续培育报复和谎言，却只强调自己已经与上帝和好。</p>\n<p class=\"shelf-body\">罪得赦免，不是说上帝觉得错误无所谓。它意味着：承认罪并回转的人，不必永远被过去的错误关住，而能重新开始关系和生活（耶 31:31-34； 路 24:46-47）。罪得赦免也不是取消受害者权利和社会后果的一纸文件，它应当继续带向可能的道歉、归还和改变（路 19:8-10）。</p>\n<p class=\"shelf-body\">这五幅图彼此补充。耶稣的死同时照亮许多意义：免于死亡的保护、从罪的辖制中得释放、破裂关系的恢复、新约群体、真实的悔改和新的生活。若把其中一幅绝对化，就会错过其他重要意义。</p>"
+        },
+        {
+          "id": "sec-39",
+          "title": "约翰福音6:35-71｜吃生命的粮意味着什么",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-39",
+          "html": "<h3 class=\"shelf-h2\">约翰福音6:35-71｜吃生命的粮意味着什么</h3>\n<p class=\"shelf-body\">约翰福音6章发生在五饼二鱼喂饱五千人的神迹之后。群众再次寻找耶稣，是想继续得到饼；耶稣却告诉他们，不要只为必坏的食物劳力，而要为存到永生的食物劳力（约 6:1-27）。</p>\n<p class=\"shelf-body\">耶稣解释说，到祂这里来的人必定不饿，信祂的人永远不渴（约 6:35）。接着，祂用极强烈的比喻说，人必须吃祂的肉、喝祂的血才有生命（约 6:51-58）。这种表达指向的是完全接受耶稣作为生命的粮，住在祂里面，并靠着祂而活的参与（约 6:56-57）。</p>\n<p class=\"shelf-body\">门徒觉得这话难以接受时，耶稣说，叫人活着的乃是灵，肉体是无益的，祂所说的话就是灵、就是生命（约 6:60-63）。所以，很难把这段经文变成一个公式：只要物质性地领受圣餐，就会自动除罪、自动得生命。</p>\n<p class=\"shelf-body\">教会当然可以把这段经文与圣餐连在一起默想。圣餐使我们记住，我们参与耶稣的生命和自我舍弃，并同属一个身体（林前 10:16-17）。但圣餐真正的意义不会停在接过饼和杯的那一刻，而应当显现在群体生活里：接受耶稣的话、爱邻舍、不使贫穷的肢体蒙羞（林前 11:17-34）。</p>"
+        },
+        {
+          "id": "sec-40",
+          "title": "罗马书6:3-4等｜洗礼与新生命",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-40",
+          "html": "<h3 class=\"shelf-h2\">罗马书6:3-4等｜洗礼与新生命</h3>\n<p class=\"shelf-body\">罗马书6章把洗礼解释为参与基督的死与复活。旧人与基督一同埋葬，受洗的人要在新生命中行走（罗 6:3-6）。洗礼不只是过去领过的一张“得救证明”，也意味着离开罪的辖制，开始新的生活。</p>\n<p class=\"shelf-body\">使徒行传2章里，洗礼是听见福音而心里被刺痛的人悔改，奉耶稣的名公开进入群体的回应（徒 2:36-42）。罪得赦免与洗礼彼此相连，但这并不是说“水本身”具有取代悔改、信心和生活方向的魔法力量。</p>\n<p class=\"shelf-body\">哥林多前书12章说，犹太人和希腊人、为奴的和自主的，都在一位圣灵里受洗，成为一个身体（林前 12:12-13）。洗礼不是只确认个人的天堂资格，而是进入一个跨越歧视、彼此分担痛苦与喜乐的群体（林前 12:24-27）。</p>\n<p class=\"shelf-body\">马太福音最后的命令，是使人作门徒、给他们施洗，并教导他们遵守耶稣所吩咐的一切（太 28:19-20）。洗礼不是门徒训练的毕业证，而是起点。彼得前书也说，洗礼不是除掉肉体的污秽，而是向上帝存着无亏良心的回应（彼前 3:21）。</p>\n<p class=\"shelf-body\">所以，洗礼真正的意义，在于悔改离开旧生活，参与耶稣的死与复活，在新生命中行走，成为群体的肢体，并学习、实行耶稣的教导。不能把“受过洗”这个事实，和按洗礼意义继续生活拆开。</p>"
+        },
+        {
+          "id": "sec-41",
+          "title": "路加福音10:25-37；罗马书2:6-16；马太福音25:31-46；使徒行传10章｜行善的非基督徒与上帝的判断",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-41",
+          "html": "<h3 class=\"shelf-h2\">路加福音10:25-37；罗马书2:6-16；马太福音25:31-46；使徒行传10章｜行善的非基督徒与上帝的判断</h3>\n<p class=\"shelf-body\">好撒玛利亚人的比喻从一个问题开始：“我该做什么才可以承受永生？”耶稣把一个在宗教上被视为外人的撒玛利亚人，摆成实际施怜悯、成为邻舍的榜样（路10:25-37）。这个比喻本身不是解释所有人最终救恩的公式，但它清楚表明：不能只凭宗教归属，就轻易评价一个人的整个生活。</p>\n<p class=\"shelf-body\">罗马书2章说，上帝不偏待人，要按各人的行为判断，并提到没有律法的外邦人中，良心也会为他们作见证（罗2:6-16）。马太福音25章的审判场景里，人怎样对待饥饿的人、陌生人、病人和囚犯，是被认真对待的问题（太25:31-46）。不能用“行为和救恩毫无关系”一句话把这些经文抹掉。</p>\n<p class=\"shelf-body\">使徒行传10章描写哥尼流：在见彼得以前，他已经是一个敬畏上帝、帮助穷人并常常祷告的人；他也听见天使说，他的祷告和周济已经达到上帝面前，被祂记念。与此同时，上帝又差彼得去，使他听见关于耶稣的消息（徒10:1-48）。这个故事把两件事放在一起：上帝没有轻看一个人已经显出的敬畏和善，同时又使他更清楚认识借着耶稣显明的救恩消息。</p>"
+        },
+        {
+          "id": "sec-42",
+          "title": "约翰福音14:6｜“耶稣是道路”的告白与上帝的判断",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-42",
+          "html": "<h3 class=\"shelf-h2\">约翰福音14:6｜“耶稣是道路”的告白与上帝的判断</h3>\n<p class=\"shelf-body\">“我就是道路、真理、生命；若不借着我，没有人能到父那里去。”没有必要把这句话说弱。在约翰福音里，耶稣不只是一个指向上帝之路的向导，祂说自己就是那条道路。如果基督徒问：“是谁把我们带到上帝面前？”这段经文很明确地指向耶稣。</p>\n<p class=\"shelf-body\">不过，“救人的那一位是谁？”和“对于一个没有充分机会认识耶稣的具体的人，上帝最终会怎样判断他？”需要区分。约翰福音14章6节对第一个问题回答得非常清楚；但它并不是一份列出所有条件的判决书，让我们可以替上帝决定历史中每一个人究竟知道多少、怎样回应自己所领受的光。重要的是，不要把“这个人对耶稣知道多少？”和“真正拯救这个人的是谁？”变成同一个问题。</p>"
+        },
+        {
+          "id": "sec-43",
+          "title": "附录二｜救恩显现在当下生活中的圣经实例",
+          "level": 1,
+          "zone": "appendix",
+          "source": "structured",
+          "toc_id": "tb-43",
+          "html": "<h2 class=\"shelf-h1\">附录二｜救恩显现在当下生活中的圣经实例</h2>\n<p class=\"shelf-body\">下面这些例子说明，救恩可以怎样显现在今天的生活里。这并不意味着，它们就是将来在上帝国里完成之救恩的全部。一个有信心的人，即使爱人、诚实生活，也可能生病、贫穷、被拒绝。但因顺服上帝的话，从仇恨、谎言和贪欲的辖制中被释放，进入爱与真实的生活，这种改变不是未来救恩之外的附录，而是我们此刻正在经历之救恩的真实样子（罗6:17-23；8:18-25；来6:9-12）。</p>"
+        },
+        {
+          "id": "sec-44",
+          "title": "从仇恨转向爱",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-44",
+          "html": "<h3 class=\"shelf-h2\">从仇恨转向爱</h3>\n<p class=\"shelf-body\">马太福音5:43-48；路加福音6:27-36；罗马书12:17-21。爱仇敌的命令，使人从报复和憎恨的辖制中得释放。人可以承认对方的恶，却不再跟随恶的方式生活。</p>"
+        },
+        {
+          "id": "sec-45",
+          "title": "从孤立转向群体",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-45",
+          "html": "<h3 class=\"shelf-h2\">从孤立转向群体</h3>\n<p class=\"shelf-body\">使徒行传2:42-47；希伯来书10:24-25；加拉太书6:2。救恩不是只关乎个人安全，而是建立一个彼此担当重担、彼此激励爱心和善行的群体。</p>"
+        },
+        {
+          "id": "sec-46",
+          "title": "从虚假转向诚实",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-46",
+          "html": "<h3 class=\"shelf-h2\">从虚假转向诚实</h3>\n<p class=\"shelf-body\">以弗所书4:25；歌罗西书3:9-10。离开谎言、说出真话，是从恐惧和自我保护的辖制中得释放。</p>"
+        },
+        {
+          "id": "sec-47",
+          "title": "从懒惰转向责任",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-47",
+          "html": "<h3 class=\"shelf-h2\">从懒惰转向责任</h3>\n<p class=\"shelf-body\">帖撒罗尼迦后书3:10-13；以弗所书4:28；提摩太前书5:8。诚实劳动使人能够照顾自己和家人，也能与有需要的人分享。</p>"
+        },
+        {
+          "id": "sec-48",
+          "title": "从贪婪转向知足与分享",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-48",
+          "html": "<h3 class=\"shelf-h2\">从贪婪转向知足与分享</h3>\n<p class=\"shelf-body\">路加福音12:13-21；提摩太前书6:6-10、17-19；希伯来书13:5。不执着于财物，并愿意分享所需，是救恩的果子。</p>"
+        },
+        {
+          "id": "sec-49",
+          "title": "从报复转向饶恕",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-49",
+          "html": "<h3 class=\"shelf-h2\">从报复转向饶恕</h3>\n<p class=\"shelf-body\">马太福音18:21-35；以弗所书4:31-32；歌罗西书3:13。饶恕不是否认过错，而是从报复的辖制中得自由，把最终判断交给上帝。</p>"
+        },
+        {
+          "id": "sec-50",
+          "title": "从剥削转向赔偿",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-50",
+          "html": "<h3 class=\"shelf-h2\">从剥削转向赔偿</h3>\n<p class=\"shelf-body\">利未记6:1-7；民数记5:5-8；路加福音19:1-10。回到上帝面前，会表现为归还不义所得，并采取行动修复伤害。</p>"
+        },
+        {
+          "id": "sec-51",
+          "title": "从恐惧转向坦然无惧",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-51",
+          "html": "<h3 class=\"shelf-h2\">从恐惧转向坦然无惧</h3>\n<p class=\"shelf-body\">希伯来书4:14-16；10:19-23。坦然无惧不是宣称自己没有错，而是不再隐藏，敢于求怜悯，并相信自己能够重新顺服。</p>"
+        },
+        {
+          "id": "sec-52",
+          "title": "从焦虑转向信靠与今天的责任",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-52",
+          "html": "<h3 class=\"shelf-h2\">从焦虑转向信靠与今天的责任</h3>\n<p class=\"shelf-body\">马太福音6:25-34；希伯来书6:13-20。盼望不是保证问题立刻解决，而是即使摇摆，仍把心系在上帝的应许上，并继续承担今天的责任。</p>"
+        },
+        {
+          "id": "sec-53",
+          "title": "从愤怒转向温柔",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-53",
+          "html": "<h3 class=\"shelf-h2\">从愤怒转向温柔</h3>\n<p class=\"shelf-body\">雅各书1:19-20；以弗所书4:26-27、31-32。圣经不否认愤怒，却要求人不让愤怒支配自己的言语和行为。</p>"
+        },
+        {
+          "id": "sec-54",
+          "title": "从辖制转向服事",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-54",
+          "html": "<h3 class=\"shelf-h2\">从辖制转向服事</h3>\n<p class=\"shelf-body\">马可福音10:35-45；约翰福音13:1-17。耶稣的道路使人从凭力量辖制别人，转向献上自己、服事别人的生活。</p>"
+        },
+        {
+          "id": "sec-55",
+          "title": "从死亡的恐惧中得自由",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-55",
+          "html": "<h3 class=\"shelf-h2\">从死亡的恐惧中得自由</h3>\n<p class=\"shelf-body\">希伯来书2:14-15。耶稣释放那些因怕死而一生为奴的人。这种自由不是否认危险的勇气，而是在危险中仍忠于上帝、继续生活的力量。</p>"
+        },
+        {
+          "id": "sec-56",
+          "title": "附录三｜十四天对话式阅读与实践",
+          "level": 1,
+          "zone": "appendix",
+          "source": "structured",
+          "toc_id": "tb-56",
+          "html": "<h2 class=\"shelf-h1\">附录三｜十四天对话式阅读与实践</h2>"
+        },
+        {
+          "id": "sec-57",
+          "title": "第1天｜马太福音7:21-27",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-57",
+          "html": "<h3 class=\"shelf-h2\">第1天｜马太福音7:21-27</h3>\n<p class=\"shelf-body\">默想问题：“主啊”的告白，与遵行上帝旨意的生活怎样连接？</p>\n<p class=\"shelf-body\">今天的回应：把今天听见的一句话落实成一个行动。</p>"
+        },
+        {
+          "id": "sec-58",
+          "title": "第2天｜罗马书10:8-17",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-58",
+          "html": "<h3 class=\"shelf-h2\">第2天｜罗马书10:8-17</h3>\n<p class=\"shelf-body\">默想问题：口里承认，表示自己忠于谁？</p>\n<p class=\"shelf-body\">今天的回应：写下一件与告白相连的顺服。</p>"
+        },
+        {
+          "id": "sec-59",
+          "title": "第3天｜马可福音10:35-45",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-59",
+          "html": "<h3 class=\"shelf-h2\">第3天｜马可福音10:35-45</h3>\n<p class=\"shelf-body\">默想问题：在服事和权力的上下文中，“赎价”是什么意思？</p>\n<p class=\"shelf-body\">今天的回应：把我拥有的力量用来帮助一个人得生命。</p>"
+        },
+        {
+          "id": "sec-60",
+          "title": "第4天｜马太福音26:26-29",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-60",
+          "html": "<h3 class=\"shelf-h2\">第4天｜马太福音26:26-29</h3>\n<p class=\"shelf-body\">默想问题：立约的血与新的关系怎样连接？</p>\n<p class=\"shelf-body\">今天的回应：决定一个我需要在上帝和邻舍面前守住的承诺。</p>"
+        },
+        {
+          "id": "sec-61",
+          "title": "第5天｜罗马书5:6-11；12:17-21",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-61",
+          "html": "<h3 class=\"shelf-h2\">第5天｜罗马书5:6-11；12:17-21</h3>\n<p class=\"shelf-body\">默想问题：与上帝和好，会怎样引导我们对待仇敌？</p>\n<p class=\"shelf-body\">今天的回应：决定一个不以恶报恶的具体做法。</p>"
+        },
+        {
+          "id": "sec-62",
+          "title": "第6天｜罗马书6:1-14",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-62",
+          "html": "<h3 class=\"shelf-h2\">第6天｜罗马书6:1-14</h3>\n<p class=\"shelf-body\">默想问题：参与基督的死，怎样使人脱离罪的辖制？</p>\n<p class=\"shelf-body\">今天的回应：设置一个帮助自己停止重复犯罪行为的具体措施。</p>"
+        },
+        {
+          "id": "sec-63",
+          "title": "第7天｜希伯来书5:7-10",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-63",
+          "html": "<h3 class=\"shelf-h2\">第7天｜希伯来书5:7-10</h3>\n<p class=\"shelf-body\">默想问题：耶稣的顺服和我们的顺服，与救恩怎样连接？</p>\n<p class=\"shelf-body\">今天的回应：选择一件即使受损失，也要坚持的诚实行动。</p>"
+        },
+        {
+          "id": "sec-64",
+          "title": "第8天｜希伯来书6:4-12",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-64",
+          "html": "<h3 class=\"shelf-h2\">第8天｜希伯来书6:4-12</h3>\n<p class=\"shelf-body\">默想问题：严厉警告之后，为什么又记念爱的劳苦？</p>\n<p class=\"shelf-body\">今天的回应：写下一件上帝会记念的爱之行动。</p>"
+        },
+        {
+          "id": "sec-65",
+          "title": "第9天｜希伯来书6:13-20",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-65",
+          "html": "<h3 class=\"shelf-h2\">第9天｜希伯来书6:13-20</h3>\n<p class=\"shelf-body\">默想问题：灵魂的锚怎样面对焦虑？</p>\n<p class=\"shelf-body\">今天的回应：少做一次反复确认，转而承担今天的责任。</p>"
+        },
+        {
+          "id": "sec-66",
+          "title": "第10天｜希伯来书9:11-28",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-66",
+          "html": "<h3 class=\"shelf-h2\">第10天｜希伯来书9:11-28</h3>\n<p class=\"shelf-body\">默想问题：被洁净的良心怎样与服事和责任连接？</p>\n<p class=\"shelf-body\">今天的回应：在道歉、归还和赔偿中，开始一件必要的行动。</p>"
+        },
+        {
+          "id": "sec-67",
+          "title": "第11天｜希伯来书10:19-39",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-67",
+          "html": "<h3 class=\"shelf-h2\">第11天｜希伯来书10:19-39</h3>\n<p class=\"shelf-body\">默想问题：已经打开的道路、严厉的警告和忍耐，怎样同时出现？</p>\n<p class=\"shelf-body\">今天的回应：决定一件即使心里害怕，也要继续做的善行。</p>"
+        },
+        {
+          "id": "sec-68",
+          "title": "第12天｜路加福音19:1-10",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-68",
+          "html": "<h3 class=\"shelf-h2\">第12天｜路加福音19:1-10</h3>\n<p class=\"shelf-body\">默想问题：撒该的救恩怎样显现在金钱和赔偿上？</p>\n<p class=\"shelf-body\">今天的回应：具体写下一件需要在经济上修正的事。</p>"
+        },
+        {
+          "id": "sec-69",
+          "title": "第13天｜以弗所书4:25-32",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-69",
+          "html": "<h3 class=\"shelf-h2\">第13天｜以弗所书4:25-32</h3>\n<p class=\"shelf-body\">默想问题：新生活怎样显现在言语、劳动、愤怒和饶恕上？</p>\n<p class=\"shelf-body\">今天的回应：决定今天要改变的一句话或一个行为。</p>"
+        },
+        {
+          "id": "sec-70",
+          "title": "第14天｜希伯来书12:1-15",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-70",
+          "html": "<h3 class=\"shelf-h2\">第14天｜希伯来书12:1-15</h3>\n<p class=\"shelf-body\">默想问题：以忍耐奔跑的信心，怎样与群体的和平和圣洁连接？</p>\n<p class=\"shelf-body\">今天的回应：把一直独自承担的重担，告诉一个可信任的人。</p>"
+        },
+        {
+          "id": "sec-71",
+          "title": "延伸阅读｜圣餐与洗礼",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-71",
+          "html": "<h3 class=\"shelf-h2\">延伸阅读｜圣餐与洗礼</h3>\n<p class=\"shelf-body\">阅读约翰福音6:35-71；哥林多前书10:16-17；11:17-34，默想“吃生命的粮”与“分辨一个身体的生活”怎样彼此相连。</p>\n<p class=\"shelf-body\">阅读罗马书6:3-14；使徒行传2:36-42；哥林多前书12:12-27；马太福音28:19-20，默想洗礼怎样把人带进脱离罪辖制的新生活，并在群体的门徒生活中带来怎样的责任。</p>"
+        },
+        {
+          "id": "sec-72",
+          "title": "补记｜对话结束以后，问题仍然存在",
+          "level": 2,
+          "zone": "body",
+          "source": "structured",
+          "toc_id": "tb-72",
+          "html": "<h3 class=\"shelf-h2\">补记｜对话结束以后，问题仍然存在</h3>\n<p class=\"shelf-body\">在这些对话里，信徒并没有变成一个所有疑惑都解决了的“完成品”；牧者也没有成为对所有经文都握有最终答案的人。两个人真正的改变，不是问题消失，而是处理问题的方式改变了。他们不再拿熟悉的句子当盾牌抛出去，而是开始一起读经文的历史和上下文，也开始问：这样的解释使谁得生命？又要求怎样的责任？</p>\n<p class=\"shelf-body\">向罪疚感很强的人谈审判和顺服，需要格外谨慎。不能轻看小错误，却也不能把一次失误变成“与上帝的关系已经结束”的最终判决。上帝不是等人跌倒以后就把人赶出去的上帝；祂向看见错误、愿意回转的人施怜悯，使他能重新走下去（诗 103:8-14； 路 15:20-24； 来 4:14-16）。</p>\n<p class=\"shelf-body\">反过来，对那些一面讲十字架和恩典，一面持续伤害弱者、隐藏谎言、拒绝归还和赔偿的人，圣经的警告是必要的。承认相信耶稣的自我舍弃，并不等于得到权利，可以持续拒绝祂关于生命和爱的教导（太 7:21-27； 来 10:26-31； 彼前 2:21-24）。</p>\n<p class=\"shelf-body\">所以，牧养不是对所有人重复同一句话。疲惫的人需要听见上帝记得他们的爱和已经打开的道路；沉睡的人需要被呼召回转、承担责任；受伤的人首先需要安全和公义；夸耀自己义的人需要学习谦卑和群体中的平等（赛 42:3； 来 6:9-12； 雅 2:1-9）。</p>\n<p class=\"shelf-body\">读者不需要马上同意书中牧者的每一句话。请把每场对话列出的经文连同上下文一起读，也写下你想反驳的地方。只是，不要为了守住自己的结论而收集经文，而要以开放的心让圣经修正自己的思想和生活。说自己认识真理，与行在真理中，并不能分开（约 3:20-21； 约一 1:5-7）。</p>\n<p class=\"shelf-body\">结语｜安慰是使人重新上路的力量</p>\n<p class=\"shelf-body\">十字架不是一剂暂时麻醉恐惧之心的话语。上帝借着耶稣信实的自我舍弃，为我们打开了一条不再躲藏、可以来到祂面前的路（来 10:19-22）。在这条路上，我们求赦免、承认错误、修补伤害、爱邻舍；即使跌倒，也重新站起来继续顺服（太 5:23-24； 路 19:8-10； 来 10:23-25）。</p>\n<p class=\"shelf-body\">不能因为一次小失误，就断言一个人立刻与上帝的恩典隔绝，天堂之门已经关闭。上帝知道我们的软弱，也重新接纳回转的人（诗 103:8-14； 路 15:20-24）。希伯来书强烈的警告，也不是为了让想回来的人成为绝望的人（来 6:9-12）。但另一方面，也不能一面说恩典，一面故意持续拒绝耶稣关于生命和爱的教导（来 10:26-31）。</p>\n<p class=\"shelf-body\">真实的确据，不会从轻看罪中长出来。它是在相信上帝信实的应许、今天再次选择真理和爱的道路时逐渐长出来（来 6:17-20； 约一 3:18-24）。心里摇动时，也承担一件具体责任；想起上帝所记念的爱的劳苦，向祂感恩（来 6:10）。如果一个人难以承担，就向群体求助（加 6:2； 来 10:24-25）。</p>\n<p class=\"shelf-body\">十字架的恩典不是把我们藏在责任背后的恩典，而是带我们穿过真相，再次去服侍上帝和邻舍的恩典（来 9:13-14；多 2:11-14）。安慰是需要的，但圣经的安慰不会让我们一直躺在原地，而是使我们重新站起来，走在生命的道路上（来 12:12-15）。</p>"
+        }
+      ],
+      "status": "published",
+      "sort_order": 100
+    }
+  ]
+}

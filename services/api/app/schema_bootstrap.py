@@ -61,5 +61,11 @@ def bootstrap_schemas(pool) -> None:
         ensure_group_prayer_schema(pool)
     except Exception:
         logger.exception("bootstrap: group prayer schema failed")
+    try:
+        from .shelf.schema import ensure_shelf_schema
+
+        ensure_shelf_schema(pool)
+    except Exception:
+        logger.exception("bootstrap: shelf schema failed")
     _bootstrapped = True
     logger.info("schema bootstrap complete")

@@ -850,3 +850,24 @@ def admin_resolve_moderation_case(
         conn.commit()
     return {"ok": True, "id": case_id, "status": body.status}
 
+
+@router.post("/shelf/upload")
+async def admin_shelf_upload(
+    file: UploadFile = File(...),
+    title: str | None = Form(default=None),
+    sort_order: int = Form(default=0),
+    _admin: str = Depends(require_admin),
+) -> dict:
+    """管理员上传平台书架书目（DOCX）。"""
+    from ..shelf.service import import_platform_docx
+
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in {".docx"}:
+        raise HTTPException(400, "仅支持 .docx")
+    data = await file.read()
+    if len(data) > 50 * 1024 * 1024:
+        raise HTTPException(400, "文件过大（上限 50MB）")
+    if len(data) < 64:
+        raise HTTPException(400, "文件无效")
+    return import_platform_docx(data, title=title, sort_order=sort_order)
+

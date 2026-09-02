@@ -810,6 +810,41 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ],
             const SizedBox(height: 20),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '书架',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.inkSoft,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => openH5IfAllowed(context, '/shelf'),
+                  child: const Text('全部'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _ShelfCoverThumb(
+                    title: '恩典的安慰与活出来的救恩',
+                    onTap: () => openH5IfAllowed(
+                      context,
+                      '/shelf/00000000-0000-4000-8000-000000000001',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             const Text(
               '我的足迹',
               style: TextStyle(
@@ -1038,6 +1073,65 @@ class _JourneyRing extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ShelfCoverThumb extends StatelessWidget {
+  const _ShelfCoverThumb({required this.title, required this.onTap});
+
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    var hue = 0;
+    for (var i = 0; i < title.length; i++) {
+      hue = (hue * 31 + title.codeUnitAt(i)) & 0x7fffffff;
+    }
+    hue %= 360;
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          width: 72,
+          height: 100,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                HSLColor.fromAHSL(1, hue.toDouble(), 0.42, 0.38).toColor(),
+                HSLColor.fromAHSL(1, ((hue + 36) % 360).toDouble(), 0.36, 0.28)
+                    .toColor(),
+              ],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A000000),
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(8),
+          alignment: Alignment.bottomLeft,
+          child: Text(
+            title,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+        ),
       ),
     );
   }

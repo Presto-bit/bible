@@ -72,6 +72,7 @@ const SECONDARY_PREFIXES = [
   '/login',
   '/search',
   '/wrapped',
+  '/shelf',
   '/friend/add',
   '/profile/settings',
   '/profile/reminders',

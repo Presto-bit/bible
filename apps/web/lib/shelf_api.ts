@@ -1,0 +1,87 @@
+import { getJson } from './api_core';
+
+export type ShelfTocItem = {
+  id: string;
+  title: string;
+  level: number;
+  zone: 'front' | 'body' | 'appendix' | string;
+  source?: string;
+  confidence?: number;
+  section_id?: string | null;
+};
+
+export type ShelfBookSummary = {
+  id: string;
+  title: string;
+  subtitle: string;
+  author: string;
+  mime: string;
+  file_size: number;
+  section_count: number;
+  source: 'platform' | 'local';
+};
+
+export type ShelfBookDetail = ShelfBookSummary & {
+  toc: {
+    front?: ShelfTocItem[];
+    outline?: ShelfTocItem[];
+    body?: ShelfTocItem[];
+    appendix?: ShelfTocItem[];
+  };
+  sections?: { id: string; title: string; zone?: string; level?: number }[];
+};
+
+export type ShelfSection = {
+  id: string;
+  title: string;
+  zone?: string;
+  level?: number;
+  html: string;
+};
+
+export async function listPlatformShelf(): Promise<ShelfBookSummary[]> {
+  const data = await getJson<{ items: ShelfBookSummary[] }>('/shelf/platform');
+  return data.items ?? [];
+}
+
+export async function getPlatformShelfBook(id: string): Promise<ShelfBookDetail> {
+  return getJson<ShelfBookDetail>(`/shelf/platform/${encodeURIComponent(id)}`);
+}
+
+export async function getPlatformShelfSection(bookId: string, sectionId: string): Promise<ShelfSection> {
+  return getJson<ShelfSection>(
+    `/shelf/platform/${encodeURIComponent(bookId)}/sections/${encodeURIComponent(sectionId)}`,
+  );
+}
+
+export function shelfCoverHue(title: string): number {
+  let h = 0;
+  for (let i = 0; i < title.length; i += 1) h = (h * 31 + title.charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+
+const PROGRESS_KEY = 'presto_shelf_progress_v1';
+
+export function loadShelfProgress(bookId: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    if (!raw) return null;
+    const map = JSON.parse(raw) as Record<string, string>;
+    return map[bookId] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveShelfProgress(bookId: string, sectionId: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    const map = (raw ? JSON.parse(raw) : {}) as Record<string, string>;
+    map[bookId] = sectionId;
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore */
+  }
+}

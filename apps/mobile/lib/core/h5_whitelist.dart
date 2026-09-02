@@ -21,6 +21,7 @@ class H5Whitelist {
     '/privacy',
     '/report',
     '/wrapped',
+    '/shelf',
     '/profile/',
     '/settings',
     '/friend',

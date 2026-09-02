@@ -109,6 +109,13 @@ import { buildTrackedUrl } from '@/lib/acquisition';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
 import { activePlanTodayHrefSync } from '@/lib/plan_today_href';
+import {
+  listPlatformShelf,
+  loadShelfProgress,
+  shelfCoverHue,
+  type ShelfBookSummary,
+} from '@/lib/shelf_api';
+import '@/styles/shelf.css';
 
 const AVATAR_KEY = 'profile_avatar';
 const BIO_KEY = 'profile_bio';
@@ -433,6 +440,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     typeof window !== 'undefined' ? syncStateLabel(getSyncState()) : '已同步到云端',
   );
   const [bookNames, setBookNames] = useState<Record<string, string>>({});
+  const [shelfBooks, setShelfBooks] = useState<ShelfBookSummary[]>([]);
   const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -549,6 +557,13 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       void syncNow().catch(() => {});
     }
   }, []);
+
+  useEffect(() => {
+    if (!profileAwake) return;
+    listPlatformShelf()
+      .then(setShelfBooks)
+      .catch(() => setShelfBooks([]));
+  }, [profileAwake]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1269,6 +1284,47 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             </div>
           </div>
         ) : null}
+      </div>
+
+      <div className="profile-shelf-block">
+        <div className="profile-shelf-head">
+          <p className="section-label tab-section-label profile-block-label">书架</p>
+          <Link href="/shelf" className="profile-shelf-more" onClick={() => markRouteNavigation('/shelf')}>
+            全部
+          </Link>
+        </div>
+        {shelfBooks.length > 0 ? (
+          <div className="shelf-profile-preview">
+            {shelfBooks.slice(0, 6).map((book) => {
+              const hue = shelfCoverHue(book.title);
+              const progress = loadShelfProgress(book.id);
+              const href = progress
+                ? `/shelf/${book.id}?section=${encodeURIComponent(progress)}`
+                : `/shelf/${book.id}`;
+              return (
+                <Link
+                  key={book.id}
+                  href={href}
+                  className="shelf-profile-thumb"
+                  title={book.title}
+                  onClick={() => markRouteNavigation(href)}
+                  style={{
+                    background: `linear-gradient(145deg, hsl(${hue} 42% 38%), hsl(${(hue + 36) % 360} 36% 28%))`,
+                  }}
+                  aria-label={book.title}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <Link
+            href="/shelf"
+            className="card profile-shelf-empty"
+            onClick={() => markRouteNavigation('/shelf')}
+          >
+            打开书架，开始阅读
+          </Link>
+        )}
       </div>
 
       <p className="section-label tab-section-label profile-block-label">我的足迹</p>
