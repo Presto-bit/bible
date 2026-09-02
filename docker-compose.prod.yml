@@ -40,10 +40,14 @@ services:
       BIBLE_CUVS_DB_PATH: /app/build/bible_cuvs.sqlite
       BIBLE_CONTEMPORARY_DB_PATH: /app/build/bible_contemporary.sqlite
       CONTENT_DATA_DIR: /app/data
+      BIBLE_AUDIO_STORAGE_DIR: /app/data/bible_audio
+      BIBLE_AUDIO_OFFLINE: ${BIBLE_AUDIO_OFFLINE:-1}
     ports:
       - "127.0.0.1:8011:8011"
     volumes:
       - bible_sqlite_data:/app/build
+      # 朗读 MP3 离线镜像（scripts/mirror_bible_audio.py + deploy/sync_bible_audio.sh）
+      - ${BIBLE_AUDIO_HOST_DIR:-./data/bible_audio}:/app/data/bible_audio
       # RAG 源 md 与后台上传持久化（重建容器不丢资料）
       - bible_rag_content:/app/content/commentary
       - bible_rag_uploads:/app/data/rag/uploads

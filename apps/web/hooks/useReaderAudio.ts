@@ -20,6 +20,7 @@ import {
   resolveCurrentVerse,
   saveReaderAudioCheckpoint,
   saveReaderAudioSettings,
+  READER_AUDIO_ENABLED,
   type AudioTimestampVerse,
   type BibleAudioChapterMeta,
   type ReaderAudioSettings,
@@ -189,6 +190,7 @@ export function useReaderAudio({
   bookRef.current = bookId;
 
   useEffect(() => {
+    if (!READER_AUDIO_ENABLED) return;
     const el = document.createElement('audio');
     configureAudioElement(el);
     audioElRef.current = el;
@@ -739,6 +741,7 @@ export function useReaderAudio({
   }, [currentVerse, state]);
 
   useEffect(() => {
+    if (!READER_AUDIO_ENABLED) return;
     let cancelled = false;
     void fetchBibleAudioChapter(bookId, chapter, screenVersion).then((m) => {
       if (!cancelled) {
@@ -759,6 +762,7 @@ export function useReaderAudio({
 
   /** 进入章节后预加载音频 URL，点击时可直接 play()。 */
   useEffect(() => {
+    if (!READER_AUDIO_ENABLED) return;
     const el = audioElRef.current;
     const m = metaRef.current;
     if (!el || !m?.available || !m.stream_path) return;
@@ -778,7 +782,7 @@ export function useReaderAudio({
     meta,
     timestamps,
     currentVerse,
-    unavailable: meta ? !meta.available : false,
+    unavailable: !READER_AUDIO_ENABLED || (meta ? !meta.available : false),
     settings,
     focusOpen,
     setFocusOpen,

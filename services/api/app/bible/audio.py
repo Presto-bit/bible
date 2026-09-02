@@ -17,7 +17,8 @@ from . import reader
 log = logging.getLogger(__name__)
 
 FHL_AU = "https://bkbible.fhl.net/api/au.php"
-FHL_MP3_CDN = "https://media.fhl.net/unv1"
+FHL_MEDIA = "https://media.fhl.net"
+FHL_MP3_CDN_FALLBACK = "unv1"
 BB_API = "https://4.dbt.io/api"
 _HTTP_UA = "Mozilla/5.0 (compatible; BeiAi-Bible/1.0; +https://2sc.prestoai.cn)"
 _MIN_MP3_BYTES = 32 * 1024
@@ -28,6 +29,7 @@ AUDIO_SOURCES: dict[str, dict] = {
         "label": "和合本",
         "read_label": "FCBH 专业朗读",
         "fhl_version": 0,
+        "fhl_version_nt": 11,
         "provider": "fhl",
         "copyright": "音频 · Faith Comes By Hearing（FCBH）· 和合本章级专业录制",
         "granularity": "chapter",
@@ -73,14 +75,49 @@ def _fhl_bid(book_id: str) -> int:
     return int(b["sort_order"])
 
 
-def _fhl_direct_mp3_url(bid: int, chapter: int) -> str:
-    """FHL 和合本 unv1 章级 MP3 直链（FCBH 专业录制，无需 au.php）。"""
-    return f"{FHL_MP3_CDN}/{bid}/{bid}_{chapter:03d}.mp3"
+def _fhl_cdn_path(book_id: str) -> str:
+    """按新旧约选择 FHL CDN 目录（新约 springunv 音质更好）。"""
+    b = reader.resolve_book(book_id)
+    settings = get_settings()
+    if b and b.get("testament") == "NT":
+        return (settings.bible_audio_fhl_cdn_nt or "springunv").strip()
+    return (settings.bible_audio_fhl_cdn_ot or FHL_MP3_CDN_FALLBACK).strip()
 
 
-def fhl_direct_mp3_url(bid: int, chapter: int) -> str:
+def _fhl_au_version(audio_version: str, book_id: str) -> int:
+    src = AUDIO_SOURCES[audio_version]
+    b = reader.resolve_book(book_id)
+    if b and b.get("testament") == "NT":
+        return int(src.get("fhl_version_nt", src["fhl_version"]))
+    return int(src["fhl_version"])
+
+
+def _fhl_direct_mp3_url(
+    bid: int,
+    chapter: int,
+    *,
+    book_id: str | None = None,
+    cdn_path: str | None = None,
+) -> str:
+    """FHL 和合本章级 MP3 直链（FCBH 专业录制，无需 au.php）。"""
+    cdn = (cdn_path or (_fhl_cdn_path(book_id) if book_id else FHL_MP3_CDN_FALLBACK)).strip()
+    return f"{FHL_MEDIA}/{cdn}/{bid}/{bid}_{chapter:03d}.mp3"
+
+
+def _fhl_mp3_candidates(book_id: str, bid: int, chapter: int) -> list[str]:
+    """下载候选 URL：优先卷别对应 CDN，404 时回退 unv1。"""
+    primary = _fhl_direct_mp3_url(bid, chapter, book_id=book_id)
+    fallback = _fhl_direct_mp3_url(
+        bid, chapter, cdn_path=FHL_MP3_CDN_FALLBACK,
+    )
+    if primary == fallback:
+        return [primary]
+    return [primary, fallback]
+
+
+def fhl_direct_mp3_url(bid: int, chapter: int, *, book_id: str | None = None) -> str:
     """公开：供 stream 502 时重定向至 FHL CDN。"""
-    return _fhl_direct_mp3_url(bid, chapter)
+    return _fhl_direct_mp3_url(bid, chapter, book_id=book_id)
 
 
 def _http_request(url: str, *, method: str = "GET", timeout: int = 60) -> bytes:
@@ -94,11 +131,9 @@ def _http_request(url: str, *, method: str = "GET", timeout: int = 60) -> bytes:
 
 
 def _fetch_fhl_meta(audio_version: str, book_id: str, chapter: int) -> dict:
-    src = AUDIO_SOURCES[audio_version]
     bid = _fhl_bid(book_id)
-    url = (
-        f"{FHL_AU}?version={src['fhl_version']}&bid={bid}&chap={chapter}"
-    )
+    fhl_v = _fhl_au_version(audio_version, book_id)
+    url = f"{FHL_AU}?version={fhl_v}&bid={bid}&chap={chapter}"
     try:
         raw = _http_request(url, timeout=45)
         data = json.loads(raw.decode())
@@ -160,15 +195,26 @@ def ensure_cached(audio_version: str, book_id: str, chapter: int) -> Path:
         log.warning("Removing corrupt audio cache %s (%s bytes)", dest, size)
         dest.unlink(missing_ok=True)
 
+    if get_settings().bible_audio_offline:
+        raise HTTPException(status_code=404, detail="此章朗读尚未镜像到本地")
+
     bid = _fhl_bid(b["id"])
-    direct_url = _fhl_direct_mp3_url(bid, chapter)
-    try:
-        _download_mp3(direct_url, dest)
-        return dest
-    except Exception as e:
-        log.warning("FHL direct mp3 failed %s %s: %s", b["id"], chapter, e)
-        if dest.exists():
-            dest.unlink(missing_ok=True)
+    last_err: Exception | None = None
+    for direct_url in _fhl_mp3_candidates(b["id"], bid, chapter):
+        try:
+            _download_mp3(direct_url, dest)
+            return dest
+        except Exception as e:
+            last_err = e
+            log.warning(
+                "FHL direct mp3 failed %s %s (%s): %s",
+                b["id"],
+                chapter,
+                direct_url,
+                e,
+            )
+            if dest.exists():
+                dest.unlink(missing_ok=True)
 
     meta = _fetch_fhl_meta(audio_version, b["id"], chapter)
     mp3_url = meta.get("mp3")
@@ -180,7 +226,9 @@ def ensure_cached(audio_version: str, book_id: str, chapter: int) -> Path:
         log.warning("FHL mp3 download failed: %s", e)
         if dest.exists():
             dest.unlink(missing_ok=True)
-        raise HTTPException(status_code=502, detail="朗读加载失败") from e
+        raise HTTPException(
+            status_code=502, detail="朗读加载失败",
+        ) from (last_err or e)
     return dest
 
 
@@ -224,7 +272,9 @@ def chapter_entry(
         "has_timestamps": has_ts,
         "cached": cached,
         "stream_path": f"/bible/audio/stream/{av}/{b['id']}/{chapter}",
-        "fallback_stream_url": _fhl_direct_mp3_url(int(b["sort_order"]), chapter),
+        "fallback_stream_url": _fhl_direct_mp3_url(
+            int(b["sort_order"]), chapter, book_id=b["id"],
+        ),
         "timestamps_path": f"/bible/audio/timestamps/{av}/{b['id']}/{chapter}",
         "copyright": src["copyright"],
     }

@@ -90,6 +90,7 @@ import {
 } from '@/lib/reader_viewport';
 import { sliceVerseWords } from '@/lib/verse_words';
 import { useReaderAudio } from '@/hooks/useReaderAudio';
+import { READER_AUDIO_ENABLED } from '@/lib/reader_audio';
 import {
   textFromWordRange,
   wordOverlapsRange,
@@ -683,9 +684,10 @@ export default function ReaderView({
         : '',
     [audioCurrentVerse, audioState],
   );
-  const audioVisible = audioState !== 'off';
+  const audioVisible = READER_AUDIO_ENABLED && audioState !== 'off';
   const audioOrbVisible =
-    audioVisible
+    READER_AUDIO_ENABLED
+    && audioVisible
     && audioMinimized
     && !audioFocusOpen
     && !audioSettingsOpen
@@ -3217,6 +3219,7 @@ export default function ReaderView({
               <path d="M21 21l-4-4" />
             </svg>
           </Link>
+          {READER_AUDIO_ENABLED ? (
           <div className="reader-audio-btn-wrap">
             <ReaderAudioButton
               state={audioState}
@@ -3228,6 +3231,7 @@ export default function ReaderView({
               <span className="reader-audio-coach" role="status">可以听本章</span>
             ) : null}
           </div>
+          ) : null}
           <button
             type="button"
             className="reader-more"
@@ -3344,6 +3348,7 @@ export default function ReaderView({
             退出计划
           </button>
         )}
+        {READER_AUDIO_ENABLED ? (
         <ReaderAudioOrb
           visible={audioOrbVisible && !chromeHidden}
           state={audioState}
@@ -3353,6 +3358,7 @@ export default function ReaderView({
           onRestore={audioRestorePanel}
           onStop={audioStop}
         />
+        ) : null}
         <button
           type="button"
           className="reader-fab"
@@ -3368,6 +3374,7 @@ export default function ReaderView({
       </div>
       ) : null}
 
+      {READER_AUDIO_ENABLED ? (
       <ReaderAudioOrb
         visible={audioOrbVisible && chromeHidden}
         state={audioState}
@@ -3378,6 +3385,7 @@ export default function ReaderView({
         onRestore={audioRestorePanel}
         onStop={audioStop}
       />
+      ) : null}
 
       {hasSel && !overlayOpen && (
         <div
@@ -3900,6 +3908,8 @@ export default function ReaderView({
         />
       )}
 
+      {READER_AUDIO_ENABLED ? (
+      <>
       <ReaderAudioFocus
         open={audioFocusOpen}
         title={`${book.name} ${chapter}`}
@@ -3934,6 +3944,8 @@ export default function ReaderView({
         onChange={audioUpdateSettings}
         copyright={audioMeta?.copyright}
       />
+      </>
+      ) : null}
     </main>
   );
 }

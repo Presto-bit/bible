@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     bible_brain_api_key: str = ""
     # 和合本 MP3 本地缓存目录（首次请求时从上游拉取并落盘）
     bible_audio_storage_dir: str = str(REPO_ROOT / "data" / "bible_audio")
+    # 生产离线模式：仅读本地镜像，不访问 FHL 外网（配合 scripts/mirror_bible_audio.py）
+    bible_audio_offline: bool = False
+    # FHL CDN 路径：新约 springunv（128kbps 立体声），旧约 unv1（64kbps 单声道，唯一完整源）
+    bible_audio_fhl_cdn_nt: str = "springunv"
+    bible_audio_fhl_cdn_ot: str = "unv1"
 
     # ── LLM（DeepSeek，OpenAI 兼容）──
     deepseek_api_key: str = ""

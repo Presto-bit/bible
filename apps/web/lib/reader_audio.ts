@@ -2,6 +2,9 @@
 
 import { API_BASE } from './api_core';
 
+/** 暂时关闭朗读入口（恢复时改为 true）。 */
+export const READER_AUDIO_ENABLED = false;
+
 export type ReaderAudioState = 'off' | 'playing' | 'paused' | 'loading' | 'error';
 
 export interface BibleAudioChapterMeta {

@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, RedirectResponse
 
+from ..config import get_settings
 from . import audio, reader
 from .refs import parse_ref
 
@@ -146,11 +147,13 @@ def audio_stream(audio_version: str, book: str, chapter: int):
     try:
         path = audio.ensure_cached(ver, b["id"], chapter)
     except HTTPException as exc:
+        if exc.status_code == 404 and get_settings().bible_audio_offline:
+            raise
         if exc.status_code != 502:
             raise
         bid = int(b["sort_order"])
         return RedirectResponse(
-            audio.fhl_direct_mp3_url(bid, chapter),
+            audio.fhl_direct_mp3_url(bid, chapter, book_id=b["id"]),
             status_code=307,
         )
     return FileResponse(

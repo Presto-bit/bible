@@ -155,6 +155,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   bool _lastHasSelectionForAudio = false;
 
   void _syncReaderAudio() {
+    if (!kReaderAudioEnabled) return;
     final b = _book;
     if (b == null) return;
     final screenVer = _mainVersionId ?? 'cuvs';
@@ -301,10 +302,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   void _toggleChrome() {
     if (_book == null) return;
-    final audio = ref.read(readerAudioProvider);
-    if (audio.focusOpen) {
-      ref.read(readerAudioProvider.notifier).minimizePanel();
-      return;
+    if (kReaderAudioEnabled) {
+      final audio = ref.read(readerAudioProvider);
+      if (audio.focusOpen) {
+        ref.read(readerAudioProvider.notifier).minimizePanel();
+        return;
+      }
     }
     _setChrome(!_chromeHidden);
   }
@@ -498,25 +501,26 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     );
                   },
                 ),
-                ReaderAudioTopButton(
-                  session: audioSession,
-                  onTap: () {
-                    final b = _book;
-                    if (b == null) return;
-                    _onOpenOverlay();
-                    audioCtrl.tapTopBar(
-                      bookId: b.id,
-                      bookName: b.name,
-                      chapter: _chapter,
-                      screenVersion: screenVer,
-                    );
-                  },
-                  onLongPress: () {
-                    _onOpenOverlay();
-                    audioCtrl.setSettingsOpen(true);
-                    showReaderAudioSettingsSheet(context, ref);
-                  },
-                ),
+                if (kReaderAudioEnabled)
+                  ReaderAudioTopButton(
+                    session: audioSession,
+                    onTap: () {
+                      final b = _book;
+                      if (b == null) return;
+                      _onOpenOverlay();
+                      audioCtrl.tapTopBar(
+                        bookId: b.id,
+                        bookName: b.name,
+                        chapter: _chapter,
+                        screenVersion: screenVer,
+                      );
+                    },
+                    onLongPress: () {
+                      _onOpenOverlay();
+                      audioCtrl.setSettingsOpen(true);
+                      showReaderAudioSettingsSheet(context, ref);
+                    },
+                  ),
                 IconButton(
                   tooltip: '阅读设置',
                   icon: const Icon(Icons.more_vert),
@@ -711,7 +715,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               bottom: _readerFabBottomInset(context),
               child: _readerFab(),
             ),
-          if (_book != null &&
+          if (kReaderAudioEnabled &&
+              _book != null &&
               audioSession.visible &&
               audioSession.minimized &&
               !audioSession.focusOpen &&
@@ -733,12 +738,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               onRestore: audioCtrl.restorePanel,
               onStop: () => audioCtrl.stop(),
             ),
-          ReaderAudioFocusOverlay(
-            canPrevChapter: _canNavChapter(-1),
-            canNextChapter: _canNavChapter(1),
-            onPrevChapter: () => unawaited(_navWithAudioFromPanel(-1)),
-            onNextChapter: () => unawaited(_navWithAudioFromPanel(1)),
-          ),
+          if (kReaderAudioEnabled)
+            ReaderAudioFocusOverlay(
+              canPrevChapter: _canNavChapter(-1),
+              canNextChapter: _canNavChapter(1),
+              onPrevChapter: () => unawaited(_navWithAudioFromPanel(-1)),
+              onNextChapter: () => unawaited(_navWithAudioFromPanel(1)),
+            ),
         ],
       ),
     );

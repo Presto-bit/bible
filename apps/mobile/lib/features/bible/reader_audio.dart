@@ -18,6 +18,9 @@ import 'reader_audio_handler.dart';
 import 'offline_notice.dart';
 import 'reader_sheet.dart';
 
+/// 暂时关闭朗读入口（恢复时改为 true）。
+const kReaderAudioEnabled = false;
+
 class ReaderAudioSettings {
   const ReaderAudioSettings({
     this.backgroundPlay = true,
