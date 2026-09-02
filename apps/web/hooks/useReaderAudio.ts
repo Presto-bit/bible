@@ -47,7 +47,7 @@ export function useReaderAudio({
   pausedByOverlay: boolean;
   onCurrentVerseChange?: (verse: number | null) => void;
 }) {
-  const { toast } = useToast();
+  const toast = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const metaRef = useRef<BibleAudioChapterMeta | null>(null);
   const timestampsRef = useRef<AudioTimestampVerse[]>([]);

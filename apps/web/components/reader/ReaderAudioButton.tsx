@@ -58,7 +58,13 @@ export function ReaderAudioButton({
   onTap: () => void;
   onLongPress: () => void;
 }) {
-  const uiState = unavailable ? 'unavailable' : state === 'playing' ? 'playing' : state === 'paused' ? 'paused' : 'idle';
+  const uiState: ReaderAudioState | 'unavailable' = unavailable
+    ? 'unavailable'
+    : state === 'playing'
+      ? 'playing'
+      : state === 'paused'
+        ? 'paused'
+        : 'off';
   const label =
     unavailable
       ? '本章朗读，此译本不可用'

@@ -1,6 +1,6 @@
 /** 本章朗读：API、设置持久化、流 URL。 */
 
-import { API_BASE } from '../api_core';
+import { API_BASE } from './api_core';
 
 export type ReaderAudioState = 'off' | 'playing' | 'paused' | 'loading' | 'error';
 
