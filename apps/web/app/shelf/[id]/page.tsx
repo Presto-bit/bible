@@ -28,5 +28,7 @@ function ShelfBookInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const search = useSearchParams();
   const section = search.get('section');
-  return <ShelfReader bookId={id} initialSectionId={section} />;
+  const pageRaw = search.get('page');
+  const initialPageIndex = pageRaw ? Math.max(0, Number(pageRaw) || 0) : undefined;
+  return <ShelfReader bookId={id} initialSectionId={section} initialPageIndex={initialPageIndex} />;
 }

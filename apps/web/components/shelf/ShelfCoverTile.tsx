@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRef } from 'react';
-import { loadShelfProgress, shelfCoverHue, type ShelfBookSummary } from '@/lib/shelf_api';
+import { loadShelfBookProgress, shelfCoverHue, type ShelfBookSummary } from '@/lib/shelf_api';
 
 type Props = {
   book: ShelfBookSummary;
@@ -14,9 +14,11 @@ export default function ShelfCoverTile({ book, onManage }: Props) {
   const longPressFired = useRef(false);
   const startXY = useRef<{ x: number; y: number } | null>(null);
 
-  const progress = loadShelfProgress(book.id);
+  const progress = loadShelfBookProgress(book.id);
   const href = progress
-    ? `/shelf/${book.id}?section=${encodeURIComponent(progress)}`
+    ? `/shelf/${book.id}?section=${encodeURIComponent(progress.sectionId)}${
+        progress.pageIndex ? `&page=${progress.pageIndex}` : ''
+      }`
     : `/shelf/${book.id}`;
   const hue = shelfCoverHue(book.title);
 

@@ -58,12 +58,24 @@ def main() -> None:
         "sections": parsed.get("sections") or [],
         "status": "published",
         "sort_order": args.sort_order,
+        "group_id": "devotional",
     }
 
     catalog_path = ROOT / "data" / "shelf" / "platform_catalog.json"
     catalog_path.parent.mkdir(parents=True, exist_ok=True)
+    items: list = []
+    groups = None
+    if catalog_path.is_file():
+        raw = json.loads(catalog_path.read_text(encoding="utf-8"))
+        items = [i for i in (raw.get("items") or []) if i.get("id") != args.book_id]
+        groups = raw.get("groups")
+    items.append(book)
+    items.sort(key=lambda b: int(b.get("sort_order") or 0), reverse=True)
+    out_doc: dict = {"items": items}
+    if groups:
+        out_doc["groups"] = groups
     catalog_path.write_text(
-        json.dumps({"items": [book]}, ensure_ascii=False, indent=2),
+        json.dumps(out_doc, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 

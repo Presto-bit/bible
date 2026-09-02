@@ -1380,35 +1380,28 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           </Link>
         </div>
         {shelfBooks.length > 0 ? (
-          (() => {
-            const last = loadShelfLastRead();
-            const href =
-              last?.bookId && last?.sectionId
-                ? `/shelf/${last.bookId}?section=${encodeURIComponent(last.sectionId)}`
-                : '/shelf';
-            return (
-              <Link
-                href={href}
-                className="card profile-shelf-summary"
-                onClick={() => markRouteNavigation()}
-              >
-                <p className="profile-shelf-summary-count">
-                  共 {shelfBooks.length} 本书
-                </p>
-                {last?.bookTitle ? (
-                  <>
-                    <p className="profile-shelf-summary-label">上次阅读</p>
-                    <p className="profile-shelf-summary-title">{last.bookTitle}</p>
-                    {last.sectionTitle ? (
-                      <p className="profile-shelf-summary-section muted">{last.sectionTitle}</p>
-                    ) : null}
-                  </>
-                ) : (
-                  <p className="profile-shelf-summary-hint muted">打开书架，开始阅读</p>
-                )}
-              </Link>
-            );
-          })()
+          <Link
+            href="/shelf"
+            className="card profile-shelf-summary"
+            onClick={() => markRouteNavigation()}
+          >
+            <p className="profile-shelf-summary-count">共 {shelfBooks.length} 本书</p>
+            {(() => {
+              const last = loadShelfLastRead();
+              if (!last?.bookTitle) {
+                return <p className="profile-shelf-summary-hint muted">打开书架，开始阅读</p>;
+              }
+              return (
+                <>
+                  <p className="profile-shelf-summary-label">上次阅读</p>
+                  <p className="profile-shelf-summary-title">{last.bookTitle}</p>
+                  {last.sectionTitle ? (
+                    <p className="profile-shelf-summary-section muted">{last.sectionTitle}</p>
+                  ) : null}
+                </>
+              );
+            })()}
+          </Link>
         ) : (
           <Link
             href="/shelf"

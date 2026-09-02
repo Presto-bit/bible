@@ -1,7 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { bumpShelfFontPx, getShelfFontPx, setShelfFontPx, SHELF_FONT_STEPS } from '@/lib/shelf_reading';
+import {
+  bumpShelfFontPx,
+  getShelfFontPx,
+  getShelfLineHeight,
+  setShelfFontPx,
+  setShelfLineHeight,
+  SHELF_FONT_STEPS,
+} from '@/lib/shelf_reading';
 
 type Props = {
   fontPx: number;
@@ -35,16 +42,43 @@ export default function ShelfReadingBar({ fontPx, onChange }: Props) {
 }
 
 export function useShelfFontPx(): [number, (px: number) => void] {
-  const [fontPx, setFontPxState] = useState(18);
+  const prefs = useShelfReadingPrefs();
+  return [prefs.fontPx, prefs.setFontPx];
+}
 
-  useEffect(() => {
+export function useShelfReadingPrefs() {
+  const [fontPx, setFontPxState] = useState(18);
+  const [lineHeight, setLineHeightState] = useState(1.9);
+  const [, syncTick] = useState(0);
+
+  const sync = useCallback(() => {
     setFontPxState(getShelfFontPx());
+    setLineHeightState(getShelfLineHeight());
+    syncTick((n) => n + 1);
   }, []);
 
-  const setFontPxAndStore = useCallback((px: number) => {
+  useEffect(() => {
+    sync();
+  }, [sync]);
+
+  useEffect(() => {
+    window.addEventListener('focus', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('focus', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [sync]);
+
+  const setFontPx = useCallback((px: number) => {
     setShelfFontPx(px);
     setFontPxState(getShelfFontPx());
   }, []);
 
-  return [fontPx, setFontPxAndStore];
+  const setLineHeight = useCallback((value: number) => {
+    setShelfLineHeight(value);
+    setLineHeightState(getShelfLineHeight());
+  }, []);
+
+  return { fontPx, lineHeight, setFontPx, setLineHeight };
 }

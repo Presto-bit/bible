@@ -114,18 +114,36 @@ export function shelfCoverHue(title: string): number {
 
 const PROGRESS_KEY = 'presto_shelf_progress_v1';
 
+export type ShelfBookProgress = {
+  sectionId: string;
+  pageIndex?: number;
+};
+
 export type ShelfLastRead = {
   bookId: string;
   sectionId: string;
   bookTitle: string;
   sectionTitle: string;
+  pageIndex?: number;
   at: number;
 };
 
 type ShelfProgressStore = {
-  byBook: Record<string, string>;
+  byBook: Record<string, ShelfBookProgress | string>;
   last?: ShelfLastRead;
 };
+
+function normalizeBookProgress(raw: ShelfBookProgress | string | undefined): ShelfBookProgress | null {
+  if (!raw) return null;
+  if (typeof raw === 'string') return { sectionId: raw, pageIndex: 0 };
+  if (typeof raw.sectionId === 'string') {
+    return {
+      sectionId: raw.sectionId,
+      pageIndex: typeof raw.pageIndex === 'number' ? raw.pageIndex : 0,
+    };
+  }
+  return null;
+}
 
 function readProgressStore(): ShelfProgressStore {
   if (typeof window === 'undefined') return { byBook: {} };
@@ -152,7 +170,11 @@ function writeProgressStore(store: ShelfProgressStore) {
 }
 
 export function loadShelfProgress(bookId: string): string | null {
-  return readProgressStore().byBook[bookId] ?? null;
+  return loadShelfBookProgress(bookId)?.sectionId ?? null;
+}
+
+export function loadShelfBookProgress(bookId: string): ShelfBookProgress | null {
+  return normalizeBookProgress(readProgressStore().byBook[bookId]);
 }
 
 export function loadShelfLastRead(): ShelfLastRead | null {
@@ -163,15 +185,17 @@ export function saveShelfProgress(
   bookId: string,
   sectionId: string,
   meta?: { bookTitle?: string; sectionTitle?: string },
+  pageIndex = 0,
 ) {
   const store = readProgressStore();
-  store.byBook[bookId] = sectionId;
+  store.byBook[bookId] = { sectionId, pageIndex: Math.max(0, pageIndex) };
   if (meta?.bookTitle) {
     store.last = {
       bookId,
       sectionId,
       bookTitle: meta.bookTitle,
       sectionTitle: meta.sectionTitle || '',
+      pageIndex: Math.max(0, pageIndex),
       at: Date.now(),
     };
   }

@@ -1,22 +1,24 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
+import { forwardRef, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import PageBackBar from '@/components/PageBackBar';
 import {
   getPlatformShelfBook,
   getPlatformShelfSection,
-  loadShelfProgress,
+  loadShelfBookProgress,
   peekShelfSectionCache,
   prefetchShelfSection,
   saveShelfProgress,
   type ShelfBookDetail,
   type ShelfSection,
 } from '@/lib/shelf_api';
-import ShelfReadingBar, { useShelfFontPx } from '@/components/shelf/ShelfReadingBar';
+import { useShelfReadingPrefs } from '@/components/shelf/ShelfReadingBar';
+import ShelfFontSheet from '@/components/shelf/ShelfFontSheet';
 import { shelfReadingStyleVars } from '@/lib/shelf_reading';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
+import { useShelfSectionPages } from '@/hooks/useShelfSectionPages';
 import '@/styles/shelf.css';
 
 const ShelfLessonPanel = dynamic(() => import('@/components/shelf/ShelfLessonPanel'), {
@@ -27,25 +29,46 @@ const ShelfLessonPanel = dynamic(() => import('@/components/shelf/ShelfLessonPan
 type Props = {
   bookId: string;
   initialSectionId?: string | null;
+  initialPageIndex?: number;
 };
 
-const SectionPage = memo(function SectionPage({
-  html,
-  onTap,
-}: {
-  html: string;
-  onTap?: () => void;
-}) {
-  return (
-    <article
-      className="shelf-turn-scroll shelf-prose"
-      onClick={onTap}
-      dangerouslySetInnerHTML={{ __html: html || '' }}
-    />
-  );
-});
+const SectionPage = memo(
+  forwardRef<
+    HTMLElement,
+    {
+      html: string;
+      pageOffset?: number;
+      onTap?: () => void;
+    }
+  >(function SectionPage({ html, pageOffset = 0, onTap }, ref) {
+    return (
+      <article
+        ref={ref}
+        className="shelf-turn-page shelf-prose"
+        style={pageOffset > 0 ? { transform: `translateY(-${pageOffset}px)` } : undefined}
+        onClick={onTap}
+        dangerouslySetInnerHTML={{ __html: html || '' }}
+      />
+    );
+  }),
+);
 
-export default function ShelfReader({ bookId, initialSectionId }: Props) {
+function resolveSectionStartPage(
+  bookId: string,
+  sectionId: string | null,
+  initialSectionId?: string | null,
+  initialPageIndex?: number,
+): number {
+  if (!sectionId) return 0;
+  if (initialSectionId === sectionId && initialPageIndex != null) {
+    return Math.max(0, initialPageIndex);
+  }
+  const saved = loadShelfBookProgress(bookId);
+  if (saved?.sectionId === sectionId) return Math.max(0, saved.pageIndex ?? 0);
+  return 0;
+}
+
+export default function ShelfReader({ bookId, initialSectionId, initialPageIndex }: Props) {
   const [book, setBook] = useState<ShelfBookDetail | null>(null);
   const [sectionId, setSectionId] = useState<string | null>(initialSectionId ?? null);
   const [section, setSection] = useState<ShelfSection | null>(null);
@@ -55,12 +78,15 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
   const [sectionLoading, setSectionLoading] = useState(false);
   const [err, setErr] = useState('');
   const [tocOpen, setTocOpen] = useState(false);
+  const [fontOpen, setFontOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
-  const [fontPx, setFontPx] = useShelfFontPx();
+  const { fontPx, lineHeight, setFontPx, setLineHeight } = useShelfReadingPrefs();
+  const [sectionPageSeed, setSectionPageSeed] = useState(0);
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pageViewportRef = useRef<HTMLDivElement>(null);
+  const articleRef = useRef<HTMLElement>(null);
 
   const isLesson = section?.kind === 'lesson';
-  const isCollection = book?.book_type === 'collection';
 
   const sections = book?.sections ?? [];
   const sectionIndex = useMemo(
@@ -68,8 +94,20 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
     [sections, sectionId],
   );
 
-  const canPrev = sectionIndex > 0;
-  const canNext = sectionIndex >= 0 && sectionIndex < sections.length - 1;
+  const canPrevSection = sectionIndex > 0;
+  const canNextSection = sectionIndex >= 0 && sectionIndex < sections.length - 1;
+
+  const pageContentKey = `${sectionId ?? ''}-${fontPx}-${lineHeight}-${sectionPageSeed}`;
+
+  const { pageIndex, pageCount, pageHeight, goPage } = useShelfSectionPages(
+    articleRef,
+    pageViewportRef,
+    pageContentKey,
+    sectionPageSeed,
+  );
+
+  const canPrevTurn = pageIndex > 0 || canPrevSection;
+  const canNextTurn = pageIndex < pageCount - 1 || canNextSection;
 
   const neighborId = useCallback(
     (delta: number) => {
@@ -103,15 +141,9 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
       .then((detail) => {
         if (cancelled) return;
         setBook(detail);
-        const saved = loadShelfProgress(bookId);
+        const saved = loadShelfBookProgress(bookId);
         const first = detail.sections?.[0]?.id ?? null;
-        const pick = initialSectionId || saved || first;
-        const collection = detail.book_type === 'collection';
-        if (collection && !initialSectionId && !saved) {
-          setSectionId(null);
-          setTocOpen(true);
-          return;
-        }
+        const pick = initialSectionId || saved?.sectionId || first;
         setSectionId(pick);
       })
       .catch(() => {
@@ -124,6 +156,13 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
       cancelled = true;
     };
   }, [bookId, initialSectionId]);
+
+  useEffect(() => {
+    if (!sectionId) return;
+    setSectionPageSeed(
+      resolveSectionStartPage(bookId, sectionId, initialSectionId, initialPageIndex),
+    );
+  }, [bookId, sectionId, initialSectionId, initialPageIndex]);
 
   useEffect(() => {
     if (!sectionId) return;
@@ -144,13 +183,6 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
         setSection(s);
         setSectionLoading(false);
         syncNeighborsFromCache(sectionId);
-        if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
-        progressTimerRef.current = setTimeout(() => {
-          saveShelfProgress(bookId, sectionId, {
-            bookTitle: book?.title,
-            sectionTitle: s.title,
-          });
-        }, 400);
         const nextId = neighborId(1);
         prefetchShelfSection(bookId, nextId);
       })
@@ -163,7 +195,26 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [bookId, sectionId, book?.title, neighborId, syncNeighborsFromCache]);
+  }, [bookId, sectionId, neighborId, syncNeighborsFromCache]);
+
+  useEffect(() => {
+    if (!sectionId) return;
+    if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+    progressTimerRef.current = setTimeout(() => {
+      saveShelfProgress(
+        bookId,
+        sectionId,
+        {
+          bookTitle: book?.title,
+          sectionTitle: section?.title,
+        },
+        isLesson ? 0 : pageIndex,
+      );
+    }, 350);
+    return () => {
+      if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+    };
+  }, [bookId, sectionId, pageIndex, isLesson, book?.title, section?.title]);
 
   const prefetchNeighbor = useCallback(
     (delta: number) => {
@@ -197,11 +248,21 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
   }, [goSection, sectionIndex, sections]);
 
   const pageTurn = useReaderPageTurn({
-    enabled: !isLesson && !!section?.html && !tocOpen,
-    canPrev,
-    canNext,
-    blocked: tocOpen,
+    enabled: !!section && (!isLesson ? !!section.html : true) && !tocOpen && !fontOpen,
+    canPrev: canPrevTurn,
+    canNext: canNextTurn,
+    blocked: tocOpen || fontOpen,
     onChapterChange: (delta) => {
+      if (!isLesson && pageCount > 1) {
+        if (delta > 0 && pageIndex < pageCount - 1) {
+          goPage(1);
+          return;
+        }
+        if (delta < 0 && pageIndex > 0) {
+          goPage(-1);
+          return;
+        }
+      }
       if (delta < 0) goPrev();
       else goNext();
     },
@@ -213,13 +274,18 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
     [book?.toc, book?.book_type],
   );
 
+  const chromeVisible = !chromeHidden || isLesson;
+  const showBottomBar = chromeVisible && !tocOpen && !fontOpen;
+
+  const backBar = (
+    <PageBackBar href="/shelf" className="shelf-nav-back" ariaLabel="返回书架" />
+  );
+
   if (loading && !book) {
     return (
       <main className="shelf-reader">
         <div className="shelf-reader-top">
-          <Link href="/shelf" className="nav-back nav-back-page" aria-label="返回书架">
-            ‹
-          </Link>
+          {backBar}
           <h1>加载中…</h1>
         </div>
       </main>
@@ -230,16 +296,16 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
     return (
       <main className="shelf-reader">
         <div className="shelf-reader-top">
-          <Link href="/shelf" className="nav-back nav-back-page" aria-label="返回书架">
-            ‹
-          </Link>
+          {backBar}
           <h1>{err}</h1>
         </div>
       </main>
     );
   }
 
-  const title = section?.title || (tocOpen && !sectionId ? book?.title : '') || book?.title || '阅读';
+  const title = section?.title || book?.title || '阅读';
+  const pageOffset = pageIndex * pageHeight;
+  const showPageIndicator = !isLesson && pageCount > 1 && !chromeHidden;
 
   return (
     <main
@@ -251,30 +317,39 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
       ]
         .filter(Boolean)
         .join(' ')}
-      style={shelfReadingStyleVars(fontPx)}
+      style={shelfReadingStyleVars(fontPx, lineHeight)}
     >
       <header className="shelf-reader-top">
-        <Link href="/shelf" className="nav-back nav-back-page" aria-label="返回书架">
-          ‹
-        </Link>
+        {backBar}
         <div className="shelf-reader-title-wrap">
           {section?.unit ? <span className="shelf-reader-unit">{section.unit}</span> : null}
           <h1>{title}</h1>
         </div>
-        <ShelfReadingBar fontPx={fontPx} onChange={setFontPx} />
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="目录"
-          onClick={() => setTocOpen(true)}
-        >
-          ☰
-        </button>
       </header>
 
       {isLesson && section ? (
-        <div className="shelf-reader-body shelf-reader-body-lesson">
-          <ShelfLessonPanel bookId={bookId} section={section} />
+        <div
+          className={`shelf-turn-viewport shelf-turn-viewport-lesson${pageTurn.turning ? ' is-turning' : ''}`}
+          ref={pageTurn.viewportRef}
+          onPointerDown={pageTurn.onPointerDown}
+          onPointerMove={pageTurn.onPointerMove}
+          onPointerUp={pageTurn.onPointerUp}
+          onPointerCancel={pageTurn.onPointerCancel}
+        >
+          {sectionLoading && !pageTurn.turning ? (
+            <p className="shelf-section-loading muted" role="status">
+              加载中…
+            </p>
+          ) : null}
+          <div className="shelf-turn-track" ref={pageTurn.trackRef}>
+            <div className="shelf-turn-panel shelf-turn-panel-peek" aria-hidden />
+            <div className="shelf-turn-panel shelf-turn-panel-active">
+              <div className="shelf-reader-body shelf-reader-body-lesson">
+                <ShelfLessonPanel bookId={bookId} section={section} />
+              </div>
+            </div>
+            <div className="shelf-turn-panel shelf-turn-panel-peek" aria-hidden />
+          </div>
         </div>
       ) : section?.html ? (
         <div
@@ -286,40 +361,71 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
           onPointerCancel={pageTurn.onPointerCancel}
         >
           {sectionLoading && !pageTurn.turning ? (
-            <p className="shelf-section-loading muted" role="status">加载中…</p>
+            <p className="shelf-section-loading muted" role="status">
+              加载中…
+            </p>
           ) : null}
           <div className="shelf-turn-track" ref={pageTurn.trackRef}>
             <div className="shelf-turn-panel shelf-turn-panel-peek">
-              <SectionPage html={prevSection?.html ?? ''} />
+              <div className="shelf-page-viewport">
+                <SectionPage html={prevSection?.html ?? ''} />
+              </div>
             </div>
             <div className="shelf-turn-panel shelf-turn-panel-active">
-              <SectionPage
-                html={section.html}
-                onTap={() => setChromeHidden((v) => !v)}
-              />
+              <div className="shelf-page-viewport" ref={pageViewportRef}>
+                <SectionPage
+                  ref={articleRef}
+                  html={section.html}
+                  pageOffset={pageOffset}
+                  onTap={() => setChromeHidden((v) => !v)}
+                />
+              </div>
             </div>
             <div className="shelf-turn-panel shelf-turn-panel-peek">
-              <SectionPage html={nextSection?.html ?? ''} />
+              <div className="shelf-page-viewport">
+                <SectionPage html={nextSection?.html ?? ''} />
+              </div>
             </div>
           </div>
         </div>
       ) : (
         <div className="shelf-reader-body shelf-reader-body-pick">
-          <p className="muted">请从目录选择一课</p>
+          <p className="muted">{sectionLoading ? '加载中…' : '暂无内容'}</p>
         </div>
       )}
 
-      <nav className="shelf-reader-nav" aria-label="章节导航">
-        <button type="button" onClick={goPrev} disabled={!canPrev}>
-          {isCollection ? '上一课' : '上一节'}
-        </button>
-        <button type="button" onClick={() => setTocOpen(true)}>
-          目录
-        </button>
-        <button type="button" onClick={goNext} disabled={!canNext}>
-          {isCollection ? '下一课' : '下一节'}
-        </button>
-      </nav>
+      {showPageIndicator ? (
+        <div className="shelf-page-indicator" aria-live="polite">
+          {pageIndex + 1} / {pageCount}
+        </div>
+      ) : null}
+
+      {showBottomBar ? (
+        <nav className="shelf-reader-bottom" aria-label="阅读工具">
+          <button
+            type="button"
+            className="shelf-reader-bottom-btn"
+            aria-label="目录"
+            onClick={() => setTocOpen(true)}
+          >
+            <span className="shelf-reader-bottom-icon" aria-hidden>
+              ☰
+            </span>
+            <span>目录</span>
+          </button>
+          <button
+            type="button"
+            className="shelf-reader-bottom-btn"
+            aria-label="字体设置"
+            onClick={() => setFontOpen(true)}
+          >
+            <span className="shelf-reader-bottom-icon" aria-hidden>
+              Aa
+            </span>
+            <span>字体</span>
+          </button>
+        </nav>
+      ) : null}
 
       {tocOpen ? (
         <div
@@ -369,6 +475,15 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
           </div>
         </div>
       ) : null}
+
+      <ShelfFontSheet
+        open={fontOpen}
+        fontPx={fontPx}
+        lineHeight={lineHeight}
+        onClose={() => setFontOpen(false)}
+        onFontChange={setFontPx}
+        onLineHeightChange={setLineHeight}
+      />
     </main>
   );
 }
