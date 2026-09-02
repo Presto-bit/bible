@@ -72,6 +72,13 @@ export default function ShelfReader({
   const isLesson = section?.kind === 'lesson';
   const contentKey = `${bookId}:${sectionId}:${fontPx}:${lineHeight}`;
 
+  const isPdfSection = useMemo(() => {
+    const p = section?.primary;
+    if (!p?.storage_key) return false;
+    const mime = p.mime || '';
+    return mime.includes('pdf') || p.storage_key.toLowerCase().endsWith('.pdf');
+  }, [section?.primary]);
+
   const sections = book?.sections ?? [];
   const sectionIndex = useMemo(
     () => sections.findIndex((s) => s.id === sectionId),
@@ -80,8 +87,8 @@ export default function ShelfReader({
 
   const canPrevSection = sectionIndex > 0;
   const canNextSection = sectionIndex >= 0 && sectionIndex < sections.length - 1;
-  const canPrev = pageIndex > 0 || canPrevSection;
-  const canNext = pageIndex < pageCount - 1 || canNextSection;
+  const canPrev = isPdfSection ? canPrevSection : pageIndex > 0 || canPrevSection;
+  const canNext = isPdfSection ? canNextSection : pageIndex < pageCount - 1 || canNextSection;
 
   useEffect(() => {
     setShelfReaderChrome(true);
@@ -290,6 +297,11 @@ export default function ShelfReader({
 
   const resolveTurn = useCallback(
     (delta: 1 | -1): ShelfTurnKind => {
+      if (isPdfSection) {
+        if (delta > 0 && canNextSection) return 'section';
+        if (delta < 0 && canPrevSection) return 'section';
+        return 'none';
+      }
       if (delta > 0) {
         if (pageIndex < pageCount - 1) return 'page';
         if (canNextSection) return 'section';
@@ -299,7 +311,7 @@ export default function ShelfReader({
       if (canPrevSection) return 'section';
       return 'none';
     },
-    [pageIndex, pageCount, canNextSection, canPrevSection],
+    [isPdfSection, pageIndex, pageCount, canNextSection, canPrevSection],
   );
 
   const pageTurn = useShelfTurn({
@@ -352,6 +364,17 @@ export default function ShelfReader({
           pageIndex={idx}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
           onPageCount={interactive ? setPageCountForSection : undefined}
+          onPageIndexChange={interactive ? setPageIndex : undefined}
+          onSectionEdge={
+            interactive
+              ? (edge) => {
+                  if (edge === 'next') goNextSection();
+                  else goPrevSection();
+                }
+              : undefined
+          }
+          canPrevSection={canPrevSection}
+          canNextSection={canNextSection}
           onTap={interactive ? onContentTap : undefined}
           pdfFullscreen={interactive && pdfFullscreen}
           onExitPdfFullscreen={interactive ? () => setPdfFullscreen(false) : undefined}
@@ -414,6 +437,7 @@ export default function ShelfReader({
         'shelf-reader',
         chromeHidden ? 'shelf-reader-hidden' : '',
         isLesson ? 'shelf-reader-lesson' : '',
+        isPdfSection ? 'shelf-reader-pdf-scroll' : '',
         pageTurn.turning ? 'shelf-reader-turning' : '',
         pdfFullscreen ? 'shelf-reader-pdf-fullscreen' : '',
       ]

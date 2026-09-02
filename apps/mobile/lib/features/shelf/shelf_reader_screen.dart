@@ -50,12 +50,12 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   var _chromeHidden = false;
   var _pendingLastPage = false;
   var _overlayOpen = 0;
-  var _pdfFullscreen = false;
   Timer? _progressTimer;
   final _pageBySection = <String, int>{};
   final _pageCountBySection = <String, int>{};
 
-  bool get _blocked => _overlayOpen > 0 || _pdfFullscreen;
+  bool get _blocked => _overlayOpen > 0;
+  bool get _isPdfSection => _section?.hasPdfPrimary ?? false;
 
   @override
   void initState() {
@@ -171,8 +171,10 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
 
   bool get _canPrevSection => _sectionIndex > 0;
   bool get _canNextSection => _sectionIndex >= 0 && _sectionIndex < _sections.length - 1;
-  bool get _canPrev => _pageIndex > 0 || _canPrevSection;
-  bool get _canNext => _pageIndex < _pageCount - 1 || _canNextSection;
+  bool get _canPrev =>
+      _isPdfSection ? _canPrevSection : _pageIndex > 0 || _canPrevSection;
+  bool get _canNext =>
+      _isPdfSection ? _canNextSection : _pageIndex < _pageCount - 1 || _canNextSection;
 
   void _scheduleProgress() {
     _progressTimer?.cancel();
@@ -205,6 +207,20 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     });
   }
 
+  void _onPageIndexChange(int index) {
+    if (!mounted || index == _pageIndex) return;
+    setState(() => _pageIndex = index);
+    _scheduleProgress();
+  }
+
+  void _onPdfSectionEdge(String edge) {
+    if (edge == 'next' && _canNextSection) {
+      _goSection(_sections[_sectionIndex + 1].id, page: 0);
+    } else if (edge == 'prev' && _canPrevSection) {
+      _goSection(_sections[_sectionIndex - 1].id, lastPage: true);
+    }
+  }
+
   void _goSection(String? id, {int? page, bool lastPage = false}) {
     if (id == null) return;
     final cur = _sectionId;
@@ -214,7 +230,6 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       _section = null;
       _pageCount = _pageCountBySection[id] ?? 1;
       _chromeHidden = false;
-      _pdfFullscreen = false;
       if (lastPage) {
         _pendingLastPage = true;
         _pageIndex = 0;
@@ -230,6 +245,12 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   void _turnNext() {
+    if (_isPdfSection) {
+      if (_canNextSection) {
+        _goSection(_sections[_sectionIndex + 1].id, page: 0);
+      }
+      return;
+    }
     if (_pageIndex < _pageCount - 1) {
       setState(() => _pageIndex += 1);
       _scheduleProgress();
@@ -242,6 +263,12 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   void _turnPrev() {
+    if (_isPdfSection) {
+      if (_canPrevSection) {
+        _goSection(_sections[_sectionIndex - 1].id, lastPage: true);
+      }
+      return;
+    }
     if (_pageIndex > 0) {
       setState(() => _pageIndex -= 1);
       _scheduleProgress();
@@ -457,15 +484,17 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
 
     if (section.hasPdfPrimary && section.primary != null) {
       return ShelfPdfPageView(
-        key: ValueKey('${section.primary!.storageKey}:$_pdfFullscreen'),
+        key: ValueKey(section.primary!.storageKey),
         repo: repo,
         bookId: widget.bookId,
         storageKey: section.primary!.storageKey,
         pageIndex: _pageIndex,
-        fullscreen: _pdfFullscreen,
+        canPrevSection: _canPrevSection,
+        canNextSection: _canNextSection,
         onPageCount: _onPageCount,
-        onTap: _pdfFullscreen ? null : _toggleChrome,
-        onExitFullscreen: () => setState(() => _pdfFullscreen = false),
+        onPageIndexChange: _onPageIndexChange,
+        onSectionEdge: _onPdfSectionEdge,
+        onTap: _toggleChrome,
       );
     }
 
@@ -478,7 +507,6 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final images = section.attachments.where((a) => a.kind == 'image').toList();
     final videos = section.attachments.where((a) => a.kind == 'video').toList();
     final hasMedia = images.isNotEmpty || videos.isNotEmpty;
-    final hasPdf = section.hasPdfPrimary;
 
     return Stack(
       fit: StackFit.expand,
@@ -490,7 +518,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
             child: _buildPrimary(section, prefs, repo),
           ),
         ),
-        if (hasMedia && !_pdfFullscreen)
+        if (hasMedia)
           Positioned(
             right: 12,
             bottom: 12,
@@ -504,21 +532,6 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   child: Text('素材', style: TextStyle(color: Colors.white, fontSize: 13)),
                 ),
-              ),
-            ),
-          ),
-        if (hasPdf && !_pdfFullscreen)
-          Positioned(
-            right: 12,
-            top: 8,
-            child: Material(
-              color: AppColors.paper.withValues(alpha: 0.92),
-              shape: const CircleBorder(),
-              elevation: 1,
-              child: IconButton(
-                icon: const Icon(Icons.fullscreen, size: 20),
-                tooltip: '全屏阅读 PDF',
-                onPressed: () => setState(() => _pdfFullscreen = true),
               ),
             ),
           ),
@@ -549,7 +562,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final book = _book!;
     final section = _section;
     final title = section?.title ?? book.title;
-    final showBar = !_chromeHidden && !_pdfFullscreen;
+    final showBar = !_chromeHidden;
     final showPageIndicator = _pageCount > 1 && showBar;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(

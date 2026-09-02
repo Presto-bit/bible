@@ -18,6 +18,10 @@ type Props = {
   pageIndex: number;
   contentKey: string;
   onPageCount?: (count: number) => void;
+  onPageIndexChange?: (index: number) => void;
+  onSectionEdge?: (edge: 'prev' | 'next') => void;
+  canPrevSection?: boolean;
+  canNextSection?: boolean;
   onTap?: () => void;
   pdfFullscreen?: boolean;
   onExitPdfFullscreen?: () => void;
@@ -30,6 +34,10 @@ export default function ShelfLessonPanel({
   pageIndex,
   contentKey,
   onPageCount,
+  onPageIndexChange,
+  onSectionEdge,
+  canPrevSection = false,
+  canNextSection = false,
   onTap,
   pdfFullscreen = false,
   onExitPdfFullscreen,
@@ -49,6 +57,10 @@ export default function ShelfLessonPanel({
         pageIndex={pageIndex}
         contentKey={contentKey}
         onPageCount={onPageCount}
+        onPageIndexChange={onPageIndexChange}
+        onSectionEdge={onSectionEdge}
+        canPrevSection={canPrevSection}
+        canNextSection={canNextSection}
         onTap={onTap}
         pdfFullscreen={pdfFullscreen}
         onExitPdfFullscreen={onExitPdfFullscreen}
@@ -96,6 +108,10 @@ function ShelfPrimaryView({
   pageIndex,
   contentKey,
   onPageCount,
+  onPageIndexChange,
+  onSectionEdge,
+  canPrevSection = false,
+  canNextSection = false,
   onTap,
   pdfFullscreen,
   onExitPdfFullscreen,
@@ -105,6 +121,10 @@ function ShelfPrimaryView({
   pageIndex: number;
   contentKey: string;
   onPageCount?: (count: number) => void;
+  onPageIndexChange?: (index: number) => void;
+  onSectionEdge?: (edge: 'prev' | 'next') => void;
+  canPrevSection?: boolean;
+  canNextSection?: boolean;
   onTap?: () => void;
   pdfFullscreen?: boolean;
   onExitPdfFullscreen?: () => void;
@@ -129,6 +149,10 @@ function ShelfPrimaryView({
         title={section.title}
         pageIndex={pageIndex}
         onPageCount={onPageCount}
+        onPageIndexChange={onPageIndexChange}
+        onSectionEdge={onSectionEdge}
+        canPrevSection={canPrevSection}
+        canNextSection={canNextSection}
         onTap={onTap}
         fullscreen={pdfFullscreen}
         onExitFullscreen={onExitPdfFullscreen}

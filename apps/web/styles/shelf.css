@@ -907,6 +907,44 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   touch-action: pan-y pinch-zoom;
 }
 
+.shelf-pdf-pager-scroll .shelf-pdf-scroll-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 4px 0 16px;
+}
+
+.shelf-pdf-scroll-page {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.shelf-pdf-scroll-tail {
+  min-height: 120px;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 16px 12px 32px;
+  color: var(--muted, #888);
+  font-size: 13px;
+  text-align: center;
+}
+
+.shelf-pdf-scroll-head-spacer {
+  min-height: 32px;
+  width: 100%;
+}
+
+.shelf-reader-pdf-scroll .shelf-lesson-viewport,
+.shelf-reader-pdf-scroll .shelf-pdf-pager {
+  flex: 1;
+  min-height: 0;
+}
+
 .shelf-reader-native-shell .shelf-reader-top {
   padding-top: max(8px, env(safe-area-inset-top, 0px));
 }

@@ -1,6 +1,7 @@
-/// 书架 PDF 单页（适页 / 全屏捏合，节内横滑由外层手势翻页）。
+/// 书架 PDF 纵向连滚（节内上下滑页，章末继续滑切下一节）。
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -16,31 +17,37 @@ class ShelfPdfPageView extends StatefulWidget {
     required this.bookId,
     required this.storageKey,
     required this.pageIndex,
-    this.fullscreen = false,
+    this.canPrevSection = false,
+    this.canNextSection = false,
     this.onPageCount,
+    this.onPageIndexChange,
+    this.onSectionEdge,
     this.onTap,
-    this.onExitFullscreen,
   });
 
   final ShelfRepository repo;
   final String bookId;
   final String storageKey;
   final int pageIndex;
-  final bool fullscreen;
+  final bool canPrevSection;
+  final bool canNextSection;
   final ValueChanged<int>? onPageCount;
+  final ValueChanged<int>? onPageIndexChange;
+  final ValueChanged<String>? onSectionEdge;
   final VoidCallback? onTap;
-  final VoidCallback? onExitFullscreen;
 
   @override
   State<ShelfPdfPageView> createState() => _ShelfPdfPageViewState();
 }
 
 class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
-  PdfController? _controller;
-  PdfControllerPinch? _pinchController;
+  PdfControllerPinch? _controller;
   var _loading = true;
   String? _error;
   var _pageCount = 1;
+  var _edgeLock = false;
+  Timer? _edgeTimer;
+  var _syncingPage = false;
 
   @override
   void initState() {
@@ -52,21 +59,26 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
   void didUpdateWidget(covariant ShelfPdfPageView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.storageKey != widget.storageKey ||
-        oldWidget.bookId != widget.bookId ||
-        oldWidget.fullscreen != widget.fullscreen) {
+        oldWidget.bookId != widget.bookId) {
       _load();
       return;
     }
-    if (!widget.fullscreen && oldWidget.pageIndex != widget.pageIndex && _controller != null) {
+    if (!_syncingPage &&
+        oldWidget.pageIndex != widget.pageIndex &&
+        _controller != null) {
       final page = (widget.pageIndex + 1).clamp(1, _pageCount);
+      _syncingPage = true;
       _controller!.jumpToPage(page);
+      Future<void>.delayed(const Duration(milliseconds: 120), () {
+        if (mounted) _syncingPage = false;
+      });
     }
   }
 
   @override
   void dispose() {
+    _edgeTimer?.cancel();
     _controller?.dispose();
-    _pinchController?.dispose();
     super.dispose();
   }
 
@@ -76,9 +88,7 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
       _error = null;
     });
     await _controller?.dispose();
-    await _pinchController?.dispose();
     _controller = null;
-    _pinchController = null;
     try {
       final bytes = await widget.repo.fetchAssetBytes(
         widget.bookId,
@@ -87,28 +97,19 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
       final data = Uint8List.fromList(bytes);
       final count = (await PdfDocument.openData(data)).pagesCount;
       final initial = (widget.pageIndex + 1).clamp(1, count);
-      if (!mounted) return;
-      if (widget.fullscreen) {
-        final ctrl = PdfControllerPinch(
-          document: PdfDocument.openData(data),
-          initialPage: initial,
-        );
-        setState(() {
-          _pinchController = ctrl;
-          _pageCount = count;
-          _loading = false;
-        });
-      } else {
-        final ctrl = PdfController(
-          document: PdfDocument.openData(data),
-          initialPage: initial,
-        );
-        setState(() {
-          _controller = ctrl;
-          _pageCount = count;
-          _loading = false;
-        });
+      final ctrl = PdfControllerPinch(
+        document: PdfDocument.openData(data),
+        initialPage: initial,
+      );
+      if (!mounted) {
+        await ctrl.dispose();
+        return;
       }
+      setState(() {
+        _controller = ctrl;
+        _pageCount = count;
+        _loading = false;
+      });
       widget.onPageCount?.call(count);
     } catch (_) {
       if (!mounted) return;
@@ -119,17 +120,44 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
     }
   }
 
+  void _maybeSectionEdge(String edge) {
+    if (_edgeLock) return;
+    if (edge == 'next' && !widget.canNextSection) return;
+    if (edge == 'prev' && !widget.canPrevSection) return;
+    _edgeLock = true;
+    widget.onSectionEdge?.call(edge);
+    _edgeTimer?.cancel();
+    _edgeTimer = Timer(const Duration(milliseconds: 900), () {
+      if (mounted) _edgeLock = false;
+    });
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (_syncingPage) return false;
+    if (n is ScrollUpdateNotification || n is OverscrollNotification) {
+      final m = n.metrics;
+      final atBottom = m.pixels >= m.maxScrollExtent - 24;
+      final atTop = m.pixels <= m.minScrollExtent + 24;
+      if (atBottom && (n.scrollDelta ?? 0) > 0) {
+        _maybeSectionEdge('next');
+      } else if (atTop && (n.scrollDelta ?? 0) < 0) {
+        _maybeSectionEdge('prev');
+      }
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: Text('正在加载 PDF…', style: AppTypography.meta));
     }
-    if (_error != null) {
+    if (_error != null || _controller == null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!, style: AppTypography.meta),
+            Text(_error ?? '无法加载 PDF', style: AppTypography.meta),
             const SizedBox(height: 8),
             TextButton(
               onPressed: () {
@@ -145,53 +173,42 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
       );
     }
 
-    if (widget.fullscreen && _pinchController != null) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          PdfViewPinch(
-            controller: _pinchController!,
-            padding: 8,
-            builders: PdfViewPinchBuilders<DefaultBuilderOptions>(
-              options: const DefaultBuilderOptions(),
-              documentLoaderBuilder: (_) =>
-                  const Center(child: Text('正在加载 PDF…', style: AppTypography.meta)),
-              pageLoaderBuilder: (_) => const SizedBox.shrink(),
-              errorBuilder: (_, __) =>
-                  const Center(child: Text('无法渲染 PDF 页', style: AppTypography.meta)),
-            ),
-          ),
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topRight,
-              child: IconButton(
-                icon: const Icon(Icons.fullscreen_exit, color: AppColors.ink),
-                tooltip: '退出全屏',
-                onPressed: widget.onExitFullscreen,
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    if (_controller == null) {
-      return const Center(child: Text('无法加载 PDF', style: AppTypography.meta));
-    }
-
     return GestureDetector(
       onTap: widget.onTap,
       behavior: HitTestBehavior.translucent,
-      child: PdfView(
-        controller: _controller!,
-        padding: 10,
-        builders: PdfViewBuilders<DefaultBuilderOptions>(
-          options: const DefaultBuilderOptions(),
-          documentLoaderBuilder: (_) =>
-              const Center(child: Text('正在加载 PDF…', style: AppTypography.meta)),
-          pageLoaderBuilder: (_) => const SizedBox.shrink(),
-          errorBuilder: (_, __) =>
-              const Center(child: Text('无法渲染 PDF 页', style: AppTypography.meta)),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: Column(
+          children: [
+            Expanded(
+              child: PdfViewPinch(
+                controller: _controller!,
+                scrollDirection: Axis.vertical,
+                padding: 8,
+                onPageChanged: (page) {
+                  if (_syncingPage) return;
+                  widget.onPageIndexChange?.call(page - 1);
+                },
+                builders: PdfViewPinchBuilders<DefaultBuilderOptions>(
+                  options: const DefaultBuilderOptions(),
+                  documentLoaderBuilder: (_) =>
+                      const Center(child: Text('正在加载 PDF…', style: AppTypography.meta)),
+                  pageLoaderBuilder: (_) => const SizedBox.shrink(),
+                  errorBuilder: (_, __) =>
+                      const Center(child: Text('无法渲染 PDF 页', style: AppTypography.meta)),
+                ),
+              ),
+            ),
+            if (widget.canNextSection)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: Text(
+                  '继续下滑进入下一节',
+                  style: AppTypography.meta,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
         ),
       ),
     );

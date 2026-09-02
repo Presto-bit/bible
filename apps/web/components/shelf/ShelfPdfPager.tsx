@@ -7,17 +7,20 @@ type Props = {
   title: string;
   pageIndex: number;
   onPageCount?: (count: number) => void;
+  onPageIndexChange?: (index: number) => void;
+  onSectionEdge?: (edge: 'prev' | 'next') => void;
+  canPrevSection?: boolean;
+  canNextSection?: boolean;
   onTap?: () => void;
   fullscreen?: boolean;
   onExitFullscreen?: () => void;
 };
 
-/** actual = PDF 100%（1pt≈1px）；page = 适页缩放进视口；width = 贴宽 */
+/** width = 贴宽（纵向连读默认）；page = 适页；actual = 100% */
 type ViewMode = 'actual' | 'page' | 'width';
 
 function computePdfLayout(
   containerWidth: number,
-  containerHeight: number,
   pageWidth: number,
   pageHeight: number,
   viewMode: ViewMode,
@@ -25,18 +28,15 @@ function computePdfLayout(
 ) {
   const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 2 : 2, 2.5);
   const fitW = containerWidth / pageWidth;
-  const fitH = containerHeight / pageHeight;
+  const fitH = containerWidth / pageWidth; // unused for width mode stack
   const fitPage = Math.min(fitW, fitH);
-  const base =
-    viewMode === 'page' ? fitPage : viewMode === 'width' ? fitW : 1;
+  const base = viewMode === 'page' ? fitPage : viewMode === 'width' ? fitW : 1;
   const scale = base * userZoom;
   return {
     dpr,
     renderScale: scale * dpr,
     cssWidth: pageWidth * scale,
     cssHeight: pageHeight * scale,
-    effectiveScale: scale,
-    overflows: pageHeight * scale > containerHeight + 2 || pageWidth * scale > containerWidth + 2,
   };
 }
 
@@ -44,6 +44,8 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
 const RESIZE_DEBOUNCE_MS = 180;
 const PDF_PAGE_CACHE_MAX = 48;
+const EDGE_THRESHOLD = 28;
+const SECTION_EDGE_COOLDOWN_MS = 900;
 const pdfPageCache = new Map<string, ImageBitmap>();
 
 function pdfCacheKey(
@@ -52,9 +54,8 @@ function pdfCacheKey(
   viewMode: ViewMode,
   userZoom: number,
   w: number,
-  h: number,
 ) {
-  return `${url}|${pageNum}|${viewMode}|${userZoom}|${Math.round(w)}x${Math.round(h)}`;
+  return `${url}|${pageNum}|${viewMode}|${userZoom}|${Math.round(w)}`;
 }
 
 function trimPdfCache() {
@@ -67,32 +68,145 @@ function trimPdfCache() {
   }
 }
 
+function PdfPageTile({
+  pdf,
+  pageNum,
+  url,
+  viewMode,
+  userZoom,
+  containerWidth,
+  title,
+}: {
+  pdf: import('pdfjs-dist').PDFDocumentProxy;
+  pageNum: number;
+  url: string;
+  viewMode: ViewMode;
+  userZoom: number;
+  containerWidth: number;
+  title: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [visible, setVisible] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setVisible(true);
+      },
+      { rootMargin: '240px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible || !canvasRef.current) return;
+    let cancelled = false;
+    const render = async () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      try {
+        const page = await pdf.getPage(pageNum);
+        if (cancelled) return;
+        const base = page.getViewport({ scale: 1 });
+        const w = containerWidth || Math.min(window.innerWidth - 24, 720);
+        const { dpr, renderScale, cssWidth, cssHeight } = computePdfLayout(
+          w,
+          base.width,
+          base.height,
+          viewMode,
+          userZoom,
+        );
+        const scaled = page.getViewport({ scale: renderScale });
+        canvas.width = scaled.width;
+        canvas.height = scaled.height;
+        canvas.style.width = `${cssWidth}px`;
+        canvas.style.height = `${cssHeight}px`;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const cacheKey = pdfCacheKey(url, pageNum, viewMode, userZoom, w);
+        const cached = pdfPageCache.get(cacheKey);
+        if (cached) {
+          canvas.width = cached.width;
+          canvas.height = cached.height;
+          ctx.drawImage(cached, 0, 0);
+          return;
+        }
+        await page.render({ canvasContext: ctx, viewport: scaled }).promise;
+        if (cancelled) return;
+        try {
+          const bitmap = await createImageBitmap(canvas);
+          pdfPageCache.set(cacheKey, bitmap);
+          trimPdfCache();
+        } catch {
+          /* ignore */
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    void render();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, pdf, pageNum, url, viewMode, userZoom, containerWidth]);
+
+  return (
+    <div ref={rootRef} className="shelf-pdf-scroll-page">
+      <canvas
+        ref={canvasRef}
+        className="shelf-pdf-page-canvas"
+        role="img"
+        aria-label={`${title} 第 ${pageNum} 页`}
+      />
+    </div>
+  );
+}
+
 export default function ShelfPdfPager({
   url,
   title,
   pageIndex,
   onPageCount,
+  onPageIndexChange,
+  onSectionEdge,
+  canPrevSection = false,
+  canNextSection = false,
   onTap,
   fullscreen = false,
   onExitFullscreen,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfRef = useRef<import('pdfjs-dist').PDFDocumentProxy | null>(null);
+  const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const edgeLockRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+  const activePageRef = useRef(pageIndex);
+  const scrollSyncRef = useRef(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [pageCount, setPageCount] = useState(0);
   const [layoutTick, setLayoutTick] = useState(0);
   const [userZoom, setUserZoom] = useState(1);
-  /** 默认适页：整页可见、字号可读 */
-  const [viewMode, setViewMode] = useState<ViewMode>('page');
+  const [viewMode, setViewMode] = useState<ViewMode>('width');
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    activePageRef.current = pageIndex;
+  }, [pageIndex]);
 
   useEffect(() => {
     setUserZoom(1);
-    setViewMode(fullscreen ? 'page' : 'page');
-  }, [pageIndex, url, fullscreen]);
+    setViewMode('width');
+  }, [url]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,89 +237,88 @@ export default function ShelfPdfPager({
   }, [url, onPageCount]);
 
   useEffect(() => {
-    if (status !== 'ready' || !pdfRef.current || !hostRef.current || !canvasRef.current) return;
-    let cancelled = false;
-    const pageNum = Math.min(pageCount, Math.max(1, pageIndex + 1));
-
-    const render = async () => {
-      const pdf = pdfRef.current;
-      const host = hostRef.current;
-      const stage = stageRef.current;
-      const canvas = canvasRef.current;
-      if (!pdf || !host || !canvas) return;
-      try {
-        const page = await pdf.getPage(pageNum);
-        if (cancelled) return;
-        const base = page.getViewport({ scale: 1 });
-        const w = host.clientWidth || Math.min(window.innerWidth - 24, 720);
-        const h =
-          stage?.clientHeight
-          || host.clientHeight
-          || Math.min(window.innerHeight - 160, 900);
-        const { dpr, renderScale, cssWidth, cssHeight, overflows } = computePdfLayout(
-          w,
-          h,
-          base.width,
-          base.height,
-          viewMode,
-          userZoom,
-        );
-        stage?.classList.toggle('is-scrollable', overflows);
-        const scaled = page.getViewport({ scale: renderScale });
-        canvas.width = scaled.width;
-        canvas.height = scaled.height;
-        canvas.style.width = `${cssWidth}px`;
-        canvas.style.height = `${cssHeight}px`;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        const cacheKey = pdfCacheKey(url, pageNum, viewMode, userZoom, w, h);
-        const cached = pdfPageCache.get(cacheKey);
-        if (cached) {
-          canvas.width = cached.width;
-          canvas.height = cached.height;
-          ctx.drawImage(cached, 0, 0);
-          return;
-        }
-        await page.render({ canvasContext: ctx, viewport: scaled }).promise;
-        if (cancelled) return;
-        try {
-          const bitmap = await createImageBitmap(canvas);
-          pdfPageCache.set(cacheKey, bitmap);
-          trimPdfCache();
-        } catch {
-          /* ignore cache errors */
-        }
-      } catch {
-        /* ignore render errors */
-      }
-    };
-    void render();
-    return () => {
-      cancelled = true;
-    };
-  }, [status, pageIndex, pageCount, viewMode, userZoom, layoutTick, url]);
-
-  useEffect(() => {
-    stageRef.current?.scrollTo({ top: 0, left: 0 });
-  }, [pageIndex, viewMode]);
-
-  useEffect(() => {
     const host = hostRef.current;
-    if (!host || typeof ResizeObserver === 'undefined') return;
-    const schedule = () => {
+    if (!host) return;
+    const update = () => setContainerWidth(host.clientWidth || Math.min(window.innerWidth - 24, 720));
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
       if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
       resizeTimerRef.current = setTimeout(() => {
-        if (status !== 'ready' || !pdfRef.current) return;
+        update();
         setLayoutTick((n) => n + 1);
       }, RESIZE_DEBOUNCE_MS);
-    };
-    const ro = new ResizeObserver(schedule);
+    });
     ro.observe(host);
     return () => {
       ro.disconnect();
       if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
     };
   }, [status]);
+
+  useEffect(() => {
+    if (scrollSyncRef.current) return;
+    const el = pageRefs.current[pageIndex];
+    if (!el) return;
+    scrollSyncRef.current = true;
+    el.scrollIntoView({ block: 'start', behavior: 'auto' });
+    requestAnimationFrame(() => {
+      scrollSyncRef.current = false;
+    });
+  }, [pageIndex, url, pageCount, layoutTick]);
+
+  const fireSectionEdge = useCallback(
+    (edge: 'prev' | 'next') => {
+      if (edgeLockRef.current) return;
+      edgeLockRef.current = true;
+      onSectionEdge?.(edge);
+      window.setTimeout(() => {
+        edgeLockRef.current = false;
+      }, SECTION_EDGE_COOLDOWN_MS);
+    },
+    [onSectionEdge],
+  );
+
+  const handleScroll = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage || scrollSyncRef.current) return;
+    const prevTop = lastScrollTopRef.current;
+    const top = stage.scrollTop;
+    lastScrollTopRef.current = top;
+    const goingDown = top > prevTop;
+    const goingUp = top < prevTop;
+
+    const mid = top + stage.clientHeight * 0.35;
+    let active = 0;
+    for (let i = 0; i < pageRefs.current.length; i++) {
+      const el = pageRefs.current[i];
+      if (el && el.offsetTop <= mid) active = i;
+    }
+    if (active !== activePageRef.current) {
+      activePageRef.current = active;
+      onPageIndexChange?.(active);
+    }
+
+    const atBottom = top + stage.clientHeight >= stage.scrollHeight - EDGE_THRESHOLD;
+    const atTop = top <= EDGE_THRESHOLD;
+
+    if (atBottom && goingDown && canNextSection) {
+      fireSectionEdge('next');
+    } else if (atTop && goingUp && canPrevSection) {
+      fireSectionEdge('prev');
+    }
+  }, [canNextSection, canPrevSection, fireSectionEdge, onPageIndexChange]);
+
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      if (stage.scrollTop <= EDGE_THRESHOLD && e.deltaY < 0 && canPrevSection) {
+        fireSectionEdge('prev');
+      }
+    },
+    [canPrevSection, fireSectionEdge],
+  );
 
   const resetToFitPage = useCallback(() => {
     setViewMode('page');
@@ -217,24 +330,22 @@ export default function ShelfPdfPager({
     setUserZoom(1);
   }, []);
 
-  const resetToActual = useCallback(() => {
-    setViewMode('actual');
-    setUserZoom(1);
-  }, []);
-
   const bumpZoom = useCallback((delta: number) => {
     setUserZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round((z + delta) * 100) / 100)));
   }, []);
 
-  const onStageTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length !== 2) {
-      pinchRef.current = null;
-      return;
-    }
-    const [a, b] = [e.touches[0], e.touches[1]];
-    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    pinchRef.current = { dist, zoom: userZoom };
-  }, [userZoom]);
+  const onStageTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (e.touches.length !== 2) {
+        pinchRef.current = null;
+        return;
+      }
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      pinchRef.current = { dist, zoom: userZoom };
+    },
+    [userZoom],
+  );
 
   const onStageTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length !== 2 || !pinchRef.current) return;
@@ -315,22 +426,24 @@ export default function ShelfPdfPager({
       ) : (
         <button
           type="button"
-          className={`shelf-pdf-toolbar-btn${viewMode === 'page' ? ' is-active' : ''}`}
-          aria-label="适页"
+          className={`shelf-pdf-toolbar-btn${viewMode === 'width' ? ' is-active' : ''}`}
+          aria-label="贴宽"
           onClick={(e) => {
             e.stopPropagation();
-            resetToFitPage();
+            resetToFitWidth();
           }}
         >
-          适页
+          贴宽
         </button>
       )}
     </>
   );
 
+  const pdf = pdfRef.current;
+
   return (
     <div
-      className={`shelf-pdf-pager${fullscreen ? ' is-fullscreen' : ''}`}
+      className={`shelf-pdf-pager shelf-pdf-pager-scroll${fullscreen ? ' is-fullscreen' : ''}`}
       onClick={fullscreen ? undefined : onTap}
     >
       {fullscreen && onExitFullscreen ? (
@@ -367,21 +480,45 @@ export default function ShelfPdfPager({
       <div ref={hostRef} className="shelf-pdf-pager-host">
         <div
           ref={stageRef}
-          className="shelf-pdf-pager-stage"
+          className="shelf-pdf-pager-stage is-scrollable"
           aria-busy={status === 'loading'}
+          onScroll={handleScroll}
+          onWheel={handleWheel}
           onTouchStart={onStageTouchStart}
           onTouchMove={onStageTouchMove}
           onTouchEnd={onStageTouchEnd}
           onTouchCancel={onStageTouchEnd}
         >
-          <div className="shelf-pdf-page-wrap">
-            <canvas
-              ref={canvasRef}
-              className="shelf-pdf-page-canvas"
-              role="img"
-              aria-label={`${title} 第 ${pageIndex + 1} 页`}
-            />
-          </div>
+          {status === 'ready' && pdf && pageCount > 0 ? (
+            <div className="shelf-pdf-scroll-stack">
+              {Array.from({ length: pageCount }, (_, i) => (
+                <div
+                  key={`${url}-${i}`}
+                  ref={(el) => {
+                    pageRefs.current[i] = el;
+                  }}
+                >
+                  <PdfPageTile
+                    pdf={pdf}
+                    pageNum={i + 1}
+                    url={url}
+                    viewMode={viewMode}
+                    userZoom={userZoom}
+                    containerWidth={containerWidth}
+                    title={title}
+                  />
+                </div>
+              ))}
+              {canNextSection ? (
+                <div className="shelf-pdf-scroll-tail" aria-hidden>
+                  继续下滑进入下一节
+                </div>
+              ) : null}
+              {canPrevSection ? (
+                <div className="shelf-pdf-scroll-head-spacer" aria-hidden />
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 
