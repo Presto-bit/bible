@@ -1516,7 +1516,8 @@
         }
       ],
       "status": "published",
-      "sort_order": 100
+      "sort_order": 100,
+      "group_id": "devotional"
     },
     {
       "id": "00000000-0000-4000-8000-000000000002",
@@ -2239,7 +2240,25 @@
           },
           "attachments": []
         }
-      ]
+      ],
+      "group_id": "curriculum"
+    }
+  ],
+  "groups": [
+    {
+      "id": "devotional",
+      "title": "灵修",
+      "sort_order": 100
+    },
+    {
+      "id": "curriculum",
+      "title": "教案",
+      "sort_order": 90
+    },
+    {
+      "id": "default",
+      "title": "未分组",
+      "sort_order": 0
     }
   ]
 }

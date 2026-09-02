@@ -9,7 +9,7 @@ from .service import (
     get_platform_book,
     get_platform_file_bytes,
     get_platform_section,
-    list_platform_books,
+    list_platform_shelf,
 )
 
 router = APIRouter(prefix="/shelf", tags=["shelf"])
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/shelf", tags=["shelf"])
 
 @router.get("/platform")
 def shelf_platform_list() -> dict:
-    return {"items": list_platform_books()}
+    return list_platform_shelf()
 
 
 @router.get("/platform/{book_id}")

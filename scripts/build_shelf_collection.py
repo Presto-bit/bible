@@ -253,14 +253,22 @@ def main() -> None:
     }
 
     items: list[dict] = []
+    groups = None
     if CATALOG.is_file():
         raw = json.loads(CATALOG.read_text(encoding="utf-8"))
         items = [i for i in (raw.get("items") or []) if i.get("id") != BOOK_ID]
+        groups = raw.get("groups")
     items.append(book)
+    if not book.get("group_id"):
+        book["group_id"] = "curriculum"
     items.sort(key=lambda b: int(b.get("sort_order") or 0), reverse=True)
 
+    out_doc: dict = {"items": items}
+    if groups:
+        out_doc["groups"] = groups
+
     CATALOG.parent.mkdir(parents=True, exist_ok=True)
-    CATALOG.write_text(json.dumps({"items": items}, ensure_ascii=False, indent=2), encoding="utf-8")
+    CATALOG.write_text(json.dumps(out_doc, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print("\nBuilt collection shelf book:")
     print(f"  title: {book['title']}")

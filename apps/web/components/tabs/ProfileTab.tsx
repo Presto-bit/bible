@@ -1286,47 +1286,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         ) : null}
       </div>
 
-      <div className="profile-shelf-block">
-        <div className="profile-shelf-head">
-          <p className="section-label tab-section-label profile-block-label">书架</p>
-          <Link href="/shelf" className="profile-shelf-more" onClick={() => markRouteNavigation()}>
-            全部
-          </Link>
-        </div>
-        {shelfBooks.length > 0 ? (
-          <div className="shelf-profile-preview">
-            {shelfBooks.slice(0, 6).map((book) => {
-              const hue = shelfCoverHue(book.title);
-              const progress = loadShelfProgress(book.id);
-              const href = progress
-                ? `/shelf/${book.id}?section=${encodeURIComponent(progress)}`
-                : `/shelf/${book.id}`;
-              return (
-                <Link
-                  key={book.id}
-                  href={href}
-                  className="shelf-profile-thumb"
-                  title={book.title}
-                  onClick={() => markRouteNavigation()}
-                  style={{
-                    background: `linear-gradient(145deg, hsl(${hue} 42% 38%), hsl(${(hue + 36) % 360} 36% 28%))`,
-                  }}
-                  aria-label={book.title}
-                />
-              );
-            })}
-          </div>
-        ) : (
-          <Link
-            href="/shelf"
-            className="card profile-shelf-empty"
-            onClick={() => markRouteNavigation()}
-          >
-            打开书架，开始阅读
-          </Link>
-        )}
-      </div>
-
       <p className="section-label tab-section-label profile-block-label">我的足迹</p>
       <div className="profile-footprint-grid" role="list">
         <FootprintCell
@@ -1412,6 +1371,47 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             </div>
           );
         })()}
+      </div>
+
+      <div className="profile-shelf-block">
+        <div className="profile-shelf-head">
+          <p className="section-label tab-section-label profile-block-label">书架</p>
+          <Link href="/shelf" className="profile-shelf-more" onClick={() => markRouteNavigation('/shelf')}>
+            全部
+          </Link>
+        </div>
+        {shelfBooks.length > 0 ? (
+          <div className="shelf-profile-preview">
+            {shelfBooks.slice(0, 6).map((book) => {
+              const hue = shelfCoverHue(book.title);
+              const progress = loadShelfProgress(book.id);
+              const href = progress
+                ? `/shelf/${book.id}?section=${encodeURIComponent(progress)}`
+                : `/shelf/${book.id}`;
+              return (
+                <Link
+                  key={book.id}
+                  href={href}
+                  className="shelf-profile-thumb"
+                  title={book.title}
+                  onClick={() => markRouteNavigation(href)}
+                  style={{
+                    background: `linear-gradient(145deg, hsl(${hue} 42% 38%), hsl(${(hue + 36) % 360} 36% 28%))`,
+                  }}
+                  aria-label={book.title}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <Link
+            href="/shelf"
+            className="card profile-shelf-empty"
+            onClick={() => markRouteNavigation('/shelf')}
+          >
+            打开书架，开始阅读
+          </Link>
+        )}
       </div>
 
       <p className="section-label tab-section-label profile-block-label">常用</p>

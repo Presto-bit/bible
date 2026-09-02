@@ -1,15 +1,17 @@
 'use client';
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import PageBackBar from '@/components/PageBackBar';
+import ShelfCoverTile from '@/components/shelf/ShelfCoverTile';
+import ShelfManageSheet from '@/components/shelf/ShelfManageSheet';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
+import { adminCheck } from '@/lib/admin_rag';
+import { canManageShelf } from '@/lib/shelf_admin';
 import {
-  listPlatformShelf,
-  loadShelfProgress,
-  shelfCoverHue,
+  listPlatformShelfFull,
   type ShelfBookSummary,
+  type ShelfGroup,
 } from '@/lib/shelf_api';
 import '@/styles/shelf.css';
 
@@ -22,22 +24,71 @@ export default function ShelfPage() {
 function ShelfListInner() {
   useEdgeSwipeBack({ href: '/profile' });
 
+  const [groups, setGroups] = useState<ShelfGroup[]>([]);
   const [items, setItems] = useState<ShelfBookSummary[]>([]);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
+  const [canManage, setCanManage] = useState(false);
+  const [manageBook, setManageBook] = useState<ShelfBookSummary | null>(null);
 
-  useEffect(() => {
-    listPlatformShelf()
-      .then(setItems)
+  const reload = useCallback(() => {
+    setLoading(true);
+    setErr('');
+    return listPlatformShelfFull()
+      .then((data) => {
+        setGroups(data.groups ?? []);
+        setItems(data.items ?? []);
+      })
       .catch(() => setErr('暂时无法加载书架'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  useEffect(() => {
+    if (!canManageShelf()) {
+      setCanManage(false);
+      return;
+    }
+    void adminCheck().then(setCanManage);
+  }, []);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, ShelfBookSummary[]>();
+    for (const g of groups) map.set(g.id, []);
+    if (!map.has('default')) map.set('default', []);
+    for (const book of items) {
+      const gid = book.group_id || 'default';
+      if (!map.has(gid)) map.set(gid, []);
+      map.get(gid)!.push(book);
+    }
+    const order = [...groups].sort((a, b) => (b.sort_order ?? 0) - (a.sort_order ?? 0));
+    const seen = new Set(order.map((g) => g.id));
+    const extras = [...map.keys()].filter((id) => !seen.has(id));
+    const rows: { group: ShelfGroup; books: ShelfBookSummary[] }[] = [];
+    for (const g of order) {
+      const books = map.get(g.id) ?? [];
+      if (books.length > 0) rows.push({ group: g, books });
+    }
+    for (const id of extras) {
+      const books = map.get(id) ?? [];
+      if (books.length > 0) {
+        rows.push({ group: { id, title: '未分组' }, books });
+      }
+    }
+    return rows;
+  }, [groups, items]);
 
   return (
     <main className="container shelf-page">
       <PageBackBar href="/profile" label="我的" />
       <h1 className="page-title">书架</h1>
-      <p className="page-lead">安静阅读，在文字里相遇。</p>
+      <p className="page-lead">
+        安静阅读，在文字里相遇。
+        {canManage ? ' 长按封面可管理书目。' : null}
+      </p>
 
       {loading ? <p className="muted">加载中…</p> : null}
       {err ? <p className="muted">{err}</p> : null}
@@ -46,30 +97,27 @@ function ShelfListInner() {
         <p className="muted">暂无书目，稍后再来看看。</p>
       ) : null}
 
-      {items.length > 0 ? (
-        <>
-          <p className="shelf-section-label">平台书架</p>
+      {grouped.map(({ group, books }) => (
+        <section key={group.id} className="shelf-group-section">
+          <p className="shelf-section-label">{group.title}</p>
           <div className="shelf-grid">
-            {items.map((book) => {
-              const hue = shelfCoverHue(book.title);
-              const progress = loadShelfProgress(book.id);
-              return (
-                <Link
-                  key={book.id}
-                  href={progress ? `/shelf/${book.id}?section=${encodeURIComponent(progress)}` : `/shelf/${book.id}`}
-                  className="shelf-cover"
-                  style={{
-                    background: `linear-gradient(145deg, hsl(${hue} 42% 38%), hsl(${(hue + 36) % 360} 36% 28%))`,
-                  }}
-                >
-                  <span className="shelf-cover-badge">平台</span>
-                  <span className="shelf-cover-title">{book.title}</span>
-                </Link>
-              );
-            })}
+            {books.map((book) => (
+              <ShelfCoverTile
+                key={book.id}
+                book={book}
+                onManage={canManage ? setManageBook : undefined}
+              />
+            ))}
           </div>
-        </>
-      ) : null}
+        </section>
+      ))}
+
+      <ShelfManageSheet
+        book={manageBook}
+        groups={groups}
+        onClose={() => setManageBook(null)}
+        onChanged={() => void reload()}
+      />
     </main>
   );
 }

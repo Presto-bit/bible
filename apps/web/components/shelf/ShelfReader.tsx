@@ -12,6 +12,8 @@ import {
   type ShelfTocItem,
 } from '@/lib/shelf_api';
 import ShelfLessonPanel from '@/components/shelf/ShelfLessonPanel';
+import ShelfReadingBar, { useShelfFontPx } from '@/components/shelf/ShelfReadingBar';
+import { shelfReadingStyleVars } from '@/lib/shelf_reading';
 import '@/styles/shelf.css';
 
 type Props = {
@@ -42,8 +44,10 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
   const [err, setErr] = useState('');
   const [tocOpen, setTocOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
+  const [fontPx, setFontPx] = useShelfFontPx();
 
   const isLesson = section?.kind === 'lesson';
+  const isCollection = book?.book_type === 'collection';
 
   const sections = book?.sections ?? [];
   const sectionIndex = useMemo(
@@ -145,12 +149,19 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
   const title = section?.title || (tocOpen && !sectionId ? book?.title : '') || book?.title || '阅读';
 
   return (
-    <main className={`shelf-reader${chromeHidden && !isLesson ? ' shelf-reader-hidden' : ''}${isLesson ? ' shelf-reader-lesson' : ''}`}>
+    <main
+      className={`shelf-reader${chromeHidden && !isLesson ? ' shelf-reader-hidden' : ''}${isLesson ? ' shelf-reader-lesson' : ''}`}
+      style={shelfReadingStyleVars(fontPx)}
+    >
       <header className="shelf-reader-top">
         <Link href="/shelf" className="nav-back nav-back-page" aria-label="返回书架">
           ‹
         </Link>
-        <h1>{title}</h1>
+        <div className="shelf-reader-title-wrap">
+          {section?.unit ? <span className="shelf-reader-unit">{section.unit}</span> : null}
+          <h1>{title}</h1>
+        </div>
+        <ShelfReadingBar fontPx={fontPx} onChange={setFontPx} />
         <button
           type="button"
           className="icon-btn"
@@ -167,7 +178,7 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
         </div>
       ) : section ? (
         <article
-          className="shelf-reader-body"
+          className="shelf-reader-body shelf-prose"
           onClick={() => setChromeHidden((v) => !v)}
           dangerouslySetInnerHTML={{ __html: section.html || '' }}
         />
@@ -179,7 +190,7 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
 
       <nav className="shelf-reader-nav" aria-label="章节导航">
         <button type="button" onClick={goPrev} disabled={sectionIndex <= 0}>
-          上一节
+          {isCollection ? '上一课' : '上一节'}
         </button>
         <button type="button" onClick={() => setTocOpen(true)}>
           目录
@@ -189,7 +200,7 @@ export default function ShelfReader({ bookId, initialSectionId }: Props) {
           onClick={goNext}
           disabled={sectionIndex < 0 || sectionIndex >= sections.length - 1}
         >
-          下一节
+          {isCollection ? '下一课' : '下一节'}
         </button>
       </nav>
 

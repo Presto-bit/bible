@@ -871,3 +871,79 @@ async def admin_shelf_upload(
         raise HTTPException(400, "文件无效")
     return import_platform_docx(data, title=title, sort_order=sort_order)
 
+
+class ShelfBookPatchBody(BaseModel):
+    title: str | None = None
+    group_id: str | None = None
+    sort_order: int | None = None
+
+
+class ShelfGroupCreateBody(BaseModel):
+    title: str
+    sort_order: int = 50
+
+
+class ShelfGroupPatchBody(BaseModel):
+    title: str | None = None
+    sort_order: int | None = None
+
+
+@router.get("/shelf/books")
+def admin_shelf_books(_admin: str = Depends(require_admin)) -> dict:
+    from ..shelf.service import list_platform_shelf
+
+    return list_platform_shelf()
+
+
+@router.patch("/shelf/books/{book_id}")
+def admin_shelf_patch_book(
+    book_id: str,
+    body: ShelfBookPatchBody,
+    _admin: str = Depends(require_admin),
+) -> dict:
+    from ..shelf.service import update_platform_book_meta
+
+    return update_platform_book_meta(
+        book_id,
+        title=body.title,
+        group_id=body.group_id,
+        sort_order=body.sort_order,
+    )
+
+
+@router.delete("/shelf/books/{book_id}")
+def admin_shelf_delete_book(book_id: str, _admin: str = Depends(require_admin)) -> dict:
+    from ..shelf.service import archive_platform_book
+
+    return archive_platform_book(book_id)
+
+
+@router.get("/shelf/groups")
+def admin_shelf_groups(_admin: str = Depends(require_admin)) -> dict:
+    from ..shelf.service import list_platform_groups
+
+    return {"groups": list_platform_groups()}
+
+
+@router.post("/shelf/groups")
+def admin_shelf_create_group(
+    body: ShelfGroupCreateBody,
+    _admin: str = Depends(require_admin),
+) -> dict:
+    from ..shelf.service import create_shelf_group
+
+    group = create_shelf_group(body.title, sort_order=body.sort_order)
+    return {"ok": True, "group": group}
+
+
+@router.patch("/shelf/groups/{group_id}")
+def admin_shelf_patch_group(
+    group_id: str,
+    body: ShelfGroupPatchBody,
+    _admin: str = Depends(require_admin),
+) -> dict:
+    from ..shelf.service import update_shelf_group
+
+    group = update_shelf_group(group_id, title=body.title, sort_order=body.sort_order)
+    return {"ok": True, "group": group}
+

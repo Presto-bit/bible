@@ -810,41 +810,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ],
             const SizedBox(height: 20),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    '书架',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.inkSoft,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => openH5IfAllowed(context, '/shelf'),
-                  child: const Text('全部'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _ShelfCoverThumb(
-                    title: '恩典的安慰与活出来的救恩',
-                    onTap: () => openH5IfAllowed(
-                      context,
-                      '/shelf/00000000-0000-4000-8000-000000000001',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
             const Text(
               '我的足迹',
               style: TextStyle(
@@ -943,6 +908,41 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   onTap: _openJourney,
                 ),
               ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '书架',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.inkSoft,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => openH5IfAllowed(context, '/shelf'),
+                  child: const Text('全部'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _ShelfCoverThumb(
+                    title: '恩典的安慰与活出来的救恩',
+                    onTap: () => openH5IfAllowed(
+                      context,
+                      '/shelf/00000000-0000-4000-8000-000000000001',
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             const Text(

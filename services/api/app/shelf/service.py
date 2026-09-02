@@ -10,7 +10,14 @@ from fastapi import HTTPException
 from ..db import get_pool
 from .assets import book_asset_keys
 from .docx_parse import file_sha256, parse_docx_bytes
-from .file_catalog import get_file_book, load_file_catalog
+from .file_catalog import (
+    DEFAULT_GROUPS,
+    get_file_book,
+    load_catalog_document,
+    load_file_catalog,
+    load_file_groups,
+    save_catalog_document,
+)
 from .schema import ensure_shelf_schema
 from .store import read_shelf_bytes, save_shelf_bytes, shelf_file_path
 
@@ -38,10 +45,12 @@ def _list_from_file() -> list[dict[str, Any]]:
             "sort_order": int(b.get("sort_order") or 0),
             "section_count": len(b.get("sections") or []),
             "book_type": b.get("book_type") or "document",
+            "group_id": b.get("group_id") or "default",
             "created_at": None,
             "source": "platform",
         }
         for b in load_file_catalog()
+        if (b.get("status") or "published") == "published"
     ]
 
 
@@ -96,6 +105,16 @@ def list_platform_books() -> list[dict[str, Any]]:
     except Exception:
         pass
     return _list_from_file()
+
+
+def list_platform_groups() -> list[dict[str, Any]]:
+    return load_file_groups()
+
+
+def list_platform_shelf() -> dict[str, Any]:
+    items = list_platform_books()
+    items.sort(key=lambda b: int(b.get("sort_order") or 0), reverse=True)
+    return {"groups": list_platform_groups(), "items": items}
 
 
 def _book_detail_from_file(fb: dict[str, Any], *, include_sections: bool) -> dict[str, Any]:
@@ -178,6 +197,8 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
         except Exception:
             pass
     if fb:
+        if (fb.get("status") or "published") != "published":
+            raise HTTPException(status_code=404, detail="书目不存在")
         return _book_detail_from_file(fb, include_sections=include_sections)
     raise HTTPException(status_code=404, detail="书目不存在")
 
@@ -323,3 +344,82 @@ def import_platform_docx(
         "file_sha256": sha,
         "storage_key": storage_key,
     }
+
+
+def _find_catalog_book(doc: dict[str, Any], book_id: str) -> dict[str, Any] | None:
+    for item in doc.get("items") or []:
+        if isinstance(item, dict) and str(item.get("id")) == book_id:
+            return item
+    return None
+
+
+def update_platform_book_meta(
+    book_id: str,
+    *,
+    title: str | None = None,
+    group_id: str | None = None,
+    sort_order: int | None = None,
+) -> dict[str, Any]:
+    doc = load_catalog_document()
+    book = _find_catalog_book(doc, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="书目不存在")
+    if title is not None:
+        t = title.strip()
+        if not t:
+            raise HTTPException(status_code=400, detail="书名不能为空")
+        book["title"] = t
+    if group_id is not None:
+        gid = group_id.strip()
+        group_ids = {str(g.get("id")) for g in (doc.get("groups") or []) if isinstance(g, dict)}
+        if gid and gid not in group_ids:
+            raise HTTPException(status_code=400, detail="分组不存在")
+        book["group_id"] = gid or "default"
+    if sort_order is not None:
+        book["sort_order"] = int(sort_order)
+    save_catalog_document(doc)
+    return {"ok": True, "id": book_id, "title": book.get("title"), "group_id": book.get("group_id")}
+
+
+def archive_platform_book(book_id: str) -> dict[str, Any]:
+    doc = load_catalog_document()
+    book = _find_catalog_book(doc, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="书目不存在")
+    book["status"] = "archived"
+    save_catalog_document(doc)
+    return {"ok": True, "id": book_id, "status": "archived"}
+
+
+def create_shelf_group(title: str, *, sort_order: int = 50) -> dict[str, Any]:
+    t = title.strip()
+    if not t:
+        raise HTTPException(status_code=400, detail="分组名不能为空")
+    doc = load_catalog_document()
+    groups = doc.setdefault("groups", list(DEFAULT_GROUPS))
+    gid = f"grp-{uuid.uuid4().hex[:8]}"
+    entry = {"id": gid, "title": t, "sort_order": int(sort_order)}
+    groups.append(entry)
+    save_catalog_document(doc)
+    return entry
+
+
+def update_shelf_group(group_id: str, *, title: str | None = None, sort_order: int | None = None) -> dict[str, Any]:
+    doc = load_catalog_document()
+    groups = doc.get("groups") or []
+    hit = None
+    for g in groups:
+        if isinstance(g, dict) and str(g.get("id")) == group_id:
+            hit = g
+            break
+    if not hit:
+        raise HTTPException(status_code=404, detail="分组不存在")
+    if title is not None:
+        t = title.strip()
+        if not t:
+            raise HTTPException(status_code=400, detail="分组名不能为空")
+        hit["title"] = t
+    if sort_order is not None:
+        hit["sort_order"] = int(sort_order)
+    save_catalog_document(doc)
+    return hit

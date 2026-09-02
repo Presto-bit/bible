@@ -1,7 +1,14 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import { shelfAssetUrl, type ShelfAttachment, type ShelfSection } from '@/lib/shelf_api';
+import { adaptShelfDocxHtml, SHELF_DOCX_STYLE_MAP } from '@/lib/shelf_reading';
+
+const ShelfPdfViewer = dynamic(() => import('@/components/shelf/ShelfPdfViewer'), {
+  ssr: false,
+  loading: () => <p className="muted shelf-pdf-status">正在加载 PDF…</p>,
+});
 
 type Props = {
   bookId: string;
@@ -13,16 +20,30 @@ export default function ShelfLessonPanel({ bookId, section }: Props) {
 
   const images = section.attachments?.filter((a) => a.kind === 'image') ?? [];
   const videos = section.attachments?.filter((a) => a.kind === 'video') ?? [];
+  const hasMedia = images.length > 0 || videos.length > 0;
 
   return (
     <div className="shelf-lesson">
-      {section.unit ? <p className="shelf-lesson-unit">{section.unit}</p> : null}
+      <header className="shelf-lesson-head">
+        {section.unit ? <p className="shelf-lesson-unit">{section.unit}</p> : null}
+        <h2 className="shelf-lesson-title">{section.title}</h2>
+      </header>
 
-      <ShelfPrimaryView bookId={bookId} section={section} />
+      {hasMedia ? (
+        <nav className="shelf-lesson-jump" aria-label="本课内容">
+          <a href="#shelf-lesson-primary">教案</a>
+          {images.length > 0 ? <a href="#shelf-lesson-images">图片</a> : null}
+          {videos.length > 0 ? <a href="#shelf-lesson-videos">视频</a> : null}
+        </nav>
+      ) : null}
+
+      <div id="shelf-lesson-primary">
+        <ShelfPrimaryView bookId={bookId} section={section} />
+      </div>
 
       {images.length > 0 ? (
-        <section className="shelf-lesson-media">
-          <h2 className="shelf-lesson-media-title">图片</h2>
+        <section className="shelf-lesson-media" id="shelf-lesson-images">
+          <h2 className="shelf-lesson-media-title">图片素材</h2>
           <div className="shelf-lesson-image-grid">
             {images.map((item) => (
               <ShelfImageTile
@@ -37,8 +58,8 @@ export default function ShelfLessonPanel({ bookId, section }: Props) {
       ) : null}
 
       {videos.length > 0 ? (
-        <section className="shelf-lesson-media">
-          <h2 className="shelf-lesson-media-title">视频</h2>
+        <section className="shelf-lesson-media" id="shelf-lesson-videos">
+          <h2 className="shelf-lesson-media-title">视频素材</h2>
           <div className="shelf-lesson-video-list">
             {videos.map((item) => (
               <ShelfVideoPlayer key={item.id} bookId={bookId} item={item} />
@@ -94,7 +115,7 @@ function ShelfPrimaryView({ bookId, section }: { bookId: string; section: ShelfS
   if (isPdf) {
     return (
       <div className="shelf-lesson-pdf-wrap">
-        <iframe title={`${section.title} PDF`} className="shelf-lesson-pdf" src={url} />
+        <ShelfPdfViewer url={url} title={section.title} />
       </div>
     );
   }
@@ -124,12 +145,14 @@ function ShelfDocxView({ url, title }: { url: string; title: string }) {
     const run = async () => {
       try {
         const mammoth = await import('mammoth');
-        const { sanitizePreviewHtml } = await import('@/lib/sanitize_html');
         const res = await fetch(url);
         if (!res.ok) throw new Error('加载失败');
         const buf = await res.arrayBuffer();
-        const out = await mammoth.convertToHtml({ arrayBuffer: buf });
-        if (!cancelled) setHtml(sanitizePreviewHtml(out.value || '<p class="muted">（空文档）</p>'));
+        const out = await mammoth.convertToHtml(
+          { arrayBuffer: buf },
+          { styleMap: SHELF_DOCX_STYLE_MAP },
+        );
+        if (!cancelled) setHtml(adaptShelfDocxHtml(out.value || '<p class="muted">（空文档）</p>'));
       } catch {
         if (!cancelled) setErr('无法加载文档');
       } finally {
@@ -142,12 +165,12 @@ function ShelfDocxView({ url, title }: { url: string; title: string }) {
     };
   }, [url]);
 
-  if (loading) return <p className="muted shelf-lesson-docx-loading">加载文档…</p>;
+  if (loading) return <p className="muted shelf-lesson-docx-loading">正在排版文档…</p>;
   if (err) return <p className="muted">{err}</p>;
 
   return (
     <article
-      className="shelf-lesson-docx shelf-reader-body"
+      className="shelf-lesson-docx shelf-docx-prose"
       aria-label={title}
       dangerouslySetInnerHTML={{ __html: html }}
     />

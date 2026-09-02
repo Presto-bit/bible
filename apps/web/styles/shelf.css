@@ -9,8 +9,105 @@
   margin-top: 12px;
 }
 
+.shelf-group-section {
+  margin-bottom: 8px;
+}
+
+.shelf-manage-sheet {
+  width: min(92vw, 400px);
+  margin: auto;
+  padding: 20px 18px 18px;
+}
+
+.shelf-manage-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+
+.shelf-manage-hint {
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+
+.shelf-manage-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shelf-manage-btn {
+  min-height: 46px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface, #fff);
+  font-size: 15px;
+  text-align: left;
+  padding: 0 14px;
+}
+
+.shelf-manage-btn.danger {
+  color: #b42318;
+  border-color: color-mix(in srgb, #b42318 25%, var(--line));
+}
+
+.shelf-manage-cancel {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.shelf-manage-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 0 12px;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.shelf-manage-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.shelf-manage-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  max-height: 40vh;
+  overflow: auto;
+}
+
+.shelf-manage-group-item {
+  text-align: left;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface, #fff);
+  padding: 0 14px;
+  font-size: 15px;
+}
+
+.shelf-manage-group-item.is-current {
+  border-color: color-mix(in srgb, var(--accent, #4a6b52) 40%, var(--line));
+  font-weight: 600;
+}
+
+.shelf-manage-new-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
 .shelf-cover {
   aspect-ratio: 3 / 4.2;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
   border-radius: 8px;
   box-shadow: var(--elev-2);
   display: flex;
@@ -115,6 +212,56 @@
   display: flex;
   flex-direction: column;
   background: var(--paper, #f7f3ec);
+  --shelf-font-size: 18px;
+  --shelf-line-height: 1.82;
+  --shelf-text-width: min(100%, 42rem);
+  font-family: var(--font-reader, Georgia, 'Songti SC', 'STSong', serif);
+}
+
+.shelf-reader-title-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shelf-reader-title-wrap h1 {
+  flex: unset;
+}
+
+.shelf-reader-unit {
+  font-size: 11px;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelf-reading-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.shelf-reading-btn {
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.shelf-reading-size {
+  font-size: 11px;
+  color: var(--ink-soft);
+  min-width: 1.2em;
+  text-align: center;
 }
 
 .shelf-reader-top {
@@ -141,9 +288,17 @@
   flex: 1;
   overflow: auto;
   padding: 20px 18px 88px;
-  font-size: 17px;
-  line-height: 1.85;
+  font-size: var(--shelf-font-size, 17px);
+  line-height: var(--shelf-line-height, 1.85);
   color: var(--ink, #2c2825);
+  -webkit-font-smoothing: antialiased;
+}
+
+.shelf-prose,
+.shelf-docx-prose {
+  max-width: var(--shelf-text-width);
+  margin: 0 auto;
+  width: 100%;
 }
 
 .shelf-reader-body .shelf-title {
@@ -261,8 +416,13 @@
 
 .shelf-toc-item.level-2 {
   padding-left: 28px;
-  font-size: 13px;
-  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.shelf-toc-item.level-2.is-active {
+  color: var(--ink);
 }
 
 .shelf-toc-item.level-3 {
@@ -293,33 +453,131 @@
 .shelf-lesson {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  padding-bottom: 12px;
+}
+
+.shelf-lesson-head {
+  padding: 16px 18px 0;
+  max-width: var(--shelf-text-width);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.shelf-lesson-title {
+  margin: 4px 0 0;
+  font-size: calc(var(--shelf-font-size, 18px) + 4px);
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .shelf-lesson-unit {
-  margin: 12px 16px 0;
+  margin: 0;
   font-size: 12px;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--accent, #4a6b52);
   letter-spacing: 0.04em;
+}
+
+.shelf-lesson-jump {
+  display: flex;
+  gap: 8px;
+  padding: 0 18px;
+  max-width: var(--shelf-text-width);
+  margin: 0 auto;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.shelf-lesson-jump a {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #4a6b52) 10%, var(--surface, #fff));
+  color: var(--accent-deep, #3d5a46);
+  text-decoration: none;
 }
 
 .shelf-lesson-pdf-wrap {
   width: 100%;
-  min-height: 72vh;
-  background: #e8e4dc;
+  background: color-mix(in srgb, var(--paper, #f7f3ec) 70%, #e8e4dc);
+}
+
+.shelf-pdf-viewer {
+  width: 100%;
+}
+
+.shelf-pdf-status {
+  padding: 20px 18px;
+  text-align: center;
+}
+
+.shelf-pdf-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0 8px;
+}
+
+.shelf-pdf-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+}
+
+.shelf-pdf-page-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+
+.shelf-pdf-page-num {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.shelf-pdf-foot {
+  text-align: center;
+  font-size: 12px;
+  padding: 8px 18px 16px;
+}
+
+.shelf-pdf-fallback {
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shelf-pdf-open-link {
+  align-self: flex-start;
+  font-size: 14px;
+  color: var(--accent-deep, #3d5a46);
+}
+
+.shelf-pdf-fallback-frame {
+  min-height: 60vh;
 }
 
 .shelf-lesson-pdf {
   width: 100%;
-  min-height: 72vh;
+  min-height: 60vh;
   border: none;
   display: block;
   background: #fff;
 }
 
 .shelf-lesson-media {
-  padding: 0 16px;
+  padding: 0 18px;
+  max-width: var(--shelf-text-width);
+  margin: 0 auto;
+  width: 100%;
 }
 
 .shelf-lesson-media-title {
@@ -331,8 +589,14 @@
 
 .shelf-lesson-image-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 480px) {
+  .shelf-lesson-image-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .shelf-lesson-image-tile {
@@ -348,9 +612,11 @@
 
 .shelf-lesson-image-tile img {
   width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  aspect-ratio: auto;
+  max-height: 280px;
+  object-fit: contain;
   display: block;
+  background: color-mix(in srgb, var(--paper) 50%, #fff);
 }
 
 .shelf-lesson-image-tile span {
@@ -408,7 +674,85 @@
 }
 
 .shelf-lesson-docx {
-  padding: 20px 18px;
+  padding: 8px 18px 24px;
+  max-width: var(--shelf-text-width);
+  margin: 0 auto;
+  width: 100%;
+  font-size: var(--shelf-font-size, 18px);
+  line-height: var(--shelf-line-height, 1.82);
+}
+
+.shelf-docx-prose .shelf-docx-title {
+  font-size: calc(var(--shelf-font-size, 18px) + 6px);
+  font-weight: 700;
+  margin: 0 0 16px;
+  line-height: 1.35;
+}
+
+.shelf-docx-prose .shelf-docx-h1 {
+  font-size: calc(var(--shelf-font-size, 18px) + 3px);
+  font-weight: 700;
+  margin: 1.6em 0 0.6em;
+  line-height: 1.4;
+}
+
+.shelf-docx-prose .shelf-docx-h2 {
+  font-size: calc(var(--shelf-font-size, 18px) + 1px);
+  font-weight: 600;
+  margin: 1.4em 0 0.5em;
+}
+
+.shelf-docx-prose .shelf-docx-h3 {
+  font-size: var(--shelf-font-size, 18px);
+  font-weight: 600;
+  margin: 1.2em 0 0.4em;
+}
+
+.shelf-docx-prose .shelf-docx-p {
+  margin: 0 0 0.85em;
+  text-align: justify;
+  text-wrap: pretty;
+}
+
+.shelf-docx-prose .shelf-docx-list {
+  margin: 0 0 1em 1.2em;
+  padding: 0;
+}
+
+.shelf-docx-prose .shelf-docx-list li {
+  margin: 0.35em 0;
+}
+
+.shelf-docx-table-wrap {
+  overflow-x: auto;
+  margin: 1em 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shelf-docx-prose .shelf-docx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(var(--shelf-font-size, 18px) - 2px);
+}
+
+.shelf-docx-prose .shelf-docx-table th,
+.shelf-docx-prose .shelf-docx-table td {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  vertical-align: top;
+}
+
+.shelf-docx-prose .shelf-docx-img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em auto;
+  border-radius: 6px;
+}
+
+.shelf-docx-prose strong {
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .shelf-lesson-docx-loading {
@@ -428,8 +772,13 @@
 }
 
 .shelf-toc-unit {
-  padding: 10px 16px 4px;
-  font-size: 13px;
+  padding: 14px 16px 6px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--ink);
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--surface, #fff) 96%, transparent);
+  backdrop-filter: blur(8px);
+  z-index: 1;
 }

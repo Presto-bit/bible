@@ -19,7 +19,15 @@ export type ShelfBookSummary = {
   file_size: number;
   section_count: number;
   book_type?: 'document' | 'collection' | string;
+  group_id?: string;
+  sort_order?: number;
   source: 'platform' | 'local';
+};
+
+export type ShelfGroup = {
+  id: string;
+  title: string;
+  sort_order?: number;
 };
 
 export type ShelfAttachment = {
@@ -71,8 +79,12 @@ export function shelfAssetUrl(bookId: string, storageKey: string): string {
 }
 
 export async function listPlatformShelf(): Promise<ShelfBookSummary[]> {
-  const data = await getJson<{ items: ShelfBookSummary[] }>('/shelf/platform');
+  const data = await listPlatformShelfFull();
   return data.items ?? [];
+}
+
+export async function listPlatformShelfFull(): Promise<{ groups: ShelfGroup[]; items: ShelfBookSummary[] }> {
+  return getJson<{ groups: ShelfGroup[]; items: ShelfBookSummary[] }>('/shelf/platform');
 }
 
 export async function getPlatformShelfBook(id: string): Promise<ShelfBookDetail> {
