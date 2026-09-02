@@ -10,14 +10,17 @@ type Props = {
   bookId: string;
   images: ShelfAttachment[];
   videos: ShelfAttachment[];
+  audios?: ShelfAttachment[];
   onClose: () => void;
 };
 
-export default function ShelfMediaSheet({ open, bookId, images, videos, onClose }: Props) {
+export default function ShelfMediaSheet({ open, bookId, images, videos, audios = [], onClose }: Props) {
   const [video, setVideo] = useState<ShelfAttachment | null>(null);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
   if (!open) return null;
+
+  const empty = videos.length === 0 && images.length === 0 && audios.length === 0;
 
   return (
     <>
@@ -30,6 +33,25 @@ export default function ShelfMediaSheet({ open, bookId, images, videos, onClose 
                 关闭
               </button>
             </div>
+
+            {audios.length > 0 ? (
+              <section className="shelf-media-section">
+                <h3>音频</h3>
+                <div className="shelf-media-audio-list">
+                  {audios.map((item) => (
+                    <div key={item.id} className="shelf-media-audio-item">
+                      <span className="shelf-media-audio-title">{item.title}</span>
+                      <audio
+                        controls
+                        preload="metadata"
+                        src={shelfAssetUrl(bookId, item.storage_key)}
+                        className="shelf-media-audio-player"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             {videos.length > 0 ? (
               <section className="shelf-media-section">
@@ -71,9 +93,7 @@ export default function ShelfMediaSheet({ open, bookId, images, videos, onClose 
               </section>
             ) : null}
 
-            {videos.length === 0 && images.length === 0 ? (
-              <p className="muted">暂无素材</p>
-            ) : null}
+            {empty ? <p className="muted">暂无素材</p> : null}
           </div>
         </div>
       </AppBodyPortal>

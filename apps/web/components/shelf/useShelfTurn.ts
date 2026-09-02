@@ -5,7 +5,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { shouldYieldShelfTurn } from '@/lib/shelf_gesture';
+import { shouldYieldShelfTurn, shelfTurnStartsInVerticalScroll } from '@/lib/shelf_gesture';
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 
 /**
@@ -25,7 +25,7 @@ const FORCE_RATIO_PREV = 0.18;
 const AXIS_RATIO = 1.15;
 const AXIS_MIN_PX = 8;
 const EDGE_RESIST = 0.28;
-const ANIM_MS = 280;
+const ANIM_MS = 320;
 const PREFETCH_RATIO = 0.04;
 const BOUNDARY_RATIO = 0.1;
 /** is-turning + touch-action:none 硬超时，防粘死 */
@@ -83,13 +83,14 @@ export function useShelfTurn({
     axis: null as 'x' | 'y' | null,
     prefetched: false,
     source: 'pointer' as 'pointer' | 'touch',
+    inVerticalScroll: false,
   });
   const applyOffset = useCallback((px: number, withAnim: boolean) => {
     offsetRef.current = px;
     setOffCenter(Math.abs(px) > 0.5);
     const el = trackRef.current;
     if (!el) return;
-    el.style.transition = withAnim ? `transform ${ANIM_MS}ms ease-out` : 'none';
+    el.style.transition = withAnim ? `transform ${ANIM_MS}ms cubic-bezier(0.22, 1, 0.36, 1)` : 'none';
     el.style.transform = `translateX(calc(-33.3333% + ${px}px))`;
   }, []);
 
@@ -225,13 +226,11 @@ export function useShelfTurn({
         setAnimating(true);
         applyOffset(-w, true);
         await sleep(ANIM_MS);
+        applyOffset(0, false);
         try {
           await Promise.resolve(onSectionChange(1, { fromSwipe: true }));
         } finally {
-          requestAnimationFrame(() => {
-            applyOffset(0, false);
-            setAnimating(false);
-          });
+          setAnimating(false);
         }
         return;
       }
@@ -249,13 +248,11 @@ export function useShelfTurn({
         setAnimating(true);
         applyOffset(w, true);
         await sleep(ANIM_MS);
+        applyOffset(0, false);
         try {
           await Promise.resolve(onSectionChange(-1, { fromSwipe: true }));
         } finally {
-          requestAnimationFrame(() => {
-            applyOffset(0, false);
-            setAnimating(false);
-          });
+          setAnimating(false);
         }
         return;
       }
@@ -287,7 +284,7 @@ export function useShelfTurn({
   }, [enabled, canPrev, canNext, resolveTurn, onSectionChange, onPageChange, onBoundary, applyOffset, snapOnly]);
 
   const beginDrag = useCallback(
-    (clientX: number, clientY: number, pointerId: number, source: 'pointer' | 'touch') => {
+    (clientX: number, clientY: number, pointerId: number, source: 'pointer' | 'touch', target?: EventTarget | null) => {
       if (!enabled || animating || isIgnored()) return false;
       const sel = window.getSelection();
       if (sel && !sel.isCollapsed) return false;
@@ -300,6 +297,7 @@ export function useShelfTurn({
         axis: null,
         prefetched: false,
         source,
+        inVerticalScroll: shelfTurnStartsInVerticalScroll(target ?? null),
       };
       return true;
     },
@@ -316,8 +314,9 @@ export function useShelfTurn({
       if (!drag.current.axis) {
         const adx = Math.abs(dx);
         const ady = Math.abs(dy);
+        const hRatio = drag.current.inVerticalScroll ? 2 : AXIS_RATIO;
         if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
-        if (adx >= AXIS_MIN_PX && adx > ady * AXIS_RATIO) {
+        if (adx >= AXIS_MIN_PX && adx > ady * hRatio) {
           drag.current.axis = 'x';
           setTurning(true);
         } else if (ady >= AXIS_MIN_PX && ady >= adx * AXIS_RATIO) {
@@ -329,7 +328,7 @@ export function useShelfTurn({
           setDragProgress(0);
           applyOffset(0, false);
           return;
-        } else if (adx >= AXIS_MIN_PX * 1.2 && adx > ady) {
+        } else if (adx >= AXIS_MIN_PX * 1.2 && adx > ady * (drag.current.inVerticalScroll ? 1.35 : 1)) {
           drag.current.axis = 'x';
           setTurning(true);
         } else {
@@ -401,7 +400,7 @@ export function useShelfTurn({
       if (e.button !== 0) return;
       // 词典/按钮优先：composedPath + 邻点，勿 setPointerCapture 抢词
       if (shouldYieldShelfTurn(e.target, e.clientX, e.clientY, e.nativeEvent)) return;
-      if (!beginDrag(e.clientX, e.clientY, e.pointerId, 'pointer')) return;
+      if (!beginDrag(e.clientX, e.clientY, e.pointerId, 'pointer', e.target)) return;
       // 安卓壳：capture 会吞邻域点击；靠 window pointermove/up 即可
       if (isPeiaiAndroidShell()) return;
       try {
@@ -460,7 +459,7 @@ export function useShelfTurn({
         return;
       }
       if (drag.current.active) return;
-      beginDrag(t.clientX, t.clientY, t.identifier, 'touch');
+      beginDrag(t.clientX, t.clientY, t.identifier, 'touch', e.target);
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!drag.current.active || drag.current.source !== 'touch') return;

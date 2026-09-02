@@ -22,14 +22,26 @@ type Props = {
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
   onScrollProgress?: (ratio: number) => void;
-  onSectionEdge?: (edge: 'prev' | 'next') => void;
-  canPrevSection?: boolean;
-  canNextSection?: boolean;
   onTap?: () => void;
   pdfFullscreen?: boolean;
   onExitPdfFullscreen?: () => void;
   onOpenPdfFullscreen?: () => void;
 };
+
+function isAudioAttachment(item: ShelfAttachment): boolean {
+  if (item.kind === 'audio') return true;
+  const mime = (item.mime || '').toLowerCase();
+  return mime.startsWith('audio/');
+}
+
+function shelfSectionAttachments(section: ShelfSection) {
+  const all = section.attachments ?? [];
+  return {
+    images: all.filter((a) => a.kind === 'image'),
+    videos: all.filter((a) => a.kind === 'video'),
+    audios: all.filter(isAudioAttachment),
+  };
+}
 
 export default function ShelfLessonPanel({
   bookId,
@@ -41,9 +53,6 @@ export default function ShelfLessonPanel({
   onPageCount,
   onPageIndexChange,
   onScrollProgress,
-  onSectionEdge,
-  canPrevSection = false,
-  canNextSection = false,
   onTap,
   pdfFullscreen = false,
   onExitPdfFullscreen,
@@ -51,9 +60,21 @@ export default function ShelfLessonPanel({
 }: Props) {
   const [mediaOpen, setMediaOpen] = useState(false);
 
-  const images = section.attachments?.filter((a) => a.kind === 'image') ?? [];
-  const videos = section.attachments?.filter((a) => a.kind === 'video') ?? [];
-  const hasMedia = images.length > 0 || videos.length > 0;
+  const { images, videos, audios } = shelfSectionAttachments(section);
+  const hasMedia = images.length > 0 || videos.length > 0 || audios.length > 0;
+
+  const primary = section.primary;
+  const isPdf = Boolean(
+    primary?.storage_key &&
+      ((primary.mime || '').includes('pdf') || primary.storage_key.toLowerCase().endsWith('.pdf')),
+  );
+
+  const mediaFabLabel =
+    audios.length > 0 && images.length === 0 && videos.length === 0
+      ? '音频'
+      : images.length > 0 && videos.length === 0 && audios.length === 0
+        ? '图片'
+        : '素材';
 
   return (
     <div className="shelf-lesson-viewport">
@@ -67,9 +88,6 @@ export default function ShelfLessonPanel({
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
         onScrollProgress={onScrollProgress}
-        onSectionEdge={onSectionEdge}
-        canPrevSection={canPrevSection}
-        canNextSection={canNextSection}
         onTap={onTap}
         pdfFullscreen={pdfFullscreen}
         onExitPdfFullscreen={onExitPdfFullscreen}
@@ -78,15 +96,18 @@ export default function ShelfLessonPanel({
       {hasMedia && !pdfFullscreen ? (
         <button
           type="button"
-          className="shelf-lesson-media-fab"
-          aria-label="本课素材"
-          onClick={() => setMediaOpen(true)}
+          className={`shelf-lesson-media-fab${isPdf ? ' shelf-lesson-media-fab-pdf' : ''}`}
+          aria-label={`本课${mediaFabLabel}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMediaOpen(true);
+          }}
         >
-          素材
+          {mediaFabLabel}
         </button>
       ) : null}
 
-      {!pdfFullscreen && onOpenPdfFullscreen && section.primary?.mime?.includes('pdf') ? (
+      {!pdfFullscreen && onOpenPdfFullscreen && isPdf ? (
         <button
           type="button"
           className="shelf-pdf-toolbar-btn shelf-pdf-enter-fullscreen"
@@ -105,6 +126,7 @@ export default function ShelfLessonPanel({
         bookId={bookId}
         images={images}
         videos={videos}
+        audios={audios}
         onClose={() => setMediaOpen(false)}
       />
     </div>
@@ -121,9 +143,6 @@ function ShelfPrimaryView({
   onPageCount,
   onPageIndexChange,
   onScrollProgress,
-  onSectionEdge,
-  canPrevSection = false,
-  canNextSection = false,
   onTap,
   pdfFullscreen,
   onExitPdfFullscreen,
@@ -137,9 +156,6 @@ function ShelfPrimaryView({
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
   onScrollProgress?: (ratio: number) => void;
-  onSectionEdge?: (edge: 'prev' | 'next') => void;
-  canPrevSection?: boolean;
-  canNextSection?: boolean;
   onTap?: () => void;
   pdfFullscreen?: boolean;
   onExitPdfFullscreen?: () => void;
@@ -159,9 +175,6 @@ function ShelfPrimaryView({
         scrollToEnd={scrollToEnd}
         variant="docx"
         onScrollProgress={onScrollProgress}
-        onSectionEdge={onSectionEdge}
-        canPrevSection={canPrevSection}
-        canNextSection={canNextSection}
         onTap={onTap}
       />
     );
@@ -182,9 +195,6 @@ function ShelfPrimaryView({
         pageIndex={pageIndex}
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
-        onSectionEdge={onSectionEdge}
-        canPrevSection={canPrevSection}
-        canNextSection={canNextSection}
         onTap={onTap}
         fullscreen={pdfFullscreen}
         onExitFullscreen={onExitPdfFullscreen}
@@ -201,9 +211,6 @@ function ShelfPrimaryView({
         scrollOffset={scrollOffset}
         scrollToEnd={scrollToEnd}
         onScrollProgress={onScrollProgress}
-        onSectionEdge={onSectionEdge}
-        canPrevSection={canPrevSection}
-        canNextSection={canNextSection}
         onTap={onTap}
       />
     );
@@ -225,9 +232,6 @@ function ShelfDocxPaginated({
   scrollOffset = 0,
   scrollToEnd = false,
   onScrollProgress,
-  onSectionEdge,
-  canPrevSection = false,
-  canNextSection = false,
   onTap,
 }: {
   url: string;
@@ -236,9 +240,6 @@ function ShelfDocxPaginated({
   scrollOffset?: number;
   scrollToEnd?: boolean;
   onScrollProgress?: (ratio: number) => void;
-  onSectionEdge?: (edge: 'prev' | 'next') => void;
-  canPrevSection?: boolean;
-  canNextSection?: boolean;
   onTap?: () => void;
 }) {
   const [html, setHtml] = useState('');
@@ -283,9 +284,6 @@ function ShelfDocxPaginated({
       scrollToEnd={scrollToEnd}
       variant="docx"
       onScrollProgress={onScrollProgress}
-      onSectionEdge={onSectionEdge}
-      canPrevSection={canPrevSection}
-      canNextSection={canNextSection}
       onTap={onTap}
     />
   );
@@ -298,8 +296,7 @@ export function shelfLessonHasPrimary(section: ShelfSection): boolean {
 export function shelfLessonMedia(section: ShelfSection): {
   images: ShelfAttachment[];
   videos: ShelfAttachment[];
+  audios: ShelfAttachment[];
 } {
-  const images = section.attachments?.filter((a) => a.kind === 'image') ?? [];
-  const videos = section.attachments?.filter((a) => a.kind === 'video') ?? [];
-  return { images, videos };
+  return shelfSectionAttachments(section);
 }

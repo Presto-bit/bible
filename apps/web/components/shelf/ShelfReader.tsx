@@ -324,17 +324,15 @@ export default function ShelfReader({
     if (sectionIndex > 0) {
       const prev = sections[sectionIndex - 1];
       goSection(prev?.id ?? null, { page: 'last', scroll: 'end' });
-      if (prev?.title) flashToast(`已进入：${prev.title}`);
     }
-  }, [goSection, sectionIndex, sections, flashToast]);
+  }, [goSection, sectionIndex, sections]);
 
   const goNextSection = useCallback(() => {
     if (sectionIndex >= 0 && sectionIndex < sections.length - 1) {
       const next = sections[sectionIndex + 1];
       goSection(next?.id ?? null, { page: 0, scroll: 'start' });
-      if (next?.title) flashToast(`已进入：${next.title}`);
     }
-  }, [goSection, sectionIndex, sections, flashToast]);
+  }, [goSection, sectionIndex, sections]);
 
   const resolveTurn = useCallback(
     (delta: 1 | -1): ShelfTurnKind => {
@@ -350,15 +348,14 @@ export default function ShelfReader({
     canPrev,
     canNext,
     blocked: overlayOpen,
-    snapOnly: true,
+    snapOnly: false,
     resolveTurn,
     onSectionChange: (delta) => {
       if (delta > 0) goNextSection();
       else goPrevSection();
     },
     onDragApproach: prefetchNeighbor,
-    onBoundary: (edge) => {
-      flashToast(edge === 'next' ? '已是最后一节' : '已是第一节');
+    onBoundary: () => {
       try {
         navigator.vibrate?.(10);
       } catch {
@@ -377,14 +374,6 @@ export default function ShelfReader({
   const onContentTap = useCallback(() => {
     setChromeHidden((v) => !v);
   }, []);
-
-  const flowEdgeHandlers = useCallback(
-    (edge: 'prev' | 'next') => {
-      if (edge === 'next') goNextSection();
-      else goPrevSection();
-    },
-    [goNextSection, goPrevSection],
-  );
 
   const onFlowScrollProgress = useCallback((ratio: number) => {
     setFlowScrollRatio(ratio);
@@ -410,9 +399,6 @@ export default function ShelfReader({
           onPageCount={interactive && shelfSectionIsPdf(sec) ? setPageCountForSection : undefined}
           onPageIndexChange={interactive && shelfSectionIsPdf(sec) ? setPageIndex : undefined}
           onScrollProgress={interactive && !shelfSectionIsPdf(sec) ? onFlowScrollProgress : undefined}
-          onSectionEdge={interactive ? flowEdgeHandlers : undefined}
-          canPrevSection={canPrevSection}
-          canNextSection={canNextSection}
           onTap={interactive ? onContentTap : undefined}
           pdfFullscreen={interactive && pdfFullscreen}
           onExitPdfFullscreen={interactive ? () => setPdfFullscreen(false) : undefined}
@@ -428,9 +414,6 @@ export default function ShelfReader({
           scrollOffset={interactive ? (scrollBySectionRef.current[sec.id] ?? flowScrollRatio) : 0}
           scrollToEnd={interactive ? Boolean(opts?.scrollToEnd) : false}
           onScrollProgress={interactive ? onFlowScrollProgress : undefined}
-          onSectionEdge={interactive ? flowEdgeHandlers : undefined}
-          canPrevSection={canPrevSection}
-          canNextSection={canNextSection}
           onTap={interactive ? onContentTap : undefined}
         />
       );
