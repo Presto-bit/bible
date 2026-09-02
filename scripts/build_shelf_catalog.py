@@ -42,7 +42,8 @@ def main() -> None:
     uploads = ROOT / "data" / "shelf_uploads"
     uploads.mkdir(parents=True, exist_ok=True)
     dest = uploads / args.storage_key
-    shutil.copy2(src, dest)
+    if src.resolve() != dest.resolve():
+        shutil.copy2(src, dest)
 
     book = {
         "id": args.book_id,

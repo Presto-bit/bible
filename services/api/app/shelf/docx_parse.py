@@ -132,6 +132,7 @@ def parse_docx_bytes(data: bytes) -> dict[str, Any]:
     toc_body: list[dict[str, Any]] = []
     current: dict[str, Any] | None = None
     buf: list[str] = []
+    current_zone = "body"
 
     def flush() -> None:
         nonlocal current, buf
@@ -139,17 +140,19 @@ def parse_docx_bytes(data: bytes) -> dict[str, Any]:
             return
         current["html"] = "\n".join(buf)
         sections.append(current)
-        toc_body.append(
-            {
-                "id": current["toc_id"],
-                "title": current["title"],
-                "level": current["level"],
-                "zone": current["zone"],
-                "source": current["source"],
-                "confidence": 1.0 if current["source"] == "structured" else 0.75,
-                "section_id": current["id"],
-            }
-        )
+        # 目录只保留一级标题（二十场对话 + 三个附录），附录内经文/第几天不入目录
+        if current["level"] <= 1:
+            toc_body.append(
+                {
+                    "id": current["toc_id"],
+                    "title": current["title"],
+                    "level": current["level"],
+                    "zone": current["zone"],
+                    "source": current["source"],
+                    "confidence": 1.0 if current["source"] == "structured" else 0.75,
+                    "section_id": current["id"],
+                }
+            )
         current = None
         buf = []
 
@@ -201,7 +204,11 @@ def parse_docx_bytes(data: bytes) -> dict[str, Any]:
         is_h2 = p.style and "Heading2" in p.style
         if is_h1 or is_h2:
             flush()
-            zone = _zone_for_title(p.text)
+            if is_h1:
+                current_zone = _zone_for_title(p.text)
+                zone = current_zone
+            else:
+                zone = current_zone
             if zone == "meta":
                 continue
             sec_id = f"sec-{len(sections)}"
