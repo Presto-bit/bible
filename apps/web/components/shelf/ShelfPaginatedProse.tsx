@@ -86,7 +86,8 @@ export default function ShelfPaginatedProse({
   const articleRef = useRef<HTMLElement>(null);
   const syncRef = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
-  const tapRef = useRef({ x: 0, y: 0, moved: false });
+  const tapRef = useRef({ x: 0, y: 0, pointerId: -1 });
+  const TAP_SLOP_PX = 14;
   const [selection, setSelection] = useState<ShelfTextSelection | null>(null);
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
@@ -253,45 +254,58 @@ export default function ShelfPaginatedProse({
     clearSelection();
   }, [selection, annotationsEnabled, bookId, sectionId, pageIndex, clearSelection]);
 
-  const handleArticlePointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
-    tapRef.current = { x: e.clientX, y: e.clientY, moved: false };
+  const handleContentPointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
+    tapRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
   }, []);
 
-  const handleArticlePointerMove = useCallback((e: PointerEvent<HTMLElement>) => {
-    if (tapRef.current.moved) return;
-    if (Math.hypot(e.clientX - tapRef.current.x, e.clientY - tapRef.current.y) > 8) {
-      tapRef.current.moved = true;
-    }
-  }, []);
+  const handleContentPointerUp = useCallback(
+    (e: PointerEvent<HTMLElement>) => {
+      if (e.pointerId !== tapRef.current.pointerId) return;
+      const target = e.target as HTMLElement;
+      const btn = target.closest('.shelf-inline-ref') as HTMLElement | null;
+      if (btn?.dataset.osis) return;
 
-  const handleArticleClick = useCallback(
+      const moved = Math.hypot(e.clientX - tapRef.current.x, e.clientY - tapRef.current.y);
+      if (moved > TAP_SLOP_PX) return;
+
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          const article = articleRef.current;
+          const picked = readShelfTextSelection(article);
+          if (picked) {
+            setSelection(picked);
+            setFocusBarStyle(focusBarStyleFromRect(picked.rect, chromeHidden));
+            return;
+          }
+          const liveSel = window.getSelection();
+          if (liveSel && !liveSel.isCollapsed && liveSel.toString().trim()) {
+            syncSelection();
+            return;
+          }
+          if (selection) {
+            clearSelection();
+            return;
+          }
+          onTap?.();
+        });
+      });
+    },
+    [onTap, selection, clearSelection, syncSelection, chromeHidden],
+  );
+
+  const handleInlineRefClick = useCallback(
     (e: MouseEvent<HTMLElement>) => {
       const target = e.target as HTMLElement;
       const btn = target.closest('.shelf-inline-ref') as HTMLElement | null;
-      if (btn?.dataset.osis) {
-        e.preventDefault();
-        e.stopPropagation();
-        setVersePreview({
-          osis: btn.dataset.osis,
-          label: btn.dataset.label || btn.textContent || '',
-        });
-        return;
-      }
-      if (tapRef.current.moved) return;
-      const liveSel = window.getSelection();
-      if (liveSel && !liveSel.isCollapsed && liveSel.toString().trim()) {
-        syncSelection();
-        return;
-      }
-      if (selection) {
-        if (!liveSel?.toString()) {
-          clearSelection();
-        }
-        return;
-      }
-      onTap?.();
+      if (!btn?.dataset.osis) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setVersePreview({
+        osis: btn.dataset.osis,
+        label: btn.dataset.label || btn.textContent || '',
+      });
     },
-    [onTap, selection, clearSelection, syncSelection],
+    [],
   );
 
   const proseClass = variant === 'docx' ? 'shelf-docx-prose' : 'shelf-prose';
@@ -300,16 +314,16 @@ export default function ShelfPaginatedProse({
     <>
       <div
         ref={viewportRef}
-        className="shelf-flow-viewport shelf-flow-viewport-annotated"
+        className="shelf-flow-viewport shelf-flow-viewport-annotated shelf-content-tap"
         onScroll={handleScroll}
+        onPointerDown={handleContentPointerDown}
+        onPointerUp={handleContentPointerUp}
       >
         <article
           ref={articleRef}
           className={`shelf-flow-article ${proseClass}`}
           dangerouslySetInnerHTML={{ __html: linkedHtml }}
-          onPointerDown={handleArticlePointerDown}
-          onPointerMove={handleArticlePointerMove}
-          onClick={handleArticleClick}
+          onClick={handleInlineRefClick}
         />
         <div className="shelf-flow-bottom-spacer" aria-hidden />
       </div>

@@ -116,6 +116,9 @@ export const SHELF_DOCX_STYLE_MAP = [
   "p[style-name='标题 1'] => h2.shelf-docx-h1:fresh",
   "p[style-name='标题 2'] => h3.shelf-docx-h2:fresh",
   "p[style-name='标题 3'] => h4.shelf-docx-h3:fresh",
+  "p[style-name='Normal'] => p.shelf-docx-p:fresh",
+  "p[style-name='正文'] => p.shelf-docx-p:fresh",
+  "p[style-name='Body Text'] => p.shelf-docx-p:fresh",
   "p[style-name='List Paragraph'] => p.shelf-docx-p:fresh",
   "p[style-name='列表段落'] => p.shelf-docx-p:fresh",
   "p[style-name='Quote'] => blockquote.shelf-docx-quote:fresh",
@@ -123,6 +126,25 @@ export const SHELF_DOCX_STYLE_MAP = [
   "r[style-name='Strong'] => strong",
   "r[style-name='Emphasis'] => em",
 ];
+
+function stripShelfDocxInlineStyle(style: string): string {
+  return style
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => {
+      const key = part.split(':')[0]?.trim().toLowerCase() ?? '';
+      return !(
+        key.startsWith('font-size')
+        || key.startsWith('font-family')
+        || key.startsWith('line-height')
+        || key.startsWith('color')
+        || key.startsWith('letter-spacing')
+        || key.startsWith('mso-')
+      );
+    })
+    .join('; ');
+}
 
 export function adaptShelfDocxHtml(raw: string): string {
   const base = sanitizePreviewHtml(raw);
@@ -180,6 +202,21 @@ export function adaptShelfDocxHtml(raw: string): string {
 
     root.querySelectorAll('li').forEach((li) => {
       if (!li.classList.length) li.classList.add('shelf-docx-li');
+    });
+
+    root.querySelectorAll('[style]').forEach((el) => {
+      const cleaned = stripShelfDocxInlineStyle(el.getAttribute('style') || '');
+      if (cleaned) el.setAttribute('style', cleaned);
+      else el.removeAttribute('style');
+    });
+
+    root.querySelectorAll('div').forEach((div) => {
+      if (div === root || div.classList.contains('shelf-docx-table-wrap')) return;
+      if (div.querySelector('table, ul, ol, img, h1, h2, h3, h4, blockquote')) return;
+      const p = doc.createElement('p');
+      p.className = 'shelf-docx-p';
+      p.innerHTML = div.innerHTML;
+      div.replaceWith(p);
     });
 
     return root.innerHTML;

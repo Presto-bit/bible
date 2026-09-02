@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react';
+import { clampShelfPdfZoom } from '@/lib/shelf_reader_contract';
 
 type Props = {
   url: string;
@@ -9,18 +10,21 @@ type Props = {
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
   onTap?: () => void;
+  onPinchActive?: (active: boolean) => void;
 };
 
-/** 默认略放大，弥补教案 PDF 字号偏小；无 UI 控件 */
-const PDF_READABLE_SCALE = 1.2;
+/** 默认略放大，弥补教案 PDF 字号偏小 */
+const PDF_BASE_SCALE = 1.2;
+const TAP_SLOP_PX = 14;
 
 function computePdfLayout(
   containerWidth: number,
   pageWidth: number,
   pageHeight: number,
+  zoom = 1,
 ) {
   const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 2 : 2, 2);
-  const scale = (containerWidth / pageWidth) * PDF_READABLE_SCALE;
+  const scale = (containerWidth / pageWidth) * PDF_BASE_SCALE * zoom;
   return {
     dpr,
     renderScale: scale * dpr,
@@ -44,8 +48,15 @@ function measurePdfContainerWidth(host: HTMLElement | null): number {
   return 720;
 }
 
-function pdfCacheKey(url: string, pageNum: number, w: number) {
-  return `${url}|${pageNum}|${Math.round(w)}|${Math.round(PDF_READABLE_SCALE * 100)}`;
+function pdfCacheKey(url: string, pageNum: number, w: number, zoom: number) {
+  return `${url}|${pageNum}|${Math.round(w)}|${Math.round(PDF_BASE_SCALE * zoom * 100)}`;
+}
+
+function touchSpan(touches: TouchList): number {
+  if (touches.length < 2) return 0;
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
 }
 
 function trimPdfCache() {
@@ -63,6 +74,7 @@ function PdfPageTile({
   pageNum,
   url,
   containerWidth,
+  zoom,
   title,
   scrollRootRef,
 }: {
@@ -70,6 +82,7 @@ function PdfPageTile({
   pageNum: number;
   url: string;
   containerWidth: number;
+  zoom: number;
   title: string;
   scrollRootRef: RefObject<HTMLElement | null>;
 }) {
@@ -115,10 +128,10 @@ function PdfPageTile({
         if (cancelled) return;
         const base = page.getViewport({ scale: 1 });
         const w = containerWidth;
-        const { renderScale, cssWidth, cssHeight } = computePdfLayout(w, base.width, base.height);
+        const { renderScale, cssWidth, cssHeight } = computePdfLayout(w, base.width, base.height, zoom);
         setPlaceholderH(cssHeight);
         const scaled = page.getViewport({ scale: renderScale });
-        const cacheKey = pdfCacheKey(url, pageNum, w);
+        const cacheKey = pdfCacheKey(url, pageNum, w, zoom);
         const cached = pdfPageCache.get(cacheKey);
         if (cached) {
           canvas.width = cached.width;
@@ -152,7 +165,9 @@ function PdfPageTile({
     return () => {
       cancelled = true;
     };
-  }, [visible, pdf, pageNum, url, containerWidth]);
+  }, [visible, pdf, pageNum, url, containerWidth, zoom]);
+
+  const zoomed = zoom > 1.001;
 
   return (
     <div ref={rootRef} className="shelf-pdf-scroll-page" style={{ minHeight: placeholderH }}>
@@ -161,7 +176,7 @@ function PdfPageTile({
       ) : null}
       <canvas
         ref={canvasRef}
-        className="shelf-pdf-page-canvas is-readable"
+        className={`shelf-pdf-page-canvas is-readable${zoomed ? ' is-zoomed' : ''}`}
         role="img"
         aria-label={`${title} 第 ${pageNum} 页`}
       />
@@ -176,6 +191,7 @@ export default function ShelfPdfPager({
   onPageCount,
   onPageIndexChange,
   onTap,
+  onPinchActive,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -187,6 +203,13 @@ export default function ShelfPdfPager({
   const pageFromScrollRef = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
   const suppressTapRef = useRef(false);
+  const tapRef = useRef({ x: 0, y: 0, pointerId: -1 });
+  const pinchRef = useRef({ active: false, startSpan: 0, startZoom: 1 });
+  const zoomRafRef = useRef<number | null>(null);
+  const pendingZoomRef = useRef<number | null>(null);
+  const zoomRef = useRef(1);
+  const [pinching, setPinching] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [pageCount, setPageCount] = useState(0);
   const [containerWidth, setContainerWidth] = useState(() => measurePdfContainerWidth(null));
@@ -195,6 +218,66 @@ export default function ShelfPdfPager({
   useEffect(() => {
     activePageRef.current = pageIndex;
   }, [pageIndex]);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  const scheduleZoom = useCallback((next: number) => {
+    pendingZoomRef.current = clampShelfPdfZoom(next);
+    if (zoomRafRef.current != null) return;
+    zoomRafRef.current = window.requestAnimationFrame(() => {
+      zoomRafRef.current = null;
+      const z = pendingZoomRef.current;
+      pendingZoomRef.current = null;
+      if (z != null) setZoom(z);
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      const span = touchSpan(e.touches);
+      if (span <= 0) return;
+      pinchRef.current = { active: true, startSpan: span, startZoom: zoomRef.current };
+      onPinchActive?.(true);
+      setPinching(true);
+      suppressTapRef.current = true;
+      e.preventDefault();
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pinchRef.current.active || e.touches.length !== 2) return;
+      const span = touchSpan(e.touches);
+      if (pinchRef.current.startSpan <= 0) return;
+      e.preventDefault();
+      scheduleZoom(pinchRef.current.startZoom * (span / pinchRef.current.startSpan));
+    };
+    const endPinch = (e: TouchEvent) => {
+      if (!pinchRef.current.active) return;
+      if (e.touches.length >= 2) return;
+      pinchRef.current.active = false;
+      onPinchActive?.(false);
+      setPinching(false);
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', endPinch, { passive: true });
+    el.addEventListener('touchcancel', endPinch, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', endPinch);
+      el.removeEventListener('touchcancel', endPinch);
+      if (zoomRafRef.current != null) window.cancelAnimationFrame(zoomRafRef.current);
+      pinchRef.current.active = false;
+      onPinchActive?.(false);
+      setPinching(false);
+    };
+  }, [onPinchActive, scheduleZoom, status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -314,13 +397,22 @@ export default function ShelfPdfPager({
     });
   }, [onPageIndexChange]);
 
-  const handleContentClick = useCallback(() => {
-    if (suppressTapRef.current) {
-      suppressTapRef.current = false;
-      return;
-    }
-    onTap?.();
-  }, [onTap]);
+  const handleContentPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    tapRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+  }, []);
+
+  const handleContentPointerUp = useCallback(
+    (e: PointerEvent<HTMLDivElement>) => {
+      if (e.pointerId !== tapRef.current.pointerId) return;
+      if (suppressTapRef.current) {
+        suppressTapRef.current = false;
+        return;
+      }
+      if (Math.hypot(e.clientX - tapRef.current.x, e.clientY - tapRef.current.y) > TAP_SLOP_PX) return;
+      onTap?.();
+    },
+    [onTap],
+  );
 
   useEffect(() => {
     return () => {
@@ -333,9 +425,14 @@ export default function ShelfPdfPager({
   }
 
   const pdf = pdfDoc;
+  const zoomed = zoom > 1.001;
 
   return (
-    <div className="shelf-pdf-pager shelf-pdf-pager-scroll" onClick={handleContentClick}>
+    <div
+      className={`shelf-pdf-pager shelf-pdf-pager-scroll${pinching ? ' is-pinching' : ''}`}
+      onPointerDown={handleContentPointerDown}
+      onPointerUp={handleContentPointerUp}
+    >
       {status === 'loading' ? (
         <p className="muted shelf-pdf-status" role="status">
           正在加载 PDF…
@@ -357,7 +454,7 @@ export default function ShelfPdfPager({
         <div ref={hostRef} className="shelf-pdf-pager-host">
           <div
             ref={stageRef}
-            className="shelf-pdf-pager-stage is-scrollable is-readable"
+            className={`shelf-pdf-pager-stage is-scrollable is-readable${zoomed ? ' is-zoomed' : ''}`}
             aria-busy={status === 'loading'}
             onScroll={handleScroll}
           >
@@ -375,6 +472,7 @@ export default function ShelfPdfPager({
                       pageNum={i + 1}
                       url={url}
                       containerWidth={containerWidth}
+                      zoom={zoom}
                       title={title}
                       scrollRootRef={stageRef}
                     />

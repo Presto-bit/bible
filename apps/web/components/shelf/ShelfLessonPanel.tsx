@@ -25,6 +25,7 @@ type Props = {
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
+  onPdfPinchActive?: (active: boolean) => void;
   onOpenMedia?: () => void;
   onOpenVideo?: (item: ShelfAttachment) => void;
 };
@@ -43,6 +44,7 @@ export default function ShelfLessonPanel({
   onScrollProgress,
   onTap,
   chromeHidden = false,
+  onPdfPinchActive,
   onOpenMedia,
   onOpenVideo,
 }: Props) {
@@ -99,6 +101,7 @@ export default function ShelfLessonPanel({
         onScrollProgress={onScrollProgress}
         onTap={onTap}
         chromeHidden={chromeHidden}
+        onPdfPinchActive={onPdfPinchActive}
       />
 
       {hasMedia ? (
@@ -143,6 +146,7 @@ function ShelfPrimaryView({
   onScrollProgress,
   onTap,
   chromeHidden,
+  onPdfPinchActive,
 }: {
   bookId: string;
   section: ShelfSection;
@@ -155,6 +159,7 @@ function ShelfPrimaryView({
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
+  onPdfPinchActive?: (active: boolean) => void;
 }) {
   const primary = section.primary;
   const url = useMemo(() => {
@@ -196,6 +201,7 @@ function ShelfPrimaryView({
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
         onTap={onTap}
+        onPinchActive={onPdfPinchActive}
       />
     );
   }

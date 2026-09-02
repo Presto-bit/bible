@@ -440,7 +440,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-turn-edge {
   position: absolute;
   top: 0;
-  bottom: 0;
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   width: 88px;
   z-index: 4;
   margin: 0;
@@ -560,6 +560,35 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   padding-bottom: 28px;
 }
 
+.shelf-flow-viewport-annotated .shelf-flow-article,
+.shelf-flow-viewport-annotated .shelf-flow-article *:not(.shelf-inline-ref):not(button):not(a) {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default;
+}
+
+.shelf-inline-ref {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  color: var(--accent-deep, #3d5a45);
+  font-size: 1.08em;
+  font-weight: 500;
+  line-height: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent-deep, #3d5a45) 35%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+.shelf-inline-ref:active {
+  opacity: 0.72;
+}
+
 .shelf-flow-article {
   width: 100%;
   max-width: 100%;
@@ -577,26 +606,6 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   min-height: calc(96px + env(safe-area-inset-bottom, 0px));
   width: 100%;
   flex-shrink: 0;
-}
-
-.shelf-inline-ref {
-  display: inline;
-  padding: 0;
-  margin: 0;
-  border: none;
-  background: none;
-  color: var(--accent-deep, #3d5a45);
-  font-size: 1.08em;
-  font-weight: 500;
-  line-height: inherit;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--accent-deep, #3d5a45) 35%, transparent);
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.shelf-inline-ref:active {
-  opacity: 0.72;
 }
 
 .shelf-verse-preview-sheet {
@@ -832,7 +841,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 3;
+  z-index: 20;
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -1024,6 +1033,13 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-reader-hidden .shelf-reader-top {
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
+}
+
+.shelf-reader-hidden .shelf-reader-bottom {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .shelf-reader-hidden .shelf-page-viewport {
@@ -1035,18 +1051,13 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   left: 50%;
   bottom: calc(var(--safe-bottom, 0px) + 58px);
   transform: translateX(-50%);
-  z-index: 2;
+  z-index: 12;
   font-size: 11px;
   color: var(--ink-soft);
   padding: 4px 10px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--paper, #f7f3ec) 88%, transparent);
   border: 1px solid var(--line, rgba(0, 0, 0, 0.06));
-  pointer-events: none;
-}
-
-.shelf-reader-hidden .shelf-reader-bottom {
-  opacity: 0;
   pointer-events: none;
 }
 
@@ -1284,9 +1295,14 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-pdf-pager-stage.is-scrollable.is-readable {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pinch-zoom;
 }
 
-.shelf-pdf-page-canvas.is-readable {
+.shelf-pdf-pager-stage.is-scrollable.is-readable.is-zoomed {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.shelf-pdf-page-canvas.is-readable.is-zoomed {
   max-width: none;
 }
 
@@ -1817,6 +1833,26 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   text-align: left;
   text-wrap: pretty;
   line-height: inherit;
+}
+
+.shelf-docx-prose span,
+.shelf-docx-prose font,
+.shelf-docx-prose div:not(.shelf-docx-table-wrap) {
+  font-size: inherit !important;
+  font-family: inherit !important;
+  line-height: inherit !important;
+  color: inherit;
+}
+
+.shelf-docx-prose p:not(.shelf-docx-p) {
+  margin: 0 0 1em;
+  line-height: inherit;
+}
+
+.shelf-docx-prose br + br {
+  display: block;
+  content: '';
+  margin-top: 0.5em;
 }
 
 .shelf-docx-prose .shelf-docx-list {

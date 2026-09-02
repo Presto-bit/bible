@@ -86,7 +86,7 @@ export function readShelfTextSelection(article: HTMLElement | null): ShelfTextSe
   if (end <= start) return null;
 
   const rect = range.getBoundingClientRect();
-  if (!rect.width && !rect.height) return null;
+  if (rect.width < 0.5 && rect.height < 0.5) return null;
 
   return { start, end, text, rect };
 }

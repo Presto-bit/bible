@@ -71,6 +71,7 @@ export default function ShelfReader({
   const [flowScrollRatio, setFlowScrollRatio] = useState(0);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [mediaVideo, setMediaVideo] = useState<ShelfAttachment | null>(null);
+  const [pdfPinching, setPdfPinching] = useState(false);
   const { fontPx, lineHeight, setFontPx, setLineHeight, setFontFamily } = useShelfReadingPrefs();
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pageBySectionRef = useRef<Record<string, number>>({});
@@ -240,7 +241,7 @@ export default function ShelfReader({
     setPageCount(1);
   }, [sectionId, contentKey]);
 
-  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen;
+  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching;
 
   const setPageCountForSection = useCallback(
     (count: number) => {
@@ -406,6 +407,7 @@ export default function ShelfReader({
           onScrollProgress={interactive && !shelfSectionIsPdf(sec) ? onFlowScrollProgress : undefined}
           onTap={interactive ? onContentTap : undefined}
           chromeHidden={interactive && chromeHidden}
+          onPdfPinchActive={interactive ? setPdfPinching : undefined}
           onOpenMedia={interactive && hasLessonMedia ? () => setMediaOpen(true) : undefined}
           onOpenVideo={
             interactive && hasLessonMedia
