@@ -3,6 +3,7 @@
 import { useRef } from 'react';
 import type { ReaderAudioState } from '@/lib/reader_audio';
 import { useHorizontalSwipeAction } from '@/lib/use_horizontal_swipe_action';
+import { useVerticalSwipeDismiss } from '@/lib/use_vertical_swipe_dismiss';
 
 const R = 20;
 const C = 2 * Math.PI * R;
@@ -31,6 +32,7 @@ export function ReaderAudioOrb({
   immersive,
   onToggle,
   onRestore,
+  onStop,
 }: {
   visible: boolean;
   state: ReaderAudioState;
@@ -39,17 +41,24 @@ export function ReaderAudioOrb({
   immersive?: boolean;
   onToggle: () => void;
   onRestore: () => void;
+  onStop: () => void;
 }) {
-  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressTriggeredRef = useRef(false);
-  const swipeHandledRef = useRef(false);
+  const gestureHandledRef = useRef(false);
   const restoreFromSwipe = () => {
-    swipeHandledRef.current = true;
+    gestureHandledRef.current = true;
     onRestore();
+  };
+  const stopFromSwipe = () => {
+    gestureHandledRef.current = true;
+    onStop();
   };
   const horizontal = useHorizontalSwipeAction({
     onSwipeLeft: restoreFromSwipe,
     onSwipeRight: restoreFromSwipe,
+  });
+  const vertical = useVerticalSwipeDismiss({
+    onDismiss: stopFromSwipe,
+    dismissDy: 40,
   });
 
   if (!visible) return null;
@@ -59,78 +68,75 @@ export function ReaderAudioOrb({
   const pct = durationSec > 0 ? Math.min(1, currentSec / durationSec) : 0;
   const dashOffset = C * (1 - pct);
 
-  const clearLongPress = () => {
-    if (longPressRef.current) {
-      clearTimeout(longPressRef.current);
-      longPressRef.current = null;
-    }
-  };
-
   return (
-    <button
-      type="button"
+    <div
       className={[
-        'reader-audio-orb',
+        'reader-audio-orb-wrap',
         immersive ? 'is-immersive' : '',
-        loading ? 'is-loading' : '',
-        playing ? 'is-playing' : '',
       ].filter(Boolean).join(' ')}
-      aria-label={playing ? '暂停朗读' : '继续朗读'}
-      onPointerDown={(e) => {
-        e.stopPropagation();
-        longPressTriggeredRef.current = false;
-        clearLongPress();
-        longPressRef.current = setTimeout(() => {
-          longPressTriggeredRef.current = true;
-          onRestore();
-        }, 520);
-      }}
-      onTouchStart={(e) => {
-        e.stopPropagation();
-        swipeHandledRef.current = false;
-        horizontal.onTouchStart(e);
-      }}
-      onTouchMove={(e) => {
-        horizontal.onTouchMove(e);
-      }}
-      onTouchEnd={(e) => {
-        horizontal.onTouchEnd(e);
-      }}
-      onTouchCancel={(e) => {
-        horizontal.onTouchCancel(e);
-      }}
-      onPointerUp={(e) => {
-        e.stopPropagation();
-        clearLongPress();
-        if (swipeHandledRef.current) {
-          swipeHandledRef.current = false;
-          return;
-        }
-        if (longPressTriggeredRef.current) return;
-        onToggle();
-      }}
-      onPointerLeave={clearLongPress}
-      onPointerCancel={clearLongPress}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        onRestore();
-      }}
     >
-      <svg className="reader-audio-orb-ring" width="48" height="48" viewBox="0 0 48 48" aria-hidden>
-        <circle className="reader-audio-orb-track" cx="24" cy="24" r={R} />
-        <circle
-          className="reader-audio-orb-progress"
-          cx="24"
-          cy="24"
-          r={R}
-          strokeDasharray={C}
-          strokeDashoffset={loading ? C * 0.25 : dashOffset}
-          transform="rotate(-90 24 24)"
-        />
-      </svg>
-      <span className="reader-audio-orb-icon">
-        {loading ? <span className="reader-audio-orb-dot" aria-hidden /> : <PlayPauseGlyph playing={playing} />}
-      </span>
-    </button>
+      <button
+        type="button"
+        className={[
+          'reader-audio-orb',
+          loading ? 'is-loading' : '',
+          playing ? 'is-playing' : '',
+        ].filter(Boolean).join(' ')}
+        aria-label={playing ? '暂停朗读' : '继续朗读'}
+        onTouchStart={(e) => {
+          e.stopPropagation();
+          gestureHandledRef.current = false;
+          horizontal.onTouchStart(e);
+          vertical.onTouchStart(e);
+        }}
+        onTouchMove={(e) => {
+          horizontal.onTouchMove(e);
+          vertical.onTouchMove(e);
+        }}
+        onTouchEnd={(e) => {
+          horizontal.onTouchEnd(e);
+          vertical.onTouchEnd(e);
+        }}
+        onTouchCancel={(e) => {
+          horizontal.onTouchCancel(e);
+          vertical.onTouchCancel(e);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (gestureHandledRef.current) {
+            gestureHandledRef.current = false;
+            return;
+          }
+          onToggle();
+        }}
+      >
+        <svg className="reader-audio-orb-ring" width="48" height="48" viewBox="0 0 48 48" aria-hidden>
+          <circle className="reader-audio-orb-track" cx="24" cy="24" r={R} />
+          <circle
+            className="reader-audio-orb-progress"
+            cx="24"
+            cy="24"
+            r={R}
+            strokeDasharray={C}
+            strokeDashoffset={loading ? C * 0.25 : dashOffset}
+            transform="rotate(-90 24 24)"
+          />
+        </svg>
+        <span className="reader-audio-orb-icon">
+          {loading ? <span className="reader-audio-orb-dot" aria-hidden /> : <PlayPauseGlyph playing={playing} />}
+        </span>
+      </button>
+      <button
+        type="button"
+        className="reader-audio-orb-close"
+        aria-label="结束朗读"
+        onClick={(e) => {
+          e.stopPropagation();
+          onStop();
+        }}
+      >
+        ×
+      </button>
+    </div>
   );
 }

@@ -440,6 +440,7 @@ html.pwa-standalone .tab-keep-pane[hidden] .reader-fab-stack {
 .app-body-portal-layer .version-pop-backdrop,
 .app-body-portal-layer .reader-loc-backdrop,
 .app-body-portal-layer .reader-ai-backdrop,
+.app-body-portal-layer .reader-audio-focus-backdrop,
 .app-body-portal-layer .drawer-backdrop {
   position: absolute !important;
   inset: 0;
@@ -734,6 +735,20 @@ body.reader-active.reader-immersive .app-body {
 
 /* 沉浸阅读：阅读器顶栏隐藏时，底部浮动 Tab 完全滑出视口。 */
 body.reader-immersive .tabbar {
+  transform: translate3d(
+    -50%,
+    calc(100% + var(--tabbar-float-gap) + var(--tabbar-safe) + 16px),
+    0
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 朗读半屏：挂 body portal，底栏滑出避免遮挡控制区 */
+body.reader-audio-focus-open {
+  overflow: hidden;
+}
+body.reader-audio-focus-open .tabbar {
   transform: translate3d(
     -50%,
     calc(100% + var(--tabbar-float-gap) + var(--tabbar-safe) + 16px),

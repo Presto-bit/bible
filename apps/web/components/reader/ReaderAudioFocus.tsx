@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import AppBodyPortal from '@/components/AppBodyPortal';
 import type { AudioTimestampVerse, ReaderAudioState } from '@/lib/reader_audio';
 import { useHorizontalSwipeAction } from '@/lib/use_horizontal_swipe_action';
 import { useSheetOpenGuard } from '@/lib/use_sheet_open_guard';
@@ -23,6 +24,7 @@ export function ReaderAudioFocus({
   onSeek,
   onSeekToVerse,
   onOpenSettings,
+  onStop,
   onRetry,
 }: {
   open: boolean;
@@ -40,6 +42,7 @@ export function ReaderAudioFocus({
   onSeek: (delta: number) => void;
   onSeekToVerse: (sec: number) => void;
   onOpenSettings: () => void;
+  onStop: () => void;
   onRetry?: () => void;
 }) {
   const lyricsRef = useRef<HTMLDivElement | null>(null);
@@ -76,6 +79,7 @@ export function ReaderAudioFocus({
   if (!open) return null;
 
   return (
+    <AppBodyPortal onTabAway={onMinimize}>
     <div className="reader-audio-focus-backdrop" onClick={() => guardedClose(onMinimize)}>
       <div
         className={[
@@ -175,8 +179,10 @@ export function ReaderAudioFocus({
           <button type="button" onClick={() => onSeek(-15)} disabled={loading || errored}>−15s</button>
           <button type="button" onClick={() => onSeek(15)} disabled={loading || errored}>+15s</button>
           <button type="button" onClick={onOpenSettings}>设置</button>
+          <button type="button" className="reader-audio-focus-stop" onClick={onStop}>结束朗读</button>
         </div>
       </div>
     </div>
+    </AppBodyPortal>
   );
 }

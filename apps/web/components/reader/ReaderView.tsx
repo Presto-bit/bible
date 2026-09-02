@@ -1229,6 +1229,17 @@ export default function ReaderView({
     else document.body.classList.remove('reader-immersive');
   }, [chromeHidden, paneActive]);
 
+  useEffect(() => {
+    if (!paneActive || !audioFocusOpen) {
+      document.body.classList.remove('reader-audio-focus-open');
+      return;
+    }
+    document.body.classList.add('reader-audio-focus-open');
+    return () => {
+      document.body.classList.remove('reader-audio-focus-open');
+    };
+  }, [audioFocusOpen, paneActive]);
+
   // 半屏面板打开时显示顶栏与底部 Tab。
   useEffect(() => {
     if (externalOverlayOpen) setChromeHidden(true);
@@ -3309,6 +3320,7 @@ export default function ReaderView({
           durationSec={audioDurationSec}
           onToggle={() => void audioTogglePlay()}
           onRestore={audioRestorePanel}
+          onStop={audioStop}
         />
         <button
           type="button"
@@ -3333,6 +3345,7 @@ export default function ReaderView({
         immersive
         onToggle={() => void audioTogglePlay()}
         onRestore={audioRestorePanel}
+        onStop={audioStop}
       />
 
       {hasSel && !overlayOpen && (
@@ -3876,6 +3889,7 @@ export default function ReaderView({
           setAudioFocusOpen(false);
           setAudioSettingsOpen(true);
         }}
+        onStop={audioStop}
       />
 
       <ReaderAudioSettingsSheet

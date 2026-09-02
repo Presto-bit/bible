@@ -2080,6 +2080,16 @@ body.reader-overlay-open .reader-page {
 .reader-page.reader-chrome-hidden .reader-fab-stack.is-audio-playing {
   bottom: calc(var(--safe-bottom) + 12px + 64px);
 }
+.reader-audio-orb-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.reader-audio-orb-wrap.is-immersive {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--safe-bottom) + 12px);
+  z-index: 97;
+}
 .reader-audio-orb {
   position: relative;
   width: 48px;
@@ -2096,11 +2106,27 @@ body.reader-overlay-open .reader-page {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
+.reader-audio-orb-wrap .reader-audio-orb-close {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 18%, transparent);
+}
 .reader-audio-orb.is-immersive {
-  position: fixed;
-  right: 16px;
-  bottom: calc(var(--safe-bottom) + 12px);
-  z-index: 97;
+  position: relative;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
 }
 .reader-audio-orb-ring {
   display: block;
@@ -2151,13 +2177,18 @@ body.reader-overlay-open .reader-page {
   display: flex;
   align-items: flex-end;
 }
+.app-body-portal-layer .reader-audio-focus-backdrop {
+  position: absolute !important;
+  z-index: 1 !important;
+}
 .reader-audio-focus {
   width: 100%;
-  max-height: 88dvh;
+  max-height: min(88dvh, calc(100% - var(--safe-top, 0px) - 12px));
   border-radius: 20px 20px 0 0;
   background: var(--paper);
-  padding: 12px 20px calc(20px + var(--safe-bottom));
+  padding: 12px 20px calc(20px + max(var(--safe-bottom), 12px));
   text-align: center;
+  box-sizing: border-box;
 }
 .reader-audio-mini-grab {
   margin: 2px auto 4px;
@@ -2282,6 +2313,9 @@ body.reader-overlay-open .reader-page {
   background: transparent;
   color: var(--accent-deep);
   font-size: 13px;
+}
+.reader-audio-focus-stop {
+  color: var(--ink-soft);
 }
 .reader-audio-settings-section {
   margin-bottom: 16px;

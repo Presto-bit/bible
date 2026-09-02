@@ -8,6 +8,7 @@ export function clearReaderChrome() {
     'reader-active',
     'reader-immersive',
     'reader-overlay-open',
+    'reader-audio-focus-open',
   );
   document.body.style.removeProperty('overflow');
   document.body.style.removeProperty('--reader-surface-bg');
