@@ -23,15 +23,7 @@ import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
 import { shelfReadingStyleVars } from '@/lib/shelf_reading';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
-import {
-  clampShelfPdfZoom,
-  readShelfPdfZoom,
-  SHELF_PDF_ZOOM_KEY,
-  SHELF_PDF_ZOOM_MAX,
-  SHELF_PDF_ZOOM_MIN,
-  SHELF_PDF_ZOOM_STEP,
-  shelfSectionIsPdf,
-} from '@/lib/shelf_reader_contract';
+import { shelfSectionIsPdf } from '@/lib/shelf_reader_contract';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
 import '@/styles/plans.css';
@@ -77,9 +69,6 @@ export default function ShelfReader({
   const [pendingLastPage, setPendingLastPage] = useState(false);
   const [pendingScrollEnd, setPendingScrollEnd] = useState(false);
   const [flowScrollRatio, setFlowScrollRatio] = useState(0);
-  const [pdfFullscreen, setPdfFullscreen] = useState(false);
-  const [pdfPinching, setPdfPinching] = useState(false);
-  const [pdfZoom, setPdfZoom] = useState(readShelfPdfZoom);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [mediaVideo, setMediaVideo] = useState<ShelfAttachment | null>(null);
   const { fontPx, lineHeight, setFontPx, setLineHeight, setFontFamily } = useShelfReadingPrefs();
@@ -87,16 +76,6 @@ export default function ShelfReader({
   const pageBySectionRef = useRef<Record<string, number>>({});
   const scrollBySectionRef = useRef<Record<string, number>>({});
   const pageCountBySectionRef = useRef<Record<string, number>>({});
-
-  const onPdfZoomChange = useCallback((next: number) => {
-    const z = clampShelfPdfZoom(next);
-    setPdfZoom(z);
-    try {
-      localStorage.setItem(SHELF_PDF_ZOOM_KEY, String(z));
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   const isLesson = section?.kind === 'lesson';
   const lessonMedia = useMemo(
@@ -261,7 +240,7 @@ export default function ShelfReader({
     setPageCount(1);
   }, [sectionId, contentKey]);
 
-  const overlayOpen = tocOpen || fontOpen || shareOpen || pdfFullscreen || mediaOpen || pdfPinching;
+  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen;
 
   const setPageCountForSection = useCallback(
     (count: number) => {
@@ -321,7 +300,6 @@ export default function ShelfReader({
       setSectionId(id);
       setTocOpen(false);
       setChromeHidden(false);
-      setPdfFullscreen(false);
       if (opts?.page === 'last' || opts?.scroll === 'end') {
         setPendingLastPage(true);
         setPendingScrollEnd(true);
@@ -375,6 +353,7 @@ export default function ShelfReader({
     canNext,
     blocked: overlayOpen,
     snapOnly: true,
+    edgeOnly: true,
     resolveTurn,
     onSectionChange: (delta) => {
       if (delta > 0) goNextSection();
@@ -395,7 +374,7 @@ export default function ShelfReader({
     [book?.toc, book?.book_type],
   );
 
-  const showBottomBar = !chromeHidden && !tocOpen && !fontOpen && !shareOpen && !pdfFullscreen;
+  const showBottomBar = !chromeHidden && !tocOpen && !fontOpen && !shareOpen;
 
   const onContentTap = useCallback(() => {
     setChromeHidden((v) => !v);
@@ -427,15 +406,6 @@ export default function ShelfReader({
           onScrollProgress={interactive && !shelfSectionIsPdf(sec) ? onFlowScrollProgress : undefined}
           onTap={interactive ? onContentTap : undefined}
           chromeHidden={interactive && chromeHidden}
-          pdfFullscreen={interactive && pdfFullscreen}
-          onExitPdfFullscreen={interactive ? () => setPdfFullscreen(false) : undefined}
-          onOpenPdfFullscreen={interactive ? () => setPdfFullscreen(true) : undefined}
-          pdfZoom={pdfZoom}
-          onPdfZoomChange={interactive ? onPdfZoomChange : undefined}
-          pdfZoomMin={SHELF_PDF_ZOOM_MIN}
-          pdfZoomMax={SHELF_PDF_ZOOM_MAX}
-          pdfZoomStep={SHELF_PDF_ZOOM_STEP}
-          onPdfPinchActive={interactive ? setPdfPinching : undefined}
           onOpenMedia={interactive && hasLessonMedia ? () => setMediaOpen(true) : undefined}
           onOpenVideo={
             interactive && hasLessonMedia
@@ -504,30 +474,23 @@ export default function ShelfReader({
         isPdfSection ? 'shelf-reader-pdf-scroll' : '',
         isFlowSection ? 'shelf-reader-flow-scroll' : '',
         pageTurn.turning ? 'shelf-reader-turning' : '',
-        pdfFullscreen ? 'shelf-reader-pdf-fullscreen' : '',
       ]
         .filter(Boolean)
         .join(' ')}
       style={shelfReadingStyleVars(fontPx, lineHeight)}
     >
-      {!pdfFullscreen ? (
-        <header className="shelf-reader-top">
+      <header className="shelf-reader-top">
           {backBar}
           <div className="shelf-reader-title-wrap">
             {section?.unit ? <span className="shelf-reader-unit">{section.unit}</span> : null}
             <h1>{title}</h1>
           </div>
         </header>
-      ) : null}
 
       {section ? (
         <div
           className={`shelf-turn-viewport${pageTurn.turning ? ' is-turning' : ''}`}
           ref={pageTurn.viewportRef}
-          onPointerDown={pageTurn.onPointerDown}
-          onPointerMove={pageTurn.onPointerMove}
-          onPointerUp={pageTurn.onPointerUp}
-          onPointerCancel={pageTurn.onPointerCancel}
         >
           {sectionLoading && !pageTurn.turning ? (
             <p className="shelf-section-loading muted" role="status">
@@ -545,6 +508,22 @@ export default function ShelfReader({
               {!isPdfSection ? renderSectionContent(nextSection, false) : null}
             </div>
           </div>
+          {!overlayOpen && canPrev ? (
+            <div
+              ref={pageTurn.prevEdgeRef}
+              className="shelf-turn-edge shelf-turn-edge-prev"
+              aria-label="上一章"
+              {...pageTurn.edgeHandlers}
+            />
+          ) : null}
+          {!overlayOpen && canNext ? (
+            <div
+              ref={pageTurn.nextEdgeRef}
+              className="shelf-turn-edge shelf-turn-edge-next"
+              aria-label="下一章"
+              {...pageTurn.edgeHandlers}
+            />
+          ) : null}
         </div>
       ) : (
         <div className="shelf-reader-body shelf-reader-body-pick">
@@ -587,13 +566,13 @@ export default function ShelfReader({
         </nav>
       ) : null}
 
-      {isPdfSection && pageCount > 1 && !chromeHidden && !pdfFullscreen ? (
+      {isPdfSection && pageCount > 1 && !chromeHidden ? (
         <div className="shelf-page-indicator" aria-live="polite">
           {pageIndex + 1} / {pageCount}
         </div>
       ) : null}
 
-      {isFlowSection && !chromeHidden && !pdfFullscreen ? (
+      {isFlowSection && !chromeHidden ? (
         <div className="shelf-read-progress" aria-hidden>
           <div
             className="shelf-read-progress-fill"

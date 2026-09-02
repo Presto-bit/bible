@@ -25,15 +25,6 @@ type Props = {
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
-  pdfFullscreen?: boolean;
-  onExitPdfFullscreen?: () => void;
-  onOpenPdfFullscreen?: () => void;
-  pdfZoom?: number;
-  onPdfZoomChange?: (zoom: number) => void;
-  pdfZoomMin?: number;
-  pdfZoomMax?: number;
-  pdfZoomStep?: number;
-  onPdfPinchActive?: (active: boolean) => void;
   onOpenMedia?: () => void;
   onOpenVideo?: (item: ShelfAttachment) => void;
 };
@@ -52,15 +43,6 @@ export default function ShelfLessonPanel({
   onScrollProgress,
   onTap,
   chromeHidden = false,
-  pdfFullscreen = false,
-  onExitPdfFullscreen,
-  onOpenPdfFullscreen,
-  pdfZoom = 1.25,
-  onPdfZoomChange,
-  pdfZoomMin = 1,
-  pdfZoomMax = 2,
-  pdfZoomStep = 0.25,
-  onPdfPinchActive,
   onOpenMedia,
   onOpenVideo,
 }: Props) {
@@ -95,7 +77,7 @@ export default function ShelfLessonPanel({
 
   return (
     <div className="shelf-lesson-viewport">
-      {hasMedia && !pdfFullscreen ? (
+      {hasMedia ? (
         <ShelfLessonMediaDock
           videos={videos}
           images={images}
@@ -117,17 +99,9 @@ export default function ShelfLessonPanel({
         onScrollProgress={onScrollProgress}
         onTap={onTap}
         chromeHidden={chromeHidden}
-        pdfFullscreen={pdfFullscreen}
-        onExitPdfFullscreen={onExitPdfFullscreen}
-        pdfZoom={pdfZoom}
-        onPdfZoomChange={onPdfZoomChange}
-        pdfZoomMin={pdfZoomMin}
-        pdfZoomMax={pdfZoomMax}
-        pdfZoomStep={pdfZoomStep}
-        onPdfPinchActive={onPdfPinchActive}
       />
 
-      {hasMedia && !pdfFullscreen ? (
+      {hasMedia ? (
         <button
           type="button"
           className={`shelf-lesson-media-fab${isPdf ? ' shelf-lesson-media-fab-pdf' : ''}`}
@@ -139,54 +113,6 @@ export default function ShelfLessonPanel({
         >
           {mediaFabLabel}
         </button>
-      ) : null}
-
-      {!pdfFullscreen && onOpenPdfFullscreen && isPdf ? (
-        <button
-          type="button"
-          className="shelf-pdf-toolbar-btn shelf-pdf-enter-fullscreen shelf-pdf-enter-fullscreen-br"
-          aria-label="全屏阅读 PDF"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenPdfFullscreen();
-          }}
-        >
-          ⛶
-        </button>
-      ) : null}
-
-      {isPdf && onPdfZoomChange ? (
-        <div className="shelf-pdf-inline-tools">
-          <div className="shelf-pdf-zoom-controls">
-            <button
-              type="button"
-              className="shelf-pdf-toolbar-btn"
-              aria-label="缩小 PDF"
-              disabled={pdfZoom <= pdfZoomMin + 0.001}
-              onClick={(e) => {
-                e.stopPropagation();
-                onPdfZoomChange(pdfZoom - pdfZoomStep);
-              }}
-            >
-              −
-            </button>
-            <span className="shelf-pdf-zoom-label" aria-live="polite">
-              {Math.round(pdfZoom * 100)}%
-            </span>
-            <button
-              type="button"
-              className="shelf-pdf-toolbar-btn"
-              aria-label="放大 PDF"
-              disabled={pdfZoom >= pdfZoomMax - 0.001}
-              onClick={(e) => {
-                e.stopPropagation();
-                onPdfZoomChange(pdfZoom + pdfZoomStep);
-              }}
-            >
-              +
-            </button>
-          </div>
-        </div>
       ) : null}
 
       {!mediaControlled ? (
@@ -217,14 +143,6 @@ function ShelfPrimaryView({
   onScrollProgress,
   onTap,
   chromeHidden,
-  pdfFullscreen,
-  onExitPdfFullscreen,
-  pdfZoom = 1.25,
-  onPdfZoomChange,
-  pdfZoomMin = 1,
-  pdfZoomMax = 2,
-  pdfZoomStep = 0.25,
-  onPdfPinchActive,
 }: {
   bookId: string;
   section: ShelfSection;
@@ -237,14 +155,6 @@ function ShelfPrimaryView({
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
-  pdfFullscreen?: boolean;
-  onExitPdfFullscreen?: () => void;
-  pdfZoom?: number;
-  onPdfZoomChange?: (zoom: number) => void;
-  pdfZoomMin?: number;
-  pdfZoomMax?: number;
-  pdfZoomStep?: number;
-  onPdfPinchActive?: (active: boolean) => void;
 }) {
   const primary = section.primary;
   const url = useMemo(() => {
@@ -286,14 +196,6 @@ function ShelfPrimaryView({
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
         onTap={onTap}
-        fullscreen={pdfFullscreen}
-        onExitFullscreen={onExitPdfFullscreen}
-        zoom={pdfZoom}
-        onZoomChange={onPdfZoomChange}
-        zoomMin={pdfZoomMin}
-        zoomMax={pdfZoomMax}
-        zoomStep={pdfZoomStep}
-        onPinchActive={onPdfPinchActive}
       />
     );
   }

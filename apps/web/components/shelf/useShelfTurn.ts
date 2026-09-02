@@ -24,7 +24,8 @@ const FORCE_RATIO_NEXT = 0.08;
 const FORCE_RATIO_PREV = 0.06;
 const AXIS_RATIO = 1.0;
 const AXIS_MIN_PX = 3;
-const EDGE_SWIPE_PX = 72;
+/** 左右边缘切章带宽度（与 .shelf-turn-edge 一致） */
+const EDGE_SWIPE_PX = 88;
 const EDGE_RESIST = 0.22;
 const ANIM_MS = 280;
 const PREFETCH_RATIO = 0.04;
@@ -52,6 +53,7 @@ export function useShelfTurn({
   canNext,
   blocked,
   snapOnly = true,
+  edgeOnly = true,
   resolveTurn,
   onSectionChange,
   onPageChange,
@@ -64,6 +66,8 @@ export function useShelfTurn({
   blocked: boolean;
   /** 为 true 时横滑不跟手拖动页面，仅在阈值提交时翻页 */
   snapOnly?: boolean;
+  /** 为 true 时仅屏幕左右边缘带可发起切章，中间区域留给滚动/划选 */
+  edgeOnly?: boolean;
   resolveTurn: (delta: 1 | -1) => ShelfTurnKind;
   onSectionChange: (delta: number, meta?: { fromSwipe?: boolean }) => void | Promise<void>;
   onPageChange?: (delta: 1 | -1) => void | Promise<void>;
@@ -78,6 +82,8 @@ export function useShelfTurn({
   const [turning, setTurning] = useState(false);
 
   const viewportRef = useRef<HTMLDivElement>(null);
+  const prevEdgeRef = useRef<HTMLDivElement>(null);
+  const nextEdgeRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef(0);
   const drag = useRef({
@@ -304,6 +310,8 @@ export function useShelfTurn({
   const beginDrag = useCallback(
     (clientX: number, clientY: number, pointerId: number, source: 'pointer' | 'touch', target?: EventTarget | null) => {
       if (!enabled || animating || isIgnored()) return false;
+      const fromEdge = isEdgeSwipeZone(clientX);
+      if (edgeOnly && !fromEdge) return false;
       const sel = window.getSelection();
       if (sel && !sel.isCollapsed) return false;
       drag.current = {
@@ -316,11 +324,11 @@ export function useShelfTurn({
         prefetched: false,
         source,
         inVerticalScroll: shelfTurnStartsInVerticalScroll(target ?? null, clientX),
-        fromEdge: isEdgeSwipeZone(clientX),
+        fromEdge,
       };
       return true;
     },
-    [enabled, animating, isIgnored],
+    [enabled, animating, isIgnored, edgeOnly],
   );
 
   const moveDrag = useCallback(
@@ -335,7 +343,7 @@ export function useShelfTurn({
         const ady = Math.abs(dy);
         const hRatio = drag.current.inVerticalScroll ? 1.04 : AXIS_RATIO;
         if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
-        if (drag.current.fromEdge && adx >= 4 && adx > ady * 0.55) {
+        if (drag.current.fromEdge && adx >= 3 && adx > ady * 0.45) {
           drag.current.axis = 'x';
           setTurning(true);
         } else if (adx >= AXIS_MIN_PX && adx > ady * hRatio) {
@@ -469,8 +477,8 @@ export function useShelfTurn({
   );
 
   useEffect(() => {
-    const el = viewportRef.current;
-    if (!el || !enabled) return;
+    const edges = [prevEdgeRef.current, nextEdgeRef.current].filter(Boolean) as HTMLElement[];
+    if (!edges.length || !enabled) return;
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length > 1) {
@@ -480,14 +488,14 @@ export function useShelfTurn({
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       if (shouldYieldShelfTurn(e.target, t.clientX, t.clientY, e)) return;
-      // pointer 已占坑但 move 丢失（安卓壳常见）：touch 随时可接手
       if (drag.current.active && drag.current.source === 'pointer') {
         drag.current.source = 'touch';
         drag.current.pointerId = t.identifier;
         return;
       }
       if (drag.current.active) return;
-      beginDrag(t.clientX, t.clientY, t.identifier, 'touch', e.target);
+      if (!beginDrag(t.clientX, t.clientY, t.identifier, 'touch', e.target)) return;
+      e.stopPropagation();
     };
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length > 1) {
@@ -513,20 +521,33 @@ export function useShelfTurn({
       void finishDrag();
     };
 
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
-    el.addEventListener('touchcancel', onTouchCancel, { passive: true });
+    for (const el of edges) {
+      el.addEventListener('touchstart', onTouchStart, { passive: false });
+      el.addEventListener('touchmove', onTouchMove, { passive: false });
+      el.addEventListener('touchend', onTouchEnd, { passive: true });
+      el.addEventListener('touchcancel', onTouchCancel, { passive: true });
+    }
     return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchCancel);
+      for (const el of edges) {
+        el.removeEventListener('touchstart', onTouchStart);
+        el.removeEventListener('touchmove', onTouchMove);
+        el.removeEventListener('touchend', onTouchEnd);
+        el.removeEventListener('touchcancel', onTouchCancel);
+      }
     };
-  }, [enabled, beginDrag, moveDrag, finishDrag]);
+  }, [enabled, beginDrag, moveDrag, finishDrag, cancelDrag, canPrev, canNext]);
+
+  const edgeHandlers = {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel,
+  };
 
   return {
     viewportRef,
+    prevEdgeRef,
+    nextEdgeRef,
     trackRef,
     dragSide,
     dragProgress,
@@ -534,9 +555,6 @@ export function useShelfTurn({
     offCenter,
     turning,
     cancelDrag,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
+    edgeHandlers,
   };
 }

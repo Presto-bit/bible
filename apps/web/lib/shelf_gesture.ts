@@ -26,7 +26,7 @@ export function shelfTurnStartsInVerticalScroll(
   clientX?: number,
 ): boolean {
   if (typeof clientX === 'number' && typeof window !== 'undefined') {
-    const edge = 72;
+    const edge = 88;
     if (clientX < edge || clientX > window.innerWidth - edge) return false;
   }
   if (!SHELF_VERTICAL_SCROLL_SEL) return false;

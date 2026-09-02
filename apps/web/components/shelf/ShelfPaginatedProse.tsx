@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import ShelfFocusBar from '@/components/shelf/ShelfFocusBar';
 import { addThought } from '@/lib/reader_thoughts';
@@ -86,6 +86,7 @@ export default function ShelfPaginatedProse({
   const articleRef = useRef<HTMLElement>(null);
   const syncRef = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
+  const tapRef = useRef({ x: 0, y: 0, moved: false });
   const [selection, setSelection] = useState<ShelfTextSelection | null>(null);
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
@@ -151,7 +152,9 @@ export default function ShelfPaginatedProse({
     const article = articleRef.current;
     if (!article) return;
     const onEnd = () => {
-      window.requestAnimationFrame(() => syncSelection());
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => syncSelection());
+      });
     };
     article.addEventListener('mouseup', onEnd);
     article.addEventListener('touchend', onEnd);
@@ -250,8 +253,19 @@ export default function ShelfPaginatedProse({
     clearSelection();
   }, [selection, annotationsEnabled, bookId, sectionId, pageIndex, clearSelection]);
 
+  const handleArticlePointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
+    tapRef.current = { x: e.clientX, y: e.clientY, moved: false };
+  }, []);
+
+  const handleArticlePointerMove = useCallback((e: PointerEvent<HTMLElement>) => {
+    if (tapRef.current.moved) return;
+    if (Math.hypot(e.clientX - tapRef.current.x, e.clientY - tapRef.current.y) > 8) {
+      tapRef.current.moved = true;
+    }
+  }, []);
+
   const handleArticleClick = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
+    (e: MouseEvent<HTMLElement>) => {
       const target = e.target as HTMLElement;
       const btn = target.closest('.shelf-inline-ref') as HTMLElement | null;
       if (btn?.dataset.osis) {
@@ -263,15 +277,21 @@ export default function ShelfPaginatedProse({
         });
         return;
       }
+      if (tapRef.current.moved) return;
+      const liveSel = window.getSelection();
+      if (liveSel && !liveSel.isCollapsed && liveSel.toString().trim()) {
+        syncSelection();
+        return;
+      }
       if (selection) {
-        if (!(e.target as Node) || !document.getSelection()?.toString()) {
+        if (!liveSel?.toString()) {
           clearSelection();
         }
         return;
       }
       onTap?.();
     },
-    [onTap, selection, clearSelection],
+    [onTap, selection, clearSelection, syncSelection],
   );
 
   const proseClass = variant === 'docx' ? 'shelf-docx-prose' : 'shelf-prose';
@@ -287,6 +307,8 @@ export default function ShelfPaginatedProse({
           ref={articleRef}
           className={`shelf-flow-article ${proseClass}`}
           dangerouslySetInnerHTML={{ __html: linkedHtml }}
+          onPointerDown={handleArticlePointerDown}
+          onPointerMove={handleArticlePointerMove}
           onClick={handleArticleClick}
         />
         <div className="shelf-flow-bottom-spacer" aria-hidden />
