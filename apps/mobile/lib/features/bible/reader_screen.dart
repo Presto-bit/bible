@@ -48,7 +48,6 @@ import 'reader_settings_menu.dart';
 import 'reader_sheet.dart';
 import 'reader_thoughts_sheet.dart';
 import 'summary_sheet.dart';
-import 'group_checkin_sheet.dart';
 import 'reading_repository.dart';
 import '../../core/peiai_haptics.dart';
 
@@ -612,7 +611,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     return overlay + 12;
   }
 
-  /// ⋮ 直接打开阅读设置（可下滑/点遮罩关闭）；打卡走独立 FAB。
+  /// ⋮ 直接打开阅读设置（可下滑/点遮罩关闭）。
   Future<void> _openReaderSettings(BuildContext context) async {
     await showReaderSettingsSheet(
       context,
@@ -635,20 +634,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           prefs.setString('reader_parallel_version', compareId);
         }
       },
-    );
-  }
-
-  Future<void> _openCheckin() async {
-    final b = _book;
-    if (b == null) return;
-    peiaiHapticSelection(context);
-    _onOpenOverlay();
-    await showGroupCheckinSheet(
-      context,
-      ref,
-      bookId: b.id,
-      bookName: b.name,
-      chapter: _chapter,
     );
   }
 
@@ -688,34 +673,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               ),
             ),
           ),
-        // 打卡在小爱上方，窄于小爱胶囊（对齐 PWA reader-fab-sm）
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Tooltip(
-            message: '打卡到共读群',
-            child: Material(
-              color: const Color(0xFF4A6B52),
-              elevation: 1.5,
-              shape: const StadiumBorder(),
-              child: InkWell(
-                customBorder: const StadiumBorder(),
-                onTap: _openCheckin,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  child: Text(
-                    '打卡',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      height: 1,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
         Tooltip(
           message: '解释',
           child: Material(
