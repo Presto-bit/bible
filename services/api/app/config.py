@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     # ── 静态内容数据目录（计划/每日经文/祷告/交叉引用/词典/插画）──
     content_data_dir: str = str(REPO_ROOT / "data")
 
+    # ── 读经音频（Faith Comes By Hearing / Bible Brain，和合本 cuvs）──
+    # 申请：https://4.dbt.io/api_key/request
+    bible_brain_api_key: str = ""
+    # 和合本 MP3 本地缓存目录（首次请求时从上游拉取并落盘）
+    bible_audio_storage_dir: str = str(REPO_ROOT / "data" / "bible_audio")
+
     # ── LLM（DeepSeek，OpenAI 兼容）──
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com/v1"

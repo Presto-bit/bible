@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 
-from . import reader
+from . import audio, reader
 from .refs import parse_ref
 
 router = APIRouter(prefix="/bible", tags=["bible"])
@@ -99,3 +100,52 @@ def by_ref(ref: str = Query(..., description="经文引用，如 JHN.3.16 / 约�
     else:
         verses = reader.get_chapter(r.book_id, r.chapter)
     return {"ref": r.osis, "display": r.display, "verses": verses}
+
+
+@router.get("/audio/manifest")
+def audio_manifest(
+    version: str = Query("cuvs", description="音频源译本 id"),
+) -> dict:
+    ver = (version or "cuvs").strip().lower()
+    return audio.manifest(ver)
+
+
+@router.get("/audio/chapter")
+def audio_chapter(
+    book: str = Query(..., description="卷 id，如 JHN"),
+    chapter: int = Query(..., ge=1),
+    version: str | None = Query(None, description="屏幕译本 id"),
+    audio_version: str | None = Query(None, description="音频源译本 id"),
+) -> dict:
+    av = (audio_version or "").strip().lower() or None
+    sv = (version or "").strip().lower() or None
+    b = reader.resolve_book(book)
+    if not b:
+        raise HTTPException(status_code=404, detail=f"未知卷：{book}")
+    resolved_av = av or audio.resolve_audio_version(sv)
+    return audio.chapter_entry(
+        b["id"], chapter, screen_version=sv, audio_version=resolved_av
+    )
+
+
+@router.get("/audio/timestamps/{audio_version}/{book}/{chapter}")
+def audio_timestamps(audio_version: str, book: str, chapter: int) -> dict:
+    b = reader.resolve_book(book)
+    if not b:
+        raise HTTPException(status_code=404, detail=f"未知卷：{book}")
+    ver = audio_version.strip().lower()
+    return audio.get_timestamps(ver, b["id"], chapter)
+
+
+@router.get("/audio/stream/{audio_version}/{book}/{chapter}")
+def audio_stream(audio_version: str, book: str, chapter: int) -> FileResponse:
+    b = reader.resolve_book(book)
+    if not b:
+        raise HTTPException(status_code=404, detail=f"未知卷：{book}")
+    ver = audio_version.strip().lower()
+    path = audio.ensure_cached(ver, b["id"], chapter)
+    return FileResponse(
+        path,
+        media_type="audio/mpeg",
+        filename=f"{b['id']}_{chapter}.mp3",
+    )

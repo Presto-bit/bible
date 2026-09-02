@@ -186,6 +186,7 @@ void appendReaderWordSpans({
   required bool selectionActive,
   VerseMarkInfo? markInfo,
   required bool resumeFlash,
+  bool audioCurrent = false,
   required bool hasThought,
   required bool hasMyThought,
   Map<String, List<DictEntity>> dictIndex = const {},
@@ -224,6 +225,11 @@ void appendReaderWordSpans({
     if (resumeFlash && !inWordSel) {
       wordStyle = wordStyle.copyWith(
         backgroundColor: AppColors.accent.withValues(alpha: 0.28),
+      );
+    }
+    if (audioCurrent && !inWordSel) {
+      wordStyle = wordStyle.copyWith(
+        backgroundColor: AppColors.accent.withValues(alpha: 0.18),
       );
     }
     if (hasThought && !inWordSel) {

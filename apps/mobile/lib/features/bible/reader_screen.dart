@@ -13,7 +13,6 @@ import '../../app/app_shell.dart'
         navIndexProvider,
         peiaiTabBarOverlayExtent,
         PeiaiShellMetrics,
-        readerChromeToggleProvider,
         readerImmersiveProvider;
 import '../../core/badge_stats.dart';
 import '../../core/api_client.dart' show prefsProvider;
@@ -38,6 +37,7 @@ import 'offline_notice.dart';
 import 'offline_bible.dart';
 import 'bible_repository.dart';
 import 'models.dart';
+import 'reader_audio.dart';
 import 'reader_catalog_view.dart';
 import 'feed_activity.dart';
 import 'reader_experience.dart';
@@ -48,6 +48,7 @@ import 'reader_settings_menu.dart';
 import 'reader_sheet.dart';
 import 'reader_thoughts_sheet.dart';
 import 'summary_sheet.dart';
+import 'group_checkin_sheet.dart';
 import 'reading_repository.dart';
 import '../../core/peiai_haptics.dart';
 
@@ -148,10 +149,64 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   final _locKey = GlobalKey();
   final _chapterBodyKey = GlobalKey<ReaderChapterBodyState>();
   Offset? _chromeTapStart;
-  Offset? _immersiveTapStart;
   /// 外部跳转指定轻闪节（如每日经文）；消费后清空。
   int? _pendingFlashVerse;
   FeedActivityHint? _pendingFeedHint;
+  String? _lastAudioBindKey;
+  bool _lastHasSelectionForAudio = false;
+
+  void _syncReaderAudio() {
+    final b = _book;
+    if (b == null) return;
+    final screenVer = _mainVersionId ?? 'cuvs';
+    final key = '${b.id}|$_chapter|$screenVer|$_catalogOverlay';
+    if (_lastAudioBindKey != key) {
+      _lastAudioBindKey = key;
+      ref.read(readerAudioProvider.notifier).bindChapter(
+            bookId: b.id,
+            bookName: b.name,
+            chapter: _chapter,
+            screenVersion: screenVer,
+            pausedByOverlay: _catalogOverlay,
+          );
+    }
+    _wireReaderAudioHandlers();
+  }
+
+  void _wireReaderAudioHandlers() {
+    final b = _book;
+    if (b == null) return;
+    ref.read(readerAudioProvider.notifier).setNotificationHandlers(
+          onPrevious:
+              _chapter > 1 ? () => unawaited(_navWithAudio(-1)) : null,
+          onNext: _chapter < b.chapterCount
+              ? () => unawaited(_navWithAudio(1))
+              : null,
+          onContinuousNext: _chapter < b.chapterCount
+              ? () => unawaited(_navWithAudio(1))
+              : null,
+        );
+  }
+
+  Future<void> _navWithAudio(int delta) async {
+    final ctrl = ref.read(readerAudioProvider.notifier);
+    final wasPlaying =
+        ref.read(readerAudioProvider).state == ReaderAudioState.playing;
+    final continuous = ctrl.settings.continuousChapter;
+    await _nav(delta);
+    if (!mounted) return;
+    final b = _book;
+    if (b == null) return;
+    if (wasPlaying || continuous) {
+      await ctrl.play(
+        bookId: b.id,
+        bookName: b.name,
+        chapter: _chapter,
+        screenVersion: _mainVersionId ?? 'cuvs',
+        skipCheckpoint: true,
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -277,20 +332,42 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       }
     });
 
-    // 壳层再次点「圣经」Tab 或外部清沉浸时同步顶栏。
-    ref.listen(readerImmersiveProvider, (prev, next) {
-      if (!next && _chromeHidden) {
-        setState(() => _chromeHidden = false);
-      }
-    });
-    ref.listen(readerChromeToggleProvider, (prev, next) {
-      if (next == prev) return;
-      if (ref.read(navIndexProvider) != 1 || _book == null) return;
-      _toggleChrome();
-    });
-
     final readerReturn = ref.watch(readerReturnProvider);
     final englishUI = _mainVersionId == 'kjv';
+    final audioSession = ref.watch(readerAudioProvider);
+    final audioCtrl = ref.read(readerAudioProvider.notifier);
+    final screenVer = _mainVersionId ?? 'cuvs';
+
+    _syncReaderAudio();
+    if (_hasSelection != _lastHasSelectionForAudio) {
+      _lastHasSelectionForAudio = _hasSelection;
+      audioCtrl.setCollapsed(_hasSelection);
+    }
+
+    ref.listen(navIndexProvider, (prev, next) {
+      if (prev == 1 && next != 1) {
+        final s = ref.read(readerAudioProvider.notifier).settings;
+        if (s.pauseOnTabLeave) {
+          ref.read(readerAudioProvider.notifier).stop();
+        }
+      }
+    });
+
+    ref.listen(readerAudioProvider, (prev, next) {
+      if (next.state != ReaderAudioState.error) return;
+      if (prev?.state != ReaderAudioState.loading) return;
+      final net = ref.read(networkOkProvider).value;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            net == false ? '需要网络加载本章朗读' : '朗读加载失败',
+          ),
+          duration: const Duration(milliseconds: 2200),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    });
 
     return Scaffold(
       backgroundColor: ref.watch(readerExperienceThemeProvider).background,
@@ -384,6 +461,25 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     );
                   },
                 ),
+                ReaderAudioTopButton(
+                  session: audioSession,
+                  onTap: () {
+                    final b = _book;
+                    if (b == null) return;
+                    _onOpenOverlay();
+                    audioCtrl.toggle(
+                      bookId: b.id,
+                      bookName: b.name,
+                      chapter: _chapter,
+                      screenVersion: screenVer,
+                    );
+                  },
+                  onLongPress: () {
+                    _onOpenOverlay();
+                    audioCtrl.setSettingsOpen(true);
+                    showReaderAudioSettingsSheet(context, ref);
+                  },
+                ),
                 IconButton(
                   tooltip: '阅读设置',
                   icon: const Icon(Icons.more_vert),
@@ -400,13 +496,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           Listener(
             behavior: HitTestBehavior.deferToChild,
             onPointerDown: (e) {
-              if (_book == null || _catalogOverlay || _chromeHidden) return;
+              if (_book == null || _catalogOverlay) return;
               _chromeTapStart = e.position;
             },
             onPointerUp: (e) {
-              if (_book == null || _catalogOverlay || _hasSelection || _chromeHidden) {
-                return;
-              }
+              if (_book == null || _catalogOverlay || _hasSelection) return;
               final start = _chromeTapStart;
               _chromeTapStart = null;
               if (start == null) return;
@@ -569,25 +663,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           },
         ),
           ),
-          // 沉浸态：经文层会吃掉点击，透明层负责「再点一次退出全屏」。
-          if (_book != null &&
-              _chromeHidden &&
-              !_catalogOverlay &&
-              !_hasSelection)
-            Positioned.fill(
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: (e) => _immersiveTapStart = e.position,
-                onPointerUp: (e) {
-                  final start = _immersiveTapStart;
-                  _immersiveTapStart = null;
-                  if (start == null) return;
-                  if ((e.position - start).distance >= 8) return;
-                  _toggleChrome();
-                },
-                onPointerCancel: (_) => _immersiveTapStart = null,
-              ),
-            ),
           // 不用 Scaffold.floatingActionButton：父壳 extendBody 下会沉到胶囊底栏下。
           if (_book != null &&
               !_catalogOverlay &&
@@ -596,9 +671,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               ref.watch(readingModeProvider) != ReadingMode.focus)
             Positioned(
               right: 16,
-              bottom: _readerFabBottomInset(context),
+              bottom: _readerFabBottomInset(context) +
+                  (audioSession.visible && !audioSession.collapsed ? 64 : 0),
               child: _readerFab(),
             ),
+          if (_book != null)
+            ReaderAudioMiniBar(
+              session: audioSession,
+              bottomInset: _readerFabBottomInset(context) - 12,
+              onToggle: () {
+                audioCtrl.toggle(
+                  bookId: _book!.id,
+                  bookName: _book!.name,
+                  chapter: _chapter,
+                  screenVersion: screenVer,
+                );
+              },
+              onExpand: () => audioCtrl.setFocusOpen(true),
+              onSeek: (ms) => audioCtrl.seek(Duration(milliseconds: ms.round())),
+              onRetry: () => audioCtrl.retry(),
+              onDismiss: () => audioCtrl.stop(),
+            ),
+          const ReaderAudioFocusOverlay(),
         ],
       ),
     );
@@ -611,7 +705,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     return overlay + 12;
   }
 
-  /// ⋮ 直接打开阅读设置（可下滑/点遮罩关闭）。
+  /// ⋮ 直接打开阅读设置（可下滑/点遮罩关闭）；打卡走独立 FAB。
   Future<void> _openReaderSettings(BuildContext context) async {
     await showReaderSettingsSheet(
       context,
@@ -634,6 +728,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           prefs.setString('reader_parallel_version', compareId);
         }
       },
+    );
+  }
+
+  Future<void> _openCheckin() async {
+    final b = _book;
+    if (b == null) return;
+    peiaiHapticSelection(context);
+    _onOpenOverlay();
+    await showGroupCheckinSheet(
+      context,
+      ref,
+      bookId: b.id,
+      bookName: b.name,
+      chapter: _chapter,
     );
   }
 
@@ -673,8 +781,36 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               ),
             ),
           ),
+        // 打卡在小爱上方，窄于小爱胶囊（对齐 PWA reader-fab-sm）
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Tooltip(
+            message: '打卡到共读群',
+            child: Material(
+              color: const Color(0xFF4A6B52),
+              elevation: 1.5,
+              shape: const StadiumBorder(),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: _openCheckin,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Text(
+                    '打卡',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
         Tooltip(
-          message: '解释',
+          message: '问小爱',
           child: Material(
             color: AppColors.accentDeep,
             elevation: 3,
@@ -689,7 +825,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 child: Text(
-                  '解释',
+                  '✦ 小爱',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 14,

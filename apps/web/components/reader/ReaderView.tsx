@@ -89,6 +89,7 @@ import {
   sectionRangeForVerse,
 } from '@/lib/reader_viewport';
 import { sliceVerseWords } from '@/lib/verse_words';
+import { useReaderAudio } from '@/hooks/useReaderAudio';
 import {
   textFromWordRange,
   wordOverlapsRange,
@@ -234,6 +235,22 @@ const ShareToSocialSheet = dynamic(
 );
 const ChapterCompleteTip = dynamic(
   () => import('@/components/reader/ChapterCompleteTip').then((m) => m.ChapterCompleteTip),
+  { ssr: false },
+);
+const ReaderAudioButton = dynamic(
+  () => import('@/components/reader/ReaderAudioButton').then((m) => m.ReaderAudioButton),
+  { ssr: false },
+);
+const ReaderAudioMiniBar = dynamic(
+  () => import('@/components/reader/ReaderAudioMiniBar').then((m) => m.ReaderAudioMiniBar),
+  { ssr: false },
+);
+const ReaderAudioFocus = dynamic(
+  () => import('@/components/reader/ReaderAudioFocus').then((m) => m.ReaderAudioFocus),
+  { ssr: false },
+);
+const ReaderAudioSettingsSheet = dynamic(
+  () => import('@/components/reader/ReaderAudioSettingsSheet').then((m) => m.ReaderAudioSettingsSheet),
   { ssr: false },
 );
 
@@ -395,6 +412,7 @@ export default function ReaderView({
   const bindPlanNavGuard = useCallback((guard: PlanNavGuard | null) => {
     planNavGuardRef.current = guard;
   }, []);
+  const [hasGroups, setHasGroups] = useState(false);
   const [groupCtx, setGroupCtx] = useState<{
     groupId?: string;
     taskId?: string;
@@ -514,6 +532,9 @@ export default function ReaderView({
     if (groupId && taskId) setGroupCheckinOpen(true);
     setBackHref(getReaderReturnHref());
     setReaderFollow(getReaderFollowApp());
+    api.myGroups()
+      .then((r) => setHasGroups(r.groups.length > 0))
+      .catch(() => setHasGroups(false));
   }, [checkinGroupId]);
 
   useEffect(() => {
@@ -632,6 +653,63 @@ export default function ReaderView({
   );
   const hasSel = sortedSel.length > 0;
   const hasSelRef = useRef(hasSel);
+
+  const screenVersionId = mainVersionId || getMainVersion() || FALLBACK_PRIMARY_VERSION;
+  const audioPausedByOverlay = planOverlayOpen || locPopoverOpen || showVersions || externalOverlayOpen;
+  const readerAudio = useReaderAudio({
+    bookId: book.id,
+    bookName: book.name,
+    chapter,
+    screenVersion: screenVersionId,
+    pausedByOverlay: audioPausedByOverlay,
+  });
+  const {
+    state: audioState,
+    unavailable: audioUnavailable,
+    focusOpen: audioFocusOpen,
+    setFocusOpen: setAudioFocusOpen,
+    settingsOpen: audioSettingsOpen,
+    setSettingsOpen: setAudioSettingsOpen,
+    coachVisible: audioCoachVisible,
+    collapsed: audioCollapsed,
+    setCollapsed: setAudioCollapsed,
+    currentSec: audioCurrentSec,
+    durationSec: audioDurationSec,
+    currentLabel: audioCurrentLabel,
+    formatTime: audioFormatTime,
+    togglePlay: audioTogglePlay,
+    stop: audioStop,
+    seekTo: audioSeekTo,
+    retryPlay: audioRetryPlay,
+    updateSettings: audioUpdateSettings,
+    openSettings: audioOpenSettings,
+    meta: audioMeta,
+    currentVerse: audioCurrentVerse,
+    timestamps: audioTimestamps,
+    notifyManualScroll: audioNotifyManualScroll,
+  } = readerAudio;
+  const audioVerseClass = useCallback(
+    (verse: number) =>
+      audioCurrentVerse === verse && (audioState === 'playing' || audioState === 'paused')
+        ? ' verse-audio-current'
+        : '',
+    [audioCurrentVerse, audioState],
+  );
+  const audioVisible = audioState !== 'off';
+  const audioNotifyManualScrollRef = useRef(audioNotifyManualScroll);
+  const audioPlayingRef = useRef(audioState === 'playing');
+  audioNotifyManualScrollRef.current = audioNotifyManualScroll;
+  audioPlayingRef.current = audioState === 'playing';
+
+  useEffect(() => {
+    if (!paneActive && readerAudio.settings.pauseOnTabLeave && readerAudio.state === 'playing') {
+      audioStop();
+    }
+  }, [paneActive, readerAudio.settings.pauseOnTabLeave, readerAudio.state, audioStop]);
+
+  useEffect(() => {
+    setAudioCollapsed(hasSel);
+  }, [hasSel, setAudioCollapsed]);
   useEffect(() => {
     hasSelRef.current = hasSel;
   }, [hasSel]);
@@ -1038,13 +1116,6 @@ export default function ReaderView({
     if (overlayOpenRef.current) return;
     setChromeHidden((hidden) => !hidden);
   }, []);
-
-  useEffect(() => {
-    if (!paneActive) return;
-    const onToggle = () => toggleChrome();
-    window.addEventListener('peiai-reader-toggle-chrome', onToggle);
-    return () => window.removeEventListener('peiai-reader-toggle-chrome', onToggle);
-  }, [paneActive, toggleChrome]);
 
   useEffect(() => {
     const syncTheme = () => {
@@ -1585,6 +1656,10 @@ export default function ReaderView({
         });
       }
       lastScrollTop.current = cur;
+
+      if (audioPlayingRef.current) {
+        audioNotifyManualScrollRef.current();
+      }
 
       const mid = el.scrollTop + el.clientHeight * 0.35;
       const bottom = el.scrollTop + el.clientHeight;
@@ -2609,22 +2684,16 @@ export default function ReaderView({
 
   const handleVerseClick = useCallback(
     (e: React.MouseEvent, verse: number, text: string) => {
+      e.stopPropagation();
       const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
       if (hasSel || hasPinned) {
-        e.stopPropagation();
         if (Date.now() - lastSelectAt.current < 280) return;
         dismissNativeSelection();
         return;
       }
-      if (chromeHidden) {
-        e.stopPropagation();
-        toggleChrome();
-        return;
-      }
-      e.stopPropagation();
       handleVerseThoughtClick(e, verse, text);
     },
-    [hasSel, chromeHidden, toggleChrome, handleVerseThoughtClick, dismissNativeSelection],
+    [hasSel, handleVerseThoughtClick, dismissNativeSelection],
   );
 
   useEffect(() => {
@@ -2834,7 +2903,7 @@ export default function ReaderView({
                         <div className="reader-parallel-primary">
                           <span
                             id={`verse-anchor-${v.verse}`}
-                            className={`verse-inline verse-token${vi === 0 ? ' verse-para-start' : ''} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
+                            className={`verse-inline verse-token${vi === 0 ? ' verse-para-start' : ''} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${audioVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
                             onClick={(e) => handleVerseClick(e, v.verse, text)}
                             onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                           >
@@ -2949,7 +3018,7 @@ export default function ReaderView({
                       {renderFeedHint(v.verse)}
                       <span
                         id={`verse-anchor-${v.verse}`}
-                        className={`verse-inline verse-token${vi === 0 ? ' verse-para-start' : ''} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
+                        className={`verse-inline verse-token${vi === 0 ? ' verse-para-start' : ''} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${audioVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
                         onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
                         onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                       >
@@ -2978,7 +3047,7 @@ export default function ReaderView({
 
   return (
     <main
-      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}`}
+      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}${audioVisible ? ' reader-audio-active' : ''}${audioFocusOpen ? ' reader-audio-focus-open' : ''}`}
       onClick={(e) => {
         if (focusBarRef.current?.contains(e.target as Node)) return;
         const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
@@ -3087,6 +3156,17 @@ export default function ReaderView({
               <path d="M21 21l-4-4" />
             </svg>
           </Link>
+          <div className="reader-audio-btn-wrap">
+            <ReaderAudioButton
+              state={audioState}
+              unavailable={audioUnavailable}
+              onTap={() => void audioTogglePlay()}
+              onLongPress={audioOpenSettings}
+            />
+            {audioCoachVisible ? (
+              <span className="reader-audio-coach" role="status">可以听本章</span>
+            ) : null}
+          </div>
           <button
             type="button"
             className="reader-more"
@@ -3190,7 +3270,7 @@ export default function ReaderView({
 
       {paneActive && !chromeHidden && readingMode !== 'focus' ? (
       <div
-        className={`reader-fab-stack${hasSel ? ' is-hidden' : ''}`}
+        className={`reader-fab-stack${hasSel ? ' is-hidden' : ''}${audioVisible ? ' is-audio-playing' : ''}`}
         aria-hidden={hasSel}
       >
         {planMeta && onPlanExit && (
@@ -3203,6 +3283,30 @@ export default function ReaderView({
             退出计划
           </button>
         )}
+        {hasGroups ? (
+          <button
+            type="button"
+            className="reader-fab reader-fab-group reader-fab-sm"
+            {...shellTapProps({ onTap: () => setGroupCheckinOpen(true) })}
+            aria-label="打卡到共读群"
+          >
+            {groupCtx.groupId ? '打卡到群' : '打卡'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="reader-fab reader-fab-group reader-fab-sm"
+            {...shellTapProps({
+              onTap: () => {
+                flashToast('加入共读群后可在读经页打卡');
+                window.location.assign('/discover');
+              },
+            })}
+            aria-label="打卡（需加入共读群）"
+          >
+            打卡
+          </button>
+        )}
         <button
           type="button"
           className="reader-fab"
@@ -3211,9 +3315,9 @@ export default function ReaderView({
             softRecover: true,
             onTap: () => openAiSheet(),
           })}
-          aria-label="解释"
+          aria-label="问小爱"
         >
-          解释
+          ✦ 小爱
         </button>
       </div>
       ) : null}
@@ -3773,6 +3877,52 @@ export default function ReaderView({
           onDismiss={() => setChapterCompleteVisible(false)}
         />
       )}
+
+      <ReaderAudioMiniBar
+        visible={audioVisible && !audioFocusOpen && !audioSettingsOpen}
+        collapsed={audioCollapsed}
+        state={audioState}
+        title={audioCurrentLabel}
+        currentSec={audioCurrentSec}
+        durationSec={audioDurationSec}
+        formatTime={audioFormatTime}
+        chromeHidden={chromeHidden}
+        onToggle={() => void audioTogglePlay()}
+        onSeek={audioSeekTo}
+        onExpand={() => setAudioFocusOpen(true)}
+        onDismiss={audioStop}
+        onOpenSettings={audioOpenSettings}
+        onRetry={() => void audioRetryPlay()}
+      />
+
+      <ReaderAudioFocus
+        open={audioFocusOpen}
+        title={`${book.name} ${chapter}`}
+        subtitle={audioMeta?.audio_label || '本章朗读'}
+        state={audioState}
+        currentSec={audioCurrentSec}
+        durationSec={audioDurationSec}
+        formatTime={audioFormatTime}
+        verses={verses}
+        timestamps={audioTimestamps}
+        currentVerse={audioCurrentVerse}
+        onClose={() => setAudioFocusOpen(false)}
+        onToggle={() => void audioTogglePlay()}
+        onSeek={(delta) => audioSeekTo(Math.max(0, audioCurrentSec + delta))}
+        onSeekToVerse={audioSeekTo}
+        onOpenSettings={() => {
+          setAudioFocusOpen(false);
+          setAudioSettingsOpen(true);
+        }}
+      />
+
+      <ReaderAudioSettingsSheet
+        open={audioSettingsOpen}
+        onClose={() => setAudioSettingsOpen(false)}
+        settings={readerAudio.settings}
+        onChange={audioUpdateSettings}
+        copyright={audioMeta?.copyright}
+      />
     </main>
   );
 }

@@ -1,0 +1,59 @@
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.bible import audio
+from app.main import app
+
+client = TestClient(app)
+
+
+def test_audio_manifest_cuvs():
+    r = client.get("/bible/audio/manifest?version=cuvs")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["version"] == "cuvs"
+    assert body["granularity"] == "chapter"
+    assert "JHN" in body["books"]
+    assert body["books"]["JHN"]["chapter_count"] == 21
+
+
+def test_audio_chapter_jhn3():
+    r = client.get("/bible/audio/chapter?book=JHN&chapter=3&version=cnv")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["available"] is True
+    assert body["audio_version"] == "cuvs"
+    assert body["audio_label"] == "和合本朗读"
+    assert body["stream_path"] == "/bible/audio/stream/cuvs/JHN/3"
+
+
+def test_audio_chapter_kjv_unavailable():
+    r = client.get("/bible/audio/chapter?book=JHN&chapter=3&version=kjv")
+    assert r.status_code == 200
+    assert r.json()["available"] is False
+
+
+def test_audio_stream_uses_cache(tmp_path, monkeypatch):
+    dest = tmp_path / "cuvs" / "JHN" / "3.mp3"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"ID3" + b"\x00" * 128)
+
+    monkeypatch.setattr(audio, "_storage_root", lambda: tmp_path)
+    audio._manifest_for.cache_clear()
+
+    r = client.get("/bible/audio/stream/cuvs/JHN/3")
+    assert r.status_code == 200
+    assert r.headers.get("content-type", "").startswith("audio/")
+    assert r.content[:3] == b"ID3"
+
+
+def test_audio_timestamps_without_key(monkeypatch):
+    monkeypatch.setattr(audio, "_bb_key", lambda: "")
+    audio._bb_audio_fileset.cache_clear()
+    r = client.get("/bible/audio/timestamps/cuvs/JHN/3")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["has_timestamps"] is False
+    assert body["verses"] == []

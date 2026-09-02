@@ -17,3 +17,8 @@ void peiaiHapticSelection(BuildContext context) {
   if (peiaiReduceMotion(context)) return;
   HapticFeedback.selectionClick();
 }
+
+/// 朗读播/停：约 10ms 轻触（Android；无 context 场景）。
+void peiaiHapticAudioToggle() {
+  HapticFeedback.lightImpact();
+}

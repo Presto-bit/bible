@@ -39,6 +39,7 @@ import 'outlines.dart';
 import 'paragraphs.dart';
 import 'reader_focus_bar.dart';
 import 'reader_marking_models.dart';
+import 'reader_audio.dart';
 import 'reader_preferences.dart';
 import 'reader_thoughts_sheet.dart';
 import 'feed_activity.dart';
@@ -572,6 +573,33 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   bool get _englishUI => widget.mainVersionId == 'kjv';
 
+  int? _lastAudioScrollVerse;
+
+  void _scrollToAudioVerse(int verse) {
+    if (!_scroll.hasClients || _liveChapter == null) return;
+    final key = _scrollVerseKeys[verse];
+    final ctx = key?.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.35,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+      );
+      return;
+    }
+    final verses = _liveChapter!.verses;
+    if (verses.isEmpty) return;
+    final idx = verses.indexWhere((v) => v.verse == verse);
+    if (idx < 0) return;
+    final pos = _scroll.position;
+    final extent = pos.maxScrollExtent + pos.viewportDimension;
+    if (extent <= 0) return;
+    final ratio = ((idx + 0.5) / verses.length).clamp(0.0, 1.0);
+    final target = (ratio * pos.maxScrollExtent).clamp(0.0, pos.maxScrollExtent);
+    _scroll.animateTo(target, duration: const Duration(milliseconds: 280), curve: Curves.easeOut);
+  }
+
   GlobalKey _scrollVerseKey(int verse) =>
       _scrollVerseKeys.putIfAbsent(verse, GlobalKey.new);
 
@@ -896,6 +924,10 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   void _onScroll() {
     if (!_scroll.hasClients) return;
+    final audio = ref.read(readerAudioProvider);
+    if (audio.state == ReaderAudioState.playing) {
+      ref.read(readerAudioProvider.notifier).notifyManualScroll();
+    }
     final cur = _scroll.position.pixels;
     _trackScrollProgress();
     if (_selected.isNotEmpty) {
@@ -2222,6 +2254,24 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final pageTurn = ref.watch(readerPageTurnProvider);
     final fontFamily = ref.watch(readerFontFamilyProvider);
     final readingMode = ref.watch(readingModeProvider);
+    final audioSession = ref.watch(readerAudioProvider);
+    final audioCurrentVerse =
+        audioSession.state == ReaderAudioState.playing ||
+            audioSession.state == ReaderAudioState.paused
+        ? audioSession.currentVerse
+        : null;
+    ref.listen<int?>(
+      readerAudioProvider.select((s) => s.currentVerse),
+      (prev, next) {
+        if (next == null || next == _lastAudioScrollVerse) return;
+        final st = ref.read(readerAudioProvider).state;
+        if (st != ReaderAudioState.playing) return;
+        _lastAudioScrollVerse = next;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scrollToAudioVerse(next);
+        });
+      },
+    );
     final thoughtsByVerse = ref.watch(
       thoughtsByChapterProvider((
         book: widget.book.id,
@@ -2331,6 +2381,9 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       _liveChapter = ch;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.onRead(widget.book.id, widget.chapter);
+        ref.read(readerAudioProvider.notifier).setChapterVerses(
+          ch.verses.map((v) => {'verse': v.verse, 'text': v.text}).toList(),
+        );
         writeChapterCache(
           ref.read(prefsProvider),
           widget.book.id,
@@ -2365,6 +2418,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         pageTurn: pageTurn,
         fontFamily: fontFamily,
         paragraphRanges: paragraphRanges,
+        audioCurrentVerse: audioCurrentVerse,
       );
     }
 
@@ -2401,6 +2455,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                         compareChapter: null,
                         notesByVerse: notesByVerse,
                         paragraphRanges: paragraphRanges,
+                        audioCurrentVerse: audioCurrentVerse,
                       );
                     }
                     if (_navFromSwipe) {
@@ -2622,6 +2677,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     ReaderPageTurn pageTurn = ReaderPageTurn.swipe,
     ReaderFontFamily fontFamily = ReaderFontFamily.serif,
     List<(int, int)>? paragraphRanges,
+    int? audioCurrentVerse,
   }) {
     if (compareChapter != null || compareStatus != null) {
       return _buildParallelList(
@@ -2780,6 +2836,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                 scrollVerseKey: verseNo == ReaderVerseNumberMode.margin
                     ? _scrollVerseKey
                     : null,
+                audioCurrentVerse: audioCurrentVerse,
                 feedHintForVerse: _feedHintForVerse,
                 onViewNote: _viewNote,
                 onStart: _startSelect,
@@ -4190,6 +4247,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     this.resumeFlashVerse,
     this.resumeAnchorKey,
     this.scrollVerseKey,
+    this.audioCurrentVerse,
     this.feedHintForVerse,
     required this.onViewNote,
     required this.onStart,
@@ -4226,6 +4284,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final int? resumeFlashVerse;
   final GlobalKey? resumeAnchorKey;
   final GlobalKey Function(int verse)? scrollVerseKey;
+  final int? audioCurrentVerse;
   final Widget? Function(int verse)? feedHintForVerse;
   final void Function(Note note) onViewNote;
   final void Function(int verse, String text) onStart;
@@ -4385,6 +4444,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                       )
                     : null,
                 resumeFlash: widget.resumeFlashVerse == v.verse,
+                audioCurrent: widget.audioCurrentVerse == v.verse,
                 anchorKey: v.verse == widget.selectionAnchorVerse
                     ? widget.selectionAnchorKey
                     : (widget.resumeFlashVerse == v.verse
@@ -4444,6 +4504,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
 
       final verseInSel = widget.selected.contains(v.verse);
       final resumeFlash = widget.resumeFlashVerse == v.verse;
+      final audioCurrent = widget.audioCurrentVerse == v.verse;
       final GlobalKey? verseKey = v.verse == widget.selectionAnchorVerse
           ? widget.selectionAnchorKey
           : resumeFlash
@@ -4560,6 +4621,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           selectionActive: selectionActive,
           markInfo: markInfo,
           resumeFlash: resumeFlash,
+          audioCurrent: audioCurrent,
           hasThought: hasThought,
           hasMyThought: hasMyThought,
           dictIndex: widget.dictIndex,
@@ -4638,6 +4700,7 @@ class _MarginVerseRow extends StatefulWidget {
     required this.selected,
     required this.markInfo,
     required this.resumeFlash,
+    this.audioCurrent = false,
     required this.anchorKey,
     required this.dictIndex,
     required this.dictKeys,
@@ -4667,6 +4730,7 @@ class _MarginVerseRow extends StatefulWidget {
   final Set<int> selected;
   final VerseMarkInfo? markInfo;
   final bool resumeFlash;
+  final bool audioCurrent;
   final GlobalKey? anchorKey;
   final Map<String, List<DictEntity>> dictIndex;
   final List<String> dictKeys;
@@ -4708,6 +4772,7 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
     final thoughtsCount = widget.thoughtsCount;
     final hasMyThought = widget.hasMyThought;
     final resumeFlash = widget.resumeFlash;
+    final audioCurrent = widget.audioCurrent;
     final onStart = widget.onStart;
     final onToggle = widget.onToggle;
     final onWordExtend = widget.onWordExtend;
@@ -4748,6 +4813,7 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
       selectionActive: selectionActive,
       markInfo: markInfo,
       resumeFlash: resumeFlash,
+      audioCurrent: audioCurrent,
       hasThought: thoughtsEnabled && thoughtsCount > 0,
       hasMyThought: hasMyThought,
       dictIndex: dictIndex,

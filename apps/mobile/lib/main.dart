@@ -21,11 +21,18 @@ import 'core/session.dart';
 import 'core/app_theme.dart';
 import 'core/theme.dart';
 import 'features/assistant/assistant_seed.dart';
+import 'features/bible/reader_audio.dart';
+import 'features/bible/reader_audio_handler.dart';
 import 'features/auth/account_bootstrap.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  try {
+    await initReaderAudioService();
+  } catch (_) {
+    // 无通知栏仍可用 just_audio 章级播。
+  }
   final prefs = await SharedPreferences.getInstance();
   final device = DeviceIdentity(prefs);
   final session = await Session.load(prefs);
@@ -49,13 +56,15 @@ class PrestoBibleApp extends ConsumerStatefulWidget {
   ConsumerState<PrestoBibleApp> createState() => _PrestoBibleAppState();
 }
 
-class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
+class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp>
+    with WidgetsBindingObserver {
   StreamSubscription<Uri>? _linkSub;
   final _appLinks = AppLinks();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       unawaited(ref.read(accountBootstrapProvider.future));
       await _initDeepLinks();
@@ -149,8 +158,17 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _linkSub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      ref.read(readerAudioProvider.notifier).onAppBackground();
+    }
   }
 
   @override

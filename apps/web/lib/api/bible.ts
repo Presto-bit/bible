@@ -93,6 +93,20 @@ export const bibleApi = {
     getJson<{ ref: string; display: string; verses: Verse[] }>(
       `/bible/ref?ref=${encodeURIComponent(ref)}`,
     ),
+  audioManifest: (version = 'cuvs') =>
+    getJson<{ version: string; books: Record<string, { chapter_count: number; available: boolean }> }>(
+      `/bible/audio/manifest?version=${encodeURIComponent(version)}`,
+    ),
+  audioChapter: (book: string, chapter: number, version?: string) => {
+    const params = new URLSearchParams({ book, chapter: String(chapter) });
+    if (version) params.set('version', version);
+    return getJson<{
+      available: boolean;
+      stream_path?: string;
+      audio_label?: string;
+      copyright?: string;
+    }>(`/bible/audio/chapter?${params}`);
+  },
   guide: (ref: string, knowledgeBaseId?: string | null) => {
     const q = new URLSearchParams({ ref });
     if (knowledgeBaseId) q.set('knowledge_base_id', knowledgeBaseId);
