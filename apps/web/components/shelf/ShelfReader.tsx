@@ -299,7 +299,6 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
   );
 
   const showBottomBar = !chromeHidden && !tocOpen && !fontOpen && !shareOpen && !pdfFullscreen;
-  const showPageIndicator = pageCount > 1 && !chromeHidden && !pdfFullscreen;
 
   const onContentTap = useCallback(() => {
     setChromeHidden((v) => !v);
@@ -423,12 +422,6 @@ export default function ShelfReader({ bookId, initialSectionId, presetGroupId }:
           <p className="muted">{sectionLoading ? '加载中…' : '暂无内容'}</p>
         </div>
       )}
-
-      {showPageIndicator ? (
-        <div className="shelf-page-indicator" aria-live="polite">
-          {pageIndex + 1} / {pageCount}
-        </div>
-      ) : null}
 
       {showBottomBar ? (
         <nav className="shelf-reader-bottom" aria-label="阅读工具">
