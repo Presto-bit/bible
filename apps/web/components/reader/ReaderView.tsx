@@ -416,7 +416,6 @@ export default function ReaderView({
   const bindPlanNavGuard = useCallback((guard: PlanNavGuard | null) => {
     planNavGuardRef.current = guard;
   }, []);
-  const [hasGroups, setHasGroups] = useState(false);
   const [groupCtx, setGroupCtx] = useState<{
     groupId?: string;
     taskId?: string;
@@ -536,9 +535,6 @@ export default function ReaderView({
     if (groupId && taskId) setGroupCheckinOpen(true);
     setBackHref(getReaderReturnHref());
     setReaderFollow(getReaderFollowApp());
-    api.myGroups()
-      .then((r) => setHasGroups(r.groups.length > 0))
-      .catch(() => setHasGroups(false));
   }, [checkinGroupId]);
 
   useEffect(() => {
@@ -3299,30 +3295,6 @@ export default function ReaderView({
             aria-label="退出计划模式"
           >
             退出计划
-          </button>
-        )}
-        {hasGroups ? (
-          <button
-            type="button"
-            className="reader-fab reader-fab-group reader-fab-sm"
-            {...shellTapProps({ onTap: () => setGroupCheckinOpen(true) })}
-            aria-label="打卡到共读群"
-          >
-            {groupCtx.groupId ? '打卡到群' : '打卡'}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="reader-fab reader-fab-group reader-fab-sm"
-            {...shellTapProps({
-              onTap: () => {
-                flashToast('加入共读群后可在读经页打卡');
-                window.location.assign('/discover');
-              },
-            })}
-            aria-label="打卡（需加入共读群）"
-          >
-            打卡
           </button>
         )}
         <ReaderAudioOrb

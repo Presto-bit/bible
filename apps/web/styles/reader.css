@@ -445,7 +445,7 @@ body.reader-active .proper-noun--artifact {
   border-radius: 999px;
   font-size: 13px;
 }
-/* 阅读器右侧 FAB 栈：退出计划 / 打卡 / 小爱 纵向排列，避免重叠 */
+/* 阅读器右侧 FAB 栈：退出计划 / 小爱 纵向排列，避免重叠 */
 .reader-fab-stack {
   position: fixed;
   right: 16px;
@@ -494,9 +494,6 @@ body.reader-active .proper-noun--artifact {
 }
 .reader-fab-dim {
   opacity: 0.45;
-}
-.reader-fab-group {
-  background: #4a6b52;
 }
 .reader-fab-plan-exit {
   background: var(--surface);
