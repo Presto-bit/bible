@@ -46,7 +46,7 @@ export default function ShelfManageSheet({ book, groups, onClose, onChanged }: P
     onClose();
   };
 
-  const run = async (fn: () => Promise<void>, okMsg: string) => {
+  const run = async (fn: () => Promise<unknown>, okMsg: string) => {
     setBusy(true);
     try {
       await fn();

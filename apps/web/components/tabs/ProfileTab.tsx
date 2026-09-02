@@ -1376,7 +1376,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       <div className="profile-shelf-block">
         <div className="profile-shelf-head">
           <p className="section-label tab-section-label profile-block-label">书架</p>
-          <Link href="/shelf" className="profile-shelf-more" onClick={() => markRouteNavigation('/shelf')}>
+          <Link href="/shelf" className="profile-shelf-more" onClick={() => markRouteNavigation()}>
             全部
           </Link>
         </div>
@@ -1394,7 +1394,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   href={href}
                   className="shelf-profile-thumb"
                   title={book.title}
-                  onClick={() => markRouteNavigation(href)}
+                  onClick={() => markRouteNavigation()}
                   style={{
                     background: `linear-gradient(145deg, hsl(${hue} 42% 38%), hsl(${(hue + 36) % 360} 36% 28%))`,
                   }}
@@ -1407,7 +1407,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           <Link
             href="/shelf"
             className="card profile-shelf-empty"
-            onClick={() => markRouteNavigation('/shelf')}
+            onClick={() => markRouteNavigation()}
           >
             打开书架，开始阅读
           </Link>
