@@ -16,9 +16,12 @@ type Props = {
   bookId: string;
   section: ShelfSection;
   pageIndex: number;
+  scrollOffset?: number;
+  scrollToEnd?: boolean;
   contentKey: string;
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
+  onScrollProgress?: (ratio: number) => void;
   onSectionEdge?: (edge: 'prev' | 'next') => void;
   canPrevSection?: boolean;
   canNextSection?: boolean;
@@ -32,9 +35,12 @@ export default function ShelfLessonPanel({
   bookId,
   section,
   pageIndex,
+  scrollOffset = 0,
+  scrollToEnd = false,
   contentKey,
   onPageCount,
   onPageIndexChange,
+  onScrollProgress,
   onSectionEdge,
   canPrevSection = false,
   canNextSection = false,
@@ -55,9 +61,12 @@ export default function ShelfLessonPanel({
         bookId={bookId}
         section={section}
         pageIndex={pageIndex}
+        scrollOffset={scrollOffset}
+        scrollToEnd={scrollToEnd}
         contentKey={contentKey}
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
+        onScrollProgress={onScrollProgress}
         onSectionEdge={onSectionEdge}
         canPrevSection={canPrevSection}
         canNextSection={canNextSection}
@@ -106,9 +115,12 @@ function ShelfPrimaryView({
   bookId,
   section,
   pageIndex,
+  scrollOffset,
+  scrollToEnd,
   contentKey,
   onPageCount,
   onPageIndexChange,
+  onScrollProgress,
   onSectionEdge,
   canPrevSection = false,
   canNextSection = false,
@@ -119,9 +131,12 @@ function ShelfPrimaryView({
   bookId: string;
   section: ShelfSection;
   pageIndex: number;
+  scrollOffset?: number;
+  scrollToEnd?: boolean;
   contentKey: string;
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
+  onScrollProgress?: (ratio: number) => void;
   onSectionEdge?: (edge: 'prev' | 'next') => void;
   canPrevSection?: boolean;
   canNextSection?: boolean;
@@ -134,6 +149,23 @@ function ShelfPrimaryView({
     if (!primary?.storage_key) return '';
     return shelfAssetUrl(bookId, primary.storage_key);
   }, [bookId, primary?.storage_key]);
+
+  if (section.html?.trim()) {
+    return (
+      <ShelfPaginatedProse
+        html={section.html}
+        contentKey={contentKey}
+        scrollOffset={scrollOffset}
+        scrollToEnd={scrollToEnd}
+        variant="docx"
+        onScrollProgress={onScrollProgress}
+        onSectionEdge={onSectionEdge}
+        canPrevSection={canPrevSection}
+        canNextSection={canNextSection}
+        onTap={onTap}
+      />
+    );
+  }
 
   if (!primary || !url) return <p className="muted shelf-lesson-empty">暂无内容</p>;
 
@@ -165,9 +197,13 @@ function ShelfPrimaryView({
       <ShelfDocxPaginated
         url={url}
         title={section.title}
-        pageIndex={pageIndex}
         contentKey={contentKey}
-        onPageCount={onPageCount}
+        scrollOffset={scrollOffset}
+        scrollToEnd={scrollToEnd}
+        onScrollProgress={onScrollProgress}
+        onSectionEdge={onSectionEdge}
+        canPrevSection={canPrevSection}
+        canNextSection={canNextSection}
         onTap={onTap}
       />
     );
@@ -185,16 +221,24 @@ function ShelfPrimaryView({
 function ShelfDocxPaginated({
   url,
   title,
-  pageIndex,
   contentKey,
-  onPageCount,
+  scrollOffset = 0,
+  scrollToEnd = false,
+  onScrollProgress,
+  onSectionEdge,
+  canPrevSection = false,
+  canNextSection = false,
   onTap,
 }: {
   url: string;
   title: string;
-  pageIndex: number;
   contentKey: string;
-  onPageCount?: (count: number) => void;
+  scrollOffset?: number;
+  scrollToEnd?: boolean;
+  onScrollProgress?: (ratio: number) => void;
+  onSectionEdge?: (edge: 'prev' | 'next') => void;
+  canPrevSection?: boolean;
+  canNextSection?: boolean;
   onTap?: () => void;
 }) {
   const [html, setHtml] = useState('');
@@ -235,9 +279,13 @@ function ShelfDocxPaginated({
     <ShelfPaginatedProse
       html={html}
       contentKey={`${contentKey}:${title}`}
-      pageIndex={pageIndex}
+      scrollOffset={scrollOffset}
+      scrollToEnd={scrollToEnd}
       variant="docx"
-      onPageCount={onPageCount}
+      onScrollProgress={onScrollProgress}
+      onSectionEdge={onSectionEdge}
+      canPrevSection={canPrevSection}
+      canNextSection={canNextSection}
       onTap={onTap}
     />
   );

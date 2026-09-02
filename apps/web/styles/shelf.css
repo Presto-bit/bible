@@ -457,6 +457,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 }
 
 .shelf-turn-panel-active > .shelf-page-viewport,
+.shelf-turn-panel-active > .shelf-flow-viewport,
 .shelf-turn-panel-active > .shelf-lesson-viewport {
   flex: 1;
   min-height: 0;
@@ -481,6 +482,63 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   box-sizing: border-box;
   touch-action: pan-x;
   position: relative;
+}
+
+.shelf-flow-viewport {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior: contain;
+  padding: 6px 16px 12px;
+  box-sizing: border-box;
+}
+
+.shelf-flow-article {
+  width: 100%;
+  box-sizing: border-box;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.shelf-flow-scroll-tail {
+  min-height: 96px;
+  padding: 16px 12px 28px;
+  text-align: center;
+  color: var(--muted, #888);
+  font-size: 13px;
+}
+
+.shelf-reader-flow-scroll .shelf-lesson-viewport,
+.shelf-reader-flow-scroll .shelf-flow-viewport {
+  flex: 1;
+  min-height: 0;
+}
+
+.shelf-read-progress {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(44, 40, 37, 0.08);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.shelf-reader-hidden .shelf-read-progress {
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+.shelf-read-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(44, 40, 37, 0.28);
+  transition: width 120ms linear;
 }
 
 .shelf-turn-page {
@@ -850,7 +908,9 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 
 .shelf-lesson-viewport > .shelf-pdf-pager,
 .shelf-lesson-viewport > .shelf-page-viewport,
-.shelf-lesson-viewport .shelf-page-viewport {
+.shelf-lesson-viewport .shelf-page-viewport,
+.shelf-lesson-viewport > .shelf-flow-viewport,
+.shelf-lesson-viewport .shelf-flow-viewport {
   flex: 1;
   min-height: 0;
   width: 100%;

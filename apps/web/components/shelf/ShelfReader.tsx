@@ -20,6 +20,7 @@ import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
 import { shelfReadingStyleVars } from '@/lib/shelf_reading';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
+import { maybeShowShelfReadingHint, shelfSectionIsPdf } from '@/lib/shelf_reader_contract';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
 import '@/styles/plans.css';
@@ -63,21 +64,21 @@ export default function ShelfReader({
   const [pageIndex, setPageIndex] = useState(0);
   const [pageCount, setPageCount] = useState(1);
   const [pendingLastPage, setPendingLastPage] = useState(false);
+  const [pendingScrollEnd, setPendingScrollEnd] = useState(false);
+  const [flowScrollRatio, setFlowScrollRatio] = useState(0);
   const [pdfFullscreen, setPdfFullscreen] = useState(false);
   const { fontPx, lineHeight, setFontPx, setLineHeight, setFontFamily } = useShelfReadingPrefs();
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pageBySectionRef = useRef<Record<string, number>>({});
+  const scrollBySectionRef = useRef<Record<string, number>>({});
   const pageCountBySectionRef = useRef<Record<string, number>>({});
+  const hintShownRef = useRef(false);
 
   const isLesson = section?.kind === 'lesson';
   const contentKey = `${bookId}:${sectionId}:${fontPx}:${lineHeight}`;
 
-  const isPdfSection = useMemo(() => {
-    const p = section?.primary;
-    if (!p?.storage_key) return false;
-    const mime = p.mime || '';
-    return mime.includes('pdf') || p.storage_key.toLowerCase().endsWith('.pdf');
-  }, [section?.primary]);
+  const isPdfSection = shelfSectionIsPdf(section);
+  const isFlowSection = Boolean(section) && !isPdfSection;
 
   const sections = book?.sections ?? [];
   const sectionIndex = useMemo(
@@ -87,8 +88,8 @@ export default function ShelfReader({
 
   const canPrevSection = sectionIndex > 0;
   const canNextSection = sectionIndex >= 0 && sectionIndex < sections.length - 1;
-  const canPrev = isPdfSection ? canPrevSection : pageIndex > 0 || canPrevSection;
-  const canNext = isPdfSection ? canNextSection : pageIndex < pageCount - 1 || canNextSection;
+  const canPrev = canPrevSection;
+  const canNext = canNextSection;
 
   useEffect(() => {
     setShelfReaderChrome(true);
@@ -134,9 +135,13 @@ export default function ShelfReader({
         const first = detail.sections?.[0]?.id ?? null;
         const pick = initialSectionId || saved?.sectionId || first;
         setSectionId(pick);
-        if (pick && typeof saved?.pageIndex === 'number') {
-          pageBySectionRef.current[pick] = saved.pageIndex;
-          setPageIndex(saved.pageIndex);
+        if (pick && saved) {
+          pageBySectionRef.current[pick] = saved.pageIndex ?? 0;
+          if (typeof saved.scrollOffset === 'number') {
+            scrollBySectionRef.current[pick] = saved.scrollOffset;
+          }
+          setPageIndex(saved.pageIndex ?? 0);
+          setFlowScrollRatio(saved.scrollOffset ?? 0);
         } else if (
           pick &&
           initialSectionId &&
@@ -199,10 +204,19 @@ export default function ShelfReader({
 
   useEffect(() => {
     if (!sectionId) return;
-    if (pendingLastPage) return;
-    const saved = pageBySectionRef.current[sectionId];
-    setPageIndex(typeof saved === 'number' ? saved : 0);
-  }, [sectionId]);
+    if (pendingLastPage || pendingScrollEnd) return;
+    const savedPage = pageBySectionRef.current[sectionId];
+    const savedScroll = scrollBySectionRef.current[sectionId];
+    setPageIndex(typeof savedPage === 'number' ? savedPage : 0);
+    setFlowScrollRatio(typeof savedScroll === 'number' ? savedScroll : 0);
+  }, [sectionId, pendingLastPage, pendingScrollEnd]);
+
+  useEffect(() => {
+    if (pendingScrollEnd) {
+      const t = window.setTimeout(() => setPendingScrollEnd(false), 400);
+      return () => window.clearTimeout(t);
+    }
+  }, [pendingScrollEnd, sectionId, contentKey]);
 
   useEffect(() => {
     if (pendingLastPage && pageCount > 0) {
@@ -239,14 +253,23 @@ export default function ShelfReader({
         bookId,
         sectionId,
         { bookTitle: book?.title, sectionTitle: section?.title },
-        pageIndex,
+        isPdfSection
+          ? { pageIndex }
+          : { scrollOffset: flowScrollRatio, pageIndex: 0 },
       );
       pageBySectionRef.current[sectionId] = pageIndex;
+      scrollBySectionRef.current[sectionId] = flowScrollRatio;
     }, 350);
     return () => {
       if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
     };
-  }, [bookId, sectionId, book?.title, section?.title, pageIndex]);
+  }, [bookId, sectionId, book?.title, section?.title, pageIndex, flowScrollRatio, isPdfSection]);
+
+  useEffect(() => {
+    if (!section || hintShownRef.current) return;
+    hintShownRef.current = true;
+    maybeShowShelfReadingHint(flashToast);
+  }, [section, flashToast]);
 
   const prefetchNeighbor = useCallback(
     (delta: number) => {
@@ -263,55 +286,63 @@ export default function ShelfReader({
   );
 
   const goSection = useCallback(
-    (id: string | null, opts?: { page?: number | 'last' }) => {
+    (id: string | null, opts?: { page?: number | 'last'; scroll?: 'start' | 'end' }) => {
       if (!id) return;
-      if (sectionId) pageBySectionRef.current[sectionId] = pageIndex;
+      if (sectionId) {
+        pageBySectionRef.current[sectionId] = pageIndex;
+        scrollBySectionRef.current[sectionId] = flowScrollRatio;
+      }
       setSectionId(id);
       setTocOpen(false);
       setChromeHidden(false);
       setPdfFullscreen(false);
-      if (opts?.page === 'last') {
+      if (opts?.page === 'last' || opts?.scroll === 'end') {
         setPendingLastPage(true);
+        setPendingScrollEnd(true);
+        setPageIndex(0);
+        setFlowScrollRatio(1);
       } else if (typeof opts?.page === 'number') {
         setPageIndex(opts.page);
         pageBySectionRef.current[id] = opts.page;
+        setFlowScrollRatio(0);
+        scrollBySectionRef.current[id] = 0;
+      } else if (opts?.scroll === 'start') {
+        setPageIndex(0);
+        setFlowScrollRatio(0);
+        scrollBySectionRef.current[id] = 0;
       } else {
-        const saved = pageBySectionRef.current[id];
-        setPageIndex(typeof saved === 'number' ? saved : 0);
+        const savedPage = pageBySectionRef.current[id];
+        const savedScroll = scrollBySectionRef.current[id];
+        setPageIndex(typeof savedPage === 'number' ? savedPage : 0);
+        setFlowScrollRatio(typeof savedScroll === 'number' ? savedScroll : 0);
       }
     },
-    [sectionId, pageIndex],
+    [sectionId, pageIndex, flowScrollRatio],
   );
 
   const goPrevSection = useCallback(() => {
     if (sectionIndex > 0) {
-      goSection(sections[sectionIndex - 1]?.id ?? null, { page: 'last' });
+      const prev = sections[sectionIndex - 1];
+      goSection(prev?.id ?? null, { page: 'last', scroll: 'end' });
+      if (prev?.title) flashToast(`已进入：${prev.title}`);
     }
-  }, [goSection, sectionIndex, sections]);
+  }, [goSection, sectionIndex, sections, flashToast]);
 
   const goNextSection = useCallback(() => {
     if (sectionIndex >= 0 && sectionIndex < sections.length - 1) {
-      goSection(sections[sectionIndex + 1]?.id ?? null, { page: 0 });
+      const next = sections[sectionIndex + 1];
+      goSection(next?.id ?? null, { page: 0, scroll: 'start' });
+      if (next?.title) flashToast(`已进入：${next.title}`);
     }
-  }, [goSection, sectionIndex, sections]);
+  }, [goSection, sectionIndex, sections, flashToast]);
 
   const resolveTurn = useCallback(
     (delta: 1 | -1): ShelfTurnKind => {
-      if (isPdfSection) {
-        if (delta > 0 && canNextSection) return 'section';
-        if (delta < 0 && canPrevSection) return 'section';
-        return 'none';
-      }
-      if (delta > 0) {
-        if (pageIndex < pageCount - 1) return 'page';
-        if (canNextSection) return 'section';
-        return 'none';
-      }
-      if (pageIndex > 0) return 'page';
-      if (canPrevSection) return 'section';
+      if (delta > 0 && canNextSection) return 'section';
+      if (delta < 0 && canPrevSection) return 'section';
       return 'none';
     },
-    [isPdfSection, pageIndex, pageCount, canNextSection, canPrevSection],
+    [canNextSection, canPrevSection],
   );
 
   const pageTurn = useShelfTurn({
@@ -321,16 +352,13 @@ export default function ShelfReader({
     blocked: overlayOpen,
     snapOnly: true,
     resolveTurn,
-    onPageChange: (delta) => {
-      setPageIndex((i) => Math.max(0, Math.min(pageCount - 1, i + delta)));
-    },
     onSectionChange: (delta) => {
       if (delta > 0) goNextSection();
       else goPrevSection();
     },
     onDragApproach: prefetchNeighbor,
     onBoundary: (edge) => {
-      flashToast(edge === 'next' ? '已是最后一页' : '已是第一页');
+      flashToast(edge === 'next' ? '已是最后一节' : '已是第一节');
       try {
         navigator.vibrate?.(10);
       } catch {
@@ -350,10 +378,22 @@ export default function ShelfReader({
     setChromeHidden((v) => !v);
   }, []);
 
+  const flowEdgeHandlers = useCallback(
+    (edge: 'prev' | 'next') => {
+      if (edge === 'next') goNextSection();
+      else goPrevSection();
+    },
+    [goNextSection, goPrevSection],
+  );
+
+  const onFlowScrollProgress = useCallback((ratio: number) => {
+    setFlowScrollRatio(ratio);
+  }, []);
+
   const renderSectionContent = (
     sec: ShelfSection | null,
-    idx: number,
     interactive: boolean,
+    opts?: { scrollToEnd?: boolean },
   ) => {
     if (!sec) return null;
     if (sec.kind === 'lesson') {
@@ -361,18 +401,16 @@ export default function ShelfReader({
         <ShelfLessonPanel
           bookId={bookId}
           section={sec}
-          pageIndex={idx}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
-          onPageCount={interactive ? setPageCountForSection : undefined}
-          onPageIndexChange={interactive ? setPageIndex : undefined}
-          onSectionEdge={
-            interactive
-              ? (edge) => {
-                  if (edge === 'next') goNextSection();
-                  else goPrevSection();
-                }
-              : undefined
+          pageIndex={interactive ? pageIndex : 0}
+          scrollOffset={
+            interactive ? (scrollBySectionRef.current[sec.id] ?? flowScrollRatio) : 0
           }
+          scrollToEnd={interactive ? Boolean(opts?.scrollToEnd) : false}
+          onPageCount={interactive && shelfSectionIsPdf(sec) ? setPageCountForSection : undefined}
+          onPageIndexChange={interactive && shelfSectionIsPdf(sec) ? setPageIndex : undefined}
+          onScrollProgress={interactive && !shelfSectionIsPdf(sec) ? onFlowScrollProgress : undefined}
+          onSectionEdge={interactive ? flowEdgeHandlers : undefined}
           canPrevSection={canPrevSection}
           canNextSection={canNextSection}
           onTap={interactive ? onContentTap : undefined}
@@ -387,8 +425,12 @@ export default function ShelfReader({
         <ShelfPaginatedProse
           html={sec.html}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
-          pageIndex={idx}
-          onPageCount={interactive ? setPageCountForSection : undefined}
+          scrollOffset={interactive ? (scrollBySectionRef.current[sec.id] ?? flowScrollRatio) : 0}
+          scrollToEnd={interactive ? Boolean(opts?.scrollToEnd) : false}
+          onScrollProgress={interactive ? onFlowScrollProgress : undefined}
+          onSectionEdge={interactive ? flowEdgeHandlers : undefined}
+          canPrevSection={canPrevSection}
+          canNextSection={canNextSection}
           onTap={interactive ? onContentTap : undefined}
         />
       );
@@ -399,13 +441,6 @@ export default function ShelfReader({
   const backBar = (
     <PageBackBar href="/shelf" className="shelf-nav-back" ariaLabel="返回书架" />
   );
-
-  const prevPeekPageIndex = useMemo(() => {
-    const prevId = neighborId(-1);
-    if (!prevId) return 0;
-    const pc = pageCountBySectionRef.current[prevId] ?? 1;
-    return Math.max(0, pc - 1);
-  }, [neighborId, prevSection, pageCount]);
 
   if (loading && !book) {
     return (
@@ -438,6 +473,7 @@ export default function ShelfReader({
         chromeHidden ? 'shelf-reader-hidden' : '',
         isLesson ? 'shelf-reader-lesson' : '',
         isPdfSection ? 'shelf-reader-pdf-scroll' : '',
+        isFlowSection ? 'shelf-reader-flow-scroll' : '',
         pageTurn.turning ? 'shelf-reader-turning' : '',
         pdfFullscreen ? 'shelf-reader-pdf-fullscreen' : '',
       ]
@@ -471,13 +507,13 @@ export default function ShelfReader({
           ) : null}
           <div className="shelf-turn-track" ref={pageTurn.trackRef}>
             <div className="shelf-turn-panel shelf-turn-panel-peek">
-              {renderSectionContent(prevSection, prevPeekPageIndex, false)}
+              {renderSectionContent(prevSection, false, { scrollToEnd: true })}
             </div>
             <div className="shelf-turn-panel shelf-turn-panel-active">
-              {renderSectionContent(section, pageIndex, true)}
+              {renderSectionContent(section, true, { scrollToEnd: pendingScrollEnd })}
             </div>
             <div className="shelf-turn-panel shelf-turn-panel-peek">
-              {renderSectionContent(nextSection, 0, false)}
+              {renderSectionContent(nextSection, false)}
             </div>
           </div>
         </div>
@@ -511,9 +547,18 @@ export default function ShelfReader({
         </nav>
       ) : null}
 
-      {pageCount > 1 && !chromeHidden && !pdfFullscreen ? (
+      {isPdfSection && pageCount > 1 && !chromeHidden && !pdfFullscreen ? (
         <div className="shelf-page-indicator" aria-live="polite">
           {pageIndex + 1} / {pageCount}
+        </div>
+      ) : null}
+
+      {isFlowSection && !chromeHidden && !pdfFullscreen ? (
+        <div className="shelf-read-progress" aria-hidden>
+          <div
+            className="shelf-read-progress-fill"
+            style={{ width: `${Math.round(flowScrollRatio * 100)}%` }}
+          />
         </div>
       ) : null}
 
@@ -547,8 +592,7 @@ export default function ShelfReader({
                         onClick={() => {
                           const sid = resolveSectionId(item, sections);
                           if (!sid) return;
-                          const saved = pageBySectionRef.current[sid];
-                          goSection(sid, { page: typeof saved === 'number' ? saved : 0 });
+                          goSection(sid);
                         }}
                       >
                         {shelfTocDisplayTitle(item)}

@@ -116,7 +116,10 @@ const PROGRESS_KEY = 'presto_shelf_progress_v1';
 
 export type ShelfBookProgress = {
   sectionId: string;
+  /** PDF：0-based 页码 */
   pageIndex?: number;
+  /** HTML/Word flow：0–1 滚动比例 */
+  scrollOffset?: number;
 };
 
 export type ShelfLastRead = {
@@ -140,6 +143,7 @@ function normalizeBookProgress(raw: ShelfBookProgress | string | undefined): She
     return {
       sectionId: raw.sectionId,
       pageIndex: typeof raw.pageIndex === 'number' ? raw.pageIndex : 0,
+      scrollOffset: typeof raw.scrollOffset === 'number' ? raw.scrollOffset : undefined,
     };
   }
   return null;
@@ -185,17 +189,26 @@ export function saveShelfProgress(
   bookId: string,
   sectionId: string,
   meta?: { bookTitle?: string; sectionTitle?: string },
-  pageIndex = 0,
+  position?: { pageIndex?: number; scrollOffset?: number },
 ) {
+  const pageIndex = Math.max(0, position?.pageIndex ?? 0);
+  const scrollOffset =
+    typeof position?.scrollOffset === 'number'
+      ? Math.min(1, Math.max(0, position.scrollOffset))
+      : undefined;
   const store = readProgressStore();
-  store.byBook[bookId] = { sectionId, pageIndex: Math.max(0, pageIndex) };
+  store.byBook[bookId] = {
+    sectionId,
+    pageIndex,
+    ...(scrollOffset != null ? { scrollOffset } : {}),
+  };
   if (meta?.bookTitle) {
     store.last = {
       bookId,
       sectionId,
       bookTitle: meta.bookTitle,
       sectionTitle: meta.sectionTitle || '',
-      pageIndex: Math.max(0, pageIndex),
+      pageIndex,
       at: Date.now(),
     };
   }
