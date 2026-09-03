@@ -140,7 +140,7 @@
   aspect-ratio: 3 / 4;
   border-radius: 10px;
   overflow: hidden;
-  background: #fffcfa;
+  background: #e32626;
   box-shadow: var(--elev-2);
   border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
@@ -156,16 +156,16 @@
   width: 100%;
   height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fffcfa;
+  align-items: stretch;
+  justify-content: stretch;
+  background: #e32626;
 }
 
 .shelf-brand-cover-icon {
-  width: 38%;
-  height: auto;
+  width: 100%;
+  height: 100%;
   display: block;
-  opacity: 0.92;
+  object-fit: cover;
 }
 
 .shelf-book-card-progress {
@@ -2661,7 +2661,10 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-detail-cover,
 .shelf-detail-hero .shelf-book-card-cover {
   width: min(148px, 40vw);
+  aspect-ratio: 3 / 4;
   margin: 0 auto;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .shelf-detail-title {

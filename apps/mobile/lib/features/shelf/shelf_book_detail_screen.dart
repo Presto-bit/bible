@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
+import 'shelf_brand_cover.dart';
 import 'shelf_post_sheets.dart';
 import 'shelf_posts_repository.dart';
 import 'shelf_progress.dart';
@@ -193,7 +194,14 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          _CoverPlate(title: book.title),
+                          SizedBox(
+                            width: 88,
+                            height: 118,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: const ShelfBrandCover(),
+                            ),
+                          ),
                           const SizedBox(height: 14),
                           Text(
                             book.title,
@@ -337,42 +345,6 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
 }
 
 enum _DetailTab { reviews, notes, mine }
-
-class _CoverPlate extends StatelessWidget {
-  const _CoverPlate({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final hue = shelfCoverHue(title);
-    return Container(
-      width: 88,
-      height: 120,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            HSLColor.fromAHSL(1, hue.toDouble(), 0.42, 0.38).toColor(),
-            HSLColor.fromAHSL(1, ((hue + 36) % 360).toDouble(), 0.36, 0.28).toColor(),
-          ],
-        ),
-      ),
-      padding: const EdgeInsets.all(10),
-      child: Align(
-        alignment: Alignment.bottomLeft,
-        child: Text(
-          title,
-          maxLines: 4,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600, height: 1.25),
-        ),
-      ),
-    );
-  }
-}
 
 class _TabChip extends StatelessWidget {
   const _TabChip({required this.label, required this.active, required this.onTap});
