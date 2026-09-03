@@ -18,6 +18,7 @@ import {
   type ShelfPost,
 } from '@/lib/shelf_posts';
 import { shellTapProps } from '@/lib/shell_tap';
+import ShelfInlineComposer from '@/components/shelf/ShelfInlineComposer';
 
 const ShelfNoteHubSheet = dynamic(
   () => import('@/components/shelf/ShelfNoteHubSheet'),
@@ -184,25 +185,18 @@ export default function ShelfReaderMoreSheet({
             : null}
         </div>
         {tab === 'chapter' && sectionId ? (
-          <div className="shelf-comments-compose">
-            <textarea
-              ref={inputRef}
-              className="shelf-comments-input"
-              rows={2}
-              placeholder="写下对本章的想法…"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              maxLength={2000}
-            />
-            <button
-              type="button"
-              className="btn primary shelf-comments-send"
-              disabled={!draft.trim() || submitting}
-              {...shellTapProps({ onTap: () => void submitChapterComment() })}
-            >
-              发送
-            </button>
-          </div>
+          <ShelfInlineComposer
+            value={draft}
+            onChange={setDraft}
+            onSubmit={submitChapterComment}
+            placeholder="写下对本章的想法…"
+            maxLength={2000}
+            submitLabel="发送"
+            busy={submitting}
+            rows={2}
+            wrapperClassName="shelf-comments-compose"
+            inputRef={inputRef}
+          />
         ) : null}
       </div>
       {hubPostId ? (

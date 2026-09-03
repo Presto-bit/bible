@@ -12,14 +12,15 @@ import ShelfBrandCover from '@/components/shelf/ShelfBrandCover';
 type Props = {
   book: ShelfBookSummary;
   coverUrl?: string | null;
-  onManage?: (book: ShelfBookSummary) => void;
-  onLongPress?: (book: ShelfBookSummary) => void;
+  actionMenuOpen?: boolean;
+  onActionMenu?: (book: ShelfBookSummary, anchorEl: HTMLElement) => void;
 };
 
 const LONG_PRESS_MS = 520;
 
-export default function ShelfBookCard({ book, coverUrl, onManage, onLongPress }: Props) {
+export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onActionMenu }: Props) {
   const router = useRouter();
+  const cardRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const startXY = useRef<{ x: number; y: number } | null>(null);
@@ -35,19 +36,19 @@ export default function ShelfBookCard({ book, coverUrl, onManage, onLongPress }:
   }, []);
 
   const triggerLongPress = useCallback(() => {
+    if (!onActionMenu || !cardRef.current) return;
     longPressFired.current = true;
     try {
       navigator.vibrate?.(10);
     } catch {
       /* ignore */
     }
-    if (onManage) onManage(book);
-    else onLongPress?.(book);
-  }, [book, onManage, onLongPress]);
+    onActionMenu(book, cardRef.current);
+  }, [book, onActionMenu]);
 
   const startLongPress = useCallback(
     (x: number, y: number) => {
-      if (!onManage && !onLongPress) return;
+      if (!onActionMenu) return;
       longPressFired.current = false;
       clearTimer();
       startXY.current = { x, y };
@@ -56,7 +57,7 @@ export default function ShelfBookCard({ book, coverUrl, onManage, onLongPress }:
         triggerLongPress();
       }, LONG_PRESS_MS);
     },
-    [clearTimer, onManage, onLongPress, triggerLongPress],
+    [clearTimer, onActionMenu, triggerLongPress],
   );
 
   const openDetail = (e: MouseEvent | PointerEvent) => {
@@ -75,9 +76,10 @@ export default function ShelfBookCard({ book, coverUrl, onManage, onLongPress }:
 
   return (
     <div
+      ref={cardRef}
       role="link"
       tabIndex={0}
-      className="shelf-book-card"
+      className={`shelf-book-card${actionMenuOpen ? ' is-action-open' : ''}`}
       onPointerDown={(e) => {
         if (e.pointerType === 'mouse' && e.button !== 0) return;
         startLongPress(e.clientX, e.clientY);
@@ -97,7 +99,7 @@ export default function ShelfBookCard({ book, coverUrl, onManage, onLongPress }:
         startXY.current = null;
       }}
       onContextMenu={(e) => {
-        if (!onManage && !onLongPress) return;
+        if (!onActionMenu) return;
         e.preventDefault();
         triggerLongPress();
       }}

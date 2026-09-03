@@ -99,6 +99,7 @@ export default function ShelfLibrarySheet({ mode, book, group, onClose, onChange
 
         {mode === 'move_book' && book ? (
           <>
+            <div className="half-sheet-grab" aria-hidden />
             <h2 className="shelf-manage-title">移到分组</h2>
             <p className="shelf-manage-hint muted">{book.title}</p>
             <div className="shelf-manage-group-list">

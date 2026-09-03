@@ -23,6 +23,7 @@ import {
   type ShelfPostVisibility,
 } from '@/lib/shelf_posts';
 import { useShelfLoginGate } from '@/components/shelf/ShelfReplyComposer';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 const ShelfPostWriteSheet = dynamic(
   () => import('@/components/shelf/ShelfPostWriteSheet'),
@@ -109,6 +110,8 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   }, [book, reloadPosts]);
 
   const continueHref = readHref(bookId, progress?.sectionId, progress?.pageIndex);
+
+  useEdgeSwipeBack({ href: continueHref, preferHistoryBack: true });
 
   const onWriteReview = async () => {
     if (!(await requireLogin())) return;

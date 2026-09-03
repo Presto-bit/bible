@@ -225,6 +225,109 @@
   max-height: 2.5em;
 }
 
+.shelf-book-card.is-action-open {
+  position: relative;
+  z-index: 2;
+}
+
+.shelf-book-card.is-action-open .shelf-book-card-cover {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--accent, #4a6b52) 55%, transparent),
+    0 4px 16px rgba(44, 40, 37, 0.18);
+}
+
+.shelf-book-action-root {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  pointer-events: none;
+}
+
+.shelf-book-action-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(44, 40, 37, 0.18);
+  pointer-events: auto;
+  cursor: default;
+}
+
+.shelf-book-action-popover {
+  position: fixed;
+  z-index: 86;
+  width: min(240px, calc(100vw - 24px));
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  box-shadow:
+    0 8px 28px rgba(44, 40, 37, 0.16),
+    0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.shelf-book-action-popover.is-above::after,
+.shelf-book-action-popover.is-below::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: var(--surface, #fff);
+  transform: translateX(-50%) rotate(45deg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.shelf-book-action-popover.is-above::after {
+  bottom: -5px;
+}
+
+.shelf-book-action-popover.is-below::after {
+  top: -5px;
+}
+
+.shelf-book-action-title {
+  margin: 0;
+  padding: 12px 14px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line, rgba(44, 40, 37, 0.08));
+}
+
+.shelf-book-action-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+
+.shelf-book-action-item {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  text-align: left;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.shelf-book-action-item:active,
+.shelf-book-action-item:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.shelf-book-action-item.is-danger {
+  color: #b44;
+}
+
 .shelf-sheet-backdrop {
   position: fixed;
   inset: 0;
@@ -1458,18 +1561,21 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-read-position {
   position: fixed;
   right: 14px;
-  bottom: calc(max(4px, var(--safe-bottom, 0px)) + 52px);
-  z-index: 12;
+  bottom: calc(max(4px, var(--safe-bottom, 0px)) + 58px);
+  z-index: 22;
   font-size: 11px;
   line-height: 1.2;
   color: var(--ink-soft);
   opacity: 0.72;
   pointer-events: none;
+  text-shadow: 0 0 6px var(--paper, #f7f3ec);
 }
 
 .shelf-reader-hidden .shelf-page-indicator,
-.shelf-reader-hidden .shelf-read-position {
-  bottom: calc(max(4px, var(--safe-bottom, 0px)) + 10px);
+.shelf-reader-hidden .shelf-read-position,
+.shelf-reader-pdf-fullscreen .shelf-read-position {
+  bottom: calc(max(4px, var(--safe-bottom, 0px)) + 12px);
+  z-index: 22;
 }
 
 .shelf-reader-lesson .shelf-lesson-viewport,
@@ -2965,12 +3071,86 @@ mark.shelf-sel-pinned {
 
 .shelf-comments-compose {
   flex-shrink: 0;
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
   padding: 10px 12px calc(var(--safe-bottom, 0px) + 10px);
   border-top: 1px solid var(--line);
   background: var(--surface, #fff);
+}
+
+.shelf-inline-composer-wrap {
+  flex-shrink: 0;
+}
+
+.shelf-inline-composer {
+  position: relative;
+  border: 1px solid var(--line, rgba(44, 40, 37, 0.1));
+  border-radius: 16px;
+  background: var(--surface-sunken, color-mix(in srgb, var(--paper) 92%, var(--ink) 8%));
+  padding: 10px 52px 10px 14px;
+}
+
+.shelf-inline-composer-sheet .shelf-inline-composer {
+  margin: 0 2px 4px;
+}
+
+.shelf-inline-composer-input {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  min-height: calc(1.45em * 2 + 4px);
+  max-height: calc(1.45em * 6 + 4px);
+  resize: none;
+  font: inherit;
+  line-height: 1.45;
+  color: inherit;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.shelf-inline-composer-input:focus {
+  outline: none;
+}
+
+.shelf-inline-composer-input::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.72;
+}
+
+.shelf-inline-composer-send {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  min-width: 40px;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-deep, #4a6b52);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.shelf-inline-composer-send:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.shelf-reply-composer {
+  padding: 10px 12px;
+  border-top: 1px solid var(--line, rgba(44, 40, 37, 0.08));
+  background: var(--surface, #fff);
+}
+
+.shelf-reply-composer .shelf-inline-composer {
+  padding-right: 56px;
+}
+
+.shelf-comments-compose .shelf-inline-composer {
+  padding-right: 56px;
 }
 
 .shelf-comments-input {
@@ -3075,29 +3255,4 @@ mark.shelf-sel-pinned {
 
 .shelf-note-hub-loading {
   padding: 24px 16px;
-}
-
-.shelf-reply-composer {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  padding: 10px 12px;
-  border-top: 1px solid var(--line, rgba(44, 40, 37, 0.08));
-  background: var(--surface, #fff);
-}
-
-.shelf-reply-input {
-  flex: 1;
-  min-height: 40px;
-  max-height: 120px;
-  resize: none;
-}
-
-.shelf-reply-send {
-  border: 0;
-  background: var(--accent, #4a6b52);
-  color: #fff;
-  border-radius: 10px;
-  padding: 8px 14px;
-  font-weight: 600;
 }

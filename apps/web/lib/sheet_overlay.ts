@@ -13,6 +13,8 @@ export const SHEET_OVERLAY_DISMISS_SELECTORS = [
   '.sheet-backdrop',
   '.reader-sheet-backdrop',
   '.im-msg-popover-backdrop',
+  '.shelf-book-action-backdrop',
+  '.shelf-sheet-backdrop',
   '.version-pop-backdrop',
   '.reader-loc-backdrop',
   '.reader-ai-backdrop',

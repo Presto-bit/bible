@@ -29,6 +29,10 @@ import '@/styles/shelf.css';
 
 const ShelfImportSheet = dynamic(() => import('@/components/shelf/ShelfImportSheet'), { ssr: false });
 const ShelfLibrarySheet = dynamic(() => import('@/components/shelf/ShelfLibrarySheet'), { ssr: false });
+const ShelfBookActionPopover = dynamic(
+  () => import('@/components/shelf/ShelfBookActionPopover'),
+  { ssr: false },
+);
 
 export default function ShelfPage() {
   const suppress = useSuppressKeepAliveRoute();
@@ -54,6 +58,10 @@ function ShelfListInner() {
   const [librarySheet, setLibrarySheet] = useState<
     null | { mode: 'new_group' | 'move_book' | 'edit_group'; book?: ShelfBookSummary; group?: ShelfUserGroup }
   >(null);
+  const [bookActionMenu, setBookActionMenu] = useState<{
+    book: ShelfBookSummary;
+    anchorEl: HTMLElement;
+  } | null>(null);
   const [libraryTick, setLibraryTick] = useState(0);
 
   const reload = useCallback((force = false) => {
@@ -140,14 +148,32 @@ function ShelfListInner() {
             <ShelfBookCard
               key={book.id}
               book={book}
-              onManage={canManage ? setManageBook : undefined}
-              onLongPress={(b) => setLibrarySheet({ mode: 'move_book', book: b })}
+              actionMenuOpen={bookActionMenu?.book.id === book.id}
+              onActionMenu={(b, anchorEl) => setBookActionMenu({ book: b, anchorEl })}
             />
           ))}
         </div>
       ) : null}
 
       {importOpen ? <ShelfImportSheet onClose={() => setImportOpen(false)} /> : null}
+
+      {bookActionMenu ? (
+        <ShelfBookActionPopover
+          open
+          book={bookActionMenu.book}
+          anchorEl={bookActionMenu.anchorEl}
+          canManage={canManage}
+          onClose={() => setBookActionMenu(null)}
+          onMoveGroup={(book) => {
+            setBookActionMenu(null);
+            setLibrarySheet({ mode: 'move_book', book });
+          }}
+          onManage={(book) => {
+            setBookActionMenu(null);
+            setManageBook(book);
+          }}
+        />
+      ) : null}
 
       {librarySheet ? (
         <ShelfLibrarySheet

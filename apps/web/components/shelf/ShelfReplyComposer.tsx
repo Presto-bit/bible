@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import { useKeyboardInset } from '@/components/reader/useKeyboardInset';
 import { ensureAccountReady, getSessionToken } from '@/lib/api';
+import ShelfInlineComposer from '@/components/shelf/ShelfInlineComposer';
 
 export function useShelfLoginGate(flashToast: (msg: string) => void) {
   return useCallback(async () => {
@@ -48,31 +49,18 @@ export default function ShelfReplyComposer({
   }, [body, busy, disabled, onSubmit]);
 
   return (
-    <div className="shelf-reply-composer" style={{ paddingBottom: kbInset ? Math.max(0, kbInset - 8) : undefined }}>
-      <textarea
-        className="shelf-reply-input group-composer-text search-input compose-textarea"
-        rows={1}
-        enterKeyHint="send"
-        placeholder={placeholder}
-        value={body}
-        maxLength={maxLength}
-        disabled={disabled || busy}
-        onChange={(e) => setBody(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            void submit();
-          }
-        }}
-      />
-      <button
-        type="button"
-        className="shelf-reply-send"
-        disabled={!body.trim() || busy || disabled}
-        onClick={() => void submit()}
-      >
-        发送
-      </button>
-    </div>
+    <ShelfInlineComposer
+      value={body}
+      onChange={setBody}
+      onSubmit={submit}
+      placeholder={placeholder}
+      maxLength={maxLength}
+      submitLabel="发送"
+      disabled={disabled}
+      busy={busy}
+      rows={1}
+      wrapperClassName="shelf-reply-composer"
+      style={{ paddingBottom: kbInset ? Math.max(0, kbInset - 8) : undefined }}
+    />
   );
 }

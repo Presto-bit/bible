@@ -216,29 +216,44 @@ export default function ShelfPostWriteSheet({
             </div>
           ) : null}
 
-          <div className={`thought-write-editor-wrap${kind === 'note' ? ' thought-write-editor-inline' : ''}`}>
-            <textarea
-              ref={textareaRef}
-              className="note-editor-input thought-write-input"
-              rows={kind === 'note' ? 4 : 5}
-              enterKeyHint="send"
-              placeholder={placeholder}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            {kind === 'note' ? (
-              <button
-                type="button"
-                className="thought-write-send"
-                disabled={!body.trim()}
-                aria-label="发布"
-                onClick={handleConfirm}
-              >
-                发布
-              </button>
-            ) : null}
-          </div>
+          {kind === 'note' ? (
+            <div className="shelf-inline-composer-wrap shelf-inline-composer-sheet">
+              <div className="shelf-inline-composer">
+                <textarea
+                  ref={textareaRef}
+                  className="note-editor-input shelf-inline-composer-input"
+                  rows={4}
+                  enterKeyHint="send"
+                  placeholder={placeholder}
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                />
+                <button
+                  type="button"
+                  className="shelf-inline-composer-send"
+                  disabled={!body.trim()}
+                  aria-label="发布"
+                  onClick={handleConfirm}
+                >
+                  发布
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="thought-write-editor-wrap">
+              <textarea
+                ref={textareaRef}
+                className="note-editor-input thought-write-input"
+                rows={5}
+                enterKeyHint="send"
+                placeholder={placeholder}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

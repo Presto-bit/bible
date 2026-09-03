@@ -733,13 +733,13 @@ export default function ShelfReader({
         </nav>
       ) : null}
 
-      {isPdfSection && pageCount > 1 && !chromeHidden ? (
+      {isPdfSection && pageCount > 1 ? (
         <div className="shelf-read-position" aria-live="polite">
           {pageIndex + 1} / {pageCount}
         </div>
       ) : null}
 
-      {isFlowSection && sections.length > 1 && !chromeHidden ? (
+      {isFlowSection && sections.length > 1 ? (
         <div className="shelf-read-position" aria-live="polite">
           {Math.max(1, sectionIndex + 1)} / {sections.length}
         </div>
