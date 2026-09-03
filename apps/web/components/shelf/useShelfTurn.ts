@@ -386,6 +386,22 @@ export function useShelfTurn({
           return;
         }
         if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
+        if (drag.current.inProse && !drag.current.fromEdge) {
+          if (ady >= AXIS_MIN_PX && ady >= adx) {
+            drag.current.active = false;
+            drag.current.pointerId = -1;
+            drag.current.axis = 'y';
+            return;
+          }
+          if (adx < AXIS_MIN_PX * 2 || adx < ady * 1.65) {
+            if (ady >= AXIS_MIN_PX) {
+              drag.current.active = false;
+              drag.current.pointerId = -1;
+              drag.current.axis = 'y';
+            }
+            return;
+          }
+        }
         if (adx >= AXIS_MIN_PX && adx > ady * AXIS_RATIO) {
           drag.current.axis = 'x';
           setTurning(true);

@@ -16,10 +16,12 @@ import { rewriteShelfHtmlAssetUrls } from '@/lib/shelf_api';
 import { linkifyShelfProseHtml, shelfParagraphIndexForRatio, shelfRatioForParagraphIndex } from '@/lib/shelf_prose_html';
 import {
   clearShelfActiveSelection,
+  clearShelfPinnedSelectionDom,
   findShelfHighlightRef,
   paintShelfActiveSelection,
   paintShelfHighlights,
   pickShelfHighlight,
+  pinShelfActiveSelectionDom,
   shelfMarksForPage,
   supportsShelfCssHighlight,
 } from '@/lib/shelf_highlight_paint';
@@ -181,7 +183,7 @@ export default function ShelfPaginatedProse({
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
-    const key = `${contentKey}:${scrollToEnd ? 'end' : scrollAnchor?.paragraphIndex ?? 'o'}:${scrollOffset.toFixed(4)}`;
+    const key = `${contentKey}:${scrollToEnd ? 'end' : scrollAnchor?.paragraphIndex ?? 'init'}`;
     if (scrollApplyKeyRef.current === key) return;
     scrollApplyKeyRef.current = key;
     syncRef.current = true;
@@ -217,14 +219,15 @@ export default function ShelfPaginatedProse({
   const collapseNativeSelection = useCallback((sel: ShelfTextSelection) => {
     const article = articleRef.current;
     if (!article) return;
-    const painted = paintShelfActiveSelection(article, sel.start, sel.end);
-    if (!painted) return;
+    const cssPainted = paintShelfActiveSelection(article, sel.start, sel.end);
+    const domPinned = pinShelfActiveSelectionDom(article, sel.start, sel.end);
+    if (!cssPainted && !domPinned) return;
     article.classList.add('shelf-sel-locked');
+    setSelection(sel);
     clearShelfTextSelection();
     window.requestAnimationFrame(() => {
       clearShelfTextSelection();
       window.setTimeout(clearShelfTextSelection, 30);
-      window.setTimeout(clearShelfTextSelection, 120);
     });
   }, []);
 
@@ -309,8 +312,10 @@ export default function ShelfPaginatedProse({
 
   const clearSelection = useCallback(() => {
     clearShelfTextSelection();
-    articleRef.current?.classList.remove('shelf-sel-locked');
+    const article = articleRef.current;
+    article?.classList.remove('shelf-sel-locked');
     clearShelfActiveSelection();
+    if (article) clearShelfPinnedSelectionDom(article);
     setSelection(null);
     setMarkPaletteOpen(false);
     setFocusBarStyle({});

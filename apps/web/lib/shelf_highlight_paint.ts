@@ -122,6 +122,38 @@ export function clearShelfActiveSelection() {
   clearNamedHighlight(SEL_ACTIVE);
 }
 
+export function clearShelfPinnedSelectionDom(article: HTMLElement | null) {
+  if (!article) return;
+  article.querySelectorAll('mark.shelf-sel-pinned').forEach((node) => {
+    const mark = node as HTMLElement;
+    const parent = mark.parentNode;
+    if (!parent) return;
+    while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+    parent.removeChild(mark);
+  });
+}
+
+export function pinShelfActiveSelectionDom(
+  article: HTMLElement | null,
+  start: number,
+  end: number,
+): boolean {
+  if (!article) return false;
+  clearShelfPinnedSelectionDom(article);
+  const range = rangeFromArticleOffsets(article, start, end);
+  if (!range) return false;
+  try {
+    const mark = document.createElement('mark');
+    mark.className = 'shelf-sel-pinned';
+    const contents = range.extractContents();
+    mark.appendChild(contents);
+    range.insertNode(mark);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function shelfMarksForPage(
   bookId: string,
   sectionId: string,

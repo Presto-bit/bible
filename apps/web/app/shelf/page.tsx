@@ -108,7 +108,13 @@ function ShelfListInner() {
         userGroups={userGroups}
         showUngrouped={showUngrouped}
         canAddGroup={userGroups.length < SHELF_MAX_USER_GROUPS}
-        onSelect={setActiveTab}
+        onSelect={(tab) => {
+          if (tab.kind === 'progress' && activeTab.kind !== 'progress') {
+            setActiveTab({ kind: 'progress', status: 'reading' });
+            return;
+          }
+          setActiveTab(tab);
+        }}
         onAddGroup={() => setLibrarySheet({ mode: 'new_group' })}
         onLongPressGroup={(group) => setLibrarySheet({ mode: 'edit_group', group })}
       />
@@ -118,7 +124,13 @@ function ShelfListInner() {
 
       {!loading && !err && visibleBooks.length === 0 ? (
         <p className="muted shelf-library-status">
-          {searchQuery ? '没有匹配的书' : '书架空空的，可导入或选一本平台书目'}
+          {searchQuery
+            ? '没有匹配的书'
+            : activeTab.kind === 'last_read'
+              ? '还没有最近阅读的书'
+              : activeTab.kind === 'progress'
+                ? '暂无符合条件的书'
+                : '书架空空的，可导入或选一本平台书目'}
         </p>
       ) : null}
 

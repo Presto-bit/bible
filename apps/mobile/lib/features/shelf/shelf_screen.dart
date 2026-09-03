@@ -26,6 +26,7 @@ class ShelfScreen extends ConsumerStatefulWidget {
 
 class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   ShelfLibraryTab _tab = const ShelfLibraryTab.lastRead();
+  ShelfProgressFilter _progressFilter = ShelfProgressFilter.reading;
   bool _searchOpen = false;
   final _searchCtrl = TextEditingController();
   List<ShelfUserGroup> _userGroups = const [];
@@ -234,7 +235,13 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
         error: (_, __) => const Center(child: Text('暂时无法加载书架', style: AppTypography.meta)),
         data: (data) {
           final showUngrouped = _library.ungroupedCount(data.items) > 0;
-          final books = _library.filterAndSort(data.items, _tab, _searchCtrl.text);
+          final books = _library.filterAndSort(
+            data.items,
+            _tab.kind == ShelfLibraryTabKind.progress
+                ? ShelfLibraryTab.progress(_progressFilter)
+                : _tab,
+            _searchCtrl.text,
+          );
           return RefreshIndicator(
             onRefresh: () => _refresh(ref),
             child: CustomScrollView(
@@ -250,6 +257,13 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                           label: '最近阅读',
                           selected: _tab.kind == ShelfLibraryTabKind.lastRead,
                           onTap: () => setState(() => _tab = const ShelfLibraryTab.lastRead()),
+                        ),
+                        _TabChip(
+                          label: '阅读进度',
+                          selected: _tab.kind == ShelfLibraryTabKind.progress,
+                          onTap: () => setState(() {
+                            _tab = ShelfLibraryTab.progress(_progressFilter);
+                          }),
                         ),
                         _TabChip(
                           label: '上架时间',
@@ -280,6 +294,30 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                     ),
                   ),
                 ),
+                if (_tab.kind == ShelfLibraryTabKind.progress)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                      child: Wrap(
+                        spacing: 8,
+                        children: [
+                          for (final entry in [
+                            (ShelfProgressFilter.reading, '在读'),
+                            (ShelfProgressFilter.finished, '读完'),
+                            (ShelfProgressFilter.unread, '未读'),
+                          ])
+                            ChoiceChip(
+                              label: Text(entry.$2),
+                              selected: _progressFilter == entry.$1,
+                              onSelected: (_) => setState(() {
+                                _progressFilter = entry.$1;
+                                _tab = ShelfLibraryTab.progress(entry.$1);
+                              }),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                 if (books.isEmpty)
                   const SliverFillRemaining(
                     hasScrollBody: false,
@@ -300,7 +338,6 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                           final book = books[i];
                           return ShelfBookCard(
                             book: book,
-                            progressRatio: _library.bookProgressRatio(book.id),
                             onTap: () => context.push(_library.bookCardPath(book.id)),
                             onDetailTap: () => context.push('/shelf/${book.id}'),
                             onLongPress: () => _moveBook(book),

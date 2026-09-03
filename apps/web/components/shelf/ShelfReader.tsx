@@ -374,6 +374,8 @@ export default function ShelfReader({
         setPageIndex(0);
         setFlowScrollRatio(0);
         scrollBySectionRef.current[id] = 0;
+        delete scrollAnchorBySectionRef.current[id];
+        flowScrollAnchorRef.current = null;
       } else {
         const savedPage = pageBySectionRef.current[id];
         const savedScroll = scrollBySectionRef.current[id];
@@ -389,11 +391,7 @@ export default function ShelfReader({
       const prev = sections[sectionIndex - 1];
       const id = prev?.id ?? null;
       if (!id) return;
-      const visited =
-        scrollBySectionRef.current[id] != null
-        || scrollAnchorBySectionRef.current[id] != null
-        || pageBySectionRef.current[id] != null;
-      goSection(id, visited ? undefined : { page: 'last', scroll: 'end' });
+      goSection(id, { page: 0, scroll: 'start' });
     }
   }, [goSection, sectionIndex, sections]);
 
@@ -402,11 +400,7 @@ export default function ShelfReader({
       const next = sections[sectionIndex + 1];
       const id = next?.id ?? null;
       if (!id) return;
-      const visited =
-        scrollBySectionRef.current[id] != null
-        || scrollAnchorBySectionRef.current[id] != null
-        || pageBySectionRef.current[id] != null;
-      goSection(id, visited ? undefined : { page: 0, scroll: 'start' });
+      goSection(id, { page: 0, scroll: 'start' });
     }
   }, [goSection, sectionIndex, sections]);
 
@@ -491,7 +485,7 @@ export default function ShelfReader({
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
           pageIndex={interactive ? pageIndex : 0}
           scrollOffset={
-            interactive ? (scrollBySectionRef.current[sec.id] ?? flowScrollRatio) : 0
+            interactive ? (scrollBySectionRef.current[sec.id] ?? 0) : 0
           }
           scrollAnchor={
             interactive ? (scrollAnchorBySectionRef.current[sec.id] ?? flowScrollAnchorRef.current ?? undefined) : undefined
@@ -532,7 +526,7 @@ export default function ShelfReader({
           pageIndex={0}
           variant={flowVariant}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
-          scrollOffset={interactive ? (scrollBySectionRef.current[sec.id] ?? flowScrollRatio) : 0}
+          scrollOffset={interactive ? (scrollBySectionRef.current[sec.id] ?? 0) : 0}
           scrollAnchor={
             interactive ? (scrollAnchorBySectionRef.current[sec.id] ?? flowScrollAnchorRef.current ?? undefined) : undefined
           }

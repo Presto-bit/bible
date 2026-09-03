@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
 import ShelfCoverPlate from '@/components/shelf/ShelfCoverPlate';
@@ -49,14 +49,17 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   const flashToast = useToast();
   const requireLogin = useShelfLoginGate(flashToast);
   const [book, setBook] = useState<ShelfBookDetail | null>(null);
+  const [bookErr, setBookErr] = useState('');
   const [tab, setTab] = useState<Tab>(() => {
     const t = search.get('tab');
     if (t === 'notes' || t === 'mine') return t;
     return 'reviews';
   });
   const [posts, setPosts] = useState<ShelfPost[]>([]);
+  const [postsErr, setPostsErr] = useState('');
   const [stats, setStats] = useState({ reviews: 0, notes: 0 });
   const [loading, setLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(false);
   const [writeReview, setWriteReview] = useState(false);
   const [hubPostId, setHubPostId] = useState<string | null>(null);
   const [hubAbstract, setHubAbstract] = useState<string | undefined>();
@@ -64,15 +67,28 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   const progress = useMemo(() => loadShelfBookProgress(bookId), [bookId]);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
+    setBookErr('');
     void getPlatformShelfBook(bookId)
-      .then(setBook)
-      .catch(() => flashToast('无法加载书目'))
-      .finally(() => setLoading(false));
-  }, [bookId, flashToast]);
+      .then((detail) => {
+        if (!cancelled) setBook(detail);
+      })
+      .catch(() => {
+        if (!cancelled) setBookErr('暂时无法加载书目');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId]);
 
   const reloadPosts = useCallback(() => {
     const kind = tab === 'reviews' ? 'review' : tab === 'notes' ? 'note' : undefined;
+    setPostsLoading(true);
+    setPostsErr('');
     void listShelfPosts(bookId, {
       kind: kind as 'review' | 'note' | undefined,
       mine: tab === 'mine',
@@ -82,12 +98,14 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
         setPosts(data.items);
         setStats(data.stats);
       })
-      .catch(() => flashToast('加载失败'));
-  }, [bookId, tab, flashToast]);
+      .catch(() => setPostsErr('评论加载失败'))
+      .finally(() => setPostsLoading(false));
+  }, [bookId, tab]);
 
   useEffect(() => {
+    if (!book) return;
     reloadPosts();
-  }, [reloadPosts]);
+  }, [book, reloadPosts]);
 
   const continueHref = readHref(bookId, progress?.sectionId, progress?.pageIndex);
 
@@ -130,6 +148,15 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
       <main className="shelf-detail-page">
         <PageBackBar href="/shelf" ariaLabel="返回书架" />
         <p className="muted shelf-detail-loading">加载中…</p>
+      </main>
+    );
+  }
+
+  if (bookErr && !book) {
+    return (
+      <main className="shelf-detail-page">
+        <PageBackBar href="/shelf" ariaLabel="返回书架" />
+        <p className="muted shelf-detail-loading">{bookErr}</p>
       </main>
     );
   }
@@ -178,7 +205,11 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
       </div>
 
       <div className="shelf-detail-list">
-        {posts.length === 0 ? (
+        {postsLoading && posts.length === 0 ? (
+          <p className="muted shelf-detail-empty">加载中…</p>
+        ) : postsErr && posts.length === 0 ? (
+          <p className="muted shelf-detail-empty">{postsErr}</p>
+        ) : posts.length === 0 ? (
           <p className="muted shelf-detail-empty">
             {tab === 'reviews' ? '还没有书评，读完写几句也很好' : '暂无内容'}
           </p>

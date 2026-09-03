@@ -13,17 +13,32 @@ const shelfMaxUserGroups = 8;
 const shelfImportMaxBytes = 20 * 1024 * 1024;
 const shelfUngroupedId = '_ungrouped';
 
-enum ShelfLibraryTabKind { lastRead, added, group }
+enum ShelfLibraryTabKind { lastRead, progress, added, group }
+
+enum ShelfProgressFilter { reading, finished, unread }
 
 class ShelfLibraryTab {
-  const ShelfLibraryTab.lastRead() : kind = ShelfLibraryTabKind.lastRead, groupId = null;
+  const ShelfLibraryTab.lastRead()
+      : kind = ShelfLibraryTabKind.lastRead,
+        groupId = null,
+        progressStatus = null;
 
-  const ShelfLibraryTab.added() : kind = ShelfLibraryTabKind.added, groupId = null;
+  const ShelfLibraryTab.added()
+      : kind = ShelfLibraryTabKind.added,
+        groupId = null,
+        progressStatus = null;
 
-  const ShelfLibraryTab.group(this.groupId) : kind = ShelfLibraryTabKind.group;
+  const ShelfLibraryTab.group(this.groupId)
+      : kind = ShelfLibraryTabKind.group,
+        progressStatus = null;
+
+  const ShelfLibraryTab.progress(this.progressStatus)
+      : kind = ShelfLibraryTabKind.progress,
+        groupId = null;
 
   final ShelfLibraryTabKind kind;
   final String? groupId;
+  final ShelfProgressFilter? progressStatus;
 }
 
 class ShelfUserGroup {
@@ -138,9 +153,9 @@ class ShelfLibraryStore {
         booksMap[book.id] = ShelfBookLibraryMeta(addedAt: now).toJson();
         dirty = true;
       }
-      if (last?.bookId == book.id) {
+      if (last?.bookId == book.id && last.at != null) {
         final m = ShelfBookLibraryMeta.fromJson(Map<String, dynamic>.from(booksMap[book.id] as Map));
-        final ts = DateTime.now().millisecondsSinceEpoch;
+        final ts = last.at!;
         if (m.lastReadAt != ts) {
           booksMap[book.id] = ShelfBookLibraryMeta(
             groupId: m.groupId,
@@ -266,6 +281,14 @@ class ShelfLibraryStore {
     return 0.04;
   }
 
+  ShelfProgressFilter bookReadStatus(String bookId) {
+    final p = _progress.loadBook(bookId);
+    final meta = _booksMap()[bookId];
+    if (p == null && meta?.lastReadAt == null) return ShelfProgressFilter.unread;
+    if (p?.isFinished == true) return ShelfProgressFilter.finished;
+    return ShelfProgressFilter.reading;
+  }
+
   List<ShelfBookSummary> filterAndSort(
     List<ShelfBookSummary> books,
     ShelfLibraryTab tab,
@@ -285,6 +308,12 @@ class ShelfLibraryStore {
         if (tab.groupId == shelfUngroupedId) return m?.groupId == null;
         return m?.groupId == tab.groupId;
       }
+      if (tab.kind == ShelfLibraryTabKind.lastRead) {
+        return (m?.lastReadAt ?? 0) > 0;
+      }
+      if (tab.kind == ShelfLibraryTabKind.progress) {
+        return bookReadStatus(b.id) == tab.progressStatus;
+      }
       return true;
     }).toList();
 
@@ -294,6 +323,13 @@ class ShelfLibraryStore {
         final mb = meta[b.id]?.lastReadAt ?? 0;
         if (mb != ma) return mb.compareTo(ma);
         return (meta[b.id]?.addedAt ?? 0).compareTo(meta[a.id]?.addedAt ?? 0);
+      });
+    } else if (tab.kind == ShelfLibraryTabKind.progress) {
+      list.sort((a, b) {
+        final ma = meta[a.id]?.lastReadAt ?? 0;
+        final mb = meta[b.id]?.lastReadAt ?? 0;
+        if (mb != ma) return mb.compareTo(ma);
+        return a.title.compareTo(b.title);
       });
     } else if (tab.kind == ShelfLibraryTabKind.added) {
       list.sort((a, b) => (meta[b.id]?.addedAt ?? 0).compareTo(meta[a.id]?.addedAt ?? 0));

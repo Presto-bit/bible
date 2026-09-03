@@ -38,6 +38,7 @@ class ShelfLastRead {
     this.pageIndex = 0,
     this.scrollOffset,
     this.scrollAnchor,
+    this.at,
   });
 
   final String bookId;
@@ -47,6 +48,7 @@ class ShelfLastRead {
   final int pageIndex;
   final double? scrollOffset;
   final ShelfScrollAnchor? scrollAnchor;
+  final int? at;
 }
 
 class ShelfProgressStore {
@@ -92,6 +94,7 @@ class ShelfProgressStore {
         pageIndex: (last['pageIndex'] as num?)?.toInt() ?? 0,
         scrollOffset: scroll is num ? scroll.toDouble().clamp(0, 1) : null,
         scrollAnchor: ShelfScrollAnchor.fromJson(last['scrollAnchor']),
+        at: (last['at'] as num?)?.toInt(),
       );
     } catch (_) {
       return null;

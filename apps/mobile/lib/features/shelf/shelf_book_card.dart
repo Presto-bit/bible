@@ -11,7 +11,6 @@ class ShelfBookCard extends StatelessWidget {
   const ShelfBookCard({
     super.key,
     required this.book,
-    required this.progressRatio,
     this.coverUrl,
     this.onTap,
     this.onDetailTap,
@@ -19,7 +18,6 @@ class ShelfBookCard extends StatelessWidget {
   });
 
   final ShelfBookSummary book;
-  final double? progressRatio;
   final String? coverUrl;
   final VoidCallback? onTap;
   final VoidCallback? onDetailTap;
@@ -81,25 +79,6 @@ class ShelfBookCard extends StatelessWidget {
                                       fontStyle: FontStyle.italic,
                                     ),
                                   ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (progressRatio != null && progressRatio! > 0)
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: SizedBox(
-                            height: 2,
-                            child: ColoredBox(
-                              color: AppColors.ink.withValues(alpha: 0.08),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: FractionallySizedBox(
-                                  widthFactor: progressRatio!.clamp(0.02, 1.0),
-                                  child: const ColoredBox(color: AppColors.accentDeep),
                                 ),
                               ),
                             ),

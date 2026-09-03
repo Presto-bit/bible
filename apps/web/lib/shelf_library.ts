@@ -10,8 +10,11 @@ export const SHELF_LIBRARY_KEY = 'presto_shelf_library_v1';
 export const SHELF_MAX_USER_GROUPS = 8;
 export const SHELF_IMPORT_MAX_BYTES = 20 * 1024 * 1024;
 
+export type ShelfProgressFilter = 'reading' | 'finished' | 'unread';
+
 export type ShelfLibraryTab =
   | { kind: 'last_read' }
+  | { kind: 'progress'; status: ShelfProgressFilter }
   | { kind: 'added' }
   | { kind: 'group'; groupId: string };
 
@@ -35,6 +38,7 @@ type ShelfLibraryStore = {
 };
 
 export const SHELF_UNGROUPED_ID = '_ungrouped';
+const FINISH_RATIO = 0.97;
 
 function readStore(): ShelfLibraryStore {
   if (typeof window === 'undefined') return { groups: [], books: {} };
@@ -73,12 +77,11 @@ export function ensureShelfBookMeta(bookId: string): ShelfBookLibraryMeta {
   const existing = store.books[bookId];
   if (existing) return existing;
   const last = loadShelfLastRead();
-  const progress = loadShelfBookProgress(bookId);
   const now = Date.now();
   const meta: ShelfBookLibraryMeta = {
     groupId: null,
     addedAt: last?.bookId === bookId && last.at ? last.at : now,
-    lastReadAt: last?.bookId === bookId ? last.at : progress ? now : null,
+    lastReadAt: last?.bookId === bookId ? last.at : null,
   };
   store.books[bookId] = meta;
   writeStore(store);
@@ -104,11 +107,6 @@ export function syncShelfLibraryFromBooks(books: ShelfBookSummary[]) {
         meta.lastReadAt = last.at;
         dirty = true;
       }
-    }
-    const progress = loadShelfBookProgress(book.id);
-    if (progress && !meta.lastReadAt) {
-      meta.lastReadAt = Date.now();
-      dirty = true;
     }
   }
   if (dirty) writeStore(store);
@@ -188,6 +186,14 @@ export function shelfBookProgressRatio(bookId: string): number | null {
   return 0.04;
 }
 
+export function shelfBookReadStatus(bookId: string): ShelfProgressFilter {
+  const progress = loadShelfBookProgress(bookId);
+  const meta = readStore().books[bookId];
+  if (!progress && !meta?.lastReadAt) return 'unread';
+  if (progress?.finished || (progress?.progressRatio ?? 0) >= FINISH_RATIO) return 'finished';
+  return 'reading';
+}
+
 export function filterAndSortShelfBooks(
   books: ShelfBookSummary[],
   tab: ShelfLibraryTab,
@@ -210,6 +216,12 @@ export function filterAndSortShelfBooks(
       }
       return meta?.groupId === tab.groupId;
     }
+    if (tab.kind === 'last_read') {
+      return (meta?.lastReadAt ?? 0) > 0;
+    }
+    if (tab.kind === 'progress') {
+      return shelfBookReadStatus(b.id) === tab.status;
+    }
     return true;
   });
 
@@ -219,6 +231,13 @@ export function filterAndSortShelfBooks(
       const mb = store.books[b.id]?.lastReadAt ?? 0;
       if (mb !== ma) return mb - ma;
       return (store.books[b.id]?.addedAt ?? 0) - (store.books[a.id]?.addedAt ?? 0);
+    });
+  } else if (tab.kind === 'progress') {
+    list = [...list].sort((a, b) => {
+      const ma = store.books[a.id]?.lastReadAt ?? 0;
+      const mb = store.books[b.id]?.lastReadAt ?? 0;
+      if (mb !== ma) return mb - ma;
+      return a.title.localeCompare(b.title, 'zh-CN');
     });
   } else if (tab.kind === 'added') {
     list = [...list].sort(
@@ -243,8 +262,6 @@ export function touchShelfBookLastRead(bookId: string, at = Date.now()) {
   store.books[bookId] = meta;
   writeStore(store);
 }
-
-const FINISH_RATIO = 0.97;
 
 export function shelfBookReadHref(bookId: string): string {
   const progress = loadShelfBookProgress(bookId);

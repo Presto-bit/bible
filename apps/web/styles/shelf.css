@@ -1419,13 +1419,18 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   display: none;
 }
 
+.shelf-reader-hidden .shelf-turn-viewport {
+  padding-top: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 12px);
+  box-sizing: border-box;
+}
+
 .shelf-reader-hidden .shelf-page-viewport {
   padding-bottom: calc(var(--safe-bottom, 0px) + 8px);
-  padding-top: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 8px);
+  padding-top: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 12px);
 }
 
 .shelf-reader-hidden .shelf-flow-viewport {
-  padding-top: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 8px);
+  padding-top: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 4px);
 }
 
 .shelf-page-indicator {
@@ -2664,8 +2669,10 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   touch-action: pan-x pan-y;
 }
 
-.shelf-reader-flow-scroll .shelf-turn-viewport .shelf-flow-viewport {
-  touch-action: pan-x pan-y;
+.shelf-reader-flow-scroll .shelf-flow-viewport.is-scrolling,
+.shelf-reader-flow-scroll .shelf-turn-viewport:not(.is-turning) .shelf-flow-viewport {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 /* ── 书目详情页 ── */
@@ -2675,9 +2682,37 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 }
 
 .shelf-detail-page > .nav-back {
-  padding-top: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 2px);
+  padding-top: 4px;
   padding-left: 8px;
   margin-bottom: 0;
+}
+
+.shelf-library-progress-filters {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px 10px;
+  overflow-x: auto;
+}
+
+.shelf-library-progress-chip {
+  flex: 0 0 auto;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  background: var(--surface, #fff);
+  color: var(--ink-soft, #5c6b63);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+.shelf-library-progress-chip.is-active {
+  border-color: var(--accent-deep, #4a6b52);
+  color: var(--accent-deep, #4a6b52);
+  background: color-mix(in srgb, var(--accent-deep, #4a6b52) 8%, var(--surface, #fff));
+}
+
+mark.shelf-sel-pinned {
+  background: rgba(51, 144, 255, 0.28);
+  color: inherit;
 }
 
 .shelf-detail-loading {

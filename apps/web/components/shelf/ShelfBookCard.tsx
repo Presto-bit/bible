@@ -6,7 +6,6 @@ import type { ShelfBookSummary } from '@/lib/shelf_api';
 import {
   shelfBookCardHref,
   shelfBookDetailHref,
-  shelfBookProgressRatio,
 } from '@/lib/shelf_library';
 import ShelfBrandCover from '@/components/shelf/ShelfBrandCover';
 
@@ -25,7 +24,6 @@ export default function ShelfBookCard({ book, coverUrl, onManage, onLongPress }:
   const longPressFired = useRef(false);
   const startXY = useRef<{ x: number; y: number } | null>(null);
 
-  const ratio = shelfBookProgressRatio(book.id);
   const href = shelfBookCardHref(book.id);
   const detailHref = shelfBookDetailHref(book.id);
 
@@ -127,11 +125,6 @@ export default function ShelfBookCard({ book, coverUrl, onManage, onLongPress }:
         >
           <span aria-hidden>i</span>
         </button>
-        {ratio != null && ratio > 0 ? (
-          <div className="shelf-book-card-progress" aria-hidden>
-            <div className="shelf-book-card-progress-fill" style={{ width: `${Math.round(ratio * 100)}%` }} />
-          </div>
-        ) : null}
       </div>
       <p className="shelf-book-card-title">{book.title}</p>
     </div>
