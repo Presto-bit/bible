@@ -335,11 +335,13 @@ class ShelfRepository {
     return ShelfBookDetail.fromJson(res.data ?? const {});
   }
 
-  Future<ShelfSection> getSection(String bookId, String sectionId) async {
-    final cached = _cache.peekSection(bookId, sectionId);
-    if (cached != null && !cached.docxHtmlLooksLegacy) {
-      unawaited(_fetchSectionFresh(bookId, sectionId));
-      return cached;
+  Future<ShelfSection> getSection(String bookId, String sectionId, {bool force = false}) async {
+    if (!force) {
+      final cached = _cache.peekSection(bookId, sectionId);
+      if (cached != null && !cached.docxHtmlLooksLegacy) {
+        unawaited(_fetchSectionFresh(bookId, sectionId));
+        return cached;
+      }
     }
     return _fetchSectionFresh(bookId, sectionId);
   }

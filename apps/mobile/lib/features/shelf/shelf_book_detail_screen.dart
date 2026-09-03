@@ -405,6 +405,17 @@ class _PostCard extends StatelessWidget {
                 '${post.author.name} · ${formatShelfPostTime(post.createdAt)}',
                 style: AppTypography.meta,
               ),
+              if (post.readStatus == 'finished')
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    '已读完',
+                    style: AppTypography.meta.copyWith(
+                      color: AppColors.accentDeep,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               if (post.abstractText != null && post.abstractText!.trim().isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -422,7 +433,7 @@ class _PostCard extends StatelessWidget {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  TextButton(onPressed: onLike, child: Text('♡ ${post.likesCount > 0 ? post.likesCount : ''}')),
+                  TextButton(onPressed: onLike, child: Text(post.liked ? '♥ ${post.likesCount > 0 ? post.likesCount : ''}' : '♡ ${post.likesCount > 0 ? post.likesCount : ''}')),
                   TextButton(onPressed: onOpen, child: Text('💬 ${post.repliesCount > 0 ? post.repliesCount : ''}')),
                   if (showVis && onVisChange != null)
                     DropdownButton<ShelfPostVisibility>(

@@ -10,6 +10,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config.dart';
+import '../bible/entity_knowledge_sheet.dart' show showInlineVersePreview;
 import '../bible/markings_repository.dart';
 import '../bible/reader_focus_bar.dart';
 import '../bible/reader_marking_models.dart';
@@ -43,6 +44,8 @@ class ShelfPaginatedProse extends ConsumerStatefulWidget {
     this.onScrollAnchor,
     this.onSectionEdge,
     this.onSelectionActiveChanged,
+    this.publicNotes = const [],
+    this.onPublicNotesChanged,
   });
 
   final String bookId;
@@ -61,6 +64,8 @@ class ShelfPaginatedProse extends ConsumerStatefulWidget {
   final ValueChanged<ShelfScrollAnchor>? onScrollAnchor;
   final ValueChanged<String>? onSectionEdge;
   final ValueChanged<bool>? onSelectionActiveChanged;
+  final List<ShelfPost> publicNotes;
+  final VoidCallback? onPublicNotesChanged;
 
   @override
   ConsumerState<ShelfPaginatedProse> createState() => _ShelfPaginatedProseState();
@@ -377,7 +382,53 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         margin: Margins.only(bottom: 8),
         textAlign: TextAlign.left,
       )),
+      'a.shelf-inline-ref': withFamily(Style(
+        color: const Color(0xFF3D5A45),
+        textDecoration: TextDecoration.underline,
+        textDecorationColor: const Color(0xFF3D5A45),
+        fontWeight: FontWeight.w500,
+      )),
+      'a.shelf-public-note-hint': withFamily(Style(
+        color: const Color(0xFF3D5A45),
+        textDecoration: TextDecoration.underline,
+        textDecorationStyle: TextDecorationStyle.dashed,
+        textDecorationColor: const Color(0xB84A6B52),
+      )),
     };
+  }
+
+  List<({int start, int end, String postId})> get _publicNoteSpans {
+    return widget.publicNotes
+        .where((n) => n.spanStart != null && n.spanEnd != null)
+        .map(
+          (n) => (
+            start: n.spanStart!,
+            end: n.spanEnd!,
+            postId: n.id,
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> _onHtmlLinkTap(String? url, Map<String, String> attributes) async {
+    final href = (url ?? '').trim();
+    if (href.startsWith('shelf-ref:')) {
+      final osis = href.substring('shelf-ref:'.length);
+      final label = attributes['data-label'] ?? attributes['href'] ?? osis;
+      await showInlineVersePreview(context, refParam: osis, label: label);
+      return;
+    }
+    if (href.startsWith('shelf-note:')) {
+      final postId = href.substring('shelf-note:'.length);
+      if (postId.isEmpty) return;
+      await showShelfNoteHubSheet(
+        context,
+        ref,
+        bookId: widget.bookId,
+        postId: postId,
+      );
+      widget.onPublicNotesChanged?.call();
+    }
   }
 
   String get _renderHtml {
@@ -393,12 +444,14 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
       }
       base = _layoutHtml ?? base;
     }
-    base = prepareShelfProseHtml(_indentBodyParagraphs(base));
+    base = linkifyShelfProseHtml(_indentBodyParagraphs(base));
     final marks = ref.watch(highlightMapProvider).maybeWhen(
           data: (m) => m,
           orElse: () => const <String, HighlightMark>{},
         );
-    return applyShelfHighlightsToHtml(base, marks, widget.bookId, widget.sectionId);
+    base = applyShelfHighlightsToHtml(base, marks, widget.bookId, widget.sectionId);
+    base = applyShelfPublicNotesToHtml(base, _publicNoteSpans);
+    return base;
   }
 
   String _indentBodyParagraphs(String html) {
@@ -483,6 +536,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
               spanStart: spanStart,
               spanEnd: spanEnd,
             );
+        widget.onPublicNotesChanged?.call();
       },
     );
   }
@@ -542,6 +596,9 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
                       child: Html(
                         data: _renderHtml,
                         style: _styles,
+                        onLinkTap: (url, attributes, _) {
+                          unawaited(_onHtmlLinkTap(url, attributes));
+                        },
                         onImageTap: (url, attributes, element) {
                           final src = (url ?? '').trim();
                           if (src.isEmpty) return;

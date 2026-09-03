@@ -34,6 +34,93 @@ String applyShelfHighlightsToHtml(
   return out;
 }
 
+/// 公开笔记 span 高亮（对齐 PWA shelf-public-note-hint）。
+String applyShelfPublicNotesToHtml(
+  String html,
+  List<({int start, int end, String postId})> spans,
+) {
+  if (spans.isEmpty || html.isEmpty) return html;
+  final ranges = spans
+      .where((s) => s.start >= 0 && s.end > s.start)
+      .toList()
+    ..sort((a, b) => b.start.compareTo(a.start));
+  var out = html;
+  for (final span in ranges) {
+    out = _wrapPlainRangeWithLink(
+      out,
+      span.start,
+      span.end,
+      'shelf-note:${span.postId}',
+      'shelf-public-note-hint',
+    );
+  }
+  return out;
+}
+
+String _wrapPlainRangeWithLink(
+  String html,
+  int start,
+  int end,
+  String href,
+  String className,
+) {
+  final out = StringBuffer();
+  var plain = 0;
+  var i = 0;
+  var linkOpen = false;
+
+  void closeLink() {
+    if (linkOpen) {
+      out.write('</a>');
+      linkOpen = false;
+    }
+  }
+
+  void openLink() {
+    if (!linkOpen) {
+      out.write('<a href="$href" class="$className">');
+      linkOpen = true;
+    }
+  }
+
+  while (i < html.length) {
+    if (html.startsWith('<a ', i) || html.startsWith('</a>', i)) {
+      final gt = html.indexOf('>', i);
+      if (gt < 0) break;
+      i = gt + 1;
+      continue;
+    }
+    if (html[i] == '<') {
+      closeLink();
+      final gt = html.indexOf('>', i);
+      if (gt < 0) break;
+      out.write(html.substring(i, gt + 1));
+      i = gt + 1;
+      continue;
+    }
+
+    final entityLen = _readEntityLen(html, i);
+    if (entityLen > 0) {
+      if (plain >= end) closeLink();
+      else if (plain >= start) openLink();
+      else closeLink();
+      out.write(html.substring(i, i + entityLen));
+      plain += 1;
+      i += entityLen;
+      continue;
+    }
+
+    if (plain >= end) closeLink();
+    else if (plain >= start) openLink();
+    else closeLink();
+    out.write(html[i]);
+    plain += 1;
+    i += 1;
+  }
+  closeLink();
+  return out.toString();
+}
+
 String _wrapPlainRange(String html, int start, int end, String hex) {
   final out = StringBuffer();
   var plain = 0;
@@ -55,7 +142,10 @@ String _wrapPlainRange(String html, int start, int end, String hex) {
   }
 
   while (i < html.length) {
-    if (html.startsWith('<mark', i) || html.startsWith('</mark>', i)) {
+    if (html.startsWith('<mark', i) ||
+        html.startsWith('</mark>', i) ||
+        html.startsWith('<a ', i) ||
+        html.startsWith('</a>', i)) {
       final gt = html.indexOf('>', i);
       if (gt < 0) break;
       i = gt + 1;

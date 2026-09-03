@@ -165,7 +165,12 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       setState(() => _sectionLoading = true);
     }
     try {
-      final section = await repo.getSection(widget.bookId, sectionId);
+      var section = await repo.getSection(widget.bookId, sectionId);
+      final needsFreshDocx = section.primary?.isDocx == true &&
+          (section.html.trim().isEmpty || section.docxHtmlLooksLegacy);
+      if (needsFreshDocx) {
+        section = await repo.getSection(widget.bookId, sectionId, force: true);
+      }
       if (!mounted) return;
       setState(() {
         _section = section;
@@ -456,6 +461,9 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                           ListTile(
                             dense: true,
                             title: Text(shelfTocDisplayTitle(item)),
+                            subtitle: resolveSectionId(item, _sections) == null
+                                ? const Text('无正文', style: TextStyle(fontSize: 12, color: AppColors.inkSoft))
+                                : null,
                             selected: resolveSectionId(item, _sections) == _sectionId,
                             enabled: resolveSectionId(item, _sections) != null,
                             onTap: () {
@@ -565,23 +573,16 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final videos = section.attachments.where((a) => a.kind == 'video').toList();
     final audios = section.attachments.where((a) => a.kind == 'audio').toList();
     if (images.isEmpty && videos.isEmpty && audios.isEmpty) return;
-    if (initialVideo != null) {
-      final url = ref.read(shelfRepoProvider).assetUrl(widget.bookId, initialVideo.storageKey);
-      await Clipboard.setData(ClipboardData(text: url));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已复制「${initialVideo.title}」视频链接')),
-      );
-      return;
-    }
     await _withOverlay(
       () => showShelfMediaSheet(
         context,
+        ref,
         repo: ref.read(shelfRepoProvider),
         bookId: widget.bookId,
         images: images,
         videos: videos,
         audios: audios,
+        initialVideo: initialVideo,
       ),
     );
   }
@@ -613,6 +614,20 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         onSelectionActiveChanged: (active) {
           _proseSelecting = active;
         },
+        publicNotes: _publicNotes,
+        onPublicNotesChanged: () {
+          final sid = _sectionId;
+          if (sid != null) unawaited(_loadPublicNotes(sid));
+        },
+      );
+    }
+
+    if (section.primary?.isDocx == true && section.html.trim().isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('正在排版文档…', style: AppTypography.meta),
+        ),
       );
     }
 

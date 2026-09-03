@@ -319,9 +319,20 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                     ),
                   ),
                 if (books.isEmpty)
-                  const SliverFillRemaining(
+                  SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: Text('书架空空的，可导入或选一本平台书目', style: AppTypography.meta)),
+                    child: Center(
+                      child: Text(
+                        _searchCtrl.text.trim().isNotEmpty
+                            ? '没有匹配的书'
+                            : _tab.kind == ShelfLibraryTabKind.lastRead
+                                ? '还没有最近阅读的书'
+                                : _tab.kind == ShelfLibraryTabKind.progress
+                                    ? '暂无符合条件的书'
+                                    : '书架空空的，可导入或选一本平台书目',
+                        style: AppTypography.meta,
+                      ),
+                    ),
                   )
                 else
                   SliverPadding(

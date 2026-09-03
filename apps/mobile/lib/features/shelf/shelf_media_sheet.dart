@@ -1,22 +1,28 @@
-/// 教案素材（图片 / 视频列表，对齐 Web ShelfMediaSheet）。
+/// 教案素材（图片 / 视频 / 音频，对齐 Web ShelfMediaSheet）。
 library;
 
 import 'dart:async' show unawaited;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
 
 import '../../core/theme.dart';
+import 'shelf_media_playback.dart';
 import 'shelf_repository.dart';
+import 'shelf_video_fullscreen.dart';
 
 Future<void> showShelfMediaSheet(
-  BuildContext context, {
+  BuildContext context,
+  WidgetRef ref, {
   required ShelfRepository repo,
   required String bookId,
   required List<ShelfAttachment> images,
   required List<ShelfAttachment> videos,
   List<ShelfAttachment> audios = const [],
+  ShelfAttachment? initialVideo,
+  VoidCallback? onVideoConsumed,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -32,40 +38,70 @@ Future<void> showShelfMediaSheet(
       maxChildSize: 0.9,
       builder: (_, scroll) => _ShelfMediaBody(
         scroll: scroll,
+        ref: ref,
         repo: repo,
         bookId: bookId,
         images: images,
         videos: videos,
         audios: audios,
+        initialVideo: initialVideo,
+        onVideoConsumed: onVideoConsumed,
       ),
     ),
   );
 }
 
-class _ShelfMediaBody extends StatefulWidget {
+class _ShelfMediaBody extends ConsumerStatefulWidget {
   const _ShelfMediaBody({
     required this.scroll,
+    required this.ref,
     required this.repo,
     required this.bookId,
     required this.images,
     required this.videos,
     required this.audios,
+    this.initialVideo,
+    this.onVideoConsumed,
   });
 
   final ScrollController scroll;
+  final WidgetRef ref;
   final ShelfRepository repo;
   final String bookId;
   final List<ShelfAttachment> images;
   final List<ShelfAttachment> videos;
   final List<ShelfAttachment> audios;
+  final ShelfAttachment? initialVideo;
+  final VoidCallback? onVideoConsumed;
 
   @override
-  State<_ShelfMediaBody> createState() => _ShelfMediaBodyState();
+  ConsumerState<_ShelfMediaBody> createState() => _ShelfMediaBodyState();
 }
 
-class _ShelfMediaBodyState extends State<_ShelfMediaBody> {
+class _ShelfMediaBodyState extends ConsumerState<_ShelfMediaBody> {
   String? _expandedImageId;
   final _imageBytes = <String, Uint8List>{};
+  final _audioPlayers = <String, AudioPlayer>{};
+
+  @override
+  void initState() {
+    super.initState();
+    final video = widget.initialVideo;
+    if (video != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_openVideo(video));
+        widget.onVideoConsumed?.call();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final player in _audioPlayers.values) {
+      unawaited(player.dispose());
+    }
+    super.dispose();
+  }
 
   Future<void> _loadImage(ShelfAttachment item) async {
     if (_imageBytes.containsKey(item.id)) return;
@@ -74,6 +110,32 @@ class _ShelfMediaBodyState extends State<_ShelfMediaBody> {
       if (!mounted) return;
       setState(() => _imageBytes[item.id] = Uint8List.fromList(bytes));
     } catch (_) {}
+  }
+
+  Future<void> _openVideo(ShelfAttachment item) async {
+    final url = widget.repo.assetUrl(widget.bookId, item.storageKey);
+    if (!mounted) return;
+    await showShelfVideoFullscreen(
+      context,
+      url: url,
+      title: item.title,
+      headers: await shelfMediaAuthHeaders(widget.ref),
+    );
+  }
+
+  Future<void> _toggleAudio(ShelfAttachment item) async {
+    var player = _audioPlayers[item.id];
+    if (player == null) {
+      final url = widget.repo.assetUrl(widget.bookId, item.storageKey);
+      player = await createShelfAudioPlayer(widget.ref, url);
+      _audioPlayers[item.id] = player;
+    }
+    if (player.playing) {
+      await player.pause();
+    } else {
+      await player.play();
+    }
+    if (mounted) setState(() {});
   }
 
   @override
@@ -128,6 +190,48 @@ class _ShelfMediaBodyState extends State<_ShelfMediaBody> {
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
           ],
         ),
+        if (widget.audios.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text('音频', style: AppTypography.meta.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          for (final item in widget.audios) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.line.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  (_audioPlayers[item.id]?.playing ?? false)
+                      ? Icons.pause
+                      : Icons.audiotrack_outlined,
+                  size: 22,
+                ),
+              ),
+              title: Text(item.title, style: AppTypography.secondary),
+              onTap: () => unawaited(_toggleAudio(item)),
+            ),
+            if (_audioPlayers[item.id] != null)
+              StreamBuilder<Duration?>(
+                stream: _audioPlayers[item.id]!.positionStream,
+                builder: (context, snap) {
+                  final pos = snap.data ?? Duration.zero;
+                  final dur = _audioPlayers[item.id]!.duration ?? Duration.zero;
+                  final maxMs = dur.inMilliseconds <= 0 ? 1.0 : dur.inMilliseconds.toDouble();
+                  return Slider(
+                    value: pos.inMilliseconds.clamp(0, maxMs.toInt()).toDouble(),
+                    max: maxMs,
+                    onChanged: (v) {
+                      unawaited(_audioPlayers[item.id]!.seek(Duration(milliseconds: v.round())));
+                    },
+                  );
+                },
+              ),
+          ],
+        ],
         if (widget.videos.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text('视频', style: AppTypography.meta.copyWith(fontWeight: FontWeight.w600)),
@@ -145,14 +249,7 @@ class _ShelfMediaBodyState extends State<_ShelfMediaBody> {
                 child: const Icon(Icons.play_arrow, size: 22),
               ),
               title: Text(item.title, style: AppTypography.secondary),
-              onTap: () async {
-                final url = widget.repo.assetUrl(widget.bookId, item.storageKey);
-                await Clipboard.setData(ClipboardData(text: url));
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('已复制「${item.title}」链接')),
-                );
-              },
+              onTap: () => unawaited(_openVideo(item)),
             ),
         ],
         if (widget.images.isNotEmpty) ...[
@@ -213,33 +310,6 @@ class _ShelfMediaBodyState extends State<_ShelfMediaBody> {
               );
             },
           ),
-        ],
-        if (widget.audios.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text('音频', style: AppTypography.meta.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          for (final item in widget.audios)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.line.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.audiotrack_outlined, size: 22),
-              ),
-              title: Text(item.title, style: AppTypography.secondary),
-              onTap: () async {
-                final url = widget.repo.assetUrl(widget.bookId, item.storageKey);
-                await Clipboard.setData(ClipboardData(text: url));
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('已复制「${item.title}」链接')),
-                );
-              },
-            ),
         ],
         if (widget.videos.isEmpty && widget.images.isEmpty && widget.audios.isEmpty)
           const Padding(
