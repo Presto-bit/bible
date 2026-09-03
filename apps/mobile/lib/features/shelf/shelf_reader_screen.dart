@@ -70,7 +70,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   final _pageCountBySection = <String, int>{};
 
   bool get _blocked => _overlayOpen > 0 || _pdfPinching;
-  bool get _isPdfSection => _section?.hasPdfPrimary ?? false;
+  bool get _isPdfSection => _section != null && shelfSectionIsPdf(_section!);
 
   @override
   void initState() {
@@ -588,7 +588,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   Widget _buildPrimary(ShelfSection section, ShelfReadingPrefs prefs, ShelfRepository repo) {
-    if (section.hasProseHtml) {
+    if (shelfSectionUsesFlow(section) && section.html.trim().isNotEmpty) {
       return ShelfPaginatedProse(
         key: ValueKey(
           '${section.id}:${prefs.fontPx}:${prefs.lineHeight}:${prefs.fontFamily.name}',
@@ -709,7 +709,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                 scrolledUnderElevation: 0,
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                  onPressed: () => context.go('/shelf/${widget.bookId}'),
+                  onPressed: () => context.go('/shelf'),
                 ),
                 title: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -726,7 +726,10 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                 ),
               )
             : null,
-        body: Stack(
+        body: SafeArea(
+          top: !showBar,
+          bottom: !showBar,
+          child: Stack(
           children: [
             Column(
               children: [
@@ -735,7 +738,10 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                     enabled: section != null && !_blocked,
                     edgeOnly: false,
                     shouldYieldTurn: () => _proseSelecting,
-                    hitIsProseContent: (_) => section != null && section.hasProseHtml,
+                    hitIsProseContent: (_) =>
+                        section != null &&
+                        shelfSectionUsesFlow(section) &&
+                        section.html.trim().isNotEmpty,
                     onTurnNext: _canNext ? _turnNext : null,
                     onTurnPrev: _canPrev ? _turnPrev : null,
                     onBoundary: _flashBoundary,

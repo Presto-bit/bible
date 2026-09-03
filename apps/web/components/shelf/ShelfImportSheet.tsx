@@ -3,6 +3,8 @@
 import { useRef, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useToast } from '@/components/ui/ToastProvider';
+import { importPlatformShelfBook } from '@/lib/shelf_api';
+import { invalidateShelfListCache } from '@/lib/shelf_cache';
 import { SHELF_IMPORT_MAX_BYTES } from '@/lib/shelf_library';
 import { shellTapProps } from '@/lib/shell_tap';
 
@@ -21,11 +23,16 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
     }
     setBusy(true);
     try {
-      // P1：用户导入 API 接入前占位
-      flashToast('导入功能即将开放，请先阅读平台书目');
+      const res = await importPlatformShelfBook(file);
+      invalidateShelfListCache();
+      flashToast(`已导入「${res.title}」`);
+      onClose();
+      window.location.reload();
+    } catch (e) {
+      flashToast(e instanceof Error ? e.message : '导入失败');
     } finally {
       setBusy(false);
-      onClose();
+      if (inputRef.current) inputRef.current.value = '';
     }
   };
 
@@ -51,9 +58,7 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
           type="button"
           className="btn primary shelf-import-btn"
           disabled={busy}
-          {...shellTapProps({
-            onTap: () => inputRef.current?.click(),
-          })}
+          onClick={() => inputRef.current?.click()}
         >
           {busy ? '处理中…' : '选择文件'}
         </button>

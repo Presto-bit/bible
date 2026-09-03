@@ -1,6 +1,7 @@
 /// 书架列表（Android 原生；对齐 PWA /shelf 图书馆视图）。
 library;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -54,39 +55,40 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
     _reloadGroups();
   }
 
-  void _openImport() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(18, 18, 18, MediaQuery.paddingOf(ctx).bottom + 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('导入书籍', style: AppTypography.title),
-            const SizedBox(height: 8),
-            const Text(
-              '支持 docx、txt、md，单本不超过 20MB。导入后将出现在「上架时间」。',
-              style: AppTypography.meta,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('导入功能即将开放，请先阅读平台书目')),
-                );
-              },
-              child: const Text('选择文件'),
-            ),
-          ],
-        ),
-      ),
+  Future<void> _openImport() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['docx', 'txt', 'md'],
+      withReadStream: false,
     );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.single;
+    final path = file.path;
+    if (path == null || path.isEmpty) return;
+    if ((file.size) > shelfImportMaxBytes) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('单本不超过 20MB，可先拆章或转为 txt')),
+      );
+      return;
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('正在导入…')),
+    );
+    try {
+      final res = await ref.read(shelfRepoProvider).importBook(path, file.name);
+      ref.invalidate(shelfListProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已导入「${res['title'] ?? file.name}」')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
   }
 
   Future<void> _newGroup() async {
@@ -289,26 +291,18 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                     sliver: SliverGrid(
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 3,
-                        mainAxisSpacing: 12,
+                        mainAxisSpacing: 14,
                         crossAxisSpacing: 10,
-                        childAspectRatio: 0.52,
+                        childAspectRatio: 0.57,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, i) {
                           final book = books[i];
-                          final progress = ShelfProgressStore(ref.read(prefsProvider)).loadBook(book.id);
                           return ShelfBookCard(
                             book: book,
                             progressRatio: _library.bookProgressRatio(book.id),
-                            onTap: () {
-                              if (progress != null) {
-                                context.push(
-                                  '/shelf/${book.id}/read?section=${Uri.encodeComponent(progress.sectionId)}&page=${progress.pageIndex}',
-                                );
-                              } else {
-                                context.push('/shelf/${book.id}');
-                              }
-                            },
+                            onTap: () => context.push(_library.bookCardPath(book.id)),
+                            onDetailTap: () => context.push('/shelf/${book.id}'),
                             onLongPress: () => _moveBook(book),
                           );
                         },

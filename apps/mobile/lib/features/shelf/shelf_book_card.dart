@@ -14,6 +14,7 @@ class ShelfBookCard extends StatelessWidget {
     required this.progressRatio,
     this.coverUrl,
     this.onTap,
+    this.onDetailTap,
     this.onLongPress,
   });
 
@@ -21,6 +22,7 @@ class ShelfBookCard extends StatelessWidget {
   final double? progressRatio;
   final String? coverUrl;
   final VoidCallback? onTap;
+  final VoidCallback? onDetailTap;
   final VoidCallback? onLongPress;
 
   @override
@@ -28,7 +30,7 @@ class ShelfBookCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         onTap: onTap,
         onLongPress: onLongPress,
         child: Column(
@@ -37,10 +39,9 @@ class ShelfBookCard extends StatelessWidget {
             AspectRatio(
               aspectRatio: 3 / 4,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(6),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.line.withValues(alpha: 0.8)),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x14000000),
@@ -56,6 +57,35 @@ class ShelfBookCard extends StatelessWidget {
                         Image.network(coverUrl!, fit: BoxFit.cover)
                       else
                         const ShelfBrandCover(),
+                      if (onDetailTap != null)
+                        Positioned(
+                          top: 5,
+                          right: 5,
+                          child: Material(
+                            color: Colors.black38,
+                            shape: const CircleBorder(),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: onDetailTap,
+                              customBorder: const CircleBorder(),
+                              child: const SizedBox(
+                                width: 26,
+                                height: 26,
+                                child: Center(
+                                  child: Text(
+                                    'i',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       if (progressRatio != null && progressRatio! > 0)
                         Positioned(
                           left: 0,
@@ -82,13 +112,13 @@ class ShelfBookCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             SizedBox(
-              height: 36,
+              height: 32,
               child: Text(
                 book.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 12,
                   height: 1.35,
                   fontWeight: FontWeight.w500,
                   color: AppColors.ink,

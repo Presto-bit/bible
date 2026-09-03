@@ -7,7 +7,7 @@ import PageBackBar from '@/components/PageBackBar';
 import ShelfCoverPlate from '@/components/shelf/ShelfCoverPlate';
 import ShelfPostCard from '@/components/shelf/ShelfPostCard';
 import { useToast } from '@/components/ui/ToastProvider';
-import { getPlatformShelfBook, loadShelfBookProgress, type ShelfBookDetail } from '@/lib/shelf_api';
+import { getPlatformShelfBook, clearShelfBookFinished, loadShelfBookProgress, type ShelfBookDetail } from '@/lib/shelf_api';
 import {
   buildShelfCheckinRef,
   formatShelfCheckinLabel,
@@ -147,7 +147,14 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
             <p className="shelf-detail-sub muted">{book.subtitle}</p>
           </div>
         ) : null}
-        <button type="button" className="btn primary shelf-detail-continue" onClick={() => router.push(continueHref)}>
+        <button
+          type="button"
+          className="btn primary shelf-detail-continue"
+          onClick={() => {
+            clearShelfBookFinished(bookId);
+            router.push(continueHref);
+          }}
+        >
           {progress?.sectionId ? '继续阅读' : '开始阅读'}
         </button>
         <p className="shelf-detail-stats muted">

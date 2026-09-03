@@ -1,9 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useRef } from 'react';
-import { loadShelfBookProgress, type ShelfBookSummary } from '@/lib/shelf_api';
-import { shelfBookProgressRatio } from '@/lib/shelf_library';
+import { useCallback, useRef, type MouseEvent, type PointerEvent } from 'react';
+import type { ShelfBookSummary } from '@/lib/shelf_api';
+import {
+  shelfBookCardHref,
+  shelfBookDetailHref,
+  shelfBookProgressRatio,
+} from '@/lib/shelf_library';
 import ShelfBrandCover from '@/components/shelf/ShelfBrandCover';
 
 type Props = {
@@ -21,15 +25,9 @@ export default function ShelfBookCard({ book, coverUrl, onManage, onLongPress }:
   const longPressFired = useRef(false);
   const startXY = useRef<{ x: number; y: number } | null>(null);
 
-  const progress = loadShelfBookProgress(book.id);
   const ratio = shelfBookProgressRatio(book.id);
-  const href = progress
-    ? `/shelf/${book.id}/read?section=${encodeURIComponent(progress.sectionId)}${
-        typeof progress.pageIndex === 'number' && progress.pageIndex > 0
-          ? `&page=${progress.pageIndex}`
-          : ''
-      }`
-    : `/shelf/${book.id}`;
+  const href = shelfBookCardHref(book.id);
+  const detailHref = shelfBookDetailHref(book.id);
 
   const clearTimer = useCallback(() => {
     if (longPressTimer.current) {
@@ -62,6 +60,12 @@ export default function ShelfBookCard({ book, coverUrl, onManage, onLongPress }:
     },
     [clearTimer, onManage, onLongPress, triggerLongPress],
   );
+
+  const openDetail = (e: MouseEvent | PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(detailHref);
+  };
 
   const handleActivate = () => {
     if (longPressFired.current) {
@@ -114,6 +118,15 @@ export default function ShelfBookCard({ book, coverUrl, onManage, onLongPress }:
         ) : (
           <ShelfBrandCover />
         )}
+        <button
+          type="button"
+          className="shelf-book-card-detail-btn"
+          aria-label="书目详情"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={openDetail}
+        >
+          <span aria-hidden>i</span>
+        </button>
         {ratio != null && ratio > 0 ? (
           <div className="shelf-book-card-progress" aria-hidden>
             <div className="shelf-book-card-progress-fill" style={{ width: `${Math.round(ratio * 100)}%` }} />

@@ -307,4 +307,26 @@ class ShelfLibraryStore {
     final meta = _booksMap();
     return books.where((b) => meta[b.id]?.hidden != true && meta[b.id]?.groupId == null).length;
   }
+
+  bool bookCardOpensDetail(String bookId) {
+    final progress = _progress.loadBook(bookId);
+    final meta = _booksMap()[bookId];
+    if (progress == null && meta?.lastReadAt == null) return true;
+    if (progress?.isFinished == true) return true;
+    return false;
+  }
+
+  String bookReadPath(String bookId) {
+    final progress = _progress.loadBook(bookId);
+    if (progress == null) return '/shelf/$bookId/read';
+    final params = {
+      'section': progress.sectionId,
+      if (progress.pageIndex > 0) 'page': '${progress.pageIndex}',
+    };
+    final qs = params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
+    return '/shelf/$bookId/read?$qs';
+  }
+
+  String bookCardPath(String bookId) =>
+      bookCardOpensDetail(bookId) ? '/shelf/$bookId' : bookReadPath(bookId);
 }

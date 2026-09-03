@@ -243,3 +243,36 @@ export function touchShelfBookLastRead(bookId: string, at = Date.now()) {
   store.books[bookId] = meta;
   writeStore(store);
 }
+
+const FINISH_RATIO = 0.97;
+
+export function shelfBookReadHref(bookId: string): string {
+  const progress = loadShelfBookProgress(bookId);
+  if (!progress) return `/shelf/${encodeURIComponent(bookId)}/read`;
+  const params = new URLSearchParams();
+  params.set('section', progress.sectionId);
+  if (typeof progress.pageIndex === 'number' && progress.pageIndex > 0) {
+    params.set('page', String(progress.pageIndex));
+  }
+  const qs = params.toString();
+  return `/shelf/${encodeURIComponent(bookId)}/read${qs ? `?${qs}` : ''}`;
+}
+
+export function shelfBookDetailHref(bookId: string): string {
+  return `/shelf/${encodeURIComponent(bookId)}`;
+}
+
+/** 首次打开或已读完 → 详情；其余 → 阅读进度 */
+export function shelfBookCardTarget(bookId: string): 'detail' | 'read' {
+  const progress = loadShelfBookProgress(bookId);
+  const meta = ensureShelfBookMeta(bookId);
+  if (!progress && !meta.lastReadAt) return 'detail';
+  if (progress?.finished || (progress?.progressRatio ?? 0) >= FINISH_RATIO) return 'detail';
+  return 'read';
+}
+
+export function shelfBookCardHref(bookId: string): string {
+  return shelfBookCardTarget(bookId) === 'detail'
+    ? shelfBookDetailHref(bookId)
+    : shelfBookReadHref(bookId);
+}

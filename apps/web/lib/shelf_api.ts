@@ -1,4 +1,4 @@
-import { getJson, API_BASE } from './api_core';
+import { getJson, API_BASE, authHeaders } from './api_core';
 import {
   fetchShelfBook,
   fetchShelfList,
@@ -130,13 +130,15 @@ export type ShelfScrollAnchor = {
 
 export type ShelfBookProgress = {
   sectionId: string;
-  /** PDF：0-based 页码 */
+  /** PDF：0-base 页码 */
   pageIndex?: number;
   /** HTML/Word flow：0–1 滚动比例 */
   scrollOffset?: number;
   scrollAnchor?: ShelfScrollAnchor;
   /** 全书 0–1 进度（书架封面细线） */
   progressRatio?: number;
+  /** 读完标记：再次点书卡进详情 */
+  finished?: boolean;
 };
 
 export type ShelfLastRead = {
@@ -167,6 +169,7 @@ function normalizeBookProgress(raw: ShelfBookProgress | string | undefined): She
           ? { paragraphIndex: anchor.paragraphIndex, viewportFromTop: anchor.viewportFromTop }
           : undefined,
       progressRatio: typeof raw.progressRatio === 'number' ? raw.progressRatio : undefined,
+      finished: raw.finished === true,
     };
   }
   return null;
@@ -229,6 +232,7 @@ export function saveShelfProgress(
     typeof position?.progressRatio === 'number'
       ? Math.min(1, Math.max(0, position.progressRatio))
       : undefined;
+  const finished = progressRatio != null && progressRatio >= 0.97;
   const store = readProgressStore();
   store.byBook[bookId] = {
     sectionId,
@@ -236,6 +240,7 @@ export function saveShelfProgress(
     ...(scrollOffset != null ? { scrollOffset } : {}),
     ...(scrollAnchor ? { scrollAnchor } : {}),
     ...(progressRatio != null ? { progressRatio } : {}),
+    ...(finished ? { finished: true } : {}),
   };
   if (meta?.bookTitle) {
     store.last = {
@@ -248,4 +253,37 @@ export function saveShelfProgress(
     };
   }
   writeProgressStore(store);
+}
+
+export function clearShelfBookFinished(bookId: string) {
+  const store = readProgressStore();
+  const raw = store.byBook[bookId];
+  if (!raw || typeof raw === 'string') return;
+  store.byBook[bookId] = { ...raw, finished: false };
+  writeProgressStore(store);
+}
+
+export async function importPlatformShelfBook(
+  file: File,
+): Promise<{ id: string; title: string; section_count: number }> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${API_BASE}/shelf/platform/import`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form,
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw new Error('未登录');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '导入失败');
+  }
+  return res.json();
 }

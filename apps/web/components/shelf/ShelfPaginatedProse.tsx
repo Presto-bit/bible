@@ -96,11 +96,18 @@ function findPublicNoteAtOffset(notes: ShelfPost[], offset: number): ShelfPost |
   return null;
 }
 
+function readSafeTopPx(): number {
+  if (typeof window === 'undefined') return 0;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--safe-top').trim();
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function focusBarStyleFromRect(rect: DOMRect, chromeHidden?: boolean): React.CSSProperties {
-  const barH = 48;
+  const barH = 96;
   const margin = 10;
-  const topReserve = chromeHidden ? 12 : 64;
-  const bottomReserve = chromeHidden ? 24 : 72;
+  const topReserve = chromeHidden ? readSafeTopPx() + 8 : 64;
+  const bottomReserve = chromeHidden ? readSafeTopPx() + 24 : 72;
   let top = rect.bottom + margin;
   if (top + barH > window.innerHeight - bottomReserve) {
     top = rect.top - barH - margin;
@@ -210,7 +217,8 @@ export default function ShelfPaginatedProse({
   const collapseNativeSelection = useCallback((sel: ShelfTextSelection) => {
     const article = articleRef.current;
     if (!article) return;
-    paintShelfActiveSelection(article, sel.start, sel.end);
+    const painted = paintShelfActiveSelection(article, sel.start, sel.end);
+    if (!painted) return;
     article.classList.add('shelf-sel-locked');
     clearShelfTextSelection();
     window.requestAnimationFrame(() => {

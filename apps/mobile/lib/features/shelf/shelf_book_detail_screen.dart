@@ -180,25 +180,26 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                 await _loadPosts();
               },
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 96),
                 children: [
                   if (book != null) ...[
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.line.withValues(alpha: 0.6)),
+                        border: Border(
+                          bottom: BorderSide(color: AppColors.line.withValues(alpha: 0.6)),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           SizedBox(
-                            width: 88,
-                            height: 118,
+                            width: 132,
+                            height: 176,
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(6),
                               child: const ShelfBrandCover(),
                             ),
                           ),
@@ -232,7 +233,10 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: FilledButton(
-                              onPressed: () => context.push(_readHref()),
+                              onPressed: () {
+                                ShelfProgressStore(ref.read(prefsProvider)).clearFinished(widget.bookId);
+                                context.push(_readHref());
+                              },
                               child: Text(
                                 ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId) != null
                                     ? '继续阅读'

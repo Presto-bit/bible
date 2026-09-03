@@ -1,5 +1,6 @@
 /** 书架节渲染模式（对齐 docs/SHELF-READING.md） */
 import type { ShelfSection } from '@/lib/shelf_api';
+import { shelfSectionHtmlLooksLegacy } from '@/lib/shelf_reading';
 
 export type ShelfSectionRenderMode = 'flow' | 'page';
 
@@ -15,7 +16,10 @@ export function shelfSectionRenderMode(section: ShelfSection | null | undefined)
   return 'flow';
 }
 
+/** 与 ShelfLessonPanel 渲染一致：有可用 HTML 时按流式竖滚，而非 PDF 分页。 */
 export function shelfSectionIsPdf(section: ShelfSection | null | undefined): boolean {
+  if (!section) return false;
+  if (section.html?.trim() && !shelfSectionHtmlLooksLegacy(section)) return false;
   return shelfSectionRenderMode(section) === 'page';
 }
 

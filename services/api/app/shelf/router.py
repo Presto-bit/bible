@@ -1,9 +1,12 @@
 """书架公开 API。"""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 
+from ..auth.session import get_current_user
 from .service import (
     get_platform_asset_path,
     get_platform_book,
@@ -63,4 +66,28 @@ def shelf_platform_file(book_id: str) -> Response:
         content=data,
         media_type=mime,
         headers={"Content-Disposition": f'inline; filename="{fname}"'},
+    )
+
+
+@router.post("/platform/import")
+async def shelf_platform_import(
+    file: UploadFile = File(...),
+    _user: str = Depends(get_current_user),
+) -> dict:
+    """用户导入书架书目（docx / md / txt）。"""
+    from .ingest import import_platform_file
+
+    suffix = Path(file.filename or "").suffix.lower()
+    allowed = {".docx", ".md", ".markdown", ".txt"}
+    if suffix not in allowed:
+        raise HTTPException(400, "仅支持 .docx .md .txt")
+    data = await file.read()
+    if len(data) > 20 * 1024 * 1024:
+        raise HTTPException(400, "文件过大（上限 20MB）")
+    if len(data) < 16:
+        raise HTTPException(400, "文件无效")
+    return import_platform_file(
+        data,
+        filename=file.filename or f"book{suffix}",
+        sort_order=9999,
     )

@@ -16,6 +16,7 @@ class ShelfBookProgress {
     this.scrollOffset,
     this.scrollAnchor,
     this.progressRatio,
+    this.finished = false,
   });
 
   final String sectionId;
@@ -23,6 +24,9 @@ class ShelfBookProgress {
   final double? scrollOffset;
   final ShelfScrollAnchor? scrollAnchor;
   final double? progressRatio;
+  final bool finished;
+
+  bool get isFinished => finished || (progressRatio ?? 0) >= 0.97;
 }
 
 class ShelfLastRead {
@@ -65,6 +69,7 @@ class ShelfProgressStore {
         scrollOffset: scroll is num ? scroll.toDouble().clamp(0, 1) : null,
         scrollAnchor: ShelfScrollAnchor.fromJson(entry['scrollAnchor']),
         progressRatio: (entry['progressRatio'] as num?)?.toDouble(),
+        finished: entry['finished'] == true,
       );
     }
     return null;
@@ -119,6 +124,7 @@ class ShelfProgressStore {
     }
     if (progressRatio != null) {
       entry['progressRatio'] = progressRatio.clamp(0.0, 1.0);
+      if (progressRatio >= 0.97) entry['finished'] = true;
     }
     byBook[bookId] = entry;
     store['byBook'] = byBook;
@@ -134,6 +140,20 @@ class ShelfProgressStore {
         'at': DateTime.now().millisecondsSinceEpoch,
       };
     }
+    _writeStore(store);
+  }
+
+  void clearFinished(String bookId) {
+    final store = _readStore();
+    final byBook = Map<String, dynamic>.from(
+      store['byBook'] as Map<String, dynamic>? ?? {},
+    );
+    final entry = byBook[bookId];
+    if (entry is! Map) return;
+    final next = Map<String, dynamic>.from(entry);
+    next.remove('finished');
+    byBook[bookId] = next;
+    store['byBook'] = byBook;
     _writeStore(store);
   }
 

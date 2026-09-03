@@ -384,6 +384,15 @@ class ShelfRepository {
     final key = Uri.encodeComponent(storageKey.split('/').last);
     return '${AppConfig.baseUrl}/shelf/platform/${Uri.encodeComponent(bookId)}/files/$key';
   }
+
+  Future<Map<String, dynamic>> importBook(String filePath, String filename) async {
+    final form = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath, filename: filename),
+    });
+    final res = await _dio.post<Map<String, dynamic>>('/shelf/platform/import', data: form);
+    await _fetchListFresh(force: true);
+    return res.data ?? const {};
+  }
 }
 
 int shelfCoverHue(String title) {

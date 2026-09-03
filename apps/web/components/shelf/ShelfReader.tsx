@@ -554,7 +554,7 @@ export default function ShelfReader({
   };
 
   const backBar = (
-    <PageBackBar href={`/shelf/${bookId}`} className="shelf-nav-back" ariaLabel="返回书目" />
+    <PageBackBar href="/shelf" className="shelf-nav-back" ariaLabel="返回书架" />
   );
 
   if (loading && !book) {
