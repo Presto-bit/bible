@@ -287,12 +287,26 @@ export function adaptShelfDocxHtml(raw: string, opts?: { lesson?: boolean }): st
   }
 }
 
+/** 旧版「阅读本书之前」：只有封面短文，缺正文与人物介绍，应强制重拉。 */
+function looksLikeTruncatedFrontHtml(html: string): boolean {
+  if (!html.includes('shelf-docx-root')) return false;
+  if (html.includes('人物介绍')) return false;
+  // 封面标题页误当作前言缓存（约 300~700 字）
+  if (html.includes('shelf-title') && html.includes('shelf-subtitle') && html.length < 1200) {
+    return true;
+  }
+  if (html.includes('2SC群体对话材料') && html.length < 1200) return true;
+  return false;
+}
+
 /** 旧版纯文本抽取未盖 `shelf-docx-root`，应回退 Mammoth / 重新拉 API。 */
 export function shelfSectionHtmlLooksLegacy(section: {
   html: string;
   kind?: string;
   primary?: { mime?: string; storage_key: string } | null;
 }): boolean {
+  const html = section.html || '';
+  if (looksLikeTruncatedFrontHtml(html)) return true;
   const primary = section.primary;
   const isDocx =
     section.kind === 'lesson'
@@ -304,5 +318,5 @@ export function shelfSectionHtmlLooksLegacy(section: {
       ),
     );
   if (!isDocx) return false;
-  return !section.html.includes('shelf-docx-root');
+  return !html.includes('shelf-docx-root');
 }

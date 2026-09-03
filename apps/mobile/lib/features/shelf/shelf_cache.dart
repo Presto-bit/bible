@@ -11,7 +11,7 @@ import 'shelf_repository.dart';
 
 const _listKey = 'shelf_platform_list_v2';
 const _listTtlMs = 30 * 60 * 1000;
-const _sectionPrefix = 'shelf_section_v2:';
+const _sectionPrefix = 'shelf_section_v3:';
 const _sectionTtlMs = 7 * 24 * 60 * 60 * 1000;
 
 class ShelfListCachePayload {

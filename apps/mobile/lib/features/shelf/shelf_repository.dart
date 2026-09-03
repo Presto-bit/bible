@@ -277,10 +277,21 @@ class ShelfSection {
   bool get hasProseHtml => html.trim().isNotEmpty;
   bool get hasPdfPrimary => primary != null && primary!.isPdf;
   bool get docxHtmlLooksLegacy {
+    if (_looksLikeTruncatedFrontHtml(html)) return true;
     final docx = kind == 'lesson' || (primary?.isDocx ?? false);
     if (!docx) return false;
     return !html.contains('shelf-docx-root');
   }
+}
+
+bool _looksLikeTruncatedFrontHtml(String html) {
+  if (!html.contains('shelf-docx-root')) return false;
+  if (html.contains('人物介绍')) return false;
+  if (html.contains('shelf-title') && html.contains('shelf-subtitle') && html.length < 1200) {
+    return true;
+  }
+  if (html.contains('2SC群体对话材料') && html.length < 1200) return true;
+  return false;
 }
 
 class ShelfListData {

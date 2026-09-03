@@ -22,7 +22,7 @@ import { shelfLessonMedia } from '@/lib/shelf_lesson_media';
 import { useShelfReadingPrefs } from '@/components/shelf/ShelfReadingBar';
 import ShelfFontSheet from '@/components/shelf/ShelfFontSheet';
 import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
-import { shelfReadingStyleVars } from '@/lib/shelf_reading';
+import { shelfReadingStyleVars, shelfSectionHtmlLooksLegacy } from '@/lib/shelf_reading';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
 import {
@@ -209,8 +209,10 @@ export default function ShelfReader({
     setSectionErr('');
 
     const cached = peekShelfSectionCache(bookId, sectionId);
-    if (cached) {
-      setSection(cached);
+    // 残缺前言等 legacy HTML 不展示，避免闪旧内容
+    const usableCache = cached && !shelfSectionHtmlLooksLegacy(cached) ? cached : null;
+    if (usableCache) {
+      setSection(usableCache);
       setSectionLoading(false);
       syncNeighborsFromCache(sectionId);
     } else {
@@ -229,7 +231,7 @@ export default function ShelfReader({
       })
       .catch((e) => {
         if (!cancelled) {
-          if (!cached) setSection(null);
+          if (!usableCache) setSection(null);
           setSectionErr(friendlyError(e, '无法加载章节'));
           setSectionLoading(false);
         }

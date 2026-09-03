@@ -5,7 +5,7 @@ import { shelfSectionHtmlLooksLegacy } from './shelf_reading';
 import type { ShelfBookDetail, ShelfBookSummary, ShelfGroup, ShelfSection } from './shelf_api';
 
 const LIST_KEY = 'shelf_platform_list_v2';
-const SECTION_PREFIX = 'shelf_section_v3:';
+const SECTION_PREFIX = 'shelf_section_v4:';
 const SECTION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const LIST_TTL_MS = 30 * 60 * 1000;
 
