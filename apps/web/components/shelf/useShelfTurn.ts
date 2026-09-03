@@ -15,15 +15,15 @@ import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
  * - 提交阈值：大位移 OR 够快；上一页（右滑）略松
  * - 专有名词/按钮：composedPath + 邻点让路，避免「点词典没反应」
  */
-const THRESHOLD_NEXT = 0.028;
-const THRESHOLD_PREV = 0.022;
-const VELOCITY_MIN = 0.032;
-const VELOCITY_MIN_PREV = 0.026;
+const THRESHOLD_NEXT = 0.13;
+const THRESHOLD_PREV = 0.09;
+const VELOCITY_MIN = 0.12;
+const VELOCITY_MIN_PREV = 0.09;
 /** 大滑动：忽略速度强制翻页 */
-const FORCE_RATIO_NEXT = 0.065;
-const FORCE_RATIO_PREV = 0.05;
-const AXIS_RATIO = 1.0;
-const AXIS_MIN_PX = 3;
+const FORCE_RATIO_NEXT = 0.24;
+const FORCE_RATIO_PREV = 0.18;
+const AXIS_RATIO = 1.15;
+const AXIS_MIN_PX = 8;
 /** 左右边缘切章带宽度（与 .shelf-turn-edge 一致） */
 const EDGE_SWIPE_PX = 88;
 const EDGE_RESIST = 0.22;
@@ -57,8 +57,8 @@ export function useShelfTurn({
   canPrev,
   canNext,
   blocked,
-  snapOnly = true,
-  edgeOnly = true,
+  snapOnly = false,
+  edgeOnly = false,
   resolveTurn,
   onSectionChange,
   onPageChange,
@@ -71,7 +71,7 @@ export function useShelfTurn({
   blocked: boolean;
   /** 为 true 时横滑不跟手拖动页面，仅在阈值提交时翻页 */
   snapOnly?: boolean;
-  /** 为 true 时仅屏幕左右边缘带可发起切章，中间区域留给滚动/划选 */
+  /** 为 true 时仅屏幕左右边缘带可发起切章；默认 false，与圣经 Tab 全屏横滑一致 */
   edgeOnly?: boolean;
   resolveTurn: (delta: 1 | -1) => ShelfTurnKind;
   onSectionChange: (delta: number, meta?: { fromSwipe?: boolean }) => void | Promise<void>;
@@ -374,7 +374,6 @@ export function useShelfTurn({
       if (!drag.current.axis) {
         const adx = Math.abs(dx);
         const ady = Math.abs(dy);
-        const hRatio = drag.current.inVerticalScroll ? 1.04 : AXIS_RATIO;
         const sel = window.getSelection();
         if (sel && !sel.isCollapsed && drag.current.inProse) {
           drag.current.active = false;
@@ -386,26 +385,7 @@ export function useShelfTurn({
           return;
         }
         if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
-        if (drag.current.inProse && !drag.current.fromEdge) {
-          if (ady >= 10 && ady >= adx * 0.88) {
-            drag.current.active = false;
-            drag.current.pointerId = -1;
-            setTurning(false);
-            setDragSide(null);
-            setDragProgress(0);
-            applyOffset(0, false);
-            return;
-          }
-          if (adx >= 8 && adx > ady * 1.06) {
-            drag.current.axis = 'x';
-            setTurning(true);
-          } else {
-            return;
-          }
-        } else if (drag.current.fromEdge && adx >= 3 && adx > ady * 0.45) {
-          drag.current.axis = 'x';
-          setTurning(true);
-        } else if (adx >= AXIS_MIN_PX && adx > ady * hRatio) {
+        if (adx >= AXIS_MIN_PX && adx > ady * AXIS_RATIO) {
           drag.current.axis = 'x';
           setTurning(true);
         } else if (ady >= AXIS_MIN_PX && ady >= adx * AXIS_RATIO) {
@@ -416,18 +396,16 @@ export function useShelfTurn({
           setDragProgress(0);
           applyOffset(0, false);
           return;
-        } else if (adx >= AXIS_MIN_PX && adx > ady * (drag.current.inVerticalScroll ? 1.0 : 0.95)) {
+        } else if (adx >= AXIS_MIN_PX * 1.2 && adx > ady) {
           drag.current.axis = 'x';
           setTurning(true);
-        } else if (ady >= AXIS_MIN_PX && ady > adx * 1.2) {
+        } else {
           drag.current.active = false;
           drag.current.pointerId = -1;
           setTurning(false);
           setDragSide(null);
           setDragProgress(0);
           applyOffset(0, false);
-          return;
-        } else {
           return;
         }
       }

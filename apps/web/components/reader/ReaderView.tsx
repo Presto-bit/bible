@@ -2762,10 +2762,13 @@ export default function ReaderView({
         toggleChrome();
         return;
       }
-      e.stopPropagation();
-      handleVerseThoughtClick(e, verse, text);
+      if (thoughtsOn && (chapterThoughts[verse] ?? 0)) {
+        handleVerseThoughtClick(e, verse, text);
+        return;
+      }
+      // 无笔记的经文把点击交给 main，切换沉浸；勿 stopPropagation 导致「点了没反应」。
     },
-    [hasSel, chromeHidden, toggleChrome, handleVerseThoughtClick, dismissNativeSelection],
+    [hasSel, chromeHidden, toggleChrome, handleVerseThoughtClick, dismissNativeSelection, thoughtsOn, chapterThoughts],
   );
 
   useEffect(() => {

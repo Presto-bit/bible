@@ -44,6 +44,7 @@ def shelf_platform_asset(book_id: str, storage_key: str) -> FileResponse:
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
         ".webp": "image/webp",
+        ".gif": "image/gif",
         ".mp4": "video/mp4",
         ".webm": "video/webm",
         ".mov": "video/quicktime",

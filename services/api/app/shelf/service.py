@@ -287,7 +287,11 @@ def get_platform_section(book_id: str, section_id: str) -> dict[str, Any]:
         if "wordprocessingml" in mime or sk.lower().endswith(".docx"):
             try:
                 path = get_platform_asset_path(book_id, sk.split("/")[-1])
-                html = docx_bytes_to_prose_html(path.read_bytes())
+                html = docx_bytes_to_prose_html(
+                    path.read_bytes(),
+                    book_id=book_id,
+                    storage_key=sk.split("/")[-1],
+                )
             except Exception:
                 html = html or ""
     lesson = kind == "lesson"

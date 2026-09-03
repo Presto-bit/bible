@@ -72,7 +72,6 @@ export default function ShelfReader({
   const [mediaOpen, setMediaOpen] = useState(false);
   const [mediaVideo, setMediaVideo] = useState<ShelfAttachment | null>(null);
   const [pdfPinching, setPdfPinching] = useState(false);
-  const [textSelecting, setTextSelecting] = useState(false);
   const { fontPx, lineHeight, setFontPx, setLineHeight, setFontFamily } = useShelfReadingPrefs();
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flowProgressTimerRef = useRef<number | null>(null);
@@ -250,7 +249,7 @@ export default function ShelfReader({
     setPageCount(1);
   }, [sectionId, contentKey]);
 
-  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching || textSelecting;
+  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching;
 
   const setPageCountForSection = useCallback(
     (count: number) => {
@@ -366,8 +365,8 @@ export default function ShelfReader({
     canPrev,
     canNext,
     blocked: overlayOpen,
-    snapOnly: true,
-    edgeOnly: true,
+    snapOnly: false,
+    edgeOnly: false,
     resolveTurn,
     onSectionChange: (delta) => {
       if (delta > 0) goNextSection();
@@ -384,7 +383,6 @@ export default function ShelfReader({
   });
 
   const onTextSelectionChange = useCallback((active: boolean) => {
-    setTextSelecting(active);
     if (active) pageTurn.cancelDrag();
   }, [pageTurn]);
 

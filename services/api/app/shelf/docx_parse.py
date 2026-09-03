@@ -9,6 +9,7 @@ import zipfile
 from dataclasses import dataclass
 
 from .html_normalize import inject_shelf_paragraph_anchors
+from .store import shelf_dir
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -138,14 +139,204 @@ def _match_toc_to_section(toc_title: str, section_title: str) -> bool:
     return False
 
 
-def docx_bytes_to_prose_html(data: bytes) -> str:
-    """单份 DOCX → 书架阅读 HTML（教案 primary 等）。"""
+_SHELF_DOCX_STYLE_MAP = """
+p[style-name='Title'] => h1.shelf-docx-title:fresh
+p[style-name='标题'] => h1.shelf-docx-title:fresh
+p[style-name='Heading 1'] => h2.shelf-docx-h1:fresh
+p[style-name='Heading 2'] => h3.shelf-docx-h2:fresh
+p[style-name='Heading 3'] => h4.shelf-docx-h3:fresh
+p[style-name='标题 1'] => h2.shelf-docx-h1:fresh
+p[style-name='标题 2'] => h3.shelf-docx-h2:fresh
+p[style-name='标题 3'] => h4.shelf-docx-h3:fresh
+p[style-name='Normal'] => p.shelf-docx-p:fresh
+p[style-name='正文'] => p.shelf-docx-p:fresh
+p[style-name='Body Text'] => p.shelf-docx-p:fresh
+p[style-name='List Paragraph'] => p.shelf-docx-p:fresh
+p[style-name='列表段落'] => p.shelf-docx-p:fresh
+p[style-name='Quote'] => blockquote.shelf-docx-quote:fresh
+p[style-name='引用'] => blockquote.shelf-docx-quote:fresh
+r[style-name='Strong'] => strong
+r[style-name='Emphasis'] => em
+"""
+
+_MIME_EXT = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/bmp": ".bmp",
+}
+
+_P_BLOCK_RE = re.compile(r"<p\b([^>]*)>(.*?)</p>", re.IGNORECASE | re.DOTALL)
+_BR_SPLIT_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+_SINGLE_OL_RE = re.compile(r"<ol>\s*<li>(.*?)</li>\s*</ol>", re.IGNORECASE | re.DOTALL)
+_CN_H2_RE = re.compile(r"^[一二三四五六七八九十]+、\S")
+_CN_H3_RE = re.compile(r"^[（(][一二三四五六七八九十]+[）)]")
+_IMG_SPLIT_RE = re.compile(r"(<img\b[^>]*>)", re.IGNORECASE)
+
+
+def _safe_stem(storage_key: str) -> str:
+    stem = Path(storage_key).stem or "docx"
+    cleaned = re.sub(r"[^A-Za-z0-9._-]", "-", stem).strip("-")
+    return (cleaned[:80] if cleaned else "docx")
+
+
+def _plain_frag(html_fragment: str) -> str:
+    text = re.sub(r"<[^>]+>", "", html_fragment)
+    text = html.unescape(text).replace("\u00a0", " ")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _block_for_fragment(frag: str) -> str:
+    frag = frag.strip()
+    if not frag:
+        return ""
+    plain = _plain_frag(frag)
+    inner = re.sub(r"</?strong>", "", frag, flags=re.IGNORECASE).strip()
+    if _CN_H2_RE.match(plain) and len(plain) <= 40:
+        return f"<h2>{inner}</h2>"
+    if _CN_H3_RE.match(plain) and len(plain) <= 80:
+        return f"<h3>{frag}</h3>"
+    return f"<p>{frag}</p>"
+
+
+def _unwrap_heading_lists(html_str: str) -> str:
+    def _repl(m: re.Match[str]) -> str:
+        inner = m.group(1).strip()
+        plain = _plain_frag(inner)
+        if 0 < len(plain) <= 24 and not any(ch in plain for ch in "。；;，,"):
+            return f"<h2>{inner}</h2>"
+        return m.group(0)
+
+    return _SINGLE_OL_RE.sub(_repl, html_str)
+
+
+def _split_br_and_promote(html_str: str) -> str:
+    def _repl(m: re.Match[str]) -> str:
+        body = m.group(2)
+        parts = _BR_SPLIT_RE.split(body)
+        if len(parts) == 1:
+            return _block_for_fragment(body) or m.group(0)
+        blocks = [_block_for_fragment(part) for part in parts]
+        return "\n".join(b for b in blocks if b)
+
+    return _P_BLOCK_RE.sub(_repl, html_str)
+
+
+def _promote_first_title(html_str: str) -> str:
+    def _repl(m: re.Match[str]) -> str:
+        body = m.group(2)
+        plain = _plain_frag(body)
+        if plain and len(plain) <= 80 and (
+            len(plain) <= 40 or "教案" in plain or plain.startswith("第")
+        ):
+            return f"<h1>{body}</h1>"
+        return m.group(0)
+
+    return _P_BLOCK_RE.sub(_repl, html_str, count=1)
+
+
+def _explode_inline_images(html_str: str) -> str:
+    def _repl(m: re.Match[str]) -> str:
+        body = m.group(2)
+        if len(_IMG_SPLIT_RE.findall(body)) < 2:
+            return m.group(0)
+        parts = _IMG_SPLIT_RE.split(body)
+        out: list[str] = []
+        buf: list[str] = []
+        for part in parts:
+            if part.lower().startswith("<img"):
+                text = "".join(buf).strip()
+                if text:
+                    out.append(f"<p>{text}</p>")
+                buf = []
+                out.append(f"<p>{part}</p>")
+            else:
+                buf.append(part)
+        text = "".join(buf).strip()
+        if text:
+            out.append(f"<p>{text}</p>")
+        return "\n".join(out) or m.group(0)
+
+    return _P_BLOCK_RE.sub(_repl, html_str)
+
+
+def _refine_lesson_html(html_str: str) -> str:
+    out = _unwrap_heading_lists(html_str)
+    out = _split_br_and_promote(out)
+    out = _promote_first_title(out)
+    out = _explode_inline_images(out)
+    return f'<div class="shelf-docx-root">{out}</div>'
+
+
+def _text_only_prose_html(data: bytes) -> str:
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         doc = z.read("word/document.xml")
     paras = _iter_paragraphs(doc)
     if not paras:
         return '<p class="shelf-body muted">（空文档）</p>'
     return inject_shelf_paragraph_anchors("\n".join(_para_html(p) for p in paras))
+
+
+def _mammoth_to_html(
+    data: bytes,
+    *,
+    book_id: str,
+    storage_key: str,
+    media_dir: Path,
+) -> str | None:
+    try:
+        import mammoth
+    except ImportError:
+        return None
+    stem = _safe_stem(storage_key)
+    dest_dir = media_dir
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    def convert_image(image: Any) -> dict[str, str]:
+        with image.open() as fh:
+            raw = fh.read()
+        mime = (getattr(image, "content_type", None) or "image/png").split(";")[0].strip().lower()
+        ext = _MIME_EXT.get(mime, ".png")
+        digest = hashlib.sha1(raw).hexdigest()[:10]
+        name = f"{stem}-inline-{digest}{ext}"
+        path = dest_dir / name
+        if not path.is_file() or path.stat().st_size != len(raw):
+            path.write_bytes(raw)
+        src = f"/shelf/platform/{book_id}/files/{name}" if book_id else name
+        alt = getattr(image, "alt_text", None) or ""
+        return {"src": src, "alt": alt}
+
+    try:
+        result = mammoth.convert_to_html(
+            io.BytesIO(data),
+            style_map=_SHELF_DOCX_STYLE_MAP,
+            convert_image=mammoth.images.img_element(convert_image),
+        )
+    except Exception:
+        return None
+    html_str = (result.value or "").strip()
+    return html_str or None
+
+
+def docx_bytes_to_prose_html(
+    data: bytes,
+    *,
+    book_id: str = "",
+    storage_key: str = "",
+    media_dir: Path | None = None,
+) -> str:
+    """单份 DOCX → 书架阅读 HTML（教案 primary 等）。保留图片 / 换行 / 列表。"""
+    html_str = _mammoth_to_html(
+        data,
+        book_id=book_id,
+        storage_key=storage_key,
+        media_dir=media_dir if media_dir is not None else shelf_dir(),
+    )
+    if html_str:
+        return _refine_lesson_html(html_str)
+    return _text_only_prose_html(data)
 
 
 def parse_docx_bytes(data: bytes) -> dict[str, Any]:

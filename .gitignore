@@ -33,6 +33,9 @@ deploy/publish.env
 # 服务器发版增量标记（勿提交，避免脏工作区阻断 release）
 .release-sha
 
+# Word 转 HTML 抽出的内嵌图（按课节 stem 生成，勿提交）
+data/shelf_uploads/*-inline-*
+
 # Large / generated data
 data/bible/**/*.sqlite
 data/.cache/

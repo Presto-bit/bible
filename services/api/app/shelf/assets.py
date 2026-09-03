@@ -33,6 +33,15 @@ def _section_primary_name(section: dict[str, Any]) -> str:
     return Path(sk).name if sk else ""
 
 
+def is_docx_inline_image_key(section: dict[str, Any], storage_key: str) -> bool:
+    """Word 转 HTML 抽出的内嵌图（cur-u3-w1-inline-*.png），不进素材栏。"""
+    stem = _section_primary_stem(section)
+    name = Path(storage_key).name
+    if not stem:
+        return False
+    return name.startswith(f"{stem}-inline-") and Path(name).suffix.lower() in _ATTACHMENT_EXT
+
+
 def is_lesson_sibling_asset(section: dict[str, Any], storage_key: str) -> bool:
     """同课节主文件 stem 下的图片/视频/音频（如 cur-u3-l3-story.mp4）。"""
     stem = _section_primary_stem(section)
@@ -62,6 +71,8 @@ def infer_section_attachments(section: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         name = path.name
         if name == primary_name or not name.startswith(stem):
+            continue
+        if is_docx_inline_image_key(section, name):
             continue
         ext = path.suffix.lower()
         meta = _ATTACHMENT_EXT.get(ext)

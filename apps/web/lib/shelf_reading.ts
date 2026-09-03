@@ -269,7 +269,11 @@ export function adaptShelfDocxHtml(raw: string, opts?: { lesson?: boolean }): st
     });
 
     root.querySelectorAll('div').forEach((div) => {
-      if (div === root || div.classList.contains('shelf-docx-table-wrap')) return;
+      if (
+        div === root
+        || div.classList.contains('shelf-docx-table-wrap')
+        || div.classList.contains('shelf-docx-root')
+      ) return;
       if (div.querySelector('table, ul, ol, img, h1, h2, h3, h4, blockquote')) return;
       const p = doc.createElement('p');
       p.className = 'shelf-docx-p';
@@ -281,4 +285,24 @@ export function adaptShelfDocxHtml(raw: string, opts?: { lesson?: boolean }): st
   } catch {
     return base;
   }
+}
+
+/** 旧版纯文本抽取未盖 `shelf-docx-root`，应回退 Mammoth / 重新拉 API。 */
+export function shelfSectionHtmlLooksLegacy(section: {
+  html: string;
+  kind?: string;
+  primary?: { mime?: string; storage_key: string } | null;
+}): boolean {
+  const primary = section.primary;
+  const isDocx =
+    section.kind === 'lesson'
+    || Boolean(
+      primary
+      && (
+        (primary.mime || '').includes('wordprocessingml')
+        || primary.storage_key.toLowerCase().endsWith('.docx')
+      ),
+    );
+  if (!isDocx) return false;
+  return !section.html.includes('shelf-docx-root');
 }

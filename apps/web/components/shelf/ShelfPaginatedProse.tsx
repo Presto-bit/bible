@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, memo, type MouseEvent, type PointerEvent, type RefObject } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import ShelfFocusBar from '@/components/shelf/ShelfFocusBar';
 import { addThought } from '@/lib/reader_thoughts';
@@ -11,6 +11,7 @@ import {
   setHighlight,
   type HighlightColor,
 } from '@/lib/reader_highlights';
+import { rewriteShelfHtmlAssetUrls } from '@/lib/shelf_api';
 import { linkifyShelfProseHtml, shelfParagraphIndexForRatio, shelfRatioForParagraphIndex } from '@/lib/shelf_prose_html';
 import {
   findShelfHighlightRef,
@@ -94,7 +95,7 @@ export default function ShelfPaginatedProse({
   const articleRef = useRef<HTMLElement>(null);
   const syncRef = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
-  const tapRef = useRef({ x: 0, y: 0, pointerId: -1, pointerType: 'mouse' as string });
+  const tapRef = useRef({ x: 0, y: 0, t: 0, pointerId: -1, pointerType: 'mouse' as string });
   const tapTimerRef = useRef<number | null>(null);
   const TAP_SLOP_PX = 14;
   const [selection, setSelection] = useState<ShelfTextSelection | null>(null);
@@ -108,7 +109,10 @@ export default function ShelfPaginatedProse({
     verseText?: string;
   } | null>(null);
 
-  const linkedHtml = useMemo(() => linkifyShelfProseHtml(html), [html]);
+  const linkedHtml = useMemo(
+    () => linkifyShelfProseHtml(rewriteShelfHtmlAssetUrls(html)),
+    [html],
+  );
   const annotationsEnabled = Boolean(bookId && sectionId);
 
   useEffect(() => {
@@ -125,7 +129,7 @@ export default function ShelfPaginatedProse({
       else el.scrollTop = 0;
       syncRef.current = false;
     });
-  }, [contentKey, linkedHtml, scrollOffset, scrollAnchor, scrollToEnd]);
+  }, [contentKey, linkedHtml, scrollAnchor, scrollToEnd]);
 
   const repaintHighlights = useCallback(() => {
     if (!annotationsEnabled || !articleRef.current || !supportsShelfCssHighlight()) return;
@@ -319,7 +323,7 @@ export default function ShelfPaginatedProse({
       window.clearTimeout(tapTimerRef.current);
       tapTimerRef.current = null;
     }
-    tapRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, pointerType: e.pointerType };
+    tapRef.current = { x: e.clientX, y: e.clientY, t: Date.now(), pointerId: e.pointerId, pointerType: e.pointerType };
   }, []);
 
   const handleContentPointerUp = useCallback(
@@ -331,14 +335,23 @@ export default function ShelfPaginatedProse({
       if (btn?.dataset.osis) return;
 
       const moved = Math.hypot(e.clientX - tapRef.current.x, e.clientY - tapRef.current.y);
+      const held = Date.now() - tapRef.current.t;
       const isTouch = tapRef.current.pointerType === 'touch';
-      const delay = isTouch ? 280 : 0;
+      const longPress = held >= 400;
 
       const run = () => {
         tapTimerRef.current = null;
         if (document.elementFromPoint(e.clientX, e.clientY)?.closest('.shelf-focus-bar, .reader-focus-bar')) {
           return;
         }
+        const picked = readShelfTextSelection(articleRef.current);
+        if (picked) {
+          setSelection(picked);
+          onTextSelectionChange?.(true);
+          setFocusBarStyle(focusBarStyleFromRect(picked.rect, chromeHidden));
+          return;
+        }
+        if (longPress) return;
         if (!isTouch && moved > TAP_SLOP_PX) {
           dismissSelectionIfBlankTap(e.clientX, e.clientY);
           return;
@@ -350,13 +363,15 @@ export default function ShelfPaginatedProse({
         resolveTapOrSelection();
       };
 
+      const delay = longPress ? 80 : isTouch ? 160 : 0;
+
       if (delay > 0) {
         tapTimerRef.current = window.setTimeout(run, delay);
       } else {
         window.requestAnimationFrame(run);
       }
     },
-    [resolveTapOrSelection, dismissSelectionIfBlankTap, selection],
+    [resolveTapOrSelection, dismissSelectionIfBlankTap, selection, chromeHidden, onTextSelectionChange],
   );
 
   const handleInlineRefClick = useCallback(
@@ -388,10 +403,10 @@ export default function ShelfPaginatedProse({
         onPointerDown={handleContentPointerDown}
         onPointerUp={handleContentPointerUp}
       >
-        <article
-          ref={articleRef}
+        <ShelfProseArticle
+          articleRef={articleRef}
           className={`shelf-flow-article ${proseClass}`}
-          dangerouslySetInnerHTML={{ __html: linkedHtml }}
+          html={linkedHtml}
           onClick={handleInlineRefClick}
         />
         <div className="shelf-flow-bottom-spacer" aria-hidden />
@@ -436,3 +451,24 @@ export default function ShelfPaginatedProse({
     </>
   );
 }
+
+const ShelfProseArticle = memo(function ShelfProseArticle({
+  html,
+  className,
+  onClick,
+  articleRef,
+}: {
+  html: string;
+  className: string;
+  onClick: (e: MouseEvent<HTMLElement>) => void;
+  articleRef: RefObject<HTMLElement | null>;
+}) {
+  return (
+    <article
+      ref={articleRef}
+      className={className}
+      dangerouslySetInnerHTML={{ __html: html }}
+      onClick={onClick}
+    />
+  );
+});

@@ -74,6 +74,11 @@ def _clean_tag_attrs(attrs: str) -> str:
     return out
 
 
+def _normalize_img_tag(attrs: str) -> str:
+    cleaned = _clean_tag_attrs(attrs).rstrip().rstrip("/").rstrip()
+    return f'<img class="shelf-docx-img"{cleaned} />'
+
+
 def _flatten_simple_divs(html: str) -> str:
     """Word/Mammoth 常包一层带 margin 的 div，展平为段落以便满宽排版。"""
     block_inside = re.compile(r"<\s*(table|ul|ol|h[1-4]|blockquote|img)\b", re.I)
@@ -85,7 +90,7 @@ def _flatten_simple_divs(html: str) -> str:
         def _repl(m: re.Match[str]) -> str:
             nonlocal changed
             attrs = m.group(1) or ""
-            if "shelf-docx-table-wrap" in attrs:
+            if "shelf-docx-table-wrap" in attrs or "shelf-docx-root" in attrs:
                 return m.group(0)
             body = m.group(2).strip()
             if not body:
@@ -158,12 +163,7 @@ def normalize_docx_html(raw: str, *, lesson: bool = False) -> str:
     out = out.replace("</table>", "</table></div>")
     out = re.sub(
         r"<img\b([^>]*)/?>",
-        lambda m: re.sub(
-            r'\s(?:width|height)="[^"]*"',
-            "",
-            f'<img class="shelf-docx-img"{_clean_tag_attrs(m.group(1) or "")} />',
-            flags=re.IGNORECASE,
-        ),
+        lambda m: _normalize_img_tag(m.group(1) or ""),
         out,
         flags=re.IGNORECASE,
     )
@@ -205,17 +205,12 @@ def normalize_docx_html(raw: str, *, lesson: bool = False) -> str:
         out,
         flags=re.IGNORECASE,
     )
-    if lesson:
-        out = re.sub(
-            r'class="shelf-docx-p"',
-            'class="shelf-docx-p shelf-docx-indent"',
-            out,
-        )
     out = _flatten_simple_divs(out)
     out = _STYLE_RE.sub(
         lambda m: (f' style="{c}"' if (c := _strip_inline_style(m.group(1))) else ""),
         out,
     )
+    _ = lesson
     return inject_shelf_paragraph_anchors(out)
 
 

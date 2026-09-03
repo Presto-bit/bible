@@ -307,7 +307,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       final audio = ref.read(readerAudioProvider);
       if (audio.focusOpen) {
         ref.read(readerAudioProvider.notifier).minimizePanel();
-        return;
       }
     }
     _setChrome(!_chromeHidden);

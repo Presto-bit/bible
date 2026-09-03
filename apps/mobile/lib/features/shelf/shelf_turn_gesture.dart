@@ -1,16 +1,14 @@
-/// 书架横滑切节：边缘带切章 + 正文区竖滚/划词优先（对齐 Web useShelfTurn）。
+/// 书架横滑切节：全屏轴锁，逻辑对齐圣经 Tab / useReaderPageTurn。
 library;
 
 import 'package:flutter/material.dart';
-
-const _edgeSwipePx = 88.0;
 
 class ShelfSnapTurnGesture extends StatefulWidget {
   const ShelfSnapTurnGesture({
     super.key,
     required this.child,
     required this.enabled,
-    this.edgeOnly = true,
+    this.edgeOnly = false,
     this.onTurnNext,
     this.onTurnPrev,
     this.onBoundary,
@@ -34,14 +32,18 @@ class ShelfSnapTurnGesture extends StatefulWidget {
 }
 
 class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
+  static const _axisMinPx = 8.0;
+  static const _axisRatio = 1.15;
+  static const _thresholdNext = 0.13;
+  static const _thresholdPrev = 0.09;
+  static const _prefetchRatio = 0.04;
+
   int? _pointer;
   Offset _start = Offset.zero;
   double _dx = 0;
   var _axisLocked = false;
   var _horizontal = false;
   var _approachFired = false;
-  var _inProse = false;
-  var _fromEdge = false;
 
   void _reset() {
     _pointer = null;
@@ -49,27 +51,21 @@ class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
     _horizontal = false;
     _dx = 0;
     _approachFired = false;
-    _inProse = false;
-    _fromEdge = false;
-  }
-
-  bool _isEdge(Offset position) {
-    final w = MediaQuery.sizeOf(context).width;
-    return position.dx < _edgeSwipePx || position.dx > w - _edgeSwipePx;
   }
 
   void _onPointerDown(PointerDownEvent e) {
     if (!widget.enabled) return;
     if (widget.shouldYieldTurn?.call() == true) return;
-    _fromEdge = !widget.edgeOnly || _isEdge(e.position);
-    if (widget.edgeOnly && !_fromEdge) return;
+    if (widget.edgeOnly) {
+      final w = MediaQuery.sizeOf(context).width;
+      if (e.position.dx >= 88 && e.position.dx <= w - 88) return;
+    }
     _pointer = e.pointer;
     _start = e.position;
     _dx = 0;
     _axisLocked = false;
     _horizontal = false;
     _approachFired = false;
-    _inProse = widget.hitIsProseContent?.call(e.position) ?? false;
   }
 
   void _onPointerMove(PointerMoveEvent e) {
@@ -85,29 +81,18 @@ class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
     final ady = dy.abs();
 
     if (!_axisLocked) {
-      if (adx < 2 && ady < 2) return;
-
-      if (_inProse && !_fromEdge) {
-        if (ady >= 10 && ady >= adx * 0.88) {
-          _reset();
-          return;
-        }
-        if (adx >= 8 && adx > ady * 1.06) {
-          _horizontal = true;
-          _axisLocked = true;
-        } else {
-          return;
-        }
-      } else if (_fromEdge && adx >= 3 && adx > ady * 0.45) {
+      if (adx < _axisMinPx && ady < _axisMinPx) return;
+      if (adx >= _axisMinPx && adx > ady * _axisRatio) {
         _horizontal = true;
         _axisLocked = true;
-      } else if (adx >= 3 && adx > ady * 0.9) {
-        _horizontal = true;
-        _axisLocked = true;
-      } else if (ady >= 3 && ady >= adx) {
+      } else if (ady >= _axisMinPx && ady >= adx * _axisRatio) {
         _reset();
         return;
+      } else if (adx >= _axisMinPx * 1.2 && adx > ady) {
+        _horizontal = true;
+        _axisLocked = true;
       } else {
+        _reset();
         return;
       }
     }
@@ -115,7 +100,7 @@ class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
     if (!_horizontal || _approachFired) return;
     final w = MediaQuery.sizeOf(context).width;
     if (w <= 0) return;
-    if (_dx.abs() / w >= 0.04) {
+    if (_dx.abs() / w >= _prefetchRatio) {
       _approachFired = true;
       widget.onApproachEdge?.call(_dx < 0 ? 'next' : 'prev');
     }
@@ -131,9 +116,8 @@ class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
     final w = MediaQuery.sizeOf(context).width;
     final ratio = _dx.abs() / (w <= 0 ? 1 : w);
     final goingNext = _dx < 0;
-    final goingPrev = _dx > 0;
-    final threshold = goingPrev ? 0.08 : 0.09;
-    final commit = ratio >= threshold || (_fromEdge && ratio >= 0.05 && _dx.abs() >= 28);
+    final threshold = goingNext ? _thresholdNext : _thresholdPrev;
+    final commit = ratio >= threshold || ratio >= (goingNext ? 0.09 : 0.07);
 
     if (commit) {
       if (goingNext) {

@@ -276,6 +276,11 @@ class ShelfSection {
 
   bool get hasProseHtml => html.trim().isNotEmpty;
   bool get hasPdfPrimary => primary != null && primary!.isPdf;
+  bool get docxHtmlLooksLegacy {
+    final docx = kind == 'lesson' || (primary?.isDocx ?? false);
+    if (!docx) return false;
+    return !html.contains('shelf-docx-root');
+  }
 }
 
 class ShelfListData {
@@ -332,7 +337,7 @@ class ShelfRepository {
 
   Future<ShelfSection> getSection(String bookId, String sectionId) async {
     final cached = _cache.peekSection(bookId, sectionId);
-    if (cached != null) {
+    if (cached != null && !cached.docxHtmlLooksLegacy) {
       unawaited(_fetchSectionFresh(bookId, sectionId));
       return cached;
     }
@@ -344,7 +349,8 @@ class ShelfRepository {
   }
 
   Future<void> prefetchSection(String bookId, String sectionId) async {
-    if (_cache.peekSection(bookId, sectionId) != null) return;
+    final cached = _cache.peekSection(bookId, sectionId);
+    if (cached != null && !cached.docxHtmlLooksLegacy) return;
     try {
       await _fetchSectionFresh(bookId, sectionId);
     } catch (_) {}

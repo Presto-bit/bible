@@ -54,6 +54,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   var _pendingLastPage = false;
   var _pendingScrollEnd = false;
   var _flowScrollRatio = 0.0;
+  final _flowScrollRatioN = ValueNotifier<double>(0);
   ShelfScrollAnchor? _flowScrollAnchor;
   var _proseSelecting = false;
   var _pdfPinching = false;
@@ -76,6 +77,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   @override
   void dispose() {
     _progressTimer?.cancel();
+    _flowScrollRatioN.dispose();
     super.dispose();
   }
 
@@ -132,6 +134,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _sectionId = pick;
         _pageIndex = page;
         _flowScrollRatio = scroll ?? 0;
+        _flowScrollRatioN.value = _flowScrollRatio;
         _flowScrollAnchor = scrollAnchor;
         _loading = false;
       });
@@ -148,7 +151,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   Future<void> _loadSection(String sectionId) async {
     final repo = ref.read(shelfRepoProvider);
     final cached = repo.peekSection(widget.bookId, sectionId);
-    if (cached != null && mounted) {
+    if (cached != null && !cached.docxHtmlLooksLegacy && mounted) {
       setState(() {
         _section = cached;
         _sectionLoading = false;
@@ -230,8 +233,10 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   void _onFlowScrollProgress(double ratio) {
-    if (!mounted) return;
-    setState(() => _flowScrollRatio = ratio);
+    _flowScrollRatio = ratio;
+    if (_flowScrollRatioN.value != ratio) {
+      _flowScrollRatioN.value = ratio;
+    }
     _scheduleProgress();
   }
 
@@ -301,7 +306,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final cached = ref.read(shelfRepoProvider).peekSection(widget.bookId, id);
     setState(() {
       _sectionId = id;
-      if (cached != null) {
+      if (cached != null && !cached.docxHtmlLooksLegacy) {
         _section = cached;
         _sectionLoading = false;
       } else {
@@ -320,6 +325,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _pageIndex = _pageBySection[id] ?? 0;
       }
       _flowScrollRatio = scrollStart ? 0 : (scrollEnd ? 1 : savedScroll);
+      _flowScrollRatioN.value = _flowScrollRatio;
       _flowScrollAnchor = scrollStart || scrollEnd ? null : savedAnchor;
     });
     unawaited(_loadSection(id));
@@ -566,7 +572,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         onScrollAnchor: _onFlowScrollAnchor,
         onSectionEdge: _onProseSectionEdge,
         onSelectionActiveChanged: (active) {
-          if (mounted) setState(() => _proseSelecting = active);
+          _proseSelecting = active;
         },
       );
     }
@@ -685,7 +691,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                 Expanded(
                   child: ShelfSnapTurnGesture(
                     enabled: section != null && !_blocked,
-                    edgeOnly: true,
+                    edgeOnly: false,
                     shouldYieldTurn: () => _proseSelecting,
                     hitIsProseContent: (_) => section != null && section.hasProseHtml,
                     onTurnNext: _canNext ? _turnNext : null,
@@ -778,11 +784,14 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                 child: IgnorePointer(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: _flowScrollRatio.clamp(0.01, 1.0),
-                      minHeight: 2,
-                      backgroundColor: AppColors.ink.withValues(alpha: 0.08),
-                      color: AppColors.ink.withValues(alpha: 0.28),
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: _flowScrollRatioN,
+                      builder: (context, ratio, _) => LinearProgressIndicator(
+                        value: ratio.clamp(0.01, 1.0),
+                        minHeight: 2,
+                        backgroundColor: AppColors.ink.withValues(alpha: 0.08),
+                        color: AppColors.ink.withValues(alpha: 0.28),
+                      ),
                     ),
                   ),
                 ),

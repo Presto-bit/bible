@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import { shelfAssetUrl, type ShelfAttachment, type ShelfSection } from '@/lib/shelf_api';
-import { adaptShelfDocxHtml, SHELF_DOCX_STYLE_MAP } from '@/lib/shelf_reading';
+import { adaptShelfDocxHtml, SHELF_DOCX_STYLE_MAP, shelfSectionHtmlLooksLegacy } from '@/lib/shelf_reading';
 import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
 import ShelfLessonMediaDock from '@/components/shelf/ShelfLessonMediaDock';
 import ShelfMediaSheet from '@/components/shelf/ShelfMediaSheet';
@@ -160,7 +160,7 @@ function ShelfPrimaryView({
     return shelfAssetUrl(bookId, primary.storage_key);
   }, [bookId, primary?.storage_key]);
 
-  if (section.html?.trim()) {
+  if (section.html?.trim() && !shelfSectionHtmlLooksLegacy(section)) {
     return (
       <ShelfPaginatedProse
         html={section.html}

@@ -1,11 +1,15 @@
 /// 书架 HTML 流式竖滚 + 选区工具条（对齐 PWA / 圣经 Tab ReaderFocusBar）。
 library;
 
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config.dart';
 import '../bible/markings_repository.dart';
 import '../bible/reader_focus_bar.dart';
 import '../bible/reader_marking_models.dart';
@@ -62,9 +66,15 @@ class ShelfPaginatedProse extends ConsumerStatefulWidget {
 
 class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   SelectedContent? _selection;
+  final _selectionN = ValueNotifier<SelectedContent?>(null);
   final _scroll = ScrollController();
   var _edgeLock = false;
   var _syncingScroll = false;
+  var _downMs = 0;
+  Offset _downPos = Offset.zero;
+  int? _anchorTick;
+  String? _layoutHtml;
+  String? _layoutSrc;
 
   @override
   void initState() {
@@ -77,9 +87,8 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   void didUpdateWidget(covariant ShelfPaginatedProse oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.html != widget.html ||
-        oldWidget.scrollOffset != widget.scrollOffset ||
-        oldWidget.scrollAnchor != widget.scrollAnchor ||
-        oldWidget.scrollToEnd != widget.scrollToEnd) {
+        oldWidget.scrollToEnd != widget.scrollToEnd ||
+        oldWidget.scrollAnchor != widget.scrollAnchor) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialScroll());
     }
   }
@@ -88,6 +97,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   void dispose() {
     _scroll.removeListener(_onScroll);
     _scroll.dispose();
+    _selectionN.dispose();
     super.dispose();
   }
 
@@ -122,11 +132,15 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
     final max = _scroll.position.maxScrollExtent;
     final ratio = max > 0 ? (_scroll.offset / max).clamp(0.0, 1.0) : 0.0;
     widget.onScrollProgress?.call(ratio);
-    widget.onScrollAnchor?.call(
-      ShelfScrollAnchor(
-        paragraphIndex: shelfParagraphIndexForRatio(widget.html, ratio),
-      ),
-    );
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (_anchorTick == null || now - _anchorTick! >= 160) {
+      _anchorTick = now;
+      widget.onScrollAnchor?.call(
+        ShelfScrollAnchor(
+          paragraphIndex: shelfParagraphIndexForRatio(widget.html, ratio),
+        ),
+      );
+    }
 
     if (_edgeLock || widget.onSectionEdge == null) return;
     final m = _scroll.position;
@@ -155,16 +169,13 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         : 'Georgia, Songti SC, serif';
     Style withFamily(Style s) => s.copyWith(fontFamily: family);
 
-    Style bodyParagraph({bool docx = false}) => withFamily(Style(
+    Style bodyParagraph() => withFamily(Style(
           fontSize: FontSize(bodySize),
           lineHeight: LineHeight(lh),
           margin: Margins.only(bottom: widget.lessonTone ? 14 : 12),
-          textAlign: docx || widget.lessonTone ? TextAlign.left : TextAlign.justify,
-          textIndent: docx && widget.lessonTone ? TextIndent(2, Unit.em) : TextIndent.zero,
-          width: docx ? Width(100, Unit.percent) : null,
+          textAlign: TextAlign.justify,
+          width: Width(100, Unit.percent),
         ));
-
-    final docxParagraph = bodyParagraph(docx: true);
 
     return {
       'body': withFamily(Style(
@@ -172,8 +183,8 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         padding: HtmlPaddings.zero,
         width: Width(100, Unit.percent),
       )),
-      'p': widget.variantDocx ? docxParagraph : bodyParagraph(),
-      '.shelf-body': widget.variantDocx ? docxParagraph : bodyParagraph(),
+      'p': bodyParagraph(),
+      '.shelf-body': bodyParagraph(),
       'h1': withFamily(Style(
         fontSize: FontSize(bodySize * 1.08),
         lineHeight: LineHeight(lh * 0.95),
@@ -298,8 +309,8 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         textAlign: TextAlign.left,
         textIndent: TextIndent.zero,
       )),
-      '.shelf-docx-p': docxParagraph,
-      '.shelf-docx-indent': docxParagraph,
+      '.shelf-docx-p': bodyParagraph(),
+      '.shelf-docx-indent': bodyParagraph(),
       'mark': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
       '.shelf-hl': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
       '.shelf-dialogue': withFamily(Style(
@@ -330,9 +341,14 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   }
 
   String get _renderHtml {
-    var base = widget.variantDocx
-        ? prepareShelfDocxLayoutHtml(widget.html)
-        : widget.html;
+    var base = rewriteShelfHtmlAssetUrls(widget.html, AppConfig.baseUrl);
+    if (widget.variantDocx) {
+      if (_layoutSrc != base) {
+        _layoutSrc = base;
+        _layoutHtml = prepareShelfDocxLayoutHtml(base);
+      }
+      base = _layoutHtml ?? base;
+    }
     base = prepareShelfProseHtml(_indentBodyParagraphs(base));
     final marks = ref.watch(highlightMapProvider).maybeWhen(
           data: (m) => m,
@@ -372,12 +388,14 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   }
 
   void _clearSelection() {
-    setState(() => _selection = null);
+    _selection = null;
+    _selectionN.value = null;
     widget.onSelectionActiveChanged?.call(false);
   }
 
   void _setSelection(SelectedContent value) {
-    setState(() => _selection = value);
+    _selection = value;
+    _selectionN.value = value;
     widget.onSelectionActiveChanged?.call(true);
   }
 
@@ -417,31 +435,36 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
 
   @override
   Widget build(BuildContext context) {
-    final selected = _selectedText;
-    final hasSelection = selected != null;
-    final currentRef = hasSelection ? _selectionRef() : null;
-    HighlightMark? currentMark;
-    if (currentRef != null) {
-      currentMark = ref.watch(highlightMapProvider).maybeWhen(
-            data: (m) => m[currentRef],
-            orElse: () => null,
-          );
-    }
-
+    final marks = ref.watch(highlightMapProvider).maybeWhen(
+          data: (m) => m,
+          orElse: () => const <String, HighlightMark>{},
+        );
     return Stack(
       clipBehavior: Clip.hardEdge,
       children: [
         SelectionArea(
           onSelectionChanged: (value) {
-            if (value != null && value.plainText.trim().isNotEmpty) {
-              _setSelection(value);
-            } else if (!hasSelection) {
-              _clearSelection();
+            final text = value?.plainText.trim() ?? '';
+            if (text.isNotEmpty) {
+              _setSelection(value!);
             }
           },
-          child: GestureDetector(
-            onTap: hasSelection ? () {} : widget.onTap,
+          child: Listener(
             behavior: HitTestBehavior.translucent,
+            onPointerDown: (e) {
+              _downMs = DateTime.now().millisecondsSinceEpoch;
+              _downPos = e.position;
+            },
+            onPointerUp: (e) {
+              final held = DateTime.now().millisecondsSinceEpoch - _downMs;
+              final dist = (e.position - _downPos).distance;
+              if (held >= 400 || dist >= 10) return;
+              if (_selection != null) {
+                _clearSelection();
+                return;
+              }
+              widget.onTap?.();
+            },
             child: SingleChildScrollView(
               controller: _scroll,
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
@@ -451,38 +474,48 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
                   constraints: const BoxConstraints(maxWidth: _shelfTextMaxWidth),
                   child: SizedBox(
                     width: double.infinity,
-                    child: Html(data: _renderHtml, style: _styles),
+                    child: RepaintBoundary(
+                      child: Html(data: _renderHtml, style: _styles),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
         ),
-        if (hasSelection)
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 12,
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (_) {},
-              child: ReaderFocusBar(
-                readingMode: ReadingMode.study,
-                verseActionsEnabled: false,
-                currentMark: currentMark,
-                underlinesEnabled: true,
-                thoughtsEnabled: true,
-                onLightAi: () {},
-                onCopy: () => unawaited(_copySelection()),
-                onThought: _clearSelection,
-                onVerseCard: () {},
-                onCompare: () {},
-                onPickColor: (c) => unawaited(_pickHighlight(c)),
-                onClearMark: () => unawaited(_clearHighlight()),
-                onClose: _clearSelection,
+        ValueListenableBuilder<SelectedContent?>(
+          valueListenable: _selectionN,
+          builder: (context, sel, _) {
+            final text = sel?.plainText.trim() ?? '';
+            if (text.isEmpty) return const SizedBox.shrink();
+            final currentRef = _selectionRef();
+            final currentMark = currentRef == null ? null : marks[currentRef];
+            return Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (_) {},
+                child: ReaderFocusBar(
+                  readingMode: ReadingMode.study,
+                  verseActionsEnabled: false,
+                  currentMark: currentMark,
+                  underlinesEnabled: true,
+                  thoughtsEnabled: true,
+                  onLightAi: () {},
+                  onCopy: () => unawaited(_copySelection()),
+                  onThought: _clearSelection,
+                  onVerseCard: () {},
+                  onCompare: () {},
+                  onPickColor: (c) => unawaited(_pickHighlight(c)),
+                  onClearMark: () => unawaited(_clearHighlight()),
+                  onClose: _clearSelection,
+                ),
               ),
-            ),
-          ),
+            );
+          },
+        ),
       ],
     );
   }

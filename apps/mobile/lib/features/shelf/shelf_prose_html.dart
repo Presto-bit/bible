@@ -110,7 +110,10 @@ String _flattenSimpleDivs(String html) {
     var changed = false;
     out = out.replaceAllMapped(_simpleDivRe, (m) {
       final attrs = m.group(1) ?? '';
-      if (attrs.contains('shelf-docx-table-wrap')) return m.group(0)!;
+      if (attrs.contains('shelf-docx-table-wrap') ||
+          attrs.contains('shelf-docx-root')) {
+        return m.group(0)!;
+      }
       final body = (m.group(2) ?? '').trim();
       if (body.isEmpty) {
         changed = true;
@@ -136,4 +139,14 @@ String prepareShelfDocxLayoutHtml(String html) {
   });
   out = out.replaceAll(_dimAttrRe, '');
   return out;
+}
+
+/// API 抽出的 Word 内嵌图 src 为 `/shelf/platform/...`，补成绝对地址。
+String rewriteShelfHtmlAssetUrls(String html, String baseUrl) {
+  if (html.isEmpty) return html;
+  final base = baseUrl.replaceAll(RegExp(r'/$'), '');
+  return html.replaceAllMapped(
+    RegExp(r'''((?:src|href)=)(["'])(/shelf/platform/[^"']+)\2''', caseSensitive: false),
+    (m) => '${m[1]}${m[2]}$base${m[3]}${m[2]}',
+  );
 }

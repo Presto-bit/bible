@@ -88,6 +88,15 @@ export function shelfAssetUrl(bookId: string, storageKey: string): string {
   return `${API_BASE}/shelf/platform/${encodeURIComponent(bookId)}/files/${key}`;
 }
 
+/** API 抽出的 Word 内嵌图 src 为 `/shelf/platform/...`，补成绝对地址。 */
+export function rewriteShelfHtmlAssetUrls(html: string): string {
+  if (!html) return html;
+  return html.replace(
+    /((?:src|href)=)(["'])(\/shelf\/platform\/[^"']+)\2/gi,
+    (_m, attr: string, q: string, path: string) => `${attr}${q}${API_BASE}${path}${q}`,
+  );
+}
+
 export async function listPlatformShelf(): Promise<ShelfBookSummary[]> {
   const data = await listPlatformShelfFull();
   return data.items ?? [];

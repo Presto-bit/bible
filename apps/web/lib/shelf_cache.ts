@@ -1,10 +1,11 @@
 /** 书架 API 内存/本地缓存，减少重复请求与首屏等待。 */
 
-import type { ShelfBookDetail, ShelfGroup, ShelfBookSummary, ShelfSection } from './shelf_api';
 import { getJson } from './api_core';
+import { shelfSectionHtmlLooksLegacy } from './shelf_reading';
+import type { ShelfBookDetail, ShelfBookSummary, ShelfGroup, ShelfSection } from './shelf_api';
 
 const LIST_KEY = 'shelf_platform_list_v2';
-const SECTION_PREFIX = 'shelf_section_v2:';
+const SECTION_PREFIX = 'shelf_section_v3:';
 const SECTION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const LIST_TTL_MS = 30 * 60 * 1000;
 
@@ -138,12 +139,12 @@ export async function fetchShelfSection(
   const key = sectionKey(bookId, sectionId);
   if (!force) {
     const hit = sectionMem.get(key);
-    if (hit) return hit;
+    if (hit && !shelfSectionHtmlLooksLegacy(hit)) return hit;
     const inflight = sectionInflight.get(key);
     if (inflight) return inflight;
   }
   const stored = readSectionStorage(key);
-  if (stored && !force) {
+  if (stored && !force && !shelfSectionHtmlLooksLegacy(stored)) {
     sectionMem.set(key, stored);
     return Promise.resolve(stored);
   }
@@ -162,7 +163,10 @@ export async function fetchShelfSection(
 
 export function prefetchShelfSection(bookId: string, sectionId: string | null | undefined) {
   if (!sectionId) return;
-  if (sectionMem.has(sectionKey(bookId, sectionId))) return;
+  if (sectionMem.has(sectionKey(bookId, sectionId))) {
+    const hit = sectionMem.get(sectionKey(bookId, sectionId));
+    if (hit && !shelfSectionHtmlLooksLegacy(hit)) return;
+  }
   const run = () => {
     void fetchShelfSection(bookId, sectionId).catch(() => {});
   };
