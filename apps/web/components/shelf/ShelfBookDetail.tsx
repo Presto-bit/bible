@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
 import ShelfCoverPlate from '@/components/shelf/ShelfCoverPlate';
+import ShelfPostCard from '@/components/shelf/ShelfPostCard';
 import { useToast } from '@/components/ui/ToastProvider';
 import { getPlatformShelfBook, loadShelfBookProgress, type ShelfBookDetail } from '@/lib/shelf_api';
 import {
@@ -15,9 +16,7 @@ import {
 import {
   createShelfPost,
   deleteShelfPost,
-  formatShelfPostTime,
   listShelfPosts,
-  replyShelfPost,
   toggleShelfPostLike,
   updateShelfPostVisibility,
   type ShelfPost,
@@ -44,57 +43,6 @@ function readHref(bookId: string, sectionId?: string | null, pageIndex?: number)
   return `/shelf/${encodeURIComponent(bookId)}/read${qs ? `?${qs}` : ''}`;
 }
 
-function PostCard({
-  post,
-  onLike,
-  onOpen,
-  onVisChange,
-  onDelete,
-  showVis,
-}: {
-  post: ShelfPost;
-  onLike: () => void;
-  onOpen: () => void;
-  onVisChange?: (v: ShelfPostVisibility) => void;
-  onDelete?: () => void;
-  showVis?: boolean;
-}) {
-  return (
-    <article className="shelf-post-card card" onClick={onOpen} role="button" tabIndex={0}>
-      <div className="shelf-post-meta">
-        <span>{post.author.name}</span>
-        <span className="muted">{formatShelfPostTime(post.created_at)}</span>
-        {post.read_status === 'finished' ? <span className="shelf-post-badge">已读完</span> : null}
-      </div>
-      {post.abstract ? <blockquote className="shelf-post-quote">{post.abstract}</blockquote> : null}
-      <p className="shelf-post-body">{post.body.length > 200 ? `${post.body.slice(0, 200)}…` : post.body}</p>
-      <div className="shelf-post-actions" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className={`shelf-post-like${post.liked ? ' is-liked' : ''}`} onClick={onLike}>
-          ♡ {post.likes_count || ''}
-        </button>
-        <button type="button" className="shelf-post-reply-btn" onClick={onOpen}>
-          💬 {post.replies_count || ''}
-        </button>
-        {showVis && onVisChange ? (
-          <select
-            className="shelf-post-vis-select"
-            value={post.visibility}
-            onChange={(e) => onVisChange(e.target.value as ShelfPostVisibility)}
-            aria-label="可见范围"
-          >
-            <option value="public">公开</option>
-            <option value="friends">共读</option>
-            <option value="private">私密</option>
-          </select>
-        ) : null}
-        {showVis && onDelete ? (
-          <button type="button" className="shelf-post-delete" onClick={onDelete}>删除</button>
-        ) : null}
-      </div>
-    </article>
-  );
-}
-
 export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   const router = useRouter();
   const search = useSearchParams();
@@ -106,7 +54,6 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
     if (t === 'notes' || t === 'mine') return t;
     return 'reviews';
   });
-  const [sort, setSort] = useState<'latest' | 'helpful'>('latest');
   const [posts, setPosts] = useState<ShelfPost[]>([]);
   const [stats, setStats] = useState({ reviews: 0, notes: 0 });
   const [loading, setLoading] = useState(true);
@@ -129,24 +76,20 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
     void listShelfPosts(bookId, {
       kind: kind as 'review' | 'note' | undefined,
       mine: tab === 'mine',
-      sort: tab === 'reviews' ? sort : 'latest',
+      sort: 'latest',
     })
       .then((data) => {
         setPosts(data.items);
         setStats(data.stats);
       })
       .catch(() => flashToast('加载失败'));
-  }, [bookId, tab, sort, flashToast]);
+  }, [bookId, tab, flashToast]);
 
   useEffect(() => {
     reloadPosts();
   }, [reloadPosts]);
 
-  const continueHref = readHref(
-    bookId,
-    progress?.sectionId,
-    progress?.pageIndex,
-  );
+  const continueHref = readHref(bookId, progress?.sectionId, progress?.pageIndex);
 
   const onWriteReview = async () => {
     if (!(await requireLogin())) return;
@@ -182,16 +125,11 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
     }
   };
 
-  const openPost = (post: ShelfPost) => {
-    setHubAbstract(post.abstract || undefined);
-    setHubPostId(post.id);
-  };
-
   if (loading && !book) {
     return (
       <main className="shelf-detail-page">
         <PageBackBar href="/shelf" ariaLabel="返回书架" />
-        <p className="muted" style={{ padding: 24 }}>加载中…</p>
+        <p className="muted shelf-detail-loading">加载中…</p>
       </main>
     );
   }
@@ -199,22 +137,23 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   return (
     <main className="shelf-detail-page">
       <PageBackBar href="/shelf" ariaLabel="返回书架" />
-      <div className="shelf-detail-hero">
-        <ShelfCoverPlate title={book?.title || ''} subtitle={book?.subtitle} size="detail" />
-        <div className="shelf-detail-hero-text">
-          <h1 className="shelf-detail-title">{book?.title}</h1>
-          {book?.subtitle ? <p className="muted shelf-detail-sub">{book.subtitle}</p> : null}
-          {progress?.sectionId ? (
-            <p className="shelf-detail-progress muted">续读进度已保存</p>
-          ) : null}
-          <button type="button" className="btn shelf-detail-continue" onClick={() => router.push(continueHref)}>
-            继续阅读 ›
-          </button>
-          <p className="shelf-detail-stats muted">
-            {stats.notes} 条公开笔记 · {stats.reviews} 篇书评
-          </p>
-        </div>
-      </div>
+
+      <section className="shelf-detail-hero">
+        <ShelfCoverPlate title={book?.title || ''} size="detail" />
+        <h1 className="shelf-detail-title">{book?.title}</h1>
+        {book?.author ? <p className="shelf-detail-author muted">{book.author}</p> : null}
+        {book?.subtitle ? (
+          <div className="shelf-detail-blurb">
+            <p className="shelf-detail-sub muted">{book.subtitle}</p>
+          </div>
+        ) : null}
+        <button type="button" className="btn primary shelf-detail-continue" onClick={() => router.push(continueHref)}>
+          {progress?.sectionId ? '继续阅读' : '开始阅读'}
+        </button>
+        <p className="shelf-detail-stats muted">
+          {stats.reviews} 篇书评 · {stats.notes} 条公开笔记
+        </p>
+      </section>
 
       <div className="shelf-detail-tabs" role="tablist">
         {(['reviews', 'notes', 'mine'] as Tab[]).map((t) => (
@@ -231,13 +170,6 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
         ))}
       </div>
 
-      {tab === 'reviews' ? (
-        <div className="shelf-detail-sort">
-          <button type="button" className={sort === 'latest' ? 'is-active' : ''} onClick={() => setSort('latest')}>最新</button>
-          <button type="button" className={sort === 'helpful' ? 'is-active' : ''} onClick={() => setSort('helpful')}>有帮助</button>
-        </div>
-      ) : null}
-
       <div className="shelf-detail-list">
         {posts.length === 0 ? (
           <p className="muted shelf-detail-empty">
@@ -245,11 +177,14 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
           </p>
         ) : (
           posts.map((post) => (
-            <PostCard
+            <ShelfPostCard
               key={post.id}
               post={post}
               onLike={() => void onLike(post)}
-              onOpen={() => openPost(post)}
+              onOpen={() => {
+                setHubAbstract(post.abstract ?? undefined);
+                setHubPostId(post.id);
+              }}
               showVis={tab === 'mine'}
               onVisChange={(v) => {
                 void updateShelfPostVisibility(bookId, post.id, v)
@@ -266,9 +201,11 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
         )}
       </div>
 
-      <button type="button" className="shelf-detail-fab" aria-label="写书评" onClick={() => void onWriteReview()}>
-        ✎
-      </button>
+      {tab === 'reviews' ? (
+        <button type="button" className="shelf-detail-fab" aria-label="写书评" onClick={() => void onWriteReview()}>
+          写书评
+        </button>
+      ) : null}
 
       {writeReview ? (
         <ShelfPostWriteSheet

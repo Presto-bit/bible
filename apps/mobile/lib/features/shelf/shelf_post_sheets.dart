@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'shelf_posts_repository.dart';
+import 'shelf_repository.dart';
 
 const _visPrefKey = 'shelf_post_visibility_pref';
 
@@ -52,6 +53,412 @@ IconData _visibilityIcon(ShelfPostVisibility v) => switch (v) {
       ShelfPostVisibility.friends => Icons.group_outlined,
       ShelfPostVisibility.private => Icons.lock_outline,
     };
+
+Future<void> showShelfCommentsSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required String bookId,
+  required String bookTitle,
+  required String sectionId,
+  required String sectionTitle,
+  int pageIndex = 0,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => _ShelfCommentsSheet(
+      bookId: bookId,
+      bookTitle: bookTitle,
+      sectionId: sectionId,
+      sectionTitle: sectionTitle,
+      pageIndex: pageIndex,
+    ),
+  );
+}
+
+class _ShelfCommentsSheet extends ConsumerStatefulWidget {
+  const _ShelfCommentsSheet({
+    required this.bookId,
+    required this.bookTitle,
+    required this.sectionId,
+    required this.sectionTitle,
+    required this.pageIndex,
+  });
+
+  final String bookId;
+  final String bookTitle;
+  final String sectionId;
+  final String sectionTitle;
+  final int pageIndex;
+
+  @override
+  ConsumerState<_ShelfCommentsSheet> createState() => _ShelfCommentsSheetState();
+}
+
+enum _CommentsTab { chapter, notes, hot, mine }
+
+class _ShelfCommentsSheetState extends ConsumerState<_ShelfCommentsSheet> {
+  _CommentsTab _tab = _CommentsTab.chapter;
+  var _loading = true;
+  List<ShelfPost> _posts = const [];
+  final _draftCtrl = TextEditingController();
+  var _submitting = false;
+
+  @override
+  void dispose() {
+    _draftCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final kind = switch (_tab) {
+        _CommentsTab.chapter => ShelfPostKind.review,
+        _CommentsTab.notes => ShelfPostKind.note,
+        _CommentsTab.hot => null,
+        _CommentsTab.mine => null,
+      };
+      final data = await ref.read(shelfPostsRepoProvider).listPosts(
+            widget.bookId,
+            kind: kind,
+            sectionId: _tab == _CommentsTab.hot ? null : widget.sectionId,
+            mine: _tab == _CommentsTab.mine,
+            sort: _tab == _CommentsTab.hot ? 'helpful' : 'latest',
+          );
+      if (mounted) setState(() => _posts = data.items);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('加载失败'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _submitComment() async {
+    final body = _draftCtrl.text.trim();
+    if (body.isEmpty) return;
+    if (!await requireShelfLogin(context, ref)) return;
+    setState(() => _submitting = true);
+    final refStr = shelfCheckinRef(widget.bookId, widget.sectionId, widget.pageIndex);
+    try {
+      await ref.read(shelfPostsRepoProvider).createPost(
+            widget.bookId,
+            kind: ShelfPostKind.review,
+            ref: refStr,
+            body: body,
+            visibility: _loadDefaultVisibility(ref),
+            sectionId: widget.sectionId,
+            pageIndex: widget.pageIndex,
+          );
+      _draftCtrl.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已发布'), behavior: SnackBarBehavior.floating),
+        );
+        await _load();
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('发布失败'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  String _emptyHint() => switch (_tab) {
+        _CommentsTab.chapter => '本章还没有评论，写下第一句吧',
+        _CommentsTab.notes => '本章暂无公开笔记，划选正文可写笔记',
+        _CommentsTab.hot => '还没有热门评论',
+        _CommentsTab.mine => '暂无内容',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.sizeOf(context).height * 0.8;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        height: h,
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.line,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.sectionTitle,
+                          style: AppTypography.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          widget.bookTitle,
+                          style: AppTypography.meta,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  _TabChip(
+                    label: '本章评论',
+                    active: _tab == _CommentsTab.chapter,
+                    onTap: () {
+                      setState(() => _tab = _CommentsTab.chapter);
+                      unawaited(_load());
+                    },
+                  ),
+                  _TabChip(
+                    label: '公开笔记',
+                    active: _tab == _CommentsTab.notes,
+                    onTap: () {
+                      setState(() => _tab = _CommentsTab.notes);
+                      unawaited(_load());
+                    },
+                  ),
+                  _TabChip(
+                    label: '热门',
+                    active: _tab == _CommentsTab.hot,
+                    onTap: () {
+                      setState(() => _tab = _CommentsTab.hot);
+                      unawaited(_load());
+                    },
+                  ),
+                  _TabChip(
+                    label: '我的',
+                    active: _tab == _CommentsTab.mine,
+                    onTap: () {
+                      setState(() => _tab = _CommentsTab.mine);
+                      unawaited(_load());
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: _loading
+                  ? const Center(child: Text('加载中…', style: AppTypography.meta))
+                  : _posts.isEmpty
+                      ? Center(child: Text(_emptyHint(), style: AppTypography.meta))
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _posts.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (context, i) {
+                            final post = _posts[i];
+                            return _CommentsPostCard(
+                              post: post,
+                              showVis: _tab == _CommentsTab.mine,
+                              onOpen: () {
+                                unawaited(
+                                  showShelfNoteHubSheet(
+                                    context,
+                                    ref,
+                                    bookId: widget.bookId,
+                                    postId: post.id,
+                                    abstractText: post.abstractText,
+                                    onChanged: _load,
+                                  ),
+                                );
+                              },
+                              onLike: () async {
+                                if (!await requireShelfLogin(context, ref)) return;
+                                try {
+                                  await ref.read(shelfPostsRepoProvider).toggleLike(widget.bookId, post.id);
+                                  await _load();
+                                } catch (_) {}
+                              },
+                            );
+                          },
+                        ),
+            ),
+            if (_tab == _CommentsTab.chapter)
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _draftCtrl,
+                          minLines: 1,
+                          maxLines: 4,
+                          maxLength: 2000,
+                          decoration: InputDecoration(
+                            hintText: '写下对本章的想法…',
+                            filled: true,
+                            fillColor: AppColors.paper,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            counterText: '',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: _submitting ? null : () => unawaited(_submitComment()),
+                        child: Text(_submitting ? '…' : '发送'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TabChip extends StatelessWidget {
+  const _TabChip({required this.label, required this.active, required this.onTap});
+
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: active
+              ? const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.accentDeep, width: 2)),
+                )
+              : null,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+              color: active ? AppColors.ink : AppColors.inkSoft,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CommentsPostCard extends StatelessWidget {
+  const _CommentsPostCard({
+    required this.post,
+    required this.onOpen,
+    required this.onLike,
+    this.showVis = false,
+  });
+
+  final ShelfPost post;
+  final VoidCallback onOpen;
+  final VoidCallback onLike;
+  final bool showVis;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.ink.withValues(alpha: 0.03),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${post.author.name} · ${formatShelfPostTime(post.createdAt)}',
+                style: AppTypography.meta,
+              ),
+              if (showVis) ...[
+                const SizedBox(height: 4),
+                Text(_visibilityLabel(post.visibility), style: AppTypography.meta),
+              ],
+              if (post.abstractText != null && post.abstractText!.trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  post.abstractText!,
+                  style: AppTypography.secondary.copyWith(fontStyle: FontStyle.italic),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                post.body.length > 200 ? '${post.body.substring(0, 200)}…' : post.body,
+                style: AppTypography.secondary.copyWith(height: 1.65),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: onLike,
+                    child: Text(post.liked ? '♥ ${post.likesCount > 0 ? post.likesCount : ''}' : '♡ ${post.likesCount > 0 ? post.likesCount : ''}'),
+                  ),
+                  TextButton(
+                    onPressed: onOpen,
+                    child: Text('💬 ${post.repliesCount > 0 ? post.repliesCount : ''}'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 Future<void> showShelfReaderMoreSheet(
   BuildContext context, {

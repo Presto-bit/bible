@@ -182,43 +182,66 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
                 children: [
                   if (book != null) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _CoverPlate(title: book.title),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(book.title, style: AppTypography.title.copyWith(fontSize: 18)),
-                              if (book.author.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(book.author, style: AppTypography.meta),
-                              ],
-                              if (book.subtitle.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(book.subtitle, style: AppTypography.secondary),
-                              ],
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  FilledButton(
-                                    onPressed: () => context.push(_readHref()),
-                                    child: const Text('继续阅读'),
-                                  ),
-                                ],
-                              ),
-                            ],
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.line.withValues(alpha: 0.6)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _CoverPlate(title: book.title),
+                          const SizedBox(height: 14),
+                          Text(
+                            book.title,
+                            style: AppTypography.title.copyWith(fontSize: 20),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-                      ],
+                          if (book.author.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(book.author, style: AppTypography.meta, textAlign: TextAlign.center),
+                          ],
+                          if (book.subtitle.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: AppColors.paper,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                book.subtitle,
+                                style: AppTypography.secondary.copyWith(height: 1.55, fontSize: 14),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              onPressed: () => context.push(_readHref()),
+                              child: Text(
+                                ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId) != null
+                                    ? '继续阅读'
+                                    : '开始阅读',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            '${_stats.reviews} 篇书评 · ${_stats.notes} 条公开笔记',
+                            style: AppTypography.meta,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '书评 ${_stats.reviews} · 笔记 ${_stats.notes}',
-                      style: AppTypography.meta,
-                    ),
+                    const SizedBox(height: 20),
                   ],
                   const SizedBox(height: 12),
                   SingleChildScrollView(

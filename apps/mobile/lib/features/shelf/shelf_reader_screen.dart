@@ -200,58 +200,18 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     }
   }
 
-  Future<void> _openMoreSheet() async {
-    final book = _book;
-    if (book == null) return;
-    await showShelfReaderMoreSheet(
-      context,
-      bookId: widget.bookId,
-      bookTitle: book.title,
-      sectionTitle: _section?.title,
-      onWriteReview: () => unawaited(_writeReviewFromReader()),
-    );
-  }
-
-  Future<void> _writeReviewFromReader() async {
-    if (!await requireShelfLogin(context, ref)) return;
+  Future<void> _openCommentsSheet() async {
     final book = _book;
     final section = _section;
-    if (section == null) return;
-    await showShelfPostWriteSheet(
+    if (book == null || section == null || _sectionId == null) return;
+    await showShelfCommentsSheet(
       context,
       ref,
-      title: '写书评',
-      contextLabel: book?.title ?? '本书',
-      contextBody: section.title,
-      placeholder: '写下你对本书的感受…',
-      kind: ShelfPostKind.review,
-      showReadStatus: true,
-      onSave: (body, visibility, readStatus) async {
-        final refStr = shelfCheckinRef(widget.bookId, section.id, _pageIndex);
-        try {
-          await ref.read(shelfPostsRepoProvider).createPost(
-                widget.bookId,
-                kind: ShelfPostKind.review,
-                ref: refStr,
-                body: body,
-                visibility: visibility,
-                sectionId: section.id,
-                pageIndex: _pageIndex,
-                readStatus: readStatus,
-              );
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('已发布'), behavior: SnackBarBehavior.floating),
-            );
-          }
-        } catch (_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('发布失败'), behavior: SnackBarBehavior.floating),
-            );
-          }
-        }
-      },
+      bookId: widget.bookId,
+      bookTitle: book.title,
+      sectionId: _sectionId!,
+      sectionTitle: section.title,
+      pageIndex: _pageIndex,
     );
   }
 
@@ -813,9 +773,9 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                           ),
                           Expanded(
                             child: TextButton.icon(
-                              onPressed: () => unawaited(_openMoreSheet()),
-                              icon: const Icon(Icons.menu_book_outlined, size: 20),
-                              label: const Text('本书'),
+                              onPressed: () => unawaited(_openCommentsSheet()),
+                              icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                              label: const Text('评论'),
                             ),
                           ),
                           Expanded(

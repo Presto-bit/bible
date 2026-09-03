@@ -6,35 +6,15 @@ import {
 const SHELF_INTERACTIVE_SEL =
   'video,a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.shelf-reader-bottom-btn,.shelf-reader-bottom,.shelf-pdf-toolbar-btn,.shelf-pdf-inline-tools,.shelf-pdf-exit-fullscreen,.shelf-lesson-media-fab,.shelf-media-tile,.shelf-lesson-lightbox,.shelf-fullscreen-overlay,.shelf-focus-bar,.reader-focus-bar';
 
-const SHELF_VERTICAL_SCROLL_SEL = '.shelf-flow-viewport';
-
-function isShelfVerticalScrollElement(el: Element | null | undefined): boolean {
-  if (!el || !SHELF_VERTICAL_SCROLL_SEL) return false;
-  try {
-    return Boolean(el.closest(SHELF_VERTICAL_SCROLL_SEL));
-  } catch {
-    return false;
-  }
-}
-
 /**
- * 章级横滑与 PDF / Word 共用同一套轴判定；不再因落在可竖滚容器内而抬高横滑门槛。
- * 竖滚由 moveDrag 识别 axis=y 后放行，与 PDF 区域行为一致。
+ * 可竖滚区域（Word / 教案）仍允许发起横滑；轴方向在 useShelfTurn.moveDrag 判定，
+ * 与圣经 Tab useReaderPageTurn 一致，不在 pointerdown 阶段拦截。
  */
 export function shelfTurnStartsInVerticalScroll(
-  target: EventTarget | null,
-  clientX?: number,
+  _target: EventTarget | null,
+  _clientX?: number,
 ): boolean {
-  if (typeof clientX === 'number' && typeof window !== 'undefined') {
-    const edge = 88;
-    if (clientX < edge || clientX > window.innerWidth - edge) return false;
-  }
-  if (!SHELF_VERTICAL_SCROLL_SEL) return false;
-  if (!(target instanceof Element)) {
-    if (target instanceof Node) return isShelfVerticalScrollElement(target.parentElement);
-    return false;
-  }
-  return isShelfVerticalScrollElement(target);
+  return false;
 }
 
 function isShelfInteractiveElement(el: Element | null | undefined): boolean {

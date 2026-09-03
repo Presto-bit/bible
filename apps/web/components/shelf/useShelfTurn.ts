@@ -390,24 +390,12 @@ export function useShelfTurn({
           drag.current.axis = 'x';
           setTurning(true);
         } else if (ady >= AXIS_MIN_PX && ady >= adx * AXIS_RATIO) {
-          drag.current.active = false;
-          drag.current.pointerId = -1;
-          setTurning(false);
-          setDragSide(null);
-          setDragProgress(0);
-          applyOffset(0, false);
-          return;
+          drag.current.axis = 'y';
         } else if (adx >= AXIS_MIN_PX * 1.2 && adx > ady) {
           drag.current.axis = 'x';
           setTurning(true);
         } else {
-          drag.current.active = false;
-          drag.current.pointerId = -1;
-          setTurning(false);
-          setDragSide(null);
-          setDragProgress(0);
-          applyOffset(0, false);
-          return;
+          drag.current.axis = 'y';
         }
       }
 

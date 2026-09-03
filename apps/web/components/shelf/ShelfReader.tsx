@@ -24,15 +24,12 @@ import { shelfReadingStyleVars } from '@/lib/shelf_reading';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
 import {
-  createShelfPost,
   fetchSectionPublicNotes,
   type ShelfPost,
-  type ShelfPostVisibility,
 } from '@/lib/shelf_posts';
 import { shelfSectionIsPdf, shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
 import { touchShelfBookLastRead } from '@/lib/shelf_library';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
-import { shellTapProps } from '@/lib/shell_tap';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
 import '@/styles/plans.css';
 import '@/styles/shelf.css';
@@ -47,10 +44,6 @@ const ShelfCheckinSheet = dynamic(() => import('@/components/shelf/ShelfCheckinS
 });
 
 const ShelfReaderMoreSheet = dynamic(() => import('@/components/shelf/ShelfReaderMoreSheet'), {
-  ssr: false,
-});
-
-const ShelfPostWriteSheet = dynamic(() => import('@/components/shelf/ShelfPostWriteSheet'), {
   ssr: false,
 });
 
@@ -89,7 +82,6 @@ export default function ShelfReader({
   const [mediaVideo, setMediaVideo] = useState<ShelfAttachment | null>(null);
   const [pdfPinching, setPdfPinching] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [writeReviewOpen, setWriteReviewOpen] = useState(false);
   const [publicNotes, setPublicNotes] = useState<ShelfPost[]>([]);
   const { fontPx, lineHeight, setFontPx, setLineHeight, setFontFamily } = useShelfReadingPrefs();
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -268,7 +260,7 @@ export default function ShelfReader({
     setPageCount(1);
   }, [sectionId, contentKey]);
 
-  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching || moreOpen || writeReviewOpen;
+  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching || moreOpen;
 
   useEffect(() => {
     if (!sectionId) {
@@ -460,30 +452,6 @@ export default function ShelfReader({
 
   const showBottomBar = !chromeHidden && !tocOpen && !fontOpen && !shareOpen && !moreOpen;
 
-  const submitReviewFromReader = async (
-    body: string,
-    visibility: ShelfPostVisibility,
-    readStatus?: 'reading' | 'finished',
-  ) => {
-    if (!sectionId) return;
-    const ref = buildShelfCheckinRef(bookId, sectionId, pageIndex);
-    rememberShelfRefLabel(ref, formatShelfCheckinLabel(book?.title || '', section?.title || ''));
-    try {
-      await createShelfPost(bookId, {
-        kind: 'review',
-        ref,
-        body,
-        visibility,
-        read_status: readStatus,
-        section_id: sectionId,
-        page_index: pageIndex,
-      });
-      flashToast('已发布');
-    } catch {
-      flashToast('发布失败');
-    }
-  };
-
   const onContentTap = useCallback(() => {
     setChromeHidden((v) => !v);
   }, []);
@@ -660,17 +628,6 @@ export default function ShelfReader({
         </div>
       )}
 
-      {chromeHidden ? (
-        <button
-          type="button"
-          className="shelf-reader-immersive-exit"
-          {...shellTapProps({ onTap: () => setChromeHidden(false), blurOnClick: true })}
-          aria-label="退出全屏"
-        >
-          退出
-        </button>
-      ) : null}
-
       {showBottomBar ? (
         <nav className="shelf-reader-bottom" aria-label="阅读工具">
           <button type="button" className="shelf-reader-bottom-btn" aria-label="目录" onClick={() => setTocOpen(true)}>
@@ -684,11 +641,16 @@ export default function ShelfReader({
           <button
             type="button"
             className="shelf-reader-bottom-btn"
-            aria-label="本书"
+            aria-label="评论"
+            disabled={!sectionId}
             onClick={() => setMoreOpen(true)}
           >
-            <span className="shelf-reader-bottom-icon" aria-hidden>📖</span>
-            <span>本书</span>
+            <span className="shelf-reader-bottom-icon" aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H7l-4 3V11.5A8.5 8.5 0 0 1 11.5 3h1A8.5 8.5 0 0 1 21 11.5z" />
+              </svg>
+            </span>
+            <span>评论</span>
           </button>
           <button
             type="button"
@@ -802,30 +764,14 @@ export default function ShelfReader({
         />
       ) : null}
 
-      {moreOpen ? (
+      {moreOpen && sectionId ? (
         <ShelfReaderMoreSheet
           bookId={bookId}
           bookTitle={book?.title || ''}
           sectionTitle={section?.title}
           sectionId={sectionId}
+          pageIndex={pageIndex}
           onClose={() => setMoreOpen(false)}
-          onWriteReview={() => setWriteReviewOpen(true)}
-        />
-      ) : null}
-
-      {writeReviewOpen ? (
-        <ShelfPostWriteSheet
-          title="写书评"
-          contextLabel={book?.title || '本书'}
-          contextBody={section?.title}
-          placeholder="写下你对本书的感受…"
-          kind="review"
-          showReadStatus
-          onSave={(body, visibility, readStatus) => {
-            void submitReviewFromReader(body, visibility, readStatus);
-            setWriteReviewOpen(false);
-          }}
-          onClose={() => setWriteReviewOpen(false)}
         />
       ) : null}
     </main>

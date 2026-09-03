@@ -86,14 +86,14 @@ class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
         _horizontal = true;
         _axisLocked = true;
       } else if (ady >= _axisMinPx && ady >= adx * _axisRatio) {
-        _reset();
-        return;
+        _axisLocked = true;
+        _horizontal = false;
       } else if (adx >= _axisMinPx * 1.2 && adx > ady) {
         _horizontal = true;
         _axisLocked = true;
       } else {
-        _reset();
-        return;
+        _axisLocked = true;
+        _horizontal = false;
       }
     }
 
