@@ -229,9 +229,7 @@ export function filterAndSortShelfBooks(
       }
       return meta?.groupId === tab.groupId;
     }
-    if (tab.kind === 'last_read') {
-      return (meta?.lastReadAt ?? 0) > 0;
-    }
+    // 「最近阅读」：全部展示，仅按阅读时间排序（未读沉底）
     if (tab.kind === 'progress') {
       return shelfBookReadStatus(b.id) === tab.status;
     }
@@ -243,6 +241,10 @@ export function filterAndSortShelfBooks(
       const ma = store.books[a.id]?.lastReadAt ?? 0;
       const mb = store.books[b.id]?.lastReadAt ?? 0;
       if (mb !== ma) return mb - ma;
+      // 同未读 / 同时间：平台上架序优先，再按加入时间
+      const sa = a.sort_order ?? 0;
+      const sb = b.sort_order ?? 0;
+      if (sb !== sa) return sb - sa;
       return (store.books[b.id]?.addedAt ?? 0) - (store.books[a.id]?.addedAt ?? 0);
     });
   } else if (tab.kind === 'progress') {

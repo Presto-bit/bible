@@ -325,11 +325,9 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                       child: Text(
                         _searchCtrl.text.trim().isNotEmpty
                             ? '没有匹配的书'
-                            : _tab.kind == ShelfLibraryTabKind.lastRead
-                                ? '还没有最近阅读的书'
-                                : _tab.kind == ShelfLibraryTabKind.progress
-                                    ? '暂无符合条件的书'
-                                    : '书架空空的，可导入或选一本平台书目',
+                            : _tab.kind == ShelfLibraryTabKind.progress
+                                ? '暂无符合条件的书'
+                                : '书架空空的，可导入或等平台上架',
                         style: AppTypography.meta,
                       ),
                     ),

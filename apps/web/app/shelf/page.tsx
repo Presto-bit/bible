@@ -142,11 +142,9 @@ function ShelfListInner() {
         <p className="muted shelf-library-status">
           {searchQuery
             ? '没有匹配的书'
-            : activeTab.kind === 'last_read'
-              ? '还没有最近阅读的书'
-              : activeTab.kind === 'progress'
-                ? '暂无符合条件的书'
-                : '书架空空的，可导入或选一本平台书目'}
+            : activeTab.kind === 'progress'
+              ? '暂无符合条件的书'
+              : '书架空空的，可导入或等平台上架'}
         </p>
       ) : null}
 

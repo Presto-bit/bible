@@ -308,9 +308,7 @@ class ShelfLibraryStore {
         if (tab.groupId == shelfUngroupedId) return m?.groupId == null;
         return m?.groupId == tab.groupId;
       }
-      if (tab.kind == ShelfLibraryTabKind.lastRead) {
-        return (m?.lastReadAt ?? 0) > 0;
-      }
+      // 「最近阅读」：全部展示，仅按阅读时间排序（未读沉底）
       if (tab.kind == ShelfLibraryTabKind.progress) {
         return bookReadStatus(b.id) == tab.progressStatus;
       }
@@ -322,6 +320,9 @@ class ShelfLibraryStore {
         final ma = meta[a.id]?.lastReadAt ?? 0;
         final mb = meta[b.id]?.lastReadAt ?? 0;
         if (mb != ma) return mb.compareTo(ma);
+        final sa = a.sortOrder;
+        final sb = b.sortOrder;
+        if (sb != sa) return sb.compareTo(sa);
         return (meta[b.id]?.addedAt ?? 0).compareTo(meta[a.id]?.addedAt ?? 0);
       });
     } else if (tab.kind == ShelfLibraryTabKind.progress) {
