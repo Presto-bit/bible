@@ -16,6 +16,8 @@ import '../bible/reader_marking_models.dart';
 import '../bible/reader_preferences.dart';
 import 'shelf_highlight_html.dart';
 import 'shelf_mark_ref.dart';
+import 'shelf_post_sheets.dart';
+import 'shelf_posts_repository.dart';
 import 'shelf_prose_html.dart';
 import 'shelf_reading_prefs.dart';
 import 'shelf_scroll_anchor.dart';
@@ -64,6 +66,18 @@ class ShelfPaginatedProse extends ConsumerStatefulWidget {
   ConsumerState<ShelfPaginatedProse> createState() => _ShelfPaginatedProseState();
 }
 
+class _ScrollInit {
+  const _ScrollInit({
+    required this.offset,
+    required this.anchor,
+    required this.toEnd,
+  });
+
+  final double offset;
+  final ShelfScrollAnchor? anchor;
+  final bool toEnd;
+}
+
 class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   SelectedContent? _selection;
   final _selectionN = ValueNotifier<SelectedContent?>(null);
@@ -76,20 +90,36 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   String? _layoutHtml;
   String? _layoutSrc;
   String? _lightboxUrl;
+  String? _scrollApplyKey;
+  late _ScrollInit _pendingScroll;
 
   @override
   void initState() {
     super.initState();
+    _pendingScroll = _ScrollInit(
+      offset: widget.scrollOffset,
+      anchor: widget.scrollAnchor,
+      toEnd: widget.scrollToEnd,
+    );
+    _scrollApplyKey = _contentScrollKey();
     _scroll.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialScroll());
   }
 
+  String _contentScrollKey() =>
+      '${widget.sectionId}:${widget.html.length}:${widget.fontPx}:${widget.lineHeight}:${widget.scrollToEnd}';
+
   @override
   void didUpdateWidget(covariant ShelfPaginatedProse oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.html != widget.html ||
-        oldWidget.scrollToEnd != widget.scrollToEnd ||
-        oldWidget.scrollAnchor != widget.scrollAnchor) {
+    final key = _contentScrollKey();
+    if (key != _scrollApplyKey) {
+      _scrollApplyKey = key;
+      _pendingScroll = _ScrollInit(
+        offset: widget.scrollOffset,
+        anchor: widget.scrollAnchor,
+        toEnd: widget.scrollToEnd,
+      );
       WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialScroll());
     }
   }
@@ -103,12 +133,12 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   }
 
   double _targetScrollRatio() {
-    if (widget.scrollToEnd) return 1.0;
-    final anchor = widget.scrollAnchor;
+    if (_pendingScroll.toEnd) return 1.0;
+    final anchor = _pendingScroll.anchor;
     if (anchor != null) {
       return shelfRatioForParagraphIndex(widget.html, anchor.paragraphIndex);
     }
-    return widget.scrollOffset.clamp(0.0, 1.0);
+    return _pendingScroll.offset.clamp(0.0, 1.0);
   }
 
   void _applyInitialScroll() {
@@ -116,7 +146,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
     _syncingScroll = true;
     final max = _scroll.position.maxScrollExtent;
     final ratio = _targetScrollRatio();
-    if (widget.scrollToEnd) {
+    if (_pendingScroll.toEnd) {
       _scroll.jumpTo(max);
     } else if (ratio > 0 && max > 0) {
       _scroll.jumpTo(ratio * max);
@@ -314,8 +344,12 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         textAlign: TextAlign.left,
         textIndent: TextIndent.zero,
       )),
-      '.shelf-docx-p': bodyParagraph(),
-      '.shelf-docx-indent': bodyParagraph(),
+      '.shelf-docx-p': withFamily(
+        bodyParagraph().copyWith(
+          textIndent: widget.lessonTone ? TextIndent.zero : TextIndent(32),
+        ),
+      ),
+      '.shelf-docx-indent': withFamily(bodyParagraph()),
       'mark': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
       '.shelf-hl': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
       '.shelf-dialogue': withFamily(Style(
@@ -324,6 +358,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         fontWeight: FontWeight.w400,
         margin: Margins.only(bottom: 10),
         textAlign: TextAlign.justify,
+        textIndent: TextIndent.zero,
       )),
       '.shelf-dialogue-speaker': withFamily(Style(fontWeight: FontWeight.w600)),
       '.shelf-dialogue-text': withFamily(Style(fontWeight: FontWeight.w400)),
@@ -346,7 +381,11 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   }
 
   String get _renderHtml {
-    var base = rewriteShelfHtmlAssetUrls(widget.html, AppConfig.baseUrl);
+    var base = rewriteShelfHtmlAssetUrls(
+      widget.html,
+      AppConfig.baseUrl,
+      bookId: widget.bookId,
+    );
     if (widget.variantDocx) {
       if (_layoutSrc != base) {
         _layoutSrc = base;
@@ -404,6 +443,50 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
     widget.onSelectionActiveChanged?.call(true);
   }
 
+  String _absAssetUrl(String src) {
+    final trimmed = src.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final base = AppConfig.baseUrl.replaceAll(RegExp(r'/$'), '');
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    if (trimmed.startsWith('/')) return '$base$trimmed';
+    final key = trimmed.split('/').last;
+    final bid = Uri.encodeComponent(widget.bookId);
+    final file = Uri.encodeComponent(key);
+    return '$base/shelf/platform/$bid/files/$file';
+  }
+
+  Future<void> _openNoteSheet() async {
+    final text = _selectedText;
+    if (text == null) return;
+    final refStr = _selectionRef();
+    if (refStr == null) return;
+    final spanStart = findPlainTextSpan(widget.html, text);
+    final spanEnd = spanStart == null ? null : spanStart + text.length;
+    _clearSelection();
+    await showShelfPostWriteSheet(
+      context,
+      ref,
+      title: '写笔记',
+      contextLabel: '书架笔记',
+      contextBody: text,
+      placeholder: '写下这段文字给你的启发…',
+      kind: ShelfPostKind.note,
+      onSave: (body, visibility, readStatus) async {
+        await ref.read(shelfPostsRepoProvider).createPost(
+              widget.bookId,
+              kind: ShelfPostKind.note,
+              ref: refStr,
+              body: body,
+              visibility: visibility,
+              sectionId: widget.sectionId,
+              pageIndex: 0,
+              spanStart: spanStart,
+              spanEnd: spanEnd,
+            );
+      },
+    );
+  }
+
   Future<void> _copySelection() async {
     final text = _selectedText;
     if (text == null) return;
@@ -418,32 +501,8 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
     _clearSelection();
   }
 
-  Future<void> _pickHighlight(String color) async {
-    final refStr = _selectionRef();
-    if (refStr == null) return;
-    await ref.read(markingsRepoProvider).toggleHighlight(refStr, color: color);
-    _clearSelection();
-  }
-
-  Future<void> _clearHighlight() async {
-    final refStr = _selectionRef();
-    if (refStr == null) return;
-    final mark = ref.read(highlightMapProvider).maybeWhen(
-          data: (m) => m[refStr],
-          orElse: () => null,
-        );
-    if (mark != null) {
-      await ref.read(markingsRepoProvider).toggleHighlight(refStr, color: mark.color);
-    }
-    _clearSelection();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final marks = ref.watch(highlightMapProvider).maybeWhen(
-          data: (m) => m,
-          orElse: () => const <String, HighlightMark>{},
-        );
     return Stack(
       clipBehavior: Clip.hardEdge,
       children: [
@@ -486,13 +545,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
                         onImageTap: (url, attributes, element) {
                           final src = (url ?? '').trim();
                           if (src.isEmpty) return;
-                          final base = AppConfig.baseUrl.replaceAll(RegExp(r'/$'), '');
-                          final abs = src.startsWith('http://') || src.startsWith('https://')
-                              ? src
-                              : src.startsWith('/')
-                                  ? '$base$src'
-                                  : src;
-                          setState(() => _lightboxUrl = abs);
+                          setState(() => _lightboxUrl = _absAssetUrl(src));
                         },
                       ),
                     ),
@@ -507,8 +560,6 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
           builder: (context, sel, _) {
             final text = sel?.plainText.trim() ?? '';
             if (text.isEmpty) return const SizedBox.shrink();
-            final currentRef = _selectionRef();
-            final currentMark = currentRef == null ? null : marks[currentRef];
             return Positioned(
               left: 12,
               right: 12,
@@ -519,16 +570,16 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
                 child: ReaderFocusBar(
                   readingMode: ReadingMode.study,
                   verseActionsEnabled: false,
-                  currentMark: currentMark,
-                  underlinesEnabled: true,
+                  currentMark: null,
+                  underlinesEnabled: false,
                   thoughtsEnabled: true,
                   onLightAi: () {},
                   onCopy: () => unawaited(_copySelection()),
-                  onThought: _clearSelection,
+                  onThought: () => unawaited(_openNoteSheet()),
                   onVerseCard: () {},
                   onCompare: () {},
-                  onPickColor: (c) => unawaited(_pickHighlight(c)),
-                  onClearMark: () => unawaited(_clearHighlight()),
+                  onPickColor: (_) {},
+                  onClearMark: () {},
                   onClose: _clearSelection,
                 ),
               ),

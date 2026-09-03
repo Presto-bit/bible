@@ -350,7 +350,6 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _sectionLoading = true;
       }
       _pageCount = _pageCountBySection[id] ?? 1;
-      _chromeHidden = false;
       _pendingScrollEnd = scrollEnd;
       if (lastPage) {
         _pendingLastPage = true;
@@ -588,6 +587,9 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   Widget _buildPrimary(ShelfSection section, ShelfReadingPrefs prefs, ShelfRepository repo) {
+    final variantDocx = section.kind == 'lesson' ||
+        section.html.contains('shelf-docx-root') ||
+        section.html.contains('shelf-epub-root');
     if (shelfSectionUsesFlow(section) && section.html.trim().isNotEmpty) {
       return ShelfPaginatedProse(
         key: ValueKey(
@@ -599,7 +601,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         fontPx: prefs.fontPx,
         lineHeight: prefs.lineHeight,
         fontFamily: prefs.fontFamily,
-        variantDocx: section.kind == 'lesson',
+        variantDocx: variantDocx,
         lessonTone: _isChildrenLesson && section.kind == 'lesson',
         scrollOffset: _scrollBySection[section.id] ?? _flowScrollRatio,
         scrollAnchor: _scrollAnchorBySection[section.id] ?? _flowScrollAnchor,
@@ -610,11 +612,6 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         onSectionEdge: _onProseSectionEdge,
         onSelectionActiveChanged: (active) {
           _proseSelecting = active;
-        },
-        publicNotes: _publicNotes,
-        onPublicNotesChanged: () {
-          final sid = _sectionId;
-          if (sid != null) unawaited(_loadPublicNotes(sid));
         },
       );
     }

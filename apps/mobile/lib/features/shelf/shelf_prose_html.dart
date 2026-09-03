@@ -6,23 +6,82 @@ final _dialogueParaRe = RegExp(
   dotAll: true,
 );
 
-String prepareShelfProseHtml(String html) {
-  if (html.trim().isEmpty) return html;
+final _speakerLineRe = RegExp(r'^(信徒|牧者)[：:]\s*(.*)$', dotAll: true);
 
-  var out = html.replaceAllMapped(_dialogueParaRe, (m) {
+final _anyParaRe = RegExp(r'<p([^>]*)>(.*?)</p>', dotAll: true);
+
+String _tagDialogueParagraphs(String html) {
+  return html.replaceAllMapped(_anyParaRe, (m) {
+    final attrs = m.group(1)!;
+    if (attrs.contains('shelf-dialogue') ||
+        attrs.contains('shelf-dialogue-q') ||
+        attrs.contains('shelf-dialogue-q-head')) {
+      return m.group(0)!;
+    }
+    final plain = m
+        .group(2)!
+        .replaceAll(RegExp(r'<[^>]+>'), '')
+        .replaceAll('\u00a0', ' ')
+        .trim();
+    if (!_speakerLineRe.hasMatch(plain)) return m.group(0)!;
+    return '<p class="shelf-dialogue">${m.group(2)!}</p>';
+  });
+}
+
+String _enhanceDialogueParagraphs(String html) {
+  return html.replaceAllMapped(_dialogueParaRe, (m) {
     final speaker = m.group(1)!;
     final body = m.group(2)!;
     return '<p class="shelf-dialogue">'
         '<span class="shelf-dialogue-speaker">$speaker</span>：'
         '<span class="shelf-dialogue-text">$body</span></p>';
   });
+}
 
-  final parts = out.split('</p>');
+String _enhanceDialogueQuestions(String html) {
+  final parts = html.split('</p>');
   final rebuilt = <String>[];
   var inQuestions = false;
   for (final chunk in parts) {
     if (chunk.isEmpty) continue;
-    final piece = '$chunk</p>';
+    var piece = '$chunk</p>';
+    final plain = piece.replaceAll(RegExp(r'<[^>]+>'), '').replaceAll(RegExp(r'\s+'), '');
+    if (plain == '继续对话的问题') {
+      rebuilt.add('<p class="shelf-dialogue-q-head">继续对话的问题</p>');
+      inQuestions = true;
+      continue;
+    }
+    if (inQuestions) {
+      if (piece.contains('shelf-h1') || piece.contains('shelf-docx-h1')) {
+        inQuestions = false;
+        rebuilt.add(piece);
+        continue;
+      }
+      if (piece.contains('shelf-dialogue-q-head')) {
+        inQuestions = false;
+        rebuilt.add(piece);
+        continue;
+      }
+      final line = piece.replaceAll(RegExp(r'<[^>]+>'), '').replaceAll('\u00a0', ' ').trim();
+      if (line.isEmpty) {
+        rebuilt.add(piece);
+        continue;
+      }
+      if (_speakerLineRe.hasMatch(line)) {
+        inQuestions = false;
+        rebuilt.add(piece);
+        continue;
+      }
+      if (piece.contains('class="')) {
+        piece = piece.replaceFirst(RegExp(r'class="[^"]*"'), 'class="shelf-dialogue-q"');
+      } else if (piece.contains("class='")) {
+        piece = piece.replaceFirst(RegExp(r"class='[^']*'"), "class='shelf-dialogue-q'");
+      } else {
+        piece = piece.replaceFirst('<p>', '<p class="shelf-dialogue-q">');
+      }
+      rebuilt.add(piece);
+      continue;
+    }
     if (piece.contains('class="shelf-body">继续对话的问题</p>') ||
         piece.contains("class='shelf-body'>继续对话的问题</p>")) {
       rebuilt.add(piece.replaceFirst('class="shelf-body"', 'class="shelf-dialogue-q-head"'));
@@ -33,12 +92,17 @@ String prepareShelfProseHtml(String html) {
       rebuilt.add(piece.replaceFirst('class="shelf-body"', 'class="shelf-dialogue-q"'));
       continue;
     }
-    if (inQuestions && !piece.contains('class="shelf-body"')) {
-      inQuestions = false;
-    }
     rebuilt.add(piece);
   }
   return rebuilt.join();
+}
+
+String prepareShelfProseHtml(String html) {
+  if (html.trim().isEmpty) return html;
+  var out = _tagDialogueParagraphs(html);
+  out = _enhanceDialogueParagraphs(out);
+  out = _enhanceDialogueQuestions(out);
+  return out;
 }
 
 final _layoutStyleKeys = {
@@ -143,12 +207,33 @@ String prepareShelfDocxLayoutHtml(String html) {
   return out;
 }
 
-/// API 抽出的 Word 内嵌图 src 为 `/shelf/platform/...`，补成绝对地址。
-String rewriteShelfHtmlAssetUrls(String html, String baseUrl) {
+/// API 抽出的 Word 内嵌图 src 为 `/shelf/platform/...` 或裸文件名，补成绝对地址。
+String rewriteShelfHtmlAssetUrls(
+  String html,
+  String baseUrl, {
+  String? bookId,
+}) {
   if (html.isEmpty) return html;
   final base = baseUrl.replaceAll(RegExp(r'/$'), '');
-  return html.replaceAllMapped(
+  var out = html.replaceAllMapped(
     RegExp(r'''((?:src|href)=)(["'])(/shelf/platform/[^"']+)\2''', caseSensitive: false),
     (m) => '${m[1]}${m[2]}$base${m[3]}${m[2]}',
   );
+  if (bookId != null && bookId.isNotEmpty) {
+    out = out.replaceAllMapped(
+      RegExp(
+        r'''((?:src|href)=)(["'])(?!https?://|data:)([^"']+\.(?:png|jpe?g|webp|gif|bmp))\2''',
+        caseSensitive: false,
+      ),
+      (m) {
+        final raw = m.group(3)!;
+        if (raw.startsWith('/')) return '${m[1]}${m[2]}$base$raw${m[2]}';
+        final key = raw.split('/').last;
+        final bid = Uri.encodeComponent(bookId);
+        final file = Uri.encodeComponent(key);
+        return '${m[1]}${m[2]}$base/shelf/platform/$bid/files/$file${m[2]}';
+      },
+    );
+  }
+  return out;
 }
