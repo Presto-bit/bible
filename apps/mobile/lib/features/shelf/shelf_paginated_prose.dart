@@ -22,7 +22,13 @@ class ShelfPaginatedProse extends ConsumerStatefulWidget {
     required this.lineHeight,
     this.fontFamily = ShelfFontFamily.serif,
     this.variantDocx = false,
+    this.lessonTone = false,
+    this.scrollOffset = 0,
+    this.scrollToEnd = false,
     this.onTap,
+    this.onScrollProgress,
+    this.onSectionEdge,
+    this.onSelectionActiveChanged,
   });
 
   final String bookId;
@@ -32,7 +38,13 @@ class ShelfPaginatedProse extends ConsumerStatefulWidget {
   final double lineHeight;
   final ShelfFontFamily fontFamily;
   final bool variantDocx;
+  final bool lessonTone;
+  final double scrollOffset;
+  final bool scrollToEnd;
   final VoidCallback? onTap;
+  final ValueChanged<double>? onScrollProgress;
+  final ValueChanged<String>? onSectionEdge;
+  final ValueChanged<bool>? onSelectionActiveChanged;
 
   @override
   ConsumerState<ShelfPaginatedProse> createState() => _ShelfPaginatedProseState();
@@ -41,10 +53,77 @@ class ShelfPaginatedProse extends ConsumerStatefulWidget {
 class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   SelectedContent? _selection;
   var _markPaletteOpen = false;
+  final _scroll = ScrollController();
+  var _edgeLock = false;
+  var _syncingScroll = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialScroll());
+  }
+
+  @override
+  void didUpdateWidget(covariant ShelfPaginatedProse oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.html != widget.html ||
+        oldWidget.scrollOffset != widget.scrollOffset ||
+        oldWidget.scrollToEnd != widget.scrollToEnd) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialScroll());
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _applyInitialScroll() {
+    if (!_scroll.hasClients) return;
+    _syncingScroll = true;
+    final max = _scroll.position.maxScrollExtent;
+    if (widget.scrollToEnd) {
+      _scroll.jumpTo(max);
+    } else if (widget.scrollOffset > 0 && max > 0) {
+      _scroll.jumpTo(widget.scrollOffset.clamp(0, 1) * max);
+    } else {
+      _scroll.jumpTo(0);
+    }
+    Future<void>.delayed(const Duration(milliseconds: 80), () {
+      if (mounted) _syncingScroll = false;
+    });
+  }
+
+  void _onScroll() {
+    if (_syncingScroll || !_scroll.hasClients) return;
+    final max = _scroll.position.maxScrollExtent;
+    final ratio = max > 0 ? (_scroll.offset / max).clamp(0.0, 1.0) : 0.0;
+    widget.onScrollProgress?.call(ratio);
+
+    if (_edgeLock || widget.onSectionEdge == null) return;
+    final m = _scroll.position;
+    if (m.pixels >= m.maxScrollExtent - 20) {
+      _fireEdge('next');
+    } else if (m.pixels <= m.minScrollExtent + 4 && m.userScrollDirection == ScrollDirection.reverse) {
+      _fireEdge('prev');
+    }
+  }
+
+  void _fireEdge(String edge) {
+    _edgeLock = true;
+    widget.onSectionEdge?.call(edge);
+    Future<void>.delayed(const Duration(milliseconds: 900), () {
+      if (mounted) _edgeLock = false;
+    });
+  }
 
   Map<String, Style> get _styles {
-    final bodySize = widget.variantDocx ? widget.fontPx * 0.94 : widget.fontPx;
-    final lh = widget.lineHeight;
+    final scale = widget.lessonTone ? 1.04 : 1.0;
+    final bodySize = (widget.variantDocx ? widget.fontPx * 0.94 : widget.fontPx) * scale;
+    final lh = widget.lineHeight * (widget.lessonTone ? 1.04 : 1.0);
     final family = widget.fontFamily == ShelfFontFamily.sans
         ? 'PingFang SC, sans-serif'
         : 'Georgia, Songti SC, serif';
@@ -120,8 +199,11 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
       '.shelf-docx-p': withFamily(Style(
         fontSize: FontSize(bodySize),
         lineHeight: LineHeight(lh),
-        margin: Margins.only(bottom: 12),
+        margin: Margins.only(bottom: widget.lessonTone ? 14 : 12),
         textAlign: TextAlign.justify,
+        padding: widget.lessonTone
+            ? HtmlPaddings.only(left: bodySize * 2)
+            : HtmlPaddings.zero,
       )),
       '.shelf-dialogue': withFamily(Style(
         fontSize: FontSize(bodySize),
@@ -168,10 +250,21 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
     );
   }
 
-  void _clearSelection() => setState(() {
-        _selection = null;
-        _markPaletteOpen = false;
-      });
+  void _clearSelection() {
+    setState(() {
+      _selection = null;
+      _markPaletteOpen = false;
+    });
+    widget.onSelectionActiveChanged?.call(false);
+  }
+
+  void _setSelection(SelectedContent value) {
+    setState(() {
+      _selection = value;
+      _markPaletteOpen = false;
+    });
+    widget.onSelectionActiveChanged?.call(true);
+  }
 
   Future<void> _copySelection() async {
     final text = _selectedText;
@@ -206,10 +299,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         SelectionArea(
           onSelectionChanged: (value) {
             if (value != null && value.plainText.trim().isNotEmpty) {
-              setState(() {
-                _selection = value;
-                _markPaletteOpen = false;
-              });
+              _setSelection(value);
             } else {
               _clearSelection();
             }
@@ -218,6 +308,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
             onTap: hasSelection ? null : widget.onTap,
             behavior: HitTestBehavior.translucent,
             child: SingleChildScrollView(
+              controller: _scroll,
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
               child: Html(data: prepareShelfProseHtml(widget.html), style: _styles),
             ),

@@ -72,8 +72,10 @@ export default function ShelfReader({
   const [mediaOpen, setMediaOpen] = useState(false);
   const [mediaVideo, setMediaVideo] = useState<ShelfAttachment | null>(null);
   const [pdfPinching, setPdfPinching] = useState(false);
+  const [textSelecting, setTextSelecting] = useState(false);
   const { fontPx, lineHeight, setFontPx, setLineHeight, setFontFamily } = useShelfReadingPrefs();
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flowProgressTimerRef = useRef<number | null>(null);
   const pageBySectionRef = useRef<Record<string, number>>({});
   const scrollBySectionRef = useRef<Record<string, number>>({});
   const pageCountBySectionRef = useRef<Record<string, number>>({});
@@ -242,7 +244,7 @@ export default function ShelfReader({
     setPageCount(1);
   }, [sectionId, contentKey]);
 
-  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching;
+  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching || textSelecting;
 
   const setPageCountForSection = useCallback(
     (count: number) => {
@@ -371,6 +373,11 @@ export default function ShelfReader({
     },
   });
 
+  const onTextSelectionChange = useCallback((active: boolean) => {
+    setTextSelecting(active);
+    if (active) pageTurn.cancelDrag();
+  }, [pageTurn]);
+
   const tocGroups = useMemo(
     () => buildShelfTocGroups(book?.toc, book?.book_type),
     [book?.toc, book?.book_type],
@@ -383,8 +390,13 @@ export default function ShelfReader({
   }, []);
 
   const onFlowScrollProgress = useCallback((ratio: number) => {
-    setFlowScrollRatio(ratio);
-  }, []);
+    if (sectionId) scrollBySectionRef.current[sectionId] = ratio;
+    if (flowProgressTimerRef.current != null) return;
+    flowProgressTimerRef.current = window.setTimeout(() => {
+      flowProgressTimerRef.current = null;
+      setFlowScrollRatio(ratio);
+    }, 120);
+  }, [sectionId]);
 
   const renderSectionContent = (
     sec: ShelfSection | null,
@@ -410,6 +422,7 @@ export default function ShelfReader({
           onTap={interactive ? onContentTap : undefined}
           chromeHidden={interactive && chromeHidden}
           onPdfPinchActive={interactive ? setPdfPinching : undefined}
+          onTextSelectionChange={interactive ? onTextSelectionChange : undefined}
           onOpenMedia={interactive && hasLessonMedia ? () => setMediaOpen(true) : undefined}
           onOpenVideo={
             interactive && hasLessonMedia
@@ -435,6 +448,7 @@ export default function ShelfReader({
           onScrollProgress={interactive ? onFlowScrollProgress : undefined}
           onTap={interactive ? onContentTap : undefined}
           chromeHidden={interactive && chromeHidden}
+          onTextSelectionChange={interactive ? onTextSelectionChange : undefined}
         />
       );
     }
@@ -503,15 +517,11 @@ export default function ShelfReader({
             </p>
           ) : null}
           <div className="shelf-turn-track" ref={pageTurn.trackRef}>
-            <div className="shelf-turn-panel shelf-turn-panel-peek">
-              {!isPdfSection ? renderSectionContent(prevSection, false, { scrollToEnd: true }) : null}
-            </div>
+            <div className="shelf-turn-panel shelf-turn-panel-peek" aria-hidden />
             <div className="shelf-turn-panel shelf-turn-panel-active">
               {renderSectionContent(section, true, { scrollToEnd: pendingScrollEnd })}
             </div>
-            <div className="shelf-turn-panel shelf-turn-panel-peek">
-              {!isPdfSection ? renderSectionContent(nextSection, false) : null}
-            </div>
+            <div className="shelf-turn-panel shelf-turn-panel-peek" aria-hidden />
           </div>
         </div>
       ) : (

@@ -15,19 +15,19 @@ import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
  * - 提交阈值：大位移 OR 够快；上一页（右滑）略松
  * - 专有名词/按钮：composedPath + 邻点让路，避免「点词典没反应」
  */
-const THRESHOLD_NEXT = 0.035;
-const THRESHOLD_PREV = 0.028;
-const VELOCITY_MIN = 0.04;
-const VELOCITY_MIN_PREV = 0.032;
+const THRESHOLD_NEXT = 0.028;
+const THRESHOLD_PREV = 0.022;
+const VELOCITY_MIN = 0.032;
+const VELOCITY_MIN_PREV = 0.026;
 /** 大滑动：忽略速度强制翻页 */
-const FORCE_RATIO_NEXT = 0.08;
-const FORCE_RATIO_PREV = 0.06;
+const FORCE_RATIO_NEXT = 0.065;
+const FORCE_RATIO_PREV = 0.05;
 const AXIS_RATIO = 1.0;
 const AXIS_MIN_PX = 3;
 /** 左右边缘切章带宽度（与 .shelf-turn-edge 一致） */
 const EDGE_SWIPE_PX = 88;
 const EDGE_RESIST = 0.22;
-const ANIM_MS = 280;
+const ANIM_MS = 180;
 const PREFETCH_RATIO = 0.04;
 const BOUNDARY_RATIO = 0.1;
 /** is-turning + touch-action:none 硬超时，防粘死 */
@@ -103,6 +103,8 @@ export function useShelfTurn({
     inVerticalScroll: false,
     fromEdge: false,
     inProse: false,
+    lastDx: 0,
+    lastDy: 0,
   });
   const applyOffset = useCallback((px: number, withAnim: boolean) => {
     offsetRef.current = px;
@@ -212,9 +214,14 @@ export function useShelfTurn({
       return;
     }
     const wasHorizontal = drag.current.axis === 'x';
-    const finalOffset = offsetRef.current;
+    let finalOffset = offsetRef.current;
     const elapsed = Math.max(1, performance.now() - drag.current.startTime);
-    const velocity = Math.abs(finalOffset) / elapsed;
+    const adx = Math.abs(drag.current.lastDx);
+    const ady = Math.abs(drag.current.lastDy);
+
+    if (!wasHorizontal && adx >= 8 && adx > ady * 1.04) {
+      finalOffset = drag.current.lastDx;
+    }
 
     drag.current.active = false;
     drag.current.pointerId = -1;
@@ -226,7 +233,10 @@ export function useShelfTurn({
       setDragProgress(0);
     };
 
-    if (!wasHorizontal) {
+    const velocity = Math.abs(finalOffset) / elapsed;
+    const horizontalIntent = wasHorizontal || (adx >= 8 && adx > ady * 1.04);
+
+    if (!horizontalIntent) {
       clearDragHint();
       applyOffset(0, false);
       return;
@@ -253,6 +263,12 @@ export function useShelfTurn({
         return;
       }
       if (kind === 'section') {
+        clearDragHint();
+        applyOffset(0, false);
+        if (snapOnly) {
+          await Promise.resolve(onSectionChange(1, { fromSwipe: true }));
+          return;
+        }
         setAnimating(true);
         applyOffset(-w, true);
         await sleep(ANIM_MS);
@@ -275,6 +291,12 @@ export function useShelfTurn({
         return;
       }
       if (kind === 'section') {
+        clearDragHint();
+        applyOffset(0, false);
+        if (snapOnly) {
+          await Promise.resolve(onSectionChange(-1, { fromSwipe: true }));
+          return;
+        }
         setAnimating(true);
         applyOffset(w, true);
         await sleep(ANIM_MS);
@@ -332,6 +354,8 @@ export function useShelfTurn({
         inVerticalScroll: shelfTurnStartsInVerticalScroll(target ?? null, clientX),
         fromEdge,
         inProse: isProseTurnTarget(target),
+        lastDx: 0,
+        lastDy: 0,
       };
       return true;
     },
@@ -344,6 +368,8 @@ export function useShelfTurn({
       if (isIgnored()) return;
       const dx = clientX - drag.current.startX;
       const dy = clientY - drag.current.startY;
+      drag.current.lastDx = dx;
+      drag.current.lastDy = dy;
 
       if (!drag.current.axis) {
         const adx = Math.abs(dx);
@@ -361,7 +387,7 @@ export function useShelfTurn({
         }
         if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
         if (drag.current.inProse && !drag.current.fromEdge) {
-          if (ady >= 8 && ady >= adx * 0.82) {
+          if (ady >= 10 && ady >= adx * 0.88) {
             drag.current.active = false;
             drag.current.pointerId = -1;
             setTurning(false);
@@ -370,7 +396,7 @@ export function useShelfTurn({
             applyOffset(0, false);
             return;
           }
-          if (adx >= 12 && adx > ady * 1.18) {
+          if (adx >= 8 && adx > ady * 1.06) {
             drag.current.axis = 'x';
             setTurning(true);
           } else {

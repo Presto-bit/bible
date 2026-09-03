@@ -49,6 +49,7 @@ type Props = {
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
+  onTextSelectionChange?: (active: boolean) => void;
 };
 
 function focusBarStyleFromRect(rect: DOMRect, chromeHidden?: boolean): React.CSSProperties {
@@ -83,6 +84,7 @@ export default function ShelfPaginatedProse({
   onScrollProgress,
   onTap,
   chromeHidden = false,
+  onTextSelectionChange,
 }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
@@ -139,13 +141,18 @@ export default function ShelfPaginatedProse({
     const article = articleRef.current;
     const sel = readShelfTextSelection(article);
     setSelection(sel);
+    onTextSelectionChange?.(Boolean(sel));
     if (sel) {
+      if (tapTimerRef.current != null) {
+        window.clearTimeout(tapTimerRef.current);
+        tapTimerRef.current = null;
+      }
       setFocusBarStyle(focusBarStyleFromRect(sel.rect, chromeHidden));
     } else {
       setMarkPaletteOpen(false);
       setFocusBarStyle({});
     }
-  }, [chromeHidden]);
+  }, [chromeHidden, onTextSelectionChange]);
 
   useEffect(() => {
     document.addEventListener('selectionchange', syncSelection);
@@ -180,7 +187,9 @@ export default function ShelfPaginatedProse({
       if (!el || syncRef.current) return;
       const max = Math.max(0, el.scrollHeight - el.clientHeight);
       onScrollProgress?.(max > 0 ? el.scrollTop / max : 0);
-      if (selection) syncSelection();
+      if (selection) {
+        window.requestAnimationFrame(() => syncSelection());
+      }
     });
   }, [onScrollProgress, selection, syncSelection]);
 
@@ -195,7 +204,8 @@ export default function ShelfPaginatedProse({
     setSelection(null);
     setMarkPaletteOpen(false);
     setFocusBarStyle({});
-  }, []);
+    onTextSelectionChange?.(false);
+  }, [onTextSelectionChange]);
 
   const currentMarkRef = useMemo(() => {
     if (!selection || !annotationsEnabled) return null;
@@ -268,6 +278,7 @@ export default function ShelfPaginatedProse({
     const picked = readShelfTextSelection(article);
     if (picked) {
       setSelection(picked);
+      onTextSelectionChange?.(true);
       setFocusBarStyle(focusBarStyleFromRect(picked.rect, chromeHidden));
       return;
     }
@@ -276,12 +287,23 @@ export default function ShelfPaginatedProse({
       syncSelection();
       return;
     }
-    if (selection) {
-      clearSelection();
-      return;
-    }
+    if (selection) return;
     onTap?.();
-  }, [onTap, selection, clearSelection, syncSelection, chromeHidden]);
+  }, [onTap, selection, syncSelection, chromeHidden, onTextSelectionChange]);
+
+  const dismissSelectionIfBlankTap = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!selection) return;
+      const hit = document.elementFromPoint(clientX, clientY);
+      if (hit?.closest('.shelf-focus-bar, .reader-focus-bar, .shelf-inline-ref')) return;
+      if (articleRef.current?.contains(hit)) {
+        const picked = readShelfTextSelection(articleRef.current);
+        if (picked) return;
+      }
+      clearSelection();
+    },
+    [selection, clearSelection],
+  );
 
   const handleContentPointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
     if (tapTimerRef.current != null) {
@@ -295,18 +317,26 @@ export default function ShelfPaginatedProse({
     (e: PointerEvent<HTMLElement>) => {
       if (e.pointerId !== tapRef.current.pointerId) return;
       const target = e.target as HTMLElement;
+      if (target.closest('.shelf-focus-bar, .reader-focus-bar')) return;
       const btn = target.closest('.shelf-inline-ref') as HTMLElement | null;
       if (btn?.dataset.osis) return;
 
       const moved = Math.hypot(e.clientX - tapRef.current.x, e.clientY - tapRef.current.y);
       const isTouch = tapRef.current.pointerType === 'touch';
-      const delay = isTouch ? 420 : 0;
+      const delay = isTouch ? 280 : 0;
 
       const run = () => {
         tapTimerRef.current = null;
+        if (document.elementFromPoint(e.clientX, e.clientY)?.closest('.shelf-focus-bar, .reader-focus-bar')) {
+          return;
+        }
         if (!isTouch && moved > TAP_SLOP_PX) {
-          const picked = readShelfTextSelection(articleRef.current);
-          if (!picked) return;
+          dismissSelectionIfBlankTap(e.clientX, e.clientY);
+          return;
+        }
+        if (selection && moved <= TAP_SLOP_PX) {
+          dismissSelectionIfBlankTap(e.clientX, e.clientY);
+          return;
         }
         resolveTapOrSelection();
       };
@@ -314,12 +344,10 @@ export default function ShelfPaginatedProse({
       if (delay > 0) {
         tapTimerRef.current = window.setTimeout(run, delay);
       } else {
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(run);
-        });
+        window.requestAnimationFrame(run);
       }
     },
-    [resolveTapOrSelection],
+    [resolveTapOrSelection, dismissSelectionIfBlankTap, selection],
   );
 
   const handleInlineRefClick = useCallback(

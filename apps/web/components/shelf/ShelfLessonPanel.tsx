@@ -13,10 +13,7 @@ const ShelfPdfPager = dynamic(() => import('@/components/shelf/ShelfPdfPager'), 
   loading: () => <p className="muted shelf-pdf-status">正在加载 PDF…</p>,
 });
 
-import {
-  SHELF_CHILDREN_PDF_BASE_SCALE,
-  SHELF_CHILDREN_PDF_DEFAULT_ZOOM,
-} from '@/lib/shelf_reader_contract';
+import { shelfSectionAttachments } from '@/lib/shelf_lesson_media';
 
 type Props = {
   bookId: string;
@@ -32,11 +29,10 @@ type Props = {
   onTap?: () => void;
   chromeHidden?: boolean;
   onPdfPinchActive?: (active: boolean) => void;
+  onTextSelectionChange?: (active: boolean) => void;
   onOpenMedia?: () => void;
   onOpenVideo?: (item: ShelfAttachment) => void;
 };
-
-import { shelfSectionAttachments } from '@/lib/shelf_lesson_media';
 
 export default function ShelfLessonPanel({
   bookId,
@@ -52,6 +48,7 @@ export default function ShelfLessonPanel({
   onTap,
   chromeHidden = false,
   onPdfPinchActive,
+  onTextSelectionChange,
   onOpenMedia,
   onOpenVideo,
 }: Props) {
@@ -97,6 +94,7 @@ export default function ShelfLessonPanel({
         onTap={onTap}
         chromeHidden={chromeHidden}
         onPdfPinchActive={onPdfPinchActive}
+        onTextSelectionChange={onTextSelectionChange}
       />
 
       {!mediaControlled ? (
@@ -129,6 +127,7 @@ function ShelfPrimaryView({
   onTap,
   chromeHidden,
   onPdfPinchActive,
+  onTextSelectionChange,
 }: {
   bookId: string;
   section: ShelfSection;
@@ -143,6 +142,7 @@ function ShelfPrimaryView({
   onTap?: () => void;
   chromeHidden?: boolean;
   onPdfPinchActive?: (active: boolean) => void;
+  onTextSelectionChange?: (active: boolean) => void;
 }) {
   const primary = section.primary;
   const url = useMemo(() => {
@@ -165,6 +165,7 @@ function ShelfPrimaryView({
         onScrollProgress={onScrollProgress}
         onTap={onTap}
         chromeHidden={chromeHidden}
+        onTextSelectionChange={onTextSelectionChange}
       />
     );
   }
@@ -182,8 +183,6 @@ function ShelfPrimaryView({
         url={url}
         title={section.title}
         pageIndex={pageIndex}
-        baseScale={childrenLesson ? SHELF_CHILDREN_PDF_BASE_SCALE : undefined}
-        initialZoom={childrenLesson ? SHELF_CHILDREN_PDF_DEFAULT_ZOOM : undefined}
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
         onTap={onTap}
@@ -206,6 +205,7 @@ function ShelfPrimaryView({
         onScrollProgress={onScrollProgress}
         onTap={onTap}
         chromeHidden={chromeHidden}
+        onTextSelectionChange={onTextSelectionChange}
       />
     );
   }
@@ -231,6 +231,7 @@ function ShelfDocxPaginated({
   onScrollProgress,
   onTap,
   chromeHidden = false,
+  onTextSelectionChange,
 }: {
   url: string;
   title: string;
@@ -243,6 +244,7 @@ function ShelfDocxPaginated({
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
+  onTextSelectionChange?: (active: boolean) => void;
 }) {
   const [html, setHtml] = useState('');
   const [err, setErr] = useState('');
@@ -298,6 +300,7 @@ function ShelfDocxPaginated({
       onScrollProgress={onScrollProgress}
       onTap={onTap}
       chromeHidden={chromeHidden}
+      onTextSelectionChange={onTextSelectionChange}
     />
   );
 }

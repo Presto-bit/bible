@@ -1,4 +1,4 @@
-/// 书架阅读器（Android 全原生：HTML 分页 + PDF + 横滑翻页）。
+/// 书架阅读器（Android 全原生：竖滚读内容 + 横滑切节，对齐 PWA）。
 library;
 
 import 'dart:async';
@@ -11,10 +11,12 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'shelf_checkin_sheet.dart';
+import 'shelf_lesson_media_dock.dart';
 import 'shelf_media_sheet.dart';
 import 'shelf_paginated_prose.dart';
 import 'shelf_pdf_page.dart';
 import 'shelf_progress.dart';
+import 'shelf_reader_contract.dart';
 import 'shelf_reading_prefs.dart';
 import 'shelf_repository.dart';
 import 'shelf_toc.dart';
@@ -49,12 +51,17 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   var _pageCount = 1;
   var _chromeHidden = false;
   var _pendingLastPage = false;
+  var _pendingScrollEnd = false;
+  var _flowScrollRatio = 0.0;
+  var _proseSelecting = false;
+  var _pdfPinching = false;
   var _overlayOpen = 0;
   Timer? _progressTimer;
   final _pageBySection = <String, int>{};
+  final _scrollBySection = <String, double>{};
   final _pageCountBySection = <String, int>{};
 
-  bool get _blocked => _overlayOpen > 0;
+  bool get _blocked => _overlayOpen > 0 || _pdfPinching;
   bool get _isPdfSection => _section?.hasPdfPrimary ?? false;
 
   @override
@@ -102,19 +109,23 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       final first = detail.sections.isNotEmpty ? detail.sections.first.id : null;
       final pick = widget.sectionId ?? progress?.sectionId ?? first;
       var page = 0;
+      double? scroll;
       if (pick != null) {
         if (widget.sectionId == pick && widget.pageIndex != null) {
           page = widget.pageIndex!;
         } else if (progress?.sectionId == pick) {
           page = progress?.pageIndex ?? 0;
+          scroll = progress?.scrollOffset;
         }
         _pageBySection[pick] = page;
+        if (scroll != null) _scrollBySection[pick] = scroll;
       }
       if (!mounted) return;
       setState(() {
         _book = detail;
         _sectionId = pick;
         _pageIndex = page;
+        _flowScrollRatio = scroll ?? 0;
         _loading = false;
       });
       if (pick != null) unawaited(_loadSection(pick));
@@ -142,6 +153,9 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
           _pageIndex = (_pageCount - 1).clamp(0, 9999);
           _pendingLastPage = false;
         });
+      }
+      if (_pendingScrollEnd) {
+        setState(() => _pendingScrollEnd = false);
       }
     } catch (_) {
       if (!mounted) return;
@@ -171,10 +185,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
 
   bool get _canPrevSection => _sectionIndex > 0;
   bool get _canNextSection => _sectionIndex >= 0 && _sectionIndex < _sections.length - 1;
-  bool get _canPrev =>
-      _isPdfSection ? _canPrevSection : _pageIndex > 0 || _canPrevSection;
-  bool get _canNext =>
-      _isPdfSection ? _canNextSection : _pageIndex < _pageCount - 1 || _canNextSection;
+  bool get _canPrev => _isPdfSection ? _canPrevSection : _canPrevSection;
+  bool get _canNext => _isPdfSection ? _canNextSection : _canNextSection;
+
+  bool get _isChildrenLesson =>
+      shelfIsChildrenLessonBook(id: _book?.id, title: _book?.title);
 
   void _scheduleProgress() {
     _progressTimer?.cancel();
@@ -184,12 +199,31 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       ShelfProgressStore(ref.read(prefsProvider)).saveBook(
         widget.bookId,
         sid,
-        pageIndex: _pageIndex,
+        pageIndex: _isPdfSection ? _pageIndex : 0,
+        scrollOffset: _isPdfSection ? null : _flowScrollRatio,
         bookTitle: _book?.title,
         sectionTitle: _section?.title,
       );
-      _pageBySection[sid] = _pageIndex;
+      if (_isPdfSection) {
+        _pageBySection[sid] = _pageIndex;
+      } else {
+        _scrollBySection[sid] = _flowScrollRatio;
+      }
     });
+  }
+
+  void _onFlowScrollProgress(double ratio) {
+    if (!mounted) return;
+    setState(() => _flowScrollRatio = ratio);
+    _scheduleProgress();
+  }
+
+  void _onProseSectionEdge(String edge) {
+    if (edge == 'next' && _canNextSection) {
+      _goSection(_sections[_sectionIndex + 1].id, scrollStart: true);
+    } else if (edge == 'prev' && _canPrevSection) {
+      _goSection(_sections[_sectionIndex - 1].id, scrollEnd: true);
+    }
   }
 
   void _onPageCount(int count) {
@@ -215,21 +249,35 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
 
   void _onPdfSectionEdge(String edge) {
     if (edge == 'next' && _canNextSection) {
-      _goSection(_sections[_sectionIndex + 1].id, page: 0);
+      _goSection(_sections[_sectionIndex + 1].id, page: 0, scrollStart: true);
     } else if (edge == 'prev' && _canPrevSection) {
       _goSection(_sections[_sectionIndex - 1].id, lastPage: true);
     }
   }
 
-  void _goSection(String? id, {int? page, bool lastPage = false}) {
+  void _goSection(
+    String? id, {
+    int? page,
+    bool lastPage = false,
+    bool scrollStart = false,
+    bool scrollEnd = false,
+  }) {
     if (id == null) return;
     final cur = _sectionId;
-    if (cur != null) _pageBySection[cur] = _pageIndex;
+    if (cur != null) {
+      if (_isPdfSection) {
+        _pageBySection[cur] = _pageIndex;
+      } else {
+        _scrollBySection[cur] = _flowScrollRatio;
+      }
+    }
+    final savedScroll = _scrollBySection[id] ?? 0.0;
     setState(() {
       _sectionId = id;
       _section = null;
       _pageCount = _pageCountBySection[id] ?? 1;
       _chromeHidden = false;
+      _pendingScrollEnd = scrollEnd;
       if (lastPage) {
         _pendingLastPage = true;
         _pageIndex = 0;
@@ -239,44 +287,29 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       } else {
         _pageIndex = _pageBySection[id] ?? 0;
       }
+      _flowScrollRatio = scrollStart ? 0 : (scrollEnd ? 1 : savedScroll);
     });
     unawaited(_loadSection(id));
     _scheduleProgress();
   }
 
   void _turnNext() {
-    if (_isPdfSection) {
-      if (_canNextSection) {
-        _goSection(_sections[_sectionIndex + 1].id, page: 0);
-      }
-      return;
-    }
-    if (_pageIndex < _pageCount - 1) {
-      setState(() => _pageIndex += 1);
-      _scheduleProgress();
-      return;
-    }
     if (_canNextSection) {
-      final next = _sections[_sectionIndex + 1].id;
-      _goSection(next, page: 0);
+      _goSection(
+        _sections[_sectionIndex + 1].id,
+        page: 0,
+        scrollStart: true,
+      );
     }
   }
 
   void _turnPrev() {
-    if (_isPdfSection) {
-      if (_canPrevSection) {
-        _goSection(_sections[_sectionIndex - 1].id, lastPage: true);
-      }
-      return;
-    }
-    if (_pageIndex > 0) {
-      setState(() => _pageIndex -= 1);
-      _scheduleProgress();
-      return;
-    }
     if (_canPrevSection) {
-      final prev = _sections[_sectionIndex - 1].id;
-      _goSection(prev, lastPage: true);
+      _goSection(
+        _sections[_sectionIndex - 1].id,
+        lastPage: _isPdfSection,
+        scrollEnd: !_isPdfSection,
+      );
     }
   }
 
@@ -354,8 +387,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                               final sid = resolveSectionId(item, _sections);
                               if (sid == null) return;
                               Navigator.pop(ctx);
-                              final saved = _pageBySection[sid] ?? 0;
-                              _goSection(sid, page: saved);
+                              _goSection(sid);
                             },
                           ),
                     ],
@@ -450,11 +482,23 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     );
   }
 
-  Future<void> _openMediaSheet(ShelfSection section) async {
+  Future<void> _openMediaSheet(
+    ShelfSection section, {
+    ShelfAttachment? initialVideo,
+  }) async {
     final images = section.attachments.where((a) => a.kind == 'image').toList();
     final videos = section.attachments.where((a) => a.kind == 'video').toList();
     final audios = section.attachments.where((a) => a.kind == 'audio').toList();
     if (images.isEmpty && videos.isEmpty && audios.isEmpty) return;
+    if (initialVideo != null) {
+      final url = ref.read(shelfRepoProvider).assetUrl(widget.bookId, initialVideo.storageKey);
+      await Clipboard.setData(ClipboardData(text: url));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已复制「${initialVideo.title}」视频链接')),
+      );
+      return;
+    }
     await _withOverlay(
       () => showShelfMediaSheet(
         context,
@@ -462,6 +506,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         bookId: widget.bookId,
         images: images,
         videos: videos,
+        audios: audios,
       ),
     );
   }
@@ -479,7 +524,15 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         lineHeight: prefs.lineHeight,
         fontFamily: prefs.fontFamily,
         variantDocx: section.kind == 'lesson',
+        lessonTone: _isChildrenLesson && section.kind == 'lesson',
+        scrollOffset: _scrollBySection[section.id] ?? _flowScrollRatio,
+        scrollToEnd: _pendingScrollEnd,
         onTap: _toggleChrome,
+        onScrollProgress: _onFlowScrollProgress,
+        onSectionEdge: _onProseSectionEdge,
+        onSelectionActiveChanged: (active) {
+          if (mounted) setState(() => _proseSelecting = active);
+        },
       );
     }
 
@@ -492,10 +545,14 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         pageIndex: _pageIndex,
         canPrevSection: _canPrevSection,
         canNextSection: _canNextSection,
+        childrenLesson: _isChildrenLesson && section.kind == 'lesson',
         onPageCount: _onPageCount,
         onPageIndexChange: _onPageIndexChange,
         onSectionEdge: _onPdfSectionEdge,
         onTap: _toggleChrome,
+        onPinchActive: (active) {
+          if (mounted) setState(() => _pdfPinching = active);
+        },
       );
     }
 
@@ -509,34 +566,28 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final videos = section.attachments.where((a) => a.kind == 'video').toList();
     final audios = section.attachments.where((a) => a.kind == 'audio').toList();
     final hasMedia = images.isNotEmpty || videos.isNotEmpty || audios.isNotEmpty;
+    final isLesson = section.kind == 'lesson';
 
-    return Stack(
-      fit: StackFit.expand,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
-          child: KeyedSubtree(
-            key: ValueKey(_sectionId),
-            child: _buildPrimary(section, prefs, repo),
+        if (isLesson && hasMedia)
+          ShelfLessonMediaDock(
+            videos: videos,
+            images: images,
+            audios: audios,
+            onOpenAll: () => unawaited(_openMediaSheet(section)),
+            onOpenVideo: (item) => unawaited(_openMediaSheet(section, initialVideo: item)),
           ),
-        ),
-        if (hasMedia)
-          Positioned(
-            right: 12,
-            bottom: 12,
-            child: Material(
-              color: AppColors.ink.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(999),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: () => unawaited(_openMediaSheet(section)),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  child: Text('素材', style: TextStyle(color: Colors.white, fontSize: 13)),
-                ),
-              ),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: KeyedSubtree(
+              key: ValueKey(_sectionId),
+              child: _buildPrimary(section, prefs, repo),
             ),
           ),
+        ),
       ],
     );
   }
@@ -565,11 +616,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final section = _section;
     final title = section?.title ?? book.title;
     final showBar = !_chromeHidden;
-    final showPageIndicator = _pageCount > 1 && showBar;
-    final hasLessonMedia = section != null
-        && section.attachments.any(
-          (a) => a.kind == 'image' || a.kind == 'video' || a.kind == 'audio',
-        );
+    final showPageIndicator = _isPdfSection && _pageCount > 1 && showBar;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
@@ -606,6 +653,8 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                 Expanded(
                   child: ShelfSnapTurnGesture(
                     enabled: section != null && !_sectionLoading && !_blocked,
+                    shouldYieldTurn: () => _proseSelecting,
+                    hitIsProseContent: (_) => section != null && section.hasProseHtml,
                     onTurnNext: _canNext ? _turnNext : null,
                     onTurnPrev: _canPrev ? _turnPrev : null,
                     onBoundary: _flashBoundary,
@@ -641,14 +690,6 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                               label: const Text('字体'),
                             ),
                           ),
-                          if (hasLessonMedia && section != null)
-                            Expanded(
-                              child: TextButton.icon(
-                                onPressed: () => unawaited(_openMediaSheet(section)),
-                                icon: const Icon(Icons.perm_media_outlined, size: 20),
-                                label: const Text('素材'),
-                              ),
-                            ),
                           Expanded(
                             child: TextButton.icon(
                               onPressed: _sectionId == null
@@ -692,6 +733,23 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                     child: Text(
                       '${_pageIndex + 1} / $_pageCount',
                       style: AppTypography.meta.copyWith(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ),
+            if (!_isPdfSection && section != null && showBar)
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 52,
+                child: IgnorePointer(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: _flowScrollRatio.clamp(0.01, 1.0),
+                      minHeight: 2,
+                      backgroundColor: AppColors.ink.withValues(alpha: 0.08),
+                      color: AppColors.ink.withValues(alpha: 0.28),
                     ),
                   ),
                 ),

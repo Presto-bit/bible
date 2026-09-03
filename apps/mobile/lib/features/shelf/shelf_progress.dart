@@ -8,10 +8,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _progressKey = 'presto_shelf_progress_v1';
 
 class ShelfBookProgress {
-  const ShelfBookProgress({required this.sectionId, this.pageIndex = 0});
+  const ShelfBookProgress({
+    required this.sectionId,
+    this.pageIndex = 0,
+    this.scrollOffset,
+  });
 
   final String sectionId;
   final int pageIndex;
+  final double? scrollOffset;
 }
 
 class ShelfLastRead {
@@ -21,6 +26,7 @@ class ShelfLastRead {
     required this.bookTitle,
     this.sectionTitle = '',
     this.pageIndex = 0,
+    this.scrollOffset,
   });
 
   final String bookId;
@@ -28,6 +34,7 @@ class ShelfLastRead {
   final String bookTitle;
   final String sectionTitle;
   final int pageIndex;
+  final double? scrollOffset;
 }
 
 class ShelfProgressStore {
@@ -43,9 +50,11 @@ class ShelfProgressStore {
     if (entry is Map) {
       final sid = entry['sectionId'];
       if (sid is! String || sid.isEmpty) return null;
+      final scroll = entry['scrollOffset'];
       return ShelfBookProgress(
         sectionId: sid,
         pageIndex: (entry['pageIndex'] as num?)?.toInt() ?? 0,
+        scrollOffset: scroll is num ? scroll.toDouble().clamp(0, 1) : null,
       );
     }
     return null;
@@ -59,12 +68,14 @@ class ShelfProgressStore {
       final sectionId = '${last['sectionId'] ?? ''}';
       final bookTitle = '${last['bookTitle'] ?? ''}';
       if (bookId.isEmpty || bookTitle.isEmpty) return null;
+      final scroll = last['scrollOffset'];
       return ShelfLastRead(
         bookId: bookId,
         sectionId: sectionId,
         bookTitle: bookTitle,
         sectionTitle: '${last['sectionTitle'] ?? ''}',
         pageIndex: (last['pageIndex'] as num?)?.toInt() ?? 0,
+        scrollOffset: scroll is num ? scroll.toDouble().clamp(0, 1) : null,
       );
     } catch (_) {
       return null;
@@ -75,6 +86,7 @@ class ShelfProgressStore {
     String bookId,
     String sectionId, {
     int pageIndex = 0,
+    double? scrollOffset,
     String? bookTitle,
     String? sectionTitle,
   }) {
@@ -82,10 +94,14 @@ class ShelfProgressStore {
     final byBook = Map<String, dynamic>.from(
       store['byBook'] as Map<String, dynamic>? ?? {},
     );
-    byBook[bookId] = {
+    final entry = <String, dynamic>{
       'sectionId': sectionId,
       'pageIndex': pageIndex < 0 ? 0 : pageIndex,
     };
+    if (scrollOffset != null) {
+      entry['scrollOffset'] = scrollOffset.clamp(0.0, 1.0);
+    }
+    byBook[bookId] = entry;
     store['byBook'] = byBook;
     if (bookTitle != null && bookTitle.isNotEmpty) {
       store['last'] = {
@@ -94,6 +110,7 @@ class ShelfProgressStore {
         'bookTitle': bookTitle,
         'sectionTitle': sectionTitle ?? '',
         'pageIndex': pageIndex < 0 ? 0 : pageIndex,
+        if (scrollOffset != null) 'scrollOffset': scrollOffset.clamp(0.0, 1.0),
         'at': DateTime.now().millisecondsSinceEpoch,
       };
     }

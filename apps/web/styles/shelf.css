@@ -529,6 +529,20 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   flex: 1 1 100%;
 }
 
+.shelf-reader-flow-scroll .shelf-turn-track {
+  width: 100%;
+  transform: none !important;
+}
+
+.shelf-reader-flow-scroll .shelf-turn-panel {
+  flex: 0 0 100%;
+  width: 100%;
+}
+
+.shelf-reader-flow-scroll .shelf-turn-panel-peek {
+  display: none;
+}
+
 .shelf-section-loading {
   padding: 16px 18px;
   text-align: center;
@@ -699,6 +713,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-focus-bar {
   pointer-events: auto;
   z-index: 30;
+  touch-action: manipulation;
 }
 
 ::highlight(shelf-mark-yellow) {

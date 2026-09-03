@@ -16,6 +16,7 @@ Future<void> showShelfMediaSheet(
   required String bookId,
   required List<ShelfAttachment> images,
   required List<ShelfAttachment> videos,
+  List<ShelfAttachment> audios = const [],
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -35,6 +36,7 @@ Future<void> showShelfMediaSheet(
         bookId: bookId,
         images: images,
         videos: videos,
+        audios: audios,
       ),
     ),
   );
@@ -47,6 +49,7 @@ class _ShelfMediaBody extends StatefulWidget {
     required this.bookId,
     required this.images,
     required this.videos,
+    required this.audios,
   });
 
   final ScrollController scroll;
@@ -54,6 +57,7 @@ class _ShelfMediaBody extends StatefulWidget {
   final String bookId;
   final List<ShelfAttachment> images;
   final List<ShelfAttachment> videos;
+  final List<ShelfAttachment> audios;
 
   @override
   State<_ShelfMediaBody> createState() => _ShelfMediaBodyState();
@@ -210,7 +214,34 @@ class _ShelfMediaBodyState extends State<_ShelfMediaBody> {
             },
           ),
         ],
-        if (widget.videos.isEmpty && widget.images.isEmpty)
+        if (widget.audios.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text('音频', style: AppTypography.meta.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          for (final item in widget.audios)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.line.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.audiotrack_outlined, size: 22),
+              ),
+              title: Text(item.title, style: AppTypography.secondary),
+              onTap: () async {
+                final url = widget.repo.assetUrl(widget.bookId, item.storageKey);
+                await Clipboard.setData(ClipboardData(text: url));
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已复制「${item.title}」链接')),
+                );
+              },
+            ),
+        ],
+        if (widget.videos.isEmpty && widget.images.isEmpty && widget.audios.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 24),
             child: Text('暂无素材', style: AppTypography.meta),

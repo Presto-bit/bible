@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 
 import '../../core/theme.dart';
+import 'shelf_reader_contract.dart';
 import 'shelf_repository.dart';
 
 class ShelfPdfPageView extends StatefulWidget {
@@ -19,10 +20,12 @@ class ShelfPdfPageView extends StatefulWidget {
     required this.pageIndex,
     this.canPrevSection = false,
     this.canNextSection = false,
+    this.childrenLesson = false,
     this.onPageCount,
     this.onPageIndexChange,
     this.onSectionEdge,
     this.onTap,
+    this.onPinchActive,
   });
 
   final ShelfRepository repo;
@@ -31,10 +34,12 @@ class ShelfPdfPageView extends StatefulWidget {
   final int pageIndex;
   final bool canPrevSection;
   final bool canNextSection;
+  final bool childrenLesson;
   final ValueChanged<int>? onPageCount;
   final ValueChanged<int>? onPageIndexChange;
   final ValueChanged<String>? onSectionEdge;
   final VoidCallback? onTap;
+  final ValueChanged<bool>? onPinchActive;
 
   @override
   State<ShelfPdfPageView> createState() => _ShelfPdfPageViewState();

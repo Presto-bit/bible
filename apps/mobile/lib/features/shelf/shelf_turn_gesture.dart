@@ -1,4 +1,4 @@
-/// 书架横滑翻页：不跟手拖动，阈值/速度提交（对齐 Web snapOnly）。
+/// 书架横滑切节：全屏响应 + 正文区竖滚/划词优先（对齐 Web useShelfTurn）。
 library;
 
 import 'package:flutter/material.dart';
@@ -12,6 +12,8 @@ class ShelfSnapTurnGesture extends StatefulWidget {
     this.onTurnPrev,
     this.onBoundary,
     this.onApproachEdge,
+    this.shouldYieldTurn,
+    this.hitIsProseContent,
   });
 
   final Widget child;
@@ -19,70 +21,130 @@ class ShelfSnapTurnGesture extends StatefulWidget {
   final VoidCallback? onTurnNext;
   final VoidCallback? onTurnPrev;
   final ValueChanged<String>? onBoundary;
-  /// `next` / `prev` — 横滑接近章界时预取邻章。
   final ValueChanged<String>? onApproachEdge;
+  final bool Function()? shouldYieldTurn;
+  final bool Function(Offset globalPosition)? hitIsProseContent;
 
   @override
   State<ShelfSnapTurnGesture> createState() => _ShelfSnapTurnGestureState();
 }
 
 class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
+  int? _pointer;
+  Offset _start = Offset.zero;
   double _dx = 0;
+  var _axisLocked = false;
+  var _horizontal = false;
   var _approachFired = false;
+  var _inProse = false;
+
+  void _reset() {
+    _pointer = null;
+    _axisLocked = false;
+    _horizontal = false;
+    _dx = 0;
+    _approachFired = false;
+    _inProse = false;
+  }
+
+  void _onPointerDown(PointerDownEvent e) {
+    if (!widget.enabled) return;
+    if (widget.shouldYieldTurn?.call() == true) return;
+    _pointer = e.pointer;
+    _start = e.position;
+    _dx = 0;
+    _axisLocked = false;
+    _horizontal = false;
+    _approachFired = false;
+    _inProse = widget.hitIsProseContent?.call(e.position) ?? false;
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    if (!widget.enabled || _pointer != e.pointer) return;
+    if (widget.shouldYieldTurn?.call() == true) {
+      _reset();
+      return;
+    }
+
+    _dx = e.position.dx - _start.dx;
+    final dy = e.position.dy - _start.dy;
+    final adx = _dx.abs();
+    final ady = dy.abs();
+
+    if (!_axisLocked) {
+      if (adx < 2 && ady < 2) return;
+
+      if (_inProse) {
+        if (ady >= 10 && ady >= adx * 0.88) {
+          _reset();
+          return;
+        }
+        if (adx >= 8 && adx > ady * 1.06) {
+          _horizontal = true;
+          _axisLocked = true;
+        } else {
+          return;
+        }
+      } else {
+        if (adx >= 3 && adx > ady * 0.9) {
+          _horizontal = true;
+          _axisLocked = true;
+        } else if (ady >= 3 && ady >= adx) {
+          _reset();
+          return;
+        } else {
+          return;
+        }
+      }
+    }
+
+    if (!_horizontal || _approachFired) return;
+    final w = MediaQuery.sizeOf(context).width;
+    if (w <= 0) return;
+    if (_dx.abs() / w >= 0.04) {
+      _approachFired = true;
+      widget.onApproachEdge?.call(_dx < 0 ? 'next' : 'prev');
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent e) {
+    if (_pointer != e.pointer) return;
+    if (!_horizontal) {
+      _reset();
+      return;
+    }
+
+    final w = MediaQuery.sizeOf(context).width;
+    final ratio = _dx.abs() / (w <= 0 ? 1 : w);
+    final goingNext = _dx < 0;
+    final commit = ratio >= 0.11 || ratio >= 0.06 && _dx.abs() >= 36 || ratio >= 0.2;
+
+    if (commit) {
+      if (goingNext) {
+        if (widget.onTurnNext != null) {
+          widget.onTurnNext!();
+        } else {
+          widget.onBoundary?.call('next');
+        }
+      } else {
+        if (widget.onTurnPrev != null) {
+          widget.onTurnPrev!();
+        } else {
+          widget.onBoundary?.call('prev');
+        }
+      }
+    }
+    _reset();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Listener(
       behavior: HitTestBehavior.translucent,
-      onHorizontalDragStart: widget.enabled
-          ? (_) {
-              _dx = 0;
-              _approachFired = false;
-            }
-          : null,
-      onHorizontalDragUpdate: widget.enabled
-          ? (d) {
-              _dx += d.delta.dx;
-              if (_approachFired) return;
-              final w = MediaQuery.sizeOf(context).width;
-              final ratio = _dx.abs() / (w <= 0 ? 1 : w);
-              if (ratio >= 0.07) {
-                _approachFired = true;
-                widget.onApproachEdge?.call(_dx < 0 ? 'next' : 'prev');
-              }
-            }
-          : null,
-      onHorizontalDragEnd: widget.enabled
-          ? (d) {
-              final w = MediaQuery.sizeOf(context).width;
-              final ratio = _dx.abs() / (w <= 0 ? 1 : w);
-              final v = d.primaryVelocity ?? 0;
-              final goingNext = _dx < 0;
-              final commit = ratio >= 0.13 ||
-                  ratio >= 0.07 && v.abs() >= 120 ||
-                  ratio >= 0.24;
-              if (!commit) {
-                _dx = 0;
-                _approachFired = false;
-                return;
-              }
-              if (goingNext) {
-                if (widget.onTurnNext != null) {
-                  widget.onTurnNext!();
-                } else {
-                  widget.onBoundary?.call('next');
-                }
-              } else {
-                if (widget.onTurnPrev != null) {
-                  widget.onTurnPrev!();
-                } else {
-                  widget.onBoundary?.call('prev');
-                }
-              }
-              _dx = 0;
-              _approachFired = false;
-            }
-          : null,
+      onPointerDown: _onPointerDown,
+      onPointerMove: _onPointerMove,
+      onPointerUp: _onPointerUp,
+      onPointerCancel: (_) => _reset(),
       child: widget.child,
     );
   }
