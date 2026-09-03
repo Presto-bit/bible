@@ -21,6 +21,7 @@ type Props = {
   canManage?: boolean;
   onClose: () => void;
   onMoveGroup: (book: ShelfBookSummary) => void;
+  onShare?: (book: ShelfBookSummary) => void;
   onManage?: (book: ShelfBookSummary) => void;
 };
 
@@ -36,6 +37,7 @@ export default function ShelfBookActionPopover({
   canManage,
   onClose,
   onMoveGroup,
+  onShare,
   onManage,
 }: Props) {
   const router = useRouter();
@@ -55,6 +57,13 @@ export default function ShelfBookActionPopover({
       label: '书籍详情',
       onClick: () => router.push(shelfBookDetailHref(book.id)),
     },
+    ...(onShare
+      ? [{
+          id: 'share',
+          label: '分享到群',
+          onClick: () => onShare(book),
+        }]
+      : []),
     {
       id: 'move',
       label: '移到分组',

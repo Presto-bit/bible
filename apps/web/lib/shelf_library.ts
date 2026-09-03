@@ -163,6 +163,19 @@ export function setShelfBookUserGroup(bookId: string, groupId: string | null) {
   writeStore(store);
 }
 
+/** 将平台书目加入个人书柜视图（本地 meta，取消隐藏）。 */
+export function pinShelfBookToLibrary(bookId: string) {
+  const meta = ensureShelfBookMeta(bookId);
+  meta.hidden = false;
+  if (!meta.addedAt) meta.addedAt = Date.now();
+  const store = readStore();
+  store.books[bookId] = meta;
+  writeStore(store);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('presto-shelf-library-changed'));
+  }
+}
+
 export function hideShelfBook(bookId: string, hidden: boolean) {
   const store = readStore();
   const meta = ensureShelfBookMeta(bookId);

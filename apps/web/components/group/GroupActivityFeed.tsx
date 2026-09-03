@@ -39,6 +39,8 @@ import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/Im
 import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
 import { collectMessageImages, downloadImAsset, shareImAsset } from '@/lib/im_media';
 import { detectImMediaKind } from '@/lib/im_av';
+import { buildShelfImPopoverActions } from '@/lib/im_shelf_actions';
+import { useToast } from '@/components/ui/ToastProvider';
 import { useImVirtualList } from '@/lib/use_im_virtual_list';
 import { MemberAvatar } from './MemberAvatar';
 
@@ -151,6 +153,7 @@ function ChatBubble({
   onMemberClick,
   onOpenFile,
 }: BubbleProps) {
+  const flashToast = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [imgBroken, setImgBroken] = useState(false);
@@ -306,6 +309,7 @@ function ChatBubble({
           },
         });
       }
+      items.push(...buildShelfImPopoverActions(m, flashToast));
       if ((m.kind === 'checkin' || m.kind === 'verse') && (m.body || m.ref)) {
         items.push({
           id: 'share',

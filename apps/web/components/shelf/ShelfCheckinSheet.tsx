@@ -6,10 +6,12 @@ import { recordGroupCheckin } from '@/lib/badge_events';
 import { requestInviteNudge } from '@/lib/invite_nudge';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
+  buildShelfBookShareRef,
   buildShelfCheckinRef,
   formatShelfCheckinLabel,
   normalizeCheckinBody,
   rememberShelfRefLabel,
+  SHELF_BOOK_SHARE_CHIPS,
   SHELF_CHECKIN_CHIPS,
   GROUP_CHECKIN_BODY_MAX,
 } from '@/lib/shelf_checkin';
@@ -19,8 +21,9 @@ import { leaveFlutterH5ToDiscover } from '@/lib/flutter_h5_bridge';
 type Props = {
   bookId: string;
   bookTitle: string;
-  sectionId: string;
-  sectionTitle: string;
+  /** 省略时为整本书分享到群 */
+  sectionId?: string;
+  sectionTitle?: string;
   pageIndex?: number;
   presetGroupId?: string | null;
   onClose: () => void;
@@ -31,12 +34,14 @@ export default function ShelfCheckinSheet({
   bookId,
   bookTitle,
   sectionId,
-  sectionTitle,
+  sectionTitle = '',
   pageIndex = 0,
   presetGroupId,
   onClose,
   onDone,
 }: Props) {
+  const bookShare = !sectionId;
+  const chips = bookShare ? SHELF_BOOK_SHARE_CHIPS : SHELF_CHECKIN_CHIPS;
   const [groups, setGroups] = useState<Group[]>([]);
   const [gid, setGid] = useState(presetGroupId || '');
   const [body, setBody] = useState('');
@@ -45,11 +50,17 @@ export default function ShelfCheckinSheet({
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
 
-  const checkinRef = () => buildShelfCheckinRef(bookId, sectionId, pageIndex);
+  const checkinRef = () =>
+    bookShare
+      ? buildShelfBookShareRef(bookId)
+      : buildShelfCheckinRef(bookId, sectionId!, pageIndex);
 
   const checkinLabel = () => {
     const ref = checkinRef();
-    return formatGroupRefLabel(ref) || formatShelfCheckinLabel(bookTitle, sectionTitle);
+    return (
+      formatGroupRefLabel(ref)
+      || formatShelfCheckinLabel(bookTitle, bookShare ? '推荐书目' : sectionTitle)
+    );
   };
 
   const onBodyInput = (value: string) => {
@@ -74,7 +85,7 @@ export default function ShelfCheckinSheet({
     setBusy(true);
     setErr(null);
     const ref = checkinRef();
-    const label = formatShelfCheckinLabel(bookTitle, sectionTitle);
+    const label = formatShelfCheckinLabel(bookTitle, bookShare ? '推荐书目' : sectionTitle);
     rememberShelfRefLabel(ref, label);
     try {
       await api.checkin(gid, {
@@ -148,7 +159,7 @@ export default function ShelfCheckinSheet({
               <div className="group-composer-section" style={{ marginTop: 10 }}>
                 <div className="group-composer-label">快捷感想</div>
                 <div className="chip-swipe group-chip-swipe">
-                  {SHELF_CHECKIN_CHIPS.map((chip) => (
+                  {chips.map((chip) => (
                     <button
                       key={chip}
                       type="button"
@@ -185,7 +196,7 @@ export default function ShelfCheckinSheet({
                 disabled={!gid || busy}
                 onClick={() => void submit()}
               >
-                {busy ? '发送中…' : '发送打卡'}
+                {busy ? '发送中…' : bookShare ? '分享到群' : '发送打卡'}
               </button>
             </>
           )}

@@ -10,6 +10,15 @@ export const SHELF_CHECKIN_CHIPS = [
   '愿与弟兄共勉',
 ] as const;
 
+export const SHELF_BOOK_SHARE_CHIPS = [
+  '推荐一本好书 📖',
+  '一起来读',
+  '愿与弟兄共勉',
+] as const;
+
+/** 整本书分享打卡的 section 占位符 */
+export const SHELF_BOOK_SHARE_SECTION = '_book';
+
 const LABEL_KEY = 'presto_shelf_ref_labels_v1';
 
 type LabelStore = Record<string, string>;
@@ -43,6 +52,15 @@ export function buildShelfCheckinRef(
   const base = `SHELF.${bookId}.${sectionId}`;
   if (typeof pageIndex === 'number' && pageIndex > 0) return `${base}.p${pageIndex}`;
   return base;
+}
+
+export function buildShelfBookShareRef(bookId: string): string {
+  return buildShelfCheckinRef(bookId, SHELF_BOOK_SHARE_SECTION);
+}
+
+export function isShelfBookShareRef(ref: string | null | undefined): boolean {
+  const parsed = parseShelfRef(ref);
+  return parsed?.sectionId === SHELF_BOOK_SHARE_SECTION;
 }
 
 /** bookId 可含 UUID 连字符；sectionId 为最后一段；可选 `.p{n}` 页码后缀。 */
@@ -100,6 +118,13 @@ export function shelfHrefFromRef(
 ): string | null {
   const parsed = parseShelfRef(ref);
   if (!parsed) return null;
+  if (parsed.sectionId === SHELF_BOOK_SHARE_SECTION) {
+    const params = new URLSearchParams();
+    if (opts?.group) params.set('group', opts.group);
+    if (opts?.task) params.set('task', opts.task);
+    const qs = params.toString();
+    return `/shelf/${encodeURIComponent(parsed.bookId)}${qs ? `?${qs}` : ''}`;
+  }
   const params = new URLSearchParams({ section: parsed.sectionId });
   const page = opts?.pageIndex ?? parsed.pageIndex;
   if (typeof page === 'number' && page > 0) params.set('page', String(page));
@@ -116,10 +141,13 @@ export async function ensureShelfRefLabel(ref: string): Promise<string> {
   if (!parsed) return '书架阅读';
   try {
     const { getPlatformShelfBook, getPlatformShelfSection } = await import('./shelf_api');
-    const [book, section] = await Promise.all([
-      getPlatformShelfBook(parsed.bookId),
-      getPlatformShelfSection(parsed.bookId, parsed.sectionId),
-    ]);
+    const book = await getPlatformShelfBook(parsed.bookId);
+    if (parsed.sectionId === SHELF_BOOK_SHARE_SECTION) {
+      const label = formatShelfCheckinLabel(book.title, '推荐书目');
+      rememberShelfRefLabel(ref, label);
+      return label;
+    }
+    const section = await getPlatformShelfSection(parsed.bookId, parsed.sectionId);
     const label = formatShelfCheckinLabel(book.title, section.title);
     rememberShelfRefLabel(ref, label);
     return label;

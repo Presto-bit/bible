@@ -36,6 +36,8 @@ import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
 import { collectMessageImages, downloadImAsset, shareImAsset } from '@/lib/im_media';
 import { detectImMediaKind } from '@/lib/im_av';
+import { buildShelfImPopoverActions } from '@/lib/im_shelf_actions';
+import { useToast } from '@/components/ui/ToastProvider';
 import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import {
@@ -101,6 +103,7 @@ function DmThreadPageInner() {
   const hasMoreRef = useRef(false);
   const loadingMoreRef = useRef(false);
   useEdgeSwipeBack({ href: '/discover' });
+  const flashToast = useToast();
   const online = useOnline();
   const threadId = id;
   const [uid, setUid] = useState<string | null>(null);
@@ -1159,6 +1162,7 @@ function DmThreadPageInner() {
           },
         });
       }
+      items.push(...buildShelfImPopoverActions(actionMsg, flashToast));
       items.push({
         id: 'forward',
         label: '转发',

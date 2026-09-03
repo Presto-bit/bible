@@ -29,6 +29,7 @@ import '@/styles/shelf.css';
 
 const ShelfImportSheet = dynamic(() => import('@/components/shelf/ShelfImportSheet'), { ssr: false });
 const ShelfLibrarySheet = dynamic(() => import('@/components/shelf/ShelfLibrarySheet'), { ssr: false });
+const ShelfCheckinSheet = dynamic(() => import('@/components/shelf/ShelfCheckinSheet'), { ssr: false });
 const ShelfBookActionPopover = dynamic(
   () => import('@/components/shelf/ShelfBookActionPopover'),
   { ssr: false },
@@ -62,6 +63,7 @@ function ShelfListInner() {
     book: ShelfBookSummary;
     anchorEl: HTMLElement;
   } | null>(null);
+  const [shareBook, setShareBook] = useState<ShelfBookSummary | null>(null);
   const [libraryTick, setLibraryTick] = useState(0);
 
   const reload = useCallback((force = false) => {
@@ -85,6 +87,12 @@ function ShelfListInner() {
   useEffect(() => {
     void reload(false);
   }, [reload]);
+
+  useEffect(() => {
+    const onLibraryChanged = () => refreshLibrary();
+    window.addEventListener('presto-shelf-library-changed', onLibraryChanged);
+    return () => window.removeEventListener('presto-shelf-library-changed', onLibraryChanged);
+  }, [refreshLibrary]);
 
   useEffect(() => {
     if (!canManageShelf()) {
@@ -168,10 +176,22 @@ function ShelfListInner() {
             setBookActionMenu(null);
             setLibrarySheet({ mode: 'move_book', book });
           }}
+          onShare={(book) => {
+            setBookActionMenu(null);
+            setShareBook(book);
+          }}
           onManage={(book) => {
             setBookActionMenu(null);
             setManageBook(book);
           }}
+        />
+      ) : null}
+
+      {shareBook ? (
+        <ShelfCheckinSheet
+          bookId={shareBook.id}
+          bookTitle={shareBook.title}
+          onClose={() => setShareBook(null)}
         />
       ) : null}
 
