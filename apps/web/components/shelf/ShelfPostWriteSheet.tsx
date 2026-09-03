@@ -10,6 +10,7 @@ import {
   shelfVisibilityLabel,
   type ShelfPostVisibility,
 } from '@/lib/shelf_posts';
+import ShelfInlineComposer from '@/components/shelf/ShelfInlineComposer';
 
 const VIS_OPTIONS: ShelfPostVisibility[] = ['public', 'friends', 'private'];
 
@@ -217,29 +218,16 @@ export default function ShelfPostWriteSheet({
           ) : null}
 
           {kind === 'note' ? (
-            <div className="shelf-inline-composer-wrap shelf-inline-composer-sheet">
-              <div className="shelf-inline-composer">
-                <textarea
-                  ref={textareaRef}
-                  className="note-editor-input shelf-inline-composer-input"
-                  rows={4}
-                  enterKeyHint="send"
-                  placeholder={placeholder}
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
-                <button
-                  type="button"
-                  className="shelf-inline-composer-send"
-                  disabled={!body.trim()}
-                  aria-label="发布"
-                  onClick={handleConfirm}
-                >
-                  发布
-                </button>
-              </div>
-            </div>
+            <ShelfInlineComposer
+              value={body}
+              onChange={setBody}
+              onSubmit={handleConfirm}
+              placeholder={placeholder}
+              submitLabel="发布"
+              rows={4}
+              className="shelf-inline-composer-sheet"
+              inputRef={textareaRef}
+            />
           ) : (
             <div className="thought-write-editor-wrap">
               <textarea

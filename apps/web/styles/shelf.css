@@ -3069,15 +3069,11 @@ mark.shelf-sel-pinned {
   white-space: nowrap;
 }
 
-.shelf-comments-compose {
+.shelf-composer-footer {
   flex-shrink: 0;
   padding: 10px 12px calc(var(--safe-bottom, 0px) + 10px);
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line, rgba(44, 40, 37, 0.08));
   background: var(--surface, #fff);
-}
-
-.shelf-inline-composer-wrap {
-  flex-shrink: 0;
 }
 
 .shelf-inline-composer {
@@ -3085,10 +3081,10 @@ mark.shelf-sel-pinned {
   border: 1px solid var(--line, rgba(44, 40, 37, 0.1));
   border-radius: 16px;
   background: var(--surface-sunken, color-mix(in srgb, var(--paper) 92%, var(--ink) 8%));
-  padding: 10px 52px 10px 14px;
+  padding: 10px 56px 10px 14px;
 }
 
-.shelf-inline-composer-sheet .shelf-inline-composer {
+.shelf-inline-composer-sheet {
   margin: 0 2px 4px;
 }
 
@@ -3102,10 +3098,12 @@ mark.shelf-sel-pinned {
   max-height: calc(1.45em * 6 + 4px);
   resize: none;
   font: inherit;
+  font-size: 16px;
   line-height: 1.45;
   color: inherit;
   border-radius: 0;
   box-shadow: none;
+  outline: none;
 }
 
 .shelf-inline-composer-input:focus {
@@ -3137,20 +3135,6 @@ mark.shelf-sel-pinned {
 .shelf-inline-composer-send:disabled {
   opacity: 0.42;
   cursor: default;
-}
-
-.shelf-reply-composer {
-  padding: 10px 12px;
-  border-top: 1px solid var(--line, rgba(44, 40, 37, 0.08));
-  background: var(--surface, #fff);
-}
-
-.shelf-reply-composer .shelf-inline-composer {
-  padding-right: 56px;
-}
-
-.shelf-comments-compose .shelf-inline-composer {
-  padding-right: 56px;
 }
 
 .shelf-comments-input {

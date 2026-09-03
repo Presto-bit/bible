@@ -185,18 +185,19 @@ export default function ShelfReaderMoreSheet({
             : null}
         </div>
         {tab === 'chapter' && sectionId ? (
-          <ShelfInlineComposer
-            value={draft}
-            onChange={setDraft}
-            onSubmit={submitChapterComment}
-            placeholder="写下对本章的想法…"
-            maxLength={2000}
-            submitLabel="发送"
-            busy={submitting}
-            rows={2}
-            wrapperClassName="shelf-comments-compose"
-            inputRef={inputRef}
-          />
+          <div className="shelf-composer-footer">
+            <ShelfInlineComposer
+              value={draft}
+              onChange={setDraft}
+              onSubmit={submitChapterComment}
+              placeholder="写下对本章的想法…"
+              maxLength={2000}
+              submitLabel="发送"
+              busy={submitting}
+              rows={2}
+              inputRef={inputRef}
+            />
+          </div>
         ) : null}
       </div>
       {hubPostId ? (

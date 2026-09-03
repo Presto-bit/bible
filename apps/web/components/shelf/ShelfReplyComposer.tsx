@@ -49,18 +49,21 @@ export default function ShelfReplyComposer({
   }, [body, busy, disabled, onSubmit]);
 
   return (
-    <ShelfInlineComposer
-      value={body}
-      onChange={setBody}
-      onSubmit={submit}
-      placeholder={placeholder}
-      maxLength={maxLength}
-      submitLabel="发送"
-      disabled={disabled}
-      busy={busy}
-      rows={1}
-      wrapperClassName="shelf-reply-composer"
+    <div
+      className="shelf-composer-footer"
       style={{ paddingBottom: kbInset ? Math.max(0, kbInset - 8) : undefined }}
-    />
+    >
+      <ShelfInlineComposer
+        value={body}
+        onChange={setBody}
+        onSubmit={submit}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        submitLabel="发送"
+        disabled={disabled}
+        busy={busy}
+        rows={1}
+      />
+    </div>
   );
 }
