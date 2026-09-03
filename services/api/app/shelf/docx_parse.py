@@ -432,6 +432,9 @@ def _enrich_sections_with_mammoth(
     if not chunks:
         return
     for sec in sections:
+        # front matter (preface) is already fully constructed; skip Mammoth override
+        if sec.get("kind") == "front":
+            continue
         title = str(sec.get("title") or "")
         matched = None
         for ct, html_chunk in chunks:
@@ -575,8 +578,17 @@ def parse_docx_bytes(
             if p.style in ("TitleCustom", "SubtitleCustom"):
                 continue
             preface_html.append(_para_html(p))
+        # Drop leading cover paragraphs that appear before "阅读本书之前" heading
+        while preface_html and not preface_html[0].startswith("<h"):
+            preface_html.pop(0)
+        # Drop trailing TOC heading (目录) and any paragraphs after it
+        for j, h in enumerate(preface_html):
+            if ">目录<" in h:
+                preface_html = preface_html[:j]
+                break
         if preface_html:
             sid = "sec-front"
+            raw_preface = f'<div class="shelf-docx-root">{chr(10).join(preface_html)}</div>'
             sections.append(
                 {
                     "id": sid,
@@ -585,7 +597,8 @@ def parse_docx_bytes(
                     "zone": "front",
                     "source": "structured",
                     "toc_id": "tb-front",
-                    "html": "\n".join(preface_html),
+                    "html": inject_shelf_paragraph_anchors(raw_preface),
+                    "kind": "front",
                 }
             )
             toc_body.insert(
