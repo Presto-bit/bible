@@ -13,6 +13,7 @@ import {
 } from '@/lib/shelf_posts';
 import ShelfReplyComposer, { useShelfLoginGate } from '@/components/shelf/ShelfReplyComposer';
 import { useToast } from '@/components/ui/ToastProvider';
+import { friendlyError } from '@/lib/friendly_error';
 
 type Props = {
   bookId: string;
@@ -42,7 +43,7 @@ export default function ShelfNoteHubSheet({
     setLoading(true);
     void fetchShelfPost(bookId, postId)
       .then(setPost)
-      .catch(() => flashToast('加载失败'))
+      .catch((e) => flashToast(friendlyError(e, '加载失败')))
       .finally(() => setLoading(false));
   }, [bookId, postId, flashToast]);
 

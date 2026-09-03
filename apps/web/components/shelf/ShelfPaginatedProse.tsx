@@ -50,6 +50,8 @@ type Props = {
   scrollOffset?: number;
   scrollAnchor?: { paragraphIndex: number };
   scrollToEnd?: boolean;
+  /** 切章/翻页时递增，驱动滚动定位（勿随阅读进度变化） */
+  scrollSnapKey?: number;
   variant?: 'html' | 'docx';
   proseTone?: 'default' | 'lesson';
   onScrollProgress?: (ratio: number) => void;
@@ -128,6 +130,7 @@ export default function ShelfPaginatedProse({
   scrollOffset = 0,
   scrollAnchor,
   scrollToEnd = false,
+  scrollSnapKey = 0,
   variant = 'html',
   proseTone = 'default',
   onScrollProgress,
@@ -182,7 +185,7 @@ export default function ShelfPaginatedProse({
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
-    const key = `${contentKey}:${scrollToEnd ? 'end' : 'init'}`;
+    const key = `${contentKey}:${scrollSnapKey}:${scrollToEnd ? 'end' : 'start'}`;
     if (scrollApplyKeyRef.current === key) return;
     scrollApplyKeyRef.current = key;
     syncRef.current = true;
@@ -197,7 +200,7 @@ export default function ShelfPaginatedProse({
       else el.scrollTop = 0;
       syncRef.current = false;
     });
-  }, [contentKey, linkedHtml, scrollToEnd]);
+  }, [contentKey, linkedHtml, scrollToEnd, scrollSnapKey]);
 
   const repaintHighlights = useCallback(() => {
     if (!annotationsEnabled || !articleRef.current || !supportsShelfCssHighlight()) return;
@@ -337,8 +340,10 @@ export default function ShelfPaginatedProse({
       start: snap.start,
       end: snap.end,
     });
-    articleRef.current?.classList.remove('shelf-sel-locked');
+    const article = articleRef.current;
+    article?.classList.remove('shelf-sel-locked');
     clearShelfActiveSelection();
+    if (article) clearShelfPinnedSelectionDom(article);
     setThoughtWrite({ ref, label: '书架笔记', verseText: snap.text });
     setSelection(null);
     setFocusBarStyle({});
@@ -564,17 +569,28 @@ export default function ShelfPaginatedProse({
                   span_end: parsed?.spanEnd,
                 });
                 addThought(thoughtWrite.ref, body, visibility);
+                const article = articleRef.current;
+                if (article) clearShelfPinnedSelectionDom(article);
+                clearShelfActiveSelection();
                 setHighlightTick((n) => n + 1);
                 onPublicNotesChanged?.();
                 setThoughtWrite(null);
               } catch {
                 addThought(thoughtWrite.ref, body, visibility);
+                const article = articleRef.current;
+                if (article) clearShelfPinnedSelectionDom(article);
+                clearShelfActiveSelection();
                 setHighlightTick((n) => n + 1);
                 setThoughtWrite(null);
               }
             })();
           }}
-          onClose={() => setThoughtWrite(null)}
+          onClose={() => {
+            const article = articleRef.current;
+            if (article) clearShelfPinnedSelectionDom(article);
+            clearShelfActiveSelection();
+            setThoughtWrite(null);
+          }}
         />
       ) : null}
 

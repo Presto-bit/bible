@@ -291,6 +291,11 @@ export function listAllThoughts(): ThoughtRow[] {
     .sort((a, b) => b.createdAtMs - a.createdAtMs);
 }
 
+/** 圣经 Tab 笔记（排除书架 SHELF.* ref） */
+export function listBibleThoughts(): ThoughtRow[] {
+  return listAllThoughts().filter((t) => !t.ref.startsWith('SHELF.'));
+}
+
 export function thoughtPreviewForRef(ref: string, maxLen = 80): string | undefined {
   const mine = myThoughtsForRef(ref);
   const body = mine[0]?.body?.trim();

@@ -816,6 +816,15 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   text-align: center;
 }
 
+.shelf-section-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px 0;
+  text-align: center;
+}
+
 .shelf-page-viewport {
   height: 100%;
   overflow: hidden;

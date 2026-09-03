@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import ShelfPostCard from '@/components/shelf/ShelfPostCard';
 import { useToast } from '@/components/ui/ToastProvider';
+import { friendlyError } from '@/lib/friendly_error';
 import { useShelfLoginGate } from '@/components/shelf/ShelfReplyComposer';
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
 import {
@@ -66,7 +67,7 @@ export default function ShelfReaderMoreSheet({
       sort: tab === 'hot' ? 'helpful' : 'latest',
     })
       .then((data) => setPosts(data.items))
-      .catch(() => flashToast('加载失败'))
+      .catch((e) => flashToast(friendlyError(e, '加载失败')))
       .finally(() => setLoading(false));
   }, [bookId, tab, sectionId, flashToast]);
 

@@ -53,9 +53,8 @@ import {
 } from '@/lib/reminder';
 import { checkPushReadiness, pushReadinessHint } from '@/lib/push_status';
 import { isAutoBiblePackReady } from '@/lib/offline_pack';
-import { listAllThoughts } from '@/lib/reader_thoughts';
-import { highlightCount } from '@/lib/reader_highlights';
-import { listMarksDetailed } from '@/lib/mark_stats';
+import { listBibleThoughts } from '@/lib/reader_thoughts';
+import { listBibleMarksDetailed, bibleHighlightCount } from '@/lib/mark_stats';
 import { formatMarkRefLabel } from '@/lib/mark_ref';
 import {
   blobToDataUrl,
@@ -673,12 +672,12 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   }, []);
 
   const refreshFootprintLocal = (names: Record<string, string>) => {
-    const thoughts = listAllThoughts();
+    const thoughts = listBibleThoughts();
     setThoughtCount(thoughts.length);
     setThoughtPreview(plainThoughtPreview(thoughts[0]?.body || '', 28));
 
-    const marks = listMarksDetailed();
-    setMarkCount(highlightCount());
+    const marks = listBibleMarksDetailed();
+    setMarkCount(bibleHighlightCount());
     if (marks[0]) {
       const label = formatMarkRefLabel(marks[0].ref, names);
       setMarkPreview(clipPreview(marks[0].notePreview || label, 22));

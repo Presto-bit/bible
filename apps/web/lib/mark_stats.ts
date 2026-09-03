@@ -2,6 +2,7 @@
 
 import { getHighlightMap, type HighlightColor } from './reader_highlights';
 import { parseMarkRef } from './mark_ref';
+import { isShelfMarkRef } from './shelf_mark_ref';
 import { MARK_COLOR_SEMANTICS } from './mark_semantics';
 import { getActivePlan, getPlanDay } from './plan_progress';
 import { thoughtPreviewForRef } from './reader_thoughts';
@@ -28,6 +29,15 @@ export function listMarksDetailed(): MarkListItem[] {
       };
     })
     .sort((a, b) => b.createdAt - a.createdAt || a.ref.localeCompare(b.ref));
+}
+
+/** 圣经 Tab 划线（排除书架 SHELF.* ref） */
+export function listBibleMarksDetailed(): MarkListItem[] {
+  return listMarksDetailed().filter((m) => !isShelfMarkRef(m.ref));
+}
+
+export function bibleHighlightCount(): number {
+  return listBibleMarksDetailed().length;
 }
 
 const META_KEY = 'reader_marks_meta_v1';

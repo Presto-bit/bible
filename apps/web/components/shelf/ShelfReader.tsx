@@ -28,6 +28,7 @@ import {
   type ShelfPost,
 } from '@/lib/shelf_posts';
 import { shelfSectionIsPdf, shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
+import { friendlyError } from '@/lib/friendly_error';
 import { touchShelfBookLastRead } from '@/lib/shelf_library';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
@@ -69,6 +70,8 @@ export default function ShelfReader({
   const [loading, setLoading] = useState(true);
   const [sectionLoading, setSectionLoading] = useState(false);
   const [err, setErr] = useState('');
+  const [sectionErr, setSectionErr] = useState('');
+  const [sectionReloadToken, setSectionReloadToken] = useState(0);
   const [tocOpen, setTocOpen] = useState(false);
   const [fontOpen, setFontOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -78,6 +81,7 @@ export default function ShelfReader({
   const [pendingLastPage, setPendingLastPage] = useState(false);
   const [pendingScrollEnd, setPendingScrollEnd] = useState(false);
   const [flowScrollRatio, setFlowScrollRatio] = useState(0);
+  const [scrollSnapKey, setScrollSnapKey] = useState(0);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [mediaVideo, setMediaVideo] = useState<ShelfAttachment | null>(null);
   const [pdfPinching, setPdfPinching] = useState(false);
@@ -183,8 +187,8 @@ export default function ShelfReader({
           setPageIndex(initialPageIndex);
         }
       })
-      .catch(() => {
-        if (!cancelled) setErr('无法加载书目');
+      .catch((e) => {
+        if (!cancelled) setErr(friendlyError(e, '无法加载书目'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -197,6 +201,7 @@ export default function ShelfReader({
   useEffect(() => {
     if (!sectionId) return;
     let cancelled = false;
+    setSectionErr('');
 
     const cached = peekShelfSectionCache(bookId, sectionId);
     if (cached) {
@@ -212,20 +217,22 @@ export default function ShelfReader({
         if (cancelled) return;
         setSection(s);
         setSectionLoading(false);
+        setSectionErr('');
         syncNeighborsFromCache(sectionId);
         const nextId = neighborId(1);
         prefetchShelfSection(bookId, nextId);
       })
-      .catch(() => {
+      .catch((e) => {
         if (!cancelled) {
-          setErr('无法加载章节');
+          if (!cached) setSection(null);
+          setSectionErr(friendlyError(e, '无法加载章节'));
           setSectionLoading(false);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [bookId, sectionId, neighborId, syncNeighborsFromCache]);
+  }, [bookId, sectionId, neighborId, syncNeighborsFromCache, sectionReloadToken]);
 
   useEffect(() => {
     if (!sectionId || !book?.title) return;
@@ -381,6 +388,7 @@ export default function ShelfReader({
         setPageIndex(typeof savedPage === 'number' ? savedPage : 0);
         setFlowScrollRatio(typeof savedScroll === 'number' ? savedScroll : 0);
       }
+      setScrollSnapKey((k) => k + 1);
     },
     [sectionId, pageIndex, flowScrollRatio],
   );
@@ -455,6 +463,11 @@ export default function ShelfReader({
     setMediaVideo(null);
   }, [chromeHidden]);
 
+  const retrySectionLoad = useCallback(() => {
+    setSectionErr('');
+    setSectionReloadToken((t) => t + 1);
+  }, []);
+
   const onFlowScrollProgress = useCallback((ratio: number) => {
     if (sectionId) scrollBySectionRef.current[sectionId] = ratio;
     if (flowProgressTimerRef.current != null) return;
@@ -484,12 +497,13 @@ export default function ShelfReader({
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
           pageIndex={interactive ? pageIndex : 0}
           scrollOffset={
-            interactive ? (scrollBySectionRef.current[sec.id] ?? 0) : 0
+            interactive ? (sectionId === sec.id ? flowScrollRatio : (scrollBySectionRef.current[sec.id] ?? 0)) : 0
           }
           scrollAnchor={
             interactive ? (scrollAnchorBySectionRef.current[sec.id] ?? flowScrollAnchorRef.current ?? undefined) : undefined
           }
           scrollToEnd={interactive ? Boolean(opts?.scrollToEnd) : false}
+          scrollSnapKey={interactive ? scrollSnapKey : 0}
           onPageCount={interactive && shelfSectionIsPdf(sec) ? setPageCountForSection : undefined}
           onPageIndexChange={interactive && shelfSectionIsPdf(sec) ? setPageIndex : undefined}
           onScrollProgress={interactive && !shelfSectionIsPdf(sec) ? onFlowScrollProgress : undefined}
@@ -525,11 +539,14 @@ export default function ShelfReader({
           pageIndex={0}
           variant={flowVariant}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
-          scrollOffset={interactive ? (scrollBySectionRef.current[sec.id] ?? 0) : 0}
+          scrollOffset={
+            interactive ? (sectionId === sec.id ? flowScrollRatio : (scrollBySectionRef.current[sec.id] ?? 0)) : 0
+          }
           scrollAnchor={
             interactive ? (scrollAnchorBySectionRef.current[sec.id] ?? flowScrollAnchorRef.current ?? undefined) : undefined
           }
           scrollToEnd={interactive ? Boolean(opts?.scrollToEnd) : false}
+          scrollSnapKey={interactive ? scrollSnapKey : 0}
           onScrollProgress={interactive ? onFlowScrollProgress : undefined}
           onScrollAnchor={interactive ? onFlowScrollAnchor : undefined}
           onTap={interactive ? onContentTap : undefined}
@@ -602,7 +619,15 @@ export default function ShelfReader({
           ref={pageTurn.viewportRef}
           {...pageTurn.turnHandlers}
         >
-          {sectionLoading && !pageTurn.turning ? (
+          {sectionErr ? (
+            <div className="shelf-section-error" role="alert">
+              <p className="muted">{sectionErr}</p>
+              <button type="button" className="btn btn-sm" onClick={retrySectionLoad}>
+                重试
+              </button>
+            </div>
+          ) : null}
+          {sectionLoading && !pageTurn.turning && !sectionErr ? (
             <p className="shelf-section-loading muted" role="status">
               加载中…
             </p>
@@ -617,7 +642,12 @@ export default function ShelfReader({
         </div>
       ) : (
         <div className="shelf-reader-body shelf-reader-body-pick">
-          <p className="muted">{sectionLoading ? '加载中…' : '暂无内容'}</p>
+          <p className="muted">{sectionErr || (sectionLoading ? '加载中…' : '暂无内容')}</p>
+          {sectionErr ? (
+            <button type="button" className="btn btn-sm" style={{ marginTop: 12 }} onClick={retrySectionLoad}>
+              重试
+            </button>
+          ) : null}
         </div>
       )}
 

@@ -23,6 +23,7 @@ type Props = {
   scrollOffset?: number;
   scrollAnchor?: { paragraphIndex: number };
   scrollToEnd?: boolean;
+  scrollSnapKey?: number;
   contentKey: string;
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
@@ -44,6 +45,7 @@ export default function ShelfLessonPanel({
   scrollOffset = 0,
   scrollAnchor,
   scrollToEnd = false,
+  scrollSnapKey = 0,
   contentKey,
   onPageCount,
   onPageIndexChange,
@@ -92,6 +94,7 @@ export default function ShelfLessonPanel({
         scrollOffset={scrollOffset}
         scrollAnchor={scrollAnchor}
         scrollToEnd={scrollToEnd}
+        scrollSnapKey={scrollSnapKey}
         contentKey={contentKey}
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
@@ -127,6 +130,7 @@ function ShelfPrimaryView({
   scrollOffset,
   scrollAnchor,
   scrollToEnd,
+  scrollSnapKey = 0,
   contentKey,
   onPageCount,
   onPageIndexChange,
@@ -144,6 +148,7 @@ function ShelfPrimaryView({
   scrollOffset?: number;
   scrollAnchor?: { paragraphIndex: number };
   scrollToEnd?: boolean;
+  scrollSnapKey?: number;
   contentKey: string;
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
@@ -171,6 +176,7 @@ function ShelfPrimaryView({
         scrollOffset={scrollOffset}
         scrollAnchor={scrollAnchor}
         scrollToEnd={scrollToEnd}
+        scrollSnapKey={scrollSnapKey}
         variant="docx"
         proseTone={childrenLesson ? 'lesson' : 'default'}
         onScrollProgress={onScrollProgress}
@@ -215,6 +221,7 @@ function ShelfPrimaryView({
         scrollOffset={scrollOffset}
         scrollAnchor={scrollAnchor}
         scrollToEnd={scrollToEnd}
+        scrollSnapKey={scrollSnapKey}
         onScrollProgress={onScrollProgress}
         onScrollAnchor={onScrollAnchor}
         onTap={onTap}
@@ -243,6 +250,7 @@ function ShelfDocxPaginated({
   scrollOffset = 0,
   scrollAnchor,
   scrollToEnd = false,
+  scrollSnapKey = 0,
   onScrollProgress,
   onScrollAnchor,
   onTap,
@@ -258,6 +266,7 @@ function ShelfDocxPaginated({
   scrollOffset?: number;
   scrollAnchor?: { paragraphIndex: number };
   scrollToEnd?: boolean;
+  scrollSnapKey?: number;
   onScrollProgress?: (ratio: number) => void;
   onScrollAnchor?: (anchor: { paragraphIndex: number }) => void;
   onTap?: () => void;
@@ -320,6 +329,7 @@ function ShelfDocxPaginated({
       scrollOffset={scrollOffset}
       scrollAnchor={scrollAnchor}
       scrollToEnd={scrollToEnd}
+      scrollSnapKey={scrollSnapKey}
       variant="docx"
       proseTone={childrenLesson ? 'lesson' : 'default'}
       onScrollProgress={onScrollProgress}
