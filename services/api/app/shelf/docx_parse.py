@@ -7,6 +7,8 @@ import io
 import re
 import zipfile
 from dataclasses import dataclass
+
+from .html_normalize import inject_shelf_paragraph_anchors
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -143,7 +145,7 @@ def docx_bytes_to_prose_html(data: bytes) -> str:
     paras = _iter_paragraphs(doc)
     if not paras:
         return '<p class="shelf-body muted">（空文档）</p>'
-    return "\n".join(_para_html(p) for p in paras)
+    return inject_shelf_paragraph_anchors("\n".join(_para_html(p) for p in paras))
 
 
 def parse_docx_bytes(data: bytes) -> dict[str, Any]:
@@ -192,7 +194,9 @@ def parse_docx_bytes(data: bytes) -> dict[str, Any]:
         nonlocal current, buf
         if current is None:
             return
-        current["html"] = _mark_dialogue_questions("\n".join(buf))
+        current["html"] = inject_shelf_paragraph_anchors(
+            _mark_dialogue_questions("\n".join(buf))
+        )
         sections.append(current)
         # 目录只保留一级标题（二十场对话 + 三个附录），附录内经文/第几天不入目录
         if current["level"] <= 1:

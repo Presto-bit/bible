@@ -21,11 +21,13 @@ type Props = {
   childrenLesson?: boolean;
   pageIndex: number;
   scrollOffset?: number;
+  scrollAnchor?: { paragraphIndex: number };
   scrollToEnd?: boolean;
   contentKey: string;
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
   onScrollProgress?: (ratio: number) => void;
+  onScrollAnchor?: (anchor: { paragraphIndex: number }) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
   onPdfPinchActive?: (active: boolean) => void;
@@ -40,11 +42,13 @@ export default function ShelfLessonPanel({
   childrenLesson = false,
   pageIndex,
   scrollOffset = 0,
+  scrollAnchor,
   scrollToEnd = false,
   contentKey,
   onPageCount,
   onPageIndexChange,
   onScrollProgress,
+  onScrollAnchor,
   onTap,
   chromeHidden = false,
   onPdfPinchActive,
@@ -70,7 +74,7 @@ export default function ShelfLessonPanel({
 
   return (
     <div className="shelf-lesson-viewport">
-      {hasMedia ? (
+      {hasMedia && !chromeHidden ? (
         <ShelfLessonMediaDock
           videos={videos}
           images={images}
@@ -86,11 +90,13 @@ export default function ShelfLessonPanel({
         childrenLesson={childrenLesson}
         pageIndex={pageIndex}
         scrollOffset={scrollOffset}
+        scrollAnchor={scrollAnchor}
         scrollToEnd={scrollToEnd}
         contentKey={contentKey}
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
         onScrollProgress={onScrollProgress}
+        onScrollAnchor={onScrollAnchor}
         onTap={onTap}
         chromeHidden={chromeHidden}
         onPdfPinchActive={onPdfPinchActive}
@@ -119,11 +125,13 @@ function ShelfPrimaryView({
   childrenLesson = false,
   pageIndex,
   scrollOffset,
+  scrollAnchor,
   scrollToEnd,
   contentKey,
   onPageCount,
   onPageIndexChange,
   onScrollProgress,
+  onScrollAnchor,
   onTap,
   chromeHidden,
   onPdfPinchActive,
@@ -134,11 +142,13 @@ function ShelfPrimaryView({
   childrenLesson?: boolean;
   pageIndex: number;
   scrollOffset?: number;
+  scrollAnchor?: { paragraphIndex: number };
   scrollToEnd?: boolean;
   contentKey: string;
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
   onScrollProgress?: (ratio: number) => void;
+  onScrollAnchor?: (anchor: { paragraphIndex: number }) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
   onPdfPinchActive?: (active: boolean) => void;
@@ -159,10 +169,12 @@ function ShelfPrimaryView({
         pageIndex={0}
         contentKey={contentKey}
         scrollOffset={scrollOffset}
+        scrollAnchor={scrollAnchor}
         scrollToEnd={scrollToEnd}
         variant="docx"
         proseTone={childrenLesson ? 'lesson' : 'default'}
         onScrollProgress={onScrollProgress}
+        onScrollAnchor={onScrollAnchor}
         onTap={onTap}
         chromeHidden={chromeHidden}
         onTextSelectionChange={onTextSelectionChange}
@@ -201,8 +213,10 @@ function ShelfPrimaryView({
         sectionId={section.id}
         childrenLesson={childrenLesson}
         scrollOffset={scrollOffset}
+        scrollAnchor={scrollAnchor}
         scrollToEnd={scrollToEnd}
         onScrollProgress={onScrollProgress}
+        onScrollAnchor={onScrollAnchor}
         onTap={onTap}
         chromeHidden={chromeHidden}
         onTextSelectionChange={onTextSelectionChange}
@@ -227,8 +241,10 @@ function ShelfDocxPaginated({
   sectionId,
   childrenLesson = false,
   scrollOffset = 0,
+  scrollAnchor,
   scrollToEnd = false,
   onScrollProgress,
+  onScrollAnchor,
   onTap,
   chromeHidden = false,
   onTextSelectionChange,
@@ -240,8 +256,10 @@ function ShelfDocxPaginated({
   sectionId: string;
   childrenLesson?: boolean;
   scrollOffset?: number;
+  scrollAnchor?: { paragraphIndex: number };
   scrollToEnd?: boolean;
   onScrollProgress?: (ratio: number) => void;
+  onScrollAnchor?: (anchor: { paragraphIndex: number }) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
   onTextSelectionChange?: (active: boolean) => void;
@@ -294,10 +312,12 @@ function ShelfDocxPaginated({
       pageIndex={0}
       contentKey={`${contentKey}:${title}`}
       scrollOffset={scrollOffset}
+      scrollAnchor={scrollAnchor}
       scrollToEnd={scrollToEnd}
       variant="docx"
       proseTone={childrenLesson ? 'lesson' : 'default'}
       onScrollProgress={onScrollProgress}
+      onScrollAnchor={onScrollAnchor}
       onTap={onTap}
       chromeHidden={chromeHidden}
       onTextSelectionChange={onTextSelectionChange}

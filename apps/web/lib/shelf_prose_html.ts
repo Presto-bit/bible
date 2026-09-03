@@ -86,6 +86,57 @@ function enhanceShelfDialogueHtml(root: HTMLElement, doc: Document) {
   enhanceDialogueQuestions(root);
 }
 
+/** 段落锚点：竖滚续读比 scroll 比例更稳（对齐 API html_normalize） */
+export function injectShelfParagraphAnchors(root: ParentNode) {
+  let idx = 0;
+  root.querySelectorAll('p.shelf-body, p.shelf-docx-p, p.shelf-dialogue').forEach((p) => {
+    if (p.hasAttribute('data-shelf-p')) return;
+    p.setAttribute('data-shelf-p', String(idx));
+    idx += 1;
+  });
+}
+
+export function shelfParagraphIndexForRatio(html: string, ratio: number): number {
+  if (typeof window === 'undefined' || !html.trim()) return 0;
+  try {
+    const doc = new DOMParser().parseFromString(`<div id="r">${html}</div>`, 'text/html');
+    const root = doc.getElementById('r');
+    if (!root) return 0;
+    injectShelfParagraphAnchors(root);
+    const plain = (root.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!plain.length) return 0;
+    const charPos = Math.round(Math.min(1, Math.max(0, ratio)) * plain.length);
+    let pick = 0;
+    root.querySelectorAll('[data-shelf-p]').forEach((el) => {
+      const pos = plain.indexOf((el.textContent || '').trim().slice(0, 8));
+      const n = Number(el.getAttribute('data-shelf-p'));
+      if (pos >= 0 && pos <= charPos && n >= pick) pick = n;
+    });
+    return pick;
+  } catch {
+    return 0;
+  }
+}
+
+export function shelfRatioForParagraphIndex(html: string, paragraphIndex: number): number {
+  if (typeof window === 'undefined' || !html.trim()) return 0;
+  try {
+    const doc = new DOMParser().parseFromString(`<div id="r">${html}</div>`, 'text/html');
+    const root = doc.getElementById('r');
+    if (!root) return 0;
+    injectShelfParagraphAnchors(root);
+    const plain = (root.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!plain.length) return 0;
+    const el = root.querySelector(`[data-shelf-p="${paragraphIndex}"]`);
+    if (!el) return 0;
+    const needle = (el.textContent || '').trim().slice(0, 12);
+    const pos = plain.indexOf(needle);
+    return pos >= 0 ? pos / plain.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** 将 HTML 字符串中的经文引用转为可点击按钮（客户端 DOM 处理） */
 export function linkifyShelfProseHtml(html: string): string {
   if (!html || typeof window === 'undefined') return html;
@@ -95,6 +146,7 @@ export function linkifyShelfProseHtml(html: string): string {
     if (!root) return html;
 
     enhanceShelfDialogueHtml(root, doc);
+    injectShelfParagraphAnchors(root);
 
     walkTextNodes(root, (node) => {
       const parent = node.parentElement;

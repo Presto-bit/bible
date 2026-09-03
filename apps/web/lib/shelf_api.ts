@@ -114,12 +114,18 @@ export function shelfCoverHue(title: string): number {
 
 const PROGRESS_KEY = 'presto_shelf_progress_v1';
 
+export type ShelfScrollAnchor = {
+  paragraphIndex: number;
+  viewportFromTop?: number;
+};
+
 export type ShelfBookProgress = {
   sectionId: string;
   /** PDF：0-based 页码 */
   pageIndex?: number;
   /** HTML/Word flow：0–1 滚动比例 */
   scrollOffset?: number;
+  scrollAnchor?: ShelfScrollAnchor;
 };
 
 export type ShelfLastRead = {
@@ -140,10 +146,15 @@ function normalizeBookProgress(raw: ShelfBookProgress | string | undefined): She
   if (!raw) return null;
   if (typeof raw === 'string') return { sectionId: raw, pageIndex: 0 };
   if (typeof raw.sectionId === 'string') {
+    const anchor = raw.scrollAnchor;
     return {
       sectionId: raw.sectionId,
       pageIndex: typeof raw.pageIndex === 'number' ? raw.pageIndex : 0,
       scrollOffset: typeof raw.scrollOffset === 'number' ? raw.scrollOffset : undefined,
+      scrollAnchor:
+        anchor && typeof anchor.paragraphIndex === 'number'
+          ? { paragraphIndex: anchor.paragraphIndex, viewportFromTop: anchor.viewportFromTop }
+          : undefined,
     };
   }
   return null;
@@ -189,18 +200,20 @@ export function saveShelfProgress(
   bookId: string,
   sectionId: string,
   meta?: { bookTitle?: string; sectionTitle?: string },
-  position?: { pageIndex?: number; scrollOffset?: number },
+  position?: { pageIndex?: number; scrollOffset?: number; scrollAnchor?: ShelfScrollAnchor },
 ) {
   const pageIndex = Math.max(0, position?.pageIndex ?? 0);
   const scrollOffset =
     typeof position?.scrollOffset === 'number'
       ? Math.min(1, Math.max(0, position.scrollOffset))
       : undefined;
+  const scrollAnchor = position?.scrollAnchor;
   const store = readProgressStore();
   store.byBook[bookId] = {
     sectionId,
     pageIndex,
     ...(scrollOffset != null ? { scrollOffset } : {}),
+    ...(scrollAnchor ? { scrollAnchor } : {}),
   };
   if (meta?.bookTitle) {
     store.last = {

@@ -23,6 +23,7 @@ class ReaderFocusBar extends StatefulWidget {
     this.underlinesEnabled = true,
     this.thoughtsEnabled = true,
     this.readingMode = ReadingMode.study,
+    this.verseActionsEnabled = true,
   });
 
   final HighlightMark? currentMark;
@@ -37,6 +38,7 @@ class ReaderFocusBar extends StatefulWidget {
   final bool underlinesEnabled;
   final bool thoughtsEnabled;
   final ReadingMode readingMode;
+  final bool verseActionsEnabled;
 
   @override
   State<ReaderFocusBar> createState() => _ReaderFocusBarState();
@@ -153,19 +155,22 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
                       label: '复制',
                       onTap: widget.onCopy,
                     ),
-                    if (widget.readingMode != ReadingMode.focus)
+                    if (widget.verseActionsEnabled &&
+                        widget.readingMode != ReadingMode.focus)
                       _iconBtn(
                         icon: Icons.crop_landscape_outlined,
                         label: '金句卡',
                         onTap: widget.onVerseCard,
                       ),
-                    if (widget.readingMode == ReadingMode.study)
+                    if (widget.verseActionsEnabled &&
+                        widget.readingMode == ReadingMode.study)
                       _iconBtn(
                         icon: Icons.compare_arrows,
                         label: '对照',
                         onTap: widget.onCompare,
                       ),
-                    if (widget.readingMode != ReadingMode.focus)
+                    if (widget.verseActionsEnabled &&
+                        widget.readingMode != ReadingMode.focus)
                       _iconBtn(
                         icon: Icons.auto_awesome,
                         label: '小爱',

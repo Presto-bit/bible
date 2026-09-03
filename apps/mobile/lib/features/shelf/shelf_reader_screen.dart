@@ -19,6 +19,7 @@ import 'shelf_progress.dart';
 import 'shelf_reader_contract.dart';
 import 'shelf_reading_prefs.dart';
 import 'shelf_repository.dart';
+import 'shelf_scroll_anchor.dart';
 import 'shelf_toc.dart';
 import 'shelf_turn_gesture.dart';
 
@@ -53,12 +54,14 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   var _pendingLastPage = false;
   var _pendingScrollEnd = false;
   var _flowScrollRatio = 0.0;
+  ShelfScrollAnchor? _flowScrollAnchor;
   var _proseSelecting = false;
   var _pdfPinching = false;
   var _overlayOpen = 0;
   Timer? _progressTimer;
   final _pageBySection = <String, int>{};
   final _scrollBySection = <String, double>{};
+  final _scrollAnchorBySection = <String, ShelfScrollAnchor>{};
   final _pageCountBySection = <String, int>{};
 
   bool get _blocked => _overlayOpen > 0 || _pdfPinching;
@@ -110,15 +113,18 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       final pick = widget.sectionId ?? progress?.sectionId ?? first;
       var page = 0;
       double? scroll;
+      ShelfScrollAnchor? scrollAnchor;
       if (pick != null) {
         if (widget.sectionId == pick && widget.pageIndex != null) {
           page = widget.pageIndex!;
         } else if (progress?.sectionId == pick) {
           page = progress?.pageIndex ?? 0;
           scroll = progress?.scrollOffset;
+          scrollAnchor = progress?.scrollAnchor;
         }
         _pageBySection[pick] = page;
         if (scroll != null) _scrollBySection[pick] = scroll;
+        if (scrollAnchor != null) _scrollAnchorBySection[pick] = scrollAnchor;
       }
       if (!mounted) return;
       setState(() {
@@ -126,6 +132,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _sectionId = pick;
         _pageIndex = page;
         _flowScrollRatio = scroll ?? 0;
+        _flowScrollAnchor = scrollAnchor;
         _loading = false;
       });
       if (pick != null) unawaited(_loadSection(pick));
@@ -139,9 +146,19 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   Future<void> _loadSection(String sectionId) async {
-    setState(() => _sectionLoading = true);
+    final repo = ref.read(shelfRepoProvider);
+    final cached = repo.peekSection(widget.bookId, sectionId);
+    if (cached != null && mounted) {
+      setState(() {
+        _section = cached;
+        _sectionLoading = false;
+        _pageCount = _pageCountBySection[sectionId] ?? 1;
+      });
+    } else if (mounted) {
+      setState(() => _sectionLoading = true);
+    }
     try {
-      final section = await ref.read(shelfRepoProvider).getSection(widget.bookId, sectionId);
+      final section = await repo.getSection(widget.bookId, sectionId);
       if (!mounted) return;
       setState(() {
         _section = section;
@@ -172,11 +189,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final target = edge == 'next' ? idx + 1 : idx - 1;
     if (target < 0 || target >= _sections.length) return;
     final id = _sections[target].id;
-    unawaited(() async {
-      try {
-        await ref.read(shelfRepoProvider).getSection(widget.bookId, id);
-      } catch (_) {}
-    }());
+    unawaited(ref.read(shelfRepoProvider).prefetchSection(widget.bookId, id));
   }
 
   List<ShelfSectionSummary> get _sections => _book?.sections ?? const [];
@@ -201,6 +214,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         sid,
         pageIndex: _isPdfSection ? _pageIndex : 0,
         scrollOffset: _isPdfSection ? null : _flowScrollRatio,
+        scrollAnchor: _isPdfSection ? null : _flowScrollAnchor,
         bookTitle: _book?.title,
         sectionTitle: _section?.title,
       );
@@ -208,6 +222,9 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _pageBySection[sid] = _pageIndex;
       } else {
         _scrollBySection[sid] = _flowScrollRatio;
+        if (_flowScrollAnchor != null) {
+          _scrollAnchorBySection[sid] = _flowScrollAnchor!;
+        }
       }
     });
   }
@@ -215,6 +232,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   void _onFlowScrollProgress(double ratio) {
     if (!mounted) return;
     setState(() => _flowScrollRatio = ratio);
+    _scheduleProgress();
+  }
+
+  void _onFlowScrollAnchor(ShelfScrollAnchor anchor) {
+    _flowScrollAnchor = anchor;
     _scheduleProgress();
   }
 
@@ -269,12 +291,22 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _pageBySection[cur] = _pageIndex;
       } else {
         _scrollBySection[cur] = _flowScrollRatio;
+        if (_flowScrollAnchor != null) {
+          _scrollAnchorBySection[cur] = _flowScrollAnchor!;
+        }
       }
     }
     final savedScroll = _scrollBySection[id] ?? 0.0;
+    final savedAnchor = _scrollAnchorBySection[id];
+    final cached = ref.read(shelfRepoProvider).peekSection(widget.bookId, id);
     setState(() {
       _sectionId = id;
-      _section = null;
+      if (cached != null) {
+        _section = cached;
+        _sectionLoading = false;
+      } else {
+        _sectionLoading = true;
+      }
       _pageCount = _pageCountBySection[id] ?? 1;
       _chromeHidden = false;
       _pendingScrollEnd = scrollEnd;
@@ -288,6 +320,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _pageIndex = _pageBySection[id] ?? 0;
       }
       _flowScrollRatio = scrollStart ? 0 : (scrollEnd ? 1 : savedScroll);
+      _flowScrollAnchor = scrollStart || scrollEnd ? null : savedAnchor;
     });
     unawaited(_loadSection(id));
     _scheduleProgress();
@@ -444,7 +477,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                   children: [
                     for (final px in shelfFontSteps)
                       ChoiceChip(
-                        label: Text('${px.toInt()}'),
+                        label: Text(shelfFontStepLabels[px] ?? '${px.toInt()}'),
                         selected: prefs.fontPx == px,
                         onSelected: (_) async {
                           await ref.read(shelfReadingPrefsProvider.notifier).setFontPx(px);
@@ -462,7 +495,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                   children: [
                     for (final lh in shelfLineHeightSteps)
                       ChoiceChip(
-                        label: Text('$lh'),
+                        label: Text(shelfLineHeightLabels[lh] ?? '$lh'),
                         selected: prefs.lineHeight == lh,
                         onSelected: (_) async {
                           await ref
@@ -526,9 +559,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         variantDocx: section.kind == 'lesson',
         lessonTone: _isChildrenLesson && section.kind == 'lesson',
         scrollOffset: _scrollBySection[section.id] ?? _flowScrollRatio,
+        scrollAnchor: _scrollAnchorBySection[section.id] ?? _flowScrollAnchor,
         scrollToEnd: _pendingScrollEnd,
         onTap: _toggleChrome,
         onScrollProgress: _onFlowScrollProgress,
+        onScrollAnchor: _onFlowScrollAnchor,
         onSectionEdge: _onProseSectionEdge,
         onSelectionActiveChanged: (active) {
           if (mounted) setState(() => _proseSelecting = active);
@@ -571,7 +606,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (isLesson && hasMedia)
+        if (isLesson && hasMedia && !_chromeHidden)
           ShelfLessonMediaDock(
             videos: videos,
             images: images,
@@ -580,12 +615,9 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
             onOpenVideo: (item) => unawaited(_openMediaSheet(section, initialVideo: item)),
           ),
         Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: KeyedSubtree(
-              key: ValueKey(_sectionId),
-              child: _buildPrimary(section, prefs, repo),
-            ),
+          child: KeyedSubtree(
+            key: ValueKey(_sectionId),
+            child: _buildPrimary(section, prefs, repo),
           ),
         ),
       ],
@@ -652,7 +684,8 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
               children: [
                 Expanded(
                   child: ShelfSnapTurnGesture(
-                    enabled: section != null && !_sectionLoading && !_blocked,
+                    enabled: section != null && !_blocked,
+                    edgeOnly: true,
                     shouldYieldTurn: () => _proseSelecting,
                     hitIsProseContent: (_) => section != null && section.hasProseHtml,
                     onTurnNext: _canNext ? _turnNext : null,

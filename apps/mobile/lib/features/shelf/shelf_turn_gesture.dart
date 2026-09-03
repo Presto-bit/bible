@@ -1,13 +1,16 @@
-/// 书架横滑切节：全屏响应 + 正文区竖滚/划词优先（对齐 Web useShelfTurn）。
+/// 书架横滑切节：边缘带切章 + 正文区竖滚/划词优先（对齐 Web useShelfTurn）。
 library;
 
 import 'package:flutter/material.dart';
+
+const _edgeSwipePx = 88.0;
 
 class ShelfSnapTurnGesture extends StatefulWidget {
   const ShelfSnapTurnGesture({
     super.key,
     required this.child,
     required this.enabled,
+    this.edgeOnly = true,
     this.onTurnNext,
     this.onTurnPrev,
     this.onBoundary,
@@ -18,6 +21,7 @@ class ShelfSnapTurnGesture extends StatefulWidget {
 
   final Widget child;
   final bool enabled;
+  final bool edgeOnly;
   final VoidCallback? onTurnNext;
   final VoidCallback? onTurnPrev;
   final ValueChanged<String>? onBoundary;
@@ -37,6 +41,7 @@ class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
   var _horizontal = false;
   var _approachFired = false;
   var _inProse = false;
+  var _fromEdge = false;
 
   void _reset() {
     _pointer = null;
@@ -45,11 +50,19 @@ class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
     _dx = 0;
     _approachFired = false;
     _inProse = false;
+    _fromEdge = false;
+  }
+
+  bool _isEdge(Offset position) {
+    final w = MediaQuery.sizeOf(context).width;
+    return position.dx < _edgeSwipePx || position.dx > w - _edgeSwipePx;
   }
 
   void _onPointerDown(PointerDownEvent e) {
     if (!widget.enabled) return;
     if (widget.shouldYieldTurn?.call() == true) return;
+    _fromEdge = !widget.edgeOnly || _isEdge(e.position);
+    if (widget.edgeOnly && !_fromEdge) return;
     _pointer = e.pointer;
     _start = e.position;
     _dx = 0;
@@ -74,7 +87,7 @@ class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
     if (!_axisLocked) {
       if (adx < 2 && ady < 2) return;
 
-      if (_inProse) {
+      if (_inProse && !_fromEdge) {
         if (ady >= 10 && ady >= adx * 0.88) {
           _reset();
           return;
@@ -85,16 +98,17 @@ class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
         } else {
           return;
         }
+      } else if (_fromEdge && adx >= 3 && adx > ady * 0.45) {
+        _horizontal = true;
+        _axisLocked = true;
+      } else if (adx >= 3 && adx > ady * 0.9) {
+        _horizontal = true;
+        _axisLocked = true;
+      } else if (ady >= 3 && ady >= adx) {
+        _reset();
+        return;
       } else {
-        if (adx >= 3 && adx > ady * 0.9) {
-          _horizontal = true;
-          _axisLocked = true;
-        } else if (ady >= 3 && ady >= adx) {
-          _reset();
-          return;
-        } else {
-          return;
-        }
+        return;
       }
     }
 
@@ -117,7 +131,9 @@ class _ShelfSnapTurnGestureState extends State<ShelfSnapTurnGesture> {
     final w = MediaQuery.sizeOf(context).width;
     final ratio = _dx.abs() / (w <= 0 ? 1 : w);
     final goingNext = _dx < 0;
-    final commit = ratio >= 0.11 || ratio >= 0.06 && _dx.abs() >= 36 || ratio >= 0.2;
+    final goingPrev = _dx > 0;
+    final threshold = goingPrev ? 0.08 : 0.09;
+    final commit = ratio >= threshold || (_fromEdge && ratio >= 0.05 && _dx.abs() >= 28);
 
     if (commit) {
       if (goingNext) {

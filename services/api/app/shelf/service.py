@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from ..db import get_pool
 from .assets import book_asset_keys, asset_allowed, infer_section_attachments
 from .docx_parse import docx_bytes_to_prose_html, file_sha256, parse_docx_bytes
+from .html_normalize import inject_shelf_paragraph_anchors, normalize_section_html
 from .file_catalog import (
     DEFAULT_GROUPS,
     get_file_book,
@@ -289,6 +290,9 @@ def get_platform_section(book_id: str, section_id: str) -> dict[str, Any]:
                 html = docx_bytes_to_prose_html(path.read_bytes())
             except Exception:
                 html = html or ""
+    lesson = kind == "lesson"
+    if html.strip():
+        html = normalize_section_html(html, kind=kind, lesson=lesson)
     return {
         "id": s["id"],
         "title": s.get("title") or "",

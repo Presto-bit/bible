@@ -339,6 +339,17 @@ class ShelfRepository {
     return _fetchSectionFresh(bookId, sectionId);
   }
 
+  ShelfSection? peekSection(String bookId, String sectionId) {
+    return _cache.peekSection(bookId, sectionId);
+  }
+
+  Future<void> prefetchSection(String bookId, String sectionId) async {
+    if (_cache.peekSection(bookId, sectionId) != null) return;
+    try {
+      await _fetchSectionFresh(bookId, sectionId);
+    } catch (_) {}
+  }
+
   Future<ShelfSection> _fetchSectionFresh(String bookId, String sectionId) async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/shelf/platform/$bookId/sections/$sectionId',

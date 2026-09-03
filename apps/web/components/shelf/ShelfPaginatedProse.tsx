@@ -11,7 +11,7 @@ import {
   setHighlight,
   type HighlightColor,
 } from '@/lib/reader_highlights';
-import { linkifyShelfProseHtml } from '@/lib/shelf_prose_html';
+import { linkifyShelfProseHtml, shelfParagraphIndexForRatio, shelfRatioForParagraphIndex } from '@/lib/shelf_prose_html';
 import {
   findShelfHighlightRef,
   paintShelfHighlights,
@@ -43,10 +43,12 @@ type Props = {
   sectionId?: string;
   pageIndex?: number;
   scrollOffset?: number;
+  scrollAnchor?: { paragraphIndex: number };
   scrollToEnd?: boolean;
   variant?: 'html' | 'docx';
   proseTone?: 'default' | 'lesson';
   onScrollProgress?: (ratio: number) => void;
+  onScrollAnchor?: (anchor: { paragraphIndex: number }) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
   onTextSelectionChange?: (active: boolean) => void;
@@ -78,10 +80,12 @@ export default function ShelfPaginatedProse({
   sectionId,
   pageIndex = 0,
   scrollOffset = 0,
+  scrollAnchor,
   scrollToEnd = false,
   variant = 'html',
   proseTone = 'default',
   onScrollProgress,
+  onScrollAnchor,
   onTap,
   chromeHidden = false,
   onTextSelectionChange,
@@ -114,11 +118,14 @@ export default function ShelfPaginatedProse({
     requestAnimationFrame(() => {
       const max = Math.max(0, el.scrollHeight - el.clientHeight);
       if (scrollToEnd) el.scrollTop = max;
-      else if (scrollOffset > 0) el.scrollTop = scrollOffset * max;
+      else if (scrollAnchor && linkedHtml) {
+        const ratio = shelfRatioForParagraphIndex(linkedHtml, scrollAnchor.paragraphIndex);
+        el.scrollTop = ratio * max;
+      } else if (scrollOffset > 0) el.scrollTop = scrollOffset * max;
       else el.scrollTop = 0;
       syncRef.current = false;
     });
-  }, [contentKey, linkedHtml, scrollOffset, scrollToEnd]);
+  }, [contentKey, linkedHtml, scrollOffset, scrollAnchor, scrollToEnd]);
 
   const repaintHighlights = useCallback(() => {
     if (!annotationsEnabled || !articleRef.current || !supportsShelfCssHighlight()) return;
@@ -186,12 +193,14 @@ export default function ShelfPaginatedProse({
       const el = viewportRef.current;
       if (!el || syncRef.current) return;
       const max = Math.max(0, el.scrollHeight - el.clientHeight);
-      onScrollProgress?.(max > 0 ? el.scrollTop / max : 0);
+      const ratio = max > 0 ? el.scrollTop / max : 0;
+      onScrollProgress?.(ratio);
+      onScrollAnchor?.({ paragraphIndex: shelfParagraphIndexForRatio(linkedHtml, ratio) });
       if (selection) {
         window.requestAnimationFrame(() => syncSelection());
       }
     });
-  }, [onScrollProgress, selection, syncSelection]);
+  }, [onScrollProgress, onScrollAnchor, linkedHtml, selection, syncSelection]);
 
   useEffect(() => {
     return () => {

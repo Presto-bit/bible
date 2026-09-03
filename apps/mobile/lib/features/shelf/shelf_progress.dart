@@ -5,6 +5,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'shelf_scroll_anchor.dart';
+
 const _progressKey = 'presto_shelf_progress_v1';
 
 class ShelfBookProgress {
@@ -12,11 +14,13 @@ class ShelfBookProgress {
     required this.sectionId,
     this.pageIndex = 0,
     this.scrollOffset,
+    this.scrollAnchor,
   });
 
   final String sectionId;
   final int pageIndex;
   final double? scrollOffset;
+  final ShelfScrollAnchor? scrollAnchor;
 }
 
 class ShelfLastRead {
@@ -27,6 +31,7 @@ class ShelfLastRead {
     this.sectionTitle = '',
     this.pageIndex = 0,
     this.scrollOffset,
+    this.scrollAnchor,
   });
 
   final String bookId;
@@ -35,6 +40,7 @@ class ShelfLastRead {
   final String sectionTitle;
   final int pageIndex;
   final double? scrollOffset;
+  final ShelfScrollAnchor? scrollAnchor;
 }
 
 class ShelfProgressStore {
@@ -55,6 +61,7 @@ class ShelfProgressStore {
         sectionId: sid,
         pageIndex: (entry['pageIndex'] as num?)?.toInt() ?? 0,
         scrollOffset: scroll is num ? scroll.toDouble().clamp(0, 1) : null,
+        scrollAnchor: ShelfScrollAnchor.fromJson(entry['scrollAnchor']),
       );
     }
     return null;
@@ -76,6 +83,7 @@ class ShelfProgressStore {
         sectionTitle: '${last['sectionTitle'] ?? ''}',
         pageIndex: (last['pageIndex'] as num?)?.toInt() ?? 0,
         scrollOffset: scroll is num ? scroll.toDouble().clamp(0, 1) : null,
+        scrollAnchor: ShelfScrollAnchor.fromJson(last['scrollAnchor']),
       );
     } catch (_) {
       return null;
@@ -87,6 +95,7 @@ class ShelfProgressStore {
     String sectionId, {
     int pageIndex = 0,
     double? scrollOffset,
+    ShelfScrollAnchor? scrollAnchor,
     String? bookTitle,
     String? sectionTitle,
   }) {
@@ -101,6 +110,9 @@ class ShelfProgressStore {
     if (scrollOffset != null) {
       entry['scrollOffset'] = scrollOffset.clamp(0.0, 1.0);
     }
+    if (scrollAnchor != null) {
+      entry['scrollAnchor'] = scrollAnchor.toJson();
+    }
     byBook[bookId] = entry;
     store['byBook'] = byBook;
     if (bookTitle != null && bookTitle.isNotEmpty) {
@@ -111,6 +123,7 @@ class ShelfProgressStore {
         'sectionTitle': sectionTitle ?? '',
         'pageIndex': pageIndex < 0 ? 0 : pageIndex,
         if (scrollOffset != null) 'scrollOffset': scrollOffset.clamp(0.0, 1.0),
+        if (scrollAnchor != null) 'scrollAnchor': scrollAnchor.toJson(),
         'at': DateTime.now().millisecondsSinceEpoch,
       };
     }

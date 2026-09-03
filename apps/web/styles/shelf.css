@@ -761,6 +761,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   font-family: var(--shelf-font-family, var(--font-reader));
   text-align: justify;
   text-wrap: pretty;
+  hanging-punctuation: allow-end;
 }
 
 .shelf-prose {
@@ -1056,6 +1057,11 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
+}
+
+.shelf-reader-hidden .shelf-lesson-media-dock,
+.shelf-reader-pdf-fullscreen .shelf-lesson-media-dock {
+  display: none;
 }
 
 .shelf-reader-hidden .shelf-page-viewport {
@@ -1858,6 +1864,14 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   font-family: inherit !important;
   line-height: inherit !important;
   color: inherit;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: 100% !important;
+  width: auto !important;
+}
+
+.shelf-docx-prose div:not(.shelf-docx-table-wrap) {
+  width: 100% !important;
 }
 
 .shelf-docx-prose p:not(.shelf-docx-p) {
@@ -1888,6 +1902,8 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 
 .shelf-docx-prose .shelf-docx-table {
   width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: calc(var(--shelf-font-size, 18px) - 2px);
 }
@@ -1940,6 +1956,14 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-docx-prose-lesson .shelf-docx-p {
   text-indent: 2em;
   margin: 0 0 1.05em;
+  margin-left: 0 !important;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.shelf-docx-prose-lesson p:not(.shelf-docx-title):not(.shelf-docx-h1):not(.shelf-docx-h2):not(.shelf-docx-h3) {
+  margin-left: 0 !important;
+  max-width: 100%;
 }
 
 .shelf-docx-prose-lesson .shelf-docx-p.shelf-docx-indent {

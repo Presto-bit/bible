@@ -78,7 +78,9 @@ export default function ShelfReader({
   const flowProgressTimerRef = useRef<number | null>(null);
   const pageBySectionRef = useRef<Record<string, number>>({});
   const scrollBySectionRef = useRef<Record<string, number>>({});
+  const scrollAnchorBySectionRef = useRef<Record<string, { paragraphIndex: number }>>({});
   const pageCountBySectionRef = useRef<Record<string, number>>({});
+  const flowScrollAnchorRef = useRef<{ paragraphIndex: number } | null>(null);
 
   const isLesson = section?.kind === 'lesson';
   const isChildrenLesson = shelfIsChildrenLessonBook(book);
@@ -154,6 +156,10 @@ export default function ShelfReader({
           pageBySectionRef.current[pick] = saved.pageIndex ?? 0;
           if (typeof saved.scrollOffset === 'number') {
             scrollBySectionRef.current[pick] = saved.scrollOffset;
+          }
+          if (saved.scrollAnchor) {
+            scrollAnchorBySectionRef.current[pick] = saved.scrollAnchor;
+            flowScrollAnchorRef.current = saved.scrollAnchor;
           }
           setPageIndex(saved.pageIndex ?? 0);
           setFlowScrollRatio(saved.scrollOffset ?? 0);
@@ -270,7 +276,11 @@ export default function ShelfReader({
         { bookTitle: book?.title, sectionTitle: section?.title },
         isPdfSection
           ? { pageIndex }
-          : { scrollOffset: flowScrollRatio, pageIndex: 0 },
+          : {
+              scrollOffset: flowScrollRatio,
+              pageIndex: 0,
+              scrollAnchor: flowScrollAnchorRef.current ?? undefined,
+            },
       );
       pageBySectionRef.current[sectionId] = pageIndex;
       scrollBySectionRef.current[sectionId] = flowScrollRatio;
@@ -357,7 +367,7 @@ export default function ShelfReader({
     canNext,
     blocked: overlayOpen,
     snapOnly: true,
-    edgeOnly: false,
+    edgeOnly: true,
     resolveTurn,
     onSectionChange: (delta) => {
       if (delta > 0) goNextSection();
@@ -389,6 +399,12 @@ export default function ShelfReader({
     setChromeHidden((v) => !v);
   }, []);
 
+  useEffect(() => {
+    if (!chromeHidden) return;
+    setMediaOpen(false);
+    setMediaVideo(null);
+  }, [chromeHidden]);
+
   const onFlowScrollProgress = useCallback((ratio: number) => {
     if (sectionId) scrollBySectionRef.current[sectionId] = ratio;
     if (flowProgressTimerRef.current != null) return;
@@ -396,6 +412,11 @@ export default function ShelfReader({
       flowProgressTimerRef.current = null;
       setFlowScrollRatio(ratio);
     }, 120);
+  }, [sectionId]);
+
+  const onFlowScrollAnchor = useCallback((anchor: { paragraphIndex: number }) => {
+    flowScrollAnchorRef.current = anchor;
+    if (sectionId) scrollAnchorBySectionRef.current[sectionId] = anchor;
   }, [sectionId]);
 
   const renderSectionContent = (
@@ -415,10 +436,14 @@ export default function ShelfReader({
           scrollOffset={
             interactive ? (scrollBySectionRef.current[sec.id] ?? flowScrollRatio) : 0
           }
+          scrollAnchor={
+            interactive ? (scrollAnchorBySectionRef.current[sec.id] ?? flowScrollAnchorRef.current ?? undefined) : undefined
+          }
           scrollToEnd={interactive ? Boolean(opts?.scrollToEnd) : false}
           onPageCount={interactive && shelfSectionIsPdf(sec) ? setPageCountForSection : undefined}
           onPageIndexChange={interactive && shelfSectionIsPdf(sec) ? setPageIndex : undefined}
           onScrollProgress={interactive && !shelfSectionIsPdf(sec) ? onFlowScrollProgress : undefined}
+          onScrollAnchor={interactive && !shelfSectionIsPdf(sec) ? onFlowScrollAnchor : undefined}
           onTap={interactive ? onContentTap : undefined}
           chromeHidden={interactive && chromeHidden}
           onPdfPinchActive={interactive ? setPdfPinching : undefined}
@@ -444,8 +469,12 @@ export default function ShelfReader({
           pageIndex={0}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
           scrollOffset={interactive ? (scrollBySectionRef.current[sec.id] ?? flowScrollRatio) : 0}
+          scrollAnchor={
+            interactive ? (scrollAnchorBySectionRef.current[sec.id] ?? flowScrollAnchorRef.current ?? undefined) : undefined
+          }
           scrollToEnd={interactive ? Boolean(opts?.scrollToEnd) : false}
           onScrollProgress={interactive ? onFlowScrollProgress : undefined}
+          onScrollAnchor={interactive ? onFlowScrollAnchor : undefined}
           onTap={interactive ? onContentTap : undefined}
           chromeHidden={interactive && chromeHidden}
           onTextSelectionChange={interactive ? onTextSelectionChange : undefined}

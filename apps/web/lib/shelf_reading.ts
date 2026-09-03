@@ -4,6 +4,7 @@ import { sanitizePreviewHtml } from './sanitize_html';
 const SHELF_FONT_KEY = 'shelf_font_px';
 const SHELF_FONT_FAMILY_KEY = 'shelf_font_family';
 const LINE_HEIGHT_KEY = 'shelf_line_height';
+const LINE_HEIGHT_MANUAL_KEY = 'shelf_line_height_manual';
 
 export const SHELF_FONT_SIZES = [18, 20, 24] as const;
 const DEFAULT_PX = 18;
@@ -36,6 +37,9 @@ export function setShelfFontPx(px: number) {
     Math.abs(b - px) < Math.abs(a - px) ? b : a,
   );
   localStorage.setItem(SHELF_FONT_KEY, String(nearest));
+  if (!getShelfLineHeightManual()) {
+    setShelfLineHeight(shelfDefaultLineHeight(nearest), { manual: false });
+  }
 }
 
 export function getShelfFontFamily(): ShelfFontFamily {
@@ -82,12 +86,20 @@ export function getShelfLineHeight(): number {
   return shelfDefaultLineHeight(getShelfFontPx());
 }
 
-export function setShelfLineHeight(value: number) {
+export function getShelfLineHeightManual(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(LINE_HEIGHT_MANUAL_KEY) === '1';
+}
+
+export function setShelfLineHeight(value: number, opts?: { manual?: boolean }) {
   if (typeof window === 'undefined') return;
   const nearest = SHELF_LINE_HEIGHT_STEPS.reduce((a, b) =>
     Math.abs(b.value - value) < Math.abs(a.value - value) ? b : a,
   );
   localStorage.setItem(LINE_HEIGHT_KEY, String(nearest.value));
+  if (opts?.manual !== false) {
+    localStorage.setItem(LINE_HEIGHT_MANUAL_KEY, '1');
+  }
 }
 
 export const SHELF_FONT_STEPS = [
@@ -127,6 +139,28 @@ export const SHELF_DOCX_STYLE_MAP = [
   "r[style-name='Emphasis'] => em",
 ];
 
+const SHELF_DOCX_LAYOUT_STYLE_KEYS = new Set([
+  'margin-left',
+  'margin-right',
+  'margin-top',
+  'margin-bottom',
+  'margin',
+  'padding-left',
+  'padding-right',
+  'padding-top',
+  'padding-bottom',
+  'padding',
+  'width',
+  'max-width',
+  'min-width',
+  'text-indent',
+  'left',
+  'right',
+  'top',
+  'float',
+  'position',
+]);
+
 function stripShelfDocxInlineStyle(style: string): string {
   return style
     .split(';')
@@ -141,6 +175,7 @@ function stripShelfDocxInlineStyle(style: string): string {
         || key.startsWith('color')
         || key.startsWith('letter-spacing')
         || key.startsWith('mso-')
+        || SHELF_DOCX_LAYOUT_STYLE_KEYS.has(key)
       );
     })
     .join('; ');
@@ -177,6 +212,8 @@ export function adaptShelfDocxHtml(raw: string, opts?: { lesson?: boolean }): st
       const wrap = doc.createElement('div');
       wrap.className = 'shelf-docx-table-wrap';
       table.classList.add('shelf-docx-table');
+      table.removeAttribute('width');
+      table.removeAttribute('height');
       table.parentNode?.insertBefore(wrap, table);
       wrap.appendChild(table);
     });
