@@ -8,19 +8,14 @@ import { addThought } from '@/lib/reader_thoughts';
 import { createShelfPost, type ShelfPost, type ShelfPostVisibility } from '@/lib/shelf_posts';
 import {
   getHighlightMap,
-  removeHighlight,
-  setHighlight,
-  type HighlightColor,
 } from '@/lib/reader_highlights';
 import { rewriteShelfHtmlAssetUrls } from '@/lib/shelf_api';
 import { linkifyShelfProseHtml, shelfParagraphIndexForRatio, shelfRatioForParagraphIndex } from '@/lib/shelf_prose_html';
 import {
   clearShelfActiveSelection,
   clearShelfPinnedSelectionDom,
-  findShelfHighlightRef,
   paintShelfActiveSelection,
   paintShelfHighlights,
-  pickShelfHighlight,
   pinShelfActiveSelectionDom,
   shelfMarksForPage,
   supportsShelfCssHighlight,
@@ -151,7 +146,6 @@ export default function ShelfPaginatedProse({
   const tapTimerRef = useRef<number | null>(null);
   const TAP_SLOP_PX = 14;
   const [selection, setSelection] = useState<ShelfTextSelection | null>(null);
-  const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
   const [highlightTick, setHighlightTick] = useState(0);
   const [versePreview, setVersePreview] = useState<{ osis: string; label: string } | null>(null);
@@ -173,31 +167,37 @@ export default function ShelfPaginatedProse({
   );
 
   const linkedHtml = useMemo(
-    () => linkifyShelfProseHtml(rewriteShelfHtmlAssetUrls(html)),
-    [html],
+    () => linkifyShelfProseHtml(rewriteShelfHtmlAssetUrls(html, bookId)),
+    [html, bookId],
   );
   const annotationsEnabled = Boolean(bookId && sectionId);
 
   const scrollApplyKeyRef = useRef('');
+  const pendingScrollRef = useRef({ offset: scrollOffset, anchor: scrollAnchor, toEnd: scrollToEnd });
+
+  useEffect(() => {
+    pendingScrollRef.current = { offset: scrollOffset, anchor: scrollAnchor, toEnd: scrollToEnd };
+  }, [contentKey, scrollOffset, scrollAnchor, scrollToEnd]);
 
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
-    const key = `${contentKey}:${scrollToEnd ? 'end' : scrollAnchor?.paragraphIndex ?? 'init'}`;
+    const key = `${contentKey}:${scrollToEnd ? 'end' : 'init'}`;
     if (scrollApplyKeyRef.current === key) return;
     scrollApplyKeyRef.current = key;
     syncRef.current = true;
+    const { offset, anchor, toEnd } = pendingScrollRef.current;
     requestAnimationFrame(() => {
       const max = Math.max(0, el.scrollHeight - el.clientHeight);
-      if (scrollToEnd) el.scrollTop = max;
-      else if (scrollAnchor && linkedHtml) {
-        const ratio = shelfRatioForParagraphIndex(linkedHtml, scrollAnchor.paragraphIndex);
+      if (toEnd) el.scrollTop = max;
+      else if (anchor && linkedHtml) {
+        const ratio = shelfRatioForParagraphIndex(linkedHtml, anchor.paragraphIndex);
         el.scrollTop = ratio * max;
-      } else if (scrollOffset > 0) el.scrollTop = scrollOffset * max;
+      } else if (offset > 0) el.scrollTop = offset * max;
       else el.scrollTop = 0;
       syncRef.current = false;
     });
-  }, [contentKey, linkedHtml, scrollAnchor, scrollToEnd, scrollOffset]);
+  }, [contentKey, linkedHtml, scrollToEnd]);
 
   const repaintHighlights = useCallback(() => {
     if (!annotationsEnabled || !articleRef.current || !supportsShelfCssHighlight()) return;
@@ -244,7 +244,6 @@ export default function ShelfPaginatedProse({
       }
       setFocusBarStyle(focusBarStyleFromRect(sel.rect, chromeHidden));
     } else {
-      setMarkPaletteOpen(false);
       setFocusBarStyle({});
       clearShelfActiveSelection();
     }
@@ -317,50 +316,9 @@ export default function ShelfPaginatedProse({
     clearShelfActiveSelection();
     if (article) clearShelfPinnedSelectionDom(article);
     setSelection(null);
-    setMarkPaletteOpen(false);
     setFocusBarStyle({});
     onTextSelectionChange?.(false);
   }, [onTextSelectionChange]);
-
-  const currentMarkRef = useMemo(() => {
-    if (!selection || !annotationsEnabled) return null;
-    const map = getHighlightMap();
-    return findShelfHighlightRef(
-      bookId!,
-      sectionId!,
-      pageIndex,
-      { start: selection.start, end: selection.end },
-      map,
-    );
-  }, [selection, annotationsEnabled, bookId, sectionId, pageIndex, highlightTick]);
-
-  const currentMarkColor = currentMarkRef ? getHighlightMap()[currentMarkRef]?.color ?? null : null;
-
-  const onPickColor = useCallback(
-    (color: HighlightColor) => {
-      if (!selection || !annotationsEnabled) return;
-      const ref = buildShelfMarkRef(bookId!, sectionId!, pageIndex, {
-        start: selection.start,
-        end: selection.end,
-      });
-      const map = getHighlightMap();
-      pickShelfHighlight(ref, color, map, setHighlight, removeHighlight);
-      setHighlightTick((n) => n + 1);
-      setMarkPaletteOpen(false);
-      clearSelection();
-    },
-    [selection, annotationsEnabled, bookId, sectionId, pageIndex, clearSelection],
-  );
-
-  const onToggleMark = useCallback(() => {
-    if (currentMarkRef) {
-      removeHighlight(currentMarkRef);
-      setHighlightTick((n) => n + 1);
-      clearSelection();
-      return;
-    }
-    setMarkPaletteOpen((v) => !v);
-  }, [currentMarkRef, clearSelection]);
 
   const onCopy = useCallback(async () => {
     if (!selection) return;
@@ -382,7 +340,6 @@ export default function ShelfPaginatedProse({
     articleRef.current?.classList.remove('shelf-sel-locked');
     clearShelfActiveSelection();
     setThoughtWrite({ ref, label: '书架笔记', verseText: snap.text });
-    setMarkPaletteOpen(false);
     setSelection(null);
     setFocusBarStyle({});
     onTextSelectionChange?.(false);
@@ -571,11 +528,7 @@ export default function ShelfPaginatedProse({
         <AppBodyPortal>
           <ShelfFocusBar
             style={focusBarStyle}
-            markPaletteOpen={markPaletteOpen}
-            currentMark={currentMarkColor}
             onNote={onNote}
-            onToggleMark={onToggleMark}
-            onPickColor={onPickColor}
             onCopy={onCopy}
           />
         </AppBodyPortal>

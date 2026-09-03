@@ -88,13 +88,24 @@ export function shelfAssetUrl(bookId: string, storageKey: string): string {
   return `${API_BASE}/shelf/platform/${encodeURIComponent(bookId)}/files/${key}`;
 }
 
-/** API 抽出的 Word 内嵌图 src 为 `/shelf/platform/...`，补成绝对地址。 */
-export function rewriteShelfHtmlAssetUrls(html: string): string {
+/** API 抽出的 Word 内嵌图 src 为 `/shelf/platform/...` 或裸文件名，补成绝对地址。 */
+export function rewriteShelfHtmlAssetUrls(html: string, bookId?: string): string {
   if (!html) return html;
-  return html.replace(
+  let out = html.replace(
     /((?:src|href)=)(["'])(\/shelf\/platform\/[^"']+)\2/gi,
     (_m, attr: string, q: string, path: string) => `${attr}${q}${API_BASE}${path}${q}`,
   );
+  if (bookId) {
+    out = out.replace(
+      /((?:src|href)=)(["'])(?!https?:\/\/|data:)([^"']+\.(?:png|jpe?g|webp|gif|bmp))(\2)/gi,
+      (_m, attr: string, q: string, raw: string) => {
+        if (raw.startsWith('/')) return `${attr}${q}${API_BASE}${raw}${q}`;
+        const key = raw.split('/').pop() || raw;
+        return `${attr}${q}${API_BASE}/shelf/platform/${encodeURIComponent(bookId)}/files/${encodeURIComponent(key)}${q}`;
+      },
+    );
+  }
+  return out;
 }
 
 export async function listPlatformShelf(): Promise<ShelfBookSummary[]> {

@@ -65,21 +65,42 @@ function enhanceDialogueParagraph(p: HTMLParagraphElement, doc: Document) {
   p.appendChild(bodyEl);
 }
 
+function tagDialogueParagraphs(root: HTMLElement) {
+  root.querySelectorAll('p').forEach((p) => {
+    if (
+      p.classList.contains('shelf-dialogue')
+      || p.classList.contains('shelf-dialogue-q-head')
+      || p.classList.contains('shelf-dialogue-q')
+    ) {
+      return;
+    }
+    const text = (p.textContent || '').replace(/\u00a0/g, ' ').trim();
+    if (DIALOGUE_SPEAKER_RE.test(text)) {
+      p.classList.add('shelf-dialogue');
+    }
+  });
+}
+
 function enhanceDialogueQuestions(root: HTMLElement) {
   const paras = Array.from(root.querySelectorAll('p'));
   for (let i = 0; i < paras.length; i++) {
     const p = paras[i];
-    if ((p.textContent || '').trim() !== '继续对话的问题') continue;
+    const label = (p.textContent || '').replace(/\s+/g, '').trim();
+    if (label !== '继续对话的问题') continue;
     p.className = 'shelf-dialogue-q-head';
     for (let j = i + 1; j < paras.length; j++) {
       const next = paras[j];
-      if (!next.classList.contains('shelf-body')) break;
+      if (next.classList.contains('shelf-h1') || next.classList.contains('shelf-docx-h1')) break;
+      if (next.classList.contains('shelf-dialogue-q-head')) break;
+      if ((next.textContent || '').trim().length === 0) continue;
+      if (DIALOGUE_SPEAKER_RE.test((next.textContent || '').replace(/\u00a0/g, ' ').trim())) break;
       next.className = 'shelf-dialogue-q';
     }
   }
 }
 
 function enhanceShelfDialogueHtml(root: HTMLElement, doc: Document) {
+  tagDialogueParagraphs(root);
   root.querySelectorAll('p.shelf-dialogue').forEach((p) => {
     enhanceDialogueParagraph(p as HTMLParagraphElement, doc);
   });

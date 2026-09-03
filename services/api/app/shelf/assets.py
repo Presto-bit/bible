@@ -125,4 +125,6 @@ def asset_allowed(book: dict[str, Any], storage_key: str) -> bool:
     for section in book.get("sections") or []:
         if isinstance(section, dict) and is_lesson_sibling_asset(section, name):
             return shelf_file_path(name).is_file()
+        if isinstance(section, dict) and is_docx_inline_image_key(section, name):
+            return shelf_file_path(name).is_file()
     return False

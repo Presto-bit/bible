@@ -1,28 +1,14 @@
 'use client';
 
-import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
-import type { HighlightColor } from '@/lib/reader_highlights';
 import { shellTapProps } from '@/lib/shell_tap';
 
 type Props = {
   style: React.CSSProperties;
-  markPaletteOpen: boolean;
-  currentMark: HighlightColor | null;
   onNote: () => void;
-  onToggleMark: () => void;
-  onPickColor: (color: HighlightColor) => void;
   onCopy: () => void;
 };
 
-export default function ShelfFocusBar({
-  style,
-  markPaletteOpen,
-  currentMark,
-  onNote,
-  onToggleMark,
-  onPickColor,
-  onCopy,
-}: Props) {
+export default function ShelfFocusBar({ style, onNote, onCopy }: Props) {
   return (
     <div
       className="reader-focus-bar reader-focus-bar-ext reader-focus-bar-near shelf-focus-bar"
@@ -33,20 +19,6 @@ export default function ShelfFocusBar({
       onTouchStart={(e) => e.stopPropagation()}
       onTouchEnd={(e) => e.stopPropagation()}
     >
-      {markPaletteOpen && !currentMark ? (
-        <div className="reader-focus-row reader-focus-row-mark" role="group" aria-label="划线颜色">
-          {MARK_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`reader-weread-dot reader-mark-dot-${c}`}
-              title={MARK_COLOR_SEMANTICS[c].label}
-              aria-label={MARK_COLOR_SEMANTICS[c].label}
-              {...shellTapProps({ onTap: () => onPickColor(c), preventDefault: true })}
-            />
-          ))}
-        </div>
-      ) : null}
       <div className="reader-focus-row reader-focus-row-actions">
         <button
           type="button"
@@ -60,20 +32,6 @@ export default function ShelfFocusBar({
             </svg>
           </span>
           <span className="vsb-label">笔记</span>
-        </button>
-        <button
-          type="button"
-          className={`vsb-icon-btn${markPaletteOpen || currentMark ? ' vsb-icon-btn-active' : ''}`}
-          {...shellTapProps({ onTap: onToggleMark, preventDefault: true })}
-        >
-          <span className="vsb-icon" aria-hidden>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M4 20h7" />
-              <path d="M14 19l6-6-4-4-6 6v4h4h4z" />
-              <path d="M13 12l3 3" />
-            </svg>
-          </span>
-          <span className="vsb-label">{currentMark ? '取消划线' : '划线'}</span>
         </button>
         <button
           type="button"

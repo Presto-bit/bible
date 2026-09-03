@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
-import { shelfAssetUrl, type ShelfAttachment, type ShelfSection } from '@/lib/shelf_api';
+import { shelfAssetUrl, getPlatformShelfSection, type ShelfAttachment, type ShelfSection } from '@/lib/shelf_api';
 import { adaptShelfDocxHtml, SHELF_DOCX_STYLE_MAP, shelfSectionHtmlLooksLegacy } from '@/lib/shelf_reading';
 import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
 import ShelfLessonMediaDock from '@/components/shelf/ShelfLessonMediaDock';
@@ -274,6 +274,12 @@ function ShelfDocxPaginated({
     setErr('');
     const run = async () => {
       try {
+        const sec = await getPlatformShelfSection(bookId, sectionId);
+        const serverHtml = sec.html?.trim();
+        if (!cancelled && serverHtml && !shelfSectionHtmlLooksLegacy(sec)) {
+          setHtml(serverHtml);
+          return;
+        }
         const mammoth = await import('mammoth');
         const res = await fetch(url);
         if (!res.ok) throw new Error('加载失败');
@@ -299,7 +305,7 @@ function ShelfDocxPaginated({
     return () => {
       cancelled = true;
     };
-  }, [url, childrenLesson]);
+  }, [url, bookId, sectionId, childrenLesson]);
 
   if (loading) return <p className="muted shelf-lesson-docx-loading">正在排版文档…</p>;
   if (err) return <p className="muted">{err}</p>;

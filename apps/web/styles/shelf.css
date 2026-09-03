@@ -1139,6 +1139,11 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   line-height: 1.45;
 }
 
+.shelf-docx-prose:not(.shelf-docx-prose-lesson) .shelf-docx-p:not(.shelf-docx-title):not(.shelf-docx-h1):not(.shelf-docx-h2):not(.shelf-docx-h3):not(.shelf-dialogue):not(.shelf-dialogue-q-head):not(.shelf-dialogue-q) {
+  text-indent: 2em;
+}
+
+.shelf-docx-prose .shelf-dialogue,
 .shelf-prose .shelf-dialogue {
   margin: 0 0 0.65em;
   text-indent: 0;
@@ -1146,14 +1151,17 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   line-height: 1.78;
 }
 
+.shelf-docx-prose .shelf-dialogue-speaker,
 .shelf-prose .shelf-dialogue-speaker {
   font-weight: 650;
 }
 
+.shelf-docx-prose .shelf-dialogue-text,
 .shelf-prose .shelf-dialogue-text {
   font-weight: 400;
 }
 
+.shelf-docx-prose .shelf-dialogue-q-head,
 .shelf-prose .shelf-dialogue-q-head {
   margin: 1.35em 0 0.45em;
   text-indent: 0;
@@ -1161,6 +1169,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   color: var(--ink);
 }
 
+.shelf-docx-prose .shelf-dialogue-q,
 .shelf-prose .shelf-dialogue-q {
   margin: 0 0 0.42em;
   text-indent: 0;
@@ -1170,6 +1179,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   line-height: 1.72;
 }
 
+.shelf-docx-prose .shelf-body,
 .shelf-prose .shelf-body {
   margin: 0 0 14px;
   text-indent: 2em;

@@ -359,7 +359,6 @@ export default function ShelfReader({
       }
       setSectionId(id);
       setTocOpen(false);
-      setChromeHidden(false);
       if (opts?.page === 'last' || opts?.scroll === 'end') {
         setPendingLastPage(true);
         setPendingScrollEnd(true);
