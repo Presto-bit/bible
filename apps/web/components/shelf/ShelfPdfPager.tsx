@@ -82,6 +82,7 @@ function PdfPageTile({
   zoom,
   title,
   scrollRootRef,
+  textLayerEnabled = true,
 }: {
   pdf: import('pdfjs-dist').PDFDocumentProxy;
   pageNum: number;
@@ -91,11 +92,14 @@ function PdfPageTile({
   zoom: number;
   title: string;
   scrollRootRef: RefObject<HTMLElement | null>;
+  textLayerEnabled?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textLayerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(pageNum === 1);
   const [placeholderH, setPlaceholderH] = useState(480);
   const [renderError, setRenderError] = useState(false);
+  const [hasText, setHasText] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -152,22 +156,54 @@ function PdfPageTile({
           canvas.style.height = `${cssHeight}px`;
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(cached, 0, 0);
-          return;
+        } else {
+          canvas.width = scaled.width;
+          canvas.height = scaled.height;
+          canvas.style.width = `${cssWidth}px`;
+          canvas.style.height = `${cssHeight}px`;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          await page.render({ canvasContext: ctx, viewport: scaled }).promise;
+          if (cancelled) return;
+          try {
+            const bitmap = await createImageBitmap(canvas);
+            pdfPageCache.set(cacheKey, bitmap);
+            trimPdfCache();
+          } catch {
+            /* ignore */
+          }
         }
-        canvas.width = scaled.width;
-        canvas.height = scaled.height;
-        canvas.style.width = `${cssWidth}px`;
-        canvas.style.height = `${cssHeight}px`;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        await page.render({ canvasContext: ctx, viewport: scaled }).promise;
-        if (cancelled) return;
-        try {
-          const bitmap = await createImageBitmap(canvas);
-          pdfPageCache.set(cacheKey, bitmap);
-          trimPdfCache();
-        } catch {
-          /* ignore */
+
+        if (textLayerEnabled && textLayerRef.current) {
+          const layer = textLayerRef.current;
+          layer.innerHTML = '';
+          layer.style.width = `${cssWidth}px`;
+          layer.style.height = `${cssHeight}px`;
+          try {
+            const textContent = await page.getTextContent();
+            if (cancelled) return;
+            const items = textContent.items as Array<{ str?: string; transform?: number[]; width?: number }>;
+            let chars = 0;
+            for (const item of items) {
+              const str = item.str || '';
+              if (!str.trim() || !item.transform) continue;
+              chars += str.length;
+              const tx = item.transform;
+              const fontHeight = Math.hypot(tx[2], tx[3]) * (cssWidth / scaled.width);
+              const left = tx[4] * (cssWidth / scaled.width);
+              const top = cssHeight - tx[5] * (cssHeight / scaled.height) - fontHeight;
+              const span = document.createElement('span');
+              span.textContent = str;
+              span.style.left = `${left}px`;
+              span.style.top = `${top}px`;
+              span.style.fontSize = `${Math.max(6, fontHeight)}px`;
+              span.style.transform = 'scaleX(1)';
+              layer.appendChild(span);
+            }
+            setHasText(chars > 12);
+          } catch {
+            setHasText(false);
+          }
         }
       } catch {
         if (!cancelled) setRenderError(true);
@@ -177,7 +213,7 @@ function PdfPageTile({
     return () => {
       cancelled = true;
     };
-  }, [visible, pdf, pageNum, url, containerWidth, baseScale, zoom]);
+  }, [visible, pdf, pageNum, url, containerWidth, baseScale, zoom, textLayerEnabled]);
 
   const zoomed = zoom > 1.001;
 
@@ -186,12 +222,21 @@ function PdfPageTile({
       {renderError ? (
         <p className="muted shelf-pdf-status">本页渲染失败</p>
       ) : null}
-      <canvas
-        ref={canvasRef}
-        className={`shelf-pdf-page-canvas is-readable${zoomed ? ' is-zoomed' : ''}`}
-        role="img"
-        aria-label={`${title} 第 ${pageNum} 页`}
-      />
+      <div className="shelf-pdf-page-stack">
+        <canvas
+          ref={canvasRef}
+          className={`shelf-pdf-page-canvas is-readable${zoomed ? ' is-zoomed' : ''}`}
+          role="img"
+          aria-label={`${title} 第 ${pageNum} 页`}
+        />
+        {textLayerEnabled ? (
+          <div
+            ref={textLayerRef}
+            className={`shelf-pdf-text-layer${hasText ? ' is-active' : ''}`}
+            aria-hidden={!hasText}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

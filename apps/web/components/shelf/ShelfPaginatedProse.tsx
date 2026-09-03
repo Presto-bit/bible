@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, memo, type MouseEven
 import AppBodyPortal from '@/components/AppBodyPortal';
 import ShelfFocusBar from '@/components/shelf/ShelfFocusBar';
 import { addThought } from '@/lib/reader_thoughts';
+import { createShelfPost, type ShelfPost, type ShelfPostVisibility } from '@/lib/shelf_posts';
 import {
   getHighlightMap,
   removeHighlight,
@@ -14,13 +15,15 @@ import {
 import { rewriteShelfHtmlAssetUrls } from '@/lib/shelf_api';
 import { linkifyShelfProseHtml, shelfParagraphIndexForRatio, shelfRatioForParagraphIndex } from '@/lib/shelf_prose_html';
 import {
+  clearShelfActiveSelection,
   findShelfHighlightRef,
+  paintShelfActiveSelection,
   paintShelfHighlights,
   pickShelfHighlight,
   shelfMarksForPage,
   supportsShelfCssHighlight,
 } from '@/lib/shelf_highlight_paint';
-import { buildShelfMarkRef } from '@/lib/shelf_mark_ref';
+import { buildShelfMarkRef, parseShelfMarkRef } from '@/lib/shelf_mark_ref';
 import { shelfThoughtSpansForPage } from '@/lib/shelf_annotations';
 import {
   clearShelfTextSelection,
@@ -28,8 +31,12 @@ import {
   type ShelfTextSelection,
 } from '@/lib/shelf_selection';
 
-const ThoughtWriteSheet = dynamic(
-  () => import('@/components/reader/ThoughtWriteSheet').then((m) => m.default),
+const ShelfPostWriteSheet = dynamic(
+  () => import('@/components/shelf/ShelfPostWriteSheet'),
+  { ssr: false },
+);
+const ShelfNoteHubSheet = dynamic(
+  () => import('@/components/shelf/ShelfNoteHubSheet'),
   { ssr: false },
 );
 const VersePreviewSheet = dynamic(
@@ -53,11 +60,45 @@ type Props = {
   onTap?: () => void;
   chromeHidden?: boolean;
   onTextSelectionChange?: (active: boolean) => void;
+  publicNotes?: ShelfPost[];
+  onPublicNotesChanged?: () => void;
 };
 
+function offsetAtPoint(article: HTMLElement, x: number, y: number): number | null {
+  const doc = article.ownerDocument;
+  let range: Range | null = null;
+  if (doc.caretRangeFromPoint) {
+    range = doc.caretRangeFromPoint(x, y);
+  } else {
+    const pos = (
+      doc as Document & {
+        caretPositionFromPoint?: (px: number, py: number) => { offsetNode: Node; offset: number } | null;
+      }
+    ).caretPositionFromPoint?.(x, y);
+    if (pos) {
+      range = doc.createRange();
+      range.setStart(pos.offsetNode, pos.offset);
+      range.collapse(true);
+    }
+  }
+  if (!range || !article.contains(range.startContainer)) return null;
+  const pre = range.cloneRange();
+  pre.selectNodeContents(article);
+  pre.setEnd(range.startContainer, range.startOffset);
+  return pre.toString().length;
+}
+
+function findPublicNoteAtOffset(notes: ShelfPost[], offset: number): ShelfPost | null {
+  for (const n of notes) {
+    if (n.span_start == null || n.span_end == null) continue;
+    if (offset >= n.span_start && offset < n.span_end) return n;
+  }
+  return null;
+}
+
 function focusBarStyleFromRect(rect: DOMRect, chromeHidden?: boolean): React.CSSProperties {
-  const barH = 56;
-  const margin = 12;
+  const barH = 48;
+  const margin = 10;
   const topReserve = chromeHidden ? 12 : 64;
   const bottomReserve = chromeHidden ? 24 : 72;
   let top = rect.bottom + margin;
@@ -90,6 +131,8 @@ export default function ShelfPaginatedProse({
   onTap,
   chromeHidden = false,
   onTextSelectionChange,
+  publicNotes = [],
+  onPublicNotesChanged,
 }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
@@ -103,11 +146,22 @@ export default function ShelfPaginatedProse({
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
   const [highlightTick, setHighlightTick] = useState(0);
   const [versePreview, setVersePreview] = useState<{ osis: string; label: string } | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [thoughtWrite, setThoughtWrite] = useState<{
     ref: string;
     label: string;
     verseText?: string;
   } | null>(null);
+  const [hubPostId, setHubPostId] = useState<string | null>(null);
+  const [hubAbstract, setHubAbstract] = useState<string | undefined>();
+
+  const publicNoteSpans = useMemo(
+    () =>
+      publicNotes
+        .filter((n) => n.span_start != null && n.span_end != null)
+        .map((n) => ({ start: n.span_start!, end: n.span_end! })),
+    [publicNotes],
+  );
 
   const linkedHtml = useMemo(
     () => linkifyShelfProseHtml(rewriteShelfHtmlAssetUrls(html)),
@@ -115,9 +169,14 @@ export default function ShelfPaginatedProse({
   );
   const annotationsEnabled = Boolean(bookId && sectionId);
 
+  const scrollApplyKeyRef = useRef('');
+
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
+    const key = `${contentKey}:${scrollToEnd ? 'end' : scrollAnchor?.paragraphIndex ?? 'o'}:${scrollOffset.toFixed(4)}`;
+    if (scrollApplyKeyRef.current === key) return;
+    scrollApplyKeyRef.current = key;
     syncRef.current = true;
     requestAnimationFrame(() => {
       const max = Math.max(0, el.scrollHeight - el.clientHeight);
@@ -129,15 +188,15 @@ export default function ShelfPaginatedProse({
       else el.scrollTop = 0;
       syncRef.current = false;
     });
-  }, [contentKey, linkedHtml, scrollAnchor, scrollToEnd]);
+  }, [contentKey, linkedHtml, scrollAnchor, scrollToEnd, scrollOffset]);
 
   const repaintHighlights = useCallback(() => {
     if (!annotationsEnabled || !articleRef.current || !supportsShelfCssHighlight()) return;
     const map = getHighlightMap();
     const marks = shelfMarksForPage(bookId!, sectionId!, pageIndex, map);
     const thoughtSpans = shelfThoughtSpansForPage(bookId!, sectionId!, pageIndex);
-    paintShelfHighlights(articleRef.current, marks, thoughtSpans);
-  }, [annotationsEnabled, bookId, sectionId, pageIndex, highlightTick]);
+    paintShelfHighlights(articleRef.current, marks, thoughtSpans, publicNoteSpans);
+  }, [annotationsEnabled, bookId, sectionId, pageIndex, highlightTick, publicNoteSpans]);
 
   useEffect(() => {
     repaintHighlights();
@@ -148,8 +207,22 @@ export default function ShelfPaginatedProse({
     };
   }, [linkedHtml, contentKey, repaintHighlights]);
 
+  const collapseNativeSelection = useCallback((sel: ShelfTextSelection) => {
+    const article = articleRef.current;
+    if (!article) return;
+    paintShelfActiveSelection(article, sel.start, sel.end);
+    article.classList.add('shelf-sel-locked');
+    clearShelfTextSelection();
+    window.requestAnimationFrame(() => {
+      clearShelfTextSelection();
+      window.setTimeout(clearShelfTextSelection, 30);
+      window.setTimeout(clearShelfTextSelection, 120);
+    });
+  }, []);
+
   const syncSelection = useCallback(() => {
     const article = articleRef.current;
+    if (article?.classList.contains('shelf-sel-locked')) return;
     const sel = readShelfTextSelection(article);
     setSelection(sel);
     onTextSelectionChange?.(Boolean(sel));
@@ -162,8 +235,22 @@ export default function ShelfPaginatedProse({
     } else {
       setMarkPaletteOpen(false);
       setFocusBarStyle({});
+      clearShelfActiveSelection();
     }
   }, [chromeHidden, onTextSelectionChange]);
+
+  const finalizeSelection = useCallback(() => {
+    const article = articleRef.current;
+    const sel = readShelfTextSelection(article);
+    if (!sel) {
+      syncSelection();
+      return;
+    }
+    setSelection(sel);
+    onTextSelectionChange?.(true);
+    setFocusBarStyle(focusBarStyleFromRect(sel.rect, chromeHidden));
+    collapseNativeSelection(sel);
+  }, [chromeHidden, collapseNativeSelection, onTextSelectionChange, syncSelection]);
 
   useEffect(() => {
     document.addEventListener('selectionchange', syncSelection);
@@ -175,7 +262,7 @@ export default function ShelfPaginatedProse({
     if (!article) return;
     const onEnd = () => {
       window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => syncSelection());
+        window.requestAnimationFrame(() => finalizeSelection());
       });
     };
     article.addEventListener('mouseup', onEnd);
@@ -184,7 +271,7 @@ export default function ShelfPaginatedProse({
       article.removeEventListener('mouseup', onEnd);
       article.removeEventListener('touchend', onEnd);
     };
-  }, [syncSelection, linkedHtml, contentKey]);
+  }, [finalizeSelection, linkedHtml, contentKey]);
 
   useEffect(() => {
     if (selection) syncSelection();
@@ -214,6 +301,8 @@ export default function ShelfPaginatedProse({
 
   const clearSelection = useCallback(() => {
     clearShelfTextSelection();
+    articleRef.current?.classList.remove('shelf-sel-locked');
+    clearShelfActiveSelection();
     setSelection(null);
     setMarkPaletteOpen(false);
     setFocusBarStyle({});
@@ -272,13 +361,29 @@ export default function ShelfPaginatedProse({
 
   const onNote = useCallback(() => {
     if (!selection || !annotationsEnabled) return;
+    const snap = selection;
     const ref = buildShelfMarkRef(bookId!, sectionId!, pageIndex, {
-      start: selection.start,
-      end: selection.end,
+      start: snap.start,
+      end: snap.end,
     });
-    setThoughtWrite({ ref, label: '书架笔记', verseText: selection.text });
-    clearSelection();
-  }, [selection, annotationsEnabled, bookId, sectionId, pageIndex, clearSelection]);
+    articleRef.current?.classList.remove('shelf-sel-locked');
+    clearShelfActiveSelection();
+    setThoughtWrite({ ref, label: '书架笔记', verseText: snap.text });
+    setMarkPaletteOpen(false);
+    setSelection(null);
+    setFocusBarStyle({});
+    onTextSelectionChange?.(false);
+  }, [selection, annotationsEnabled, bookId, sectionId, pageIndex, onTextSelectionChange]);
+
+  useEffect(() => {
+    const article = articleRef.current;
+    if (!article) return;
+    const blockMenu = (e: Event) => {
+      if (article.classList.contains('shelf-sel-locked')) e.preventDefault();
+    };
+    article.addEventListener('contextmenu', blockMenu);
+    return () => article.removeEventListener('contextmenu', blockMenu);
+  }, [linkedHtml, contentKey]);
 
   useEffect(() => {
     return () => {
@@ -331,6 +436,11 @@ export default function ShelfPaginatedProse({
       if (e.pointerId !== tapRef.current.pointerId) return;
       const target = e.target as HTMLElement;
       if (target.closest('.shelf-focus-bar, .reader-focus-bar')) return;
+      const galleryImg = target.closest('.shelf-docx-gallery img, img.shelf-docx-img') as HTMLImageElement | null;
+      if (galleryImg?.src && galleryImg.closest('.shelf-docx-gallery')) {
+        setLightboxSrc(galleryImg.currentSrc || galleryImg.src);
+        return;
+      }
       const btn = target.closest('.shelf-inline-ref') as HTMLElement | null;
       if (btn?.dataset.osis) return;
 
@@ -349,6 +459,7 @@ export default function ShelfPaginatedProse({
           setSelection(picked);
           onTextSelectionChange?.(true);
           setFocusBarStyle(focusBarStyleFromRect(picked.rect, chromeHidden));
+          collapseNativeSelection(picked);
           return;
         }
         if (longPress) return;
@@ -359,6 +470,18 @@ export default function ShelfPaginatedProse({
         if (selection && moved <= TAP_SLOP_PX) {
           dismissSelectionIfBlankTap(e.clientX, e.clientY);
           return;
+        }
+        const article = articleRef.current;
+        if (article && publicNotes.length) {
+          const offset = offsetAtPoint(article, e.clientX, e.clientY);
+          if (offset != null) {
+            const hit = findPublicNoteAtOffset(publicNotes, offset);
+            if (hit) {
+              setHubAbstract(hit.abstract ?? undefined);
+              setHubPostId(hit.id);
+              return;
+            }
+          }
         }
         resolveTapOrSelection();
       };
@@ -371,7 +494,7 @@ export default function ShelfPaginatedProse({
         window.requestAnimationFrame(run);
       }
     },
-    [resolveTapOrSelection, dismissSelectionIfBlankTap, selection, chromeHidden, onTextSelectionChange],
+    [resolveTapOrSelection, dismissSelectionIfBlankTap, selection, chromeHidden, onTextSelectionChange, publicNotes, collapseNativeSelection],
   );
 
   const handleInlineRefClick = useCallback(
@@ -389,9 +512,14 @@ export default function ShelfPaginatedProse({
     [],
   );
 
-  const proseClass =
-    variant === 'docx'
-      ? `shelf-docx-prose${proseTone === 'lesson' ? ' shelf-docx-prose-lesson' : ''}`
+  const isDocxLike =
+    variant === 'docx' ||
+    linkedHtml.includes('shelf-docx-root') ||
+    linkedHtml.includes('shelf-epub-root');
+  const proseClass = isDocxLike
+      ? `shelf-docx-prose${proseTone === 'lesson' ? ' shelf-docx-prose-lesson' : ''}${
+          linkedHtml.includes('shelf-epub-root') ? ' shelf-epub-prose' : ''
+        }`
       : 'shelf-prose';
 
   return (
@@ -411,6 +539,20 @@ export default function ShelfPaginatedProse({
         />
         <div className="shelf-flow-bottom-spacer" aria-hidden />
       </div>
+
+      {lightboxSrc ? (
+        <AppBodyPortal>
+          <button
+            type="button"
+            className="shelf-img-lightbox"
+            aria-label="关闭图片"
+            onClick={() => setLightboxSrc(null)}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={lightboxSrc} alt="" />
+          </button>
+        </AppBodyPortal>
+      ) : null}
 
       {selection && annotationsEnabled ? (
         <AppBodyPortal>
@@ -435,17 +577,51 @@ export default function ShelfPaginatedProse({
       ) : null}
 
       {thoughtWrite ? (
-        <ThoughtWriteSheet
-          mode="new"
-          refStr={thoughtWrite.ref}
-          refLabel={thoughtWrite.label}
-          verseText={thoughtWrite.verseText}
+        <ShelfPostWriteSheet
+          title="写笔记"
+          contextLabel={thoughtWrite.label}
+          contextBody={thoughtWrite.verseText}
+          placeholder="写下这段文字给你的启发…"
+          kind="note"
           onSave={(body, visibility) => {
-            addThought(thoughtWrite.ref, body, visibility);
-            setHighlightTick((n) => n + 1);
-            setThoughtWrite(null);
+            const parsed = parseShelfMarkRef(thoughtWrite.ref);
+            void (async () => {
+              try {
+                await createShelfPost(bookId!, {
+                  kind: 'note',
+                  ref: thoughtWrite.ref,
+                  body,
+                  visibility,
+                  section_id: sectionId,
+                  page_index: pageIndex,
+                  span_start: parsed?.spanStart,
+                  span_end: parsed?.spanEnd,
+                });
+                addThought(thoughtWrite.ref, body, visibility);
+                setHighlightTick((n) => n + 1);
+                onPublicNotesChanged?.();
+                setThoughtWrite(null);
+              } catch {
+                addThought(thoughtWrite.ref, body, visibility);
+                setHighlightTick((n) => n + 1);
+                setThoughtWrite(null);
+              }
+            })();
           }}
           onClose={() => setThoughtWrite(null)}
+        />
+      ) : null}
+
+      {hubPostId && bookId ? (
+        <ShelfNoteHubSheet
+          bookId={bookId}
+          postId={hubPostId}
+          abstract={hubAbstract}
+          onClose={() => {
+            setHubPostId(null);
+            setHubAbstract(undefined);
+          }}
+          onChanged={onPublicNotesChanged}
         />
       ) : null}
     </>

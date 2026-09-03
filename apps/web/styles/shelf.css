@@ -421,7 +421,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   min-height: 0;
   overflow: auto;
   padding: 20px 18px calc(var(--safe-bottom, 0px) + 72px);
-  font-size: var(--shelf-font-size, 17px);
+  font-size: var(--shelf-font-size, 18px);
   line-height: var(--shelf-line-height, 1.85);
   color: var(--ink, #2c2825);
   -webkit-font-smoothing: antialiased;
@@ -581,7 +581,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-flow-viewport-annotated .shelf-flow-article *:not(.shelf-inline-ref):not(button):not(a) {
   -webkit-user-select: text !important;
   user-select: text !important;
-  -webkit-touch-callout: default;
+  -webkit-touch-callout: none;
 }
 
 .shelf-inline-ref {
@@ -591,7 +591,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   border: none;
   background: none;
   color: var(--accent-deep, #3d5a45);
-  font-size: 1.08em;
+  font-size: inherit;
   font-weight: 500;
   line-height: inherit;
   text-decoration: underline;
@@ -612,7 +612,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   box-sizing: border-box;
   user-select: text;
   -webkit-user-select: text;
-  -webkit-touch-callout: default;
+  -webkit-touch-callout: none;
   touch-action: pan-x pan-y;
   overflow-x: hidden;
   word-wrap: break-word;
@@ -746,6 +746,73 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 
 ::highlight(shelf-thought-hint) {
   text-decoration: underline dashed 1.5px rgba(74, 107, 82, 0.55);
+}
+
+::highlight(shelf-public-note-hint) {
+  text-decoration: underline dashed 1.5px rgba(74, 107, 82, 0.72);
+  text-decoration-skip-ink: none;
+}
+
+::highlight(shelf-sel-active) {
+  background: rgba(51, 144, 255, 0.28);
+  color: inherit;
+}
+
+.shelf-flow-article.shelf-sel-locked,
+.shelf-flow-article.shelf-sel-locked *:not(.shelf-inline-ref):not(button):not(a) {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+.shelf-focus-bar.reader-focus-bar-ext {
+  min-width: auto;
+  max-width: min(88vw, 260px);
+  padding: 4px 6px;
+  gap: 4px;
+}
+
+.shelf-focus-bar .reader-focus-row-mark {
+  gap: 6px;
+  justify-content: center;
+  padding: 2px 0;
+}
+
+.shelf-focus-bar .reader-focus-row-actions {
+  gap: 0;
+}
+
+.shelf-focus-bar .vsb-icon-btn {
+  min-width: 0;
+  padding: 4px 6px;
+  gap: 2px;
+}
+
+.shelf-focus-bar .vsb-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.shelf-focus-bar .vsb-label {
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.shelf-reader-immersive-exit {
+  position: fixed;
+  top: calc(var(--safe-top, 0px) + 10px);
+  right: 12px;
+  z-index: 20;
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  background: color-mix(in srgb, var(--paper, #f7f3ec) 90%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--ink-soft, #5c6b63);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
 }
 
 .shelf-turn-scroll {
@@ -1051,12 +1118,32 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 }
 
 .shelf-reader-hidden .shelf-reader-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
 }
 
 .shelf-reader-hidden .shelf-reader-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -1335,6 +1422,38 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   display: block;
   max-width: 100%;
   height: auto;
+}
+
+.shelf-pdf-page-stack {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.shelf-pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  opacity: 0.02;
+  pointer-events: none;
+  user-select: none;
+}
+
+.shelf-pdf-text-layer.is-active {
+  opacity: 0.25;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.shelf-pdf-text-layer span {
+  position: absolute;
+  white-space: pre;
+  color: transparent;
+  transform-origin: 0% 0%;
 }
 
 .shelf-pdf-inline-tools {
@@ -1943,6 +2062,76 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   border-radius: 6px;
 }
 
+.shelf-docx-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 1em 0 1.5em;
+}
+
+.shelf-docx-gallery p {
+  margin: 0 !important;
+  text-indent: 0 !important;
+}
+
+.shelf-docx-gallery .shelf-docx-img,
+.shelf-docx-gallery img {
+  margin: 0;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  cursor: zoom-in;
+  border-radius: 8px;
+}
+
+.shelf-epub-root {
+  font-size: var(--shelf-font-size, 18px);
+  line-height: var(--shelf-line-height, 1.9);
+  font-family: var(--shelf-font-family, Georgia, 'Songti SC', serif);
+  color: var(--ink, #2c2925);
+}
+
+.shelf-epub-root style {
+  display: none;
+}
+
+/* EPUB：与 docx 同壳；作者消毒 CSS 在 .shelf-epub-root > style 内 */
+.shelf-docx-prose aside[role='doc-footnote'],
+.shelf-docx-prose ol.footnotes {
+  margin-top: 1.5em;
+  padding-top: 0.75em;
+  border-top: 1px solid color-mix(in srgb, var(--line, #d9d2c7) 80%, transparent);
+  font-size: 0.88em;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--ink, #2c2925) 78%, transparent);
+}
+
+.shelf-docx-prose a[href^='#footnote'],
+.shelf-docx-prose a[id^='footnote'],
+.shelf-docx-prose sup a {
+  color: var(--accent, #3d5a45);
+  text-decoration: none;
+  font-size: 0.75em;
+}
+
+.shelf-img-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(20, 18, 16, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.shelf-img-lightbox img {
+  max-width: min(960px, 100%);
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
 .shelf-docx-prose .shelf-docx-quote {
   margin: 12px 0;
   padding: 10px 14px;
@@ -2045,4 +2234,256 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   background: color-mix(in srgb, var(--surface, #fff) 96%, transparent);
   backdrop-filter: blur(8px);
   z-index: 1;
+}
+
+/* —— 书柜社交：书目详情 / 笔记 Hub / 回复 —— */
+
+.shelf-book-detail {
+  padding: 0 16px 96px;
+}
+
+.shelf-book-hero {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 8px 0 20px;
+}
+
+.shelf-book-hero-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.shelf-book-hero-meta h1 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.shelf-book-hero-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.shelf-book-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+
+.shelf-book-tab {
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.shelf-book-tab.is-active {
+  background: color-mix(in srgb, var(--accent, #4a6b52) 12%, transparent);
+  color: var(--accent, #4a6b52);
+  font-weight: 600;
+}
+
+.shelf-post-card {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.shelf-post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+
+.shelf-post-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #4a6b52) 12%, transparent);
+  color: var(--accent, #4a6b52);
+}
+
+.shelf-post-quote {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-left: 3px solid color-mix(in srgb, var(--accent, #4a6b52) 35%, transparent);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.shelf-post-body {
+  margin: 0;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.shelf-post-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.shelf-post-like,
+.shelf-post-reply-btn {
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.shelf-post-like.is-liked {
+  color: var(--accent, #4a6b52);
+}
+
+.shelf-post-vis-select,
+.shelf-post-delete {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.shelf-post-replies {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line, rgba(44, 40, 37, 0.08));
+}
+
+.shelf-post-replies-label {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.shelf-post-reply {
+  margin-bottom: 12px;
+}
+
+.shelf-post-reply p {
+  margin: 4px 0 0;
+  line-height: 1.65;
+}
+
+.shelf-detail-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(var(--tabbar-h, 56px) + 20px);
+  z-index: 20;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: var(--accent, #4a6b52);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(44, 40, 37, 0.16);
+}
+
+.shelf-more-sheet {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 12px 16px 24px;
+}
+
+.shelf-more-title {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.shelf-more-section {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.shelf-more-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shelf-more-btn {
+  width: 100%;
+  text-align: left;
+  padding: 14px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink, #2c2825) 4%, transparent);
+  font-size: 15px;
+}
+
+.shelf-note-hub-backdrop {
+  align-items: flex-end;
+}
+
+.shelf-note-hub-sheet {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.shelf-note-hub-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px 12px;
+  border-bottom: 1px solid var(--line, rgba(44, 40, 37, 0.08));
+}
+
+.shelf-note-hub-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+.shelf-note-hub-quote {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-left: 3px solid color-mix(in srgb, var(--accent, #4a6b52) 35%, transparent);
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.shelf-note-hub-loading {
+  padding: 24px 16px;
+}
+
+.shelf-reply-composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line, rgba(44, 40, 37, 0.08));
+  background: var(--surface, #fff);
+}
+
+.shelf-reply-input {
+  flex: 1;
+  min-height: 40px;
+  max-height: 120px;
+  resize: none;
+}
+
+.shelf-reply-send {
+  border: 0;
+  background: var(--accent, #4a6b52);
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 600;
 }

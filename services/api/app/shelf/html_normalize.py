@@ -90,7 +90,12 @@ def _flatten_simple_divs(html: str) -> str:
         def _repl(m: re.Match[str]) -> str:
             nonlocal changed
             attrs = m.group(1) or ""
-            if "shelf-docx-table-wrap" in attrs or "shelf-docx-root" in attrs:
+            if (
+                "shelf-docx-table-wrap" in attrs
+                or "shelf-docx-root" in attrs
+                or "shelf-docx-gallery" in attrs
+                or "shelf-epub-root" in attrs
+            ):
                 return m.group(0)
             body = m.group(2).strip()
             if not body:

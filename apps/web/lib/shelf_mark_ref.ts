@@ -80,7 +80,7 @@ export function shelfMarkHref(ref: string): string {
   const params = new URLSearchParams();
   params.set('section', p.sectionId);
   if (p.pageIndex > 0) params.set('page', String(p.pageIndex));
-  return `/shelf/${encodeURIComponent(p.bookId)}?${params.toString()}`;
+  return `/shelf/${encodeURIComponent(p.bookId)}/read?${params.toString()}`;
 }
 
 /** 云同步用：去掉 @ 词组偏移。 */

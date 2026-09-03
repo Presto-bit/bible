@@ -15,6 +15,8 @@ import 'shelf_lesson_media_dock.dart';
 import 'shelf_media_sheet.dart';
 import 'shelf_paginated_prose.dart';
 import 'shelf_pdf_page.dart';
+import 'shelf_post_sheets.dart';
+import 'shelf_posts_repository.dart';
 import 'shelf_progress.dart';
 import 'shelf_reader_contract.dart';
 import 'shelf_reading_prefs.dart';
@@ -59,6 +61,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   var _proseSelecting = false;
   var _pdfPinching = false;
   var _overlayOpen = 0;
+  List<ShelfPost> _publicNotes = const [];
   Timer? _progressTimer;
   final _pageBySection = <String, int>{};
   final _scrollBySection = <String, double>{};
@@ -177,6 +180,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       if (_pendingScrollEnd) {
         setState(() => _pendingScrollEnd = false);
       }
+      unawaited(_loadPublicNotes(sectionId));
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -184,6 +188,70 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _err = '无法加载章节';
       });
     }
+  }
+
+  Future<void> _loadPublicNotes(String sectionId) async {
+    try {
+      final items = await ref.read(shelfPostsRepoProvider).sectionPublicNotes(widget.bookId, sectionId);
+      if (mounted) setState(() => _publicNotes = items);
+    } catch (_) {
+      if (mounted) setState(() => _publicNotes = const []);
+    }
+  }
+
+  Future<void> _openMoreSheet() async {
+    final book = _book;
+    if (book == null) return;
+    await showShelfReaderMoreSheet(
+      context,
+      bookId: widget.bookId,
+      bookTitle: book.title,
+      sectionTitle: _section?.title,
+      onWriteReview: () => unawaited(_writeReviewFromReader()),
+    );
+  }
+
+  Future<void> _writeReviewFromReader() async {
+    if (!await requireShelfLogin(context, ref)) return;
+    final book = _book;
+    final section = _section;
+    if (section == null) return;
+    await showShelfPostWriteSheet(
+      context,
+      ref,
+      title: '写书评',
+      contextLabel: book?.title ?? '本书',
+      contextBody: section.title,
+      placeholder: '写下你对本书的感受…',
+      kind: ShelfPostKind.review,
+      showReadStatus: true,
+      onSave: (body, visibility, readStatus) async {
+        final refStr = shelfCheckinRef(widget.bookId, section.id, _pageIndex);
+        try {
+          await ref.read(shelfPostsRepoProvider).createPost(
+                widget.bookId,
+                kind: ShelfPostKind.review,
+                ref: refStr,
+                body: body,
+                visibility: visibility,
+                sectionId: section.id,
+                pageIndex: _pageIndex,
+                readStatus: readStatus,
+              );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('已发布'), behavior: SnackBarBehavior.floating),
+            );
+          }
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('发布失败'), behavior: SnackBarBehavior.floating),
+            );
+          }
+        }
+      },
+    );
   }
 
   void _prefetchNeighbor(String edge) {
@@ -574,6 +642,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         onSelectionActiveChanged: (active) {
           _proseSelecting = active;
         },
+        publicNotes: _publicNotes,
+        onPublicNotesChanged: () {
+          final sid = _sectionId;
+          if (sid != null) unawaited(_loadPublicNotes(sid));
+        },
       );
     }
 
@@ -667,7 +740,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                 scrolledUnderElevation: 0,
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                  onPressed: () => context.pop(),
+                  onPressed: () => context.go('/shelf/${widget.bookId}'),
                 ),
                 title: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -727,6 +800,13 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                               onPressed: () => unawaited(_openFontSheet()),
                               icon: const Icon(Icons.text_fields, size: 20),
                               label: const Text('字体'),
+                            ),
+                          ),
+                          Expanded(
+                            child: TextButton.icon(
+                              onPressed: () => unawaited(_openMoreSheet()),
+                              icon: const Icon(Icons.menu_book_outlined, size: 20),
+                              label: const Text('本书'),
                             ),
                           ),
                           Expanded(

@@ -1,11 +1,13 @@
 # 书架阅读契约（PWA · 2026-09-02）
 
 > 彼爱书架：平台书目、教案、PDF。与圣经 Tab 经章阅读 **结构导航同构**，节内均为 **竖向阅读**。
+>
+> 解析 / 入库 / EPUB 保真：`docs/SHELF-PARSE.md`。
 
 ## 1. 使命与气质
 
 - **安静阅读，在话语中相遇**；一屏一事，阅读器内无信息流、无 guilt。
-- 用户不感知「这是 docx 还是 pdf」，只感知：**上下读内容，左右换目录节**。
+- 用户不感知后缀；只感知：**上下读内容，左右换目录节**。
 
 ## 2. 三层结构
 
@@ -34,10 +36,10 @@
 
 | 模式 | 格式 | 节内 |
 |------|------|------|
-| **flow** | HTML、Word（→ prose HTML） | 单栏流式，`overflow-y: auto` |
-| **page** | PDF | 贴宽默认，页片纵向堆叠；可捏合缩放 |
+| **flow** | HTML、Word、md、txt、可重排 EPUB（均 → prose） | 单栏流式，`overflow-y: auto` |
+| **page** | PDF（固定版式 EPUB 若收则同此） | 贴宽默认，页片纵向堆叠；可捏合缩放 |
 
-`docx` 仅为 flow 的 **排版 variant**（略小字号、表格/图片 class），不是另一套交互。
+`docx` / `epub` 仅为 flow 的 **排版 variant**（docx 剥 Office 样式；epub 保留消毒后的语义 CSS），不是另一套交互。禁止 epub.js 分页第三壳。
 
 ## 5. 阅读设置（统一入口）
 
@@ -63,9 +65,10 @@
 - 书架列表 / Profile 续读卡 / 分享 ref：共用上述结构。
 - 云端同步：P2； schema 同上。
 
-## 7. 教案素材
+## 7. 教案素材与正文插图
 
-图片 / 视频走 **素材** FAB + Sheet，不进主阅读流，避免与竖滑抢手势。
+- **课节附件**（视频、图卡）：**素材** FAB + Sheet，不进主阅读流，避免与竖滑抢手势。
+- **正文内嵌图**（Word / EPUB / MD 里的图）：跟读，块级展示；与附件不是同一类。
 
 ## 8. 双端范围
 
@@ -77,7 +80,9 @@
 ## 9. 不做
 
 - 节内横翻页（除未来显式 `layout: paginated` 书目级开关，默认关）
-- 划线 / 想法 / 公开阅读排行
+- 第三套 EPUB/Kindle 仿真翻页器
+- PDF / 扫描件 OCR 重排
+- 公开阅读排行
 - 阅读器内 IM / 弹幕
 
 ## 10. 首次引导
@@ -86,4 +91,4 @@
 
 ---
 
-工程入口：`apps/web/components/shelf/ShelfReader.tsx` · 样式 `apps/web/styles/shelf.css`
+工程入口：`apps/web/components/shelf/ShelfReader.tsx` · 样式 `apps/web/styles/shelf.css` · 解析定案 `docs/SHELF-PARSE.md`

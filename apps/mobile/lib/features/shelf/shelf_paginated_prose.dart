@@ -75,6 +75,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   int? _anchorTick;
   String? _layoutHtml;
   String? _layoutSrc;
+  String? _lightboxUrl;
 
   @override
   void initState() {
@@ -281,6 +282,10 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         display: Display.block,
         width: Width(100, Unit.percent),
       ),
+      '.shelf-docx-gallery': withFamily(Style(
+        margin: Margins.symmetric(vertical: 12),
+        width: Width(100, Unit.percent),
+      )),
       '.shelf-docx-title': withFamily(Style(
         fontSize: FontSize(bodySize * 1.08),
         fontWeight: FontWeight.w700,
@@ -475,7 +480,21 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
                   child: SizedBox(
                     width: double.infinity,
                     child: RepaintBoundary(
-                      child: Html(data: _renderHtml, style: _styles),
+                      child: Html(
+                        data: _renderHtml,
+                        style: _styles,
+                        onImageTap: (url, attributes, element) {
+                          final src = (url ?? '').trim();
+                          if (src.isEmpty) return;
+                          final base = AppConfig.baseUrl.replaceAll(RegExp(r'/$'), '');
+                          final abs = src.startsWith('http://') || src.startsWith('https://')
+                              ? src
+                              : src.startsWith('/')
+                                  ? '$base$src'
+                                  : src;
+                          setState(() => _lightboxUrl = abs);
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -516,6 +535,28 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
             );
           },
         ),
+        if (_lightboxUrl != null)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => setState(() => _lightboxUrl = null),
+              child: ColoredBox(
+                color: const Color(0xD2141210),
+                child: Center(
+                  child: InteractiveViewer(
+                    child: Image.network(
+                      _lightboxUrl!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.white70,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

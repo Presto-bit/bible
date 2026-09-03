@@ -19,7 +19,7 @@ export default function ShelfCoverTile({ book, onManage }: Props) {
 
   const progress = loadShelfBookProgress(book.id);
   const href = progress
-    ? `/shelf/${book.id}?section=${encodeURIComponent(progress.sectionId)}${
+    ? `/shelf/${book.id}/read?section=${encodeURIComponent(progress.sectionId)}${
         typeof progress.pageIndex === 'number' && progress.pageIndex > 0
           ? `&page=${progress.pageIndex}`
           : ''
@@ -95,7 +95,7 @@ export default function ShelfCoverTile({ book, onManage }: Props) {
       longPressFired.current = false;
       return;
     }
-    router.push(href);
+    router.push(`/shelf/${book.id}`);
   };
 
   return (

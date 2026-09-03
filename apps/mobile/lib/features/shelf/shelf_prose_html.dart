@@ -111,7 +111,9 @@ String _flattenSimpleDivs(String html) {
     out = out.replaceAllMapped(_simpleDivRe, (m) {
       final attrs = m.group(1) ?? '';
       if (attrs.contains('shelf-docx-table-wrap') ||
-          attrs.contains('shelf-docx-root')) {
+          attrs.contains('shelf-docx-root') ||
+          attrs.contains('shelf-docx-gallery') ||
+          attrs.contains('shelf-epub-root')) {
         return m.group(0)!;
       }
       final body = (m.group(2) ?? '').trim();

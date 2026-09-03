@@ -159,6 +159,24 @@ r[style-name='Strong'] => strong
 r[style-name='Emphasis'] => em
 """
 
+_SHELF_BOOK_STYLE_MAP = """
+p[style-name='TitleCustom'] => h1.shelf-title:fresh
+p[style-name='SubtitleCustom'] => p.shelf-subtitle:fresh
+p[style-name='Heading1Custom'] => h2.shelf-h1:fresh
+p[style-name='Heading2Custom'] => h3.shelf-h2:fresh
+p[style-name='Dialogue'] => p.shelf-dialogue:fresh
+p[style-name='Scene'] => p.shelf-body:fresh
+p[style-name='Reflection'] => p.shelf-dialogue-q:fresh
+p[style-name='ReflectionTitle'] => p.shelf-dialogue-q-head:fresh
+p[style-name='BodyNoIndent'] => p.shelf-body:fresh
+p[style-name='Reference'] => p.shelf-body:fresh
+p[style-name='TOCEntry'] => p.shelf-toc-skip:fresh
+p[style-name='Title'] => h1.shelf-title:fresh
+p[style-name='Subtitle'] => p.shelf-subtitle:fresh
+p[style-name='Heading 1'] => h2.shelf-h1:fresh
+p[style-name='Heading 2'] => h3.shelf-h2:fresh
+"""
+
 _MIME_EXT = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
@@ -262,11 +280,36 @@ def _explode_inline_images(html_str: str) -> str:
     return _P_BLOCK_RE.sub(_repl, html_str)
 
 
+def _wrap_trailing_gallery(html_str: str) -> str:
+    """文末「图片：」后的连续插图收成图库，便于点开浏览。"""
+    marker = re.search(
+        r"(<p[^>]*>\s*(?:<strong>)?图片：?(?:</strong>)?\s*</p>)((?:\s*<p[^>]*>\s*<img\b[^>]*>\s*</p>)+)",
+        html_str,
+        flags=re.IGNORECASE,
+    )
+    if not marker:
+        # 同一段「图片：」已被 explode 成标题段 + 图段
+        marker = re.search(
+            r"(<p[^>]*>\s*图片：?\s*</p>)((?:\s*<p[^>]*>\s*<img\b[^>]*>\s*</p>)+)",
+            html_str,
+            flags=re.IGNORECASE,
+        )
+    if not marker:
+        return html_str
+    head, imgs = marker.group(1), marker.group(2)
+    gallery = (
+        f'{head}<div class="shelf-docx-gallery" data-shelf-gallery="1">'
+        f"{imgs}</div>"
+    )
+    return html_str[: marker.start()] + gallery + html_str[marker.end() :]
+
+
 def _refine_lesson_html(html_str: str) -> str:
     out = _unwrap_heading_lists(html_str)
     out = _split_br_and_promote(out)
     out = _promote_first_title(out)
     out = _explode_inline_images(out)
+    out = _wrap_trailing_gallery(out)
     return f'<div class="shelf-docx-root">{out}</div>'
 
 
@@ -285,11 +328,14 @@ def _mammoth_to_html(
     book_id: str,
     storage_key: str,
     media_dir: Path,
+    style_map: str = _SHELF_DOCX_STYLE_MAP,
 ) -> str | None:
     try:
         import mammoth
     except ImportError:
         return None
+    from .image_util import clean_image_alt, write_optimized_image
+
     stem = _safe_stem(storage_key)
     dest_dir = media_dir
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -298,20 +344,15 @@ def _mammoth_to_html(
         with image.open() as fh:
             raw = fh.read()
         mime = (getattr(image, "content_type", None) or "image/png").split(";")[0].strip().lower()
-        ext = _MIME_EXT.get(mime, ".png")
-        digest = hashlib.sha1(raw).hexdigest()[:10]
-        name = f"{stem}-inline-{digest}{ext}"
-        path = dest_dir / name
-        if not path.is_file() or path.stat().st_size != len(raw):
-            path.write_bytes(raw)
+        name, _ = write_optimized_image(raw, dest_dir=dest_dir, stem=stem, content_type=mime)
         src = f"/shelf/platform/{book_id}/files/{name}" if book_id else name
-        alt = getattr(image, "alt_text", None) or ""
-        return {"src": src, "alt": alt}
+        alt = clean_image_alt(getattr(image, "alt_text", None))
+        return {"src": src, "alt": alt, "loading": "lazy"}
 
     try:
         result = mammoth.convert_to_html(
             io.BytesIO(data),
-            style_map=_SHELF_DOCX_STYLE_MAP,
+            style_map=style_map,
             convert_image=mammoth.images.img_element(convert_image),
         )
     except Exception:
@@ -320,14 +361,96 @@ def _mammoth_to_html(
     return html_str or None
 
 
+def _split_mammoth_book_html(html_str: str) -> list[tuple[str, str]]:
+    """按 h2.shelf-h1 切成 (title, section_html)。"""
+    parts = re.split(r'(<h2 class="shelf-h1">.*?</h2>)', html_str, flags=re.IGNORECASE | re.DOTALL)
+    if len(parts) <= 1:
+        return [("", html_str)]
+    out: list[tuple[str, str]] = []
+    preface = parts[0].strip()
+    if preface:
+        out.append(("阅读本书之前", preface))
+    i = 1
+    while i + 1 < len(parts):
+        heading = parts[i]
+        body = parts[i + 1]
+        title = _plain_frag(heading)
+        if title == "目录":
+            i += 2
+            continue
+        chunk = re.sub(
+            r'<p class="shelf-toc-skip">.*?</p>',
+            "",
+            heading + body,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        out.append((title, chunk.strip()))
+        i += 2
+    return out
+
+
+def _enrich_sections_with_mammoth(
+    data: bytes,
+    sections: list[dict[str, Any]],
+    *,
+    book_id: str = "",
+    storage_key: str = "book.docx",
+) -> None:
+    """用 Mammoth 富 HTML 覆盖节内纯文本（对话书）。"""
+    rich = _mammoth_to_html(
+        data,
+        book_id=book_id or "book",
+        storage_key=storage_key,
+        media_dir=shelf_dir(),
+        style_map=_SHELF_BOOK_STYLE_MAP,
+    )
+    if not rich:
+        return
+    chunks = _split_mammoth_book_html(rich)
+    if not chunks:
+        return
+    for sec in sections:
+        title = str(sec.get("title") or "")
+        matched = None
+        for ct, html_chunk in chunks:
+            if _match_toc_to_section(ct, title) or ct == title:
+                matched = html_chunk
+                break
+        if not matched:
+            continue
+        # 无 class 的 p 补 shelf-body，便于对话样式
+        matched = re.sub(
+            r"<p>(?!</p>)",
+            '<p class="shelf-body">',
+            matched,
+        )
+        matched = re.sub(
+            r'<p class="shelf-toc-skip">.*?</p>',
+            "",
+            matched,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        sec["html"] = inject_shelf_paragraph_anchors(
+            _mark_dialogue_questions(f'<div class="shelf-docx-root">{matched}</div>')
+        )
+
+
 def docx_bytes_to_prose_html(
     data: bytes,
     *,
     book_id: str = "",
     storage_key: str = "",
     media_dir: Path | None = None,
+    use_cache: bool = True,
 ) -> str:
     """单份 DOCX → 书架阅读 HTML（教案 primary 等）。保留图片 / 换行 / 列表。"""
+    from .convert_cache import read_html_cache, write_html_cache
+
+    sha = file_sha256(data) if use_cache else ""
+    if use_cache and sha:
+        cached = read_html_cache(sha)
+        if cached:
+            return cached
     html_str = _mammoth_to_html(
         data,
         book_id=book_id,
@@ -335,11 +458,21 @@ def docx_bytes_to_prose_html(
         media_dir=media_dir if media_dir is not None else shelf_dir(),
     )
     if html_str:
-        return _refine_lesson_html(html_str)
-    return _text_only_prose_html(data)
+        out = _refine_lesson_html(html_str)
+    else:
+        out = _text_only_prose_html(data)
+    if use_cache and sha and out:
+        write_html_cache(sha, out)
+    return out
 
 
-def parse_docx_bytes(data: bytes) -> dict[str, Any]:
+def parse_docx_bytes(
+    data: bytes,
+    *,
+    book_id: str = "",
+    storage_key: str = "book.docx",
+    enrich: bool = True,
+) -> dict[str, Any]:
     with zipfile.ZipFile(io.BytesIO(data)) as zf:
         doc_xml = zf.read("word/document.xml")
     paras = _iter_paragraphs(doc_xml)
@@ -482,6 +615,17 @@ def parse_docx_bytes(data: bytes) -> dict[str, Any]:
 
     appendix_toc = [t for t in front_toc if t.get("zone") == "appendix"]
     body_outline = [t for t in front_toc if t.get("zone") != "appendix"]
+
+    if enrich:
+        try:
+            _enrich_sections_with_mammoth(
+                data,
+                sections,
+                book_id=book_id,
+                storage_key=storage_key,
+            )
+        except Exception:
+            pass
 
     return {
         "title": title,

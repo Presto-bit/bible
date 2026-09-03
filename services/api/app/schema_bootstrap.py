@@ -67,5 +67,11 @@ def bootstrap_schemas(pool) -> None:
         ensure_shelf_schema(pool)
     except Exception:
         logger.exception("bootstrap: shelf schema failed")
+    try:
+        from .shelf.posts_schema import ensure_shelf_posts_schema
+
+        ensure_shelf_posts_schema(pool)
+    except Exception:
+        logger.exception("bootstrap: shelf posts schema failed")
     _bootstrapped = True
     logger.info("schema bootstrap complete")

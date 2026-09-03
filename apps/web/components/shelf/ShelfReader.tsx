@@ -23,8 +23,15 @@ import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
 import { shelfReadingStyleVars } from '@/lib/shelf_reading';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
+import {
+  createShelfPost,
+  fetchSectionPublicNotes,
+  type ShelfPost,
+  type ShelfPostVisibility,
+} from '@/lib/shelf_posts';
 import { shelfSectionIsPdf, shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
+import { shellTapProps } from '@/lib/shell_tap';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
 import '@/styles/plans.css';
 import '@/styles/shelf.css';
@@ -35,6 +42,14 @@ const ShelfLessonPanel = dynamic(() => import('@/components/shelf/ShelfLessonPan
 });
 
 const ShelfCheckinSheet = dynamic(() => import('@/components/shelf/ShelfCheckinSheet'), {
+  ssr: false,
+});
+
+const ShelfReaderMoreSheet = dynamic(() => import('@/components/shelf/ShelfReaderMoreSheet'), {
+  ssr: false,
+});
+
+const ShelfPostWriteSheet = dynamic(() => import('@/components/shelf/ShelfPostWriteSheet'), {
   ssr: false,
 });
 
@@ -72,6 +87,9 @@ export default function ShelfReader({
   const [mediaOpen, setMediaOpen] = useState(false);
   const [mediaVideo, setMediaVideo] = useState<ShelfAttachment | null>(null);
   const [pdfPinching, setPdfPinching] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [writeReviewOpen, setWriteReviewOpen] = useState(false);
+  const [publicNotes, setPublicNotes] = useState<ShelfPost[]>([]);
   const { fontPx, lineHeight, setFontPx, setLineHeight, setFontFamily } = useShelfReadingPrefs();
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flowProgressTimerRef = useRef<number | null>(null);
@@ -249,7 +267,25 @@ export default function ShelfReader({
     setPageCount(1);
   }, [sectionId, contentKey]);
 
-  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching;
+  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching || moreOpen || writeReviewOpen;
+
+  useEffect(() => {
+    if (!sectionId) {
+      setPublicNotes([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchSectionPublicNotes(bookId, sectionId)
+      .then((data) => {
+        if (!cancelled) setPublicNotes(data.items);
+      })
+      .catch(() => {
+        if (!cancelled) setPublicNotes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, sectionId]);
 
   const setPageCountForSection = useCallback(
     (count: number) => {
@@ -340,14 +376,26 @@ export default function ShelfReader({
   const goPrevSection = useCallback(() => {
     if (sectionIndex > 0) {
       const prev = sections[sectionIndex - 1];
-      goSection(prev?.id ?? null, { page: 'last', scroll: 'end' });
+      const id = prev?.id ?? null;
+      if (!id) return;
+      const visited =
+        scrollBySectionRef.current[id] != null
+        || scrollAnchorBySectionRef.current[id] != null
+        || pageBySectionRef.current[id] != null;
+      goSection(id, visited ? undefined : { page: 'last', scroll: 'end' });
     }
   }, [goSection, sectionIndex, sections]);
 
   const goNextSection = useCallback(() => {
     if (sectionIndex >= 0 && sectionIndex < sections.length - 1) {
       const next = sections[sectionIndex + 1];
-      goSection(next?.id ?? null, { page: 0, scroll: 'start' });
+      const id = next?.id ?? null;
+      if (!id) return;
+      const visited =
+        scrollBySectionRef.current[id] != null
+        || scrollAnchorBySectionRef.current[id] != null
+        || pageBySectionRef.current[id] != null;
+      goSection(id, visited ? undefined : { page: 0, scroll: 'start' });
     }
   }, [goSection, sectionIndex, sections]);
 
@@ -391,7 +439,31 @@ export default function ShelfReader({
     [book?.toc, book?.book_type],
   );
 
-  const showBottomBar = !chromeHidden && !tocOpen && !fontOpen && !shareOpen;
+  const showBottomBar = !chromeHidden && !tocOpen && !fontOpen && !shareOpen && !moreOpen;
+
+  const submitReviewFromReader = async (
+    body: string,
+    visibility: ShelfPostVisibility,
+    readStatus?: 'reading' | 'finished',
+  ) => {
+    if (!sectionId) return;
+    const ref = buildShelfCheckinRef(bookId, sectionId, pageIndex);
+    rememberShelfRefLabel(ref, formatShelfCheckinLabel(book?.title || '', section?.title || ''));
+    try {
+      await createShelfPost(bookId, {
+        kind: 'review',
+        ref,
+        body,
+        visibility,
+        read_status: readStatus,
+        section_id: sectionId,
+        page_index: pageIndex,
+      });
+      flashToast('已发布');
+    } catch {
+      flashToast('发布失败');
+    }
+  };
 
   const onContentTap = useCallback(() => {
     setChromeHidden((v) => !v);
@@ -459,12 +531,19 @@ export default function ShelfReader({
       );
     }
     if (sec.html) {
+      const flowVariant =
+        sec.kind === 'epub' ||
+        sec.html.includes('shelf-docx-root') ||
+        sec.html.includes('shelf-epub-root')
+          ? 'docx'
+          : 'html';
       return (
         <ShelfPaginatedProse
           html={sec.html}
           bookId={bookId}
           sectionId={sec.id}
           pageIndex={0}
+          variant={flowVariant}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
           scrollOffset={interactive ? (scrollBySectionRef.current[sec.id] ?? flowScrollRatio) : 0}
           scrollAnchor={
@@ -476,6 +555,11 @@ export default function ShelfReader({
           onTap={interactive ? onContentTap : undefined}
           chromeHidden={interactive && chromeHidden}
           onTextSelectionChange={interactive ? onTextSelectionChange : undefined}
+          publicNotes={interactive ? publicNotes : []}
+          onPublicNotesChanged={() => {
+            if (!sectionId) return;
+            void fetchSectionPublicNotes(bookId, sectionId).then((d) => setPublicNotes(d.items));
+          }}
         />
       );
     }
@@ -483,7 +567,7 @@ export default function ShelfReader({
   };
 
   const backBar = (
-    <PageBackBar href="/shelf" className="shelf-nav-back" ariaLabel="返回书架" />
+    <PageBackBar href={`/shelf/${bookId}`} className="shelf-nav-back" ariaLabel="返回书目" />
   );
 
   if (loading && !book) {
@@ -557,6 +641,17 @@ export default function ShelfReader({
         </div>
       )}
 
+      {chromeHidden ? (
+        <button
+          type="button"
+          className="shelf-reader-immersive-exit"
+          {...shellTapProps({ onTap: () => setChromeHidden(false), blurOnClick: true })}
+          aria-label="退出全屏"
+        >
+          退出
+        </button>
+      ) : null}
+
       {showBottomBar ? (
         <nav className="shelf-reader-bottom" aria-label="阅读工具">
           <button type="button" className="shelf-reader-bottom-btn" aria-label="目录" onClick={() => setTocOpen(true)}>
@@ -567,7 +662,15 @@ export default function ShelfReader({
             <span className="shelf-reader-bottom-icon" aria-hidden>Aa</span>
             <span>字体</span>
           </button>
-          <span className="shelf-reader-bottom-spacer" aria-hidden />
+          <button
+            type="button"
+            className="shelf-reader-bottom-btn"
+            aria-label="本书"
+            onClick={() => setMoreOpen(true)}
+          >
+            <span className="shelf-reader-bottom-icon" aria-hidden>📖</span>
+            <span>本书</span>
+          </button>
           <button
             type="button"
             className="shelf-reader-bottom-btn shelf-reader-bottom-btn-share"
@@ -677,6 +780,33 @@ export default function ShelfReader({
           presetGroupId={presetGroupId}
           onClose={() => setShareOpen(false)}
           onDone={() => flashToast('已分享到共读群')}
+        />
+      ) : null}
+
+      {moreOpen ? (
+        <ShelfReaderMoreSheet
+          bookId={bookId}
+          bookTitle={book?.title || ''}
+          sectionTitle={section?.title}
+          sectionId={sectionId}
+          onClose={() => setMoreOpen(false)}
+          onWriteReview={() => setWriteReviewOpen(true)}
+        />
+      ) : null}
+
+      {writeReviewOpen ? (
+        <ShelfPostWriteSheet
+          title="写书评"
+          contextLabel={book?.title || '本书'}
+          contextBody={section?.title}
+          placeholder="写下你对本书的感受…"
+          kind="review"
+          showReadStatus
+          onSave={(body, visibility, readStatus) => {
+            void submitReviewFromReader(body, visibility, readStatus);
+            setWriteReviewOpen(false);
+          }}
+          onClose={() => setWriteReviewOpen(false)}
         />
       ) : null}
     </main>

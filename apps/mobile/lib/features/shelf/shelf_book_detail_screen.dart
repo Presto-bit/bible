@@ -1,0 +1,454 @@
+/// 书架书目详情：书评 / 笔记 / 我的（对齐 PWA ShelfBookDetail）。
+library;
+
+import 'dart:async' show unawaited;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/api_client.dart';
+import '../../core/theme.dart';
+import 'shelf_post_sheets.dart';
+import 'shelf_posts_repository.dart';
+import 'shelf_progress.dart';
+import 'shelf_repository.dart';
+
+class ShelfBookDetailScreen extends ConsumerStatefulWidget {
+  const ShelfBookDetailScreen({
+    super.key,
+    required this.bookId,
+    this.initialTab,
+  });
+
+  final String bookId;
+  final String? initialTab;
+
+  @override
+  ConsumerState<ShelfBookDetailScreen> createState() => _ShelfBookDetailScreenState();
+}
+
+class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
+  ShelfBookDetail? _book;
+  var _loadingBook = true;
+  late _DetailTab _tab;
+  var _loadingPosts = false;
+  List<ShelfPost> _posts = const [];
+  var _stats = (reviews: 0, notes: 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = switch (widget.initialTab) {
+      'notes' => _DetailTab.notes,
+      'mine' => _DetailTab.mine,
+      _ => _DetailTab.reviews,
+    };
+    _loadBook();
+    _loadPosts();
+  }
+
+  Future<void> _loadBook() async {
+    setState(() => _loadingBook = true);
+    try {
+      final book = await ref.read(shelfRepoProvider).getBook(widget.bookId);
+      if (mounted) setState(() => _book = book);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('无法加载书目'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingBook = false);
+    }
+  }
+
+  Future<void> _loadPosts() async {
+    setState(() => _loadingPosts = true);
+    try {
+      final kind = switch (_tab) {
+        _DetailTab.reviews => ShelfPostKind.review,
+        _DetailTab.notes => ShelfPostKind.note,
+        _DetailTab.mine => null,
+      };
+      final data = await ref.read(shelfPostsRepoProvider).listPosts(
+            widget.bookId,
+            kind: kind,
+            mine: _tab == _DetailTab.mine,
+            sort: _tab == _DetailTab.reviews ? 'latest' : 'latest',
+          );
+      if (mounted) {
+        setState(() {
+          _posts = data.items;
+          _stats = data.stats;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('加载失败'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingPosts = false);
+    }
+  }
+
+  String _readHref() {
+    final progress = ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId);
+    if (progress == null) return '/shelf/${widget.bookId}/read';
+    final q = 'section=${Uri.encodeComponent(progress.sectionId)}'
+        '${progress.pageIndex > 0 ? '&page=${progress.pageIndex}' : ''}';
+    return '/shelf/${widget.bookId}/read?$q';
+  }
+
+  Future<void> _writeReview() async {
+    if (!await requireShelfLogin(context, ref)) return;
+    final book = _book;
+    final progress = ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId);
+    await showShelfPostWriteSheet(
+      context,
+      ref,
+      title: '写书评',
+      contextLabel: book?.title ?? '本书',
+      placeholder: '写下你对本书的感受…',
+      kind: ShelfPostKind.review,
+      showReadStatus: true,
+      onSave: (body, visibility, readStatus) async {
+        final refStr = shelfCheckinRef(
+          widget.bookId,
+          progress?.sectionId ?? 'book',
+          progress?.pageIndex ?? 0,
+        );
+        try {
+          await ref.read(shelfPostsRepoProvider).createPost(
+                widget.bookId,
+                kind: ShelfPostKind.review,
+                ref: refStr,
+                body: body,
+                visibility: visibility,
+                sectionId: progress?.sectionId,
+                pageIndex: progress?.pageIndex,
+                readStatus: readStatus,
+              );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('已发布'), behavior: SnackBarBehavior.floating),
+            );
+            unawaited(_loadPosts());
+          }
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('发布失败'), behavior: SnackBarBehavior.floating),
+            );
+          }
+        }
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final book = _book;
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      appBar: AppBar(
+        backgroundColor: AppColors.paper,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(book?.title ?? '书目', style: AppTypography.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+      floatingActionButton: _tab == _DetailTab.reviews
+          ? FloatingActionButton.extended(
+              onPressed: _writeReview,
+              backgroundColor: AppColors.accentDeep,
+              label: const Text('写书评'),
+              icon: const Icon(Icons.edit_outlined),
+            )
+          : null,
+      body: _loadingBook && book == null
+          ? const Center(child: Text('加载中…', style: AppTypography.meta))
+          : RefreshIndicator(
+              onRefresh: () async {
+                await _loadBook();
+                await _loadPosts();
+              },
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                children: [
+                  if (book != null) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _CoverPlate(title: book.title),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(book.title, style: AppTypography.title.copyWith(fontSize: 18)),
+                              if (book.author.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(book.author, style: AppTypography.meta),
+                              ],
+                              if (book.subtitle.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(book.subtitle, style: AppTypography.secondary),
+                              ],
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  FilledButton(
+                                    onPressed: () => context.push(_readHref()),
+                                    child: const Text('继续阅读'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '书评 ${_stats.reviews} · 笔记 ${_stats.notes}',
+                      style: AppTypography.meta,
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _TabChip(
+                          label: '书评',
+                          active: _tab == _DetailTab.reviews,
+                          onTap: () {
+                            setState(() => _tab = _DetailTab.reviews);
+                            unawaited(_loadPosts());
+                          },
+                        ),
+                        _TabChip(
+                          label: '公开笔记',
+                          active: _tab == _DetailTab.notes,
+                          onTap: () {
+                            setState(() => _tab = _DetailTab.notes);
+                            unawaited(_loadPosts());
+                          },
+                        ),
+                        _TabChip(
+                          label: '我的',
+                          active: _tab == _DetailTab.mine,
+                          onTap: () {
+                            setState(() => _tab = _DetailTab.mine);
+                            unawaited(_loadPosts());
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_loadingPosts)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: Text('加载中…', style: AppTypography.meta)),
+                    )
+                  else if (_posts.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: Text('还没有内容', style: AppTypography.meta)),
+                    )
+                  else
+                    for (final post in _posts)
+                      _PostCard(
+                        post: post,
+                        showVis: _tab == _DetailTab.mine,
+                        onOpen: () {
+                          unawaited(
+                            showShelfNoteHubSheet(
+                              context,
+                              ref,
+                              bookId: widget.bookId,
+                              postId: post.id,
+                              abstractText: post.abstractText,
+                              onChanged: _loadPosts,
+                            ),
+                          );
+                        },
+                        onLike: () async {
+                          if (!await requireShelfLogin(context, ref)) return;
+                          try {
+                            await ref.read(shelfPostsRepoProvider).toggleLike(widget.bookId, post.id);
+                            await _loadPosts();
+                          } catch (_) {}
+                        },
+                        onVisChange: _tab == _DetailTab.mine
+                            ? (v) async {
+                                try {
+                                  await ref
+                                      .read(shelfPostsRepoProvider)
+                                      .updateVisibility(widget.bookId, post.id, v);
+                                  await _loadPosts();
+                                } catch (_) {}
+                              }
+                            : null,
+                        onDelete: _tab == _DetailTab.mine
+                            ? () async {
+                                try {
+                                  await ref.read(shelfPostsRepoProvider).deletePost(widget.bookId, post.id);
+                                  await _loadPosts();
+                                } catch (_) {}
+                              }
+                            : null,
+                      ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+
+enum _DetailTab { reviews, notes, mine }
+
+class _CoverPlate extends StatelessWidget {
+  const _CoverPlate({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final hue = shelfCoverHue(title);
+    return Container(
+      width: 88,
+      height: 120,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            HSLColor.fromAHSL(1, hue.toDouble(), 0.42, 0.38).toColor(),
+            HSLColor.fromAHSL(1, ((hue + 36) % 360).toDouble(), 0.36, 0.28).toColor(),
+          ],
+        ),
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Align(
+        alignment: Alignment.bottomLeft,
+        child: Text(
+          title,
+          maxLines: 4,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600, height: 1.25),
+        ),
+      ),
+    );
+  }
+}
+
+class _TabChip extends StatelessWidget {
+  const _TabChip({required this.label, required this.active, required this.onTap});
+
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: active,
+        onSelected: (_) => onTap(),
+        selectedColor: AppColors.accentWash,
+        checkmarkColor: AppColors.accentDeep,
+      ),
+    );
+  }
+}
+
+class _PostCard extends StatelessWidget {
+  const _PostCard({
+    required this.post,
+    required this.onOpen,
+    required this.onLike,
+    this.onVisChange,
+    this.onDelete,
+    this.showVis = false,
+  });
+
+  final ShelfPost post;
+  final VoidCallback onOpen;
+  final VoidCallback onLike;
+  final ValueChanged<ShelfPostVisibility>? onVisChange;
+  final VoidCallback? onDelete;
+  final bool showVis;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${post.author.name} · ${formatShelfPostTime(post.createdAt)}',
+                style: AppTypography.meta,
+              ),
+              if (post.abstractText != null && post.abstractText!.trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  post.abstractText!,
+                  style: AppTypography.secondary.copyWith(fontStyle: FontStyle.italic),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                post.body.length > 200 ? '${post.body.substring(0, 200)}…' : post.body,
+                style: AppTypography.secondary.copyWith(height: 1.65),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  TextButton(onPressed: onLike, child: Text('♡ ${post.likesCount > 0 ? post.likesCount : ''}')),
+                  TextButton(onPressed: onOpen, child: Text('💬 ${post.repliesCount > 0 ? post.repliesCount : ''}')),
+                  if (showVis && onVisChange != null)
+                    DropdownButton<ShelfPostVisibility>(
+                      value: post.visibility,
+                      items: ShelfPostVisibility.values
+                          .map((v) => DropdownMenuItem(value: v, child: Text(_visLabel(v))))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) onVisChange!(v);
+                      },
+                    ),
+                  if (showVis && onDelete != null)
+                    TextButton(onPressed: onDelete, child: const Text('删除')),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _visLabel(ShelfPostVisibility v) => switch (v) {
+      ShelfPostVisibility.public => '公开',
+      ShelfPostVisibility.friends => '共读',
+      ShelfPostVisibility.private => '私密',
+    };

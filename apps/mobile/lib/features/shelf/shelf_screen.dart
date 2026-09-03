@@ -75,7 +75,7 @@ class ShelfScreen extends ConsumerWidget {
                             ShelfProgressStore(ref.read(prefsProvider)).loadBook(book.id);
                         if (progress != null) {
                           context.push(
-                            '/shelf/${book.id}?section=${Uri.encodeComponent(progress.sectionId)}&page=${progress.pageIndex}',
+                            '/shelf/${book.id}/read?section=${Uri.encodeComponent(progress.sectionId)}&page=${progress.pageIndex}',
                           );
                         } else {
                           context.push('/shelf/${book.id}');

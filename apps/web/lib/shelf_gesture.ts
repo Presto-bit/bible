@@ -6,7 +6,7 @@ import {
 const SHELF_INTERACTIVE_SEL =
   'video,a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.shelf-reader-bottom-btn,.shelf-reader-bottom,.shelf-pdf-toolbar-btn,.shelf-pdf-inline-tools,.shelf-pdf-exit-fullscreen,.shelf-lesson-media-fab,.shelf-media-tile,.shelf-lesson-lightbox,.shelf-fullscreen-overlay,.shelf-focus-bar,.reader-focus-bar';
 
-const SHELF_VERTICAL_SCROLL_SEL = '';
+const SHELF_VERTICAL_SCROLL_SEL = '.shelf-flow-viewport';
 
 function isShelfVerticalScrollElement(el: Element | null | undefined): boolean {
   if (!el || !SHELF_VERTICAL_SCROLL_SEL) return false;

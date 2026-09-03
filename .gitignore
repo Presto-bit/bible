@@ -35,6 +35,8 @@ deploy/publish.env
 
 # Word 转 HTML 抽出的内嵌图（按课节 stem 生成，勿提交）
 data/shelf_uploads/*-inline-*
+# 书架转换 HTML 缓存
+data/shelf_html_cache/
 
 # Large / generated data
 data/bible/**/*.sqlite

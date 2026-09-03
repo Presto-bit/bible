@@ -338,6 +338,7 @@ export function useShelfTurn({
   const beginDrag = useCallback(
     (clientX: number, clientY: number, pointerId: number, source: 'pointer' | 'touch', target?: EventTarget | null) => {
       if (!enabled || animating || isIgnored()) return false;
+      if (shelfTurnStartsInVerticalScroll(target ?? null, clientX)) return false;
       const fromEdge = isEdgeSwipeZone(clientX);
       if (edgeOnly && !fromEdge) return false;
       const sel = window.getSelection();

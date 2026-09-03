@@ -20,7 +20,7 @@ from .file_catalog import (
     save_catalog_document,
 )
 from .schema import ensure_shelf_schema
-from .store import read_shelf_bytes, save_shelf_bytes, shelf_file_path
+from .store import read_shelf_bytes, shelf_file_path
 
 # 书目章节内存索引，避免每次按 id 线性扫描全书 sections
 _sections_by_book: dict[str, dict[str, dict[str, Any]]] = {}
@@ -291,12 +291,43 @@ def get_platform_section(book_id: str, section_id: str) -> dict[str, Any]:
                     path.read_bytes(),
                     book_id=book_id,
                     storage_key=sk.split("/")[-1],
+                    use_cache=True,
                 )
             except Exception:
                 html = html or ""
-    lesson = kind == "lesson"
+    # 对话书等已入库纯文本：用 Mammoth 缓存升级
+    elif (html or "").strip() and kind != "lesson" and "shelf-docx-root" not in html:
+        try:
+            fb = get_file_book(book_id)
+            sk = str((fb or {}).get("storage_key") or "")
+            if sk.lower().endswith(".docx"):
+                from .convert_cache import read_meta_cache, write_meta_cache
+                from .docx_parse import file_sha256, parse_docx_bytes
+                from .store import read_shelf_bytes
+
+                data = read_shelf_bytes(sk)
+                sha = file_sha256(data)
+                meta = read_meta_cache(sha)
+                if not meta or not (meta.get("sections") or {}).get(section_id):
+                    parsed = parse_docx_bytes(
+                        data, book_id=book_id, storage_key=sk, enrich=True
+                    )
+                    meta = {
+                        "sections": {
+                            x["id"]: x.get("html") or ""
+                            for x in (parsed.get("sections") or [])
+                            if isinstance(x, dict)
+                        }
+                    }
+                    write_meta_cache(sha, meta)
+                rich = (meta.get("sections") or {}).get(section_id)
+                if rich:
+                    html = rich
+        except Exception:
+            pass
+    lesson = kind == "lesson" or kind == "epub"
     if html.strip():
-        html = normalize_section_html(html, kind=kind, lesson=lesson)
+        html = normalize_section_html(html, kind=kind if kind != "epub" else "lesson", lesson=lesson)
     return {
         "id": s["id"],
         "title": s.get("title") or "",
@@ -352,67 +383,15 @@ def import_platform_docx(
     sort_order: int = 0,
     replace_sha256: str | None = None,
 ) -> dict[str, Any]:
-    sha = file_sha256(data)
-    pool = get_pool()
-    ensure_shelf_schema(pool)
+    from .ingest import import_platform_file
 
-    if replace_sha256:
-        with pool.connection() as conn:
-            cur = conn.execute(
-                "SELECT id FROM shelf_platform_book WHERE file_sha256 = %s LIMIT 1",
-                (replace_sha256,),
-            )
-            old = cur.fetchone()
-            if old:
-                conn.execute("DELETE FROM shelf_platform_book WHERE id = %s", (old[0],))
-                conn.commit()
-
-    with pool.connection() as conn:
-        cur = conn.execute(
-            "SELECT id FROM shelf_platform_book WHERE file_sha256 = %s LIMIT 1",
-            (sha,),
-        )
-        if cur.fetchone():
-            raise HTTPException(status_code=409, detail="相同文件已入库")
-
-    parsed = parse_docx_bytes(data)
-    book_title = (title or parsed.get("title") or "未命名").strip()
-    storage_key = save_shelf_bytes(data, suffix=".docx")
-    book_id = str(uuid.uuid4())
-    toc = parsed.get("toc") or {}
-    sections = parsed.get("sections") or []
-
-    with pool.connection() as conn:
-        conn.execute(
-            """
-            INSERT INTO shelf_platform_book (
-              id, title, subtitle, author, mime, storage_key, file_size, file_sha256,
-              toc_json, sections_json, status, sort_order
-            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,'published',%s)
-            """,
-            (
-                book_id,
-                book_title,
-                parsed.get("subtitle"),
-                parsed.get("author"),
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                storage_key,
-                len(data),
-                sha,
-                json.dumps(toc, ensure_ascii=False),
-                json.dumps(sections, ensure_ascii=False),
-                sort_order,
-            ),
-        )
-        conn.commit()
-
-    return {
-        "id": book_id,
-        "title": book_title,
-        "section_count": len(sections),
-        "file_sha256": sha,
-        "storage_key": storage_key,
-    }
+    return import_platform_file(
+        data,
+        filename="book.docx",
+        title=title,
+        sort_order=sort_order,
+        replace_sha256=replace_sha256,
+    )
 
 
 def _find_catalog_book(doc: dict[str, Any], book_id: str) -> dict[str, Any] | None:

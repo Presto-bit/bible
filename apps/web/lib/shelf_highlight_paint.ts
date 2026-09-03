@@ -6,6 +6,8 @@ import { rangeFromArticleOffsets } from './shelf_selection';
 
 const MARK_PREFIX = 'shelf-mark-';
 const THOUGHT_HINT = 'shelf-thought-hint';
+const PUBLIC_NOTE_HINT = 'shelf-public-note-hint';
+const SEL_ACTIVE = 'shelf-sel-active';
 
 export function supportsShelfCssHighlight(): boolean {
   return typeof CSS !== 'undefined' && 'highlights' in CSS;
@@ -26,6 +28,7 @@ export function clearShelfPaintedHighlights() {
     clearNamedHighlight(`${MARK_PREFIX}${color}`);
   }
   clearNamedHighlight(THOUGHT_HINT);
+  clearNamedHighlight(PUBLIC_NOTE_HINT);
 }
 
 type PaintMark = {
@@ -38,6 +41,7 @@ export function paintShelfHighlights(
   article: HTMLElement | null,
   marks: PaintMark[],
   thoughtSpans: Array<{ start: number; end: number }> = [],
+  publicNoteSpans: Array<{ start: number; end: number }> = [],
 ): boolean {
   clearShelfPaintedHighlights();
   if (!article || !supportsShelfCssHighlight()) return false;
@@ -78,7 +82,44 @@ export function paintShelfHighlights(
     }
   }
 
+  if (publicNoteSpans.length) {
+    const publicRanges: Range[] = [];
+    for (const span of publicNoteSpans) {
+      const range = rangeFromArticleOffsets(article, span.start, span.end);
+      if (range) publicRanges.push(range);
+    }
+    if (publicRanges.length) {
+      try {
+        CSS.highlights.set(PUBLIC_NOTE_HINT, new Highlight(...publicRanges));
+        painted = true;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   return painted;
+}
+
+export function paintShelfActiveSelection(
+  article: HTMLElement | null,
+  start: number,
+  end: number,
+): boolean {
+  clearNamedHighlight(SEL_ACTIVE);
+  if (!article || !supportsShelfCssHighlight()) return false;
+  const range = rangeFromArticleOffsets(article, start, end);
+  if (!range) return false;
+  try {
+    CSS.highlights.set(SEL_ACTIVE, new Highlight(range));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function clearShelfActiveSelection() {
+  clearNamedHighlight(SEL_ACTIVE);
 }
 
 export function shelfMarksForPage(

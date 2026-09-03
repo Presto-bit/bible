@@ -858,18 +858,24 @@ async def admin_shelf_upload(
     sort_order: int = Form(default=0),
     _admin: str = Depends(require_admin),
 ) -> dict:
-    """管理员上传平台书架书目（DOCX）。"""
-    from ..shelf.service import import_platform_docx
+    """管理员上传平台书架书目（docx / md / txt / epub；mobi 可转则转）。"""
+    from ..shelf.ingest import import_platform_file
 
     suffix = Path(file.filename or "").suffix.lower()
-    if suffix not in {".docx"}:
-        raise HTTPException(400, "仅支持 .docx")
+    allowed = {".docx", ".md", ".markdown", ".txt", ".epub", ".mobi", ".azw", ".azw3"}
+    if suffix not in allowed:
+        raise HTTPException(400, "仅支持 .docx .md .txt .epub（.mobi 需可转为 EPUB）")
     data = await file.read()
     if len(data) > 50 * 1024 * 1024:
         raise HTTPException(400, "文件过大（上限 50MB）")
-    if len(data) < 64:
+    if len(data) < 16:
         raise HTTPException(400, "文件无效")
-    return import_platform_docx(data, title=title, sort_order=sort_order)
+    return import_platform_file(
+        data,
+        filename=file.filename or f"book{suffix}",
+        title=title,
+        sort_order=sort_order,
+    )
 
 
 class ShelfBookPatchBody(BaseModel):

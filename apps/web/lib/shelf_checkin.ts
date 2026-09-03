@@ -105,7 +105,7 @@ export function shelfHrefFromRef(
   if (typeof page === 'number' && page > 0) params.set('page', String(page));
   if (opts?.group) params.set('group', opts.group);
   if (opts?.task) params.set('task', opts.task);
-  return `/shelf/${encodeURIComponent(parsed.bookId)}?${params.toString()}`;
+  return `/shelf/${encodeURIComponent(parsed.bookId)}/read?${params.toString()}`;
 }
 
 /** 本地无缓存时拉取书目/章节标题并写入缓存。 */

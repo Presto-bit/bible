@@ -26,6 +26,7 @@ import '../features/knowledge/knowledge_explore.dart';
 import '../features/assistant/knowledge_bases_screen.dart';
 import '../features/bible/reading_report_screen.dart';
 import '../features/bible/wrapped_screen.dart';
+import '../features/shelf/shelf_book_detail_screen.dart';
 import '../features/shelf/shelf_reader_screen.dart';
 import '../features/shelf/shelf_screen.dart';
 import 'app_shell.dart';
@@ -204,6 +205,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/shelf/:id',
+        builder: (context, state) => ShelfBookDetailScreen(
+          bookId: state.pathParameters['id']!,
+          initialTab: state.uri.queryParameters['tab'],
+        ),
+      ),
+      GoRoute(
+        path: '/shelf/:id/read',
         builder: (context, state) => ShelfReaderScreen(
           bookId: state.pathParameters['id']!,
           sectionId: state.uri.queryParameters['section'],

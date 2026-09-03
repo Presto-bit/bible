@@ -49,3 +49,6 @@ def test_u3_w1_keeps_images_breaks_and_headings(tmp_path: Path):
     assert len(files) == 13
     assert "/ />" not in html
     assert 'class="shelf-docx-img"' in html
+    assert 'loading="lazy"' in html
+    # 优化后多为 webp；未压缩成功时可能仍为原后缀
+    assert any(f.suffix.lower() in {".webp", ".png", ".jpg", ".jpeg", ".gif"} for f in files)
