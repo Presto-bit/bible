@@ -56,6 +56,16 @@ export function shelfHighlightsForPage(
   return out;
 }
 
-export function shelfHasThoughtsAtRef(ref: string): boolean {
-  return myThoughtsForRef(ref).length > 0;
+export function findShelfThoughtAtOffset(
+  bookId: string,
+  sectionId: string,
+  pageIndex: number,
+  offset: number,
+): ThoughtRow | null {
+  for (const t of shelfThoughtsForPage(bookId, sectionId, pageIndex)) {
+    const p = parseShelfMarkRef(t.ref);
+    if (!p || p.spanStart == null || p.spanEnd == null) continue;
+    if (offset >= p.spanStart && offset < p.spanEnd) return t;
+  }
+  return null;
 }

@@ -65,6 +65,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   const [hubAbstract, setHubAbstract] = useState<string | undefined>();
 
   const progress = useMemo(() => loadShelfBookProgress(bookId), [bookId]);
+  const finishedCelebration = search.get('finished') === '1' || Boolean(progress?.finished);
 
   useEffect(() => {
     let cancelled = false;
@@ -165,6 +166,30 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
     <main className="shelf-detail-page">
       <PageBackBar href="/shelf" ariaLabel="返回书架" />
 
+      {finishedCelebration ? (
+        <section className="shelf-detail-finished-banner" aria-live="polite">
+          <p className="shelf-detail-finished-title">读完了</p>
+          <p className="shelf-detail-finished-sub muted">
+            《{book?.title}》已读完，写几句感受，或看看大家的书评
+          </p>
+          <div className="shelf-detail-finished-actions">
+            <button type="button" className="btn primary" onClick={() => void onWriteReview()}>
+              写书评
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                clearShelfBookFinished(bookId);
+                router.push(continueHref);
+              }}
+            >
+              再读一遍
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <section className="shelf-detail-hero">
         <ShelfCoverPlate title={book?.title || ''} size="detail" />
         <h1 className="shelf-detail-title">{book?.title}</h1>
@@ -182,7 +207,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
             router.push(continueHref);
           }}
         >
-          {progress?.sectionId ? '继续阅读' : '开始阅读'}
+          {finishedCelebration ? '重新阅读' : progress?.sectionId ? '继续阅读' : '开始阅读'}
         </button>
         <p className="shelf-detail-stats muted">
           {stats.reviews} 篇书评 · {stats.notes} 条公开笔记

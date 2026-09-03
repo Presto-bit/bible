@@ -128,7 +128,7 @@ export default function ShelfPostWriteSheet({
             关闭
           </button>
           <strong className="thought-write-title">{title}</strong>
-          <div className="thought-write-topbar-actions">
+            <div className="thought-write-topbar-actions">
             <div className="thought-vis-picker-wrap">
               <button
                 type="button"
@@ -160,14 +160,16 @@ export default function ShelfPostWriteSheet({
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              className="thought-write-save"
-              disabled={!body.trim()}
-              onClick={handleConfirm}
-            >
-              完成
-            </button>
+            {kind !== 'note' ? (
+              <button
+                type="button"
+                className="thought-write-save"
+                disabled={!body.trim()}
+                onClick={handleConfirm}
+              >
+                完成
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -214,17 +216,28 @@ export default function ShelfPostWriteSheet({
             </div>
           ) : null}
 
-          <div className="thought-write-editor-wrap">
+          <div className={`thought-write-editor-wrap${kind === 'note' ? ' thought-write-editor-inline' : ''}`}>
             <textarea
               ref={textareaRef}
               className="note-editor-input thought-write-input"
-              rows={5}
-              enterKeyHint="done"
+              rows={kind === 'note' ? 4 : 5}
+              enterKeyHint="send"
               placeholder={placeholder}
               value={body}
               onChange={(e) => setBody(e.target.value)}
               onKeyDown={handleKeyDown}
             />
+            {kind === 'note' ? (
+              <button
+                type="button"
+                className="thought-write-send"
+                disabled={!body.trim()}
+                aria-label="发布"
+                onClick={handleConfirm}
+              >
+                发布
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

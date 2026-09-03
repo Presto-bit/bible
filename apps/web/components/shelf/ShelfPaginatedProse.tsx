@@ -20,16 +20,21 @@ import {
   shelfMarksForPage,
   supportsShelfCssHighlight,
 } from '@/lib/shelf_highlight_paint';
-import { buildShelfMarkRef, parseShelfMarkRef } from '@/lib/shelf_mark_ref';
-import { shelfThoughtSpansForPage } from '@/lib/shelf_annotations';
+import { buildShelfMarkRef, parseShelfMarkRef, formatShelfMarkRefLabel } from '@/lib/shelf_mark_ref';
+import { findShelfThoughtAtOffset, shelfThoughtSpansForPage } from '@/lib/shelf_annotations';
 import {
   clearShelfTextSelection,
   readShelfTextSelection,
+  rangeFromArticleOffsets,
   type ShelfTextSelection,
 } from '@/lib/shelf_selection';
 
 const ShelfPostWriteSheet = dynamic(
   () => import('@/components/shelf/ShelfPostWriteSheet'),
+  { ssr: false },
+);
+const ThoughtHubSheet = dynamic(
+  () => import('@/components/reader/ThoughtHubSheet'),
   { ssr: false },
 );
 const ShelfNoteHubSheet = dynamic(
@@ -95,6 +100,12 @@ function findPublicNoteAtOffset(notes: ShelfPost[], offset: number): ShelfPost |
   return null;
 }
 
+function excerptFromArticleOffsets(article: HTMLElement, start: number, end: number): string {
+  const range = rangeFromArticleOffsets(article, start, end);
+  if (!range) return '';
+  return range.toString().trim();
+}
+
 function readSafeTopPx(): number {
   if (typeof window === 'undefined') return 0;
   const raw = getComputedStyle(document.documentElement).getPropertyValue('--safe-top').trim();
@@ -157,9 +168,15 @@ export default function ShelfPaginatedProse({
     ref: string;
     label: string;
     verseText?: string;
+    initialBody?: string;
   } | null>(null);
   const [hubPostId, setHubPostId] = useState<string | null>(null);
   const [hubAbstract, setHubAbstract] = useState<string | undefined>();
+  const [thoughtHub, setThoughtHub] = useState<{
+    ref: string;
+    label: string;
+    verseText: string;
+  } | null>(null);
 
   const publicNoteSpans = useMemo(
     () =>
@@ -185,7 +202,7 @@ export default function ShelfPaginatedProse({
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
-    const key = `${contentKey}:${scrollSnapKey}:${scrollToEnd ? 'end' : 'start'}`;
+    const key = `${contentKey}:${scrollSnapKey}:${scrollToEnd ? 'end' : 'start'}:${linkedHtml.length}`;
     if (scrollApplyKeyRef.current === key) return;
     scrollApplyKeyRef.current = key;
     syncRef.current = true;
@@ -199,6 +216,12 @@ export default function ShelfPaginatedProse({
       } else if (offset > 0) el.scrollTop = offset * max;
       else el.scrollTop = 0;
       syncRef.current = false;
+      // 内容晚于 snap 抵达时再滚一次，确保切章到开头
+      if (!toEnd && offset <= 0 && !anchor) {
+        requestAnimationFrame(() => {
+          el.scrollTop = 0;
+        });
+      }
     });
   }, [contentKey, linkedHtml, scrollToEnd, scrollSnapKey]);
 
@@ -447,7 +470,31 @@ export default function ShelfPaginatedProse({
           return;
         }
         const article = articleRef.current;
-        if (article && publicNotes.length) {
+        if (article && annotationsEnabled && bookId && sectionId) {
+          const offset = offsetAtPoint(article, e.clientX, e.clientY);
+          if (offset != null) {
+            const thoughtHit = findShelfThoughtAtOffset(bookId, sectionId, pageIndex, offset);
+            if (thoughtHit) {
+              const parsed = parseShelfMarkRef(thoughtHit.ref);
+              setThoughtHub({
+                ref: thoughtHit.ref,
+                label: formatShelfMarkRefLabel(thoughtHit.ref),
+                verseText: parsed?.spanStart != null && parsed.spanEnd != null
+                  ? excerptFromArticleOffsets(article, parsed.spanStart, parsed.spanEnd)
+                  : '',
+              });
+              return;
+            }
+            if (publicNotes.length) {
+              const hit = findPublicNoteAtOffset(publicNotes, offset);
+              if (hit) {
+                setHubAbstract(hit.abstract ?? undefined);
+                setHubPostId(hit.id);
+                return;
+              }
+            }
+          }
+        } else if (article && publicNotes.length) {
           const offset = offsetAtPoint(article, e.clientX, e.clientY);
           if (offset != null) {
             const hit = findPublicNoteAtOffset(publicNotes, offset);
@@ -469,7 +516,7 @@ export default function ShelfPaginatedProse({
         window.requestAnimationFrame(run);
       }
     },
-    [resolveTapOrSelection, dismissSelectionIfBlankTap, selection, chromeHidden, onTextSelectionChange, publicNotes, collapseNativeSelection],
+    [resolveTapOrSelection, dismissSelectionIfBlankTap, selection, chromeHidden, onTextSelectionChange, publicNotes, collapseNativeSelection, annotationsEnabled, bookId, sectionId, pageIndex],
   );
 
   const handleInlineRefClick = useCallback(
@@ -549,11 +596,12 @@ export default function ShelfPaginatedProse({
 
       {thoughtWrite ? (
         <ShelfPostWriteSheet
-          title="写笔记"
+          title={thoughtWrite.initialBody ? '编辑想法' : '写笔记'}
           contextLabel={thoughtWrite.label}
           contextBody={thoughtWrite.verseText}
           placeholder="写下这段文字给你的启发…"
           kind="note"
+          initialBody={thoughtWrite.initialBody ?? ''}
           onSave={(body, visibility) => {
             const parsed = parseShelfMarkRef(thoughtWrite.ref);
             void (async () => {
@@ -590,6 +638,35 @@ export default function ShelfPaginatedProse({
             if (article) clearShelfPinnedSelectionDom(article);
             clearShelfActiveSelection();
             setThoughtWrite(null);
+          }}
+        />
+      ) : null}
+
+      {thoughtHub ? (
+        <ThoughtHubSheet
+          refStr={thoughtHub.ref}
+          refLabel={thoughtHub.label}
+          verseText={thoughtHub.verseText}
+          onClose={() => setThoughtHub(null)}
+          onChanged={() => setHighlightTick((n) => n + 1)}
+          onWriteNew={() => {
+            const snap = thoughtHub;
+            setThoughtHub(null);
+            setThoughtWrite({
+              ref: snap.ref,
+              label: snap.label,
+              verseText: snap.verseText,
+            });
+          }}
+          onEdit={(thought) => {
+            const snap = thoughtHub;
+            setThoughtHub(null);
+            setThoughtWrite({
+              ref: snap.ref,
+              label: snap.label,
+              verseText: snap.verseText,
+              initialBody: thought.body,
+            });
           }}
         />
       ) : null}

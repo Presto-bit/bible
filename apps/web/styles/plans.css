@@ -1144,6 +1144,46 @@
   flex-direction: column;
 }
 
+.thought-write-editor-inline {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-sunken, color-mix(in srgb, var(--paper) 92%, var(--ink) 8%));
+  padding: 10px 52px 10px 14px;
+}
+
+.thought-write-editor-inline .thought-write-input {
+  border: none;
+  background: transparent;
+  padding: 0;
+  min-height: calc(1.45em * 3 + 4px);
+  max-height: calc(1.45em * 6 + 4px);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.thought-write-send {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  min-width: 40px;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-deep, #4a6b52);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.thought-write-send:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .thought-write-input {
   flex: 0 0 auto;
   min-height: calc(1.45em * 5 + 20px);

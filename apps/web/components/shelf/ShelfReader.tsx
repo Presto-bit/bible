@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
 import { useToast } from '@/components/ui/ToastProvider';
 import {
@@ -15,6 +16,7 @@ import {
   type ShelfSection,
   type ShelfAttachment,
 } from '@/lib/shelf_api';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import ShelfMediaSheet from '@/components/shelf/ShelfMediaSheet';
 import { shelfLessonMedia } from '@/lib/shelf_lesson_media';
 import { useShelfReadingPrefs } from '@/components/shelf/ShelfReadingBar';
@@ -61,6 +63,7 @@ export default function ShelfReader({
   initialPageIndex,
   presetGroupId,
 }: Props) {
+  const router = useRouter();
   const flashToast = useToast();
   const [book, setBook] = useState<ShelfBookDetail | null>(null);
   const [sectionId, setSectionId] = useState<string | null>(initialSectionId ?? null);
@@ -95,6 +98,8 @@ export default function ShelfReader({
   const scrollAnchorBySectionRef = useRef<Record<string, { paragraphIndex: number }>>({});
   const pageCountBySectionRef = useRef<Record<string, number>>({});
   const flowScrollAnchorRef = useRef<{ paragraphIndex: number } | null>(null);
+  const tocListRef = useRef<HTMLDivElement | null>(null);
+  const finishNavRef = useRef(false);
 
   const isLesson = section?.kind === 'lesson';
   const isChildrenLesson = shelfIsChildrenLessonBook(book);
@@ -420,6 +425,27 @@ export default function ShelfReader({
     [canNextSection, canPrevSection],
   );
 
+  const completeReading = useCallback(() => {
+    if (!sectionId || !book?.title || finishNavRef.current) return;
+    const prog = loadShelfBookProgress(bookId);
+    if (prog?.finished) return;
+    finishNavRef.current = true;
+    saveShelfProgress(
+      bookId,
+      sectionId,
+      { bookTitle: book.title, sectionTitle: section?.title },
+      {
+        pageIndex: isPdfSection ? pageIndex : 0,
+        scrollOffset: 1,
+        progressRatio: 1,
+      },
+    );
+    touchShelfBookLastRead(bookId);
+    flashToast('读完了，写几句书评也很好');
+    markRouteNavigation();
+    router.push(`/shelf/${encodeURIComponent(bookId)}?finished=1`);
+  }, [bookId, sectionId, book?.title, section?.title, isPdfSection, pageIndex, flashToast, router]);
+
   const pageTurn = useShelfTurn({
     enabled: Boolean(section) && !overlayOpen,
     canPrev,
@@ -433,7 +459,16 @@ export default function ShelfReader({
       else goPrevSection();
     },
     onDragApproach: prefetchNeighbor,
-    onBoundary: () => {
+    onBoundary: (edge) => {
+      if (edge === 'next' && sectionIndex === sections.length - 1 && sections.length > 0) {
+        const atEnd = isPdfSection
+          ? pageIndex >= Math.max(0, pageCount - 1)
+          : flowScrollRatio >= 0.92;
+        if (atEnd) {
+          completeReading();
+          return;
+        }
+      }
       try {
         navigator.vibrate?.(10);
       } catch {
@@ -467,6 +502,16 @@ export default function ShelfReader({
     setSectionErr('');
     setSectionReloadToken((t) => t + 1);
   }, []);
+
+  useEffect(() => {
+    if (!tocOpen || !sectionId) return;
+    const t = window.setTimeout(() => {
+      tocListRef.current
+        ?.querySelector<HTMLElement>('.shelf-toc-item.is-active')
+        ?.scrollIntoView({ block: 'nearest' });
+    }, 60);
+    return () => window.clearTimeout(t);
+  }, [tocOpen, sectionId]);
 
   const onFlowScrollProgress = useCallback((ratio: number) => {
     if (sectionId) scrollBySectionRef.current[sectionId] = ratio;
@@ -689,8 +734,14 @@ export default function ShelfReader({
       ) : null}
 
       {isPdfSection && pageCount > 1 && !chromeHidden ? (
-        <div className="shelf-page-indicator" aria-live="polite">
+        <div className="shelf-read-position" aria-live="polite">
           {pageIndex + 1} / {pageCount}
+        </div>
+      ) : null}
+
+      {isFlowSection && sections.length > 1 && !chromeHidden ? (
+        <div className="shelf-read-position" aria-live="polite">
+          {Math.max(1, sectionIndex + 1)} / {sections.length}
         </div>
       ) : null}
 
@@ -710,7 +761,7 @@ export default function ShelfReader({
               <strong>{book?.title}</strong>
               <button type="button" className="icon-btn" aria-label="关闭" onClick={() => setTocOpen(false)}>✕</button>
             </div>
-            <div className="shelf-toc-list">
+            <div className="shelf-toc-list" ref={tocListRef}>
               {tocGroups.map((group) => (
                 <div key={group.key}>
                   {tocGroups.length > 1 ? <div className="shelf-toc-group">{group.label}</div> : null}
@@ -731,9 +782,10 @@ export default function ShelfReader({
                         className={`shelf-toc-item level-${item.level}${active ? ' is-active' : ''}`}
                         disabled={!sid}
                         onClick={() => {
-                          const sid = resolveSectionId(item, sections);
-                          if (!sid) return;
-                          goSection(sid);
+                          const targetId = resolveSectionId(item, sections);
+                          if (!targetId) return;
+                          goSection(targetId);
+                          setTocOpen(false);
                         }}
                       >
                         {shelfTocDisplayTitle(item)}
