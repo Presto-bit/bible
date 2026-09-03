@@ -285,11 +285,15 @@ function FootprintCell({
   const openedAt = useRef(0);
   const label = count && count > 0 ? `${kind} · ${count}` : kind;
 
-  const clearTimer = () => {
+  const clearLongPressTimer = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
+  };
+
+  const clearTimer = () => {
+    clearLongPressTimer();
     startXY.current = null;
   };
 
@@ -329,7 +333,8 @@ function FootprintCell({
         if (!startXY.current || !longPressTimer.current) return;
         const dx = Math.abs(e.clientX - startXY.current.x);
         const dy = Math.abs(e.clientY - startXY.current.y);
-        if (dx > 12 || dy > 12) clearTimer();
+        // 滑动取消长按分享，但保留 startXY，避免 iOS pointerleave 后松手打不开
+        if (dx > 12 || dy > 12) clearLongPressTimer();
       }}
       onPointerUp={(e) => {
         const start = startXY.current;
@@ -344,7 +349,10 @@ function FootprintCell({
         openOnce();
       }}
       onPointerCancel={clearTimer}
-      onPointerLeave={clearTimer}
+      onPointerLeave={() => {
+        // 只取消长按计时；勿清空 startXY（Safari 常在 pointerup 前发 leave）
+        clearLongPressTimer();
+      }}
       onContextMenu={(e) => {
         if (!onShare) return;
         e.preventDefault();
@@ -1221,7 +1229,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         <Link
           href="/report"
           className="card profile-companion-card"
-          onClick={() => markRouteNavigation()}
+          onClick={(e) => {
+            e.preventDefault();
+            markRouteNavigation();
+            navigateAppHref('/report', router);
+          }}
           aria-label={
             streak > 0
               ? `本月已读 ${streak} 天，今日 ${mins} 分钟，通读 ${journeyPct}%，打开同行读经`
@@ -1402,7 +1414,14 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       <div className="profile-shelf-block">
         <div className="profile-shelf-head">
           <p className="section-label tab-section-label profile-block-label">书架</p>
-          <Link href="/shelf" className="profile-shelf-more" onClick={() => markRouteNavigation()}>
+          <Link
+            href="/shelf"
+            className="profile-shelf-more"
+            onClick={(e) => {
+              e.preventDefault();
+              navigateAppHref('/shelf', router);
+            }}
+          >
             全部
           </Link>
         </div>
@@ -1410,7 +1429,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           <Link
             href="/shelf"
             className="card profile-shelf-summary"
-            onClick={() => markRouteNavigation()}
+            onClick={(e) => {
+              e.preventDefault();
+              navigateAppHref('/shelf', router);
+            }}
           >
             <p className="profile-shelf-summary-count">共 {shelfBooks.length} 本书</p>
             {(() => {
@@ -1433,7 +1455,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           <Link
             href="/shelf"
             className="card profile-shelf-empty"
-            onClick={() => markRouteNavigation()}
+            onClick={(e) => {
+              e.preventDefault();
+              navigateAppHref('/shelf', router);
+            }}
           >
             打开书架，开始阅读
           </Link>

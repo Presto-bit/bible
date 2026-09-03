@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { isTabKeepAliveEnabled } from '@/lib/platform';
 import {
+  APP_SECONDARY_PREFIXES,
   DISCOVER_SECONDARY_PREFIXES,
   isSecondaryAppPath,
   PROFILE_SECONDARY_PATHS,
@@ -159,18 +160,26 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
     const onProfileSecondary = PROFILE_SECONDARY_PATHS.some(
       (p) => routerPath === p || routerPath.startsWith(`${p}/`),
     );
-    // 二级页（设置 / IM）时 activeTab 为 null，仍需保护对应主 Tab 列表保活
-    if (!activeTab && !onDiscoverSecondary && !onProfileSecondary) return;
+    // 笔记 / 书架 / 本月已读等：从「我的」进入，返回时保留 profile 保活
+    const onAppSecondaryFromProfile = APP_SECONDARY_PREFIXES.some(
+      (p) => routerPath === p || routerPath.startsWith(`${p}/`),
+    );
+    // 二级页（设置 / IM / 笔记书架）时 activeTab 为 null，仍需保护对应主 Tab 列表保活
+    if (!activeTab && !onDiscoverSecondary && !onProfileSecondary && !onAppSecondaryFromProfile) {
+      return;
+    }
     if (activeTab) lastActiveAtRef.current[activeTab] = Date.now();
     if (onDiscoverSecondary) lastActiveAtRef.current.discover = Date.now();
-    if (onProfileSecondary) lastActiveAtRef.current.profile = Date.now();
+    if (onProfileSecondary || onAppSecondaryFromProfile) {
+      lastActiveAtRef.current.profile = Date.now();
+    }
     const maxTabs =
       isPeiaiAndroidShell() ? MAX_MOUNTED_TABS_SHELL : MAX_MOUNTED_TABS;
     setMounted((prev) => {
       const next: Record<KeepAliveTabId, boolean> = { ...prev };
       if (activeTab) next[activeTab] = true;
       if (onDiscoverSecondary) next.discover = true;
-      if (onProfileSecondary) next.profile = true;
+      if (onProfileSecondary || onAppSecondaryFromProfile) next.profile = true;
       let mountedIds = ALL_TABS.filter((t) => next[t]);
       if (mountedIds.length <= maxTabs) return next;
 
@@ -178,7 +187,9 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
       if (activeTab) protectedTabs.add(activeTab);
       if (isAssistantStreamBusy()) protectedTabs.add('assistant');
       if (onDiscoverSecondary || activeTab === 'discover') protectedTabs.add('discover');
-      if (onProfileSecondary || activeTab === 'profile') protectedTabs.add('profile');
+      if (onProfileSecondary || onAppSecondaryFromProfile || activeTab === 'profile') {
+        protectedTabs.add('profile');
+      }
       const victims = mountedIds
         .filter((t) => !protectedTabs.has(t))
         .sort(

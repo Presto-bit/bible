@@ -58,6 +58,13 @@ export function navigateAppHref(
   }
   markRouteNavigation();
   router.push(normalized);
+  // Next soft nav 不触发 popstate；补一次同步，避免 pwaPath 停在旧 Tab 路径
+  // 导致保活层继续盖住二级页（iOS PWA 无地址栏时像「点了没反应」）。
+  if (typeof window !== 'undefined' && isTabKeepAliveEnabled()) {
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new Event('presto-tab-nav'));
+    });
+  }
 }
 
 /**

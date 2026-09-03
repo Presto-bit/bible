@@ -10,12 +10,37 @@ const KEEP_ALIVE_PATHS: Record<KeepAliveTabId, string> = {
   profile: '/profile',
 };
 
-/** 我的 Tab 下的二级页，不走 Tab 保活（须走 Next 路由）。 */
+/** 我的 Tab 下的设置系二级页，不走 Tab 保活（须走 Next 路由）。 */
 export const PROFILE_SECONDARY_PATHS = [
   '/profile/settings',
   '/profile/reminders',
   '/profile/appearance',
   '/profile/licenses',
+] as const;
+
+/**
+ * 从「我的 / 首页」等入口进入的全站二级页。
+ * 必须跟 Next router，且不得被 Tab 保活层盖住；否则 iOS PWA 无地址栏时
+ * 会表现为「点了笔记/书架/本月已读完全没反应」。
+ */
+export const APP_SECONDARY_PREFIXES = [
+  '/notes',
+  '/shelf',
+  '/report',
+  '/wrapped',
+  '/challenge',
+  '/plans',
+  '/pray',
+  '/search',
+  '/admin',
+  '/feedback',
+  '/help',
+  '/dictionary',
+  '/graph',
+  '/campaigns',
+  '/knowledge-bases',
+  '/friend',
+  '/group',
 ] as const;
 
 /** 发现 Tab 下的二级页（群详情、私信、邀请、好友等），须走 Next 路由。 */
@@ -42,10 +67,16 @@ function isDiscoverSecondaryPath(pathname: string): boolean {
   );
 }
 
-/** 主 Tab 下的二级页（设置 / IM 等），须走 Next 路由而非 pushState Tab 路径。 */
+function isAppSecondaryPath(pathname: string): boolean {
+  return APP_SECONDARY_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+/** 主 Tab 下的二级页（设置 / IM / 笔记书架等），须走 Next 路由而非 pushState Tab 路径。 */
 export function isSecondaryAppPath(pathname: string): boolean {
   const p = normalizeAppPath(pathname);
-  return isProfileSecondaryPath(p) || isDiscoverSecondaryPath(p);
+  return isProfileSecondaryPath(p) || isDiscoverSecondaryPath(p) || isAppSecondaryPath(p);
 }
 
 export function normalizeAppPath(pathname: string): string {
