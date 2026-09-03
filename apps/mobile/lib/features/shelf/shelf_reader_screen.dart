@@ -17,6 +17,7 @@ import 'shelf_paginated_prose.dart';
 import 'shelf_pdf_page.dart';
 import 'shelf_post_sheets.dart';
 import 'shelf_posts_repository.dart';
+import 'shelf_library_store.dart';
 import 'shelf_progress.dart';
 import 'shelf_reader_contract.dart';
 import 'shelf_reading_prefs.dart';
@@ -280,15 +281,23 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     _progressTimer = Timer(const Duration(milliseconds: 350), () {
       final sid = _sectionId;
       if (sid == null) return;
-      ShelfProgressStore(ref.read(prefsProvider)).saveBook(
+      final sectionIdx = _sectionIndex >= 0 ? _sectionIndex : 0;
+      final totalSections = _sections.isEmpty ? 1 : _sections.length;
+      final progressRatio = _isPdfSection
+          ? ((_pageIndex + 1) / _pageCount.clamp(1, 9999)).clamp(0.0, 1.0)
+          : ((sectionIdx + _flowScrollRatio) / totalSections).clamp(0.0, 1.0);
+      final progressStore = ShelfProgressStore(ref.read(prefsProvider));
+      progressStore.saveBook(
         widget.bookId,
         sid,
         pageIndex: _isPdfSection ? _pageIndex : 0,
         scrollOffset: _isPdfSection ? null : _flowScrollRatio,
         scrollAnchor: _isPdfSection ? null : _flowScrollAnchor,
+        progressRatio: progressRatio,
         bookTitle: _book?.title,
         sectionTitle: _section?.title,
       );
+      ShelfLibraryStore(ref.read(prefsProvider), progressStore).touchLastRead(widget.bookId);
       if (_isPdfSection) {
         _pageBySection[sid] = _pageIndex;
       } else {

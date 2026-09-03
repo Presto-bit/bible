@@ -30,6 +30,7 @@ import {
   type ShelfPostVisibility,
 } from '@/lib/shelf_posts';
 import { shelfSectionIsPdf, shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
+import { touchShelfBookLastRead } from '@/lib/shelf_library';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { shellTapProps } from '@/lib/shell_tap';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
@@ -305,25 +306,43 @@ export default function ShelfReader({
     if (!sectionId) return;
     if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
     progressTimerRef.current = setTimeout(() => {
+      const sectionIdx = Math.max(0, sectionIndex);
+      const totalSections = Math.max(1, sections.length);
+      const progressRatio = isPdfSection
+        ? Math.min(1, (pageIndex + 1) / Math.max(1, pageCount))
+        : Math.min(1, (sectionIdx + flowScrollRatio) / totalSections);
       saveShelfProgress(
         bookId,
         sectionId,
         { bookTitle: book?.title, sectionTitle: section?.title },
         isPdfSection
-          ? { pageIndex }
+          ? { pageIndex, progressRatio }
           : {
               scrollOffset: flowScrollRatio,
               pageIndex: 0,
               scrollAnchor: flowScrollAnchorRef.current ?? undefined,
+              progressRatio,
             },
       );
+      touchShelfBookLastRead(bookId);
       pageBySectionRef.current[sectionId] = pageIndex;
       scrollBySectionRef.current[sectionId] = flowScrollRatio;
     }, 350);
     return () => {
       if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
     };
-  }, [bookId, sectionId, book?.title, section?.title, pageIndex, flowScrollRatio, isPdfSection]);
+  }, [
+    bookId,
+    sectionId,
+    book?.title,
+    section?.title,
+    pageIndex,
+    flowScrollRatio,
+    isPdfSection,
+    sectionIndex,
+    sections.length,
+    pageCount,
+  ]);
 
   const prefetchNeighbor = useCallback(
     (delta: number) => {

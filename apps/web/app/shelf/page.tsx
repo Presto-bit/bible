@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import PageBackBar from '@/components/PageBackBar';
-import ShelfCoverTile from '@/components/shelf/ShelfCoverTile';
+import dynamic from 'next/dynamic';
+import ShelfBookCard from '@/components/shelf/ShelfBookCard';
+import ShelfLibraryHeader from '@/components/shelf/ShelfLibraryHeader';
+import ShelfLibraryTabs from '@/components/shelf/ShelfLibraryTabs';
 import ShelfManageSheet from '@/components/shelf/ShelfManageSheet';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
@@ -14,8 +16,19 @@ import {
   type ShelfBookSummary,
   type ShelfGroup,
 } from '@/lib/shelf_api';
+import {
+  filterAndSortShelfBooks,
+  listShelfUserGroups,
+  SHELF_MAX_USER_GROUPS,
+  shelfUngroupedCount,
+  type ShelfLibraryTab,
+  type ShelfUserGroup,
+} from '@/lib/shelf_library';
 import { peekShelfListCache } from '@/lib/shelf_cache';
 import '@/styles/shelf.css';
+
+const ShelfImportSheet = dynamic(() => import('@/components/shelf/ShelfImportSheet'), { ssr: false });
+const ShelfLibrarySheet = dynamic(() => import('@/components/shelf/ShelfLibrarySheet'), { ssr: false });
 
 export default function ShelfPage() {
   const suppress = useSuppressKeepAliveRoute();
@@ -33,6 +46,15 @@ function ShelfListInner() {
   const [loading, setLoading] = useState(() => !cached);
   const [canManage, setCanManage] = useState(false);
   const [manageBook, setManageBook] = useState<ShelfBookSummary | null>(null);
+  const [userGroups, setUserGroups] = useState<ShelfUserGroup[]>(() => listShelfUserGroups());
+  const [activeTab, setActiveTab] = useState<ShelfLibraryTab>({ kind: 'last_read' });
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
+  const [librarySheet, setLibrarySheet] = useState<
+    null | { mode: 'new_group' | 'move_book' | 'edit_group'; book?: ShelfBookSummary; group?: ShelfUserGroup }
+  >(null);
+  const [libraryTick, setLibraryTick] = useState(0);
 
   const reload = useCallback((force = false) => {
     if (force) invalidateShelfListCache();
@@ -47,6 +69,11 @@ function ShelfListInner() {
       .finally(() => setLoading(false));
   }, []);
 
+  const refreshLibrary = useCallback(() => {
+    setUserGroups(listShelfUserGroups());
+    setLibraryTick((n) => n + 1);
+  }, []);
+
   useEffect(() => {
     void reload(false);
   }, [reload]);
@@ -59,62 +86,66 @@ function ShelfListInner() {
     void adminCheck().then(setCanManage);
   }, []);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, ShelfBookSummary[]>();
-    for (const g of groups) map.set(g.id, []);
-    if (!map.has('default')) map.set('default', []);
-    for (const book of items) {
-      const gid = book.group_id || 'default';
-      if (!map.has(gid)) map.set(gid, []);
-      map.get(gid)!.push(book);
-    }
-    const order = [...groups].sort((a, b) => (b.sort_order ?? 0) - (a.sort_order ?? 0));
-    const seen = new Set(order.map((g) => g.id));
-    const extras = [...map.keys()].filter((id) => !seen.has(id));
-    const rows: { group: ShelfGroup; books: ShelfBookSummary[] }[] = [];
-    for (const g of order) {
-      const books = map.get(g.id) ?? [];
-      if (books.length > 0) rows.push({ group: g, books });
-    }
-    for (const id of extras) {
-      const books = map.get(id) ?? [];
-      if (books.length > 0) {
-        rows.push({ group: { id, title: '未分组' }, books });
-      }
-    }
-    return rows;
-  }, [groups, items]);
+  const visibleBooks = useMemo(
+    () => filterAndSortShelfBooks(items, activeTab, searchQuery),
+    [items, activeTab, searchQuery, libraryTick],
+  );
+
+  const showUngrouped = useMemo(() => shelfUngroupedCount(items) > 0, [items, libraryTick]);
 
   return (
-    <main className="container shelf-page">
-      <PageBackBar href="/profile" label="我的" />
-      <h1 className="page-title">书架</h1>
-      <p className="page-lead">
-        安静阅读，在文字里相遇。
-        {canManage ? ' 长按封面可管理书目。' : null}
-      </p>
+    <main className="container shelf-page shelf-library-page">
+      <ShelfLibraryHeader
+        searchOpen={searchOpen}
+        searchQuery={searchQuery}
+        onSearchOpen={setSearchOpen}
+        onSearchQuery={setSearchQuery}
+        onImport={() => setImportOpen(true)}
+      />
 
-      {loading ? <p className="muted">加载中…</p> : null}
-      {err ? <p className="muted">{err}</p> : null}
+      <ShelfLibraryTabs
+        active={activeTab}
+        userGroups={userGroups}
+        showUngrouped={showUngrouped}
+        canAddGroup={userGroups.length < SHELF_MAX_USER_GROUPS}
+        onSelect={setActiveTab}
+        onAddGroup={() => setLibrarySheet({ mode: 'new_group' })}
+        onLongPressGroup={(group) => setLibrarySheet({ mode: 'edit_group', group })}
+      />
 
-      {!loading && !err && items.length === 0 ? (
-        <p className="muted">暂无书目，稍后再来看看。</p>
+      {loading ? <p className="muted shelf-library-status">加载中…</p> : null}
+      {err ? <p className="muted shelf-library-status">{err}</p> : null}
+
+      {!loading && !err && visibleBooks.length === 0 ? (
+        <p className="muted shelf-library-status">
+          {searchQuery ? '没有匹配的书' : '书架空空的，可导入或选一本平台书目'}
+        </p>
       ) : null}
 
-      {grouped.map(({ group, books }) => (
-        <section key={group.id} className="shelf-group-section">
-          <p className="shelf-section-label">{group.title}</p>
-          <div className="shelf-grid">
-            {books.map((book) => (
-              <ShelfCoverTile
-                key={book.id}
-                book={book}
-                onManage={canManage ? setManageBook : undefined}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      {visibleBooks.length > 0 ? (
+        <div className="shelf-grid shelf-library-grid">
+          {visibleBooks.map((book) => (
+            <ShelfBookCard
+              key={book.id}
+              book={book}
+              onManage={canManage ? setManageBook : undefined}
+              onLongPress={(b) => setLibrarySheet({ mode: 'move_book', book: b })}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {importOpen ? <ShelfImportSheet onClose={() => setImportOpen(false)} /> : null}
+
+      {librarySheet ? (
+        <ShelfLibrarySheet
+          mode={librarySheet.mode}
+          book={librarySheet.book}
+          group={librarySheet.group}
+          onClose={() => setLibrarySheet(null)}
+          onChanged={refreshLibrary}
+        />
+      ) : null}
 
       <ShelfManageSheet
         book={manageBook}

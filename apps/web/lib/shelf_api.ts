@@ -135,6 +135,8 @@ export type ShelfBookProgress = {
   /** HTML/Word flow：0–1 滚动比例 */
   scrollOffset?: number;
   scrollAnchor?: ShelfScrollAnchor;
+  /** 全书 0–1 进度（书架封面细线） */
+  progressRatio?: number;
 };
 
 export type ShelfLastRead = {
@@ -164,6 +166,7 @@ function normalizeBookProgress(raw: ShelfBookProgress | string | undefined): She
         anchor && typeof anchor.paragraphIndex === 'number'
           ? { paragraphIndex: anchor.paragraphIndex, viewportFromTop: anchor.viewportFromTop }
           : undefined,
+      progressRatio: typeof raw.progressRatio === 'number' ? raw.progressRatio : undefined,
     };
   }
   return null;
@@ -209,7 +212,12 @@ export function saveShelfProgress(
   bookId: string,
   sectionId: string,
   meta?: { bookTitle?: string; sectionTitle?: string },
-  position?: { pageIndex?: number; scrollOffset?: number; scrollAnchor?: ShelfScrollAnchor },
+  position?: {
+    pageIndex?: number;
+    scrollOffset?: number;
+    scrollAnchor?: ShelfScrollAnchor;
+    progressRatio?: number;
+  },
 ) {
   const pageIndex = Math.max(0, position?.pageIndex ?? 0);
   const scrollOffset =
@@ -217,12 +225,17 @@ export function saveShelfProgress(
       ? Math.min(1, Math.max(0, position.scrollOffset))
       : undefined;
   const scrollAnchor = position?.scrollAnchor;
+  const progressRatio =
+    typeof position?.progressRatio === 'number'
+      ? Math.min(1, Math.max(0, position.progressRatio))
+      : undefined;
   const store = readProgressStore();
   store.byBook[bookId] = {
     sectionId,
     pageIndex,
     ...(scrollOffset != null ? { scrollOffset } : {}),
     ...(scrollAnchor ? { scrollAnchor } : {}),
+    ...(progressRatio != null ? { progressRatio } : {}),
   };
   if (meta?.bookTitle) {
     store.last = {

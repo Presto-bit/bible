@@ -15,12 +15,14 @@ class ShelfBookProgress {
     this.pageIndex = 0,
     this.scrollOffset,
     this.scrollAnchor,
+    this.progressRatio,
   });
 
   final String sectionId;
   final int pageIndex;
   final double? scrollOffset;
   final ShelfScrollAnchor? scrollAnchor;
+  final double? progressRatio;
 }
 
 class ShelfLastRead {
@@ -62,6 +64,7 @@ class ShelfProgressStore {
         pageIndex: (entry['pageIndex'] as num?)?.toInt() ?? 0,
         scrollOffset: scroll is num ? scroll.toDouble().clamp(0, 1) : null,
         scrollAnchor: ShelfScrollAnchor.fromJson(entry['scrollAnchor']),
+        progressRatio: (entry['progressRatio'] as num?)?.toDouble(),
       );
     }
     return null;
@@ -96,6 +99,7 @@ class ShelfProgressStore {
     int pageIndex = 0,
     double? scrollOffset,
     ShelfScrollAnchor? scrollAnchor,
+    double? progressRatio,
     String? bookTitle,
     String? sectionTitle,
   }) {
@@ -112,6 +116,9 @@ class ShelfProgressStore {
     }
     if (scrollAnchor != null) {
       entry['scrollAnchor'] = scrollAnchor.toJson();
+    }
+    if (progressRatio != null) {
+      entry['progressRatio'] = progressRatio.clamp(0.0, 1.0);
     }
     byBook[bookId] = entry;
     store['byBook'] = byBook;

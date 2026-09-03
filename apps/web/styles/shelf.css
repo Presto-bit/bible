@@ -2,6 +2,243 @@
   padding-bottom: calc(var(--tabbar-total) + 24px);
 }
 
+/* ── 书架图书馆视图（Tab + 单卡片） ── */
+.shelf-library-page {
+  padding-top: 0;
+}
+
+.shelf-library-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(var(--safe-top, 0px) + 4px) 4px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: color-mix(in srgb, var(--paper, #f7f3ec) 92%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.shelf-library-title {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.shelf-library-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.shelf-library-icon-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+.shelf-library-icon-btn-accent {
+  color: var(--accent-deep, #4a6b52);
+}
+
+.shelf-library-search-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.shelf-library-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 0 12px;
+  font-size: 15px;
+  background: var(--surface, #fff);
+}
+
+.shelf-library-tabs-wrap {
+  position: sticky;
+  top: calc(var(--safe-top, 0px) + 52px);
+  z-index: 3;
+  background: color-mix(in srgb, var(--paper, #f7f3ec) 94%, transparent);
+  backdrop-filter: blur(8px);
+  margin: 0 -4px;
+  padding: 0 4px 8px;
+}
+
+.shelf-library-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.shelf-library-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.shelf-library-tab {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.shelf-library-tab.is-active {
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--accent-deep, #4a6b52);
+  border-radius: 0;
+}
+
+.shelf-library-tab-add {
+  color: var(--accent-deep, #4a6b52);
+  font-size: 18px;
+  padding: 6px 12px;
+}
+
+.shelf-library-grid {
+  margin-top: 4px;
+}
+
+.shelf-library-status {
+  padding: 24px 8px;
+  text-align: center;
+}
+
+.shelf-book-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.shelf-book-card-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffcfa;
+  box-shadow: var(--elev-2);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+
+.shelf-book-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.shelf-brand-cover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fffcfa;
+}
+
+.shelf-brand-cover-icon {
+  width: 38%;
+  height: auto;
+  display: block;
+  opacity: 0.92;
+}
+
+.shelf-book-card-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.shelf-book-card-progress-fill {
+  height: 100%;
+  background: var(--accent-deep, #4a6b52);
+  min-width: 2px;
+  transition: width 0.2s ease;
+}
+
+.shelf-book-card-title {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.7em;
+  max-height: 2.7em;
+}
+
+.shelf-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.shelf-import-sheet,
+.shelf-library-sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  z-index: 81;
+  width: min(100%, 420px);
+  background: var(--surface, #fff);
+  border-radius: 16px 16px 0 0;
+  padding: 18px 18px calc(var(--safe-bottom, 0px) + 18px);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.shelf-import-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.shelf-import-hint {
+  margin: 0 0 16px;
+  font-size: 13px;
+}
+
+.shelf-import-file {
+  display: none;
+}
+
+.shelf-import-btn {
+  width: 100%;
+}
+
 .shelf-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

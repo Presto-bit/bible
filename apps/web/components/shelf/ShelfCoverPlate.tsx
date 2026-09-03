@@ -1,6 +1,6 @@
 'use client';
 
-import { shelfCoverHue } from '@/lib/shelf_api';
+import ShelfBrandCover from '@/components/shelf/ShelfBrandCover';
 
 export default function ShelfCoverPlate({
   title,
@@ -13,28 +13,20 @@ export default function ShelfCoverPlate({
   size?: 'detail' | 'tile';
   coverUrl?: string | null;
 }) {
-  const hue = shelfCoverHue(title);
-  const cls = size === 'detail' ? 'shelf-detail-cover' : 'shelf-cover';
+  const cls = size === 'detail' ? 'shelf-detail-cover' : 'shelf-book-card-cover';
 
   if (coverUrl) {
     return (
       <div className={`${cls} shelf-cover-has-image`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={coverUrl} alt="" className="shelf-cover-image" />
+        <img src={coverUrl} alt="" className="shelf-book-card-image" />
       </div>
     );
   }
 
   return (
-    <div
-      className={cls}
-      style={{
-        background: `linear-gradient(145deg, hsl(${hue} 42% 38%), hsl(${(hue + 36) % 360} 36% 28%))`,
-      }}
-    >
-      <span className="shelf-cover-title">{title}</span>
-      {subtitle ? <span className="shelf-cover-sub">{subtitle}</span> : null}
-      <span className="shelf-cover-badge">平台</span>
+    <div className={cls}>
+      <ShelfBrandCover />
     </div>
   );
 }

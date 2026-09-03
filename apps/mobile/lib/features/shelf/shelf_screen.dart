@@ -1,4 +1,4 @@
-/// 书架列表（Android 原生；对齐 PWA /shelf）。
+/// 书架列表（Android 原生；对齐 PWA /shelf 图书馆视图）。
 library;
 
 import 'package:flutter/material.dart';
@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
+import 'shelf_book_card.dart';
+import 'shelf_library_store.dart';
 import 'shelf_progress.dart';
 import 'shelf_repository.dart';
 
@@ -14,11 +16,173 @@ final shelfListProvider = FutureProvider.autoDispose<ShelfListData>((ref) async 
   return ref.watch(shelfRepoProvider).listPlatform();
 });
 
-class ShelfScreen extends ConsumerWidget {
+class ShelfScreen extends ConsumerStatefulWidget {
   const ShelfScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ShelfScreen> createState() => _ShelfScreenState();
+}
+
+class _ShelfScreenState extends ConsumerState<ShelfScreen> {
+  ShelfLibraryTab _tab = const ShelfLibraryTab.lastRead();
+  bool _searchOpen = false;
+  final _searchCtrl = TextEditingController();
+  List<ShelfUserGroup> _userGroups = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadGroups();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  ShelfLibraryStore get _library =>
+      ShelfLibraryStore(ref.read(prefsProvider), ShelfProgressStore(ref.read(prefsProvider)));
+
+  void _reloadGroups() {
+    setState(() => _userGroups = _library.listGroups());
+  }
+
+  Future<void> _refresh(WidgetRef ref) async {
+    await ref.read(shelfRepoProvider).listPlatform(force: true);
+    ref.invalidate(shelfListProvider);
+    _reloadGroups();
+  }
+
+  void _openImport() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(18, 18, 18, MediaQuery.paddingOf(ctx).bottom + 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('导入书籍', style: AppTypography.title),
+            const SizedBox(height: 8),
+            const Text(
+              '支持 docx、txt、md，单本不超过 20MB。导入后将出现在「上架时间」。',
+              style: AppTypography.meta,
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('导入功能即将开放，请先阅读平台书目')),
+                );
+              },
+              child: const Text('选择文件'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _newGroup() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('新建分组'),
+        content: TextField(
+          controller: ctrl,
+          maxLength: 20,
+          decoration: const InputDecoration(hintText: '分组名称'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('创建')),
+        ],
+      ),
+    );
+    if (ok == true && ctrl.text.trim().isNotEmpty) {
+      _library.createGroup(ctrl.text);
+      _reloadGroups();
+    }
+    ctrl.dispose();
+  }
+
+  Future<void> _editGroup(ShelfUserGroup group) async {
+    final ctrl = TextEditingController(text: group.title);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: TextField(controller: ctrl, maxLength: 20),
+            ),
+            ListTile(
+              title: const Text('保存名称'),
+              onTap: () => Navigator.pop(ctx, 'save'),
+            ),
+            ListTile(
+              title: const Text('删除分组', style: TextStyle(color: Color(0xFFB42318))),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == 'save') {
+      _library.renameGroup(group.id, ctrl.text);
+      _reloadGroups();
+    } else if (action == 'delete') {
+      _library.deleteGroup(group.id);
+      if (_tab.kind == ShelfLibraryTabKind.group && _tab.groupId == group.id) {
+        _tab = const ShelfLibraryTab.lastRead();
+      }
+      _reloadGroups();
+    }
+    ctrl.dispose();
+  }
+
+  Future<void> _moveBook(ShelfBookSummary book) async {
+    final groups = _library.listGroups();
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(title: Text(book.title, style: AppTypography.meta)),
+            ListTile(
+              title: const Text('未分组'),
+              onTap: () {
+                _library.setBookGroup(book.id, null);
+                _reloadGroups();
+                Navigator.pop(ctx);
+              },
+            ),
+            for (final g in groups)
+              ListTile(
+                title: Text(g.title),
+                onTap: () {
+                  _library.setBookGroup(book.id, g.id);
+                  _reloadGroups();
+                  Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(shelfListProvider);
     return Scaffold(
       backgroundColor: AppColors.paper,
@@ -30,155 +194,177 @@ class ShelfScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => context.pop(),
         ),
-        title: const Text('书架', style: AppTypography.title),
+        title: _searchOpen
+            ? TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '搜索书名或作者',
+                  border: InputBorder.none,
+                  isDense: true,
+                ),
+                onChanged: (_) => setState(() {}),
+              )
+            : const Text('书架', style: AppTypography.title),
+        actions: [
+          if (_searchOpen)
+            IconButton(
+              icon: const Icon(Icons.close, size: 20),
+              onPressed: () {
+                _searchCtrl.clear();
+                setState(() => _searchOpen = false);
+              },
+            )
+          else ...[
+            IconButton(
+              icon: const Icon(Icons.search, size: 22),
+              onPressed: () => setState(() => _searchOpen = true),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add, size: 24, color: AppColors.accentDeep),
+              onPressed: _openImport,
+            ),
+          ],
+        ],
       ),
       body: async.when(
         loading: () => const Center(child: Text('加载中…', style: AppTypography.meta)),
         error: (_, __) => const Center(child: Text('暂时无法加载书架', style: AppTypography.meta)),
         data: (data) {
-          if (data.items.isEmpty) {
-            return const Center(child: Text('暂无书目，稍后再来看看。', style: AppTypography.meta));
-          }
-          final grouped = _groupBooks(data);
+          final showUngrouped = _library.ungroupedCount(data.items) > 0;
+          final books = _library.filterAndSort(data.items, _tab, _searchCtrl.text);
           return RefreshIndicator(
-            onRefresh: () async {
-              await ref.read(shelfRepoProvider).listPlatform(force: true);
-              ref.invalidate(shelfListProvider);
-            },
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-              children: [
-              const Text(
-                '安静阅读，在文字里相遇。',
-                style: AppTypography.secondary,
-              ),
-              const SizedBox(height: 20),
-              for (final row in grouped) ...[
-                Text(row.group.title, style: AppTypography.meta.copyWith(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 10),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.72,
+            onRefresh: () => _refresh(ref),
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 44,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      children: [
+                        _TabChip(
+                          label: '最近阅读',
+                          selected: _tab.kind == ShelfLibraryTabKind.lastRead,
+                          onTap: () => setState(() => _tab = const ShelfLibraryTab.lastRead()),
+                        ),
+                        _TabChip(
+                          label: '上架时间',
+                          selected: _tab.kind == ShelfLibraryTabKind.added,
+                          onTap: () => setState(() => _tab = const ShelfLibraryTab.added()),
+                        ),
+                        for (final g in _userGroups)
+                          _TabChip(
+                            label: g.title,
+                            selected: _tab.kind == ShelfLibraryTabKind.group && _tab.groupId == g.id,
+                            onTap: () => setState(() => _tab = ShelfLibraryTab.group(g.id)),
+                            onLongPress: () => _editGroup(g),
+                          ),
+                        if (showUngrouped)
+                          _TabChip(
+                            label: '未分组',
+                            selected: _tab.kind == ShelfLibraryTabKind.group && _tab.groupId == shelfUngroupedId,
+                            onTap: () => setState(() => _tab = const ShelfLibraryTab.group(shelfUngroupedId)),
+                          ),
+                        if (_userGroups.length < shelfMaxUserGroups)
+                          _TabChip(
+                            label: '＋',
+                            selected: false,
+                            accent: true,
+                            onTap: _newGroup,
+                          ),
+                      ],
+                    ),
                   ),
-                  itemCount: row.books.length,
-                  itemBuilder: (context, i) {
-                    final book = row.books[i];
-                    return _ShelfCoverTile(
-                      book: book,
-                      onTap: () {
-                        final progress =
-                            ShelfProgressStore(ref.read(prefsProvider)).loadBook(book.id);
-                        if (progress != null) {
-                          context.push(
-                            '/shelf/${book.id}/read?section=${Uri.encodeComponent(progress.sectionId)}&page=${progress.pageIndex}',
-                          );
-                        } else {
-                          context.push('/shelf/${book.id}');
-                        }
-                      },
-                    );
-                  },
                 ),
-                const SizedBox(height: 24),
+                if (books.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: Text('书架空空的，可导入或选一本平台书目', style: AppTypography.meta)),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 0.52,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) {
+                          final book = books[i];
+                          final progress = ShelfProgressStore(ref.read(prefsProvider)).loadBook(book.id);
+                          return ShelfBookCard(
+                            book: book,
+                            progressRatio: _library.bookProgressRatio(book.id),
+                            onTap: () {
+                              if (progress != null) {
+                                context.push(
+                                  '/shelf/${book.id}/read?section=${Uri.encodeComponent(progress.sectionId)}&page=${progress.pageIndex}',
+                                );
+                              } else {
+                                context.push('/shelf/${book.id}');
+                              }
+                            },
+                            onLongPress: () => _moveBook(book),
+                          );
+                        },
+                        childCount: books.length,
+                      ),
+                    ),
+                  ),
               ],
-            ],
             ),
           );
         },
       ),
     );
   }
-
-  List<({ShelfGroup group, List<ShelfBookSummary> books})> _groupBooks(ShelfListData data) {
-    final map = <String, List<ShelfBookSummary>>{};
-    for (final g in data.groups) {
-      map[g.id] = [];
-    }
-    map.putIfAbsent('default', () => []);
-    for (final book in data.items) {
-      map.putIfAbsent(book.groupId, () => []).add(book);
-    }
-    final order = [...data.groups]..sort((a, b) => b.sortOrder.compareTo(a.sortOrder));
-    final seen = order.map((g) => g.id).toSet();
-    final rows = <({ShelfGroup group, List<ShelfBookSummary> books})>[];
-    for (final g in order) {
-      final books = map[g.id] ?? const [];
-      if (books.isNotEmpty) rows.add((group: g, books: books));
-    }
-    for (final id in map.keys) {
-      if (seen.contains(id)) continue;
-      final books = map[id] ?? const [];
-      if (books.isNotEmpty) {
-        rows.add((group: ShelfGroup(id: id, title: '未分组'), books: books));
-      }
-    }
-    return rows;
-  }
 }
 
-class _ShelfCoverTile extends StatelessWidget {
-  const _ShelfCoverTile({required this.book, required this.onTap});
+class _TabChip extends StatelessWidget {
+  const _TabChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.onLongPress,
+    this.accent = false,
+  });
 
-  final ShelfBookSummary book;
+  final String label;
+  final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final bool accent;
 
   @override
   Widget build(BuildContext context) {
-    final hue = shelfCoverHue(book.title);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                HSLColor.fromAHSL(1, hue.toDouble(), 0.42, 0.38).toColor(),
-                HSLColor.fromAHSL(1, ((hue + 36) % 360).toDouble(), 0.36, 0.28).toColor(),
-              ],
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: selected
+                ? const BoxDecoration(
+                    border: Border(bottom: BorderSide(color: AppColors.accentDeep, width: 2)),
+                  )
+                : null,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                color: accent ? AppColors.accentDeep : (selected ? AppColors.ink : AppColors.inkSoft),
+              ),
             ),
-          ),
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 32),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Text(
-                    book.title,
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: 10,
-                bottom: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Text('平台', style: TextStyle(fontSize: 10, color: Colors.white)),
-                ),
-              ),
-            ],
           ),
         ),
       ),
