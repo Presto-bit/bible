@@ -39,6 +39,11 @@ function sleep(ms: number) {
   });
 }
 
+function isProseTurnTarget(target: EventTarget | null | undefined): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest('.shelf-flow-viewport, .shelf-flow-article, .shelf-docx-prose'));
+}
+
 function isEdgeSwipeZone(clientX: number) {
   if (typeof window === 'undefined') return false;
   return clientX < EDGE_SWIPE_PX || clientX > window.innerWidth - EDGE_SWIPE_PX;
@@ -97,6 +102,7 @@ export function useShelfTurn({
     source: 'pointer' as 'pointer' | 'touch',
     inVerticalScroll: false,
     fromEdge: false,
+    inProse: false,
   });
   const applyOffset = useCallback((px: number, withAnim: boolean) => {
     offsetRef.current = px;
@@ -325,6 +331,7 @@ export function useShelfTurn({
         source,
         inVerticalScroll: shelfTurnStartsInVerticalScroll(target ?? null, clientX),
         fromEdge,
+        inProse: isProseTurnTarget(target),
       };
       return true;
     },
@@ -342,15 +349,40 @@ export function useShelfTurn({
         const adx = Math.abs(dx);
         const ady = Math.abs(dy);
         const hRatio = drag.current.inVerticalScroll ? 1.04 : AXIS_RATIO;
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed && drag.current.inProse) {
+          drag.current.active = false;
+          drag.current.pointerId = -1;
+          setTurning(false);
+          setDragSide(null);
+          setDragProgress(0);
+          applyOffset(0, false);
+          return;
+        }
         if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
-        if (drag.current.fromEdge && adx >= 3 && adx > ady * 0.45) {
+        if (drag.current.inProse && !drag.current.fromEdge) {
+          if (ady >= 8 && ady >= adx * 0.82) {
+            drag.current.active = false;
+            drag.current.pointerId = -1;
+            setTurning(false);
+            setDragSide(null);
+            setDragProgress(0);
+            applyOffset(0, false);
+            return;
+          }
+          if (adx >= 12 && adx > ady * 1.18) {
+            drag.current.axis = 'x';
+            setTurning(true);
+          } else {
+            return;
+          }
+        } else if (drag.current.fromEdge && adx >= 3 && adx > ady * 0.45) {
           drag.current.axis = 'x';
           setTurning(true);
         } else if (adx >= AXIS_MIN_PX && adx > ady * hRatio) {
           drag.current.axis = 'x';
           setTurning(true);
         } else if (ady >= AXIS_MIN_PX && ady >= adx * AXIS_RATIO) {
-          drag.current.axis = 'y';
           drag.current.active = false;
           drag.current.pointerId = -1;
           setTurning(false);
@@ -362,7 +394,6 @@ export function useShelfTurn({
           drag.current.axis = 'x';
           setTurning(true);
         } else if (ady >= AXIS_MIN_PX && ady > adx * 1.2) {
-          drag.current.axis = 'y';
           drag.current.active = false;
           drag.current.pointerId = -1;
           setTurning(false);
@@ -477,8 +508,10 @@ export function useShelfTurn({
   );
 
   useEffect(() => {
+    const viewport = viewportRef.current;
     const edges = [prevEdgeRef.current, nextEdgeRef.current].filter(Boolean) as HTMLElement[];
-    if (!edges.length || !enabled) return;
+    const targets = edgeOnly ? edges : viewport ? [viewport, ...edges] : edges;
+    if (!targets.length || !enabled) return;
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length > 1) {
@@ -521,23 +554,23 @@ export function useShelfTurn({
       void finishDrag();
     };
 
-    for (const el of edges) {
+    for (const el of targets) {
       el.addEventListener('touchstart', onTouchStart, { passive: false });
       el.addEventListener('touchmove', onTouchMove, { passive: false });
       el.addEventListener('touchend', onTouchEnd, { passive: true });
       el.addEventListener('touchcancel', onTouchCancel, { passive: true });
     }
     return () => {
-      for (const el of edges) {
+      for (const el of targets) {
         el.removeEventListener('touchstart', onTouchStart);
         el.removeEventListener('touchmove', onTouchMove);
         el.removeEventListener('touchend', onTouchEnd);
         el.removeEventListener('touchcancel', onTouchCancel);
       }
     };
-  }, [enabled, beginDrag, moveDrag, finishDrag, cancelDrag, canPrev, canNext]);
+  }, [enabled, edgeOnly, beginDrag, moveDrag, finishDrag, cancelDrag, canPrev, canNext]);
 
-  const edgeHandlers = {
+  const turnHandlers = {
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -555,6 +588,7 @@ export function useShelfTurn({
     offCenter,
     turning,
     cancelDrag,
-    edgeHandlers,
+    turnHandlers,
+    edgeHandlers: turnHandlers,
   };
 }

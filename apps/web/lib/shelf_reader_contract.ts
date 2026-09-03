@@ -53,3 +53,18 @@ export function clampShelfPdfZoom(z: number): number {
   if (!Number.isFinite(z)) return SHELF_PDF_ZOOM_DEFAULT;
   return Math.min(SHELF_PDF_ZOOM_MAX, Math.max(SHELF_PDF_ZOOM_MIN, z));
 }
+
+const CHILDREN_LESSON_BOOK_ID = '00000000-0000-4000-8000-000000000002';
+
+/** 幼儿/儿童教案：PDF 默认再放大一档 */
+export const SHELF_CHILDREN_PDF_BASE_SCALE = 1.55;
+export const SHELF_CHILDREN_PDF_DEFAULT_ZOOM = 1.15;
+
+export function shelfIsChildrenLessonBook(
+  book: { id?: string; title?: string } | null | undefined,
+): boolean {
+  if (!book) return false;
+  if (book.id === CHILDREN_LESSON_BOOK_ID) return true;
+  const title = book.title || '';
+  return /幼儿|儿童/.test(title);
+}

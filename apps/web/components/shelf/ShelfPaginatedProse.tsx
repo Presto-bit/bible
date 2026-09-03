@@ -45,6 +45,7 @@ type Props = {
   scrollOffset?: number;
   scrollToEnd?: boolean;
   variant?: 'html' | 'docx';
+  proseTone?: 'default' | 'lesson';
   onScrollProgress?: (ratio: number) => void;
   onTap?: () => void;
   chromeHidden?: boolean;
@@ -78,6 +79,7 @@ export default function ShelfPaginatedProse({
   scrollOffset = 0,
   scrollToEnd = false,
   variant = 'html',
+  proseTone = 'default',
   onScrollProgress,
   onTap,
   chromeHidden = false,
@@ -86,7 +88,8 @@ export default function ShelfPaginatedProse({
   const articleRef = useRef<HTMLElement>(null);
   const syncRef = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
-  const tapRef = useRef({ x: 0, y: 0, pointerId: -1 });
+  const tapRef = useRef({ x: 0, y: 0, pointerId: -1, pointerType: 'mouse' as string });
+  const tapTimerRef = useRef<number | null>(null);
   const TAP_SLOP_PX = 14;
   const [selection, setSelection] = useState<ShelfTextSelection | null>(null);
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
@@ -254,8 +257,38 @@ export default function ShelfPaginatedProse({
     clearSelection();
   }, [selection, annotationsEnabled, bookId, sectionId, pageIndex, clearSelection]);
 
+  useEffect(() => {
+    return () => {
+      if (tapTimerRef.current != null) window.clearTimeout(tapTimerRef.current);
+    };
+  }, []);
+
+  const resolveTapOrSelection = useCallback(() => {
+    const article = articleRef.current;
+    const picked = readShelfTextSelection(article);
+    if (picked) {
+      setSelection(picked);
+      setFocusBarStyle(focusBarStyleFromRect(picked.rect, chromeHidden));
+      return;
+    }
+    const liveSel = window.getSelection();
+    if (liveSel && !liveSel.isCollapsed && liveSel.toString().trim()) {
+      syncSelection();
+      return;
+    }
+    if (selection) {
+      clearSelection();
+      return;
+    }
+    onTap?.();
+  }, [onTap, selection, clearSelection, syncSelection, chromeHidden]);
+
   const handleContentPointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
-    tapRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+    if (tapTimerRef.current != null) {
+      window.clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+    }
+    tapRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId, pointerType: e.pointerType };
   }, []);
 
   const handleContentPointerUp = useCallback(
@@ -266,31 +299,27 @@ export default function ShelfPaginatedProse({
       if (btn?.dataset.osis) return;
 
       const moved = Math.hypot(e.clientX - tapRef.current.x, e.clientY - tapRef.current.y);
-      if (moved > TAP_SLOP_PX) return;
+      const isTouch = tapRef.current.pointerType === 'touch';
+      const delay = isTouch ? 420 : 0;
 
-      window.requestAnimationFrame(() => {
+      const run = () => {
+        tapTimerRef.current = null;
+        if (!isTouch && moved > TAP_SLOP_PX) {
+          const picked = readShelfTextSelection(articleRef.current);
+          if (!picked) return;
+        }
+        resolveTapOrSelection();
+      };
+
+      if (delay > 0) {
+        tapTimerRef.current = window.setTimeout(run, delay);
+      } else {
         window.requestAnimationFrame(() => {
-          const article = articleRef.current;
-          const picked = readShelfTextSelection(article);
-          if (picked) {
-            setSelection(picked);
-            setFocusBarStyle(focusBarStyleFromRect(picked.rect, chromeHidden));
-            return;
-          }
-          const liveSel = window.getSelection();
-          if (liveSel && !liveSel.isCollapsed && liveSel.toString().trim()) {
-            syncSelection();
-            return;
-          }
-          if (selection) {
-            clearSelection();
-            return;
-          }
-          onTap?.();
+          window.requestAnimationFrame(run);
         });
-      });
+      }
     },
-    [onTap, selection, clearSelection, syncSelection, chromeHidden],
+    [resolveTapOrSelection],
   );
 
   const handleInlineRefClick = useCallback(
@@ -308,7 +337,10 @@ export default function ShelfPaginatedProse({
     [],
   );
 
-  const proseClass = variant === 'docx' ? 'shelf-docx-prose' : 'shelf-prose';
+  const proseClass =
+    variant === 'docx'
+      ? `shelf-docx-prose${proseTone === 'lesson' ? ' shelf-docx-prose-lesson' : ''}`
+      : 'shelf-prose';
 
   return (
     <>

@@ -23,7 +23,7 @@ import ShelfPaginatedProse from '@/components/shelf/ShelfPaginatedProse';
 import { shelfReadingStyleVars } from '@/lib/shelf_reading';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
-import { shelfSectionIsPdf } from '@/lib/shelf_reader_contract';
+import { shelfSectionIsPdf, shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
 import '@/styles/plans.css';
@@ -79,6 +79,7 @@ export default function ShelfReader({
   const pageCountBySectionRef = useRef<Record<string, number>>({});
 
   const isLesson = section?.kind === 'lesson';
+  const isChildrenLesson = shelfIsChildrenLessonBook(book);
   const lessonMedia = useMemo(
     () => (section && isLesson ? shelfLessonMedia(section) : null),
     [section, isLesson],
@@ -354,7 +355,7 @@ export default function ShelfReader({
     canNext,
     blocked: overlayOpen,
     snapOnly: true,
-    edgeOnly: true,
+    edgeOnly: false,
     resolveTurn,
     onSectionChange: (delta) => {
       if (delta > 0) goNextSection();
@@ -396,6 +397,7 @@ export default function ShelfReader({
         <ShelfLessonPanel
           bookId={bookId}
           section={sec}
+          childrenLesson={isChildrenLesson}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
           pageIndex={interactive ? pageIndex : 0}
           scrollOffset={
@@ -493,6 +495,7 @@ export default function ShelfReader({
         <div
           className={`shelf-turn-viewport${pageTurn.turning ? ' is-turning' : ''}`}
           ref={pageTurn.viewportRef}
+          {...pageTurn.turnHandlers}
         >
           {sectionLoading && !pageTurn.turning ? (
             <p className="shelf-section-loading muted" role="status">
@@ -510,22 +513,6 @@ export default function ShelfReader({
               {!isPdfSection ? renderSectionContent(nextSection, false) : null}
             </div>
           </div>
-          {!overlayOpen && canPrev ? (
-            <div
-              ref={pageTurn.prevEdgeRef}
-              className="shelf-turn-edge shelf-turn-edge-prev"
-              aria-label="上一章"
-              {...pageTurn.edgeHandlers}
-            />
-          ) : null}
-          {!overlayOpen && canNext ? (
-            <div
-              ref={pageTurn.nextEdgeRef}
-              className="shelf-turn-edge shelf-turn-edge-next"
-              aria-label="下一章"
-              {...pageTurn.edgeHandlers}
-            />
-          ) : null}
         </div>
       ) : (
         <div className="shelf-reader-body shelf-reader-body-pick">
@@ -543,17 +530,6 @@ export default function ShelfReader({
             <span className="shelf-reader-bottom-icon" aria-hidden>Aa</span>
             <span>字体</span>
           </button>
-          {hasLessonMedia ? (
-            <button
-              type="button"
-              className="shelf-reader-bottom-btn shelf-reader-bottom-btn-media"
-              aria-label="本课素材"
-              onClick={() => setMediaOpen(true)}
-            >
-              <span className="shelf-reader-bottom-icon" aria-hidden>🎬</span>
-              <span>素材</span>
-            </button>
-          ) : null}
           <span className="shelf-reader-bottom-spacer" aria-hidden />
           <button
             type="button"

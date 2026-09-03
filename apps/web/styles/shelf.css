@@ -698,6 +698,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 
 .shelf-focus-bar {
   pointer-events: auto;
+  z-index: 30;
 }
 
 ::highlight(shelf-mark-yellow) {
@@ -1908,8 +1909,46 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   margin-top: 0.35em;
 }
 
-.shelf-focus-bar {
-  z-index: 30;
+.shelf-reader-lesson .shelf-flow-viewport,
+.shelf-reader-lesson .shelf-flow-article,
+.shelf-reader-lesson .shelf-docx-prose {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.shelf-docx-prose-lesson {
+  font-size: calc(var(--shelf-font-size, 18px) * 1.04);
+  line-height: calc(var(--shelf-line-height, 1.88) * 1.04);
+  letter-spacing: 0.015em;
+}
+
+.shelf-docx-prose-lesson .shelf-docx-p {
+  text-indent: 2em;
+  margin: 0 0 1.05em;
+}
+
+.shelf-docx-prose-lesson .shelf-docx-p.shelf-docx-indent {
+  text-indent: 2em;
+}
+
+.shelf-docx-prose-lesson .shelf-docx-title,
+.shelf-docx-prose-lesson .shelf-docx-h1,
+.shelf-docx-prose-lesson .shelf-docx-h2,
+.shelf-docx-prose-lesson .shelf-docx-h3,
+.shelf-docx-prose-lesson .shelf-docx-quote,
+.shelf-docx-prose-lesson .shelf-docx-list,
+.shelf-docx-prose-lesson .shelf-docx-table-wrap {
+  text-indent: 0;
+}
+
+.shelf-docx-prose-lesson .shelf-docx-list {
+  padding-left: 1.35em;
+  margin: 0.5em 0 1em;
+}
+
+.shelf-docx-prose-lesson .shelf-docx-li {
+  margin-bottom: 0.45em;
+  line-height: 1.75;
 }
 
 .shelf-docx-prose strong {

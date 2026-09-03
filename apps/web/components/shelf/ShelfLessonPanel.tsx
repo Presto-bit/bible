@@ -13,9 +13,15 @@ const ShelfPdfPager = dynamic(() => import('@/components/shelf/ShelfPdfPager'), 
   loading: () => <p className="muted shelf-pdf-status">正在加载 PDF…</p>,
 });
 
+import {
+  SHELF_CHILDREN_PDF_BASE_SCALE,
+  SHELF_CHILDREN_PDF_DEFAULT_ZOOM,
+} from '@/lib/shelf_reader_contract';
+
 type Props = {
   bookId: string;
   section: ShelfSection;
+  childrenLesson?: boolean;
   pageIndex: number;
   scrollOffset?: number;
   scrollToEnd?: boolean;
@@ -35,6 +41,7 @@ import { shelfSectionAttachments } from '@/lib/shelf_lesson_media';
 export default function ShelfLessonPanel({
   bookId,
   section,
+  childrenLesson = false,
   pageIndex,
   scrollOffset = 0,
   scrollToEnd = false,
@@ -64,19 +71,6 @@ export default function ShelfLessonPanel({
     setVideoPreview(item);
   };
 
-  const primary = section.primary;
-  const isPdf = Boolean(
-    primary?.storage_key &&
-      ((primary.mime || '').includes('pdf') || primary.storage_key.toLowerCase().endsWith('.pdf')),
-  );
-
-  const mediaFabLabel =
-    audios.length > 0 && images.length === 0 && videos.length === 0
-      ? '音频'
-      : images.length > 0 && videos.length === 0 && audios.length === 0
-        ? '图片'
-        : '素材';
-
   return (
     <div className="shelf-lesson-viewport">
       {hasMedia ? (
@@ -92,6 +86,7 @@ export default function ShelfLessonPanel({
       <ShelfPrimaryView
         bookId={bookId}
         section={section}
+        childrenLesson={childrenLesson}
         pageIndex={pageIndex}
         scrollOffset={scrollOffset}
         scrollToEnd={scrollToEnd}
@@ -103,20 +98,6 @@ export default function ShelfLessonPanel({
         chromeHidden={chromeHidden}
         onPdfPinchActive={onPdfPinchActive}
       />
-
-      {hasMedia ? (
-        <button
-          type="button"
-          className={`shelf-lesson-media-fab${isPdf ? ' shelf-lesson-media-fab-pdf' : ''}`}
-          aria-label={`本课${mediaFabLabel}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            openMedia();
-          }}
-        >
-          {mediaFabLabel}
-        </button>
-      ) : null}
 
       {!mediaControlled ? (
         <ShelfMediaSheet
@@ -137,6 +118,7 @@ export default function ShelfLessonPanel({
 function ShelfPrimaryView({
   bookId,
   section,
+  childrenLesson = false,
   pageIndex,
   scrollOffset,
   scrollToEnd,
@@ -150,6 +132,7 @@ function ShelfPrimaryView({
 }: {
   bookId: string;
   section: ShelfSection;
+  childrenLesson?: boolean;
   pageIndex: number;
   scrollOffset?: number;
   scrollToEnd?: boolean;
@@ -178,6 +161,7 @@ function ShelfPrimaryView({
         scrollOffset={scrollOffset}
         scrollToEnd={scrollToEnd}
         variant="docx"
+        proseTone={childrenLesson ? 'lesson' : 'default'}
         onScrollProgress={onScrollProgress}
         onTap={onTap}
         chromeHidden={chromeHidden}
@@ -198,6 +182,8 @@ function ShelfPrimaryView({
         url={url}
         title={section.title}
         pageIndex={pageIndex}
+        baseScale={childrenLesson ? SHELF_CHILDREN_PDF_BASE_SCALE : undefined}
+        initialZoom={childrenLesson ? SHELF_CHILDREN_PDF_DEFAULT_ZOOM : undefined}
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
         onTap={onTap}
@@ -214,6 +200,7 @@ function ShelfPrimaryView({
         contentKey={contentKey}
         bookId={bookId}
         sectionId={section.id}
+        childrenLesson={childrenLesson}
         scrollOffset={scrollOffset}
         scrollToEnd={scrollToEnd}
         onScrollProgress={onScrollProgress}
@@ -238,6 +225,7 @@ function ShelfDocxPaginated({
   contentKey,
   bookId,
   sectionId,
+  childrenLesson = false,
   scrollOffset = 0,
   scrollToEnd = false,
   onScrollProgress,
@@ -249,6 +237,7 @@ function ShelfDocxPaginated({
   contentKey: string;
   bookId: string;
   sectionId: string;
+  childrenLesson?: boolean;
   scrollOffset?: number;
   scrollToEnd?: boolean;
   onScrollProgress?: (ratio: number) => void;
@@ -273,7 +262,13 @@ function ShelfDocxPaginated({
           { arrayBuffer: buf },
           { styleMap: SHELF_DOCX_STYLE_MAP },
         );
-        if (!cancelled) setHtml(adaptShelfDocxHtml(out.value || '<p class="muted">（空文档）</p>'));
+        if (!cancelled) {
+          setHtml(
+            adaptShelfDocxHtml(out.value || '<p class="muted">（空文档）</p>', {
+              lesson: childrenLesson,
+            }),
+          );
+        }
       } catch {
         if (!cancelled) setErr('无法加载文档');
       } finally {
@@ -284,7 +279,7 @@ function ShelfDocxPaginated({
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [url, childrenLesson]);
 
   if (loading) return <p className="muted shelf-lesson-docx-loading">正在排版文档…</p>;
   if (err) return <p className="muted">{err}</p>;
@@ -299,6 +294,7 @@ function ShelfDocxPaginated({
       scrollOffset={scrollOffset}
       scrollToEnd={scrollToEnd}
       variant="docx"
+      proseTone={childrenLesson ? 'lesson' : 'default'}
       onScrollProgress={onScrollProgress}
       onTap={onTap}
       chromeHidden={chromeHidden}

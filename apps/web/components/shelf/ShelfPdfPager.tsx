@@ -7,6 +7,8 @@ type Props = {
   url: string;
   title: string;
   pageIndex: number;
+  baseScale?: number;
+  initialZoom?: number;
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
   onTap?: () => void;
@@ -14,17 +16,17 @@ type Props = {
 };
 
 /** 默认略放大，弥补教案 PDF 字号偏小 */
-const PDF_BASE_SCALE = 1.2;
-const TAP_SLOP_PX = 14;
+const PDF_BASE_SCALE_DEFAULT = 1.2;
 
 function computePdfLayout(
   containerWidth: number,
   pageWidth: number,
   pageHeight: number,
+  baseScale: number,
   zoom = 1,
 ) {
   const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 2 : 2, 2);
-  const scale = (containerWidth / pageWidth) * PDF_BASE_SCALE * zoom;
+  const scale = (containerWidth / pageWidth) * baseScale * zoom;
   return {
     dpr,
     renderScale: scale * dpr,
@@ -48,8 +50,8 @@ function measurePdfContainerWidth(host: HTMLElement | null): number {
   return 720;
 }
 
-function pdfCacheKey(url: string, pageNum: number, w: number, zoom: number) {
-  return `${url}|${pageNum}|${Math.round(w)}|${Math.round(PDF_BASE_SCALE * zoom * 100)}`;
+function pdfCacheKey(url: string, pageNum: number, w: number, baseScale: number, zoom: number) {
+  return `${url}|${pageNum}|${Math.round(w)}|${Math.round(baseScale * zoom * 100)}`;
 }
 
 function touchSpan(touches: TouchList): number {
@@ -69,11 +71,14 @@ function trimPdfCache() {
   }
 }
 
+const TAP_SLOP_PX = 14;
+
 function PdfPageTile({
   pdf,
   pageNum,
   url,
   containerWidth,
+  baseScale,
   zoom,
   title,
   scrollRootRef,
@@ -82,6 +87,7 @@ function PdfPageTile({
   pageNum: number;
   url: string;
   containerWidth: number;
+  baseScale: number;
   zoom: number;
   title: string;
   scrollRootRef: RefObject<HTMLElement | null>;
@@ -128,10 +134,16 @@ function PdfPageTile({
         if (cancelled) return;
         const base = page.getViewport({ scale: 1 });
         const w = containerWidth;
-        const { renderScale, cssWidth, cssHeight } = computePdfLayout(w, base.width, base.height, zoom);
+        const { renderScale, cssWidth, cssHeight } = computePdfLayout(
+          w,
+          base.width,
+          base.height,
+          baseScale,
+          zoom,
+        );
         setPlaceholderH(cssHeight);
         const scaled = page.getViewport({ scale: renderScale });
-        const cacheKey = pdfCacheKey(url, pageNum, w, zoom);
+        const cacheKey = pdfCacheKey(url, pageNum, w, baseScale, zoom);
         const cached = pdfPageCache.get(cacheKey);
         if (cached) {
           canvas.width = cached.width;
@@ -165,7 +177,7 @@ function PdfPageTile({
     return () => {
       cancelled = true;
     };
-  }, [visible, pdf, pageNum, url, containerWidth, zoom]);
+  }, [visible, pdf, pageNum, url, containerWidth, baseScale, zoom]);
 
   const zoomed = zoom > 1.001;
 
@@ -188,6 +200,8 @@ export default function ShelfPdfPager({
   url,
   title,
   pageIndex,
+  baseScale = PDF_BASE_SCALE_DEFAULT,
+  initialZoom = 1,
   onPageCount,
   onPageIndexChange,
   onTap,
@@ -209,7 +223,7 @@ export default function ShelfPdfPager({
   const pendingZoomRef = useRef<number | null>(null);
   const zoomRef = useRef(1);
   const [pinching, setPinching] = useState(false);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(() => clampShelfPdfZoom(initialZoom));
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [pageCount, setPageCount] = useState(0);
   const [containerWidth, setContainerWidth] = useState(() => measurePdfContainerWidth(null));
@@ -472,6 +486,7 @@ export default function ShelfPdfPager({
                       pageNum={i + 1}
                       url={url}
                       containerWidth={containerWidth}
+                      baseScale={baseScale}
                       zoom={zoom}
                       title={title}
                       scrollRootRef={stageRef}

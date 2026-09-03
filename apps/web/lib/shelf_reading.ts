@@ -146,13 +146,31 @@ function stripShelfDocxInlineStyle(style: string): string {
     .join('; ');
 }
 
-export function adaptShelfDocxHtml(raw: string): string {
+const SHELF_DOCX_NO_INDENT =
+  '.shelf-docx-title, .shelf-docx-h1, .shelf-docx-h2, .shelf-docx-h3, .shelf-docx-quote, .shelf-docx-list, .shelf-docx-table-wrap';
+
+function normalizeShelfDocxParagraphIndent(p: Element) {
+  if (p.matches(SHELF_DOCX_NO_INDENT)) return;
+  if (p.closest('li, td, th')) return;
+  const raw = (p.textContent || '').replace(/\u00a0/g, ' ');
+  const style = p.getAttribute('style') || '';
+  const marginLeft = /margin-left\s*:\s*([\d.]+)(pt|px|em|%)/i.exec(style)?.[1];
+  if (/^[\s\u3000]{2,}/.test(raw) || (marginLeft && parseFloat(marginLeft) >= 12)) {
+    p.classList.add('shelf-docx-indent');
+    if (/^[\s\u3000]+/.test(raw)) {
+      p.textContent = raw.replace(/^[\s\u3000]+/, '');
+    }
+  }
+}
+
+export function adaptShelfDocxHtml(raw: string, opts?: { lesson?: boolean }): string {
   const base = sanitizePreviewHtml(raw);
   if (typeof window === 'undefined' || !base) return base;
   try {
     const doc = new DOMParser().parseFromString(`<div id="shelf-docx-root">${base}</div>`, 'text/html');
     const root = doc.getElementById('shelf-docx-root');
     if (!root) return base;
+    if (opts?.lesson) root.classList.add('shelf-docx-lesson-root');
 
     root.querySelectorAll('table').forEach((table) => {
       if (table.parentElement?.classList.contains('shelf-docx-table-wrap')) return;
@@ -176,7 +194,10 @@ export function adaptShelfDocxHtml(raw: string): string {
     root.querySelectorAll('p').forEach((p) => {
       const text = (p.textContent || '').replace(/\u00a0/g, ' ').trim();
       if (!text && !p.querySelector('img, table')) p.remove();
-      else if (!p.classList.length) p.classList.add('shelf-docx-p');
+      else {
+        if (!p.classList.length) p.classList.add('shelf-docx-p');
+        if (opts?.lesson) normalizeShelfDocxParagraphIndent(p);
+      }
     });
 
     root.querySelectorAll('h1').forEach((h) => {
