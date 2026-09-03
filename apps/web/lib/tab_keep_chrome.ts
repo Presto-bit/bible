@@ -2,6 +2,7 @@
 
 import { applyAppTheme } from '@/lib/app_theme';
 import { clearReaderChrome } from '@/lib/reader_chrome';
+import { setShelfReaderChrome } from '@/lib/shelf_host';
 import {
   clearAssistantTouchLocks,
   dismissOrphanBodySheetBackdrops,
@@ -83,8 +84,9 @@ export function cleanupTabBodyChrome(leaving: KeepAliveTabId | null, entering: K
   if (leaving === 'assistant' && entering !== 'assistant') {
     clearAssistantTouchLocks();
   }
-  // 进入首页 / 我的：清小爱锁 + 僵尸遮罩（双保险，主清理在 purge）
+  // 进入首页 / 我的：卸书架全屏壳 + 清小爱锁 + 僵尸遮罩（双保险，主清理在 purge）
   if (entering === 'profile' || entering === 'home') {
+    setShelfReaderChrome(false);
     clearAssistantTouchLocks();
     dismissOrphanBodySheetBackdrops();
   }

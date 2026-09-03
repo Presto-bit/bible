@@ -80,7 +80,10 @@ import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import {
   clearAssistantTouchLocks,
   dismissOrphanBodySheetBackdrops,
+  purgeShellTouchBlockers,
+  softRecoverShellTouch,
 } from '@/lib/sheet_overlay';
+import { setShelfReaderChrome } from '@/lib/shelf_host';
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -263,6 +266,7 @@ function FootprintCell({
   hideValue,
   onOpen,
   onShare,
+  beforeOpen,
 }: {
   kind: string;
   tone: FootprintTone;
@@ -274,6 +278,7 @@ function FootprintCell({
   hideValue?: boolean;
   onOpen: () => void;
   onShare?: () => void;
+  beforeOpen?: () => void;
 }) {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
@@ -293,6 +298,7 @@ function FootprintCell({
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     if (now - openedAt.current < 450) return;
     openedAt.current = now;
+    beforeOpen?.();
     onOpen();
   };
 
@@ -452,16 +458,31 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const { enabled, activeTab } = useTabKeepAlive();
   const profileAwake = paneActive && (activeTab == null || activeTab === 'profile');
 
-  // 切走「我的」时收起全部 portal；切回时清小爱触摸锁 + 僵尸遮罩
+  /** 切回「我的」时卸透明吞点击层 / 孤悬 body class（非性能问题，是触摸锁残留） */
+  const recoverProfileShellTouch = useCallback((hard = false) => {
+    setShelfReaderChrome(false);
+    if (hard) {
+      purgeShellTouchBlockers();
+      return;
+    }
+    softRecoverShellTouch();
+    clearAssistantTouchLocks();
+    dismissOrphanBodySheetBackdrops();
+    if (typeof document !== 'undefined' && !document.querySelector('.external-browser')) {
+      document.documentElement.classList.remove('external-browser-open');
+      document.body.classList.remove('external-browser-open');
+    }
+  }, []);
+
+  // 切走「我的」时收起全部 portal；切回时恢复触摸
   useEffect(() => {
     if (!paneActive) {
       setPickerOpen(false);
       setBadgeOpen(false);
       return;
     }
-    clearAssistantTouchLocks();
-    dismissOrphanBodySheetBackdrops();
-  }, [paneActive]);
+    recoverProfileShellTouch();
+  }, [paneActive, recoverProfileShellTouch]);
 
   // 非安卓壳没有「缓存」Tab：若会话残留选中则回落离线
   useEffect(() => {
@@ -916,19 +937,16 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     navigateAppHref('/notes?tab=highlights', router);
   };
 
-  /** 点成就前清僵尸遮罩，避免 TWA 上「点了没反应」 */
+  /** 开层 / 跳转前硬卸吞点击遮罩，避免 PWA 上「点了没反应」 */
   const clearBlockingOverlays = () => {
-    clearAssistantTouchLocks();
-    dismissOrphanBodySheetBackdrops();
+    recoverProfileShellTouch(true);
   };
 
   const openSettings = () => {
-    clearBlockingOverlays();
     navigateAppHref(PROFILE_SETTINGS_HREF, router);
   };
 
   const openBadges = () => {
-    clearBlockingOverlays();
     markFootprintSeen('badges', badgeDoneCount);
     setFootprintSeen(readFootprintSeen());
     setBadgeOpen(true);
@@ -1054,6 +1072,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             <Pressable
               className="icon-btn profile-head-icon-btn"
               aria-label="分享 App，邀请朋友一起读"
+              softRecover
+              beforePointerTap={clearBlockingOverlays}
               onTap={() => void inviteFriends()}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1067,6 +1087,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             <Pressable
               className="icon-btn profile-head-icon-btn"
               aria-label="设置"
+              softRecover
+              beforePointerTap={clearBlockingOverlays}
               onTap={() => openSettings()}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1080,6 +1102,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         <div className="profile-identity">
           <Pressable
             className={`profile-avatar-btn${avatarUploading ? ' is-uploading' : ''}`}
+            softRecover
+            beforePointerTap={clearBlockingOverlays}
             onTap={() => setPickerOpen(true)}
             aria-label="更换头像"
             disabled={avatarUploading}
@@ -1295,6 +1319,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           value={thoughtPreview || '写下第一句'}
           empty={!thoughtPreview}
           isNew={thoughtNew}
+          beforeOpen={clearBlockingOverlays}
           onOpen={openThoughts}
           onShare={thoughtPreview ? () => void shareThoughtPreview() : undefined}
         />
@@ -1305,6 +1330,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           value={markPreview || '去读经划线'}
           empty={!markPreview}
           isNew={markNew}
+          beforeOpen={clearBlockingOverlays}
           onOpen={openHighlights}
           onShare={markPreview ? () => void shareMarkPreview() : undefined}
         />
@@ -1316,6 +1342,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           hideValue={badgeDoneCount > 0}
           empty={badgeDoneCount === 0}
           isNew={badgeNew}
+          beforeOpen={clearBlockingOverlays}
           onOpen={openBadges}
           adornment={
             badgePreviewIcons.length > 0 ? (
@@ -1347,6 +1374,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 tone="journey"
                 value={preview}
                 empty={false}
+                beforeOpen={clearBlockingOverlays}
                 onOpen={() => {
                   markRouteNavigation();
                   router.push(activePlanTodayHrefSync(active));
