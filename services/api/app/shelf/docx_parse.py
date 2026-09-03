@@ -304,12 +304,34 @@ def _wrap_trailing_gallery(html_str: str) -> str:
     return html_str[: marker.start()] + gallery + html_str[marker.end() :]
 
 
+def _ensure_img_attrs(html_str: str) -> str:
+    def _img(m: re.Match[str]) -> str:
+        tag = m.group(0)
+        if "loading=" not in tag.lower():
+            tag = tag.replace("<img", '<img loading="lazy"', 1)
+        if "shelf-docx-img" not in tag:
+            if re.search(r'\bclass=["\']', tag, flags=re.I):
+                tag = re.sub(
+                    r'\bclass=(["\'])',
+                    r'class=\1shelf-docx-img ',
+                    tag,
+                    count=1,
+                    flags=re.I,
+                )
+            else:
+                tag = tag.replace("<img", '<img class="shelf-docx-img"', 1)
+        return tag
+
+    return re.sub(r"<img\b[^>]*>", _img, html_str, flags=re.I)
+
+
 def _refine_lesson_html(html_str: str) -> str:
     out = _unwrap_heading_lists(html_str)
     out = _split_br_and_promote(out)
     out = _promote_first_title(out)
     out = _explode_inline_images(out)
     out = _wrap_trailing_gallery(out)
+    out = _ensure_img_attrs(out)
     return f'<div class="shelf-docx-root">{out}</div>'
 
 
