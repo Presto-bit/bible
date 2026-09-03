@@ -467,21 +467,19 @@ export default function ReaderView({
   /** 点「问小爱」时锁定选区文本，避免 iOS selectionchange 截断 */
   const selectionPinRef = useRef('');
 
-  const overlayOpen = Boolean(
+  const heavyOverlayOpen = Boolean(
     externalOverlayOpen
     || planOverlayOpen
     || showSettings
     || showVersions
     || aiSheet
     || summaryOpen
-    || locPopoverOpen
     || thoughtHub
     || thoughtWrite
     || verseCompareCtx
     || groupCheckinOpen
     || bookCelebrate,
   );
-  overlayOpenRef.current = overlayOpen;
 
   useEffect(() => {
     setHighlightMap(getHighlightMap());
@@ -677,6 +675,8 @@ export default function ReaderView({
     notifyManualScroll: audioNotifyManualScroll,
   } = readerAudio;
   audioFocusOpenRef.current = audioFocusOpen;
+  const overlayOpen = heavyOverlayOpen || locPopoverOpen || audioSettingsOpen;
+  overlayOpenRef.current = overlayOpen;
   const audioVerseClass = useCallback(
     (verse: number) =>
       audioCurrentVerse === verse && (audioState === 'playing' || audioState === 'paused')
@@ -1140,18 +1140,27 @@ export default function ReaderView({
     });
   }, []);
 
-  const toggleChrome = useCallback(() => {
+  const toggleChrome = useCallback((source: 'content' | 'tab' = 'content') => {
+    if (source === 'tab') {
+      setLocPopoverOpen(false);
+      setAudioSettingsOpen(false);
+      if (READER_AUDIO_ENABLED && audioFocusOpenRef.current) {
+        audioMinimizePanel();
+      }
+      if (heavyOverlayOpen) return;
+      setChromeHidden((hidden) => !hidden);
+      return;
+    }
     if (overlayOpenRef.current) return;
     if (READER_AUDIO_ENABLED && audioFocusOpenRef.current) {
       audioMinimizePanel();
-      return;
     }
     setChromeHidden((hidden) => !hidden);
-  }, [audioMinimizePanel]);
+  }, [audioMinimizePanel, heavyOverlayOpen, setAudioSettingsOpen]);
 
   useEffect(() => {
     if (!paneActive) return;
-    const onToggle = () => toggleChrome();
+    const onToggle = () => toggleChrome('tab');
     window.addEventListener('peiai-reader-toggle-chrome', onToggle);
     return () => window.removeEventListener('peiai-reader-toggle-chrome', onToggle);
   }, [paneActive, toggleChrome]);
@@ -3122,7 +3131,7 @@ export default function ReaderView({
         // 忽略长按/双击后的余波点击，避免立即取消选中。
         if (Date.now() - lastSelectAt.current < 280) return;
         if (overlayOpen) return;
-        toggleChrome();
+        toggleChrome('content');
       }}
     >
       {!overlayOpen && !hasSel && (
