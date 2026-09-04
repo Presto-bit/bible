@@ -770,43 +770,6 @@ body.reader-overlay-open .reader-page {
   /* 保持翻页轴声明；真实阻挡靠 portal backdrop */
   touch-action: pan-x pan-y;
 }
-/* PC：左右点击热区翻章（触控端隐藏，避免挡划选） */
-.reader-edge-nav {
-  display: none;
-}
-@media (hover: hover) and (pointer: fine) {
-  .reader-edge-nav {
-    display: block;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: min(18%, 112px);
-    z-index: 6;
-    border: none;
-    padding: 0;
-    margin: 0;
-    background: transparent;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .reader-edge-nav-prev {
-    left: 0;
-  }
-
-  .reader-edge-nav-next {
-    right: 0;
-  }
-
-  .reader-edge-nav:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--reader-ink, #1c1c1e) 4%, transparent);
-  }
-
-  .reader-edge-nav:disabled {
-    cursor: default;
-    pointer-events: none;
-  }
-}
 .reader-body {
   flex: 1;
   min-height: 0;
