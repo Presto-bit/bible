@@ -338,7 +338,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   const showHomeSkeleton = !dv && dvLoading && !todayPanel;
   const hideSeasonalForCampaign = Boolean(
-    todayPanel?.primary?.id?.startsWith('campaign-'),
+    todayPanel?.activity?.id?.startsWith('campaign-'),
   );
 
   const panelLiveness = useCallback(
