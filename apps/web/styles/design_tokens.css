@@ -17,6 +17,28 @@
     Georgia, "Times New Roman", serif;
   --font-ui: var(--font-peiai-sans), -apple-system, sans-serif;
   --font-reader: var(--font-peiai-serif), serif;
+
+  /* 2026 polish：纸感层次 / 动效 / 字阶（Web PWA 壳层） */
+  --peiai-paper-edge: color-mix(in srgb, var(--ink, #191919) 7%, transparent);
+  --peiai-paper-highlight: inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent);
+  --peiai-shadow-card:
+    0 1px 0 color-mix(in srgb, var(--ink) 4%, transparent),
+    0 2px 8px color-mix(in srgb, var(--ink) 6%, transparent),
+    0 10px 28px color-mix(in srgb, var(--ink) 8%, transparent);
+  --peiai-shadow-card-lift:
+    0 2px 0 color-mix(in srgb, var(--ink) 5%, transparent),
+    0 8px 20px color-mix(in srgb, var(--ink) 10%, transparent),
+    0 16px 40px color-mix(in srgb, var(--ink) 12%, transparent);
+  --peiai-shadow-hero:
+    0 2px 0 color-mix(in srgb, var(--ink) 6%, transparent),
+    0 12px 32px color-mix(in srgb, var(--ink) 12%, transparent),
+    0 24px 56px color-mix(in srgb, var(--accent-deep, #06ae56) 10%, transparent);
+  --peiai-motion-fast: 0.14s cubic-bezier(0.25, 0.8, 0.25, 1);
+  --peiai-motion-normal: 0.22s cubic-bezier(0.22, 0.8, 0.22, 1);
+  --peiai-motion-enter: 0.32s cubic-bezier(0.22, 0.84, 0.22, 1);
+  --peiai-layer-l1: 1;
+  --peiai-layer-l2: 0.94;
+  --peiai-layer-l3: 0.88;
 }
 
 /* 默认：典雅白（微信读书风） */
