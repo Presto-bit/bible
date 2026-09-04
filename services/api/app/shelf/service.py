@@ -182,6 +182,67 @@ def list_platform_shelf() -> dict[str, Any]:
     return {"groups": list_platform_groups(), "items": items}
 
 
+def platform_book_published(book_id: str, *, conn=None) -> bool:
+    """书目已发布：PG 或文件种子（与 get_platform_book 一致）。"""
+    if conn is not None:
+        row = conn.execute(
+            "SELECT id FROM shelf_platform_book WHERE id = %s AND status = 'published'",
+            (book_id,),
+        ).fetchone()
+        if row:
+            return True
+    else:
+        if _db_available():
+            pool = get_pool()
+            ensure_shelf_schema(pool)
+            try:
+                with pool.connection() as c:
+                    row = c.execute(
+                        "SELECT id FROM shelf_platform_book WHERE id = %s AND status = 'published'",
+                        (book_id,),
+                    ).fetchone()
+                    if row:
+                        return True
+            except Exception:
+                pass
+    fb = get_file_book(book_id)
+    return fb is not None and (fb.get("status") or "published") == "published"
+
+
+def ensure_platform_book_row(conn, book_id: str) -> None:
+    """发帖 FK 依赖 shelf_platform_book；文件种子书目 lazily 入库。"""
+    row = conn.execute("SELECT id FROM shelf_platform_book WHERE id = %s", (book_id,)).fetchone()
+    if row:
+        return
+    fb = get_file_book(book_id)
+    if not fb or (fb.get("status") or "published") != "published":
+        raise HTTPException(status_code=404, detail="书目不存在")
+    toc = fb.get("toc") or {}
+    sections = fb.get("sections") or []
+    conn.execute(
+        """
+        INSERT INTO shelf_platform_book (
+          id, title, subtitle, author, mime, storage_key, file_size, file_sha256,
+          toc_json, sections_json, status, sort_order
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,'published',%s)
+        ON CONFLICT (id) DO NOTHING
+        """,
+        (
+            book_id,
+            fb.get("title") or "未命名",
+            fb.get("subtitle"),
+            fb.get("author"),
+            fb.get("mime") or "application/octet-stream",
+            fb.get("storage_key") or f"shelf-{book_id}",
+            int(fb.get("file_size") or 0),
+            fb.get("file_sha256"),
+            json.dumps(toc, ensure_ascii=False),
+            json.dumps(sections, ensure_ascii=False),
+            int(fb.get("sort_order") or 0),
+        ),
+    )
+
+
 def _book_detail_from_file(fb: dict[str, Any], *, include_sections: bool) -> dict[str, Any]:
     out = {
         "id": fb["id"],

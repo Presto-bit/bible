@@ -158,6 +158,9 @@ class ShelfPostsRepository {
 
   final Dio _dio;
 
+  String _bookPath(String bookId) =>
+      '/shelf/platform/${Uri.encodeComponent(bookId)}';
+
   Future<ShelfPostList> listPosts(
     String bookId, {
     ShelfPostKind? kind,
@@ -171,7 +174,7 @@ class ShelfPostsRepository {
     if (mine) q['mine'] = 'true';
     if (sort.isNotEmpty) q['sort'] = sort;
     final res = await _dio.get<Map<String, dynamic>>(
-      '/shelf/platform/$bookId/posts',
+      '${_bookPath(bookId)}/posts',
       queryParameters: q.isEmpty ? null : q,
     );
     final data = res.data ?? const {};
@@ -190,7 +193,7 @@ class ShelfPostsRepository {
 
   Future<List<ShelfPost>> sectionPublicNotes(String bookId, String sectionId) async {
     final res = await _dio.get<Map<String, dynamic>>(
-      '/shelf/platform/$bookId/posts/section/$sectionId/public-notes',
+      '${_bookPath(bookId)}/posts/section/${Uri.encodeComponent(sectionId)}/public-notes',
     );
     return (res.data?['items'] as List<dynamic>? ?? const [])
         .whereType<Map>()
@@ -200,7 +203,7 @@ class ShelfPostsRepository {
 
   Future<ShelfPost> getPost(String bookId, String postId) async {
     final res = await _dio.get<Map<String, dynamic>>(
-      '/shelf/platform/$bookId/posts/$postId',
+      '${_bookPath(bookId)}/posts/${Uri.encodeComponent(postId)}',
     );
     return ShelfPost.fromJson(res.data ?? const {});
   }
@@ -218,7 +221,7 @@ class ShelfPostsRepository {
     String? readStatus,
   }) async {
     final res = await _dio.post<Map<String, dynamic>>(
-      '/shelf/platform/$bookId/posts',
+      '${_bookPath(bookId)}/posts',
       data: {
         'kind': kind == ShelfPostKind.review ? 'review' : 'note',
         'ref': ref,
@@ -236,7 +239,7 @@ class ShelfPostsRepository {
 
   Future<ShelfPostReply> replyPost(String bookId, String postId, String body) async {
     final res = await _dio.post<Map<String, dynamic>>(
-      '/shelf/platform/$bookId/posts/$postId/replies',
+      '${_bookPath(bookId)}/posts/${Uri.encodeComponent(postId)}/replies',
       data: {'body': body},
     );
     return ShelfPostReply.fromJson(res.data ?? const {});
@@ -244,7 +247,7 @@ class ShelfPostsRepository {
 
   Future<({bool liked, int likesCount})> toggleLike(String bookId, String postId) async {
     final res = await _dio.post<Map<String, dynamic>>(
-      '/shelf/platform/$bookId/posts/$postId/like',
+      '${_bookPath(bookId)}/posts/${Uri.encodeComponent(postId)}/like',
       data: const {},
     );
     final data = res.data ?? const {};
@@ -260,13 +263,13 @@ class ShelfPostsRepository {
     ShelfPostVisibility visibility,
   ) async {
     final res = await _dio.patch<Map<String, dynamic>>(
-      '/shelf/platform/$bookId/posts/$postId/visibility',
+      '${_bookPath(bookId)}/posts/${Uri.encodeComponent(postId)}/visibility',
       data: {'visibility': visibility.apiValue},
     );
     return ShelfPost.fromJson(res.data ?? const {});
   }
 
   Future<void> deletePost(String bookId, String postId) async {
-    await _dio.delete<void>('/shelf/platform/$bookId/posts/$postId');
+    await _dio.delete<void>('${_bookPath(bookId)}/posts/${Uri.encodeComponent(postId)}');
   }
 }

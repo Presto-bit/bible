@@ -3,6 +3,7 @@ library;
 
 import 'dart:async' show unawaited;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -37,6 +38,7 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   String? _bookErr;
   late _DetailTab _tab;
   var _loadingPosts = false;
+  String? _postsErr;
   List<ShelfPost> _posts = const [];
   var _stats = (reviews: 0, notes: 0);
 
@@ -70,7 +72,10 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   }
 
   Future<void> _loadPosts() async {
-    setState(() => _loadingPosts = true);
+    setState(() {
+      _loadingPosts = true;
+      _postsErr = null;
+    });
     try {
       final kind = switch (_tab) {
         _DetailTab.reviews => ShelfPostKind.review,
@@ -89,24 +94,48 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
           _stats = data.stats;
         });
       }
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final code = e.response?.statusCode;
+      setState(() {
+        _posts = const [];
+        _postsErr = code == 401 && _tab == _DetailTab.mine
+            ? '登录后查看我的笔记与书评'
+            : '评论加载失败，请稍后重试';
+      });
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('加载失败'), behavior: SnackBarBehavior.floating),
-        );
+        setState(() {
+          _posts = const [];
+          _postsErr = '评论加载失败，请稍后重试';
+        });
       }
     } finally {
       if (mounted) setState(() => _loadingPosts = false);
     }
   }
 
-  String _readHref() {
+  Future<void> _openRead() async {
+    ShelfProgressStore(ref.read(prefsProvider)).clearFinished(widget.bookId);
     final progress = ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId);
     final sid = progress?.sectionId.trim() ?? '';
-    if (sid.isEmpty) return '/shelf/${Uri.encodeComponent(widget.bookId)}/read';
-    final q = 'section=${Uri.encodeComponent(sid)}'
-        '${progress!.pageIndex > 0 ? '&page=${progress.pageIndex}' : ''}';
-    return '/shelf/${Uri.encodeComponent(widget.bookId)}/read?$q';
+    final params = <String, String>{};
+    if (sid.isNotEmpty) {
+      params['section'] = sid;
+      if (progress!.pageIndex > 0) params['page'] = '${progress.pageIndex}';
+    }
+    try {
+      final href = Uri(path: 'read', queryParameters: params.isEmpty ? null : params).toString();
+      await context.push(href);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('无法打开阅读：${e.toString().replaceFirst('Exception: ', '')}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _writeReview() async {
@@ -252,11 +281,7 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 TextButton(
-                                  onPressed: () {
-                                    ShelfProgressStore(ref.read(prefsProvider))
-                                        .clearFinished(widget.bookId);
-                                    context.push(_readHref());
-                                  },
+                                  onPressed: () => unawaited(_openRead()),
                                   child: const Text('再读一遍'),
                                 ),
                               ],
@@ -314,10 +339,7 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: FilledButton(
-                              onPressed: () {
-                                ShelfProgressStore(ref.read(prefsProvider)).clearFinished(widget.bookId);
-                                context.push(_readHref());
-                              },
+                              onPressed: () => unawaited(_openRead()),
                               child: Text(
                                 (widget.celebrateFinished ||
                                         (ShelfProgressStore(ref.read(prefsProvider))
@@ -380,6 +402,17 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                     const Padding(
                       padding: EdgeInsets.all(24),
                       child: Center(child: Text('加载中…', style: AppTypography.meta)),
+                    )
+                  else if (_postsErr != null)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          Text(_postsErr!, textAlign: TextAlign.center, style: AppTypography.meta),
+                          const SizedBox(height: 12),
+                          TextButton(onPressed: _loadPosts, child: const Text('重试')),
+                        ],
+                      ),
                     )
                   else if (_posts.isEmpty)
                     const Padding(

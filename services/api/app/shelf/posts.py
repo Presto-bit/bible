@@ -7,6 +7,8 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from .service import ensure_platform_book_row, platform_book_published
+
 logger = logging.getLogger(__name__)
 
 VISIBILITY = frozenset({"public", "friends", "private"})
@@ -91,12 +93,9 @@ def _serialize_reply(row, author: dict | None = None) -> dict:
 
 
 def _ensure_book(conn, book_id: str) -> None:
-    row = conn.execute(
-        "SELECT id FROM shelf_platform_book WHERE id = %s AND status = 'published'",
-        (book_id,),
-    ).fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail="书目不存在")
+    if platform_book_published(book_id, conn=conn):
+        return
+    raise HTTPException(status_code=404, detail="书目不存在")
 
 
 def list_posts(
@@ -248,6 +247,7 @@ def create_post(
         raise HTTPException(status_code=400, detail="无效阅读状态")
     with pool.connection() as conn:
         _ensure_book(conn, book_id)
+        ensure_platform_book_row(conn, book_id)
         pid = str(uuid.uuid4())
         row = conn.execute(
             "INSERT INTO shelf_post (id, book_id, user_id, kind, ref, body, abstract, "
