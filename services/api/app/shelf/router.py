@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 
-from ..auth.session import get_current_user, try_get_current_user
+from ..auth.session import get_current_user
 from .service import (
     get_platform_asset_path,
     get_platform_book,
@@ -19,27 +19,24 @@ router = APIRouter(prefix="/shelf", tags=["shelf"])
 
 
 @router.get("/platform/capabilities")
-def shelf_platform_capabilities(user_id: str | None = Depends(try_get_current_user)) -> dict:
+def shelf_platform_capabilities(
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+) -> dict:
     """客户端探测：是否可向合集追加课节（书柜管理员）。"""
-    if not user_id:
-        return {"shelf_admin": False, "can_append_collection": False}
-    from ..admin.auth import identity_is_shelf_admin
-    from ..db import get_pool
+    from ..admin.auth import resolve_shelf_admin_actor
 
-    phone = None
-    user_code = None
-    try:
-        pool = get_pool()
-        with pool.connection() as conn:
-            row = conn.execute(
-                "SELECT phone, user_code FROM accounts WHERE user_id = %s::uuid LIMIT 1",
-                (user_id,),
-            ).fetchone()
-        if row:
-            phone, user_code = row[0], row[1]
-    except Exception:
-        pass
-    ok = identity_is_shelf_admin(phone=phone, user_code=user_code)
+    actor = resolve_shelf_admin_actor(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    ok = bool(actor)
     return {"shelf_admin": ok, "can_append_collection": ok}
 
 

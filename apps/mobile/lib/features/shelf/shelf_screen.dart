@@ -13,6 +13,7 @@ import 'shelf_library_store.dart';
 import 'shelf_progress.dart';
 import 'shelf_repository.dart';
 import 'shelf_append_lesson_sheet.dart';
+import 'shelf_reader_contract.dart';
 
 final shelfListProvider = FutureProvider.autoDispose<ShelfListData>((ref) async {
   return ref.watch(shelfRepoProvider).listPlatform();
@@ -168,7 +169,9 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(title: Text(book.title, style: AppTypography.meta)),
-            if (_canAppendLesson && book.bookType == 'collection')
+            if (_canAppendLesson &&
+                (book.bookType == 'collection' ||
+                    shelfIsChildrenLessonBook(id: book.id, title: book.title)))
               ListTile(
                 leading: const Icon(Icons.note_add_outlined),
                 title: const Text('添加课节'),

@@ -15,6 +15,7 @@ import 'shelf_posts_repository.dart';
 import 'shelf_progress.dart';
 import 'shelf_repository.dart';
 import 'shelf_append_lesson_sheet.dart';
+import 'shelf_reader_contract.dart';
 
 class ShelfBookDetailScreen extends ConsumerStatefulWidget {
   const ShelfBookDetailScreen({
@@ -307,7 +308,9 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                               ),
                             ),
                           ),
-                          if (_canAppendLesson && book.bookType == 'collection') ...[
+                          if (_canAppendLesson &&
+                              (book.bookType == 'collection' ||
+                                  shelfIsChildrenLessonBook(id: book.id, title: book.title))) ...[
                             const SizedBox(height: 8),
                             SizedBox(
                               width: double.infinity,

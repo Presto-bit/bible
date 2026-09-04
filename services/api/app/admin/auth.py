@@ -94,6 +94,80 @@ def identity_is_shelf_admin(*, phone: str | None = None, user_code: str | None =
     return False
 
 
+def resolve_shelf_admin_actor(
+    *,
+    authorization: str | None = None,
+    x_admin_token: str | None = None,
+    x_user_id: str | None = None,
+    x_user_code: str | None = None,
+    cookie: str | None = None,
+) -> str | None:
+    """解析书柜管理员身份；非管理员返回 None。
+
+    优先 Admin HMAC 令牌；否则用登录会话（含 token 内 user_code），
+    并兼容 accounts 未写 user_id、仅有 user_code 的旧行。
+    """
+    from ..auth.local_session import verify_session_token
+    from ..auth.session import resolve_user_id
+    from ..db import get_pool
+
+    token = None
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+    elif x_admin_token:
+        token = x_admin_token.strip()
+
+    admin_phone = verify_admin_token(token)
+    if admin_phone and (
+        phone_is_admin(admin_phone) or identity_is_shelf_admin(phone=admin_phone)
+    ):
+        return admin_phone
+
+    session_code: str | None = None
+    local = verify_session_token(token)
+    if local:
+        session_code = str(local.get("user_code") or "").strip() or None
+        # 会话里的 user_code 已在白名单 → 直接放行（不依赖 accounts.user_id）
+        if identity_is_shelf_admin(user_code=session_code):
+            return session_code or str(local.get("user_id") or "")
+
+    user_id = resolve_user_id(
+        authorization=authorization,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    phone: str | None = None
+    user_code: str | None = session_code
+    if user_id:
+        try:
+            pool = get_pool()
+            with pool.connection() as conn:
+                row = conn.execute(
+                    "SELECT phone, user_code FROM accounts WHERE user_id = %s::uuid LIMIT 1",
+                    (user_id,),
+                ).fetchone()
+                if not row and session_code:
+                    row = conn.execute(
+                        "SELECT phone, user_code FROM accounts WHERE user_code = %s LIMIT 1",
+                        (session_code,),
+                    ).fetchone()
+                if not row and x_user_code and str(x_user_code).strip().isdigit():
+                    row = conn.execute(
+                        "SELECT phone, user_code FROM accounts WHERE user_code = %s LIMIT 1",
+                        (str(x_user_code).strip(),),
+                    ).fetchone()
+            if row:
+                phone = row[0]
+                user_code = row[1] or user_code
+        except Exception:
+            pass
+
+    if identity_is_shelf_admin(phone=phone, user_code=user_code):
+        return (user_code or phone or user_id or "").strip() or None
+    return None
+
+
 def verify_admin_credentials(phone: str, password: str) -> bool:
     s = get_settings()
     pwd = (s.admin_password or "").strip()
@@ -127,44 +201,13 @@ def require_shelf_admin(
     cookie: str | None = Header(default=None),
 ) -> str:
     """全站 Admin 令牌，或登录用户属于 SHELF_ADMIN_USER_CODES。"""
-    from ..auth.session import resolve_user_id
-    from ..db import get_pool
-
-    token = None
-    if authorization and authorization.lower().startswith("bearer "):
-        token = authorization[7:].strip()
-    elif x_admin_token:
-        token = x_admin_token.strip()
-
-    admin_phone = verify_admin_token(token)
-    if admin_phone and (
-        phone_is_admin(admin_phone) or identity_is_shelf_admin(phone=admin_phone)
-    ):
-        return admin_phone
-
-    user_id = resolve_user_id(
+    actor = resolve_shelf_admin_actor(
         authorization=authorization,
+        x_admin_token=x_admin_token,
         x_user_id=x_user_id,
         x_user_code=x_user_code,
         cookie=cookie,
     )
-    if user_id:
-        phone: str | None = None
-        user_code: str | None = None
-        try:
-            pool = get_pool()
-            with pool.connection() as conn:
-                row = conn.execute(
-                    "SELECT phone, user_code FROM accounts WHERE user_id = %s::uuid LIMIT 1",
-                    (user_id,),
-                ).fetchone()
-            if row:
-                phone = row[0]
-                user_code = row[1]
-        except Exception:
-            phone = None
-            user_code = None
-        if identity_is_shelf_admin(phone=phone, user_code=user_code):
-            return (user_code or phone or user_id).strip()
-
+    if actor:
+        return actor
     raise HTTPException(status_code=403, detail="需要书柜管理员权限")

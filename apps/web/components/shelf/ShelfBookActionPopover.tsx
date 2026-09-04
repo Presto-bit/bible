@@ -7,6 +7,7 @@ import type { ShelfBookSummary } from '@/lib/shelf_api';
 import { shelfBookDetailHref, shelfBookReadHref } from '@/lib/shelf_library';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { shellTapProps } from '@/lib/shell_tap';
+import { shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
 
 export type ShelfBookAction = {
   id: string;
@@ -62,7 +63,9 @@ export default function ShelfBookActionPopover({
       label: '书籍详情',
       onClick: () => navigateAppHref(shelfBookDetailHref(book.id), router),
     },
-    ...(canAppendLesson && book.book_type === 'collection' && onAppendLesson
+    ...(canAppendLesson &&
+    (book.book_type === 'collection' || shelfIsChildrenLessonBook(book)) &&
+    onAppendLesson
       ? [{
           id: 'append',
           label: '添加课节',

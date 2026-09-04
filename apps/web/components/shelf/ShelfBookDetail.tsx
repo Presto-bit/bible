@@ -26,6 +26,7 @@ import { useShelfLoginGate } from '@/components/shelf/ShelfReplyComposer';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
+import { shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
 
 const ShelfPostWriteSheet = dynamic(
   () => import('@/components/shelf/ShelfPostWriteSheet'),
@@ -75,7 +76,8 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
 
   const progress = useMemo(() => loadShelfBookProgress(bookId), [bookId]);
   const finishedCelebration = search.get('finished') === '1' || Boolean(progress?.finished);
-  const isCollection = book?.book_type === 'collection';
+  const isCollection =
+    book?.book_type === 'collection' || shelfIsChildrenLessonBook(book);
 
   useEffect(() => {
     let cancelled = false;
