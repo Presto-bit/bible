@@ -20,6 +20,7 @@ import {
   markRouteNavigation,
   resolvePwaShellPathname,
   subscribePwaTabNav,
+  syncKeepAliveMainTab,
 } from '@/lib/pwa_tab_nav';
 import { isAssistantStreamBusy } from '@/lib/assistant_stream_busy';
 import { onKeepAliveTabChange, clearInteractiveFocusArtifacts } from '@/lib/tab_keep_chrome';
@@ -134,7 +135,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
     : isSecondaryAppPath(pwaPath)
       ? pwaPath
       : routerPath;
-  const secondaryNavPending = isSecondaryNavPending(routerPathname, pwaPathname);
+  const secondaryNavPending = isSecondaryNavPending(routerPathname);
   // 二级页：卸掉主 Tab pane，只显示 Next 路由层（笔记 / 书架 / 搜索等）
   // 过渡期 router 未跟上时仍保留来源 Tab，避免露出旧路由首页
   const effectiveActiveTab = isSecondaryAppPath(routerPath) ? null : activeTab;
@@ -154,6 +155,11 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
         && !isSecondaryAppPath(routeOverlayPath)
       )
     );
+
+  useEffect(() => {
+    if (!enabled) return;
+    syncKeepAliveMainTab(effectiveActiveTab);
+  }, [enabled, effectiveActiveTab]);
 
   // 切 Tab：滚轮隔离 + 清 body 壳 class + 去焦点方框，避免「页面串行」
   useEffect(() => {

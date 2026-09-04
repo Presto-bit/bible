@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import type { KeepAliveTabId } from '@/lib/tab_keep_alive';
+import { usePathname } from 'next/navigation';
+import { isSecondaryAppPath, normalizeAppPath, type KeepAliveTabId } from '@/lib/tab_keep_alive';
 
 export type TabKeepAliveContextValue = {
   enabled: boolean;
@@ -35,5 +36,9 @@ export function useTabKeepAlive() {
 
 /** 保活路由下由壳层渲染 Tab，page.tsx 应返回 null 避免双挂载。 */
 export function useSuppressKeepAliveRoute() {
-  return useContext(TabKeepAliveContext).suppressRoute;
+  const { suppressRoute } = useContext(TabKeepAliveContext);
+  const routerPath = normalizeAppPath(usePathname());
+  // router 已到二级页时须渲染路由层（书架 / 搜索等），勿因过渡期 suppress 卡 null
+  if (isSecondaryAppPath(routerPath)) return false;
+  return suppressRoute;
 }

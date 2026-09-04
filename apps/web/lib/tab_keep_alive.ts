@@ -87,6 +87,10 @@ export function normalizeAppPath(pathname: string): string {
   return pathname;
 }
 
+export function keepAliveTabHref(id: KeepAliveTabId): string {
+  return KEEP_ALIVE_PATHS[id];
+}
+
 export function keepAliveTabId(pathname: string): KeepAliveTabId | null {
   const p = normalizeAppPath(pathname);
   if (p === '/' || p === '') return 'home';

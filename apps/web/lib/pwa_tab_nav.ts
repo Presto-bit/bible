@@ -3,19 +3,47 @@
 import { isTabKeepAliveEnabled } from './platform';
 import { markReaderTabEntry } from './reading';
 import { beginSoftNavProgress } from './soft_nav_progress';
-import { isSecondaryAppPath, keepAliveTabId, normalizeAppPath } from './tab_keep_alive';
+import {
+  isSecondaryAppPath,
+  keepAliveTabHref,
+  keepAliveTabId,
+  normalizeAppPath,
+  type KeepAliveTabId,
+} from './tab_keep_alive';
 import { clientWithBasePath, withBasePath } from './basePath';
 
 type NavSource = 'tab' | 'route';
 
 let lastNavSource: NavSource = 'route';
 let lastMainTabHref: PwaMainTabHref = '/';
+/** router.push 二级页尚未到达目标前，记录来源主 Tab 与目标路径 */
+let pendingSecondaryTarget: string | null = null;
+let pendingSecondaryFrom: PwaMainTabHref = '/';
 
-/** 底栏 / Tab 高亮：二级页 pushState 已变、Next router 未跟上时为 true */
-export function isSecondaryNavPending(routerPathname: string, pwaPathname: string): boolean {
+function atSecondaryTarget(current: string, target: string): boolean {
+  return current === target || current.startsWith(`${target}/`);
+}
+
+function beginPendingSecondaryNav(targetPath: string) {
+  pendingSecondaryTarget = normalizeAppPath(targetPath.split('?')[0] ?? targetPath);
+  pendingSecondaryFrom = lastMainTabHref;
+}
+
+function clearPendingSecondaryNav() {
+  pendingSecondaryTarget = null;
+}
+
+/** TabKeepAlive 壳层与 navigateAppHref 对齐：当前可见主 Tab 即 lastMainTabHref 来源 */
+export function syncKeepAliveMainTab(tab: KeepAliveTabId | null) {
+  if (tab === null) return;
+  lastMainTabHref = keepAliveTabHref(tab) as PwaMainTabHref;
+}
+
+/** Next router 尚未到达二级页目标时为 true（不依赖 pushState 抢先改 URL） */
+export function isSecondaryNavPending(routerPathname: string): boolean {
+  if (!pendingSecondaryTarget) return false;
   const r = normalizeAppPath(routerPathname);
-  const p = normalizeAppPath(pwaPathname);
-  return isSecondaryAppPath(p) && !isSecondaryAppPath(r) && lastNavSource === 'route';
+  return !atSecondaryTarget(r, pendingSecondaryTarget);
 }
 
 export function getPwaMainTabFallback(): PwaMainTabHref {
@@ -24,12 +52,15 @@ export function getPwaMainTabFallback(): PwaMainTabHref {
 
 /**
  * 壳层 pathname（底栏高亮 / Tab LRU）：二级页导航过渡期跟来源主 Tab，
- * 避免 pushState 已到 /shelf 而 router 仍在 / 时误判为「无 Tab + 藏底栏 + 露出首页路由」。
+ * 避免 router 仍在 / 时误判为「无 Tab + 藏底栏 + 露出首页路由」。
  */
 export function resolvePwaShellPathname(routerPathname: string, pwaPathname: string): string {
   const r = normalizeAppPath(routerPathname);
-  if (isSecondaryNavPending(routerPathname, pwaPathname)) {
-    return lastMainTabHref;
+  if (pendingSecondaryTarget && atSecondaryTarget(r, pendingSecondaryTarget)) {
+    clearPendingSecondaryNav();
+  }
+  if (pendingSecondaryTarget) {
+    return pendingSecondaryFrom;
   }
   return resolvePwaPathname(routerPathname, pwaPathname);
 }
@@ -48,6 +79,7 @@ export function isPwaMainTabHref(href: string): href is PwaMainTabHref {
 }
 
 export function navigatePwaTab(href: PwaMainTabHref): void {
+  clearPendingSecondaryNav();
   const fullHref = withBasePath(href);
   const target = normalizeAppPath(fullHref);
   lastMainTabHref = target as PwaMainTabHref;
@@ -72,6 +104,7 @@ export function navigateAppHref(
   }
   const pathOnly = normalizeAppPath(normalized.split('?')[0] ?? normalized);
   if (isTabKeepAliveEnabled() && isPwaMainTabHref(pathOnly)) {
+    clearPendingSecondaryNav();
     const fullHref = clientWithBasePath(normalized);
     const currentPath = normalizeAppPath(window.location.pathname);
     const currentUrl = `${window.location.pathname}${window.location.search}`;
@@ -83,22 +116,22 @@ export function navigateAppHref(
     window.dispatchEvent(new Event('presto-tab-nav'));
     return;
   }
+  if (isTabKeepAliveEnabled() && isSecondaryAppPath(pathOnly)) {
+    beginPendingSecondaryNav(pathOnly);
+    markRouteNavigation();
+    beginSoftNavProgress(normalized);
+    router.push(normalized);
+    window.dispatchEvent(new Event('presto-tab-nav'));
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new Event('presto-tab-nav'));
+    });
+    return;
+  }
   markRouteNavigation();
-  // 弱网下 soft nav 可能卡在拉 chunk：立刻给顶栏进度，避免「点了没反应」
   if (isSecondaryAppPath(pathOnly) || keepAliveTabId(pathOnly) === null) {
     beginSoftNavProgress(normalized);
   }
   router.push(normalized);
-  // 保活模式：router 启动后再同步 pushState，避免 pane 先卸光而路由层仍是旧 Tab
-  if (isTabKeepAliveEnabled() && isSecondaryAppPath(pathOnly)) {
-    const fullHref = clientWithBasePath(normalized);
-    const currentUrl = `${window.location.pathname}${window.location.search}`;
-    if (currentUrl !== fullHref) {
-      window.history.pushState({ pwaSecondary: true }, '', fullHref);
-    }
-    window.dispatchEvent(new Event('presto-tab-nav'));
-  }
-  // Next soft nav 不触发 popstate；补一次同步，避免 pwaPath 停在旧 Tab 路径
   if (typeof window !== 'undefined' && isTabKeepAliveEnabled()) {
     window.requestAnimationFrame(() => {
       window.dispatchEvent(new Event('presto-tab-nav'));
@@ -109,26 +142,17 @@ export function navigateAppHref(
 /**
  * PWA 下合并 Next router 与 pushState Tab 路径。
  * 二级页走 router；底栏 Tab 走 pwaPath，避免 /admin 被旧 Tab 路径盖住。
- *
- * 设置 / IM 等二级页 keepAliveTabId 为 null。若在 route 模式下仍优先
- * lastNavSource=tab 的旧路径（如 /discover），TabKeepAlive 会 suppress 设置页
- * 并亮发现 pane，确认框就会叠在「发现」上。
  */
 export function resolvePwaPathname(routerPathname: string, pwaPathname: string): string {
   const r = normalizeAppPath(routerPathname);
   const p = normalizeAppPath(pwaPathname);
   if (r === p) return r;
 
-  // 设置 / IM 等二级页：始终跟 Next router，避免仍亮「我的/发现」保活层导致设置页被 suppress、点击无响应
   if (isSecondaryAppPath(r)) return r;
-
-  // pushState 已切到二级页、Next router 尚在旧 Tab：跟 pwa，卸掉首页保活层
-  if (isSecondaryAppPath(p) && lastNavSource === 'route') return p;
 
   const routerTab = keepAliveTabId(r);
   const pwaTab = keepAliveTabId(p);
 
-  // 二级页：route 模式跟 router；若已 pushState 回主 Tab 则跟 pwa
   if (routerTab === null) {
     if (lastNavSource === 'tab' && pwaTab !== null) return p;
     return r;
@@ -146,6 +170,7 @@ export function navigateToReaderHref(
   router: { push: (url: string, options?: { scroll?: boolean }) => void },
 ): void {
   if (typeof window === 'undefined') return;
+  clearPendingSecondaryNav();
   markRouteNavigation();
   markReaderTabEntry();
   router.push(href, { scroll: false });
@@ -157,11 +182,15 @@ export function navigateToReaderHref(
 
 export function subscribePwaTabNav(onStoreChange: () => void): () => void {
   const notify = () => onStoreChange();
+  const onPop = () => {
+    clearPendingSecondaryNav();
+    notify();
+  };
   window.addEventListener('presto-tab-nav', notify);
-  window.addEventListener('popstate', notify);
+  window.addEventListener('popstate', onPop);
   return () => {
     window.removeEventListener('presto-tab-nav', notify);
-    window.removeEventListener('popstate', notify);
+    window.removeEventListener('popstate', onPop);
   };
 }
 
