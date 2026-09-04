@@ -7,23 +7,23 @@ const MILESTONE_KEY = 'profile_streak_milestones_shared';
 
 export type FootprintSeen = {
   thoughts: number;
-  marks: number;
+  shelf: number;
   badges: number;
 };
 
 export const STREAK_MILESTONES = [7, 30, 100] as const;
 
 export function readFootprintSeen(): FootprintSeen {
-  if (typeof window === 'undefined') return { thoughts: 0, marks: 0, badges: 0 };
+  if (typeof window === 'undefined') return { thoughts: 0, shelf: 0, badges: 0 };
   try {
     const raw = JSON.parse(userLsGet(SEEN_KEY) || '{}') as Partial<FootprintSeen>;
     return {
       thoughts: Number(raw.thoughts) || 0,
-      marks: Number(raw.marks) || 0,
+      shelf: Number(raw.shelf) || 0,
       badges: Number(raw.badges) || 0,
     };
   } catch {
-    return { thoughts: 0, marks: 0, badges: 0 };
+    return { thoughts: 0, shelf: 0, badges: 0 };
   }
 }
 
@@ -31,7 +31,7 @@ export function writeFootprintSeen(next: Partial<FootprintSeen>) {
   const cur = readFootprintSeen();
   const merged: FootprintSeen = {
     thoughts: next.thoughts ?? cur.thoughts,
-    marks: next.marks ?? cur.marks,
+    shelf: next.shelf ?? cur.shelf,
     badges: next.badges ?? cur.badges,
   };
   userLsSet(SEEN_KEY, JSON.stringify(merged));

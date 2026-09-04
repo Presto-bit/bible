@@ -28,8 +28,9 @@ import '../features/auth/login_screen.dart';
 import '../features/bible/reader_experience.dart'
     show readerFontProvider, ReaderFontSize, ReaderFontSizeX;
 import '../features/bible/bible_repository.dart';
-import '../features/bible/markings_repository.dart';
 import '../features/bible/thoughts_repository.dart';
+import '../features/shelf/shelf_cache.dart';
+import '../features/shelf/shelf_progress.dart';
 import '../features/bible/models.dart';
 import '../features/bible/reading_repository.dart';
 import '../features/bible/reading_progress_card.dart';
@@ -45,7 +46,6 @@ import '../core/notif_prefs.dart';
 import '../core/share_card.dart';
 import '../core/user_storage.dart';
 import '../features/social/social_repository.dart';
-import '../features/shelf/shelf_progress.dart';
 
 /// 官方客服账号（用户 ID），设置「帮助与反馈」直达私信。
 const kOfficialSupportUserCode = '70625146';
@@ -487,9 +487,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ref.watch(generatedPlansProvider);
     final books = ref.watch(booksProvider).value ?? const <BibleBook>[];
     final thoughts = ref.watch(myThoughtsProvider);
-    final highlights = ref
-        .watch(highlightListProvider)
-        .maybeWhen(data: (h) => h.length, orElse: () => 0);
     final badgeCount = ref
         .watch(badgesProvider)
         .maybeWhen(data: (b) => b.where((x) => x.done).length, orElse: () => 0);
@@ -562,13 +559,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final thoughtPreview = thoughts.isNotEmpty
         ? thoughts.first.body.trim()
         : '';
-    String markPreview = '';
-    final hl = ref
-        .watch(highlightListProvider)
-        .maybeWhen(data: (list) => list, orElse: () => const []);
-    if (hl.isNotEmpty) {
-      markPreview = hl.first.ref;
-    }
+    final shelfCache = ShelfCache(prefs);
+    final shelfItems = shelfCache.peekList(allowStale: true)?.items ?? const [];
+    final shelfCount = shelfItems.length;
+    final lastShelf = ShelfProgressStore(prefs).loadLastRead();
+    final shelfPreview = () {
+      final title = lastShelf?.bookTitle.trim() ?? '';
+      if (title.isNotEmpty) return title;
+      if (shelfCount > 0) return '$shelfCount 本';
+      return '';
+    }();
     final doneBadges = ref
         .watch(badgesProvider)
         .maybeWhen(
@@ -578,7 +578,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final seen = readFootprintSeen(prefs);
     final thoughtNew = footprintHasNew(seen, 'thoughts', thoughts.length);
-    final markNew = footprintHasNew(seen, 'marks', highlights);
+    final shelfNew = footprintHasNew(seen, 'shelf', shelfCount);
     final badgeNew = footprintHasNew(seen, 'badges', badgeCount);
 
     final milestone = pendingStreakMilestone(prefs, streakForMilestone);
@@ -866,28 +866,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   },
                 ),
                 _FootprintCell(
-                  kind: '划线',
-                  tone: _FootprintTone.mark,
-                  count: highlights,
-                  value: markPreview.isEmpty ? '去读经划线' : markPreview,
-                  empty: markPreview.isEmpty,
-                  isNew: markNew,
-                  onLongPress: markPreview.isEmpty
-                      ? null
-                      : () => shareBrandCard(
-                            context,
-                            ShareCardInput(
-                              title: '经文划线',
-                              body: markPreview,
-                              badge: '足迹',
-                              shareText:
-                                  '我在彼爱标记了一处经文：$markPreview\n\n彼爱 · 安静读经，在话语中相遇',
-                              subject: '经文划线',
-                            ),
-                          ),
+                  kind: '书架',
+                  tone: _FootprintTone.shelf,
+                  count: shelfCount,
+                  value: shelfPreview.isEmpty ? '打开书架' : shelfPreview,
+                  empty: shelfPreview.isEmpty,
+                  isNew: shelfNew,
                   onTap: () {
-                    unawaited(markFootprintSeen(prefs, 'marks', highlights));
-                    context.push('/notes?tab=highlights');
+                    unawaited(markFootprintSeen(prefs, 'shelf', shelfCount));
+                    context.push('/shelf');
                   },
                 ),
                 _FootprintCell(
@@ -916,54 +903,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   onTap: _openJourney,
                 ),
               ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    '书架',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.inkSoft,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => context.push('/shelf'),
-                  child: const Text('全部'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Builder(
-              builder: (context) {
-                final lastShelf = ShelfProgressStore(prefs).loadLastRead();
-                if (lastShelf == null) {
-                  return const SizedBox.shrink();
-                }
-                final q = lastShelf.sectionId.isNotEmpty
-                    ? '?section=${Uri.encodeComponent(lastShelf.sectionId)}&page=${lastShelf.pageIndex}'
-                    : '';
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _ShelfCoverThumb(
-                        title: lastShelf.bookTitle,
-                        subtitle: lastShelf.sectionTitle,
-                        onTap: () => context.push(
-                          lastShelf.sectionId.isNotEmpty
-                              ? '/shelf/${lastShelf.bookId}/read$q'
-                              : '/shelf/${lastShelf.bookId}',
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
             ),
             const SizedBox(height: 20),
             const Text(
@@ -1099,70 +1038,6 @@ class _JourneyRing extends StatelessWidget {
   }
 }
 
-class _ShelfCoverThumb extends StatelessWidget {
-  const _ShelfCoverThumb({
-    required this.title,
-    required this.onTap,
-    this.subtitle = '',
-  });
-
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    var hue = 0;
-    for (var i = 0; i < title.length; i++) {
-      hue = (hue * 31 + title.codeUnitAt(i)) & 0x7fffffff;
-    }
-    hue %= 360;
-    return Padding(
-      padding: const EdgeInsets.only(right: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          width: 72,
-          height: 100,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                HSLColor.fromAHSL(1, hue.toDouble(), 0.42, 0.38).toColor(),
-                HSLColor.fromAHSL(1, ((hue + 36) % 360).toDouble(), 0.36, 0.28)
-                    .toColor(),
-              ],
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1A000000),
-                blurRadius: 6,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(8),
-          alignment: Alignment.bottomLeft,
-          child: Text(
-            title,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _FootprintCell extends StatelessWidget {
   const _FootprintCell({
     required this.kind,
@@ -1264,26 +1139,26 @@ class _FootprintCell extends StatelessWidget {
   }
 }
 
-enum _FootprintTone { thought, mark, badge, journey }
+enum _FootprintTone { thought, shelf, badge, journey }
 
 extension on _FootprintTone {
   Color get tint => switch (this) {
     _FootprintTone.thought => AppColors.accent,
-    _FootprintTone.mark => const Color(0xFFC4A574),
+    _FootprintTone.shelf => const Color(0xFFC4A574),
     _FootprintTone.badge => const Color(0xFFD4A017),
     _FootprintTone.journey => const Color(0xFF6B8CAE),
   };
 
   Color get ink => switch (this) {
     _FootprintTone.thought => AppColors.accentDeep,
-    _FootprintTone.mark => const Color(0xFFA67C52),
+    _FootprintTone.shelf => const Color(0xFFA67C52),
     _FootprintTone.badge => const Color(0xFFB8860B),
     _FootprintTone.journey => const Color(0xFF5A7A9A),
   };
 
   IconData get icon => switch (this) {
     _FootprintTone.thought => Icons.chat_bubble_outline,
-    _FootprintTone.mark => Icons.bookmark_border,
+    _FootprintTone.shelf => Icons.menu_book_outlined,
     _FootprintTone.badge => Icons.workspace_premium_outlined,
     _FootprintTone.journey => Icons.north_east_rounded,
   };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useToast } from '@/components/ui/ToastProvider';
 import {
@@ -24,6 +24,7 @@ type Props = {
 export default function ShelfAppendLessonSheet({ bookId, bookTitle, onClose, onAdded }: Props) {
   const flashToast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
   const [busy, setBusy] = useState(false);
   const [title, setTitle] = useState('');
   const [unit, setUnit] = useState('');
@@ -63,7 +64,7 @@ export default function ShelfAppendLessonSheet({ bookId, bookTitle, onClose, onA
   };
 
   return (
-    <AppBodyPortal>
+    <AppBodyPortal onTabAway={onClose}>
       <div className="shelf-sheet-backdrop" onClick={onClose} role="presentation" />
       <div className="shelf-import-sheet" role="dialog" aria-modal="true" aria-label="添加课节">
         <div className="shelf-import-head">
@@ -102,24 +103,26 @@ export default function ShelfAppendLessonSheet({ bookId, bookTitle, onClose, onA
           </datalist>
         </label>
         <input
+          id={inputId}
           ref={inputRef}
           type="file"
           accept={ACCEPT}
           className="shelf-import-file"
+          disabled={busy}
           onChange={(e) => {
             const f = e.target.files?.[0] ?? null;
             setFileName(f?.name || '');
             void onPick(f);
           }}
         />
-        <button
-          type="button"
-          className="btn primary shelf-import-btn"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
+        {/* label 关联 file input：比 button + input.click() 在 iOS/WebView 更稳 */}
+        <label
+          htmlFor={busy ? undefined : inputId}
+          className={`btn primary shelf-import-btn${busy ? ' is-disabled' : ''}`}
+          aria-disabled={busy}
         >
           {busy ? '上传中…' : fileName ? `已选 ${fileName}` : '选择 PDF / Word'}
-        </button>
+        </label>
       </div>
     </AppBodyPortal>
   );

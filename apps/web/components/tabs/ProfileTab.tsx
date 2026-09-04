@@ -54,8 +54,6 @@ import {
 import { checkPushReadiness, pushReadinessHint } from '@/lib/push_status';
 import { isAutoBiblePackReady } from '@/lib/offline_pack';
 import { listBibleThoughts } from '@/lib/reader_thoughts';
-import { listBibleMarksDetailed, bibleHighlightCount } from '@/lib/mark_stats';
-import { formatMarkRefLabel } from '@/lib/mark_ref';
 import {
   blobToDataUrl,
   clearCachedCustomAvatar,
@@ -162,13 +160,7 @@ function weekMinutesTotal(): number {
   return sum;
 }
 
-function clipPreview(text: string, max = 28): string {
-  const t = text.replace(/\s+/g, ' ').trim();
-  if (!t) return '';
-  return t.length > max ? `${t.slice(0, max)}…` : t;
-}
-
-type FootprintTone = 'thought' | 'mark' | 'badge' | 'journey';
+type FootprintTone = 'thought' | 'shelf' | 'badge' | 'journey';
 
 function ProfileGlyph({
   name,
@@ -196,11 +188,12 @@ function ProfileGlyph({
           <path d="M9.5 11.5h5M9.5 14h3.2" />
         </svg>
       );
-    case 'mark':
+    case 'shelf':
       return (
         <svg {...common}>
-          <path d="M6 4h9a2 2 0 0 1 2 2v14l-4.5-2.2L8 20V6a2 2 0 0 1 2-2" />
-          <path d="M9 8h6M9 11.5h5" />
+          <path d="M4 19V6a2 2 0 0 1 2-2h4v15H6a2 2 0 0 0-2 2Z" />
+          <path d="M20 19V6a2 2 0 0 0-2-2h-4v15h4a2 2 0 0 1 2 2Z" />
+          <path d="M12 4v15" />
         </svg>
       );
     case 'badge':
@@ -421,8 +414,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [journeyReadBooks, setJourneyReadBooks] = useState(0);
   const [thoughtCount, setThoughtCount] = useState(0);
   const [thoughtPreview, setThoughtPreview] = useState('');
-  const [markCount, setMarkCount] = useState(0);
-  const [markPreview, setMarkPreview] = useState('');
   const [badgePreviewIcons, setBadgePreviewIcons] = useState<string[]>([]);
   const [badgeDoneCount, setBadgeDoneCount] = useState(0);
   const [shortcut, setShortcut] = useState<ShortcutTone>('challenge');
@@ -443,7 +434,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [offlineReady, setOfflineReady] = useState(false);
   const [footprintSeen, setFootprintSeen] = useState<FootprintSeen>({
     thoughts: 0,
-    marks: 0,
+    shelf: 0,
     badges: 0,
   });
   const [milestone, setMilestone] = useState<number | null>(null);
@@ -453,7 +444,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   );
   const [bookNames, setBookNames] = useState<Record<string, string>>({});
   const [shelfBooks, setShelfBooks] = useState<ShelfBookSummary[]>(() => peekShelfListCache(true)?.items ?? []);
-  const [badges, setBadges] = useState<BadgeDef[]>([]);
+  const [shelfPreview, setShelfPreview] = useState('');  const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement | null>(null);
@@ -588,8 +579,14 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   useEffect(() => {
     if (!profileAwake) return;
     listPlatformShelf()
-      .then(setShelfBooks)
-      .catch(() => setShelfBooks([]));
+      .then((items) => {
+        setShelfBooks(items);
+        refreshFootprintLocal();
+      })
+      .catch(() => {
+        setShelfBooks([]);
+        refreshFootprintLocal();
+      });
   }, [profileAwake]);
 
   // 弱网：预热「我的」常用二级页 chunk，减少首次点击空白窗
@@ -643,7 +640,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setAccountComplete(isAccountComplete());
       setFootprintSeen(readFootprintSeen());
       setMilestone(pendingStreakMilestone(readingStreak()));
-      refreshFootprintLocal({});
+      refreshFootprintLocal();
     };
     void boot();
     return () => {
@@ -687,7 +684,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         ).length;
         setJourneyReadBooks(readBooks);
         setJourneyPct(totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0);
-        refreshFootprintLocal(names);
+        refreshFootprintLocal();
       })
       .catch(() => {
         if (!cancelled) {
@@ -700,18 +697,19 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     };
   }, []);
 
-  const refreshFootprintLocal = (names: Record<string, string>) => {
+  const refreshFootprintLocal = () => {
     const thoughts = listBibleThoughts();
     setThoughtCount(thoughts.length);
     setThoughtPreview(plainThoughtPreview(thoughts[0]?.body || '', 28));
 
-    const marks = listBibleMarksDetailed();
-    setMarkCount(bibleHighlightCount());
-    if (marks[0]) {
-      const label = formatMarkRefLabel(marks[0].ref, names);
-      setMarkPreview(clipPreview(marks[0].notePreview || label, 22));
+    const books = peekShelfListCache(true)?.items ?? [];
+    const last = loadShelfLastRead();
+    if (last?.bookTitle) {
+      setShelfPreview(last.bookTitle);
+    } else if (books.length > 0) {
+      setShelfPreview(`${books.length} 本`);
     } else {
-      setMarkPreview('');
+      setShelfPreview('');
     }
   };
 
@@ -723,7 +721,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setStreak(buildReport().monthDays);
       setName(getDisplayName());
       setBio(userLsGet(BIO_KEY) || '');
-      refreshFootprintLocal(bookNamesRef.current);
+      refreshFootprintLocal();
       void computeBadgesWithUnlock().then((list) => {
         setBadges(list);
         const preview = profilePreviewBadges(list, 3);
@@ -747,7 +745,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         ).length;
         setJourneyReadBooks(readBooks);
         setJourneyPct(totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0);
-        refreshFootprintLocal(names);
+        refreshFootprintLocal();
       }).catch(() => {});
     };
     const refreshStatus = () => {
@@ -960,10 +958,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     navigateAppHref('/notes', router);
   };
 
-  const openHighlights = () => {
-    markFootprintSeen('marks', markCount);
+  const openShelf = () => {
+    markFootprintSeen('shelf', shelfBooks.length);
     setFootprintSeen(readFootprintSeen());
-    navigateAppHref('/notes?tab=highlights', router);
+    navigateAppHref('/shelf', router);
   };
 
   /** 开层 / 跳转前硬卸吞点击遮罩，避免 PWA 上「点了没反应」 */
@@ -1068,29 +1066,9 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     else if (result === 'failed') toast('分享失败');
   };
 
-  const shareMarkPreview = async () => {
-    if (!markPreview) return;
-    const shareUrl = inviteShareUrl(effectiveId());
-    const result = await shareCardOutbound({
-      title: '我的划线',
-      subtitle: displayName,
-      body: markPreview,
-      footer: `${BRAND_NAME} · ${BRAND_TAGLINE}`,
-      badge: '划线',
-      day: 9,
-      shareTitle: `我的划线｜${BRAND_NAME}`,
-      shareText: markPreview,
-      shareUrl,
-      allowDownload: false,
-    });
-    if (result === 'shared') toast('已调起分享');
-    else if (result === 'copied') toast('已复制');
-    else if (result === 'failed') toast('分享失败');
-  };
-
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
   const thoughtNew = footprintHasNew('thoughts', thoughtCount, footprintSeen);
-  const markNew = footprintHasNew('marks', markCount, footprintSeen);
+  const shelfNew = footprintHasNew('shelf', shelfBooks.length, footprintSeen);
   const badgeNew = footprintHasNew('badges', badgeDoneCount, footprintSeen);
 
   return (
@@ -1358,15 +1336,14 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           onShare={thoughtPreview ? () => void shareThoughtPreview() : undefined}
         />
         <FootprintCell
-          kind="划线"
-          tone="mark"
-          count={markCount}
-          value={markPreview || '去读经划线'}
-          empty={!markPreview}
-          isNew={markNew}
+          kind="书架"
+          tone="shelf"
+          count={shelfBooks.length > 0 ? shelfBooks.length : undefined}
+          value={shelfPreview || '打开书架'}
+          empty={!shelfPreview}
+          isNew={shelfNew}
           beforeOpen={clearBlockingOverlays}
-          onOpen={openHighlights}
-          onShare={markPreview ? () => void shareMarkPreview() : undefined}
+          onOpen={openShelf}
         />
         <FootprintCell
           kind="成就"
@@ -1432,63 +1409,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             </div>
           );
         })()}
-      </div>
-
-      <div className="profile-shelf-block">
-        <div className="profile-shelf-head">
-          <p className="section-label tab-section-label profile-block-label">书架</p>
-          <Link
-            href="/shelf"
-            className="profile-shelf-more"
-            onClick={(e) => {
-              e.preventDefault();
-              clearBlockingOverlays();
-              navigateAppHref('/shelf', router);
-            }}
-          >
-            全部
-          </Link>
-        </div>
-        {shelfBooks.length > 0 ? (
-          <Link
-            href="/shelf"
-            className="card profile-shelf-summary"
-            onClick={(e) => {
-              e.preventDefault();
-              clearBlockingOverlays();
-              navigateAppHref('/shelf', router);
-            }}
-          >
-            <p className="profile-shelf-summary-count">共 {shelfBooks.length} 本书</p>
-            {(() => {
-              const last = loadShelfLastRead();
-              if (!last?.bookTitle) {
-                return <p className="profile-shelf-summary-hint muted">打开书架，开始阅读</p>;
-              }
-              return (
-                <>
-                  <p className="profile-shelf-summary-label">上次阅读</p>
-                  <p className="profile-shelf-summary-title">{last.bookTitle}</p>
-                  {last.sectionTitle ? (
-                    <p className="profile-shelf-summary-section muted">{last.sectionTitle}</p>
-                  ) : null}
-                </>
-              );
-            })()}
-          </Link>
-        ) : (
-          <Link
-            href="/shelf"
-            className="card profile-shelf-empty"
-            onClick={(e) => {
-              e.preventDefault();
-              clearBlockingOverlays();
-              navigateAppHref('/shelf', router);
-            }}
-          >
-            打开书架，开始阅读
-          </Link>
-        )}
       </div>
 
       <p className="section-label tab-section-label profile-block-label">常用</p>

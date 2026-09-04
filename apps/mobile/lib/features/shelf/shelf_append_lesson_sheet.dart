@@ -67,12 +67,20 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['pdf', 'docx'],
+      withData: true,
       withReadStream: false,
     );
     if (result == null || result.files.isEmpty) return;
     final file = result.files.single;
     final path = file.path;
-    if (path == null || path.isEmpty) return;
+    final bytes = file.bytes;
+    if ((path == null || path.isEmpty) && (bytes == null || bytes.isEmpty)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('无法读取所选文件，请换一个再试')),
+      );
+      return;
+    }
     if ((file.size) > 50 * 1024 * 1024) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,6 +93,7 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
       final res = await ref.read(shelfRepoProvider).appendCollectionLesson(
             bookId: widget.bookId,
             filePath: path,
+            bytes: bytes,
             filename: file.name,
             title: _titleCtrl.text,
             unit: _unitCtrl.text,

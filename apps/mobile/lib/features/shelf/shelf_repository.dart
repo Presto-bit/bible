@@ -432,14 +432,23 @@ class ShelfRepository {
 
   Future<Map<String, dynamic>> appendCollectionLesson({
     required String bookId,
-    required String filePath,
     required String filename,
+    String? filePath,
+    List<int>? bytes,
     String? title,
     String? unit,
     String zone = 'body',
   }) async {
+    final MultipartFile filePart;
+    if (filePath != null && filePath.isNotEmpty) {
+      filePart = await MultipartFile.fromFile(filePath, filename: filename);
+    } else if (bytes != null && bytes.isNotEmpty) {
+      filePart = MultipartFile.fromBytes(bytes, filename: filename);
+    } else {
+      throw StateError('缺少上传文件');
+    }
     final map = <String, dynamic>{
-      'file': await MultipartFile.fromFile(filePath, filename: filename),
+      'file': filePart,
       'zone': zone,
     };
     if (title != null && title.trim().isNotEmpty) map['title'] = title.trim();
@@ -453,7 +462,6 @@ class ShelfRepository {
     return res.data ?? const {};
   }
 }
-
 int shelfCoverHue(String title) {
   var h = 0;
   for (var i = 0; i < title.length; i++) {

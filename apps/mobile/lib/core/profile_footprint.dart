@@ -15,17 +15,17 @@ const streakMilestones = [7, 30, 100];
 class FootprintSeen {
   const FootprintSeen({
     this.thoughts = 0,
-    this.marks = 0,
+    this.shelf = 0,
     this.badges = 0,
   });
   final int thoughts;
-  final int marks;
+  final int shelf;
   final int badges;
 
-  FootprintSeen copyWith({int? thoughts, int? marks, int? badges}) =>
+  FootprintSeen copyWith({int? thoughts, int? shelf, int? badges}) =>
       FootprintSeen(
         thoughts: thoughts ?? this.thoughts,
-        marks: marks ?? this.marks,
+        shelf: shelf ?? this.shelf,
         badges: badges ?? this.badges,
       );
 }
@@ -37,7 +37,7 @@ FootprintSeen readFootprintSeen(SharedPreferences prefs) {
     final j = jsonDecode(raw) as Map<String, dynamic>;
     return FootprintSeen(
       thoughts: (j['thoughts'] as num?)?.toInt() ?? 0,
-      marks: (j['marks'] as num?)?.toInt() ?? 0,
+      shelf: (j['shelf'] as num?)?.toInt() ?? 0,
       badges: (j['badges'] as num?)?.toInt() ?? 0,
     );
   } catch (_) {
@@ -54,7 +54,7 @@ Future<void> writeFootprintSeen(
     _seenKey,
     jsonEncode({
       'thoughts': next.thoughts,
-      'marks': next.marks,
+      'shelf': next.shelf,
       'badges': next.badges,
     }),
   );
@@ -64,7 +64,7 @@ bool footprintHasNew(FootprintSeen seen, String kind, int current) {
   if (current <= 0) return false;
   final s = switch (kind) {
     'thoughts' => seen.thoughts,
-    'marks' => seen.marks,
+    'shelf' => seen.shelf,
     'badges' => seen.badges,
     _ => 0,
   };
@@ -79,7 +79,7 @@ Future<void> markFootprintSeen(
   final cur = readFootprintSeen(prefs);
   final next = switch (kind) {
     'thoughts' => cur.copyWith(thoughts: current),
-    'marks' => cur.copyWith(marks: current),
+    'shelf' => cur.copyWith(shelf: current),
     'badges' => cur.copyWith(badges: current),
     _ => cur,
   };
@@ -112,11 +112,7 @@ List<int> _readSharedMilestones(SharedPreferences prefs) {
     if (raw == null || raw.isEmpty) return const [];
     final j = jsonDecode(raw);
     if (j is! List) return const [];
-    return j
-        .whereType<num>()
-        .map((e) => e.toInt())
-        .where((n) => n > 0)
-        .toList();
+    return j.whereType<num>().map((n) => n.toInt()).toList();
   } catch (_) {
     return const [];
   }

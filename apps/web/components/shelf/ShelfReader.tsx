@@ -36,6 +36,7 @@ import { touchShelfBookLastRead } from '@/lib/shelf_library';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
 import { isFinePointerUI } from '@/lib/touch_ui';
+import { shellTapProps } from '@/lib/shell_tap';
 import '@/styles/plans.css';
 import '@/styles/shelf.css';
 
@@ -565,7 +566,7 @@ export default function ShelfReader({
     };
   }, []);
 
-  const showBottomBar = !chromeHidden && !tocOpen && !fontOpen && !shareOpen && !moreOpen;
+  const showBottomBar = !chromeHidden && !tocOpen && !fontOpen && !shareOpen && !moreOpen && !appendOpen;
 
   const onContentTap = useCallback(() => {
     setChromeHidden((v) => !v);
@@ -906,10 +907,12 @@ export default function ShelfReader({
                 <button
                   type="button"
                   className="btn primary shelf-toc-append-btn"
-                  onClick={() => {
-                    setTocOpen(false);
-                    setAppendOpen(true);
-                  }}
+                  {...shellTapProps({
+                    onTap: () => {
+                      setTocOpen(false);
+                      setAppendOpen(true);
+                    },
+                  })}
                 >
                   添加课节
                 </button>

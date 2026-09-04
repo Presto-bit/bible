@@ -48,20 +48,21 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
           支持 docx、txt、md，单本不超过 20MB。导入后将出现在「上架时间」。
         </p>
         <input
+          id="shelf-import-file"
           ref={inputRef}
           type="file"
           accept={ACCEPT}
           className="shelf-import-file"
+          disabled={busy}
           onChange={(e) => void onPick(e.target.files?.[0] ?? null)}
         />
-        <button
-          type="button"
-          className="btn primary shelf-import-btn"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
+        <label
+          htmlFor={busy ? undefined : 'shelf-import-file'}
+          className={`btn primary shelf-import-btn${busy ? ' is-disabled' : ''}`}
+          aria-disabled={busy}
         >
           {busy ? '处理中…' : '选择文件'}
-        </button>
+        </label>
       </div>
     </AppBodyPortal>
   );
