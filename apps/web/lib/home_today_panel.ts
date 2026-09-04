@@ -1,8 +1,9 @@
-/** 首页「今日推荐」：左大 + 右双；活动优先占用最多 3 个坑位 */
+/** 首页「今日推荐」：固定四坑 2×2 —— 活动/书架 · 继续阅读 · 共读 · 祷告 */
 
 import type { RailIconId } from './home_rail';
 import { bookIdFromReaderHref } from './book_cover';
 import { trimRailSub, trimRailTitle } from './home_rail';
+import { shelfBookCardHref } from './shelf_library';
 
 /** 侧卡标题宜短，便于窄栏扫读 */
 const SIDE_TITLE_MAX = 10;
@@ -29,11 +30,17 @@ export type HomeTodayPanelSlot = {
   progressPct?: number;
 };
 
+/** 固定四坑：[1] 活动/书架 [2] 继续阅读 [3] 共读 [4] 祷告 */
 export type HomeTodayPanelModel = {
-  primary: HomeTodayPanelSlot;
+  activity: HomeTodayPanelSlot;
+  read: HomeTodayPanelSlot;
   group: HomeTodayPanelSlot;
   prayer: HomeTodayPanelSlot;
 };
+
+export function homeTodayPanelSlots(model: HomeTodayPanelModel): HomeTodayPanelSlot[] {
+  return [model.activity, model.read, model.group, model.prayer];
+}
 
 export type HomeTodayCampaignInput = {
   id: string;
@@ -44,6 +51,14 @@ export type HomeTodayCampaignInput = {
   /** 主卡封面书卷；有 coverUrl 时不用 */
   bookId?: string;
   /** 运营选择的系统/自定义封面，优先于 bookId */
+  coverUrl?: string;
+};
+
+export type HomeTodayShelfInput = {
+  bookId?: string;
+  title: string;
+  sub?: string;
+  href: string;
   coverUrl?: string;
 };
 
@@ -72,7 +87,9 @@ export type HomeTodayPanelInput = {
     statLabel?: string;
   };
   suggest?: { title: string; sub: string; href: string; bookId?: string };
-  /** 群定向 / 全站活动，最多 3 张：依次占主卡 / 右上 / 右下 */
+  /** 无活动时 [1] 坑书架回退数据 */
+  shelf?: HomeTodayShelfInput;
+  /** 运营活动，仅占用 [1] 活动坑；无活动时 [1] 为书架 */
   campaigns?: HomeTodayCampaignInput[];
   /** 今日计划日已完成（会话/进度） */
   planDoneToday?: boolean;
@@ -82,7 +99,7 @@ export type HomeTodayPanelInput = {
   welcomeBack?: boolean;
 };
 
-function campaignPrimary(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
+function campaignActivity(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
   const action = trimRailSub(c.sub || '进入活动') || '进入活动';
   const tag = (c.tag || '').trim();
   const safeTag =
@@ -100,100 +117,73 @@ function campaignPrimary(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
   };
 }
 
-function campaignSide(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
-  const tag = (c.tag || '').trim();
-  const safeTag =
-    !tag || tag === '空白' || tag === '空白页' || tag === '未命名' ? '活动' : tag;
+function activitySlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
+  const camp = (input.campaigns || [])[0];
+  if (camp) return campaignActivity(camp);
+  return shelfSlot(input);
+}
+
+function shelfSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
+  const s = input.shelf;
+  if (s) {
+    return {
+      id: 'shelf',
+      tag: '书架',
+      title: trimRailTitle(s.title),
+      sub: trimRailSub(s.sub || ''),
+      href: s.href || '/shelf',
+      icon: 'notes',
+      bookId: s.bookId,
+      coverUrl: s.coverUrl,
+      cta: s.bookId ? '继续' : '打开',
+    };
+  }
   return {
-    id: `campaign-${c.id}`,
-    tag: safeTag,
-    title: trimRailTitle(c.title, SIDE_TITLE_MAX),
-    sub: '',
-    href: c.href,
-    icon: 'devotional',
-    coverUrl: c.coverUrl || undefined,
-    cta: '进入',
+    id: 'shelf',
+    tag: '书架',
+    title: '打开书柜',
+    sub: '灵修书与资料',
+    href: '/shelf',
+    icon: 'notes',
+    cta: '打开',
   };
 }
 
-function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
-  const planDone =
-    Boolean(input.plan && (input.plan.progressPct ?? 0) >= 100) ||
-    Boolean(input.planDoneToday);
+/**
+ * [2] 继续阅读：仅圣经续读 / 自由读入口；读经计划留在成长区。
+ */
+function readSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   const readToday = Boolean(input.readToday);
   const welcomeBack = Boolean(input.welcomeBack);
 
-  if (welcomeBack && !planDone && !readToday) {
-    if (input.plan) {
-      return {
-        id: 'plan',
-        tag: '欢迎回来',
-        title: trimRailTitle(input.plan.title),
-        sub: trimRailSub(input.plan.sub || '从上次继续就好'),
-        href: input.plan.href,
-        icon: 'plan',
-        bookId: input.plan.bookId,
-        cta: '继续',
-        progressPct: input.plan.progressPct,
-      };
-    }
-    if (input.resume) {
-      return {
-        id: 'resume',
-        tag: '欢迎回来',
-        title: trimRailTitle(input.resume.title),
-        sub: '从上次继续就好',
-        href: input.resume.href,
-        icon: 'resume',
-        bookId: input.resume.bookId,
-        cta: '继续',
-      };
-    }
-  }
-
-  if (input.plan) {
-    const planBookId =
-      input.plan.bookId || bookIdFromReaderHref(input.plan.href)?.bookId;
-    if (planDone) {
-      return {
-        id: 'plan',
-        tag: '计划',
-        title: trimRailTitle(input.plan.title),
-        sub: '今日已完成 · 可回顾',
-        href: input.plan.href,
-        icon: 'plan',
-        bookId: planBookId,
-        cta: '看看',
-        done: true,
-        progressPct: 100,
-      };
-    }
-    const pct = input.plan.progressPct;
-    const inProgress = typeof pct === 'number' && pct > 0;
+  if (welcomeBack && !readToday && input.resume) {
     return {
-      id: 'plan',
-      tag: '计划',
-      title: trimRailTitle(input.plan.title),
-      sub: trimRailSub(input.plan.sub || ''),
-      href: input.plan.href,
-      icon: 'plan',
-      bookId: planBookId,
-      cta: inProgress ? '继续' : '开始',
-      progressPct: pct,
+      id: 'resume',
+      tag: '欢迎回来',
+      title: trimRailTitle(input.resume.title),
+      sub: '从上次继续就好',
+      href: input.resume.href,
+      icon: 'resume',
+      bookId: input.resume.bookId,
+      cta: '继续',
     };
   }
+
   if (input.resume) {
     return {
       id: 'resume',
-      tag: readToday ? '已读' : '继续',
+      tag: '继续阅读',
       title: trimRailTitle(input.resume.title),
-      sub: readToday ? '今日已读 · 可继续' : '圣经 Tab 也可随时续读',
+      sub: readToday
+        ? '今日已读 · 可继续'
+        : trimRailSub(input.resume.sub || '圣经 Tab 也可随时续读'),
       href: input.resume.href,
       icon: 'resume',
       bookId: input.resume.bookId,
       cta: readToday ? '再读' : '继续',
     };
   }
+
   const suggest = input.suggest;
   const bookId =
     suggest?.bookId ||
@@ -205,7 +195,7 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
       : '/reader?book=JHN&chapter=1';
   return {
     id: 'suggest',
-    tag: '自由读',
+    tag: '继续阅读',
     title: trimRailTitle(
       suggest?.href?.startsWith('/reader')
         ? suggest.title
@@ -234,9 +224,7 @@ function isGroupEmpty(g: NonNullable<HomeTodayPanelInput['group']>): boolean {
   );
 }
 
-/**
- * 共读侧卡：标签固定；标题只写一件事；待办用角标；完成态弱化。
- */
+/** [3] 共读 */
 function groupSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   const g = input.group;
   if (!g || isGroupEmpty(g)) {
@@ -349,9 +337,7 @@ function groupSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   };
 }
 
-/**
- * 祷告侧卡：有计划只显示「第 N 天」；空态可行动并直达祷告 tab。
- */
+/** [4] 祷告 */
 function prayerSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   const p = input.prayer;
   if (!p) {
@@ -378,42 +364,36 @@ function prayerSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
 }
 
 /**
- * 固定三坑：主行动 | 共读 | 祷告。
- * 活动运营曝光走这三张卡（不占每日经文 Hero）；有活动时按顺序优先占位。
- * 首页主卡=今日计划（有则）；自由续读留给圣经 Tab，有计划时侧卡露出「自由读」。
+ * 固定四坑 2×2：
+ * [1] 活动（无则书架）· [2] 继续阅读 · [3] 共读 · [4] 祷告
  */
 export function buildHomeTodayPanel(input: HomeTodayPanelInput): HomeTodayPanelModel {
-  const camps = (input.campaigns || []).slice(0, 3);
-  const primary = camps[0] ? campaignPrimary(camps[0]) : primaryFromInput(input);
-  let group = camps[1] ? campaignSide(camps[1]) : groupSlot(input);
-  let prayer = camps[2] ? campaignSide(camps[2]) : prayerSlot(input);
+  return {
+    activity: activitySlot(input),
+    read: readSlot(input),
+    group: groupSlot(input),
+    prayer: prayerSlot(input),
+  };
+}
 
-  const resume = input.resume;
-  const planBook = input.plan?.bookId;
-  const planCh = input.plan?.chapter;
-  const resumeDiffers =
-    Boolean(resume) &&
-    (resume!.bookId !== planBook || resume!.chapter !== planCh);
-
-  // 主卡已是计划：把「自由续读」塞进空的祷告侧卡，避免计划抢走圣经 Tab 的注意力
-  if (
-    !camps[2] &&
-    primary.id === 'plan' &&
-    resume &&
-    resumeDiffers &&
-    !input.prayer
-  ) {
-    prayer = {
-      id: 'resume',
-      tag: '自由读',
-      title: trimRailTitle(resume.title, SIDE_TITLE_MAX),
-      sub: '',
-      href: resume.href,
-      icon: 'resume',
-      bookId: resume.bookId,
-      cta: '续读',
+/** 从最近阅读构造书架坑输入（书名可选，无列表时仍可用 bookId 续读）。 */
+export function buildHomeShelfTileInput(opts?: {
+  bookId?: string | null;
+  title?: string | null;
+  sub?: string | null;
+}): HomeTodayShelfInput {
+  const bookId = opts?.bookId?.trim();
+  if (bookId) {
+    return {
+      bookId,
+      title: trimRailTitle(opts?.title?.trim() || '继续书柜阅读'),
+      sub: trimRailSub(opts?.sub?.trim() || ''),
+      href: shelfBookCardHref(bookId),
     };
   }
-
-  return { primary, group, prayer };
+  return {
+    title: '打开书柜',
+    sub: '灵修书与资料',
+    href: '/shelf',
+  };
 }

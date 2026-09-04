@@ -724,7 +724,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   3 => Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 20),
                         _HomeStagger(
                           enabled: _stagger,
                           delayMs: 80,
@@ -1695,7 +1695,7 @@ class _GrowthStack extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var i = 0; i < cards.length; i++) ...[
-          if (i > 0) const SizedBox(height: 24),
+          if (i > 0) const SizedBox(height: 8),
           _MediaGrowthRow(
             tag: cards[i].tag,
             title: cards[i].title,
@@ -1706,6 +1706,7 @@ class _GrowthStack extends StatelessWidget {
             imageUrl: cards[i].imageUrl,
             icon: _icon(cards[i].iconName),
             progressPct: cards[i].progressPct,
+            isSummary: cards[i].id == 'summary',
             onTap: _onTap(cards[i].id),
           ),
         ],
@@ -1727,6 +1728,7 @@ class _MediaGrowthRow extends StatelessWidget {
     this.metricPrefix,
     this.metricSuffix,
     this.progressPct,
+    this.isSummary = false,
   });
 
   final String tag;
@@ -1739,8 +1741,9 @@ class _MediaGrowthRow extends StatelessWidget {
   final String? metricPrefix;
   final String? metricSuffix;
   final int? progressPct;
+  final bool isSummary;
 
-  static const _thumb = 60.0;
+  double get _thumb => isSummary ? 60 : 52;
 
   @override
   Widget build(BuildContext context) {
@@ -1749,17 +1752,17 @@ class _MediaGrowthRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         child: Ink(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: AppColors.ink.withValues(alpha: 0.12)),
           ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 88),
+            constraints: BoxConstraints(minHeight: isSummary ? 88 : 76),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 16, 14),
+              padding: EdgeInsets.fromLTRB(14, isSummary ? 14 : 12, 16, isSummary ? 14 : 12),
               child: Row(
                 children: [
                   SizedBox(

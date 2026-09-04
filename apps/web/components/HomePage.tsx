@@ -31,7 +31,14 @@ import { nextFreeReadingSuggestion } from '@/lib/suggestions';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { heroThemeClass } from '@/lib/home_rail';
 import { bookIdFromReaderHref } from '@/lib/book_cover';
-import { buildHomeTodayPanel, type HomeTodayPanelInput, type HomeTodayPanelModel } from '@/lib/home_today_panel';
+import { loadShelfLastRead } from '@/lib/shelf_api';
+import { peekShelfListCache } from '@/lib/shelf_cache';
+import {
+  buildHomeTodayPanel,
+  buildHomeShelfTileInput,
+  type HomeTodayPanelInput,
+  type HomeTodayPanelModel,
+} from '@/lib/home_today_panel';
 import {
   mapApiCampaignsToHomeInput,
   readCachedHomeCampaigns,
@@ -95,6 +102,20 @@ import { hapticLight, hapticSuccess } from '@/lib/haptic';
 const DailyVerseWallpaper = dynamic(() => import('@/components/DailyVerseWallpaper'), { ssr: false });
 const DailyVerseReactSheet = dynamic(() => import('@/components/DailyVerseReactSheet'), { ssr: false });
 const PlusMenu = dynamic(() => import('@/components/PlusMenu'), { ssr: false });
+
+function shelfTileFromLocal() {
+  if (typeof window === 'undefined') return buildHomeShelfTileInput();
+  const last = loadShelfLastRead();
+  const bookId = last?.bookId;
+  const book = bookId
+    ? peekShelfListCache(true)?.items.find((b) => b.id === bookId)
+    : undefined;
+  return buildHomeShelfTileInput({
+    bookId,
+    title: book?.title,
+    sub: book?.subtitle || undefined,
+  });
+}
 
 export default function HomePageClient({ paneActive = true }: { paneActive?: boolean }) {
   const [dv, setDv] = useState<DailyVerse | null>(() => readCachedDailyVerse());
@@ -470,6 +491,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       const cachedCampaigns = readCachedHomeCampaigns({ allowStale: true }) || undefined;
       const localGroup =
         lastGroupInputRef.current || buildHomeGroupRailInput([], null);
+      const shelfTile = shelfTileFromLocal();
 
       // 本地先上屏；TTL 内跳过网络时沿用上次小组卡 + 活动缓存
       const localPanel = buildHomeTodayPanel({
@@ -478,6 +500,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         group: localGroup,
         prayer: prayerCard,
         suggest: suggestInput,
+        shelf: shelfTile,
         campaigns: cachedCampaigns,
         ...panelLiveness(),
       });
@@ -578,6 +601,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         prayer: prayerCard,
         campaigns: nextCampaigns,
         suggest: suggestInput,
+        shelf: shelfTile,
         ...panelLiveness(),
       });
       setTodayPanel(nextPanel);

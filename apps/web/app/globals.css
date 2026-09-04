@@ -1291,7 +1291,173 @@ html:not([data-app-theme]) .card {
   margin-top: 0;
 }
 
-/* 今日推荐：中性浅底容器 + 三张独立浅色圆角卡（左大右双） */
+/* 今日推荐：2×2 固定四坑（无外层 shell） */
+.home-today-section {
+  margin-top: 20px;
+  margin-bottom: 0;
+}
+
+.home-today-heading {
+  margin: 0 0 8px 2px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+
+.home-today-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.home-today-tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 116px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--home-shadow);
+  background: var(--surface);
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.home-today-tile:active {
+  opacity: 0.94;
+  transform: scale(0.99);
+}
+
+.home-today-tile.is-done {
+  opacity: 0.58;
+}
+
+.home-today-tile.is-pending {
+  border-color: var(--accent-deep, #4a6b52);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-deep, #4a6b52) 22%, transparent);
+}
+
+.home-today-tile.is-checkin-flash {
+  animation: home-today-side-flash 0.55s ease;
+}
+
+.home-today-tile-media {
+  position: relative;
+  display: block;
+  flex: 0 0 64px;
+  height: 64px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--paper, #f7f4ef) 72%, var(--surface));
+}
+
+.home-today-tile-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 55%,
+    color-mix(in srgb, var(--ink) 10%, transparent) 100%
+  );
+  opacity: 0.35;
+}
+
+.home-today-tile-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 45%;
+  filter: contrast(1.04) saturate(0.9);
+}
+
+.home-today-tile-img-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(155deg, #e6e3dc 0%, #d5d1c9 100%);
+}
+
+.home-today-tile-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.home-today-tile-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 8px 10px 10px;
+  box-sizing: border-box;
+}
+
+.home-today-tile-tag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-today-tile-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-today-tile-sub {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-today-tile-progress {
+  display: block;
+  height: 2px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  overflow: hidden;
+}
+
+.home-today-tile-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-deep, #4a6b52);
+}
+
+/* 今日推荐（旧左大右双，保留至清理） */
 .home-today-shell {
   margin-top: 0;
   margin-bottom: 0;
@@ -2570,7 +2736,7 @@ html:not([data-app-theme]) .home-page .hero-verse.card,
 }
 
 .home-page .home-growth-stack {
-  margin-top: var(--home-section-gap, 14px);
+  margin-top: 24px;
   margin-bottom: 4px;
   display: flex;
   flex-direction: column;
@@ -2581,7 +2747,7 @@ html:not([data-app-theme]) .home-page .hero-verse.card,
 
 /* 卡间距离：margin 后备（勿为 0；WebView 常忽略 flex gap） */
 .home-page .home-growth-stack > * + * {
-  margin-top: 24px;
+  margin-top: 8px;
 }
 
 html.pwa-standalone .home-page .home-growth-stack {
@@ -2604,7 +2770,7 @@ html.pwa-standalone .home-page .home-growth-stack {
   padding: 14px 16px 14px 14px;
   min-height: 88px;
   border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
-  border-radius: 18px;
+  border-radius: 14px;
   box-shadow: var(--home-shadow);
   background: var(--surface);
   font: inherit;
@@ -2903,6 +3069,7 @@ html.perf-lite .home-page .home-media-thumb-chip {
 }
 
 .home-page .home-growth-summary {
+  min-height: 88px;
   background:
     linear-gradient(
       135deg,
@@ -2920,8 +3087,21 @@ html.perf-lite .home-page .home-media-thumb-chip {
 }
 
 .home-page .home-growth-stack .home-growth-feature {
+  min-height: 76px;
+  padding: 12px 14px 12px 12px;
   background: var(--surface);
   box-shadow: var(--home-shadow);
+}
+
+.home-page .home-growth-stack .home-growth-feature .home-media-thumb {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  border-radius: 13px;
+}
+
+.home-page .home-growth-stack .home-growth-feature .home-media-body {
+  margin-left: 18px;
 }
 
 .home-page .home-growth-stack .home-growth-feature .home-media-title {

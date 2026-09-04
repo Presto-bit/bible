@@ -51,15 +51,14 @@ export type BuildHomeGrowthOpts = {
   theme?: HomeGrowthFeatureInput | null;
 };
 
-/** 从今日推荐三坑提取已占用功能。 */
+/** 从今日推荐四坑提取已占用功能（计划仅在成长区；祷告占 [4]）。 */
 export function occupiedFromTodayPanel(
   panel: HomeTodayPanelModel | null | undefined,
 ): HomeGrowthOccupied {
   if (!panel) return { plan: false, prayer: false };
-  const ids = [panel.primary.id, panel.group.id, panel.prayer.id];
   return {
-    plan: ids.includes('plan'),
-    prayer: ids.includes('prayer'),
+    plan: false,
+    prayer: panel.prayer.id === 'prayer',
   };
 }
 

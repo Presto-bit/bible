@@ -1,0 +1,49 @@
+{
+  "schema": "home-tiles@2",
+  "style": "Unsplash 摄影 · 低饱和静穆 · 800×400 crop",
+  "ratio": "800:400",
+  "format": "jpg",
+  "license": "Unsplash License (https://unsplash.com/license)",
+  "items": [
+    {
+      "id": "activity",
+      "slot": "[1] campaign",
+      "file": "tile_activity.jpg",
+      "source": "https://unsplash.com/photos/1dLX86YzROU",
+      "photographer": "Prashant (@prashantbrahmbhatt)",
+      "note": "微开的门与透入的光"
+    },
+    {
+      "id": "shelf",
+      "slot": "[1] shelf-fallback",
+      "file": "tile_shelf.jpg",
+      "source": "https://unsplash.com/photos/6c12a4b040da",
+      "photographer": "Unsplash",
+      "note": "木质书架与暖光阅读空间"
+    },
+    {
+      "id": "read",
+      "slot": "[2] continue-reading",
+      "file": "tile_read.jpg",
+      "source": "https://unsplash.com/photos/VH4f6KYyzWA",
+      "photographer": "Liana S (@cherstve_pechivo)",
+      "note": "柔光下的打开的书"
+    },
+    {
+      "id": "fellowship",
+      "slot": "[3] group",
+      "file": "tile_fellowship.jpg",
+      "source": "https://unsplash.com/photos/MUsw_WEPgho",
+      "photographer": "kimber (@kimmberr)",
+      "note": "户外共读 / 查经"
+    },
+    {
+      "id": "prayer",
+      "slot": "[4] prayer",
+      "file": "tile_prayer.jpg",
+      "source": "https://unsplash.com/photos/nulA6m0UjuU",
+      "photographer": "Gazi Tasnuva (@gazi_tasnuva)",
+      "note": "白色蜡烛与柔光"
+    }
+  ]
+}

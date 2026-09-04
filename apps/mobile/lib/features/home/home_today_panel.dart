@@ -103,23 +103,23 @@ class HomeTodayPanel extends StatelessWidget {
   }
 }
 
-String _tileImageFor(HomeTodaySlot slot) {
+String _homeTileImage(HomeTodaySlot slot) {
   final resolved = resolveCampaignCoverUrl(slot.coverUrl);
   if (resolved != null) return resolved;
   if (slot.id.startsWith('campaign-')) {
-    return _illustrationAssetUrl('home/tile_activity.svg');
+    return _illustrationAssetUrl('home/tile_activity.jpg');
   }
   if (slot.id == 'shelf') {
-    return _illustrationAssetUrl('home/tile_shelf.svg');
+    return _illustrationAssetUrl('home/tile_shelf.jpg');
   }
   if (slot.id == 'group' || slot.tag == '共读') {
-    return _illustrationAssetUrl('home/tile_fellowship.svg');
+    return _illustrationAssetUrl('home/tile_fellowship.jpg');
   }
   if (slot.id == 'prayer' || slot.tag == '祷告') {
-    return _illustrationAssetUrl('home/tile_prayer.svg');
+    return _illustrationAssetUrl('home/tile_prayer.jpg');
   }
   if (slot.id == 'suggest') {
-    return _illustrationAssetUrl('home/tile_theme.svg');
+    return _illustrationAssetUrl('home/tile_read.jpg');
   }
   final h = slot.id.hashCode.abs();
   final day = (h % illustrationFiles.length) + 1;
@@ -130,6 +130,7 @@ String _illustrationAssetUrl(String relative) {
   final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
   return '$base/illustrations/$relative';
 }
+
 
 class _TileCard extends StatelessWidget {
   const _TileCard({
@@ -144,7 +145,7 @@ class _TileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final src = _tileImageFor(slot);
+    final src = _homeTileImage(slot);
     final borderColor = slot.pending
         ? AppColors.accentDeep.withValues(alpha: 0.55)
         : AppColors.line.withValues(alpha: 0.55);
@@ -182,6 +183,19 @@ class _TileCard extends StatelessWidget {
                           cacheHeight: 200,
                           errorBuilder: (_, __, ___) => Container(
                             color: const Color(0xFFE6E3DC),
+                          ),
+                        ),
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.12),
+                              ],
+                              stops: const [0.55, 1],
+                            ),
                           ),
                         ),
                         if (slot.badge != null && slot.badge!.isNotEmpty)
