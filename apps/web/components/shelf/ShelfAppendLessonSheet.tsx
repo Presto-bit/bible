@@ -43,6 +43,11 @@ export default function ShelfAppendLessonSheet({ bookId, bookTitle, onClose, onA
       flashToast('单课不超过 50MB');
       return;
     }
+    const lower = (file.name || '').toLowerCase();
+    if (lower.endsWith('.doc') && !lower.endsWith('.docx')) {
+      flashToast('暂不支持旧版 .doc，请另存为 .docx 后再上传');
+      return;
+    }
     setBusy(true);
     try {
       const res = await adminAppendCollectionLesson(bookId, file, {
@@ -51,11 +56,16 @@ export default function ShelfAppendLessonSheet({ bookId, bookTitle, onClose, onA
         zone: 'body',
       });
       invalidateShelfListCache();
-      flashToast(`已加入「${res.section?.title || file.name}」`);
-      if (res.section?.id) onAdded?.(res.section.id);
+      const addedTitle = res.section?.title || file.name || '新课节';
+      const addedId = res.section?.id;
       onClose();
+      // 关层后再提示，避免被弹层挡住
+      window.setTimeout(() => {
+        flashToast(`上传成功：已加入「${addedTitle}」`);
+      }, 40);
+      if (addedId) onAdded?.(addedId);
     } catch (e) {
-      flashToast(e instanceof Error ? e.message : '添加失败');
+      flashToast(e instanceof Error ? e.message : '上传失败');
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -74,7 +84,7 @@ export default function ShelfAppendLessonSheet({ bookId, bookTitle, onClose, onA
           </button>
         </div>
         <p className="shelf-import-hint muted">
-          向《{bookTitle}》追加一课。支持 PDF / Word，全员可见。
+          向《{bookTitle}》追加一课。请使用 <strong>.docx</strong> 或 PDF（旧版 .doc 需先另存为 docx）。
         </p>
         <label className="shelf-append-field">
           <span className="muted">标题（可选）</span>

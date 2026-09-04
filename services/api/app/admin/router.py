@@ -1008,11 +1008,12 @@ async def admin_shelf_append_lesson(
     return append_collection_lesson(
         book_id,
         data=data,
-        filename=file.filename or "lesson.pdf",
+        filename=file.filename or "lesson",
         title=title,
         unit=unit,
         zone=zone,
         after_section_id=after_section_id,
         attachments=None,
+        content_type=file.content_type,
     )
 

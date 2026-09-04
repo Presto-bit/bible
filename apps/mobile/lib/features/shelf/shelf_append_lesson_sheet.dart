@@ -81,6 +81,19 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
       );
       return;
     }
+    var filename = file.name.trim();
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.doc') && !lower.endsWith('.docx')) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('暂不支持旧版 .doc，请另存为 .docx 后再上传')),
+      );
+      return;
+    }
+    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx')) {
+      final base = filename.isEmpty ? 'lesson' : filename;
+      filename = '$base.docx';
+    }
     if ((file.size) > 50 * 1024 * 1024) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -94,20 +107,21 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
             bookId: widget.bookId,
             filePath: path,
             bytes: bytes,
-            filename: file.name,
+            filename: filename,
             title: _titleCtrl.text,
             unit: _unitCtrl.text,
           );
       if (!mounted) return;
       final title = '${(res['section'] as Map?)?['title'] ?? file.name}';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已加入「$title」')),
-      );
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context, true);
+      messenger.showSnackBar(
+        SnackBar(content: Text('上传成功：已加入「$title」')),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('添加失败：$e')),
+        SnackBar(content: Text('上传失败：$e')),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -135,7 +149,7 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
             ],
           ),
           Text(
-            '向《${widget.bookTitle}》追加一课。支持 PDF / Word，全员可见。',
+            '向《${widget.bookTitle}》追加一课。请使用 .docx 或 PDF（旧版 .doc 需先另存为 docx）。',
             style: AppTypography.meta,
           ),
           const SizedBox(height: 14),

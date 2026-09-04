@@ -420,7 +420,7 @@ class ShelfRepository {
   Future<List<String>> listCollectionUnits(String bookId) async {
     try {
       final res = await _dio.get<Map<String, dynamic>>(
-        '/admin/shelf/collections/$bookId/units',
+        '/shelf/platform/collections/$bookId/units',
       );
       final units = res.data?['units'];
       if (units is List) {
@@ -455,7 +455,7 @@ class ShelfRepository {
     if (unit != null && unit.trim().isNotEmpty) map['unit'] = unit.trim();
     final form = FormData.fromMap(map);
     final res = await _dio.post<Map<String, dynamic>>(
-      '/admin/shelf/collections/$bookId/lessons',
+      '/shelf/platform/collections/$bookId/lessons',
       data: form,
     );
     await _fetchListFresh(force: true);

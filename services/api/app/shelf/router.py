@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 
+from ..admin.auth import require_shelf_admin
 from ..auth.session import get_current_user
 from .service import (
     get_platform_asset_path,
@@ -38,6 +39,50 @@ def shelf_platform_capabilities(
     )
     ok = bool(actor)
     return {"shelf_admin": ok, "can_append_collection": ok}
+
+
+@router.get("/platform/collections/{book_id}/units")
+def shelf_platform_collection_units(
+    book_id: str,
+    _admin: str = Depends(require_shelf_admin),
+) -> dict:
+    """书柜管理员：合集已有单元列表（走 /shelf/platform，避开部分网关对 /admin/shelf 的拦截）。"""
+    from .file_catalog import get_file_book
+    from .service import collection_units
+
+    book = get_file_book(book_id)
+    if not book:
+        raise HTTPException(404, "书目不存在")
+    if (book.get("book_type") or "") != "collection":
+        raise HTTPException(400, "仅合集书")
+    return {"units": collection_units(book_id)}
+
+
+@router.post("/platform/collections/{book_id}/lessons")
+async def shelf_platform_append_lesson(
+    book_id: str,
+    file: UploadFile = File(...),
+    title: str | None = Form(default=None),
+    unit: str | None = Form(default=None),
+    zone: str = Form(default="body"),
+    after_section_id: str | None = Form(default=None),
+    _admin: str = Depends(require_shelf_admin),
+) -> dict:
+    """书柜管理员：向合集追加一课（主路径；与 /admin/shelf/... 同实现）。"""
+    from .service import append_collection_lesson
+
+    data = await file.read()
+    return append_collection_lesson(
+        book_id,
+        data=data,
+        filename=file.filename or "lesson",
+        title=title,
+        unit=unit,
+        zone=zone,
+        after_section_id=after_section_id,
+        attachments=None,
+        content_type=file.content_type,
+    )
 
 
 @router.get("/platform")

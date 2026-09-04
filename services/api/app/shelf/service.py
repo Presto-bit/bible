@@ -501,9 +501,10 @@ _UNIT_DISPLAY = {
 
 
 def _safe_cur_stem(raw: str) -> str:
-    s = re.sub(r"[^\w\-]+", "-", (raw or "").strip(), flags=re.UNICODE)
+    """ASCII 安全 stem：中文/空格等收成 cur-xxxx，避免部分环境路径/URL 踩坑。"""
+    s = re.sub(r"[^a-zA-Z0-9\-]+", "-", (raw or "").strip())
     s = re.sub(r"-{2,}", "-", s).strip("-").lower()
-    if not s:
+    if not s or s in {"doc", "docx", "pdf", "file", "blob", "document", "untitled"}:
         s = f"add-{uuid.uuid4().hex[:8]}"
     if not s.startswith("cur-"):
         s = f"cur-{s}"
@@ -513,7 +514,55 @@ def _safe_cur_stem(raw: str) -> str:
 def _title_from_filename(filename: str) -> str:
     stem = Path(filename or "教案").stem
     stem = re.sub(r"\s+", " ", stem).strip()
+    if stem.lower() in {"file", "blob", "document", "untitled", "lesson", "doc", "docx", "pdf"}:
+        return "新课节"
     return stem or "新课节"
+
+
+_OLE_DOC_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+
+
+def _resolve_lesson_suffix(
+    filename: str,
+    data: bytes,
+    content_type: str | None = None,
+) -> str:
+    """从文件名 / MIME / 魔数判定课节后缀；兼容 iOS 无后缀文件名。"""
+    suffix = Path(filename or "").suffix.lower()
+    if suffix in {".pdf", ".docx"}:
+        return suffix
+    if suffix == ".doc":
+        raise HTTPException(
+            status_code=400,
+            detail="暂不支持旧版 Word（.doc），请另存为 .docx 后再上传",
+        )
+
+    head = data[:8] if data else b""
+    if head.startswith(b"%PDF"):
+        return ".pdf"
+    if head.startswith(b"PK"):
+        return ".docx"
+    if head.startswith(_OLE_DOC_MAGIC):
+        raise HTTPException(
+            status_code=400,
+            detail="暂不支持旧版 Word（.doc），请另存为 .docx 后再上传",
+        )
+
+    ct = (content_type or "").lower()
+    if "pdf" in ct:
+        return ".pdf"
+    if "wordprocessingml" in ct or "officedocument.wordprocessingml" in ct:
+        return ".docx"
+    if "msword" in ct:
+        raise HTTPException(
+            status_code=400,
+            detail="暂不支持旧版 Word（.doc），请另存为 .docx 后再上传",
+        )
+
+    raise HTTPException(
+        status_code=400,
+        detail="课节正文仅支持 .pdf / .docx（请确认扩展名，或用 Word「另存为」docx）",
+    )
 
 
 def collection_units(book_id: str) -> list[str]:
@@ -552,15 +601,15 @@ def append_collection_lesson(
     zone: str = "body",
     after_section_id: str | None = None,
     attachments: list[tuple[bytes, str]] | None = None,
+    content_type: str | None = None,
 ) -> dict[str, Any]:
     """向合集书追加一课（写 uploads + platform_catalog.json）。"""
-    suffix = Path(filename or "").suffix.lower()
-    if suffix not in {".pdf", ".docx"}:
-        raise HTTPException(status_code=400, detail="课节正文仅支持 .pdf / .docx")
     if len(data) > 50 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="文件过大（上限 50MB）")
     if len(data) < 16:
-        raise HTTPException(status_code=400, detail="文件无效")
+        raise HTTPException(status_code=400, detail="文件无效或为空")
+
+    suffix = _resolve_lesson_suffix(filename, data, content_type)
 
     z = (zone or "body").strip().lower()
     if z not in {"front", "body", "appendix"}:
@@ -575,6 +624,7 @@ def append_collection_lesson(
 
     display_title = (title or "").strip() or _title_from_filename(filename)
     unit_name = (unit or "").strip() or None
+    # 存储键只用 ASCII，标题仍用用户文案
     stem = _safe_cur_stem(Path(filename).stem or display_title)
     storage_key = f"{stem}{suffix}"
     dest = shelf_dir() / storage_key
@@ -582,7 +632,10 @@ def append_collection_lesson(
         storage_key = f"{stem}-{uuid.uuid4().hex[:4]}{suffix}"
         stem = Path(storage_key).stem
         dest = shelf_dir() / storage_key
-    dest.write_bytes(data)
+    try:
+        dest.write_bytes(data)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"写入文件失败：{e}") from e
 
     sec_id = f"sec-{stem}"
     sections = book.setdefault("sections", [])
@@ -604,7 +657,10 @@ def append_collection_lesson(
         if att_path.exists():
             att_key = f"{att_stem}-{uuid.uuid4().hex[:4]}{att_suffix}"
             att_path = shelf_dir() / att_key
-        att_path.write_bytes(att_bytes)
+        try:
+            att_path.write_bytes(att_bytes)
+        except OSError:
+            continue
         kind = "video" if att_suffix in {".mp4", ".webm", ".mov"} else "image"
         att_list.append(
             {
@@ -616,6 +672,10 @@ def append_collection_lesson(
             }
         )
 
+    primary_name = Path(filename or "").name
+    if not primary_name or not Path(primary_name).suffix:
+        primary_name = f"{display_title}{suffix}"
+
     section = {
         "id": sec_id,
         "title": display_title,
@@ -626,7 +686,7 @@ def append_collection_lesson(
         "primary": {
             "storage_key": storage_key,
             "mime": _LESSON_MIME.get(suffix, "application/octet-stream"),
-            "title": Path(filename).name or display_title,
+            "title": primary_name,
         },
         "attachments": att_list,
     }
@@ -694,7 +754,14 @@ def append_collection_lesson(
     toc[zone_key] = toc_list
 
     book["file_size"] = int(book.get("file_size") or 0) + len(data) + sum(len(a[0]) for a in (attachments or []))
-    save_catalog_document(doc)
+    try:
+        save_catalog_document(doc)
+    except OSError as e:
+        try:
+            dest.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise HTTPException(status_code=500, detail=f"写入目录失败：{e}") from e
     invalidate_shelf_section_cache(book_id)
     return {
         "ok": True,
