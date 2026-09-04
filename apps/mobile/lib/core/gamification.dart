@@ -230,16 +230,6 @@ List<SeasonalEvent> currentSeasonalEvents() {
       badge: '复活节',
     ));
   }
-  if (m == 9) {
-    events.add(SeasonalEvent(
-      id: 'autumn',
-      title: '秋收感恩',
-      subtitle: '数算恩典专题',
-      theme: '感恩',
-      href: '/reader?book=PSA&chapter=100',
-      badge: '感恩',
-    ));
-  }
   return events;
 }
 
