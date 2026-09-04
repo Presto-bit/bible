@@ -136,25 +136,20 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
       ? pwaPath
       : routerPath;
   const secondaryNavPending = isSecondaryNavPending(routerPathname);
-  // 二级页：卸掉主 Tab pane，只显示 Next 路由层（笔记 / 书架 / 搜索等）
-  // 过渡期 router 未跟上时仍保留来源 Tab，避免露出旧路由首页
-  const effectiveActiveTab = isSecondaryAppPath(routerPath) ? null : activeTab;
+  // 二级页或 pending：卸掉主 Tab pane，只显示 Next 路由层（设置 / 书架 / 搜索等）
+  const effectiveActiveTab =
+    isSecondaryAppPath(routerPath) || secondaryNavPending ? null : activeTab;
 
   // 当前 Tab 首帧就要挂载：不可等 useEffect，否则 suppress 后无 pane → 白屏
   const paneVisible = (tab: KeepAliveTabId) =>
     Boolean(mounted[tab] || (enabled && effectiveActiveTab === tab));
 
-  // 仅在 KeepAlive pane 已可见时隐藏路由 children，避免空窗期；二级页（设置等）永不 suppress
+  // 仅在 KeepAlive pane 已可见时隐藏路由 children；pending 时不 suppress，让二级页可渲染可点
   const suppressRoute =
     enabled
-    && (
-      secondaryNavPending
-      || (
-        effectiveActiveTab !== null
-        && paneVisible(effectiveActiveTab)
-        && !isSecondaryAppPath(routeOverlayPath)
-      )
-    );
+    && effectiveActiveTab !== null
+    && paneVisible(effectiveActiveTab)
+    && !isSecondaryAppPath(routeOverlayPath);
 
   useEffect(() => {
     if (!enabled) return;
@@ -287,14 +282,6 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
           </div>
         );
       })}
-      {secondaryNavPending ? (
-        <div className="soft-nav-pending-overlay" role="status" aria-live="polite" aria-busy="true">
-          <div className="soft-nav-pending-card">
-            <p className="soft-nav-pending-title">正在打开…</p>
-            <p className="soft-nav-pending-sub muted">网络较慢时请稍候</p>
-          </div>
-        </div>
-      ) : null}
     </TabKeepAliveProvider>
   );
 }
