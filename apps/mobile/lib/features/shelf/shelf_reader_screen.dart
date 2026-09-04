@@ -25,6 +25,7 @@ import 'shelf_repository.dart';
 import 'shelf_scroll_anchor.dart';
 import 'shelf_toc.dart';
 import 'shelf_turn_gesture.dart';
+import 'shelf_append_lesson_sheet.dart';
 
 class ShelfReaderScreen extends ConsumerStatefulWidget {
   const ShelfReaderScreen({
@@ -62,6 +63,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   var _proseSelecting = false;
   var _pdfPinching = false;
   var _overlayOpen = 0;
+  var _canAppendLesson = false;
   List<ShelfPost> _publicNotes = const [];
   Timer? _progressTimer;
   final _pageBySection = <String, int>{};
@@ -76,6 +78,12 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   void initState() {
     super.initState();
     _loadBook();
+    unawaited(_loadAppendCap());
+  }
+
+  Future<void> _loadAppendCap() async {
+    final ok = await ref.read(shelfRepoProvider).canAppendCollectionLesson();
+    if (mounted) setState(() => _canAppendLesson = ok);
   }
 
   @override
@@ -428,6 +436,9 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final book = _book;
     if (book == null) return;
     final groups = buildShelfTocGroups(book.toc, bookType: book.bookType);
+    final showAppend = _canAppendLesson &&
+        (book.bookType == 'collection' ||
+            shelfIsChildrenLessonBook(id: book.id, title: book.title));
     await _withOverlay(
       () => showModalBottomSheet<void>(
         context: context,
@@ -506,6 +517,31 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                   ],
                 ),
               ),
+              if (showAppend)
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          final ok = await showShelfAppendLessonSheet(
+                            context,
+                            ref,
+                            bookId: widget.bookId,
+                            bookTitle: book.title,
+                          );
+                          if (ok && mounted) {
+                            await _loadBook();
+                          }
+                        },
+                        child: const Text('添加课节'),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

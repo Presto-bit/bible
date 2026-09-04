@@ -17,6 +17,7 @@ import {
   type ShelfAttachment,
 } from '@/lib/shelf_api';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
+import { fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
 import ShelfMediaSheet from '@/components/shelf/ShelfMediaSheet';
 import { shelfLessonMedia } from '@/lib/shelf_lesson_media';
 import { useShelfReadingPrefs } from '@/components/shelf/ShelfReadingBar';
@@ -50,6 +51,10 @@ const ShelfReaderMoreSheet = dynamic(() => import('@/components/shelf/ShelfReade
   ssr: false,
 });
 
+const ShelfAppendLessonSheet = dynamic(() => import('@/components/shelf/ShelfAppendLessonSheet'), {
+  ssr: false,
+});
+
 type Props = {
   bookId: string;
   initialSectionId?: string | null;
@@ -76,6 +81,8 @@ export default function ShelfReader({
   const [sectionErr, setSectionErr] = useState('');
   const [sectionReloadToken, setSectionReloadToken] = useState(0);
   const [tocOpen, setTocOpen] = useState(false);
+  const [appendOpen, setAppendOpen] = useState(false);
+  const [canAppendLesson, setCanAppendLesson] = useState(false);
   const [fontOpen, setFontOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
@@ -274,7 +281,7 @@ export default function ShelfReader({
     setPageCount(1);
   }, [sectionId, contentKey]);
 
-  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching || moreOpen;
+  const overlayOpen = tocOpen || fontOpen || shareOpen || mediaOpen || pdfPinching || moreOpen || appendOpen;
 
   useEffect(() => {
     if (!sectionId) {
@@ -487,6 +494,21 @@ export default function ShelfReader({
     () => buildShelfTocGroups(book?.toc, book?.book_type),
     [book?.toc, book?.book_type],
   );
+
+  const canShowAppendInToc = Boolean(
+    canAppendLesson &&
+      (book?.book_type === 'collection' || shelfIsChildrenLessonBook(book)),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchShelfAdminCapabilities().then((cap) => {
+      if (!cancelled) setCanAppendLesson(cap.can_append_collection);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const showBottomBar = !chromeHidden && !tocOpen && !fontOpen && !shareOpen && !moreOpen;
 
@@ -798,8 +820,36 @@ export default function ShelfReader({
                 </div>
               ))}
             </div>
+            {canShowAppendInToc ? (
+              <div className="shelf-toc-footer">
+                <button
+                  type="button"
+                  className="btn primary shelf-toc-append-btn"
+                  onClick={() => {
+                    setTocOpen(false);
+                    setAppendOpen(true);
+                  }}
+                >
+                  添加课节
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
+      ) : null}
+
+      {appendOpen ? (
+        <ShelfAppendLessonSheet
+          bookId={bookId}
+          bookTitle={book?.title || '教案'}
+          onClose={() => setAppendOpen(false)}
+          onAdded={(sectionIdAdded) => {
+            void getPlatformShelfBook(bookId).then((detail) => {
+              setBook(detail);
+              if (sectionIdAdded) goSection(sectionIdAdded);
+            });
+          }}
+        />
       ) : null}
 
       <ShelfFontSheet

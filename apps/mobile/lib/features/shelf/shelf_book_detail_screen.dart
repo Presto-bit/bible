@@ -14,8 +14,6 @@ import 'shelf_post_sheets.dart';
 import 'shelf_posts_repository.dart';
 import 'shelf_progress.dart';
 import 'shelf_repository.dart';
-import 'shelf_append_lesson_sheet.dart';
-import 'shelf_reader_contract.dart';
 
 class ShelfBookDetailScreen extends ConsumerStatefulWidget {
   const ShelfBookDetailScreen({
@@ -40,7 +38,6 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   var _loadingPosts = false;
   List<ShelfPost> _posts = const [];
   var _stats = (reviews: 0, notes: 0);
-  var _canAppendLesson = false;
 
   @override
   void initState() {
@@ -52,12 +49,6 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
     };
     _loadBook();
     _loadPosts();
-    _loadCap();
-  }
-
-  Future<void> _loadCap() async {
-    final ok = await ref.read(shelfRepoProvider).canAppendCollectionLesson();
-    if (mounted) setState(() => _canAppendLesson = ok);
   }
 
   Future<void> _loadBook() async {
@@ -308,26 +299,6 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                               ),
                             ),
                           ),
-                          if (_canAppendLesson &&
-                              (book.bookType == 'collection' ||
-                                  shelfIsChildrenLessonBook(id: book.id, title: book.title))) ...[
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton(
-                                onPressed: () async {
-                                  final ok = await showShelfAppendLessonSheet(
-                                    context,
-                                    ref,
-                                    bookId: widget.bookId,
-                                    bookTitle: book.title,
-                                  );
-                                  if (ok && mounted) await _loadBook();
-                                },
-                                child: const Text('添加课节'),
-                              ),
-                            ),
-                          ],
                           const SizedBox(height: 10),
                           Text(
                             '${_stats.reviews} 篇书评 · ${_stats.notes} 条公开笔记',
