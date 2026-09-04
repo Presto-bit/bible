@@ -130,12 +130,19 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
     Boolean(mounted[tab] || (enabled && activeTab === tab));
 
   const routerPath = normalizeAppPath(routerPathname);
+  const pwaPath = normalizeAppPath(pwaPathname);
+  // pushState 已指向二级页时，即便 Next router 仍在旧 Tab，也不 suppress 路由层
+  const routeOverlayPath = isSecondaryAppPath(routerPath)
+    ? routerPath
+    : isSecondaryAppPath(pwaPath)
+      ? pwaPath
+      : routerPath;
   // 仅在 KeepAlive pane 已可见时隐藏路由 children，避免空窗期；二级页（设置等）永不 suppress
   const suppressRoute =
     enabled
     && activeTab !== null
     && paneVisible(activeTab)
-    && !isSecondaryAppPath(routerPath);
+    && !isSecondaryAppPath(routeOverlayPath);
 
   // 切 Tab：滚轮隔离 + 清 body 壳 class + 去焦点方框，避免「页面串行」
   useEffect(() => {

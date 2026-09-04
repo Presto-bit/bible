@@ -60,6 +60,7 @@ class HomeTodayInput {
     this.prayerTitle,
     this.groupTitle,
     this.groupSub,
+    this.groupHref,
     this.groupStatLabel,
     this.shelf,
     this.campaigns = const [],
@@ -80,6 +81,7 @@ class HomeTodayInput {
   final String? prayerTitle;
   final String? groupTitle;
   final String? groupSub;
+  final String? groupHref;
   final String? groupStatLabel;
   final HomeTodayShelfInput? shelf;
   final List<HomeTodayCampaign> campaigns;
@@ -212,13 +214,16 @@ bool _isGroupEmpty(String? title, String? sub) {
 HomeTodaySlot _groupSlot(HomeTodayInput input) {
   final t = input.groupTitle;
   final s = input.groupSub;
+  final href = (input.groupHref ?? '').trim().isEmpty
+      ? '/discover'
+      : input.groupHref!.trim();
   if (_isGroupEmpty(t, s)) {
-    return const HomeTodaySlot(
+    return HomeTodaySlot(
       id: 'group',
       tag: '共读',
       title: '创建共读',
       sub: '',
-      href: '/discover',
+      href: href,
       cta: '去创建',
     );
   }
@@ -232,7 +237,7 @@ HomeTodaySlot _groupSlot(HomeTodayInput input) {
       tag: '共读',
       title: '待打卡',
       sub: '',
-      href: '/discover',
+      href: href,
       badge: badge,
       cta: '去打卡',
       pending: true,
@@ -245,19 +250,19 @@ HomeTodaySlot _groupSlot(HomeTodayInput input) {
       tag: '共读',
       title: '${taskMatch.group(1)} 个任务',
       sub: '',
-      href: '/discover',
+      href: href,
       badge: badge,
       cta: '去完成',
       pending: true,
     );
   }
   if (status == '今日共读已完成') {
-    return const HomeTodaySlot(
+    return HomeTodaySlot(
       id: 'group',
       tag: '共读',
       title: '今日已完成',
       sub: '',
-      href: '/discover',
+      href: href,
       cta: '看看',
       done: true,
     );
@@ -271,7 +276,7 @@ HomeTodaySlot _groupSlot(HomeTodayInput input) {
           ? '${friendsMatch.group(1)} 位好友'
           : '看看动态',
       sub: '',
-      href: '/discover',
+      href: href,
       cta: '看看',
     );
   }
@@ -281,7 +286,7 @@ HomeTodaySlot _groupSlot(HomeTodayInput input) {
       tag: '共读',
       title: '今日已打卡',
       sub: '',
-      href: '/discover',
+      href: href,
       badge: badge,
       cta: '进入',
       done: true,
@@ -292,7 +297,7 @@ HomeTodaySlot _groupSlot(HomeTodayInput input) {
     tag: '共读',
     title: _trimSide(status),
     sub: '',
-    href: '/discover',
+    href: href,
     badge: badge,
     cta: '进入',
   );

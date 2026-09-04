@@ -7,6 +7,7 @@ import {
   resolveTodayTileKind,
   resolveTodayTileObjectPosition,
 } from '@/lib/home_today_tile_image';
+import { shellTapProps } from '@/lib/shell_tap';
 
 type Props = {
   slot: HomeTodayPanelSlot;
@@ -101,7 +102,7 @@ export function HomeTodayTile({
           ? `${slot.tag}：${slot.title}，${slot.sub}`
           : `${slot.tag}：${slot.title}`
       }
-      onClick={onClick}
+      {...shellTapProps({ onTap: onClick, softRecover: true })}
       onContextMenu={(e) => e.preventDefault()}
     >
       <span className="home-today-tile-media" aria-hidden>

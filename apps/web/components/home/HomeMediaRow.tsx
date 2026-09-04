@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { HomeMediaIcon } from '@/components/home/HomeMediaIcon';
 import type { HomeMediaIconId, HomeMediaTone } from '@/lib/home_media_visual';
+import { shellTapProps } from '@/lib/shell_tap';
 
 export type HomeMediaMetric = {
   prefix?: string;
@@ -117,7 +118,7 @@ export function HomeMediaRow({
         .filter(Boolean)
         .join(' ')}
       aria-label={ariaLabel}
-      onClick={onClick}
+      {...shellTapProps({ onTap: onClick, softRecover: true })}
       onContextMenu={(e) => e.preventDefault()}
     >
       <span className="home-media-thumb" aria-hidden>

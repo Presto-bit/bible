@@ -22,6 +22,8 @@ import '../../core/home_day_wallpaper_cache.dart';
 import '../../core/home_greeting.dart';
 import '../../core/home_liveness.dart';
 import '../../core/campaign_nav.dart';
+import '../../core/discover_h5_redirect.dart';
+import '../../core/h5_bridge_channel.dart';
 import '../../core/open_h5.dart';
 import '../../core/theme.dart';
 import '../../core/user_storage.dart';
@@ -466,6 +468,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final groupRail = buildHomeGroupRailInput(groups, discoverSummary);
     final groupTitle = groupRail.title;
     final groupSub = groupRail.sub;
+    final groupHref = groupRail.href;
     final groupStatLabel = groupRail.statLabel;
 
     final prayerTitle = () {
@@ -499,6 +502,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         prayerTitle: prayerTitle,
         groupTitle: groupTitle,
         groupSub: groupSub,
+        groupHref: groupHref,
         groupStatLabel: groupStatLabel,
         campaigns: rails,
         planDoneToday: isPlanDayDoneToday(prefs),
@@ -530,7 +534,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return;
       }
       if (s.id == 'group' || href.startsWith('/discover')) {
-        goTab(3);
+        final discoverPath = href.startsWith('/') ? href : '/$href';
+        if (discoverPath != '/discover' && isDiscoverTabH5Path(discoverPath)) {
+          ref.read(navIndexProvider.notifier).set(3);
+          ref.read(discoverH5PathProvider.notifier).go(discoverPath);
+        } else {
+          goTab(3);
+        }
         return;
       }
       if (s.id == 'prayer' || href.startsWith('/pray')) {
