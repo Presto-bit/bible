@@ -167,12 +167,12 @@ class _TileCard extends StatelessWidget {
           child: Opacity(
             opacity: slot.done ? 0.58 : 1,
             child: SizedBox(
-              height: 116,
+              height: 132,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SizedBox(
-                    height: 64,
+                    height: 84,
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -225,7 +225,7 @@ class _TileCard extends StatelessWidget {
                   ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                      padding: const EdgeInsets.fromLTRB(10, 7, 10, 9),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

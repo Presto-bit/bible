@@ -59,9 +59,9 @@
 | 属性 | 值 |
 |------|-----|
 | 容器 | `display: grid; grid-template-columns: 1fr 1fr; gap: 8px` |
-| 单卡总高 | **116px**（Web）；Android 对齐 **116 logical px** |
-| 图区高 | **64px**（固定，非比例，便于双端一致） |
-| 文区高 | **52px**（含内边距） |
+| 单卡总高 | **132px**（Web）；Android 对齐 **132 logical px** |
+| 图区高 | **84px**（约 64% 卡高） |
+| 文区高 | **48px**（弹性，内边距略收） |
 | 圆角 | **14px**（整卡） |
 | 图区圆角 | 仅顶部：`14px 14px 0 0` |
 | 边框 | `1px solid color-mix(in srgb, var(--ink) 8%, transparent)` |
