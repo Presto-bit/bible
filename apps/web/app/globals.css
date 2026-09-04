@@ -1348,8 +1348,8 @@ html:not([data-app-theme]) .card {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 132px;
-  min-height: 132px;
+  height: 156px;
+  min-height: 156px;
   padding: 0;
   margin: 0;
   border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
@@ -1388,8 +1388,8 @@ html:not([data-app-theme]) .card {
 .home-today-tile-media {
   position: relative;
   display: block;
-  flex: 0 0 84px;
-  height: 84px;
+  flex: 0 0 104px;
+  height: 104px;
   overflow: hidden;
   background: color-mix(in srgb, var(--paper, #f7f4ef) 72%, var(--surface));
 }
@@ -2169,8 +2169,8 @@ html:not([data-app-theme]) .home-page .hero-verse.card,
 
 .home-page .hero-verse.hero-verse-has-art.card,
 .home-page .hero-verse.hero-verse-has-art {
-  /* 有图时卡面垫一层深灰，防 img 未绘时露白 */
-  background: linear-gradient(165deg, #3a3834 0%, #2a2824 100%) !important;
+  /* 有图时浅暖垫色，避免暗灰底让整张偏压抑 */
+  background: linear-gradient(165deg, #f0ebe4 0%, #e8e2da 100%) !important;
 }
 
 .home-page .hero-verse .hero-scene {
@@ -2179,7 +2179,7 @@ html:not([data-app-theme]) .home-page .hero-verse.card,
 
 /* 有风景图时：允许 WallpaperBg 在父层写 inline backgroundImage（WebView 双保险） */
 .home-page .hero-verse .hero-scene.hero-scene-has-art {
-  background-color: #2a2824;
+  background-color: #d8d0c6;
   z-index: 0;
 }
 .home-page .hero-verse .hero-scene.hero-scene-has-art:not([style*='background-image']) {
@@ -2838,10 +2838,10 @@ html.pwa-standalone .home-page .home-growth-stack {
 
 .home-page .home-media-thumb {
   position: relative;
-  flex: 0 0 60px;
-  width: 60px;
-  height: 60px;
-  border-radius: 15px;
+  flex: 0 0 68px;
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
   overflow: hidden;
   isolation: isolate;
   background: color-mix(in srgb, var(--paper, #f7f4ef) 80%, var(--surface));
@@ -2874,8 +2874,8 @@ html.pwa-standalone .home-page .home-growth-stack {
 
 .home-page .home-media-thumb-fallback svg {
   display: block;
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
 }
 
@@ -3116,7 +3116,7 @@ html.perf-lite .home-page .home-media-thumb-chip {
 }
 
 .home-page .home-growth-summary {
-  min-height: 88px;
+  min-height: 92px;
   background:
     linear-gradient(
       135deg,
@@ -3134,17 +3134,17 @@ html.perf-lite .home-page .home-media-thumb-chip {
 }
 
 .home-page .home-growth-stack .home-growth-feature {
-  min-height: 76px;
+  min-height: 84px;
   padding: 12px 14px 12px 12px;
   background: var(--surface);
   box-shadow: var(--home-shadow);
 }
 
 .home-page .home-growth-stack .home-growth-feature .home-media-thumb {
-  flex: 0 0 52px;
-  width: 52px;
-  height: 52px;
-  border-radius: 13px;
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
 }
 
 .home-page .home-growth-stack .home-growth-feature .home-media-body {
@@ -3800,9 +3800,9 @@ button.hero-b-campaign {
   pointer-events: none;
   background: linear-gradient(
     165deg,
-    rgba(20, 24, 28, 0.36) 0%,
-    rgba(20, 24, 28, 0.22) 48%,
-    rgba(20, 24, 28, 0.42) 100%
+    rgba(20, 24, 28, 0.18) 0%,
+    rgba(20, 24, 28, 0.08) 48%,
+    rgba(20, 24, 28, 0.22) 100%
   );
 }
 

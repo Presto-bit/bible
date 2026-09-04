@@ -38,6 +38,7 @@ import 'daily_verse_react_sheet.dart';
 import 'daily_verse_wallpaper_screen.dart';
 import 'hero_b_campaign.dart';
 import 'home_growth_cards.dart';
+import 'home_illustrations.dart';
 import 'home_hero_carousel.dart';
 import 'home_hero_metrics.dart';
 import 'home_onboarding_banner.dart';
@@ -1704,6 +1705,7 @@ class _GrowthStack extends StatelessWidget {
             metricPrefix: cards[i].metricPrefix,
             metricSuffix: cards[i].metricSuffix,
             imageUrl: cards[i].imageUrl,
+            imageFile: cards[i].imageFile,
             icon: _icon(cards[i].iconName),
             progressPct: cards[i].progressPct,
             isSummary: cards[i].id == 'summary',
@@ -1715,7 +1717,7 @@ class _GrowthStack extends StatelessWidget {
   }
 }
 
-/// 对齐 PWA HomeMediaRow：左媒右文（thumb 60 · title 15 · metric 22）。
+/// 对齐 PWA HomeMediaRow：左媒右文（thumb 68 · title 15 · metric 22）。
 class _MediaGrowthRow extends StatelessWidget {
   const _MediaGrowthRow({
     required this.tag,
@@ -1724,6 +1726,7 @@ class _MediaGrowthRow extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.imageUrl,
+    this.imageFile,
     this.metricValue,
     this.metricPrefix,
     this.metricSuffix,
@@ -1737,13 +1740,41 @@ class _MediaGrowthRow extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final String? imageUrl;
+  final String? imageFile;
   final String? metricValue;
   final String? metricPrefix;
   final String? metricSuffix;
   final int? progressPct;
   final bool isSummary;
 
-  double get _thumb => isSummary ? 60 : 52;
+  double get _thumb => isSummary ? 68 : 64;
+
+  Widget _thumbImage() {
+    if (imageFile != null) {
+      return buildHomeIllustration(
+        imageFile!,
+        width: _thumb,
+        height: _thumb,
+        fallback: Center(
+          child: Icon(icon, color: AppColors.accentDeep, size: 28),
+        ),
+      );
+    }
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      return Image.network(
+        imageUrl!,
+        width: _thumb,
+        height: _thumb,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Center(
+          child: Icon(icon, color: AppColors.accentDeep, size: 28),
+        ),
+      );
+    }
+    return Center(
+      child: Icon(icon, color: AppColors.accentDeep, size: 28),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1760,7 +1791,7 @@ class _MediaGrowthRow extends StatelessWidget {
             border: Border.all(color: AppColors.ink.withValues(alpha: 0.12)),
           ),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: isSummary ? 88 : 76),
+            constraints: BoxConstraints(minHeight: isSummary ? 92 : 84),
             child: Padding(
               padding: EdgeInsets.fromLTRB(14, isSummary ? 14 : 12, 16, isSummary ? 14 : 12),
               child: Row(
@@ -1774,27 +1805,7 @@ class _MediaGrowthRow extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14),
                           child: ColoredBox(
                             color: AppColors.accentWash,
-                            child: hasImage
-                                ? Image.network(
-                                    imageUrl!,
-                                    width: _thumb,
-                                    height: _thumb,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Center(
-                                      child: Icon(
-                                        icon,
-                                        color: AppColors.accentDeep,
-                                        size: 22,
-                                      ),
-                                    ),
-                                  )
-                                : Center(
-                                    child: Icon(
-                                      icon,
-                                      color: AppColors.accentDeep,
-                                      size: 22,
-                                    ),
-                                  ),
+                            child: _thumbImage(),
                           ),
                         ),
                         if (hasImage)
@@ -1810,7 +1821,7 @@ class _MediaGrowthRow extends StatelessWidget {
                               ),
                               child: Icon(
                                 icon,
-                                size: 12,
+                                size: 14,
                                 color: AppColors.accentDeep,
                               ),
                             ),

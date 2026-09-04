@@ -1,5 +1,6 @@
 /** 今日推荐 2×2 上图区：坑位固定摄影 / 书封 / 运营图 */
 
+import { clientAssetUrl } from './basePath';
 import { bookCoverImageUrl, bookIdFromReaderHref } from './book_cover';
 import { resolveCampaignCoverUrl } from './daily_verse_wallpaper';
 import type { HomeTodayPanelSlot } from './home_today_panel';
@@ -46,7 +47,7 @@ export function resolveTodayTileImage(slot: HomeTodayPanelSlot): string {
   const fromHref = bookIdFromReaderHref(slot.href)?.bookId;
   if (fromHref) return bookCoverImageUrl(fromHref);
 
-  return HOME_TILES[resolveTodayTileKind(slot)];
+  return clientAssetUrl(HOME_TILES[resolveTodayTileKind(slot)]);
 }
 
 export function resolveTodayTileObjectPosition(slot: HomeTodayPanelSlot): string {

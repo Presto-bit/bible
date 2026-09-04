@@ -1,7 +1,7 @@
 /// 首页成长区模型：对齐 Web `home_growth_cards.ts`。
 library;
 
-import '../../core/config.dart';
+import 'home_illustrations.dart';
 
 const homeGrowthMaxCards = 5;
 
@@ -53,8 +53,12 @@ class HomeGrowthCard {
 
   String? get imageUrl {
     if (imageFile == null) return null;
-    final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
-    return '$base/illustrations/home/$imageFile';
+    return homeIllustration(imageFile!).url;
+  }
+
+  String? get imageAssetPath {
+    if (imageFile == null) return null;
+    return homeIllustration(imageFile!).assetPath;
   }
 }
 

@@ -128,8 +128,8 @@ export function HomeMediaRow({
             alt=""
             className="home-media-thumb-img"
             style={{ objectPosition: imageObjectPosition }}
-            width={64}
-            height={64}
+            width={68}
+            height={68}
             loading={metric ? 'eager' : 'lazy'}
             decoding="async"
             onLoad={(e) => {
@@ -145,7 +145,7 @@ export function HomeMediaRow({
           />
         ) : null}
         <span className={`home-media-thumb-fallback${showImage ? ' is-behind' : ''}`}>
-          <HomeMediaIcon id={icon} size={26} className="home-media-icon" />
+          <HomeMediaIcon id={icon} size={30} className="home-media-icon" />
         </span>
         {showImage ? (
           <span className="home-media-thumb-chip">

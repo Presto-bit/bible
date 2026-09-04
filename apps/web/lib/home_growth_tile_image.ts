@@ -1,4 +1,6 @@
-/** 成长区横卡左图：坑位固定摄影（52×52 方图裁切） */
+/** 成长区横卡左图：坑位固定摄影（68×68 方图裁切） */
+
+import { clientAssetUrl } from './basePath';
 
 export type HomeGrowthTileId = 'summary' | 'plan' | 'theme' | 'prayer';
 
@@ -10,7 +12,7 @@ const GROWTH_TILES: Record<HomeGrowthTileId, string> = {
 };
 
 export function homeGrowthTileImage(id: HomeGrowthTileId): string {
-  return GROWTH_TILES[id];
+  return clientAssetUrl(GROWTH_TILES[id]);
 }
 
 /** 成长卡 id → 专属图 */

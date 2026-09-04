@@ -3,10 +3,10 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../core/config.dart';
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/home_day_wallpaper_cache.dart';
 import '../../core/theme.dart';
+import 'home_illustrations.dart';
 
 class HomeTodaySlot {
   const HomeTodaySlot({
@@ -103,32 +103,23 @@ class HomeTodayPanel extends StatelessWidget {
   }
 }
 
+String? _homeTileFile(HomeTodaySlot slot) {
+  if (slot.id.startsWith('campaign-')) return 'tile_activity.jpg';
+  if (slot.id == 'shelf') return 'tile_shelf.jpg';
+  if (slot.id == 'group' || slot.tag == '共读') return 'tile_fellowship.jpg';
+  if (slot.id == 'prayer' || slot.tag == '祷告') return 'tile_prayer.jpg';
+  if (slot.id == 'suggest') return 'tile_read.jpg';
+  return null;
+}
+
 String _homeTileImage(HomeTodaySlot slot) {
   final resolved = resolveCampaignCoverUrl(slot.coverUrl);
   if (resolved != null) return resolved;
-  if (slot.id.startsWith('campaign-')) {
-    return _illustrationAssetUrl('home/tile_activity.jpg');
-  }
-  if (slot.id == 'shelf') {
-    return _illustrationAssetUrl('home/tile_shelf.jpg');
-  }
-  if (slot.id == 'group' || slot.tag == '共读') {
-    return _illustrationAssetUrl('home/tile_fellowship.jpg');
-  }
-  if (slot.id == 'prayer' || slot.tag == '祷告') {
-    return _illustrationAssetUrl('home/tile_prayer.jpg');
-  }
-  if (slot.id == 'suggest') {
-    return _illustrationAssetUrl('home/tile_read.jpg');
-  }
+  final file = _homeTileFile(slot);
+  if (file != null) return homeIllustration(file).url;
   final h = slot.id.hashCode.abs();
   final day = (h % illustrationFiles.length) + 1;
   return dailyVerseWallpaperUrl(day);
-}
-
-String _illustrationAssetUrl(String relative) {
-  final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
-  return '$base/illustrations/$relative';
 }
 
 
@@ -145,7 +136,10 @@ class _TileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const mediaH = 104.0;
+    const cardH = 156.0;
     final src = _homeTileImage(slot);
+    final tileFile = _homeTileFile(slot);
     final borderColor = slot.pending
         ? AppColors.accentDeep.withValues(alpha: 0.55)
         : AppColors.line.withValues(alpha: 0.55);
@@ -167,24 +161,30 @@ class _TileCard extends StatelessWidget {
           child: Opacity(
             opacity: slot.done ? 0.58 : 1,
             child: SizedBox(
-              height: 132,
+              height: cardH,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SizedBox(
-                    height: 84,
+                    height: mediaH,
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        HomeDayNetworkImage(
-                          url: src,
-                          fit: BoxFit.cover,
-                          cacheWidth: 400,
-                          cacheHeight: 200,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFFE6E3DC),
-                          ),
-                        ),
+                        tileFile != null && resolveCampaignCoverUrl(slot.coverUrl) == null
+                            ? buildHomeIllustration(
+                                tileFile,
+                                width: double.infinity,
+                                height: mediaH,
+                              )
+                            : HomeDayNetworkImage(
+                                url: src,
+                                fit: BoxFit.cover,
+                                cacheWidth: 480,
+                                cacheHeight: 260,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: const Color(0xFFE6E3DC),
+                                ),
+                              ),
                         DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
