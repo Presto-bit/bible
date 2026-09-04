@@ -83,7 +83,6 @@ import { watchChinaDayChange } from '@/lib/daily_clock';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
-import { initPcWheelPassthrough } from '@/lib/pc_wheel_passthrough';
 import { markHomeBootstrapReady } from '@/lib/offline_bootstrap';
 import HomeOnboardingBanner from '@/components/home/HomeOnboardingBanner';
 import {
@@ -357,11 +356,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     // 每日经文直接铺风景图（按 day 轮换）
     setHeroIllustration(dailyVerseWallpaperUrl(dv?.day ?? 1));
   }, [dv?.day]);
-
-  useEffect(() => {
-    if (!homeAwake) return;
-    return initPcWheelPassthrough();
-  }, [homeAwake]);
 
   const lastRailNetAtRef = useRef(0);
   const lastBootstrapAtRef = useRef(0);

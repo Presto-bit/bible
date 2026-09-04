@@ -7,6 +7,23 @@ function isFinePointer(): boolean {
   return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 }
 
+function appBodyScroller(): HTMLElement | null {
+  const app = document.querySelector('.app-body');
+  if (!(app instanceof HTMLElement)) return null;
+  const oy = getComputedStyle(app).overflowY;
+  if (oy !== 'auto' && oy !== 'scroll' && oy !== 'overlay') return null;
+  return app;
+}
+
+function scrollByY(deltaY: number): void {
+  const app = appBodyScroller();
+  if (app && app.scrollHeight > app.clientHeight + 1) {
+    app.scrollBy(0, deltaY);
+    return;
+  }
+  window.scrollBy(0, deltaY);
+}
+
 function canScrollY(el: HTMLElement): boolean {
   const oy = getComputedStyle(el).overflowY;
   if (oy !== 'auto' && oy !== 'scroll' && oy !== 'overlay') return false;
@@ -33,7 +50,7 @@ export function initPcWheelPassthrough(): () => void {
     }
 
     e.preventDefault();
-    window.scrollBy(0, e.deltaY);
+    scrollByY(e.deltaY);
   };
 
   window.addEventListener('wheel', onWheel, { passive: false, capture: true });

@@ -199,6 +199,39 @@ a {
   user-select: none;
 }
 
+/*
+ * PC 浏览器（鼠标/触控板）：主滚动收口到 .app-body，避免 html/body 与壳层嵌套抢轮询。
+ * 移动端/PWA 仍走 document 滚动，行为不变。
+ */
+@media (hover: hover) and (pointer: fine) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app-body {
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 0;
+    overflow-x: clip;
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--ink-faint) 38%, transparent) transparent;
+  }
+
+  .app-body::-webkit-scrollbar {
+    display: block;
+    width: 8px;
+  }
+
+  .app-body::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ink-faint) 32%, transparent);
+  }
+}
+
 /* 主屏幕 PWA / 安卓壳（均挂 pwa-standalone）共用顶栏最小顶距 */
 body.pwa-standalone .app-body {
   padding-top: max(var(--safe-top), 4px);

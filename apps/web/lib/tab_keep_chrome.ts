@@ -15,8 +15,27 @@ export { dismissPortaledOverlays, purgeShellTouchBlockers };
 
 const scrollByTab: Partial<Record<KeepAliveTabId, number>> = {};
 
+function appBodyEl(): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  const app = document.querySelector('.app-body');
+  return app instanceof HTMLElement ? app : null;
+}
+
+/** PC 浏览器：主滚动在 .app-body；移动端/PWA 仍在 document */
+function usesAppBodyScroll(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return false;
+  const app = appBodyEl();
+  if (!app) return false;
+  const oy = getComputedStyle(app).overflowY;
+  return oy === 'auto' || oy === 'scroll' || oy === 'overlay';
+}
+
 export function readDocumentScrollTop(): number {
   if (typeof window === 'undefined') return 0;
+  if (usesAppBodyScroll()) {
+    return Math.max(0, appBodyEl()?.scrollTop ?? 0);
+  }
   const se = document.scrollingElement;
   const seTop = se instanceof HTMLElement ? se.scrollTop : 0;
   return Math.max(
@@ -31,6 +50,13 @@ export function readDocumentScrollTop(): number {
 export function writeDocumentScrollTop(y: number): void {
   if (typeof window === 'undefined') return;
   const next = Math.max(0, Math.floor(y));
+  if (usesAppBodyScroll()) {
+    const app = appBodyEl();
+    if (app) {
+      app.scrollTop = next;
+      return;
+    }
+  }
   window.scrollTo(0, next);
   document.documentElement.scrollTop = next;
   document.body.scrollTop = next;
@@ -103,6 +129,14 @@ export function onKeepAliveTabChange(
   if (prev && prev !== next) {
     // 先关 portal / 透明吞点击层 / body 锁，再清 chrome
     purgeShellTouchBlockers();
+    try {
+      document.body.style.removeProperty('overflow');
+      document.body.style.removeProperty('height');
+      document.documentElement.style.removeProperty('overflow');
+      document.documentElement.style.removeProperty('height');
+    } catch {
+      /* ignore */
+    }
   }
   cleanupTabBodyChrome(prev, next);
   clearInteractiveFocusArtifacts();

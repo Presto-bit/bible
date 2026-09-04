@@ -33,6 +33,7 @@ import {
   loadAssistantDraft,
   saveAssistantDraft,
 } from '@/lib/assistant_session_draft';
+import { isFinePointerUI } from '@/lib/touch_ui';
 import { useAssistantViewport } from '@/lib/use_assistant_viewport';
 import {
   findResumableSession,
@@ -391,6 +392,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
 
     const onWheel = (e: WheelEvent) => {
       if (allowTouch(e.target)) return;
+      // PC 浏览器走 .app-body 滚动，勿拦截滚轮
+      if (isFinePointerUI()) return;
       e.preventDefault();
     };
 
