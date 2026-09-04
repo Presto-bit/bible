@@ -178,6 +178,7 @@ HomeTodaySlot _readSlot(HomeTodayInput input) {
       sub: '',
       href: '/reader',
       cta: '继续',
+      bookId: input.resumeBookId,
     );
   }
 
@@ -189,16 +190,18 @@ HomeTodaySlot _readSlot(HomeTodayInput input) {
       sub: '',
       href: '/reader',
       cta: input.readToday ? '再读' : '继续',
+      bookId: input.resumeBookId,
     );
   }
 
-  return const HomeTodaySlot(
+  return HomeTodaySlot(
     id: 'suggest',
     tag: '继续阅读',
     title: '从约翰福音开始',
     sub: '',
     href: '/reader?book=JHN&chapter=1',
     cta: '去读',
+    bookId: 'JHN',
   );
 }
 

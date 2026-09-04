@@ -15,7 +15,8 @@ import 'shelf_repository.dart';
 import 'shelf_append_lesson_sheet.dart';
 import 'shelf_reader_contract.dart';
 
-final shelfListProvider = FutureProvider.autoDispose<ShelfListData>((ref) async {
+final shelfListProvider = FutureProvider<ShelfListData>((ref) async {
+  ref.keepAlive();
   return ref.watch(shelfRepoProvider).listPlatform();
 });
 
@@ -274,6 +275,9 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(shelfListProvider);
+    ref.listen(shelfListProvider, (prev, next) {
+      next.whenData((data) => _library.syncFromBooks(data.items));
+    });
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -406,16 +410,20 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                     ),
                   ),
                 if (books.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: Text(
-                        _searchCtrl.text.trim().isNotEmpty
-                            ? '没有匹配的书'
-                            : _tab.kind == ShelfLibraryTabKind.progress
-                                ? '暂无符合条件的书'
-                                : '书架空空的，可导入或等平台上架',
-                        style: AppTypography.meta,
+                  SliverToBoxAdapter(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: MediaQuery.sizeOf(context).height * 0.45,
+                      ),
+                      child: Center(
+                        child: Text(
+                          _searchCtrl.text.trim().isNotEmpty
+                              ? '没有匹配的书'
+                              : _tab.kind == ShelfLibraryTabKind.progress
+                                  ? '暂无符合条件的书'
+                                  : '书架空空的，可导入或等平台上架',
+                          style: AppTypography.meta,
+                        ),
                       ),
                     ),
                   )

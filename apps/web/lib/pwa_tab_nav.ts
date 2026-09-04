@@ -62,7 +62,8 @@ export function navigateAppHref(
   if (isSecondaryAppPath(pathOnly) || keepAliveTabId(pathOnly) === null) {
     beginSoftNavProgress(normalized);
   }
-  // 保活模式：Next router 未跟上时仍停在旧 Tab，首页 pane 会盖住二级页（祷告/群详情等）。
+  router.push(normalized);
+  // 保活模式：router 启动后再同步 pushState，避免 pane 先卸光而路由层仍是旧 Tab
   if (isTabKeepAliveEnabled() && isSecondaryAppPath(pathOnly)) {
     const fullHref = clientWithBasePath(normalized);
     const currentUrl = `${window.location.pathname}${window.location.search}`;
@@ -71,9 +72,7 @@ export function navigateAppHref(
     }
     window.dispatchEvent(new Event('presto-tab-nav'));
   }
-  router.push(normalized);
   // Next soft nav 不触发 popstate；补一次同步，避免 pwaPath 停在旧 Tab 路径
-  // 导致保活层继续盖住二级页（iOS PWA 无地址栏时像「点了没反应」）。
   if (typeof window !== 'undefined' && isTabKeepAliveEnabled()) {
     window.requestAnimationFrame(() => {
       window.dispatchEvent(new Event('presto-tab-nav'));
@@ -96,6 +95,11 @@ export function resolvePwaPathname(routerPathname: string, pwaPathname: string):
 
   // 设置 / IM 等二级页：始终跟 Next router，避免仍亮「我的/发现」保活层导致设置页被 suppress、点击无响应
   if (isSecondaryAppPath(r)) return r;
+
+  // pushState 已指向二级页但 Next router 尚未切过去：仍跟 router，避免主 Tab pane 全隐藏而路由层还是首页 → 灰屏/点击无反应
+  if (isSecondaryAppPath(p) && !isSecondaryAppPath(r) && lastNavSource === 'route') {
+    return r;
+  }
 
   // pushState 已切到二级页、Next router 尚在旧 Tab：跟 pwa，卸掉首页保活层
   if (isSecondaryAppPath(p) && lastNavSource === 'route') return p;

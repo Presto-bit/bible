@@ -4429,6 +4429,8 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           WidgetSpan(alignment: PlaceholderAlignment.top, child: t),
         );
         index.placeholder();
+        spans.add(const TextSpan(text: '\n'));
+        index.text(value: '\n', verse: v.verse, verseStart: 0, words: const []);
       }
       final feedHint = widget.feedHintForVerse?.call(v.verse);
       if (feedHint != null) {

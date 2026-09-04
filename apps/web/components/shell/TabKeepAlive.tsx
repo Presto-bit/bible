@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { isTabKeepAliveEnabled } from '@/lib/platform';
+import { isTabKeepAliveEnabled, isStandalonePwa } from '@/lib/platform';
 import {
   APP_SECONDARY_PREFIXES,
   DISCOVER_SECONDARY_PREFIXES,
@@ -181,7 +181,9 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
       lastActiveAtRef.current.profile = Date.now();
     }
     const maxTabs =
-      isPeiaiAndroidShell() ? MAX_MOUNTED_TABS_SHELL : MAX_MOUNTED_TABS;
+      isPeiaiAndroidShell() || isStandalonePwa()
+        ? MAX_MOUNTED_TABS_SHELL
+        : MAX_MOUNTED_TABS;
     setMounted((prev) => {
       const next: Record<KeepAliveTabId, boolean> = { ...prev };
       if (activeTab) next[activeTab] = true;

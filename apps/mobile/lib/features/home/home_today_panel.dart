@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../core/book_cover.dart';
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/home_day_wallpaper_cache.dart';
 import '../../core/peiai_polish.dart';
@@ -22,6 +23,7 @@ class HomeTodaySlot {
     this.done = false,
     this.pending = false,
     this.coverUrl,
+    this.bookId,
   });
 
   final String id;
@@ -35,6 +37,7 @@ class HomeTodaySlot {
   final bool done;
   final bool pending;
   final String? coverUrl;
+  final String? bookId;
 }
 
 class HomeTodayPanel extends StatelessWidget {
@@ -109,18 +112,20 @@ String? _homeTileFile(HomeTodaySlot slot) {
   if (slot.id == 'shelf') return 'tile_shelf.jpg';
   if (slot.id == 'group' || slot.tag == '共读') return 'tile_fellowship.jpg';
   if (slot.id == 'prayer' || slot.tag == '祷告') return 'tile_prayer.jpg';
-  if (slot.id == 'suggest') return 'tile_read.jpg';
+  if (slot.id == 'suggest' || slot.id == 'resume') return 'tile_read.jpg';
   return null;
 }
 
 String _homeTileImage(HomeTodaySlot slot) {
   final resolved = resolveCampaignCoverUrl(slot.coverUrl);
   if (resolved != null) return resolved;
+  final bookId = slot.bookId ?? bookIdFromReaderHref(slot.href);
+  if (bookId != null && bookId.isNotEmpty) {
+    return bookCoverImageUrl(bookId);
+  }
   final file = _homeTileFile(slot);
   if (file != null) return homeIllustration(file).url;
-  final h = slot.id.hashCode.abs();
-  final day = (h % illustrationFiles.length) + 1;
-  return dailyVerseWallpaperUrl(day);
+  return homeIllustration('tile_read.jpg').url;
 }
 
 

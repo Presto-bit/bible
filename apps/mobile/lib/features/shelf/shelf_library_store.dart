@@ -294,7 +294,6 @@ class ShelfLibraryStore {
     ShelfLibraryTab tab,
     String query,
   ) {
-    syncFromBooks(books);
     final meta = _booksMap();
     final q = query.trim().toLowerCase();
     var list = books.where((b) {

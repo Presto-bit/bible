@@ -83,6 +83,7 @@ import { watchChinaDayChange } from '@/lib/daily_clock';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
+import { shellTapProps } from '@/lib/shell_tap';
 import { markHomeBootstrapReady } from '@/lib/offline_bootstrap';
 import HomeOnboardingBanner from '@/components/home/HomeOnboardingBanner';
 import {
@@ -938,7 +939,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             type="button"
             aria-label="搜索"
             className="icon-btn"
-            onClick={() => go('/search')}
+            {...shellTapProps({ onTap: () => go('/search'), softRecover: true })}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
