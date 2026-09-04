@@ -9,6 +9,30 @@ import { clientWithBasePath, withBasePath } from './basePath';
 type NavSource = 'tab' | 'route';
 
 let lastNavSource: NavSource = 'route';
+let lastMainTabHref: PwaMainTabHref = '/';
+
+/** 底栏 / Tab 高亮：二级页 pushState 已变、Next router 未跟上时为 true */
+export function isSecondaryNavPending(routerPathname: string, pwaPathname: string): boolean {
+  const r = normalizeAppPath(routerPathname);
+  const p = normalizeAppPath(pwaPathname);
+  return isSecondaryAppPath(p) && !isSecondaryAppPath(r) && lastNavSource === 'route';
+}
+
+export function getPwaMainTabFallback(): PwaMainTabHref {
+  return lastMainTabHref;
+}
+
+/**
+ * 壳层 pathname（底栏高亮 / Tab LRU）：二级页导航过渡期跟来源主 Tab，
+ * 避免 pushState 已到 /shelf 而 router 仍在 / 时误判为「无 Tab + 藏底栏 + 露出首页路由」。
+ */
+export function resolvePwaShellPathname(routerPathname: string, pwaPathname: string): string {
+  const r = normalizeAppPath(routerPathname);
+  if (isSecondaryNavPending(routerPathname, pwaPathname)) {
+    return lastMainTabHref;
+  }
+  return resolvePwaPathname(routerPathname, pwaPathname);
+}
 
 /** Next Link / router 进入二级页（如 /admin）时标记，供 pathname 解析。 */
 export function markRouteNavigation(): void {
@@ -26,6 +50,7 @@ export function isPwaMainTabHref(href: string): href is PwaMainTabHref {
 export function navigatePwaTab(href: PwaMainTabHref): void {
   const fullHref = withBasePath(href);
   const target = normalizeAppPath(fullHref);
+  lastMainTabHref = target as PwaMainTabHref;
   const current = normalizeAppPath(window.location.pathname);
   lastNavSource = 'tab';
   if (current !== target) {
@@ -51,6 +76,7 @@ export function navigateAppHref(
     const currentPath = normalizeAppPath(window.location.pathname);
     const currentUrl = `${window.location.pathname}${window.location.search}`;
     lastNavSource = 'tab';
+    lastMainTabHref = pathOnly as PwaMainTabHref;
     if (currentPath !== pathOnly || currentUrl !== fullHref) {
       window.history.pushState({ pwaTab: true }, '', fullHref);
     }
@@ -95,11 +121,6 @@ export function resolvePwaPathname(routerPathname: string, pwaPathname: string):
 
   // 设置 / IM 等二级页：始终跟 Next router，避免仍亮「我的/发现」保活层导致设置页被 suppress、点击无响应
   if (isSecondaryAppPath(r)) return r;
-
-  // pushState 已指向二级页但 Next router 尚未切过去：仍跟 router，避免主 Tab pane 全隐藏而路由层还是首页 → 灰屏/点击无反应
-  if (isSecondaryAppPath(p) && !isSecondaryAppPath(r) && lastNavSource === 'route') {
-    return r;
-  }
 
   // pushState 已切到二级页、Next router 尚在旧 Tab：跟 pwa，卸掉首页保活层
   if (isSecondaryAppPath(p) && lastNavSource === 'route') return p;

@@ -9,7 +9,7 @@ import {
   getPwaTabPathname,
   isPwaMainTabHref,
   navigatePwaTab,
-  resolvePwaPathname,
+  resolvePwaShellPathname,
   subscribePwaTabNav,
 } from '@/lib/pwa_tab_nav';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
@@ -231,5 +231,5 @@ function useRouterPathname(): string {
     getPwaTabPathname,
     () => '/',
   );
-  return keepAlive ? resolvePwaPathname(routerPath, pwaPath) : normalizeAppPath(routerPath);
+  return keepAlive ? resolvePwaShellPathname(routerPath, pwaPath) : normalizeAppPath(routerPath);
 }

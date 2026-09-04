@@ -21,6 +21,16 @@
   position: relative;
 }
 
+/* Tab 保活：app-body 顶垫与 .assistant-page 只算一次 safe-top */
+html.pwa-standalone:has(.tab-keep-pane-active .assistant-page) .app-body {
+  padding-top: 0 !important;
+}
+
+.tab-keep-pane-active .assistant-page.container,
+.tab-keep-pane-active .container.assistant-page {
+  padding-top: max(6px, env(safe-area-inset-top, 0px));
+}
+
 /* 有对话：顶栏再贴一点，把空间留给消息 */
 .assistant-page:has(> .assistant-body:not(.is-empty)) > .assistant-head {
   margin-bottom: 4px;

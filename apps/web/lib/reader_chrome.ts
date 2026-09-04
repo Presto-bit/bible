@@ -20,6 +20,22 @@ export function clearReaderChrome() {
   window.dispatchEvent(new Event('app-theme-change'));
 }
 
+/** 沉浸阅读 / 朗读半屏结束后，卸掉 tabbar 上可能残留的 inline 样式（iOS PWA 偶发 opacity 卡 0）。 */
+export function restoreMainTabbar() {
+  if (typeof document === 'undefined') return;
+  const bar = document.querySelector<HTMLElement>('.tabbar');
+  if (!bar) return;
+  bar.style.removeProperty('transform');
+  bar.style.removeProperty('bottom');
+  bar.style.removeProperty('top');
+  bar.style.removeProperty('opacity');
+  bar.style.removeProperty('visibility');
+  bar.style.removeProperty('pointer-events');
+  bar.style.removeProperty('position');
+  bar.style.removeProperty('transition');
+  bar.style.pointerEvents = '';
+}
+
 /**
  * 关词典/半屏后恢复横滑与顶栏点击：
  * - 剥 is-turning（touch-action:none 时壳上常只剩竖滚）

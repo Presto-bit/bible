@@ -16,8 +16,9 @@ import {
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 import {
   getPwaTabPathname,
+  isSecondaryNavPending,
   markRouteNavigation,
-  resolvePwaPathname,
+  resolvePwaShellPathname,
   subscribePwaTabNav,
 } from '@/lib/pwa_tab_nav';
 import { isAssistantStreamBusy } from '@/lib/assistant_stream_busy';
@@ -118,31 +119,41 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
     }
     prevRouterRef.current = routerPathname;
   }
-  const pathname = enabled
-    ? resolvePwaPathname(routerPathname, pwaPathname)
-    : normalizeAppPath(routerPathname);
-  const activeTab = keepAliveTabId(pathname);
+  const routerPath = normalizeAppPath(routerPathname);
+  const pwaPath = normalizeAppPath(pwaPathname);
+  const shellPath = enabled
+    ? resolvePwaShellPathname(routerPathname, pwaPathname)
+    : routerPath;
+  const activeTab = keepAliveTabId(shellPath);
   const [mounted, setMounted] = useState<Record<KeepAliveTabId, boolean>>(emptyMounted);
   const prevActiveTabRef = useRef<KeepAliveTabId | null>(null);
 
-  // 当前 Tab 首帧就要挂载：不可等 useEffect，否则 suppress 后无 pane → 白屏
-  const paneVisible = (tab: KeepAliveTabId) =>
-    Boolean(mounted[tab] || (enabled && activeTab === tab));
-
-  const routerPath = normalizeAppPath(routerPathname);
-  const pwaPath = normalizeAppPath(pwaPathname);
   // pushState 已指向二级页时，即便 Next router 仍在旧 Tab，也不 suppress 路由层
   const routeOverlayPath = isSecondaryAppPath(routerPath)
     ? routerPath
     : isSecondaryAppPath(pwaPath)
       ? pwaPath
       : routerPath;
+  const secondaryNavPending = isSecondaryNavPending(routerPathname, pwaPathname);
+  // 二级页：卸掉主 Tab pane，只显示 Next 路由层（笔记 / 书架 / 搜索等）
+  // 过渡期 router 未跟上时仍保留来源 Tab，避免露出旧路由首页
+  const effectiveActiveTab = isSecondaryAppPath(routerPath) ? null : activeTab;
+
+  // 当前 Tab 首帧就要挂载：不可等 useEffect，否则 suppress 后无 pane → 白屏
+  const paneVisible = (tab: KeepAliveTabId) =>
+    Boolean(mounted[tab] || (enabled && effectiveActiveTab === tab));
+
   // 仅在 KeepAlive pane 已可见时隐藏路由 children，避免空窗期；二级页（设置等）永不 suppress
   const suppressRoute =
     enabled
-    && activeTab !== null
-    && paneVisible(activeTab)
-    && !isSecondaryAppPath(routeOverlayPath);
+    && (
+      secondaryNavPending
+      || (
+        effectiveActiveTab !== null
+        && paneVisible(effectiveActiveTab)
+        && !isSecondaryAppPath(routeOverlayPath)
+      )
+    );
 
   // 切 Tab：滚轮隔离 + 清 body 壳 class + 去焦点方框，避免「页面串行」
   useEffect(() => {
@@ -152,10 +163,10 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
     }
     const prev = prevActiveTabRef.current;
     if (prev !== activeTab) {
-      onKeepAliveTabChange(prev, activeTab);
-      prevActiveTabRef.current = activeTab;
+      onKeepAliveTabChange(prev, effectiveActiveTab);
+      prevActiveTabRef.current = effectiveActiveTab;
     }
-  }, [enabled, activeTab]);
+  }, [enabled, activeTab, effectiveActiveTab]);
 
   // 按需挂载 + LRU 驱逐：访问过的 Tab 保持实例，超出上限卸掉最久未用（保护 home/当前）
   useEffect(() => {
@@ -171,13 +182,22 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
     const onAppSecondaryFromProfile = APP_SECONDARY_PREFIXES.some(
       (p) => routerPath === p || routerPath.startsWith(`${p}/`),
     );
+    const onAppSecondaryFromProfilePwa = APP_SECONDARY_PREFIXES.some(
+      (p) => pwaPath === p || pwaPath.startsWith(`${p}/`),
+    );
     // 二级页（设置 / IM / 笔记书架）时 activeTab 为 null，仍需保护对应主 Tab 列表保活
-    if (!activeTab && !onDiscoverSecondary && !onProfileSecondary && !onAppSecondaryFromProfile) {
+    if (
+      !activeTab
+      && !onDiscoverSecondary
+      && !onProfileSecondary
+      && !onAppSecondaryFromProfile
+      && !onAppSecondaryFromProfilePwa
+    ) {
       return;
     }
     if (activeTab) lastActiveAtRef.current[activeTab] = Date.now();
     if (onDiscoverSecondary) lastActiveAtRef.current.discover = Date.now();
-    if (onProfileSecondary || onAppSecondaryFromProfile) {
+    if (onProfileSecondary || onAppSecondaryFromProfile || onAppSecondaryFromProfilePwa) {
       lastActiveAtRef.current.profile = Date.now();
     }
     const maxTabs =
@@ -188,7 +208,9 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
       const next: Record<KeepAliveTabId, boolean> = { ...prev };
       if (activeTab) next[activeTab] = true;
       if (onDiscoverSecondary) next.discover = true;
-      if (onProfileSecondary || onAppSecondaryFromProfile) next.profile = true;
+      if (onProfileSecondary || onAppSecondaryFromProfile || onAppSecondaryFromProfilePwa) {
+        next.profile = true;
+      }
       let mountedIds = ALL_TABS.filter((t) => next[t]);
       if (mountedIds.length <= maxTabs) return next;
 
@@ -196,7 +218,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
       if (activeTab) protectedTabs.add(activeTab);
       if (isAssistantStreamBusy()) protectedTabs.add('assistant');
       if (onDiscoverSecondary || activeTab === 'discover') protectedTabs.add('discover');
-      if (onProfileSecondary || onAppSecondaryFromProfile || activeTab === 'profile') {
+      if (onProfileSecondary || onAppSecondaryFromProfile || onAppSecondaryFromProfilePwa || activeTab === 'profile') {
         protectedTabs.add('profile');
       }
       const victims = mountedIds
@@ -212,7 +234,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
       }
       return next;
     });
-  }, [enabled, activeTab, routerPathname]);
+  }, [enabled, activeTab, routerPathname, pwaPathname]);
 
   useEffect(() => {
     if (enabled) return;
@@ -226,11 +248,11 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
     if (!(el instanceof HTMLElement)) return;
     const pane = el.closest('.tab-keep-pane');
     if (pane?.hasAttribute('hidden')) el.blur();
-  }, [activeTab, enabled]);
+  }, [effectiveActiveTab, enabled]);
 
   const ctx = useMemo(
-    () => ({ enabled, activeTab, suppressRoute }),
-    [enabled, activeTab, suppressRoute],
+    () => ({ enabled, activeTab: effectiveActiveTab, suppressRoute }),
+    [enabled, effectiveActiveTab, suppressRoute],
   );
 
   if (!enabled) {
@@ -245,7 +267,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
       {ALL_TABS.map((tab) => {
         if (!paneVisible(tab)) return null;
         const Pane = TAB_COMPONENTS[tab];
-        const active = activeTab === tab;
+        const active = effectiveActiveTab === tab;
         return (
           <div
             key={tab}

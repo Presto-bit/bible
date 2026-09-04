@@ -151,7 +151,7 @@ import {
   getReaderReturnHref,
   readerBackHref,
 } from '@/lib/reader_return';
-import { clearReaderChrome, unlockReaderSurface } from '@/lib/reader_chrome';
+import { clearReaderChrome, restoreMainTabbar, unlockReaderSurface } from '@/lib/reader_chrome';
 import { shellTapProps } from '@/lib/shell_tap';
 import { scheduleTabChrome } from '@/lib/tab_chrome';
 import {
@@ -1243,21 +1243,27 @@ export default function ReaderView({
       document.body.classList.remove('reader-immersive');
       return;
     }
-    if (chromeHidden) document.body.classList.add('reader-immersive');
-    else document.body.classList.remove('reader-immersive');
+    if (chromeHidden) {
+      document.body.classList.add('reader-immersive');
+    } else {
+      document.body.classList.remove('reader-immersive');
+      restoreMainTabbar();
+    }
   }, [chromeHidden, paneActive]);
 
   useEffect(() => {
     if (!paneActive || !audioFocusOpen) {
       document.body.classList.remove('reader-audio-focus-open');
+      if (paneActive && !audioFocusOpen && !chromeHidden) restoreMainTabbar();
       return;
     }
     setChromeHidden(false);
     document.body.classList.add('reader-audio-focus-open');
     return () => {
       document.body.classList.remove('reader-audio-focus-open');
+      restoreMainTabbar();
     };
-  }, [audioFocusOpen, paneActive]);
+  }, [audioFocusOpen, paneActive, chromeHidden]);
 
   // 半屏面板打开时显示顶栏与底部 Tab。
   useEffect(() => {
