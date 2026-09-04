@@ -59,9 +59,18 @@ const nextConfig = {
         ],
       },
       {
+        source: '/illustrations/home/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400, immutable',
+          },
+        ],
+      },
+      {
         // 排除静态插画壁纸（否则会覆盖为 no-cache，壳上背景常下失败）
         source:
-          '/((?!_next/static|_next/image|favicon.ico|icon-|apple-touch|manifest|sw\\.js|daily-wallpapers/|rail-scenes/).*)',
+          '/((?!_next/static|_next/image|favicon.ico|icon-|apple-touch|manifest|sw\\.js|daily-wallpapers/|rail-scenes/|illustrations/home/).*)',
         headers: [{ key: 'Cache-Control', value: 'no-cache, must-revalidate' }],
       },
     ];

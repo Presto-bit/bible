@@ -20,6 +20,11 @@ const HOME_TILES: Record<HomeTodayTileKind, string> = {
   shelf: '/illustrations/home/tile_shelf.jpg',
 };
 
+/** 预取用：五张固定今日推荐插图绝对 URL */
+export function homeTodayTileWarmUrls(): string[] {
+  return Object.values(HOME_TILES).map((p) => clientAssetUrl(p));
+}
+
 /** 64px 图区裁切锚点（摄影图主体居中偏下） */
 const TILE_OBJECT_POSITION: Record<HomeTodayTileKind, string> = {
   activity: 'center 42%',

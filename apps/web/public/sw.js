@@ -26,6 +26,14 @@ const ILLUSTRATION_FILES = [
   'theme_祷告.svg', 'theme_忍耐.svg', 'theme_永生.svg', 'theme_顺服.svg',
 ];
 
+const HOME_ILLUSTRATION_FILES = [
+  'home/tile_activity.jpg',
+  'home/tile_shelf.jpg',
+  'home/tile_read.jpg',
+  'home/tile_fellowship.jpg',
+  'home/tile_prayer.jpg',
+];
+
 /**
  * 安装期极简壳：不预拉 sql-wasm / 壁纸 / 大离线包，避免与首屏抢带宽。
  * sql-wasm、壁纸改为首次使用时 runtime cache；sqlite/zip 永不进 Cache Storage。
@@ -46,6 +54,7 @@ const SHELL = [
 
 const SHELL_WARM = [
   ...ILLUSTRATION_FILES.map((f) => bp(`/illustrations/${f}`)),
+  ...HOME_ILLUSTRATION_FILES.map((f) => bp(`/illustrations/${f}`)),
 ];
 
 /** install 只缓存首页 HTML；其余 Tab 壳放到 activate 再暖 */

@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
 import type { HomeTodayPanelModel } from '@/lib/home_today_panel';
 import { homeTodayPanelSlots } from '@/lib/home_today_panel';
+import { homeTodayTileWarmUrls } from '@/lib/home_today_tile_image';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { HomeTodayTile } from '@/components/home/HomeTodayTile';
 
@@ -32,6 +34,12 @@ export function HomeTodayPanel({
 }: Props) {
   const router = useRouter();
   const [activity, read, group, prayer] = homeTodayPanelSlots(panel);
+
+  useEffect(() => {
+    void import('@/lib/home_tile_image_cache').then(({ ensureHomeTileImages }) => {
+      void ensureHomeTileImages(homeTodayTileWarmUrls());
+    });
+  }, []);
 
   return (
     <section

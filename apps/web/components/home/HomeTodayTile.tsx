@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { HomeTodayPanelSlot } from '@/lib/home_today_panel';
 import {
   resolveTodayTileImage,
@@ -26,12 +26,59 @@ export function HomeTodayTile({
   onClick,
 }: Props) {
   const kind = resolveTodayTileKind(slot);
-  const imageSrc = resolveTodayTileImage(slot);
+  const networkSrc = resolveTodayTileImage(slot);
   const objectPosition = resolveTodayTileObjectPosition(slot);
+  const [displaySrc, setDisplaySrc] = useState(networkSrc);
   const [imgFailed, setImgFailed] = useState(false);
+  const blobRef = useRef<string | null>(null);
+
   useEffect(() => {
+    let cancelled = false;
     setImgFailed(false);
-  }, [imageSrc]);
+
+    void (async () => {
+      try {
+        const { getCachedHomeTileUrl, ensureHomeTileImages } = await import(
+          '@/lib/home_tile_image_cache'
+        );
+        const cached = await getCachedHomeTileUrl(networkSrc);
+        if (cancelled) return;
+        if (cached) {
+          if (blobRef.current && blobRef.current !== cached) {
+            try {
+              URL.revokeObjectURL(blobRef.current);
+            } catch {
+              /* ignore */
+            }
+          }
+          blobRef.current = cached;
+          setDisplaySrc(cached);
+        } else {
+          setDisplaySrc(networkSrc);
+        }
+        void ensureHomeTileImages([networkSrc]);
+      } catch {
+        if (!cancelled) setDisplaySrc(networkSrc);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [networkSrc]);
+
+  useEffect(
+    () => () => {
+      if (!blobRef.current) return;
+      try {
+        URL.revokeObjectURL(blobRef.current);
+      } catch {
+        /* ignore */
+      }
+      blobRef.current = null;
+    },
+    [],
+  );
 
   const showProgress =
     typeof slot.progressPct === 'number' && slot.progressPct > 0 && slot.progressPct < 100;
@@ -61,7 +108,7 @@ export function HomeTodayTile({
         {!imgFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={imageSrc}
+            src={displaySrc}
             alt=""
             className="home-today-tile-img"
             style={{ objectPosition }}
