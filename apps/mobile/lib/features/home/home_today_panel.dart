@@ -240,14 +240,7 @@ class _TileCardState extends State<_TileCard> {
                         Positioned(
                           left: 6,
                           bottom: 6,
-                          right: slot.badge != null && slot.badge!.isNotEmpty
-                              ? 40
-                              : 6,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
+                          child: DecoratedBox(
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.88),
                               borderRadius: BorderRadius.circular(8),
@@ -255,14 +248,20 @@ class _TileCardState extends State<_TileCard> {
                                 color: Colors.white.withValues(alpha: 0.55),
                               ),
                             ),
-                            child: Text(
-                              slot.tag,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.ink,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              child: Text(
+                                slot.tag,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.ink,
+                                ),
                               ),
                             ),
                           ),

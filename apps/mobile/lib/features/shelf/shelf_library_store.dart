@@ -347,10 +347,11 @@ class ShelfLibraryStore {
 
   bool bookCardOpensDetail(String bookId) {
     final progress = _progress.loadBook(bookId);
-    // 无有效进度 → 详情；已读完 → 详情；其余续读
-    if (progress == null) return true;
-    if (progress.sectionId.trim().isEmpty) return true;
-    if (progress.isFinished) return true;
+    final meta = _booksMap()[bookId];
+    if (progress == null && meta?.lastReadAt == null) return true;
+    if (progress?.isFinished == true) return true;
+    if ((progress?.progressRatio ?? 0) >= 0.97) return true;
+    if (progress == null || progress.sectionId.trim().isEmpty) return true;
     return false;
   }
 

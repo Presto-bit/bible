@@ -231,8 +231,25 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
     );
   }
 
+  void _selectTab(ShelfLibraryTab tab) {
+    setState(() {
+      if (tab.kind == ShelfLibraryTabKind.progress &&
+          _tab.kind != ShelfLibraryTabKind.progress) {
+        _progressFilter = ShelfProgressFilter.reading;
+        _tab = const ShelfLibraryTab.progress(ShelfProgressFilter.reading);
+        return;
+      }
+      if (tab.kind == ShelfLibraryTabKind.progress &&
+          tab.progressStatus != null) {
+        _progressFilter = tab.progressStatus!;
+      }
+      _tab = tab;
+    });
+  }
+
   Future<void> _openBook(ShelfBookSummary book) async {
     final path = _library.bookCardPath(book.id);
+    if (!mounted) return;
     try {
       await context.push(path);
     } catch (e) {
@@ -327,32 +344,32 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                         _TabChip(
                           label: '最近阅读',
                           selected: _tab.kind == ShelfLibraryTabKind.lastRead,
-                          onTap: () => setState(() => _tab = const ShelfLibraryTab.lastRead()),
+                          onTap: () => _selectTab(const ShelfLibraryTab.lastRead()),
                         ),
                         _TabChip(
                           label: '阅读进度',
                           selected: _tab.kind == ShelfLibraryTabKind.progress,
-                          onTap: () => setState(() {
-                            _tab = ShelfLibraryTab.progress(_progressFilter);
-                          }),
+                          onTap: () => _selectTab(
+                            const ShelfLibraryTab.progress(ShelfProgressFilter.reading),
+                          ),
                         ),
                         _TabChip(
                           label: '上架时间',
                           selected: _tab.kind == ShelfLibraryTabKind.added,
-                          onTap: () => setState(() => _tab = const ShelfLibraryTab.added()),
+                          onTap: () => _selectTab(const ShelfLibraryTab.added()),
                         ),
                         for (final g in _userGroups)
                           _TabChip(
                             label: g.title,
                             selected: _tab.kind == ShelfLibraryTabKind.group && _tab.groupId == g.id,
-                            onTap: () => setState(() => _tab = ShelfLibraryTab.group(g.id)),
+                            onTap: () => _selectTab(ShelfLibraryTab.group(g.id)),
                             onLongPress: () => _editGroup(g),
                           ),
                         if (showUngrouped)
                           _TabChip(
                             label: '未分组',
                             selected: _tab.kind == ShelfLibraryTabKind.group && _tab.groupId == shelfUngroupedId,
-                            onTap: () => setState(() => _tab = const ShelfLibraryTab.group(shelfUngroupedId)),
+                            onTap: () => _selectTab(const ShelfLibraryTab.group(shelfUngroupedId)),
                           ),
                         if (_userGroups.length < shelfMaxUserGroups)
                           _TabChip(
@@ -377,13 +394,12 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                             (ShelfProgressFilter.finished, '读完'),
                             (ShelfProgressFilter.unread, '未读'),
                           ])
-                            ChoiceChip(
-                              label: Text(entry.$2),
+                            _ProgressFilterChip(
+                              label: entry.$2,
                               selected: _progressFilter == entry.$1,
-                              onSelected: (_) => setState(() {
-                                _progressFilter = entry.$1;
-                                _tab = ShelfLibraryTab.progress(entry.$1);
-                              }),
+                              onTap: () => _selectTab(
+                                ShelfLibraryTab.progress(entry.$1),
+                              ),
                             ),
                         ],
                       ),
@@ -418,6 +434,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                           final book = books[i];
                           return ShelfBookCard(
                             book: book,
+                            progressRatio: _library.bookProgressRatio(book.id),
                             onTap: () => _openBook(book),
                             onDetailTap: () => _openBookDetail(book),
                             onLongPress: () => _bookActions(book),
@@ -455,27 +472,64 @@ class _TabChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 4),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: onLongPress,
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: selected
-                ? const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: AppColors.accentDeep, width: 2)),
-                  )
-                : null,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                color: accent ? AppColors.accentDeep : (selected ? AppColors.ink : AppColors.inkSoft),
-              ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: selected
+              ? const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.accentDeep, width: 2)),
+                )
+              : null,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              color: accent ? AppColors.accentDeep : (selected ? AppColors.ink : AppColors.inkSoft),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressFilterChip extends StatelessWidget {
+  const _ProgressFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accentWash : AppColors.surfaceSunken,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? AppColors.accentDeep.withValues(alpha: 0.35)
+                : AppColors.line,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            color: selected ? AppColors.accentDeep : AppColors.inkSoft,
           ),
         ),
       ),

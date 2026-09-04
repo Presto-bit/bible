@@ -7,11 +7,12 @@ import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
 import 'shelf_repository.dart';
 
-class ShelfBookCard extends StatelessWidget {
+class ShelfBookCard extends StatefulWidget {
   const ShelfBookCard({
     super.key,
     required this.book,
     this.coverUrl,
+    this.progressRatio,
     this.onTap,
     this.onDetailTap,
     this.onLongPress,
@@ -19,21 +20,71 @@ class ShelfBookCard extends StatelessWidget {
 
   final ShelfBookSummary book;
   final String? coverUrl;
+  final double? progressRatio;
   final VoidCallback? onTap;
   final VoidCallback? onDetailTap;
   final VoidCallback? onLongPress;
 
   @override
+  State<ShelfBookCard> createState() => _ShelfBookCardState();
+}
+
+class _ShelfBookCardState extends State<ShelfBookCard> {
+  Offset? _down;
+  var _moved = false;
+  var _detailPress = false;
+
+  static const _tapSlop = 18.0;
+
+  void _resetPointer() {
+    _down = null;
+    _moved = false;
+  }
+
+  void _onPointerDown(PointerDownEvent e) {
+    _down = e.position;
+    _moved = false;
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    final start = _down;
+    if (start == null || _moved) return;
+    if ((e.position - start).distance > _tapSlop) _moved = true;
+  }
+
+  void _onPointerUp(PointerUpEvent e) {
+    if (_detailPress) {
+      _detailPress = false;
+      return;
+    }
+    final start = _down;
+    _resetPointer();
+    if (start == null || _moved) return;
+    if ((e.position - start).distance > _tapSlop) return;
+    widget.onTap?.call();
+  }
+
+  void _onPointerCancel(PointerCancelEvent e) {
+    _detailPress = false;
+    _resetPointer();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // GestureDetector + opaque + expand：SliverGrid 内整格可点，避免嵌套 InkWell「点了没反应」
+    final ratio = widget.progressRatio?.clamp(0.0, 1.0);
     return Material(
       color: Colors.transparent,
       child: SizedBox.expand(
-        child: GestureDetector(
+        child: Listener(
           behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          onLongPress: onLongPress,
-          child: Column(
+          onPointerDown: widget.onTap == null ? null : _onPointerDown,
+          onPointerMove: widget.onTap == null ? null : _onPointerMove,
+          onPointerUp: widget.onTap == null ? null : _onPointerUp,
+          onPointerCancel: widget.onTap == null ? null : _onPointerCancel,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onLongPress: widget.onLongPress,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
@@ -52,24 +103,51 @@ class ShelfBookCard extends StatelessWidget {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        if (coverUrl != null && coverUrl!.isNotEmpty)
-                          Image.network(coverUrl!, fit: BoxFit.cover)
+                        if (widget.coverUrl != null && widget.coverUrl!.isNotEmpty)
+                          Image.network(widget.coverUrl!, fit: BoxFit.cover)
                         else
                           const ShelfBrandCover(),
-                        if (onDetailTap != null)
+                        if (ratio != null && ratio > 0)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: SizedBox(
+                              height: 2,
+                              child: ColoredBox(
+                                color: AppColors.ink.withValues(alpha: 0.08),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FractionallySizedBox(
+                                    widthFactor: ratio,
+                                    child: const ColoredBox(
+                                      color: AppColors.accentDeep,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (widget.onDetailTap != null)
                           Positioned(
                             top: 5,
                             right: 5,
-                            child: Material(
-                              color: Colors.black38,
-                              shape: const CircleBorder(),
-                              clipBehavior: Clip.antiAlias,
-                              child: InkWell(
-                                onTap: onDetailTap,
-                                customBorder: const CircleBorder(),
-                                child: const SizedBox(
-                                  width: 28,
-                                  height: 28,
+                            child: Listener(
+                              behavior: HitTestBehavior.opaque,
+                              onPointerDown: (_) => _detailPress = true,
+                              onPointerUp: (_) {
+                                if (_detailPress) widget.onDetailTap?.call();
+                                _detailPress = false;
+                              },
+                              onPointerCancel: (_) => _detailPress = false,
+                              child: const SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black38,
+                                    shape: BoxShape.circle,
+                                  ),
                                   child: Center(
                                     child: Text(
                                       'i',
@@ -94,7 +172,7 @@ class ShelfBookCard extends StatelessWidget {
               SizedBox(
                 height: 32,
                 child: Text(
-                  book.title,
+                  widget.book.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -107,6 +185,7 @@ class ShelfBookCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
