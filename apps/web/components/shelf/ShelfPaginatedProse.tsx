@@ -61,8 +61,6 @@ type Props = {
   proseTone?: 'default' | 'lesson';
   onScrollProgress?: (ratio: number) => void;
   onScrollAnchor?: (anchor: { paragraphIndex: number }) => void;
-  /** 竖滑到节末/首继续推：'next' | 'prev' */
-  onSectionEdge?: (edge: 'next' | 'prev') => void;
   onTap?: () => void;
   chromeHidden?: boolean;
   onTextSelectionChange?: (active: boolean) => void;
@@ -148,7 +146,6 @@ export default function ShelfPaginatedProse({
   proseTone = 'default',
   onScrollProgress,
   onScrollAnchor,
-  onSectionEdge,
   onTap,
   chromeHidden = false,
   onTextSelectionChange,
@@ -197,31 +194,10 @@ export default function ShelfPaginatedProse({
 
   const scrollApplyKeyRef = useRef('');
   const pendingScrollRef = useRef({ offset: scrollOffset, anchor: scrollAnchor, toEnd: scrollToEnd });
-  const lastScrollTopRef = useRef(0);
-  const edgeLockRef = useRef(false);
-  const edgeLockTimerRef = useRef<number | null>(null);
-  const onSectionEdgeRef = useRef(onSectionEdge);
-  onSectionEdgeRef.current = onSectionEdge;
-
-  const fireSectionEdge = useCallback((edge: 'next' | 'prev') => {
-    if (!onSectionEdgeRef.current || edgeLockRef.current) return;
-    edgeLockRef.current = true;
-    onSectionEdgeRef.current(edge);
-    if (edgeLockTimerRef.current != null) window.clearTimeout(edgeLockTimerRef.current);
-    edgeLockTimerRef.current = window.setTimeout(() => {
-      edgeLockRef.current = false;
-      edgeLockTimerRef.current = null;
-    }, 900);
-  }, []);
 
   useEffect(() => {
     pendingScrollRef.current = { offset: scrollOffset, anchor: scrollAnchor, toEnd: scrollToEnd };
   }, [contentKey, scrollOffset, scrollAnchor, scrollToEnd]);
-
-  useEffect(() => {
-    edgeLockRef.current = false;
-    lastScrollTopRef.current = 0;
-  }, [contentKey]);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -344,44 +320,18 @@ export default function ShelfPaginatedProse({
       const el = viewportRef.current;
       if (!el || syncRef.current) return;
       const max = Math.max(0, el.scrollHeight - el.clientHeight);
-      const top = el.scrollTop;
-      const dy = top - lastScrollTopRef.current;
-      lastScrollTopRef.current = top;
-      const ratio = max > 0 ? top / max : 0;
+      const ratio = max > 0 ? el.scrollTop / max : 0;
       onScrollProgress?.(ratio);
       onScrollAnchor?.({ paragraphIndex: shelfParagraphIndexForRatio(linkedHtml, ratio) });
       if (selection) {
         window.requestAnimationFrame(() => syncSelection());
       }
-      // 短节（几乎不可滚）不靠 scrollTop 连节，交给 wheel
-      if (max > 24) {
-        if (top >= max - 16 && dy > 0) fireSectionEdge('next');
-        else if (top <= 4 && dy < 0) fireSectionEdge('prev');
-      }
     });
-  }, [onScrollProgress, onScrollAnchor, linkedHtml, selection, syncSelection, fireSectionEdge]);
-
-  useEffect(() => {
-    const el = viewportRef.current;
-    if (!el || !onSectionEdge) return;
-    const onWheel = (e: WheelEvent) => {
-      if (syncRef.current || edgeLockRef.current) return;
-      const max = Math.max(0, el.scrollHeight - el.clientHeight);
-      const top = el.scrollTop;
-      if (e.deltaY > 8 && top >= max - 8) {
-        fireSectionEdge('next');
-      } else if (e.deltaY < -8 && top <= 4) {
-        fireSectionEdge('prev');
-      }
-    };
-    el.addEventListener('wheel', onWheel, { passive: true });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [onSectionEdge, fireSectionEdge, contentKey]);
+  }, [onScrollProgress, onScrollAnchor, linkedHtml, selection, syncSelection]);
 
   useEffect(() => {
     return () => {
       if (scrollRafRef.current != null) window.cancelAnimationFrame(scrollRafRef.current);
-      if (edgeLockTimerRef.current != null) window.clearTimeout(edgeLockTimerRef.current);
     };
   }, []);
 

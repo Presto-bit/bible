@@ -405,8 +405,8 @@ export default function ShelfReader({
       const prev = sections[sectionIndex - 1];
       const id = prev?.id ?? null;
       if (!id) return;
-      // 契约：回上一节落在该节末尾（与安卓一致）
-      goSection(id, { page: 'last', scroll: 'end' });
+      // 左右滑切节：一律落到目标节开头
+      goSection(id, { page: 0, scroll: 'start' });
     }
   }, [goSection, sectionIndex, sections]);
 
@@ -416,9 +416,8 @@ export default function ShelfReader({
       const id = next?.id ?? null;
       if (!id) return;
       goSection(id, { page: 0, scroll: 'start' });
-      if (next?.title) flashToast(next.title);
     }
-  }, [goSection, sectionIndex, sections, flashToast]);
+  }, [goSection, sectionIndex, sections]);
 
   const resolveTurn = useCallback(
     (delta: 1 | -1): ShelfTurnKind => {
@@ -449,21 +448,6 @@ export default function ShelfReader({
     markRouteNavigation();
     router.push(`/shelf/${encodeURIComponent(bookId)}?finished=1`);
   }, [bookId, sectionId, book?.title, section?.title, isPdfSection, pageIndex, flashToast, router]);
-
-  const onSectionEdge = useCallback(
-    (edge: 'next' | 'prev') => {
-      if (edge === 'next') {
-        if (sectionIndex >= 0 && sectionIndex < sections.length - 1) {
-          goNextSection();
-        } else {
-          completeReading();
-        }
-        return;
-      }
-      if (sectionIndex > 0) goPrevSection();
-    },
-    [sectionIndex, sections.length, goNextSection, goPrevSection, completeReading],
-  );
 
   const pageTurn = useShelfTurn({
     enabled: Boolean(section) && !overlayOpen,
@@ -572,7 +556,6 @@ export default function ShelfReader({
           onPageIndexChange={interactive && shelfSectionIsPdf(sec) ? setPageIndex : undefined}
           onScrollProgress={interactive && !shelfSectionIsPdf(sec) ? onFlowScrollProgress : undefined}
           onScrollAnchor={interactive && !shelfSectionIsPdf(sec) ? onFlowScrollAnchor : undefined}
-          onSectionEdge={interactive ? onSectionEdge : undefined}
           onTap={interactive ? onContentTap : undefined}
           chromeHidden={interactive && chromeHidden}
           onPdfPinchActive={interactive ? setPdfPinching : undefined}
@@ -614,7 +597,6 @@ export default function ShelfReader({
           scrollSnapKey={interactive ? scrollSnapKey : 0}
           onScrollProgress={interactive ? onFlowScrollProgress : undefined}
           onScrollAnchor={interactive ? onFlowScrollAnchor : undefined}
-          onSectionEdge={interactive ? onSectionEdge : undefined}
           onTap={interactive ? onContentTap : undefined}
           chromeHidden={interactive && chromeHidden}
           onTextSelectionChange={interactive ? onTextSelectionChange : undefined}

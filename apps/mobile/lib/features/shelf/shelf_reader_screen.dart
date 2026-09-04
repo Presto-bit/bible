@@ -329,20 +329,6 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     _scheduleProgress();
   }
 
-  void _onProseSectionEdge(String edge) {
-    if (edge == 'next') {
-      if (_canNextSection) {
-        final next = _sections[_sectionIndex + 1];
-        _goSection(next.id, scrollStart: true);
-        _toastSectionTitle(next.title);
-      } else {
-        _completeReading();
-      }
-    } else if (edge == 'prev' && _canPrevSection) {
-      _goSection(_sections[_sectionIndex - 1].id, scrollEnd: true);
-    }
-  }
-
   void _onPageCount(int count) {
     if (!mounted) return;
     setState(() {
@@ -362,32 +348,6 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     if (!mounted || index == _pageIndex) return;
     setState(() => _pageIndex = index);
     _scheduleProgress();
-  }
-
-  void _onPdfSectionEdge(String edge) {
-    if (edge == 'next') {
-      if (_canNextSection) {
-        final next = _sections[_sectionIndex + 1];
-        _goSection(next.id, page: 0, scrollStart: true);
-        _toastSectionTitle(next.title);
-      } else {
-        _completeReading();
-      }
-    } else if (edge == 'prev' && _canPrevSection) {
-      _goSection(_sections[_sectionIndex - 1].id, lastPage: true);
-    }
-  }
-
-  void _toastSectionTitle(String title) {
-    final t = title.trim();
-    if (t.isEmpty || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(t),
-        duration: const Duration(milliseconds: 900),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   void _goSection(
@@ -441,13 +401,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
 
   void _turnNext() {
     if (_canNextSection) {
-      final next = _sections[_sectionIndex + 1];
       _goSection(
-        next.id,
+        _sections[_sectionIndex + 1].id,
         page: 0,
         scrollStart: true,
       );
-      _toastSectionTitle(next.title);
     } else {
       _completeReading();
     }
@@ -455,10 +413,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
 
   void _turnPrev() {
     if (_canPrevSection) {
+      // 左右滑切节：一律落到目标节开头
       _goSection(
         _sections[_sectionIndex - 1].id,
-        lastPage: _isPdfSection,
-        scrollEnd: !_isPdfSection,
+        page: 0,
+        scrollStart: true,
       );
     }
   }
@@ -680,7 +639,6 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         onTap: _toggleChrome,
         onScrollProgress: _onFlowScrollProgress,
         onScrollAnchor: _onFlowScrollAnchor,
-        onSectionEdge: _onProseSectionEdge,
         onSelectionActiveChanged: (active) {
           _proseSelecting = active;
         },
@@ -713,7 +671,6 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         childrenLesson: _isChildrenLesson && section.kind == 'lesson',
         onPageCount: _onPageCount,
         onPageIndexChange: _onPageIndexChange,
-        onSectionEdge: _onPdfSectionEdge,
         onTap: _toggleChrome,
         onPinchActive: (active) {
           if (mounted) setState(() => _pdfPinching = active);
