@@ -954,7 +954,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       _ShelfCoverThumb(
                         title: lastShelf.bookTitle,
                         subtitle: lastShelf.sectionTitle,
-                        onTap: () => context.push('/shelf/${lastShelf.bookId}$q'),
+                        onTap: () => context.push(
+                          lastShelf.sectionId.isNotEmpty
+                              ? '/shelf/${lastShelf.bookId}/read$q'
+                              : '/shelf/${lastShelf.bookId}',
+                        ),
                       ),
                     ],
                   ),

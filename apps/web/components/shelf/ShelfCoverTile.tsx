@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useRef } from 'react';
 import { loadShelfBookProgress, shelfCoverHue, type ShelfBookSummary } from '@/lib/shelf_api';
+import { navigateAppHref } from '@/lib/pwa_tab_nav';
 
 type Props = {
   book: ShelfBookSummary;
@@ -95,7 +96,7 @@ export default function ShelfCoverTile({ book, onManage }: Props) {
       longPressFired.current = false;
       return;
     }
-    router.push(`/shelf/${book.id}`);
+    navigateAppHref(href, router);
   };
 
   return (

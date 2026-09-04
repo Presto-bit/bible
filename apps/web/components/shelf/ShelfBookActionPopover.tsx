@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import type { ShelfBookSummary } from '@/lib/shelf_api';
 import { shelfBookDetailHref, shelfBookReadHref } from '@/lib/shelf_library';
+import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { shellTapProps } from '@/lib/shell_tap';
 
 export type ShelfBookAction = {
@@ -50,12 +51,12 @@ export default function ShelfBookActionPopover({
     {
       id: 'read',
       label: '继续阅读',
-      onClick: () => router.push(shelfBookReadHref(book.id)),
+      onClick: () => navigateAppHref(shelfBookReadHref(book.id), router),
     },
     {
       id: 'detail',
       label: '书籍详情',
-      onClick: () => router.push(shelfBookDetailHref(book.id)),
+      onClick: () => navigateAppHref(shelfBookDetailHref(book.id), router),
     },
     ...(onShare
       ? [{

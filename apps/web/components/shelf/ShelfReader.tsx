@@ -16,7 +16,7 @@ import {
   type ShelfSection,
   type ShelfAttachment,
 } from '@/lib/shelf_api';
-import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import ShelfMediaSheet from '@/components/shelf/ShelfMediaSheet';
 import { shelfLessonMedia } from '@/lib/shelf_lesson_media';
 import { useShelfReadingPrefs } from '@/components/shelf/ShelfReadingBar';
@@ -445,8 +445,7 @@ export default function ShelfReader({
     );
     touchShelfBookLastRead(bookId);
     flashToast('读完了，写几句书评也很好');
-    markRouteNavigation();
-    router.push(`/shelf/${encodeURIComponent(bookId)}?finished=1`);
+    navigateAppHref(`/shelf/${encodeURIComponent(bookId)}?finished=1`, router);
   }, [bookId, sectionId, book?.title, section?.title, isPdfSection, pageIndex, flashToast, router]);
 
   const pageTurn = useShelfTurn({

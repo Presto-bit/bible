@@ -7,6 +7,7 @@ import {
   shelfBookCardHref,
   shelfBookDetailHref,
 } from '@/lib/shelf_library';
+import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import ShelfBrandCover from '@/components/shelf/ShelfBrandCover';
 
 type Props = {
@@ -63,7 +64,7 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
   const openDetail = (e: MouseEvent | PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    router.push(detailHref);
+    navigateAppHref(detailHref, router);
   };
 
   const handleActivate = () => {
@@ -71,7 +72,8 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
       longPressFired.current = false;
       return;
     }
-    router.push(href);
+    // 与「我的→书架」一致：soft-nav 进度 + 保活同步，避免弱网/PWA「点了没反应」
+    navigateAppHref(href, router);
   };
 
   return (

@@ -24,6 +24,7 @@ import {
 } from '@/lib/shelf_posts';
 import { useShelfLoginGate } from '@/components/shelf/ShelfReplyComposer';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { navigateAppHref } from '@/lib/pwa_tab_nav';
 
 const ShelfPostWriteSheet = dynamic(
   () => import('@/components/shelf/ShelfPostWriteSheet'),
@@ -184,7 +185,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
               className="btn ghost"
               onClick={() => {
                 clearShelfBookFinished(bookId);
-                router.push(continueHref);
+                navigateAppHref(continueHref, router);
               }}
             >
               再读一遍
@@ -207,7 +208,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
           className="btn primary shelf-detail-continue"
           onClick={() => {
             clearShelfBookFinished(bookId);
-            router.push(continueHref);
+            navigateAppHref(continueHref, router);
           }}
         >
           {finishedCelebration ? '重新阅读' : progress?.sectionId ? '继续阅读' : '开始阅读'}
