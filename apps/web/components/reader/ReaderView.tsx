@@ -3217,34 +3217,6 @@ export default function ReaderView({
           >
             概要
           </button>
-          <div className="reader-pc-chapter-nav">
-            <button
-              type="button"
-              className="reader-pc-chapter-btn"
-              aria-label="上一章"
-              title="上一章（←）"
-              disabled={!canNavPrev}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (canNavPrev) navChapter(-1);
-              }}
-            >
-              上一章
-            </button>
-            <button
-              type="button"
-              className="reader-pc-chapter-btn"
-              aria-label="下一章"
-              title="下一章（→）"
-              disabled={!canNavNext}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (canNavNext) navChapter(1);
-              }}
-            >
-              下一章
-            </button>
-          </div>
         </div>
         <div className="reader-topbar-right">
           <Link
