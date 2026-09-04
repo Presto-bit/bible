@@ -29,8 +29,12 @@ function beginPendingSecondaryNav(targetPath: string) {
   pendingSecondaryFrom = lastMainTabHref;
 }
 
-function clearPendingSecondaryNav() {
+export function clearPendingSecondaryNav() {
   pendingSecondaryTarget = null;
+}
+
+export function getPendingSecondaryTarget(): string | null {
+  return pendingSecondaryTarget;
 }
 
 /** TabKeepAlive 壳层与 navigateAppHref 对齐：当前可见主 Tab 即 lastMainTabHref 来源 */

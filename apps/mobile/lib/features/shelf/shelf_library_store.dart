@@ -134,12 +134,46 @@ class ShelfLibraryStore {
     final store = _read();
     final raw = store['books'];
     if (raw is! Map) return {};
-    return raw.map(
-      (k, v) => MapEntry(
-        '$k',
-        ShelfBookLibraryMeta.fromJson(Map<String, dynamic>.from(v as Map)),
-      ),
-    );
+    final out = <String, ShelfBookLibraryMeta>{};
+    for (final e in raw.entries) {
+      final v = e.value;
+      if (v is! Map) continue;
+      try {
+        out['${e.key}'] = ShelfBookLibraryMeta.fromJson(Map<String, dynamic>.from(v));
+      } catch (_) {
+        /* 脏 prefs 跳过单本，避免整页白屏 */
+      }
+    }
+    return out;
+  }
+
+  /// 阅读进度三档数量（未隐藏书）。
+  ({int reading, int finished, int unread}) progressCounts(List<ShelfBookSummary> books) {
+    var reading = 0;
+    var finished = 0;
+    var unread = 0;
+    final meta = _booksMap();
+    for (final b in books) {
+      if (meta[b.id]?.hidden == true) continue;
+      switch (bookReadStatus(b.id)) {
+        case ShelfProgressFilter.reading:
+          reading++;
+        case ShelfProgressFilter.finished:
+          finished++;
+        case ShelfProgressFilter.unread:
+          unread++;
+      }
+    }
+    return (reading: reading, finished: finished, unread: unread);
+  }
+
+  /// 进入进度 Tab 时选有书的档：在读 → 未读 → 读完。
+  ShelfProgressFilter preferredProgressFilter(List<ShelfBookSummary> books) {
+    final c = progressCounts(books);
+    if (c.reading > 0) return ShelfProgressFilter.reading;
+    if (c.unread > 0) return ShelfProgressFilter.unread;
+    if (c.finished > 0) return ShelfProgressFilter.finished;
+    return ShelfProgressFilter.reading;
   }
 
   void syncFromBooks(List<ShelfBookSummary> books) {

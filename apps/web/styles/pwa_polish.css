@@ -297,8 +297,8 @@ nav.tabbar,
 }
 
 .soft-nav-progress {
-  height: 2px;
-  background: color-mix(in srgb, var(--accent-deep) 8%, transparent);
+  height: 3px;
+  background: color-mix(in srgb, var(--accent-deep) 12%, transparent);
 }
 
 .soft-nav-progress-bar {

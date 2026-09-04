@@ -287,6 +287,14 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
           </div>
         );
       })}
+      {secondaryNavPending ? (
+        <div className="soft-nav-pending-overlay" role="status" aria-live="polite" aria-busy="true">
+          <div className="soft-nav-pending-card">
+            <p className="soft-nav-pending-title">正在打开…</p>
+            <p className="soft-nav-pending-sub muted">网络较慢时请稍候</p>
+          </div>
+        </div>
+      ) : null}
     </TabKeepAliveProvider>
   );
 }

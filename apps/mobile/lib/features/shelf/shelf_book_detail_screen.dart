@@ -34,6 +34,7 @@ class ShelfBookDetailScreen extends ConsumerStatefulWidget {
 class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   ShelfBookDetail? _book;
   var _loadingBook = true;
+  String? _bookErr;
   late _DetailTab _tab;
   var _loadingPosts = false;
   List<ShelfPost> _posts = const [];
@@ -52,15 +53,16 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   }
 
   Future<void> _loadBook() async {
-    setState(() => _loadingBook = true);
+    setState(() {
+      _loadingBook = true;
+      _bookErr = null;
+    });
     try {
       final book = await ref.read(shelfRepoProvider).getBook(widget.bookId);
       if (mounted) setState(() => _book = book);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('无法加载书目'), behavior: SnackBarBehavior.floating),
-        );
+        setState(() => _bookErr = '无法加载书目，请检查网络后重试');
       }
     } finally {
       if (mounted) setState(() => _loadingBook = false);
@@ -177,6 +179,36 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
           : null,
       body: _loadingBook && book == null
           ? const Center(child: Text('加载中…', style: AppTypography.meta))
+          : (!_loadingBook && book == null)
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _bookErr ?? '暂时打不开这本书',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            height: 1.45,
+                            color: AppColors.inkSoft,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: _loadBook,
+                          child: const Text('重试'),
+                        ),
+                        TextButton(
+                          onPressed: () => context.pop(),
+                          child: const Text('返回书架'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
           : RefreshIndicator(
               onRefresh: () async {
                 await _loadBook();

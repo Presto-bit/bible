@@ -236,8 +236,10 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
     setState(() {
       if (tab.kind == ShelfLibraryTabKind.progress &&
           _tab.kind != ShelfLibraryTabKind.progress) {
-        _progressFilter = ShelfProgressFilter.reading;
-        _tab = const ShelfLibraryTab.progress(ShelfProgressFilter.reading);
+        // 默认落到有书的档，避免「在读」空列表被当成白屏
+        final items = ref.read(shelfListProvider).asData?.value.items ?? const [];
+        _progressFilter = _library.preferredProgressFilter(items);
+        _tab = ShelfLibraryTab.progress(_progressFilter);
         return;
       }
       if (tab.kind == ShelfLibraryTabKind.progress &&
@@ -400,22 +402,27 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                      child: Wrap(
-                        spacing: 8,
-                        children: [
-                          for (final entry in [
-                            (ShelfProgressFilter.reading, '在读'),
-                            (ShelfProgressFilter.finished, '读完'),
-                            (ShelfProgressFilter.unread, '未读'),
-                          ])
-                            _ProgressFilterChip(
-                              label: entry.$2,
-                              selected: _progressFilter == entry.$1,
-                              onTap: () => _selectTab(
-                                ShelfLibraryTab.progress(entry.$1),
-                              ),
-                            ),
-                        ],
+                      child: Builder(
+                        builder: (context) {
+                          final counts = _library.progressCounts(data.items);
+                          return Wrap(
+                            spacing: 8,
+                            children: [
+                              for (final entry in [
+                                (ShelfProgressFilter.reading, '在读', counts.reading),
+                                (ShelfProgressFilter.finished, '读完', counts.finished),
+                                (ShelfProgressFilter.unread, '未读', counts.unread),
+                              ])
+                                _ProgressFilterChip(
+                                  label: '${entry.$2}(${entry.$3})',
+                                  selected: _progressFilter == entry.$1,
+                                  onTap: () => _selectTab(
+                                    ShelfLibraryTab.progress(entry.$1),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -426,13 +433,26 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                         minHeight: MediaQuery.sizeOf(context).height * 0.45,
                       ),
                       child: Center(
-                        child: Text(
-                          _searchCtrl.text.trim().isNotEmpty
-                              ? '没有匹配的书'
-                              : _tab.kind == ShelfLibraryTabKind.progress
-                                  ? '暂无符合条件的书'
-                                  : '书架空空的，可导入或等平台上架',
-                          style: AppTypography.meta,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
+                          child: Text(
+                            _searchCtrl.text.trim().isNotEmpty
+                                ? '没有匹配的书'
+                                : _tab.kind == ShelfLibraryTabKind.progress
+                                    ? (_progressFilter == ShelfProgressFilter.reading
+                                        ? '暂无在读书，可切换「未读」查看书架'
+                                        : _progressFilter == ShelfProgressFilter.finished
+                                            ? '还没有读完的书'
+                                            : '暂无未读书')
+                                    : '书架空空的，可导入或等平台上架',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              height: 1.45,
+                              color: AppColors.inkSoft,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -445,7 +465,8 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                         crossAxisCount: 3,
                         mainAxisSpacing: 14,
                         crossAxisSpacing: 10,
-                        childAspectRatio: 0.57,
+                        // 3:4 封面 + 标题约两行：略增高格子避免裁切书名
+                        childAspectRatio: 0.52,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, i) {

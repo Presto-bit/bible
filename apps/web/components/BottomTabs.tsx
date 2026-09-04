@@ -151,7 +151,7 @@ export default function BottomTabs() {
     document.documentElement.style.removeProperty('--assistant-overlay-h');
   }, [compact, pathname]);
 
-  // PWA：首页就绪后再轻预取「圣经」Tab，避免冷启动五路 prefetch 抢带宽
+  // PWA：首页就绪后错峰预热圣经 → 小爱/发现 chunk，弱网首次切入不空等
   useEffect(() => {
     if (!isTabKeepAliveEnabled()) return;
     let cancelled = false;
@@ -160,6 +160,13 @@ export default function BottomTabs() {
         () => {
           if (cancelled) return;
           router.prefetch('/reader');
+          window.setTimeout(() => {
+            if (cancelled) return;
+            void import('@/components/tabs/AssistantTab');
+            void import('@/components/tabs/DiscoverTab');
+            router.prefetch('/assistant');
+            router.prefetch('/discover');
+          }, 4_000);
         },
         { afterMs: 10_000, fallbackMs: 30_000 },
       );

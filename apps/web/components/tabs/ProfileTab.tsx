@@ -999,13 +999,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   };
 
   const openWarmupHub = () => {
-    markRouteNavigation();
-    router.push('/challenge');
+    navigateAppHref('/challenge', router);
   };
 
   const startDailyQuiz = () => {
-    markRouteNavigation();
-    router.push('/challenge?start=daily');
+    navigateAppHref('/challenge?start=daily', router);
   };
 
   const applyRemindSlot = async (hour: number, minute: number) => {
@@ -1387,8 +1385,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 empty={false}
                 beforeOpen={clearBlockingOverlays}
                 onOpen={() => {
-                  markRouteNavigation();
-                  router.push(activePlanTodayHrefSync(active));
+                  navigateAppHref(activePlanTodayHrefSync(active), router);
                 }}
               />
             );

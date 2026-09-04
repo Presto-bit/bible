@@ -931,20 +931,54 @@ textarea.input {
   left: 0;
   right: 0;
   z-index: 1200;
-  height: 2px;
+  height: 3px;
   pointer-events: none;
   overflow: hidden;
   padding-top: env(safe-area-inset-top, 0px);
-  background: transparent;
+  background: color-mix(in srgb, var(--accent-deep, #3d5a45) 12%, transparent);
 }
 
 .soft-nav-progress-bar {
-  height: 2px;
+  height: 3px;
   width: 40%;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-deep, #3d5a45) 78%, #fff);
+  background: color-mix(in srgb, var(--accent-deep, #3d5a45) 88%, #fff);
   animation: soft-nav-slide 1.05s ease-in-out infinite;
   transform: translateX(-120%);
+}
+
+.soft-nav-pending-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--paper, #faf8f5) 72%, transparent);
+  pointer-events: none;
+}
+
+.soft-nav-pending-card {
+  min-width: min(280px, 86vw);
+  padding: 20px 22px;
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  border: 1px solid color-mix(in srgb, var(--line, #e6e3dc) 80%, transparent);
+  text-align: center;
+}
+
+.soft-nav-pending-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink, #191919);
+}
+
+.soft-nav-pending-sub {
+  margin: 8px 0 0;
+  font-size: 13px;
 }
 
 @keyframes soft-nav-slide {

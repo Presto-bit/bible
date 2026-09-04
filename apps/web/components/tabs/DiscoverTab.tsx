@@ -18,7 +18,7 @@ import { useAccountReady } from '@/lib/use_account_ready';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import Avatar, { defaultAvatarId } from '@/components/Avatar';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
-import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
 import { friendDisplayName } from '@/lib/friend_label';
 import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
@@ -324,8 +324,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   });
 
   const go = (href: string) => {
-    markRouteNavigation();
-    router.push(href);
+    navigateAppHref(href, router);
   };
 
   const openItem = (it: ConversationItem) => {

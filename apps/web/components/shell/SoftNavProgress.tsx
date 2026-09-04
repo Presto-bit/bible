@@ -3,13 +3,17 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
-  endSoftNavProgress,
+  endSoftNavProgressIfArrived,
+  subscribeSoftNavFail,
   subscribeSoftNavProgress,
 } from '@/lib/soft_nav_progress';
+import { clearPendingSecondaryNav } from '@/lib/pwa_tab_nav';
+import { useToast } from '@/components/ui/ToastProvider';
 
-/** 弱网 soft nav 顶栏细进度，避免二级页 chunk 未到时像「点了没反应」。 */
+/** 弱网 soft nav 顶栏进度；到达目标才收起；超时清 pending 并 toast。 */
 export default function SoftNavProgress() {
   const pathname = usePathname();
+  const toast = useToast();
   const [active, setActive] = useState(false);
 
   useEffect(() => {
@@ -17,7 +21,15 @@ export default function SoftNavProgress() {
   }, []);
 
   useEffect(() => {
-    endSoftNavProgress();
+    return subscribeSoftNavFail(() => {
+      clearPendingSecondaryNav();
+      window.dispatchEvent(new Event('presto-tab-nav'));
+      toast('打开较慢，请再试一次');
+    });
+  }, [toast]);
+
+  useEffect(() => {
+    endSoftNavProgressIfArrived(pathname);
   }, [pathname]);
 
   if (!active) return null;

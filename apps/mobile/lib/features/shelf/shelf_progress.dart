@@ -57,8 +57,9 @@ class ShelfProgressStore {
   final SharedPreferences _prefs;
 
   ShelfBookProgress? loadBook(String bookId) {
-    final raw = _readStore()['byBook'] as Map<String, dynamic>? ?? {};
-    final entry = raw[bookId];
+    final byBook = _readStore()['byBook'];
+    if (byBook is! Map) return null;
+    final entry = byBook[bookId] ?? byBook['$bookId'];
     if (entry == null) return null;
     if (entry is String) {
       final sid = entry.trim();

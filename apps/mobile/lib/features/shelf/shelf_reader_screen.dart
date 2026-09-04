@@ -761,13 +761,44 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     }
     if (_err != null && _book == null) {
       return Scaffold(
+        backgroundColor: AppColors.paper,
         appBar: AppBar(
+          backgroundColor: AppColors.paper,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, size: 20),
             onPressed: () => context.pop(),
           ),
+          title: const Text('阅读', style: AppTypography.title),
         ),
-        body: Center(child: Text(_err!, style: AppTypography.meta)),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _err!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.45,
+                    color: AppColors.inkSoft,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: _loadBook,
+                  child: const Text('重试'),
+                ),
+                TextButton(
+                  onPressed: () => context.go('/shelf'),
+                  child: const Text('返回书架'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 
