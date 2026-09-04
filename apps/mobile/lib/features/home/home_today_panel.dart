@@ -123,7 +123,10 @@ String _homeTileImage(HomeTodaySlot slot) {
 }
 
 
-class _TileCard extends StatelessWidget {
+/// 松手且位移不超过此值才算点击（对齐 Web shellTap phase=up）。
+const _tileTapSlop = 18.0;
+
+class _TileCard extends StatefulWidget {
   const _TileCard({
     required this.slot,
     required this.onTap,
@@ -135,9 +138,45 @@ class _TileCard extends StatelessWidget {
   final bool flash;
 
   @override
+  State<_TileCard> createState() => _TileCardState();
+}
+
+class _TileCardState extends State<_TileCard> {
+  Offset? _down;
+  bool _moved = false;
+
+  void _onPointerDown(PointerDownEvent e) {
+    _down = e.position;
+    _moved = false;
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    final start = _down;
+    if (start == null || _moved) return;
+    if ((e.position - start).distance > _tileTapSlop) {
+      _moved = true;
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent e) {
+    final start = _down;
+    _down = null;
+    if (start == null || _moved) return;
+    if ((e.position - start).distance > _tileTapSlop) return;
+    widget.onTap();
+  }
+
+  void _onPointerCancel(PointerCancelEvent e) {
+    _down = null;
+    _moved = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     const mediaH = 104.0;
     const cardH = 156.0;
+    final slot = widget.slot;
+    final flash = widget.flash;
     final src = _homeTileImage(slot);
     final tileFile = _homeTileFile(slot);
     final borderColor = slot.pending
@@ -156,8 +195,12 @@ class _TileCard extends StatelessWidget {
           side: BorderSide(color: borderColor, width: flash ? 1.5 : 1),
         ),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: _onPointerDown,
+          onPointerMove: _onPointerMove,
+          onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
           child: Opacity(
             opacity: slot.done ? 0.58 : 1,
             child: SizedBox(

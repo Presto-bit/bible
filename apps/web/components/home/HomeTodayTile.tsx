@@ -102,7 +102,12 @@ export function HomeTodayTile({
           ? `${slot.tag}：${slot.title}，${slot.sub}`
           : `${slot.tag}：${slot.title}`
       }
-      {...shellTapProps({ onTap: onClick, softRecover: true })}
+      {...shellTapProps({
+        onTap: onClick,
+        softRecover: true,
+        // 首页可竖滚：松手且位移小才进入，避免按下/滑动误开
+        phase: 'up',
+      })}
       onContextMenu={(e) => e.preventDefault()}
     >
       <span className="home-today-tile-media" aria-hidden>

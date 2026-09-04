@@ -118,7 +118,11 @@ export function HomeMediaRow({
         .filter(Boolean)
         .join(' ')}
       aria-label={ariaLabel}
-      {...shellTapProps({ onTap: onClick, softRecover: true })}
+      {...shellTapProps({
+        onTap: onClick,
+        softRecover: true,
+        phase: 'up',
+      })}
       onContextMenu={(e) => e.preventDefault()}
     >
       <span className="home-media-thumb" aria-hidden>
