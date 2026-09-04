@@ -73,12 +73,12 @@ export function HomeTodayTile({
         ) : (
           <span className="home-today-tile-img-fallback" />
         )}
+        <span className="home-today-tile-tag">{slot.tag}</span>
         {slot.badge ? (
           <span className="home-today-tile-badge">{slot.badge}</span>
         ) : null}
       </span>
       <span className="home-today-tile-body">
-        <span className="home-today-tile-tag">{slot.tag}</span>
         <strong className="home-today-tile-title">{slot.title}</strong>
         {slot.sub ? <span className="home-today-tile-sub">{slot.sub}</span> : null}
         {showProgress ? (

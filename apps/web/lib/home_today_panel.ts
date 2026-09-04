@@ -161,7 +161,7 @@ function readSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
       id: 'resume',
       tag: '欢迎回来',
       title: trimRailTitle(input.resume.title),
-      sub: '从上次继续就好',
+      sub: '',
       href: input.resume.href,
       icon: 'resume',
       bookId: input.resume.bookId,
@@ -174,9 +174,7 @@ function readSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
       id: 'resume',
       tag: '继续阅读',
       title: trimRailTitle(input.resume.title),
-      sub: readToday
-        ? '今日已读 · 可继续'
-        : trimRailSub(input.resume.sub || '圣经 Tab 也可随时续读'),
+      sub: '',
       href: input.resume.href,
       icon: 'resume',
       bookId: input.resume.bookId,
@@ -201,11 +199,7 @@ function readSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
         ? suggest.title
         : '从约翰福音开始',
     ),
-    sub: trimRailSub(
-      suggest?.href?.startsWith('/reader')
-        ? suggest.sub || '打开圣经自由选读'
-        : '想按日程再去选计划',
-    ),
+    sub: '',
     href: freeHref,
     icon: 'suggest',
     bookId,

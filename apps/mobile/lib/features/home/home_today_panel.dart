@@ -198,6 +198,33 @@ class _TileCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                        Positioned(
+                          left: 6,
+                          bottom: 6,
+                          right: slot.badge != null && slot.badge!.isNotEmpty
+                              ? 40
+                              : 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.88),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              slot.tag,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          ),
+                        ),
                         if (slot.badge != null && slot.badge!.isNotEmpty)
                           Positioned(
                             top: 6,
@@ -225,21 +252,11 @@ class _TileCard extends StatelessWidget {
                   ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 7, 10, 9),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            slot.tag,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.inkFaint,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
                           Text(
                             slot.title,
                             maxLines: 1,

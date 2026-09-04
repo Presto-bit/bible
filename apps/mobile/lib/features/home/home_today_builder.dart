@@ -173,7 +173,7 @@ HomeTodaySlot _readSlot(HomeTodayInput input) {
       id: 'resume',
       tag: '欢迎回来',
       title: _trimTitle(input.resumeTitle!),
-      sub: '从上次继续就好',
+      sub: '',
       href: '/reader',
       cta: '继续',
     );
@@ -184,7 +184,7 @@ HomeTodaySlot _readSlot(HomeTodayInput input) {
       id: 'resume',
       tag: '继续阅读',
       title: _trimTitle(input.resumeTitle!),
-      sub: input.readToday ? '今日已读 · 可继续' : '圣经 Tab 也可随时续读',
+      sub: '',
       href: '/reader',
       cta: input.readToday ? '再读' : '继续',
     );
@@ -194,7 +194,7 @@ HomeTodaySlot _readSlot(HomeTodayInput input) {
     id: 'suggest',
     tag: '继续阅读',
     title: '从约翰福音开始',
-    sub: '想按日程再去选计划',
+    sub: '',
     href: '/reader?book=JHN&chapter=1',
     cta: '去读',
   );
