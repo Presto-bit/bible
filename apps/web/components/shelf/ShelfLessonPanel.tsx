@@ -29,6 +29,7 @@ type Props = {
   onPageIndexChange?: (index: number) => void;
   onScrollProgress?: (ratio: number) => void;
   onScrollAnchor?: (anchor: { paragraphIndex: number }) => void;
+  onSectionEdge?: (edge: 'next' | 'prev') => void;
   onTap?: () => void;
   chromeHidden?: boolean;
   onPdfPinchActive?: (active: boolean) => void;
@@ -51,6 +52,7 @@ export default function ShelfLessonPanel({
   onPageIndexChange,
   onScrollProgress,
   onScrollAnchor,
+  onSectionEdge,
   onTap,
   chromeHidden = false,
   onPdfPinchActive,
@@ -100,6 +102,7 @@ export default function ShelfLessonPanel({
         onPageIndexChange={onPageIndexChange}
         onScrollProgress={onScrollProgress}
         onScrollAnchor={onScrollAnchor}
+        onSectionEdge={onSectionEdge}
         onTap={onTap}
         chromeHidden={chromeHidden}
         onPdfPinchActive={onPdfPinchActive}
@@ -136,6 +139,7 @@ function ShelfPrimaryView({
   onPageIndexChange,
   onScrollProgress,
   onScrollAnchor,
+  onSectionEdge,
   onTap,
   chromeHidden,
   onPdfPinchActive,
@@ -154,6 +158,7 @@ function ShelfPrimaryView({
   onPageIndexChange?: (index: number) => void;
   onScrollProgress?: (ratio: number) => void;
   onScrollAnchor?: (anchor: { paragraphIndex: number }) => void;
+  onSectionEdge?: (edge: 'next' | 'prev') => void;
   onTap?: () => void;
   chromeHidden?: boolean;
   onPdfPinchActive?: (active: boolean) => void;
@@ -181,6 +186,7 @@ function ShelfPrimaryView({
         proseTone={childrenLesson ? 'lesson' : 'default'}
         onScrollProgress={onScrollProgress}
         onScrollAnchor={onScrollAnchor}
+        onSectionEdge={onSectionEdge}
         onTap={onTap}
         chromeHidden={chromeHidden}
         onTextSelectionChange={onTextSelectionChange}
@@ -205,6 +211,7 @@ function ShelfPrimaryView({
         onPageIndexChange={onPageIndexChange}
         onTap={onTap}
         onPinchActive={onPdfPinchActive}
+        onSectionEdge={onSectionEdge}
       />
     );
   }
@@ -224,6 +231,7 @@ function ShelfPrimaryView({
         scrollSnapKey={scrollSnapKey}
         onScrollProgress={onScrollProgress}
         onScrollAnchor={onScrollAnchor}
+        onSectionEdge={onSectionEdge}
         onTap={onTap}
         chromeHidden={chromeHidden}
         onTextSelectionChange={onTextSelectionChange}
@@ -253,6 +261,7 @@ function ShelfDocxPaginated({
   scrollSnapKey = 0,
   onScrollProgress,
   onScrollAnchor,
+  onSectionEdge,
   onTap,
   chromeHidden = false,
   onTextSelectionChange,
@@ -269,6 +278,7 @@ function ShelfDocxPaginated({
   scrollSnapKey?: number;
   onScrollProgress?: (ratio: number) => void;
   onScrollAnchor?: (anchor: { paragraphIndex: number }) => void;
+  onSectionEdge?: (edge: 'next' | 'prev') => void;
   onTap?: () => void;
   chromeHidden?: boolean;
   onTextSelectionChange?: (active: boolean) => void;
@@ -334,6 +344,7 @@ function ShelfDocxPaginated({
       proseTone={childrenLesson ? 'lesson' : 'default'}
       onScrollProgress={onScrollProgress}
       onScrollAnchor={onScrollAnchor}
+      onSectionEdge={onSectionEdge}
       onTap={onTap}
       chromeHidden={chromeHidden}
       onTextSelectionChange={onTextSelectionChange}

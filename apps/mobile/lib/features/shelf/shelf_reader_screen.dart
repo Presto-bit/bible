@@ -95,6 +95,10 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   void _flashBoundary(String edge) {
+    if (edge == 'next' && !_canNextSection) {
+      _completeReading();
+      return;
+    }
     HapticFeedback.lightImpact();
     final msg = edge == 'next' ? '已是最后一页' : '已是第一页';
     ScaffoldMessenger.of(context).showSnackBar(
@@ -104,6 +108,44 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  void _completeReading() {
+    final sid = _sectionId;
+    final book = _book;
+    if (sid == null || book == null || !mounted) return;
+    final store = ShelfProgressStore(ref.read(prefsProvider));
+    final prog = store.loadBook(widget.bookId);
+    if (prog?.finished == true) {
+      HapticFeedback.lightImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已是最后一节'),
+          duration: Duration(milliseconds: 1200),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    store.saveBook(
+      widget.bookId,
+      sectionId: sid,
+      pageIndex: _isPdfSection ? _pageIndex : 0,
+      scrollOffset: 1,
+      progressRatio: 1,
+      bookTitle: book.title,
+      sectionTitle: _section?.title,
+    );
+    ShelfLibraryStore(ref.read(prefsProvider), store).touchLastRead(widget.bookId);
+    HapticFeedback.lightImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('读完了，写几句书评也很好'),
+        duration: Duration(milliseconds: 1600),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    context.go('/shelf/${widget.bookId}?finished=1');
   }
 
   Future<void> _loadBook() async {
@@ -288,8 +330,14 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   void _onProseSectionEdge(String edge) {
-    if (edge == 'next' && _canNextSection) {
-      _goSection(_sections[_sectionIndex + 1].id, scrollStart: true);
+    if (edge == 'next') {
+      if (_canNextSection) {
+        final next = _sections[_sectionIndex + 1];
+        _goSection(next.id, scrollStart: true);
+        _toastSectionTitle(next.title);
+      } else {
+        _completeReading();
+      }
     } else if (edge == 'prev' && _canPrevSection) {
       _goSection(_sections[_sectionIndex - 1].id, scrollEnd: true);
     }
@@ -317,11 +365,29 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   void _onPdfSectionEdge(String edge) {
-    if (edge == 'next' && _canNextSection) {
-      _goSection(_sections[_sectionIndex + 1].id, page: 0, scrollStart: true);
+    if (edge == 'next') {
+      if (_canNextSection) {
+        final next = _sections[_sectionIndex + 1];
+        _goSection(next.id, page: 0, scrollStart: true);
+        _toastSectionTitle(next.title);
+      } else {
+        _completeReading();
+      }
     } else if (edge == 'prev' && _canPrevSection) {
       _goSection(_sections[_sectionIndex - 1].id, lastPage: true);
     }
+  }
+
+  void _toastSectionTitle(String title) {
+    final t = title.trim();
+    if (t.isEmpty || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(t),
+        duration: const Duration(milliseconds: 900),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _goSection(
@@ -375,11 +441,15 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
 
   void _turnNext() {
     if (_canNextSection) {
+      final next = _sections[_sectionIndex + 1];
       _goSection(
-        _sections[_sectionIndex + 1].id,
+        next.id,
         page: 0,
         scrollStart: true,
       );
+      _toastSectionTitle(next.title);
+    } else {
+      _completeReading();
     }
   }
 

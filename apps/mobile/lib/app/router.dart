@@ -208,6 +208,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ShelfBookDetailScreen(
           bookId: state.pathParameters['id']!,
           initialTab: state.uri.queryParameters['tab'],
+          celebrateFinished: state.uri.queryParameters['finished'] == '1',
         ),
       ),
       GoRoute(

@@ -20,10 +20,12 @@ class ShelfBookDetailScreen extends ConsumerStatefulWidget {
     super.key,
     required this.bookId,
     this.initialTab,
+    this.celebrateFinished = false,
   });
 
   final String bookId;
   final String? initialTab;
+  final bool celebrateFinished;
 
   @override
   ConsumerState<ShelfBookDetailScreen> createState() => _ShelfBookDetailScreenState();
@@ -183,6 +185,52 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                 padding: const EdgeInsets.fromLTRB(0, 0, 0, 96),
                 children: [
                   if (book != null) ...[
+                    if (widget.celebrateFinished ||
+                        (ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId)?.isFinished ??
+                            false))
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.line.withValues(alpha: 0.7)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('读完了', style: AppTypography.title.copyWith(fontSize: 17)),
+                            const SizedBox(height: 6),
+                            Text(
+                              '《${book.title}》已读完，写几句感受，或看看大家的书评',
+                              style: AppTypography.meta.copyWith(height: 1.45),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                FilledButton(
+                                  onPressed: () {
+                                    setState(() => _tab = _DetailTab.reviews);
+                                    unawaited(_loadPosts());
+                                    _writeReview();
+                                  },
+                                  child: const Text('写书评'),
+                                ),
+                                const SizedBox(width: 8),
+                                TextButton(
+                                  onPressed: () {
+                                    ShelfProgressStore(ref.read(prefsProvider))
+                                        .clearFinished(widget.bookId);
+                                    context.push(_readHref());
+                                  },
+                                  child: const Text('再读一遍'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
@@ -238,9 +286,16 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                                 context.push(_readHref());
                               },
                               child: Text(
-                                ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId) != null
-                                    ? '继续阅读'
-                                    : '开始阅读',
+                                (widget.celebrateFinished ||
+                                        (ShelfProgressStore(ref.read(prefsProvider))
+                                                .loadBook(widget.bookId)
+                                                ?.isFinished ??
+                                            false))
+                                    ? '重新阅读'
+                                    : ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId) !=
+                                            null
+                                        ? '继续阅读'
+                                        : '开始阅读',
                               ),
                             ),
                           ),

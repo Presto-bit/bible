@@ -127,7 +127,7 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
 
   void _maybeSectionEdge(String edge) {
     if (_edgeLock) return;
-    if (edge == 'next' && !widget.canNextSection) return;
+    // 末节 next 仍上报，由阅读器走「读完」引导；首节 prev 才拦截
     if (edge == 'prev' && !widget.canPrevSection) return;
     _edgeLock = true;
     widget.onSectionEdge?.call(edge);

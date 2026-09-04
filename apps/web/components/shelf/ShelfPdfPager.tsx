@@ -13,6 +13,8 @@ type Props = {
   onPageIndexChange?: (index: number) => void;
   onTap?: () => void;
   onPinchActive?: (active: boolean) => void;
+  /** 竖滑到文档末/首继续推：'next' | 'prev' */
+  onSectionEdge?: (edge: 'next' | 'prev') => void;
 };
 
 /** 默认略放大，弥补教案 PDF 字号偏小 */
@@ -251,6 +253,7 @@ export default function ShelfPdfPager({
   onPageIndexChange,
   onTap,
   onPinchActive,
+  onSectionEdge,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -267,6 +270,11 @@ export default function ShelfPdfPager({
   const zoomRafRef = useRef<number | null>(null);
   const pendingZoomRef = useRef<number | null>(null);
   const zoomRef = useRef(1);
+  const lastScrollTopRef = useRef(0);
+  const edgeLockRef = useRef(false);
+  const edgeLockTimerRef = useRef<number | null>(null);
+  const onSectionEdgeRef = useRef(onSectionEdge);
+  onSectionEdgeRef.current = onSectionEdge;
   const [pinching, setPinching] = useState(false);
   const [zoom, setZoom] = useState(() => clampShelfPdfZoom(initialZoom));
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
@@ -435,6 +443,17 @@ export default function ShelfPdfPager({
     });
   }, [pageIndex, url, pageCount]);
 
+  const fireSectionEdge = useCallback((edge: 'next' | 'prev') => {
+    if (!onSectionEdgeRef.current || edgeLockRef.current) return;
+    edgeLockRef.current = true;
+    onSectionEdgeRef.current(edge);
+    if (edgeLockTimerRef.current != null) window.clearTimeout(edgeLockTimerRef.current);
+    edgeLockTimerRef.current = window.setTimeout(() => {
+      edgeLockRef.current = false;
+      edgeLockTimerRef.current = null;
+    }, 900);
+  }, []);
+
   const handleScroll = useCallback(() => {
     suppressTapRef.current = true;
     if (scrollRafRef.current != null) return;
@@ -442,7 +461,11 @@ export default function ShelfPdfPager({
       scrollRafRef.current = null;
       const stage = stageRef.current;
       if (!stage || scrollSyncRef.current) return;
-      const mid = stage.scrollTop + stage.clientHeight * 0.35;
+      const max = Math.max(0, stage.scrollHeight - stage.clientHeight);
+      const top = stage.scrollTop;
+      const dy = top - lastScrollTopRef.current;
+      lastScrollTopRef.current = top;
+      const mid = top + stage.clientHeight * 0.35;
       let active = 0;
       for (let i = 0; i < pageRefs.current.length; i++) {
         const el = pageRefs.current[i];
@@ -453,8 +476,26 @@ export default function ShelfPdfPager({
         pageFromScrollRef.current = true;
         onPageIndexChange?.(active);
       }
+      if (max > 24) {
+        if (top >= max - 24 && dy > 0) fireSectionEdge('next');
+        else if (top <= 24 && dy < 0) fireSectionEdge('prev');
+      }
     });
-  }, [onPageIndexChange]);
+  }, [onPageIndexChange, fireSectionEdge]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || !onSectionEdge) return;
+    const onWheel = (e: WheelEvent) => {
+      if (scrollSyncRef.current || edgeLockRef.current) return;
+      const max = Math.max(0, stage.scrollHeight - stage.clientHeight);
+      const top = stage.scrollTop;
+      if (e.deltaY > 8 && top >= max - 8) fireSectionEdge('next');
+      else if (e.deltaY < -8 && top <= 8) fireSectionEdge('prev');
+    };
+    stage.addEventListener('wheel', onWheel, { passive: true });
+    return () => stage.removeEventListener('wheel', onWheel);
+  }, [onSectionEdge, fireSectionEdge, status, pageCount]);
 
   const handleContentPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
     tapRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
@@ -476,6 +517,7 @@ export default function ShelfPdfPager({
   useEffect(() => {
     return () => {
       if (scrollRafRef.current != null) window.cancelAnimationFrame(scrollRafRef.current);
+      if (edgeLockTimerRef.current != null) window.clearTimeout(edgeLockTimerRef.current);
     };
   }, []);
 
