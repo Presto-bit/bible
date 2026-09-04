@@ -8,14 +8,15 @@
   --pwa-ink-soft: #7d9b8a;
 
   /*
-   * 字体（P2 字形级接近）：--font-peiai-* 由 next/font 注入；
-   * 未加载时回退系统栈。iOS / 安卓壳共用同一 token。
+   * 字体：--font-peiai-* 可被运行时覆盖；默认走系统中文栈（构建不依赖 Google Fonts）。
+   * iOS / 安卓壳共用同一 token。
    */
-  --font-ui: var(--font-peiai-sans), -apple-system, "PingFang SC", "Hiragino Sans GB",
-    "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei",
-    system-ui, sans-serif;
-  --font-reader: var(--font-peiai-serif), "Songti SC", "STSong", "Noto Serif SC",
-    "Source Han Serif SC", Georgia, "Times New Roman", serif;
+  --font-peiai-sans: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
+    "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-peiai-serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC",
+    Georgia, "Times New Roman", serif;
+  --font-ui: var(--font-peiai-sans), -apple-system, sans-serif;
+  --font-reader: var(--font-peiai-serif), serif;
 }
 
 /* 默认：典雅白（微信读书风） */
