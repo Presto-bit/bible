@@ -153,7 +153,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
-    context.go('/shelf/${widget.bookId}?finished=1');
+    context.go('/shelf/${Uri.encodeComponent(widget.bookId)}?finished=1');
   }
 
   Future<void> _loadBook() async {
@@ -166,7 +166,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       final detail = await repo.getBook(widget.bookId);
       final progress = ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId);
       final first = detail.sections.isNotEmpty ? detail.sections.first.id : null;
-      final pick = widget.sectionId ?? progress?.sectionId ?? first;
+      final wanted = (widget.sectionId?.trim().isNotEmpty == true)
+          ? widget.sectionId!.trim()
+          : (progress?.sectionId.trim().isNotEmpty == true ? progress!.sectionId.trim() : null);
+      final known = {for (final s in detail.sections) s.id};
+      final pick = (wanted != null && known.contains(wanted)) ? wanted : first;
       var page = 0;
       double? scroll;
       ShelfScrollAnchor? scrollAnchor;

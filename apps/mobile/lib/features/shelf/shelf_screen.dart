@@ -231,6 +231,29 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
     );
   }
 
+  Future<void> _openBook(ShelfBookSummary book) async {
+    final path = _library.bookCardPath(book.id);
+    try {
+      await context.push(path);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('无法打开：${e.toString().replaceFirst('Exception: ', '')}')),
+      );
+    }
+  }
+
+  Future<void> _openBookDetail(ShelfBookSummary book) async {
+    try {
+      await context.push('/shelf/${Uri.encodeComponent(book.id)}');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('无法打开详情：${e.toString().replaceFirst('Exception: ', '')}')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(shelfListProvider);
@@ -292,6 +315,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
           return RefreshIndicator(
             onRefresh: () => _refresh(ref),
             child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
                   child: SizedBox(
@@ -394,8 +418,8 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                           final book = books[i];
                           return ShelfBookCard(
                             book: book,
-                            onTap: () => context.push(_library.bookCardPath(book.id)),
-                            onDetailTap: () => context.push('/shelf/${book.id}'),
+                            onTap: () => _openBook(book),
+                            onDetailTap: () => _openBookDetail(book),
                             onLongPress: () => _bookActions(book),
                           );
                         },

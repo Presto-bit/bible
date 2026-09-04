@@ -60,13 +60,17 @@ class ShelfProgressStore {
     final raw = _readStore()['byBook'] as Map<String, dynamic>? ?? {};
     final entry = raw[bookId];
     if (entry == null) return null;
-    if (entry is String) return ShelfBookProgress(sectionId: entry);
+    if (entry is String) {
+      final sid = entry.trim();
+      if (sid.isEmpty) return null;
+      return ShelfBookProgress(sectionId: sid);
+    }
     if (entry is Map) {
       final sid = entry['sectionId'];
-      if (sid is! String || sid.isEmpty) return null;
+      if (sid is! String || sid.trim().isEmpty) return null;
       final scroll = entry['scrollOffset'];
       return ShelfBookProgress(
-        sectionId: sid,
+        sectionId: sid.trim(),
         pageIndex: (entry['pageIndex'] as num?)?.toInt() ?? 0,
         scrollOffset: scroll is num ? scroll.toDouble().clamp(0, 1) : null,
         scrollAnchor: ShelfScrollAnchor.fromJson(entry['scrollAnchor']),

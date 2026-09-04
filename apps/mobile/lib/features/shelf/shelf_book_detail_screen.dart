@@ -100,10 +100,11 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
 
   String _readHref() {
     final progress = ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId);
-    if (progress == null) return '/shelf/${widget.bookId}/read';
-    final q = 'section=${Uri.encodeComponent(progress.sectionId)}'
-        '${progress.pageIndex > 0 ? '&page=${progress.pageIndex}' : ''}';
-    return '/shelf/${widget.bookId}/read?$q';
+    final sid = progress?.sectionId.trim() ?? '';
+    if (sid.isEmpty) return '/shelf/${Uri.encodeComponent(widget.bookId)}/read';
+    final q = 'section=${Uri.encodeComponent(sid)}'
+        '${progress!.pageIndex > 0 ? '&page=${progress.pageIndex}' : ''}';
+    return '/shelf/${Uri.encodeComponent(widget.bookId)}/read?$q';
   }
 
   Future<void> _writeReview() async {

@@ -347,23 +347,31 @@ class ShelfLibraryStore {
 
   bool bookCardOpensDetail(String bookId) {
     final progress = _progress.loadBook(bookId);
-    final meta = _booksMap()[bookId];
-    if (progress == null && meta?.lastReadAt == null) return true;
-    if (progress?.isFinished == true) return true;
+    // 无有效进度 → 详情；已读完 → 详情；其余续读
+    if (progress == null) return true;
+    if (progress.sectionId.trim().isEmpty) return true;
+    if (progress.isFinished) return true;
     return false;
   }
 
   String bookReadPath(String bookId) {
     final progress = _progress.loadBook(bookId);
-    if (progress == null) return '/shelf/$bookId/read';
-    final params = {
-      'section': progress.sectionId,
+    final sid = progress?.sectionId.trim() ?? '';
+    if (progress == null || sid.isEmpty) {
+      return '/shelf/${Uri.encodeComponent(bookId)}/read';
+    }
+    final params = <String, String>{
+      'section': sid,
       if (progress.pageIndex > 0) 'page': '${progress.pageIndex}',
     };
-    final qs = params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
-    return '/shelf/$bookId/read?$qs';
+    final qs = params.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+    return '/shelf/${Uri.encodeComponent(bookId)}/read?$qs';
   }
 
   String bookCardPath(String bookId) =>
-      bookCardOpensDetail(bookId) ? '/shelf/$bookId' : bookReadPath(bookId);
+      bookCardOpensDetail(bookId)
+          ? '/shelf/${Uri.encodeComponent(bookId)}'
+          : bookReadPath(bookId);
 }

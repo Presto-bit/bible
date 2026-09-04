@@ -202,23 +202,30 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/shelf',
         builder: (context, state) => const ShelfScreen(),
-      ),
-      GoRoute(
-        path: '/shelf/:id',
-        builder: (context, state) => ShelfBookDetailScreen(
-          bookId: state.pathParameters['id']!,
-          initialTab: state.uri.queryParameters['tab'],
-          celebrateFinished: state.uri.queryParameters['finished'] == '1',
-        ),
-      ),
-      GoRoute(
-        path: '/shelf/:id/read',
-        builder: (context, state) => ShelfReaderScreen(
-          bookId: state.pathParameters['id']!,
-          sectionId: state.uri.queryParameters['section'],
-          pageIndex: int.tryParse(state.uri.queryParameters['page'] ?? ''),
-          groupId: state.uri.queryParameters['group'],
-        ),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (context, state) => ShelfBookDetailScreen(
+              bookId: Uri.decodeComponent(state.pathParameters['id']!),
+              initialTab: state.uri.queryParameters['tab'],
+              celebrateFinished: state.uri.queryParameters['finished'] == '1',
+            ),
+            routes: [
+              GoRoute(
+                path: 'read',
+                builder: (context, state) {
+                  final section = state.uri.queryParameters['section']?.trim();
+                  return ShelfReaderScreen(
+                    bookId: Uri.decodeComponent(state.pathParameters['id']!),
+                    sectionId: (section == null || section.isEmpty) ? null : section,
+                    pageIndex: int.tryParse(state.uri.queryParameters['page'] ?? ''),
+                    groupId: state.uri.queryParameters['group'],
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: '/profile/appearance',
