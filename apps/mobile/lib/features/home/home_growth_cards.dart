@@ -1,7 +1,7 @@
 /// 首页成长区模型：对齐 Web `home_growth_cards.ts`。
 library;
 
-import '../../core/daily_verse_wallpaper.dart';
+import '../../core/config.dart';
 
 const homeGrowthMaxCards = 5;
 
@@ -34,7 +34,7 @@ class HomeGrowthCard {
     required this.href,
     this.kind = 'feature',
     this.iconName = 'explore',
-    this.imageDay,
+    this.imageFile,
     this.progressPct,
   });
 
@@ -48,11 +48,14 @@ class HomeGrowthCard {
   final String href;
   final String kind; // summary | feature
   final String iconName;
-  final int? imageDay;
+  final String? imageFile;
   final int? progressPct;
 
-  String? get imageUrl =>
-      imageDay == null ? null : dailyVerseWallpaperUrl(imageDay!);
+  String? get imageUrl {
+    if (imageFile == null) return null;
+    final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
+    return '$base/illustrations/home/$imageFile';
+  }
 }
 
 class HomeGrowthModel {
@@ -66,6 +69,14 @@ HomeGrowthOccupied occupiedFromIds(Iterable<String> ids) {
     plan: set.contains('plan'),
     prayer: set.contains('prayer'),
   );
+}
+
+String? _growthImageFile(String id) {
+  if (id == 'summary') return 'growth_summary.jpg';
+  if (id == 'plan') return 'growth_plan.jpg';
+  if (id == 'theme') return 'growth_theme.jpg';
+  if (id == 'prayer') return 'growth_prayer.jpg';
+  return null;
 }
 
 /// 顺序：摘要 → 读经计划 → 主题探索 → 祷告（跳过今日推荐已有的）。
@@ -100,6 +111,7 @@ HomeGrowthModel buildHomeGrowthModel({
     href: '/report',
     kind: 'summary',
     iconName: 'schedule',
+    imageFile: _growthImageFile('summary'),
     progressPct: monthPct > 0 ? monthPct : null,
   ));
 
@@ -115,7 +127,7 @@ HomeGrowthModel buildHomeGrowthModel({
           : plan!.detail!.trim(),
       href: plan?.href ?? '/plans',
       iconName: 'menu_book',
-      imageDay: 8,
+      imageFile: _growthImageFile('plan'),
     ));
   }
 
@@ -130,7 +142,7 @@ HomeGrowthModel buildHomeGrowthModel({
         : theme!.detail!.trim(),
     href: theme?.href ?? '/search',
     iconName: 'explore',
-    imageDay: 21,
+    imageFile: _growthImageFile('theme'),
   ));
 
   if (!occupied.prayer) {
@@ -145,7 +157,7 @@ HomeGrowthModel buildHomeGrowthModel({
           : prayer!.detail!.trim(),
       href: prayer?.href ?? '/pray',
       iconName: 'prayer',
-      imageDay: 14,
+      imageFile: _growthImageFile('prayer'),
     ));
   }
 

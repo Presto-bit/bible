@@ -21,6 +21,7 @@ type Props = {
   tone: HomeMediaTone;
   icon: HomeMediaIconId;
   imageUrl?: string | null;
+  imageObjectPosition?: string;
   progressPct?: number;
   ariaLabel: string;
   className?: string;
@@ -89,6 +90,7 @@ export function HomeMediaRow({
   tone,
   icon,
   imageUrl,
+  imageObjectPosition = 'center',
   progressPct,
   ariaLabel,
   className,
@@ -125,6 +127,7 @@ export function HomeMediaRow({
             src={imageUrl!}
             alt=""
             className="home-media-thumb-img"
+            style={{ objectPosition: imageObjectPosition }}
             width={64}
             height={64}
             loading={metric ? 'eager' : 'lazy'}

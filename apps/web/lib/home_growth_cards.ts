@@ -3,10 +3,10 @@
 import {
   homeMediaIconForTone,
   homeMediaMonthProgressPct,
-  homeMediaSceneUrl,
   type HomeMediaIconId,
   type HomeMediaTone,
 } from './home_media_visual';
+import { homeGrowthCardImageUrl } from './home_growth_tile_image';
 import { buildReport, todayMinutes } from './reading';
 import type { HomeTodayPanelModel } from './home_today_panel';
 
@@ -93,8 +93,7 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
     href: '/report',
     mediaTone: 'summary',
     icon: homeMediaIconForTone('summary'),
-    // 今日时长卡：仅钟表图标，不要风景底（与主端 PWA 期望一致）
-    imageUrl: null,
+    imageUrl: homeGrowthCardImageUrl('summary'),
     progressPct: homeMediaMonthProgressPct(monthDays, now),
   });
 
@@ -111,7 +110,7 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
         href: plan.href,
         mediaTone: 'plan',
         icon: homeMediaIconForTone('plan'),
-        imageUrl: homeMediaSceneUrl('plan'),
+        imageUrl: homeGrowthCardImageUrl('feature-plan'),
       });
     } else {
       pushCard(cards, {
@@ -123,7 +122,7 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
         href: '/plans',
         mediaTone: 'plan',
         icon: homeMediaIconForTone('plan'),
-        imageUrl: homeMediaSceneUrl('plan'),
+        imageUrl: homeGrowthCardImageUrl('feature-plan'),
       });
     }
   }
@@ -140,7 +139,7 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
       href: theme?.href || '/search',
       mediaTone: 'theme',
       icon: homeMediaIconForTone('theme'),
-      imageUrl: homeMediaSceneUrl('theme'),
+      imageUrl: homeGrowthCardImageUrl('feature-theme'),
     });
   }
 
@@ -157,7 +156,7 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
         href: prayer.href,
         mediaTone: 'prayer',
         icon: homeMediaIconForTone('prayer'),
-        imageUrl: homeMediaSceneUrl('prayer'),
+        imageUrl: homeGrowthCardImageUrl('feature-prayer'),
       });
     } else {
       pushCard(cards, {
@@ -169,7 +168,7 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
         href: '/pray',
         mediaTone: 'prayer',
         icon: homeMediaIconForTone('prayer'),
-        imageUrl: homeMediaSceneUrl('prayer'),
+        imageUrl: homeGrowthCardImageUrl('feature-prayer'),
       });
     }
   }

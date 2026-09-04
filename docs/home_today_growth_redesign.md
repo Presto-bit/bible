@@ -212,15 +212,18 @@
 
 间距：`gap: 8px`（与 2×2 一致）
 
-### 5.3 左图来源（沿用 + 微调）
+### 5.3 左图来源（专属摄影 · 与今日推荐同系）
 
-| tone | 图 | 说明 |
-|------|-----|------|
-| summary | `homeMediaSceneUrl('summary')` 或时钟 icon | 可换 `tile_read` 裁剪 |
-| plan | `homeMediaSceneUrl('plan')` | 固定风景 day=8 |
-| theme | `homeMediaSceneUrl('theme')` | 固定 day=21 |
-| prayer | `homeMediaSceneUrl('prayer')` | 固定 day=14 |
-| memory | 书封或 memory 风景 | 按 href 解析 |
+成长区每张卡固定一张 Unsplash 摄影图（自托管 `public/illustrations/home/growth_*.jpg`），52×52 方图裁切，略降饱和以贴合静穆纸感。
+
+| 卡 id | 文件 | 语义 |
+|------|------|------|
+| `summary` | `growth_summary.jpg` | 打开的书 · 今日阅读 |
+| `plan` / `feature-plan` | `growth_plan.jpg` | 日历 · 读经计划 |
+| `theme` / `feature-theme` | `growth_theme.jpg` | 晨雾远山 · 主题探索 |
+| `prayer` / `feature-prayer` | `growth_prayer.jpg` | 白蜡烛 · 祷告（与今日 [4] 同系） |
+
+映射：`home_growth_tile_image.ts`（Web）/ `home_growth_cards.dart` `_growthImageFile`（Android）。
 
 **可选增强（非必须 v1）：** 左缘 3px 色条 — plan `#8a9c7c`、theme `#8b93a3`、prayer `#8aa3a8`
 
