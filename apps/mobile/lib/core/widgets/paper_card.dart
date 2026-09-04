@@ -6,6 +6,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../peiai_polish.dart';
+
 class PaperCard extends StatelessWidget {
   const PaperCard({
     super.key,
@@ -17,6 +19,7 @@ class PaperCard extends StatelessWidget {
     this.onLongPress,
     this.margin,
     this.accent = false,
+    this.accentRadial = false,
     this.backgroundLayer,
   }) : assert(tier >= 1 && tier <= 3);
 
@@ -32,6 +35,9 @@ class PaperCard extends StatelessWidget {
 
   /// 强调卡：左侧 3px 主题色竖条（对齐 canvas TappableCard accent）。
   final bool accent;
+
+  /// 同行主卡等：右上角径向 accent 洗（对齐 PWA companion `::after`）。
+  final bool accentRadial;
 
   /// 可选背景层（铺满卡面、随圆角裁剪），用于 hero 场景渐变等。
   final Widget? backgroundLayer;
@@ -81,7 +87,11 @@ class PaperCard extends StatelessWidget {
         color: base,
         borderRadius: radius,
         border: Border.all(color: borderColor),
-        boxShadow: _shadow(tier, dark),
+        boxShadow: switch (tier) {
+          3 => PeiaiShadows.hero(dark, accentDeep: tint),
+          2 => PeiaiShadows.cardLift(dark),
+          _ => PeiaiShadows.card(dark),
+        },
       ),
       child: ClipRRect(
         borderRadius: radius,
@@ -92,6 +102,22 @@ class PaperCard extends StatelessWidget {
             Positioned.fill(
               child: DecoratedBox(decoration: BoxDecoration(gradient: wash)),
             ),
+            if (accentRadial && tint != null)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.topRight,
+                      radius: 1.15,
+                      colors: [
+                        tint!.withValues(alpha: 0.08),
+                        Colors.transparent,
+                      ],
+                      stops: const [0, 0.55],
+                    ),
+                  ),
+                ),
+              ),
             if (accent)
               Positioned(
                 left: 0,
@@ -120,37 +146,6 @@ class PaperCard extends StatelessWidget {
           );
 
     return margin == null ? card : Padding(padding: margin!, child: card);
-  }
-
-  /// 对齐 Web `--home-shadow` / `--home-shadow-lift`。
-  static List<BoxShadow> _shadow(int tier, bool dark) {
-    final ink = dark ? const Color(0xFF000000) : const Color(0xFF0F172A);
-    switch (tier) {
-      case 3:
-        return [
-          BoxShadow(
-            color: ink.withValues(alpha: dark ? 0.4 : 0.10),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ];
-      case 2:
-        return [
-          BoxShadow(
-            color: ink.withValues(alpha: dark ? 0.3 : 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ];
-      default:
-        return [
-          BoxShadow(
-            color: ink.withValues(alpha: dark ? 0.22 : 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ];
-    }
   }
 }
 
@@ -182,9 +177,9 @@ class _PaperCardTapSurfaceState extends State<_PaperCardTapSurface> {
   @override
   Widget build(BuildContext context) {
     return AnimatedScale(
-      duration: const Duration(milliseconds: 110),
-      curve: Curves.easeOut,
-      scale: _pressed ? 0.985 : 1,
+      duration: PeiaiMotion.fast,
+      curve: PeiaiMotion.fastCurve,
+      scale: _pressed ? 0.978 : 1,
       child: Material(
         color: Colors.transparent,
         child: InkWell(

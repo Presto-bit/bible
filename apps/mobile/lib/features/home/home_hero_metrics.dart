@@ -26,13 +26,16 @@ double homeHeroVerseContentHeight(int textLen) {
   return padV +
       kicker +
       refBlock +
-      lines * homeHeroVerseFontSize(textLen) * 1.65 +
+      lines * 18 * 1.65 +
       afterVerse +
       actions;
 }
 
-/// 每日经文与 PWA Hero 一致：固定 16px，不随字数缩小。
-double homeHeroVerseFontSize(int textLen) => 16;
+/// 每日经文字号：对齐 PWA `clamp(17px, 4.6vw, 20px)`。
+double homeHeroVerseFontSize(BuildContext context) {
+  final w = MediaQuery.sizeOf(context).width;
+  return (w * 0.046).clamp(17.0, 20.0);
+}
 
 /// 最大行数：宁多行展全，不用省略号吃字（全屏壁纸另有完整文）。
 int homeHeroVerseMaxLines(int textLen) {

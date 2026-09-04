@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/home_day_wallpaper_cache.dart';
+import '../../core/peiai_polish.dart';
 import '../../core/theme.dart';
 import 'home_illustrations.dart';
 
@@ -68,13 +69,13 @@ class HomeTodayPanel extends StatelessWidget {
         const Text(
           '今日推荐',
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
             color: AppColors.inkSoft,
-            letterSpacing: 0.2,
+            letterSpacing: 0.72,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
@@ -144,10 +145,12 @@ class _TileCard extends StatefulWidget {
 class _TileCardState extends State<_TileCard> {
   Offset? _down;
   bool _moved = false;
+  bool _pressed = false;
 
   void _onPointerDown(PointerDownEvent e) {
     _down = e.position;
     _moved = false;
+    setState(() => _pressed = true);
   }
 
   void _onPointerMove(PointerMoveEvent e) {
@@ -161,6 +164,7 @@ class _TileCardState extends State<_TileCard> {
   void _onPointerUp(PointerUpEvent e) {
     final start = _down;
     _down = null;
+    setState(() => _pressed = false);
     if (start == null || _moved) return;
     if ((e.position - start).distance > _tileTapSlop) return;
     widget.onTap();
@@ -169,6 +173,7 @@ class _TileCardState extends State<_TileCard> {
   void _onPointerCancel(PointerCancelEvent e) {
     _down = null;
     _moved = false;
+    setState(() => _pressed = false);
   }
 
   @override
@@ -181,33 +186,24 @@ class _TileCardState extends State<_TileCard> {
     final tileFile = _homeTileFile(slot);
     final borderColor = slot.pending
         ? AppColors.accentDeep.withValues(alpha: 0.55)
-        : AppColors.line.withValues(alpha: 0.55);
-
-    return AnimatedScale(
-      scale: flash ? 1.02 : 1.0,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOut,
-      child: Material(
-        color: AppColors.surface,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: borderColor, width: flash ? 1.5 : 1),
+        : AppColors.ink.withValues(alpha: 0.07);
+    final shadows = List<BoxShadow>.from(PeiaiShadows.card(false));
+    if (slot.pending) {
+      shadows.insert(
+        0,
+        BoxShadow(
+          color: AppColors.accentDeep.withValues(alpha: 0.24),
+          blurRadius: 0,
+          spreadRadius: 1,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Listener(
-          behavior: HitTestBehavior.opaque,
-          onPointerDown: _onPointerDown,
-          onPointerMove: _onPointerMove,
-          onPointerUp: _onPointerUp,
-          onPointerCancel: _onPointerCancel,
-          child: Opacity(
-            opacity: slot.done ? 0.58 : 1,
-            child: SizedBox(
-              height: cardH,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+      );
+    }
+
+    Widget tileBody = SizedBox(
+      height: cardH,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
                   SizedBox(
                     height: mediaH,
                     child: Stack(
@@ -255,6 +251,9 @@ class _TileCardState extends State<_TileCard> {
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.88),
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.55),
+                              ),
                             ),
                             child: Text(
                               slot.tag,
@@ -307,6 +306,7 @@ class _TileCardState extends State<_TileCard> {
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
+                              letterSpacing: -0.13,
                               color: AppColors.ink,
                             ),
                           ),
@@ -326,7 +326,43 @@ class _TileCardState extends State<_TileCard> {
                   ),
                 ],
               ),
-            ),
+            );
+    if (slot.done) {
+      tileBody = ColorFiltered(
+        colorFilter: const ColorFilter.matrix(<double>[
+          0.72, 0.12, 0.12, 0, 0,
+          0.12, 0.72, 0.12, 0, 0,
+          0.12, 0.12, 0.72, 0, 0,
+          0, 0, 0, 0.72, 0,
+        ]),
+        child: Opacity(opacity: 0.82, child: tileBody),
+      );
+    }
+
+    return AnimatedScale(
+      scale: flash ? 1.02 : (_pressed ? 0.978 : 1.0),
+      duration: flash ? const Duration(milliseconds: 280) : PeiaiMotion.fast,
+      curve: PeiaiMotion.fastCurve,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: _pressed ? PeiaiShadows.cardLift(false) : shadows,
+        ),
+        child: Material(
+          color: AppColors.surface,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: borderColor, width: flash ? 1.5 : 1),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: _onPointerDown,
+            onPointerMove: _onPointerMove,
+            onPointerUp: _onPointerUp,
+            onPointerCancel: _onPointerCancel,
+            child: tileBody,
           ),
         ),
       ),

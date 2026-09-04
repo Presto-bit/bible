@@ -25,6 +25,7 @@ import '../../core/campaign_nav.dart';
 import '../../core/discover_h5_redirect.dart';
 import '../../core/h5_bridge_channel.dart';
 import '../../core/open_h5.dart';
+import '../../core/peiai_polish.dart';
 import '../../core/theme.dart';
 import '../../core/user_storage.dart';
 import '../../core/widgets/paper_card.dart';
@@ -1007,9 +1008,10 @@ class _GreetingHeaderState extends ConsumerState<_GreetingHeader> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                     height: 1.2,
+                    letterSpacing: 0.14,
                     color: AppColors.inkSoft,
                   ),
                 ),
@@ -1031,7 +1033,7 @@ class _GreetingHeaderState extends ConsumerState<_GreetingHeader> {
   }
 }
 
-class _IconCircle extends StatelessWidget {
+class _IconCircle extends StatefulWidget {
   const _IconCircle({
     super.key,
     required this.icon,
@@ -1045,26 +1047,58 @@ class _IconCircle extends StatelessWidget {
   final String? tooltip;
 
   @override
+  State<_IconCircle> createState() => _IconCircleState();
+}
+
+class _IconCircleState extends State<_IconCircle> {
+  var _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    final child = Material(
-      color: filled ? AppColors.accentDeep : AppColors.surface,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: SizedBox(
-          width: 36,
-          height: 36,
-          child: Icon(
-            icon,
-            size: 20,
-            color: filled ? Colors.white : AppColors.inkSoft,
+    final child = AnimatedScale(
+      scale: _pressed ? 0.96 : 1,
+      duration: PeiaiMotion.fast,
+      curve: PeiaiMotion.fastCurve,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: widget.filled
+                ? AppColors.accentDeep.withValues(alpha: 0.4)
+                : AppColors.ink.withValues(alpha: 0.06),
+          ),
+          boxShadow: widget.filled
+              ? [
+                  BoxShadow(
+                    color: AppColors.accentDeep.withValues(alpha: 0.28),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : PeiaiShadows.card(false),
+        ),
+        child: Material(
+          color: widget.filled ? AppColors.accentDeep : AppColors.surface,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: widget.onTap,
+            onHighlightChanged: (v) => setState(() => _pressed = v),
+            child: SizedBox(
+              width: 36,
+              height: 36,
+              child: Icon(
+                widget.icon,
+                size: 20,
+                color: widget.filled ? Colors.white : AppColors.inkSoft,
+              ),
+            ),
           ),
         ),
       ),
     );
-    if (tooltip == null) return child;
-    return Tooltip(message: tooltip!, child: child);
+    if (widget.tooltip == null) return child;
+    return Tooltip(message: widget.tooltip!, child: child);
   }
 }
 
@@ -1453,21 +1487,27 @@ class _VerseCardState extends ConsumerState<_VerseCard>
         : formatDailyVerseQuote(widget.text);
     final textLen = displayText.characters.length;
     final h = homeHeroVerseHeight(context, textLen: textLen);
-    final verseFs = homeHeroVerseFontSize(textLen);
+    final verseFs = homeHeroVerseFontSize(context);
     final verseLines = homeHeroVerseMaxLines(textLen);
     final canRead = widget.book.isNotEmpty && widget.chapter > 0;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: widget.text.isEmpty ? null : _openWallpaper,
+    return DecoratedBox(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        child: ClipRRect(
+        border: Border.all(color: AppColors.ink.withValues(alpha: 0.07)),
+        boxShadow: PeiaiShadows.hero(false, accentDeep: AppColors.accentDeep),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.text.isEmpty ? null : _openWallpaper,
           borderRadius: BorderRadius.circular(18),
-          child: SizedBox(
-            height: h,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: SizedBox(
+              height: h,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
                 // 暖灰占位，避免慢网露白底（对齐 PWA hero-verse-art-loading）
                 const ColoredBox(color: Color(0xFFE8E2DA)),
                 AnimatedOpacity(
@@ -1610,6 +1650,7 @@ class _VerseCardState extends ConsumerState<_VerseCard>
           ),
         ),
       ),
+    ),
     );
   }
 }
@@ -1630,33 +1671,39 @@ class _HeroAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget child = Material(
-      color: Colors.white.withValues(alpha: active ? 0.22 : 0.12),
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        onTap: onTap,
+    Widget child = DecoratedBox(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: label != null ? 12 : 10,
-            vertical: 8,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: Colors.white),
-              if (label != null) ...[
-                const SizedBox(width: 4),
-                Text(
-                  label!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+      ),
+      child: Material(
+        color: Colors.white.withValues(alpha: active ? 0.22 : 0.12),
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: label != null ? 12 : 10,
+              vertical: 8,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 18, color: Colors.white),
+                if (label != null) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    label!,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -1702,27 +1749,36 @@ class _GrowthStack extends StatelessWidget {
   Widget build(BuildContext context) {
     final cards = model.cards;
     if (cards.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < cards.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
-          _MediaGrowthRow(
-            tag: cards[i].tag,
-            title: cards[i].title,
-            detail: cards[i].detail ?? '',
-            metricValue: cards[i].metricValue,
-            metricPrefix: cards[i].metricPrefix,
-            metricSuffix: cards[i].metricSuffix,
-            imageUrl: cards[i].imageUrl,
-            imageFile: cards[i].imageFile,
-            icon: _icon(cards[i].iconName),
-            progressPct: cards[i].progressPct,
-            isSummary: cards[i].id == 'summary',
-            onTap: _onTap(cards[i].id),
-          ),
+    return Container(
+      margin: const EdgeInsets.only(top: 28),
+      padding: const EdgeInsets.only(top: 4),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: AppColors.ink.withValues(alpha: 0.05)),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < cards.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            _MediaGrowthRow(
+              tag: cards[i].tag,
+              title: cards[i].title,
+              detail: cards[i].detail ?? '',
+              metricValue: cards[i].metricValue,
+              metricPrefix: cards[i].metricPrefix,
+              metricSuffix: cards[i].metricSuffix,
+              imageUrl: cards[i].imageUrl,
+              imageFile: cards[i].imageFile,
+              icon: _icon(cards[i].iconName),
+              progressPct: cards[i].progressPct,
+              isSummary: cards[i].id == 'summary',
+              onTap: _onTap(cards[i].id),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -1789,7 +1845,7 @@ class _MediaGrowthRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
-    return Material(
+    final card = Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -1798,12 +1854,24 @@ class _MediaGrowthRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.ink.withValues(alpha: 0.12)),
+            border: Border.all(
+              color: isSummary
+                  ? AppColors.accentDeep.withValues(alpha: 0.18)
+                  : AppColors.ink.withValues(alpha: 0.07),
+            ),
+            boxShadow: isSummary
+                ? PeiaiShadows.cardLift(false)
+                : PeiaiShadows.card(false),
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: isSummary ? 92 : 84),
             child: Padding(
-              padding: EdgeInsets.fromLTRB(14, isSummary ? 14 : 12, 16, isSummary ? 14 : 12),
+              padding: EdgeInsets.fromLTRB(
+                14,
+                isSummary ? 14 : 12,
+                16,
+                isSummary ? 14 : 12,
+              ),
               child: Row(
                 children: [
                   SizedBox(
@@ -1876,12 +1944,15 @@ class _MediaGrowthRow extends StatelessWidget {
                                   ),
                                 TextSpan(
                                   text: metricValue,
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w700,
+                                  style: TextStyle(
+                                    fontSize: isSummary ? 26 : 22,
+                                    fontWeight: FontWeight.w800,
                                     height: 1.0,
                                     letterSpacing: -0.3,
                                     color: AppColors.ink,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
                                   ),
                                 ),
                                 if (metricSuffix != null)
@@ -1903,9 +1974,9 @@ class _MediaGrowthRow extends StatelessWidget {
                             title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: 15,
+                              fontSize: isSummary ? 15 : 14,
                               height: 1.3,
                               color: AppColors.ink,
                             ),
@@ -1915,18 +1986,22 @@ class _MediaGrowthRow extends StatelessWidget {
                           detail,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             height: 1.35,
-                            color: AppColors.inkFaint,
+                            color: isSummary
+                                ? AppColors.inkFaint
+                                : AppColors.inkFaint.withValues(alpha: 0.92),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right,
-                    color: AppColors.inkFaint,
+                    color: AppColors.inkFaint.withValues(
+                      alpha: isSummary ? 0.45 : 0.22,
+                    ),
                     size: 18,
                   ),
                 ],
@@ -1936,6 +2011,7 @@ class _MediaGrowthRow extends StatelessWidget {
         ),
       ),
     );
+    return isSummary ? card : Opacity(opacity: 0.94, child: card);
   }
 }
 

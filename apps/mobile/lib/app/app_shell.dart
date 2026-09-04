@@ -10,6 +10,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/peiai_polish.dart';
+
 import '../core/background_digest_service.dart';
 import '../core/discover_warmup.dart';
 import '../core/api_client.dart';
@@ -386,10 +388,11 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
               : Colors.white.withValues(alpha: 0.65),
         ),
         boxShadow: [
+          ...PeiaiShadows.cardLift(isDark),
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.10),
-            blurRadius: 28,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -433,7 +436,7 @@ class _PeiaiCapsuleTabBar extends StatelessWidget {
   }
 }
 
-class _TabItem extends StatelessWidget {
+class _TabItem extends StatefulWidget {
   const _TabItem({
     required this.outline,
     required this.filled,
@@ -455,32 +458,50 @@ class _TabItem extends StatelessWidget {
   final bool dimmed;
 
   @override
+  State<_TabItem> createState() => _TabItemState();
+}
+
+class _TabItemState extends State<_TabItem> {
+  var _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    final color = (active ? activeColor : inactiveColor).withValues(
-      alpha: dimmed ? 0.38 : 1,
+    final color = (widget.active ? widget.activeColor : widget.inactiveColor)
+        .withValues(
+      alpha: widget.dimmed ? 0.38 : 1,
     );
     return Tooltip(
-      message: dimmed ? '当前离线，此功能需联网' : '',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        splashColor: activeColor.withValues(alpha: 0.08),
-        highlightColor: activeColor.withValues(alpha: 0.04),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(active ? filled : outline, size: 24, color: color),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                height: 1.1,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+      message: widget.dimmed ? '当前离线，此功能需联网' : '',
+      child: AnimatedScale(
+        scale: _pressed ? 0.94 : 1,
+        duration: PeiaiMotion.fast,
+        curve: PeiaiMotion.fastCurve,
+        child: InkWell(
+          onTap: widget.onTap,
+          onHighlightChanged: (v) => setState(() => _pressed = v),
+          borderRadius: BorderRadius.circular(20),
+          splashColor: widget.activeColor.withValues(alpha: 0.08),
+          highlightColor: widget.activeColor.withValues(alpha: 0.04),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                widget.active ? widget.filled : widget.outline,
+                size: 24,
                 color: color,
               ),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.1,
+                  fontWeight: widget.active ? FontWeight.w600 : FontWeight.w500,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -20,6 +20,7 @@ import '../core/open_h5.dart';
 import '../core/overlay_h5.dart';
 import '../core/profile_avatar.dart';
 import '../core/profile_footprint.dart';
+import '../core/peiai_polish.dart';
 import '../core/theme.dart';
 import '../core/widgets/avatar_bubble.dart';
 import '../core/widgets/sync_migrate_sheet.dart';
@@ -636,9 +637,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: Text(
                           name,
                           style: const TextStyle(
-                            fontSize: 22,
+                            fontSize: 23,
                             fontWeight: FontWeight.w700,
                             height: 1.2,
+                            letterSpacing: -0.46,
                           ),
                         ),
                       ),
@@ -708,137 +710,150 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            // 同行主卡（§5.5 · soft card 同构首页）
-            PaperCard(
-              tier: 2,
-              tint: AppColors.accent,
-              padding: const EdgeInsets.fromLTRB(18, 20, 16, 20),
-              onTap: () => openH5IfAllowed(context, '/report'),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (monthDays > 0) ...[
-                          const Text(
-                            '本月已读',
-                            style: TextStyle(
+            PeiaiStagger(
+              child: PaperCard(
+                tier: 2,
+                tint: AppColors.accent,
+                accentRadial: true,
+                padding: const EdgeInsets.fromLTRB(18, 20, 16, 20),
+                onTap: () => openH5IfAllowed(context, '/report'),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (monthDays > 0) ...[
+                            const Text(
+                              '本月已读',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.inkSoft,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: '$monthDays',
+                                    style: const TextStyle(
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.05,
+                                      letterSpacing: -0.4,
+                                      color: AppColors.ink,
+                                      fontFeatures: [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: ' 天',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.inkSoft,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else
+                            const Text(
+                              '开始同行读经',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '今日 $mins 分钟 · 本周 $weekMins 分钟',
+                            style: const TextStyle(
+                              color: AppColors.inkFaint,
                               fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.inkSoft,
-                              letterSpacing: 0.4,
+                              height: 1.35,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: '$monthDays',
-                                  style: const TextStyle(
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.05,
-                                    letterSpacing: -0.4,
-                                    color: AppColors.ink,
-                                  ),
-                                ),
-                                const TextSpan(
-                                  text: ' 天',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.inkSoft,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ] else
-                          const Text(
-                            '开始同行读经',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '今日 $mins 分钟 · 本周 $weekMins 分钟',
-                          style: const TextStyle(
-                            color: AppColors.inkFaint,
-                            fontSize: 13,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  _JourneyRing(pct: journeyPct),
-                ],
+                    _JourneyRing(pct: journeyPct),
+                  ],
+                ),
               ),
             ),
             if (milestone != null) ...[
               const SizedBox(height: 10),
-              PaperCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '同行 $milestone 天 · 可分享这一刻',
-                        style: const TextStyle(fontSize: 13),
+              PeiaiStagger(
+                delayMs: 40,
+                child: PaperCard(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '同行 $milestone 天 · 可分享这一刻',
+                          style: const TextStyle(fontSize: 13),
+                        ),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        await shareBrandCard(
-                          context,
-                          ShareCardInput(
-                            title: '已同行 $milestone 天',
-                            subtitle: name,
-                            body: '在彼爱安静读经，一天又一天。愿话语继续同行。',
-                            footer: '彼爱 · 安静读经，在话语中相遇',
-                            badge: '读经同行',
-                            day: milestone! > 28 ? 28 : milestone!,
-                            shareText:
-                                '我在彼爱已同行读经 $milestone 天。愿话语继续同行。\n${AppConfig.webBaseUrl}/share/app?l1=share&l2=system_share&l3=streak:$milestone',
-                            subject: '已同行 $milestone 天｜彼爱',
-                          ),
-                        );
-                        await markStreakMilestoneShared(prefs, milestone!);
-                        if (mounted) setState(() {});
-                      },
-                      child: const Text('分享'),
-                    ),
-                  ],
+                      TextButton(
+                        onPressed: () async {
+                          await shareBrandCard(
+                            context,
+                            ShareCardInput(
+                              title: '已同行 $milestone 天',
+                              subtitle: name,
+                              body: '在彼爱安静读经，一天又一天。愿话语继续同行。',
+                              footer: '彼爱 · 安静读经，在话语中相遇',
+                              badge: '读经同行',
+                              day: milestone! > 28 ? 28 : milestone!,
+                              shareText:
+                                  '我在彼爱已同行读经 $milestone 天。愿话语继续同行。\n${AppConfig.webBaseUrl}/share/app?l1=share&l2=system_share&l3=streak:$milestone',
+                              subject: '已同行 $milestone 天｜彼爱',
+                            ),
+                          );
+                          await markStreakMilestoneShared(prefs, milestone!);
+                          if (mounted) setState(() {});
+                        },
+                        child: const Text('分享'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 20),
-            const Text(
-              '我的足迹',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.inkSoft,
-                letterSpacing: 0.3,
-              ),
-            ),
-            const SizedBox(height: 10),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.28,
-              children: [
+            PeiaiStagger(
+              delayMs: 96,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  const Text(
+                    '我的足迹',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.inkSoft,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 1.28,
+                    children: [
                 _FootprintCell(
                   // 足迹入口统一用用户可理解的「笔记」；底层仍复用经文想法数据。
                   kind: '笔记',
@@ -904,24 +919,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            const Text(
-              '常用',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.inkSoft,
-                letterSpacing: 0.3,
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            _ShortcutTabs(
-              onWarmup: () => context.push('/challenge?start=daily'),
-              onWarmupPage: () => context.push('/challenge'),
-              onRemind: () => context.push('/profile/reminders'),
-              onOffline: () => showOfflineDownloadSheet(context, ref),
-              onRemindLongPress: () {
-                showModalBottomSheet(
+            PeiaiStagger(
+              delayMs: 144,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  const Text(
+                    '常用',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.inkSoft,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _ShortcutTabs(
+                    onWarmup: () => context.push('/challenge?start=daily'),
+                    onWarmupPage: () => context.push('/challenge'),
+                    onRemind: () => context.push('/profile/reminders'),
+                    onOffline: () => showOfflineDownloadSheet(context, ref),
+                    onRemindLongPress: () {
+                      showModalBottomSheet(
                   context: context,
                   backgroundColor: AppColors.paper,
                   shape: const RoundedRectangleBorder(
@@ -951,6 +974,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 );
               },
+            ),
+                ],
+              ),
             ),
             // 帮助/协议已迁入设置（与 PWA ProfileSettings 一致）
             if (auth.signedIn) ...[

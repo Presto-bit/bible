@@ -18,7 +18,7 @@
   --font-ui: var(--font-peiai-sans), -apple-system, sans-serif;
   --font-reader: var(--font-peiai-serif), serif;
 
-  /* 2026 polish：纸感层次 / 动效 / 字阶（Web PWA 壳层） */
+  /* 2026 polish：纸感层次 / 动效 / 字阶（Web PWA 壳层；Flutter 见 lib/core/peiai_polish.dart） */
   --peiai-paper-edge: color-mix(in srgb, var(--ink, #191919) 7%, transparent);
   --peiai-paper-highlight: inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent);
   --peiai-shadow-card:
