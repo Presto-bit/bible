@@ -25,6 +25,7 @@ import {
 import { useShelfLoginGate } from '@/components/shelf/ShelfReplyComposer';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
+import { fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
 
 const ShelfPostWriteSheet = dynamic(
   () => import('@/components/shelf/ShelfPostWriteSheet'),
@@ -32,6 +33,10 @@ const ShelfPostWriteSheet = dynamic(
 );
 const ShelfNoteHubSheet = dynamic(
   () => import('@/components/shelf/ShelfNoteHubSheet'),
+  { ssr: false },
+);
+const ShelfAppendLessonSheet = dynamic(
+  () => import('@/components/shelf/ShelfAppendLessonSheet'),
   { ssr: false },
 );
 
@@ -65,9 +70,22 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   const [writeReview, setWriteReview] = useState(false);
   const [hubPostId, setHubPostId] = useState<string | null>(null);
   const [hubAbstract, setHubAbstract] = useState<string | undefined>();
+  const [canAppendLesson, setCanAppendLesson] = useState(false);
+  const [appendOpen, setAppendOpen] = useState(false);
 
   const progress = useMemo(() => loadShelfBookProgress(bookId), [bookId]);
   const finishedCelebration = search.get('finished') === '1' || Boolean(progress?.finished);
+  const isCollection = book?.book_type === 'collection';
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchShelfAdminCapabilities().then((cap) => {
+      if (!cancelled) setCanAppendLesson(cap.can_append_collection);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -213,6 +231,15 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
         >
           {finishedCelebration ? '重新阅读' : progress?.sectionId ? '继续阅读' : '开始阅读'}
         </button>
+        {canAppendLesson && isCollection ? (
+          <button
+            type="button"
+            className="btn ghost shelf-detail-append-lesson"
+            onClick={() => setAppendOpen(true)}
+          >
+            添加课节
+          </button>
+        ) : null}
         <p className="shelf-detail-stats muted">
           {stats.reviews} 篇书评 · {stats.notes} 条公开笔记
         </p>
@@ -294,6 +321,17 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
           abstract={hubAbstract}
           onClose={() => setHubPostId(null)}
           onChanged={reloadPosts}
+        />
+      ) : null}
+
+      {appendOpen ? (
+        <ShelfAppendLessonSheet
+          bookId={bookId}
+          bookTitle={book?.title || '教案'}
+          onClose={() => setAppendOpen(false)}
+          onAdded={() => {
+            void getPlatformShelfBook(bookId).then(setBook).catch(() => undefined);
+          }}
         />
       ) : null}
     </main>

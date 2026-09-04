@@ -15,7 +15,14 @@ from ..auth.session import get_current_user
 from ..config import get_settings
 from ..db import get_pool
 from ..rag.index import index_file
-from .auth import make_admin_token, phone_is_admin, require_admin, verify_admin_credentials
+from .auth import (
+    identity_is_shelf_admin,
+    make_admin_token,
+    phone_is_admin,
+    require_admin,
+    require_shelf_admin,
+    verify_admin_credentials,
+)
 from .rag_inventory import build_rag_inventory, purge_rag_orphans
 from .rag_jobs import enqueue_rag_job, get_rag_job, list_rag_jobs
 from .rag_ops import (
@@ -101,7 +108,21 @@ def _lookup_user_phone(user_id: str) -> str | None:
 @router.get("/auth/eligible")
 def admin_eligible(user_id: str = Depends(get_current_user)) -> dict:
     phone = _lookup_user_phone(user_id)
-    return {"admin_eligible": phone_is_admin(phone)}
+    user_code = _lookup_user_code(user_id)
+    return {
+        "admin_eligible": phone_is_admin(phone),
+        "shelf_admin": identity_is_shelf_admin(phone=phone, user_code=user_code),
+    }
+
+
+def _lookup_user_code(user_id: str) -> str | None:
+    pool = get_pool()
+    with pool.connection() as conn:
+        row = conn.execute(
+            "SELECT user_code FROM accounts WHERE user_id = %s::uuid LIMIT 1",
+            (user_id,),
+        ).fetchone()
+    return row[0] if row else None
 
 
 @router.get("/stats")
@@ -952,4 +973,46 @@ def admin_shelf_patch_group(
 
     group = update_shelf_group(group_id, title=body.title, sort_order=body.sort_order)
     return {"ok": True, "group": group}
+
+
+@router.get("/shelf/collections/{book_id}/units")
+def admin_shelf_collection_units(
+    book_id: str,
+    _admin: str = Depends(require_shelf_admin),
+) -> dict:
+    from ..shelf.file_catalog import get_file_book
+    from ..shelf.service import collection_units
+
+    book = get_file_book(book_id)
+    if not book:
+        raise HTTPException(404, "书目不存在")
+    if (book.get("book_type") or "") != "collection":
+        raise HTTPException(400, "仅合集书")
+    return {"units": collection_units(book_id)}
+
+
+@router.post("/shelf/collections/{book_id}/lessons")
+async def admin_shelf_append_lesson(
+    book_id: str,
+    file: UploadFile = File(...),
+    title: str | None = Form(default=None),
+    unit: str | None = Form(default=None),
+    zone: str = Form(default="body"),
+    after_section_id: str | None = Form(default=None),
+    _admin: str = Depends(require_shelf_admin),
+) -> dict:
+    """书柜管理员：向合集（如儿童教案）追加一课。"""
+    from ..shelf.service import append_collection_lesson
+
+    data = await file.read()
+    return append_collection_lesson(
+        book_id,
+        data=data,
+        filename=file.filename or "lesson.pdf",
+        title=title,
+        unit=unit,
+        zone=zone,
+        after_section_id=after_section_id,
+        attachments=None,
+    )
 

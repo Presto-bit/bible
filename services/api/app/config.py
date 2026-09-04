@@ -107,6 +107,8 @@ class Settings(BaseSettings):
     admin_phone: str = ""
     admin_password: str = ""
     admin_token_secret: str = ""
+    # 书柜管理员：逗号分隔的 user_code（8 位）或手机号；可追加合集教案，无需全站 Admin 口令
+    shelf_admin_user_codes: str = "45716122"
     rag_upload_dir: str = str(REPO_ROOT / "data" / "rag" / "uploads")
 
     # ── 社交 IM 附件（local | s3 兼容 OSS/COS/MinIO）──

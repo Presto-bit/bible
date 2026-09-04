@@ -20,10 +20,12 @@ type Props = {
   book: ShelfBookSummary;
   anchorEl: HTMLElement | null;
   canManage?: boolean;
+  canAppendLesson?: boolean;
   onClose: () => void;
   onMoveGroup: (book: ShelfBookSummary) => void;
   onShare?: (book: ShelfBookSummary) => void;
   onManage?: (book: ShelfBookSummary) => void;
+  onAppendLesson?: (book: ShelfBookSummary) => void;
 };
 
 const PAD = 12;
@@ -36,10 +38,12 @@ export default function ShelfBookActionPopover({
   book,
   anchorEl,
   canManage,
+  canAppendLesson,
   onClose,
   onMoveGroup,
   onShare,
   onManage,
+  onAppendLesson,
 }: Props) {
   const router = useRouter();
   const barRef = useRef<HTMLDivElement | null>(null);
@@ -58,6 +62,13 @@ export default function ShelfBookActionPopover({
       label: '书籍详情',
       onClick: () => navigateAppHref(shelfBookDetailHref(book.id), router),
     },
+    ...(canAppendLesson && book.book_type === 'collection' && onAppendLesson
+      ? [{
+          id: 'append',
+          label: '添加课节',
+          onClick: () => onAppendLesson(book),
+        }]
+      : []),
     ...(onShare
       ? [{
           id: 'share',

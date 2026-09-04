@@ -369,6 +369,24 @@
   width: 100%;
 }
 
+.shelf-append-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.shelf-append-field input {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line, #e8e2d9);
+  border-radius: 10px;
+  background: var(--paper, #fffcfa);
+  color: var(--ink, #2c2825);
+  font-size: 15px;
+}
+
 .shelf-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2930,6 +2948,12 @@ mark.shelf-sel-pinned {
   margin-top: 12px;
   width: min(100%, 280px);
   min-height: 44px;
+}
+
+.shelf-detail-append-lesson {
+  margin-top: 8px;
+  width: min(100%, 280px);
+  min-height: 40px;
 }
 
 .shelf-detail-stats {

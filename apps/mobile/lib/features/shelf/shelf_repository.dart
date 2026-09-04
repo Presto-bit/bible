@@ -406,6 +406,52 @@ class ShelfRepository {
     await _fetchListFresh(force: true);
     return res.data ?? const {};
   }
+
+  Future<bool> canAppendCollectionLesson() async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>('/shelf/platform/capabilities');
+      final data = res.data ?? const {};
+      return data['can_append_collection'] == true || data['shelf_admin'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<List<String>> listCollectionUnits(String bookId) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/admin/shelf/collections/$bookId/units',
+      );
+      final units = res.data?['units'];
+      if (units is List) {
+        return units.map((e) => '$e').where((e) => e.isNotEmpty).toList();
+      }
+    } catch (_) {}
+    return const [];
+  }
+
+  Future<Map<String, dynamic>> appendCollectionLesson({
+    required String bookId,
+    required String filePath,
+    required String filename,
+    String? title,
+    String? unit,
+    String zone = 'body',
+  }) async {
+    final map = <String, dynamic>{
+      'file': await MultipartFile.fromFile(filePath, filename: filename),
+      'zone': zone,
+    };
+    if (title != null && title.trim().isNotEmpty) map['title'] = title.trim();
+    if (unit != null && unit.trim().isNotEmpty) map['unit'] = unit.trim();
+    final form = FormData.fromMap(map);
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/admin/shelf/collections/$bookId/lessons',
+      data: form,
+    );
+    await _fetchListFresh(force: true);
+    return res.data ?? const {};
+  }
 }
 
 int shelfCoverHue(String title) {

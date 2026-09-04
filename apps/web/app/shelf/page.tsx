@@ -9,7 +9,7 @@ import ShelfManageSheet from '@/components/shelf/ShelfManageSheet';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
 import { adminCheck } from '@/lib/admin_rag';
-import { canManageShelf } from '@/lib/shelf_admin';
+import { canManageShelf, fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
 import {
   invalidateShelfListCache,
   listPlatformShelfFull,
@@ -34,6 +34,10 @@ const ShelfBookActionPopover = dynamic(
   () => import('@/components/shelf/ShelfBookActionPopover'),
   { ssr: false },
 );
+const ShelfAppendLessonSheet = dynamic(
+  () => import('@/components/shelf/ShelfAppendLessonSheet'),
+  { ssr: false },
+);
 
 export default function ShelfPage() {
   const suppress = useSuppressKeepAliveRoute();
@@ -50,6 +54,8 @@ function ShelfListInner() {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(() => !cached);
   const [canManage, setCanManage] = useState(false);
+  const [canAppendLesson, setCanAppendLesson] = useState(false);
+  const [appendBook, setAppendBook] = useState<ShelfBookSummary | null>(null);
   const [manageBook, setManageBook] = useState<ShelfBookSummary | null>(null);
   const [userGroups, setUserGroups] = useState<ShelfUserGroup[]>(() => listShelfUserGroups());
   const [activeTab, setActiveTab] = useState<ShelfLibraryTab>({ kind: 'last_read' });
@@ -97,9 +103,12 @@ function ShelfListInner() {
   useEffect(() => {
     if (!canManageShelf()) {
       setCanManage(false);
-      return;
+    } else {
+      void adminCheck().then(setCanManage);
     }
-    void adminCheck().then(setCanManage);
+    void fetchShelfAdminCapabilities().then((cap) => {
+      setCanAppendLesson(cap.can_append_collection);
+    });
   }, []);
 
   const visibleBooks = useMemo(
@@ -169,6 +178,7 @@ function ShelfListInner() {
           book={bookActionMenu.book}
           anchorEl={bookActionMenu.anchorEl}
           canManage={canManage}
+          canAppendLesson={canAppendLesson}
           onClose={() => setBookActionMenu(null)}
           onMoveGroup={(book) => {
             setBookActionMenu(null);
@@ -178,10 +188,23 @@ function ShelfListInner() {
             setBookActionMenu(null);
             setShareBook(book);
           }}
+          onAppendLesson={(book) => {
+            setBookActionMenu(null);
+            setAppendBook(book);
+          }}
           onManage={(book) => {
             setBookActionMenu(null);
             setManageBook(book);
           }}
+        />
+      ) : null}
+
+      {appendBook ? (
+        <ShelfAppendLessonSheet
+          bookId={appendBook.id}
+          bookTitle={appendBook.title}
+          onClose={() => setAppendBook(null)}
+          onAdded={() => void reload(true)}
         />
       ) : null}
 

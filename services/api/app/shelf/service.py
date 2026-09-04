@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
+from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException
@@ -20,7 +22,7 @@ from .file_catalog import (
     save_catalog_document,
 )
 from .schema import ensure_shelf_schema
-from .store import read_shelf_bytes, shelf_file_path
+from .store import read_shelf_bytes, shelf_dir, shelf_file_path
 
 # 书目章节内存索引，避免每次按 id 线性扫描全书 sections
 _sections_by_book: dict[str, dict[str, dict[str, Any]]] = {}
@@ -473,3 +475,237 @@ def update_shelf_group(group_id: str, *, title: str | None = None, sort_order: i
         hit["sort_order"] = int(sort_order)
     save_catalog_document(doc)
     return hit
+
+
+_LESSON_MIME = {
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".mov": "video/quicktime",
+}
+
+_UNIT_DISPLAY = {
+    "第一单元": "第一单元 · 创造与天地万物",
+    "第二单元": "第二单元 · 奇妙的身体与家",
+    "第三单元": "第三单元 · 耶稣的神迹与呼召",
+    "第四单元": "第四单元 · 品格故事与服事",
+    "第五单元": "第五单元 · 信心、勇气与守信",
+    "第六单元": "第六单元 · 好牧人与小羊群",
+}
+
+
+def _safe_cur_stem(raw: str) -> str:
+    s = re.sub(r"[^\w\-]+", "-", (raw or "").strip(), flags=re.UNICODE)
+    s = re.sub(r"-{2,}", "-", s).strip("-").lower()
+    if not s:
+        s = f"add-{uuid.uuid4().hex[:8]}"
+    if not s.startswith("cur-"):
+        s = f"cur-{s}"
+    return s[:80]
+
+
+def _title_from_filename(filename: str) -> str:
+    stem = Path(filename or "教案").stem
+    stem = re.sub(r"\s+", " ", stem).strip()
+    return stem or "新课节"
+
+
+def collection_units(book_id: str) -> list[str]:
+    book = get_file_book(book_id)
+    if not book:
+        return []
+    units: list[str] = []
+    seen: set[str] = set()
+    for sec in book.get("sections") or []:
+        if not isinstance(sec, dict):
+            continue
+        u = (sec.get("unit") or "").strip()
+        if u and u not in seen:
+            seen.add(u)
+            units.append(u)
+    for item in (book.get("toc") or {}).get("body") or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("source") == "unit":
+            title = str(item.get("title") or "")
+            # "第一单元 · …" → "第一单元"
+            u = title.split("·", 1)[0].strip() or title.strip()
+            if u and u not in seen:
+                seen.add(u)
+                units.append(u)
+    return units
+
+
+def append_collection_lesson(
+    book_id: str,
+    *,
+    data: bytes,
+    filename: str,
+    title: str | None = None,
+    unit: str | None = None,
+    zone: str = "body",
+    after_section_id: str | None = None,
+    attachments: list[tuple[bytes, str]] | None = None,
+) -> dict[str, Any]:
+    """向合集书追加一课（写 uploads + platform_catalog.json）。"""
+    suffix = Path(filename or "").suffix.lower()
+    if suffix not in {".pdf", ".docx"}:
+        raise HTTPException(status_code=400, detail="课节正文仅支持 .pdf / .docx")
+    if len(data) > 50 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="文件过大（上限 50MB）")
+    if len(data) < 16:
+        raise HTTPException(status_code=400, detail="文件无效")
+
+    z = (zone or "body").strip().lower()
+    if z not in {"front", "body", "appendix"}:
+        raise HTTPException(status_code=400, detail="zone 无效")
+
+    doc = load_catalog_document()
+    book = _find_catalog_book(doc, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="书目不存在")
+    if (book.get("book_type") or book.get("kind") or "") != "collection":
+        raise HTTPException(status_code=400, detail="仅合集书可追加课节")
+
+    display_title = (title or "").strip() or _title_from_filename(filename)
+    unit_name = (unit or "").strip() or None
+    stem = _safe_cur_stem(Path(filename).stem or display_title)
+    storage_key = f"{stem}{suffix}"
+    dest = shelf_dir() / storage_key
+    if dest.exists():
+        storage_key = f"{stem}-{uuid.uuid4().hex[:4]}{suffix}"
+        stem = Path(storage_key).stem
+        dest = shelf_dir() / storage_key
+    dest.write_bytes(data)
+
+    sec_id = f"sec-{stem}"
+    sections = book.setdefault("sections", [])
+    if any(isinstance(s, dict) and str(s.get("id")) == sec_id for s in sections):
+        sec_id = f"sec-{stem}-{uuid.uuid4().hex[:4]}"
+
+    att_list: list[dict[str, Any]] = []
+    for att_bytes, att_name in attachments or []:
+        if not att_bytes:
+            continue
+        att_suffix = Path(att_name or "").suffix.lower()
+        if att_suffix not in _LESSON_MIME:
+            continue
+        if len(att_bytes) > 80 * 1024 * 1024:
+            continue
+        att_stem = f"{stem}-{_safe_cur_stem(Path(att_name).stem).removeprefix('cur-')}"
+        att_key = f"{att_stem}{att_suffix}"
+        att_path = shelf_dir() / att_key
+        if att_path.exists():
+            att_key = f"{att_stem}-{uuid.uuid4().hex[:4]}{att_suffix}"
+            att_path = shelf_dir() / att_key
+        att_path.write_bytes(att_bytes)
+        kind = "video" if att_suffix in {".mp4", ".webm", ".mov"} else "image"
+        att_list.append(
+            {
+                "id": f"att-{Path(att_key).stem}",
+                "title": Path(att_name).stem or Path(att_key).stem,
+                "kind": kind,
+                "storage_key": att_key,
+                "mime": _LESSON_MIME.get(att_suffix, "application/octet-stream"),
+            }
+        )
+
+    section = {
+        "id": sec_id,
+        "title": display_title,
+        "zone": z,
+        "level": 2 if unit_name and z == "body" else 1,
+        "kind": "lesson",
+        "unit": unit_name,
+        "primary": {
+            "storage_key": storage_key,
+            "mime": _LESSON_MIME.get(suffix, "application/octet-stream"),
+            "title": Path(filename).name or display_title,
+        },
+        "attachments": att_list,
+    }
+    sections.append(section)
+
+    toc = book.setdefault("toc", {})
+    zone_key = z if z in {"front", "body", "appendix"} else "body"
+    toc_list: list[dict[str, Any]] = list(toc.get(zone_key) or [])
+    toc_item = {
+        "id": f"toc-{sec_id}",
+        "title": display_title,
+        "level": 2 if unit_name and z == "body" else 1,
+        "zone": z,
+        "source": "lesson",
+        "section_id": sec_id,
+    }
+
+    insert_at = len(toc_list)
+    if after_section_id:
+        for i, item in enumerate(toc_list):
+            if isinstance(item, dict) and str(item.get("section_id")) == after_section_id:
+                insert_at = i + 1
+                break
+
+    if z == "body" and unit_name:
+        unit_toc_id = f"unit-{unit_name}"
+        has_unit = any(
+            isinstance(it, dict) and (it.get("id") == unit_toc_id or it.get("source") == "unit" and str(it.get("title", "")).startswith(unit_name))
+            for it in toc_list
+        )
+        if not has_unit:
+            unit_item = {
+                "id": unit_toc_id,
+                "title": _UNIT_DISPLAY.get(unit_name, unit_name),
+                "level": 1,
+                "zone": "body",
+                "source": "unit",
+                "section_id": None,
+            }
+            # 插到同单元课之前：若 after 指向某课，unit 应在该课前已存在；否则插在课前
+            toc_list.insert(insert_at, unit_item)
+            insert_at += 1
+        else:
+            # 默认插到该单元最后一课之后
+            last_in_unit = None
+            in_unit = False
+            for i, item in enumerate(toc_list):
+                if not isinstance(item, dict):
+                    continue
+                if item.get("source") == "unit" and (
+                    item.get("id") == unit_toc_id
+                    or str(item.get("title", "")).startswith(unit_name)
+                ):
+                    in_unit = True
+                    last_in_unit = i
+                    continue
+                if in_unit and item.get("source") == "unit":
+                    break
+                if in_unit and item.get("source") == "lesson":
+                    last_in_unit = i
+            if after_section_id is None and last_in_unit is not None:
+                insert_at = last_in_unit + 1
+
+    toc_list.insert(insert_at, toc_item)
+    toc[zone_key] = toc_list
+
+    book["file_size"] = int(book.get("file_size") or 0) + len(data) + sum(len(a[0]) for a in (attachments or []))
+    save_catalog_document(doc)
+    invalidate_shelf_section_cache(book_id)
+    return {
+        "ok": True,
+        "book_id": book_id,
+        "section": {
+            "id": section["id"],
+            "title": section["title"],
+            "zone": section["zone"],
+            "unit": section.get("unit"),
+            "kind": section["kind"],
+            "primary": section["primary"],
+            "attachments": section["attachments"],
+        },
+    }

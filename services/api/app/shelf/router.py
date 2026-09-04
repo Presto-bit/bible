@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 
-from ..auth.session import get_current_user
+from ..auth.session import get_current_user, try_get_current_user
 from .service import (
     get_platform_asset_path,
     get_platform_book,
@@ -16,6 +16,31 @@ from .service import (
 )
 
 router = APIRouter(prefix="/shelf", tags=["shelf"])
+
+
+@router.get("/platform/capabilities")
+def shelf_platform_capabilities(user_id: str | None = Depends(try_get_current_user)) -> dict:
+    """客户端探测：是否可向合集追加课节（书柜管理员）。"""
+    if not user_id:
+        return {"shelf_admin": False, "can_append_collection": False}
+    from ..admin.auth import identity_is_shelf_admin
+    from ..db import get_pool
+
+    phone = None
+    user_code = None
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            row = conn.execute(
+                "SELECT phone, user_code FROM accounts WHERE user_id = %s::uuid LIMIT 1",
+                (user_id,),
+            ).fetchone()
+        if row:
+            phone, user_code = row[0], row[1]
+    except Exception:
+        pass
+    ok = identity_is_shelf_admin(phone=phone, user_code=user_code)
+    return {"shelf_admin": ok, "can_append_collection": ok}
 
 
 @router.get("/platform")

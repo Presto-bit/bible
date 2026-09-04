@@ -12,6 +12,7 @@ import 'shelf_book_card.dart';
 import 'shelf_library_store.dart';
 import 'shelf_progress.dart';
 import 'shelf_repository.dart';
+import 'shelf_append_lesson_sheet.dart';
 
 final shelfListProvider = FutureProvider.autoDispose<ShelfListData>((ref) async {
   return ref.watch(shelfRepoProvider).listPlatform();
@@ -30,11 +31,18 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   bool _searchOpen = false;
   final _searchCtrl = TextEditingController();
   List<ShelfUserGroup> _userGroups = const [];
+  var _canAppendLesson = false;
 
   @override
   void initState() {
     super.initState();
     _reloadGroups();
+    _loadCap();
+  }
+
+  Future<void> _loadCap() async {
+    final ok = await ref.read(shelfRepoProvider).canAppendCollectionLesson();
+    if (mounted) setState(() => _canAppendLesson = ok);
   }
 
   @override
@@ -150,6 +158,42 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
       _reloadGroups();
     }
     ctrl.dispose();
+  }
+
+  Future<void> _bookActions(ShelfBookSummary book) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(title: Text(book.title, style: AppTypography.meta)),
+            if (_canAppendLesson && book.bookType == 'collection')
+              ListTile(
+                leading: const Icon(Icons.note_add_outlined),
+                title: const Text('添加课节'),
+                onTap: () => Navigator.pop(ctx, 'append'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.folder_outlined),
+              title: const Text('移到分组'),
+              onTap: () => Navigator.pop(ctx, 'move'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == 'append') {
+      final ok = await showShelfAppendLessonSheet(
+        context,
+        ref,
+        bookId: book.id,
+        bookTitle: book.title,
+      );
+      if (ok) await _refresh(ref);
+    } else if (action == 'move') {
+      await _moveBook(book);
+    }
   }
 
   Future<void> _moveBook(ShelfBookSummary book) async {
@@ -349,7 +393,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                             book: book,
                             onTap: () => context.push(_library.bookCardPath(book.id)),
                             onDetailTap: () => context.push('/shelf/${book.id}'),
-                            onLongPress: () => _moveBook(book),
+                            onLongPress: () => _bookActions(book),
                           );
                         },
                         childCount: books.length,
