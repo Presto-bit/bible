@@ -13,12 +13,18 @@ class ShelfBrandCover extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: shelfBrandCoverBg,
-      child: Image(
-        image: const AssetImage('assets/app_icon_shelf.png'),
+      child: Image.asset(
+        'assets/app_icon_shelf.png',
         fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
         gaplessPlayback: true,
         errorBuilder: (_, __, ___) => Center(
-          child: Icon(Icons.menu_book_outlined, color: Colors.white.withValues(alpha: 0.9), size: 40),
+          child: Icon(
+            Icons.menu_book_outlined,
+            color: Colors.white.withValues(alpha: 0.92),
+            size: 40,
+          ),
         ),
       ),
     );

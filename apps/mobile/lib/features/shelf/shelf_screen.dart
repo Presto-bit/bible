@@ -249,7 +249,15 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   }
 
   Future<void> _openBook(ShelfBookSummary book) async {
-    final path = _library.bookCardPath(book.id);
+    final id = book.id.trim();
+    if (id.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('无法打开：书目无效')),
+      );
+      return;
+    }
+    final path = _library.bookCardPath(id);
     if (!mounted) return;
     try {
       await context.push(path);
@@ -262,8 +270,10 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   }
 
   Future<void> _openBookDetail(ShelfBookSummary book) async {
+    final id = book.id.trim();
+    if (id.isEmpty) return;
     try {
-      await context.push('/shelf/${Uri.encodeComponent(book.id)}');
+      await context.push('/shelf/${Uri.encodeComponent(id)}');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

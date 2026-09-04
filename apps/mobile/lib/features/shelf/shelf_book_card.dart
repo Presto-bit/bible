@@ -28,33 +28,34 @@ class ShelfBookCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ratio = progressRatio?.clamp(0.0, 1.0);
+    final resolvedCover = (coverUrl ?? '').trim();
+
+    // SizedBox.expand + GestureDetector.opaque：填满网格格、整卡可点，避免嵌套 InkWell 吞点击
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        borderRadius: BorderRadius.circular(6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: DecoratedBox(
-                  decoration: const BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0x14000000),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
+      child: SizedBox.expand(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (coverUrl != null && coverUrl!.isNotEmpty)
-                        Image.network(coverUrl!, fit: BoxFit.cover)
+                      // 底层红底保证「始终有封面色」，避免图加载失败时空白
+                      const ColoredBox(color: shelfBrandCoverBg),
+                      if (resolvedCover.isNotEmpty)
+                        Image.network(
+                          resolvedCover,
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                          errorBuilder: (_, __, ___) => const ShelfBrandCover(),
+                        )
                       else
                         const ShelfBrandCover(),
                       if (ratio != null && ratio > 0)
@@ -82,26 +83,24 @@ class ShelfBookCard extends StatelessWidget {
                         Positioned(
                           top: 5,
                           right: 5,
-                          child: Material(
-                            color: Colors.black38,
-                            shape: const CircleBorder(),
-                            clipBehavior: Clip.antiAlias,
-                            child: InkWell(
-                              onTap: onDetailTap,
-                              customBorder: const CircleBorder(),
-                              child: const SizedBox(
-                                width: 28,
-                                height: 28,
-                                child: Center(
-                                  child: Text(
-                                    'i',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: onDetailTap,
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: const BoxDecoration(
+                                color: Colors.black38,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'i',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  fontStyle: FontStyle.italic,
                                 ),
                               ),
                             ),
@@ -111,23 +110,23 @@ class ShelfBookCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 32,
-              child: Text(
-                book.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  height: 1.35,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.ink,
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 32,
+                child: Text(
+                  book.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
