@@ -8,6 +8,7 @@ import {
   PROFILE_SETTINGS_HREF,
 } from '@/lib/profile_settings';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { useSettleSoftSecondaryNav } from '@/lib/use_settle_soft_secondary_nav';
 import { useEffect, useState } from 'react';
 import {
   APP_THEMES,
@@ -26,6 +27,7 @@ import {
 
 export default function AppearancePage() {
   useEdgeSwipeBack({ href: PROFILE_SETTINGS_HREF });
+  useSettleSoftSecondaryNav();
 
   const [appTheme, setAppThemeState] = useState<AppThemeId>('classic');
   const [readerTheme, setReaderThemeState] = useState<ReaderTheme>('morning');

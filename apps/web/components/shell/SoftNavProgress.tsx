@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { endSoftNavProgressIfArrived, subscribeSoftNavFail, subscribeSoftNavProgress } from '@/lib/soft_nav_progress';
-import { clearPendingSecondaryNav, getPendingSecondaryTarget } from '@/lib/pwa_tab_nav';
+import {
+  endSoftNavProgressIfArrived,
+  subscribeSoftNavFail,
+  subscribeSoftNavProgress,
+} from '@/lib/soft_nav_progress';
+import {
+  getPendingSecondaryTarget,
+  settleSoftSecondaryNav,
+} from '@/lib/pwa_tab_nav';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useToast } from '@/components/ui/ToastProvider';
 
-/** 弱网 soft nav 顶栏进度；到达目标才收起；超时清 pending 并 toast。 */
+/** 弱网 soft nav：仅顶栏细进度；到达目标立刻收起，避免残留「遮罩感」。 */
 export default function SoftNavProgress() {
   const pathname = usePathname();
   const toast = useToast();
@@ -19,8 +26,7 @@ export default function SoftNavProgress() {
 
   useEffect(() => {
     return subscribeSoftNavFail(() => {
-      clearPendingSecondaryNav();
-      window.dispatchEvent(new Event('presto-tab-nav'));
+      settleSoftSecondaryNav();
       toast('打开较慢，请再试一次');
     });
   }, [toast]);
@@ -31,8 +37,7 @@ export default function SoftNavProgress() {
     if (!target) return;
     const cur = normalizeAppPath(pathname);
     if (cur === target || cur.startsWith(`${target}/`)) {
-      clearPendingSecondaryNav();
-      window.dispatchEvent(new Event('presto-tab-nav'));
+      settleSoftSecondaryNav();
     }
   }, [pathname]);
 

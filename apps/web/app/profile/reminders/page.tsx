@@ -8,6 +8,7 @@ import {
   PROFILE_SETTINGS_HREF,
 } from '@/lib/profile_settings';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { useSettleSoftSecondaryNav } from '@/lib/use_settle_soft_secondary_nav';
 import { useEffect, useState } from 'react';
 import {
   ensurePermission,
@@ -43,6 +44,7 @@ function slotActive(pref: ReminderPref, hour: number, minute: number) {
 
 export default function RemindersPage() {
   useEdgeSwipeBack({ href: PROFILE_SETTINGS_HREF });
+  useSettleSoftSecondaryNav();
 
   const [pref, setPref] = useState<ReminderPref>({ enabled: false, hour: 8, minute: 0 });
   const [groupPref, setGroupPref] = useState<GroupEveningReminder>({

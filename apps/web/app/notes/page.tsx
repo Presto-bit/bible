@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { useSettleSoftSecondaryNav } from '@/lib/use_settle_soft_secondary_nav';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import {
@@ -81,6 +82,7 @@ export default function NotesPage() {
 
 function NotesInner() {
   useEdgeSwipeBack({ href: '/profile' });
+  useSettleSoftSecondaryNav();
 
   const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>(() => {

@@ -298,7 +298,9 @@ nav.tabbar,
 
 .soft-nav-progress {
   height: 3px;
-  background: color-mix(in srgb, var(--accent-deep) 12%, transparent);
+  margin-top: env(safe-area-inset-top, 0px);
+  background: transparent;
+  pointer-events: none !important;
 }
 
 .soft-nav-progress-bar {
@@ -310,26 +312,11 @@ nav.tabbar,
     color-mix(in srgb, var(--accent-deep) 70%, #fff) 65%,
     transparent 100%
   );
+  pointer-events: none !important;
 }
 
 .soft-nav-loading {
-  padding-top: 24px;
-}
-
-.soft-nav-loading::before {
-  content: '';
-  display: block;
-  height: 120px;
-  margin: 0 0 16px;
-  border-radius: 20px;
-  background: linear-gradient(
-    110deg,
-    color-mix(in srgb, var(--surface) 90%, var(--paper)) 0%,
-    color-mix(in srgb, var(--surface) 96%, #fff) 45%,
-    color-mix(in srgb, var(--surface) 90%, var(--paper)) 90%
-  );
-  background-size: 200% 100%;
-  animation: peiai-shimmer 1.2s ease-in-out infinite;
+  padding-top: 48px;
 }
 
 @keyframes peiai-shimmer {
@@ -438,10 +425,6 @@ html[data-app-theme='dark'] .tabbar {
   .profile-page .profile-block-label,
   .profile-page .profile-footprint-grid,
   .profile-page .profile-shortcut-panel,
-  .soft-nav-loading::before {
-    animation: none !important;
-  }
-
   .home-page .hero-verse:active,
   .home-page .home-today-tile:active,
   .home-page .home-media-row:active,

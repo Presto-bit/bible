@@ -2,7 +2,7 @@
 
 import { isTabKeepAliveEnabled } from './platform';
 import { markReaderTabEntry } from './reading';
-import { beginSoftNavProgress } from './soft_nav_progress';
+import { beginSoftNavProgress, endSoftNavProgress } from './soft_nav_progress';
 import {
   isSecondaryAppPath,
   keepAliveTabHref,
@@ -31,6 +31,15 @@ function beginPendingSecondaryNav(targetPath: string) {
 
 export function clearPendingSecondaryNav() {
   pendingSecondaryTarget = null;
+}
+
+/** 二级页已到达：收 pending + 顶栏进度，避免残留「遮罩感」挡点击 */
+export function settleSoftSecondaryNav(): void {
+  clearPendingSecondaryNav();
+  endSoftNavProgress();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('presto-tab-nav'));
+  }
 }
 
 export function getPendingSecondaryTarget(): string | null {

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { useSettleSoftSecondaryNav } from '@/lib/use_settle_soft_secondary_nav';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import { api, type BibleBook } from '@/lib/api';
@@ -42,6 +43,7 @@ export default function ReportPage() {
 
 function ReportInner() {
   useEdgeSwipeBack({ href: '/profile' });
+  useSettleSoftSecondaryNav();
 
   const [mode, setMode] = useState<Mode>('day');
   const [cursor, setCursor] = useState(() => new Date());

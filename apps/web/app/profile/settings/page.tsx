@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import PageBackBar from '@/components/PageBackBar';
 import ProfileSettingsPanel from '@/components/profile/ProfileSettingsPanel';
-import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { markRouteNavigation, settleSoftSecondaryNav } from '@/lib/pwa_tab_nav';
 import {
   clearStrandedBodyTouchLocks,
   dismissOrphanBodySheetBackdrops,
@@ -14,9 +14,10 @@ import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 export default function ProfileSettingsPage() {
   useEdgeSwipeBack({ href: '/profile' });
 
-  // 进设置即锁定 route 源，并清僵尸遮罩（避免 TWA/壳上整页点击无响应）
+  // 进设置：锁定 route、收 soft-nav、清僵尸遮罩，避免顶栏进度/旧 overlay 挡点击
   useEffect(() => {
     markRouteNavigation();
+    settleSoftSecondaryNav();
     dismissOrphanBodySheetBackdrops();
     hardRemoveBlockingOverlays();
     clearStrandedBodyTouchLocks({ forceExternal: false });

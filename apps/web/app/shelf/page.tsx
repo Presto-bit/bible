@@ -7,6 +7,7 @@ import ShelfLibraryHeader from '@/components/shelf/ShelfLibraryHeader';
 import ShelfLibraryTabs from '@/components/shelf/ShelfLibraryTabs';
 import ShelfManageSheet from '@/components/shelf/ShelfManageSheet';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { useSettleSoftSecondaryNav } from '@/lib/use_settle_soft_secondary_nav';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
 import { adminCheck } from '@/lib/admin_rag';
 import { canManageShelf, fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
@@ -47,6 +48,7 @@ export default function ShelfPage() {
 
 function ShelfListInner() {
   useEdgeSwipeBack({ href: '/profile' });
+  useSettleSoftSecondaryNav();
 
   const cached = peekShelfListCache(true);
   const [groups, setGroups] = useState<ShelfGroup[]>(() => cached?.groups ?? []);

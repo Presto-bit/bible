@@ -164,6 +164,7 @@ export function hardRemoveBlockingOverlays(): void {
   const hardSelectors = [
     '.plus-menu-backdrop',
     '.admin-cmd-backdrop',
+    '.soft-nav-pending-overlay',
     '[data-shell-touch-blocker]:not(.external-browser)',
   ].join(',');
 

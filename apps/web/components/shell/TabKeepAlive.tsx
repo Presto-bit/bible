@@ -136,20 +136,20 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
       ? pwaPath
       : routerPath;
   const secondaryNavPending = isSecondaryNavPending(routerPathname);
-  // 二级页或 pending：卸掉主 Tab pane，只显示 Next 路由层（设置 / 书架 / 搜索等）
-  const effectiveActiveTab =
-    isSecondaryAppPath(routerPath) || secondaryNavPending ? null : activeTab;
+  // 仅当 router 已到二级页才卸主 Tab；pending 期间保留来源 Tab，避免「闪一下空白再进设置」
+  const effectiveActiveTab = isSecondaryAppPath(routerPath) ? null : activeTab;
 
   // 当前 Tab 首帧就要挂载：不可等 useEffect，否则 suppress 后无 pane → 白屏
   const paneVisible = (tab: KeepAliveTabId) =>
     Boolean(mounted[tab] || (enabled && effectiveActiveTab === tab));
 
-  // 仅在 KeepAlive pane 已可见时隐藏路由 children；pending 时不 suppress，让二级页可渲染可点
+  // 主 Tab 可见时 suppress 路由层；二级页 / pending 不 suppress，让目标页可渲染
   const suppressRoute =
     enabled
     && effectiveActiveTab !== null
     && paneVisible(effectiveActiveTab)
-    && !isSecondaryAppPath(routeOverlayPath);
+    && !isSecondaryAppPath(routeOverlayPath)
+    && !secondaryNavPending;
 
   useEffect(() => {
     if (!enabled) return;
