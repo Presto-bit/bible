@@ -496,7 +496,7 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
     required String bookId,
     required String bookName,
     required int chapter,
-    required String screenVersion,
+    String? screenVersion,
   }) async {
     if (state.state == ReaderAudioState.playing) {
       peiaiHapticAudioToggle();
@@ -515,7 +515,7 @@ class ReaderAudioController extends Notifier<ReaderAudioSession> {
       bookId: bookId,
       bookName: bookName,
       chapter: chapter,
-      screenVersion: screenVersion,
+      screenVersion: screenVersion ?? _screenVersion,
     );
   }
 

@@ -1,7 +1,7 @@
 /// 书架正文 HTML 预处理（对话说话人、继续对话问题、经文 linkify）。
 library;
 
-import '../../bible/inline_ref.dart';
+import '../bible/inline_ref.dart';
 
 final _dialogueParaRe = RegExp(
   r'<p class="shelf-dialogue">(信徒|牧者)[：:]\s*(.*?)</p>',
@@ -194,14 +194,14 @@ final _layoutStyleKeys = {
   'position',
 };
 
-final _stripStyleKeys = (
+final _stripStyleKeys = <String>[
   'font-size',
   'font-family',
   'line-height',
   'color',
   'letter-spacing',
   'mso-',
-);
+];
 
 final _styleAttrRe = RegExp(r'\sstyle="([^"]*)"', caseSensitive: false);
 final _dimAttrRe = RegExp(r'\s(?:width|height|align|valign)="[^"]*"', caseSensitive: false);

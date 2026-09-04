@@ -1,8 +1,9 @@
-/// 首页「今日推荐」：左大右双，封面主卡 + 主题侧卡，对齐 PWA HomeTodayPanel。
+/// 首页「今日推荐」：2×2 固定四坑，对齐 PWA HomeTodayPanel。
 library;
 
 import 'package:flutter/material.dart';
 
+import '../../core/config.dart';
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/home_day_wallpaper_cache.dart';
 import '../../core/theme.dart';
@@ -38,21 +39,25 @@ class HomeTodaySlot {
 class HomeTodayPanel extends StatelessWidget {
   const HomeTodayPanel({
     super.key,
-    required this.primary,
-    required this.sideTop,
-    required this.sideBottom,
-    required this.onPrimary,
-    required this.onSideTop,
-    required this.onSideBottom,
+    required this.activity,
+    required this.read,
+    required this.group,
+    required this.prayer,
+    required this.onActivity,
+    required this.onRead,
+    required this.onGroup,
+    required this.onPrayer,
     this.groupFlash = false,
   });
 
-  final HomeTodaySlot primary;
-  final HomeTodaySlot sideTop;
-  final HomeTodaySlot sideBottom;
-  final VoidCallback onPrimary;
-  final VoidCallback onSideTop;
-  final VoidCallback onSideBottom;
+  final HomeTodaySlot activity;
+  final HomeTodaySlot read;
+  final HomeTodaySlot group;
+  final HomeTodaySlot prayer;
+  final VoidCallback onActivity;
+  final VoidCallback onRead;
+  final VoidCallback onGroup;
+  final VoidCallback onPrayer;
   final bool groupFlash;
 
   @override
@@ -63,304 +68,150 @@ class HomeTodayPanel extends StatelessWidget {
         const Text(
           '今日推荐',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppColors.inkSoft,
             letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 10),
-        SizedBox(
-          // 对齐 PWA `.home-today-panel` min-height: 168px
-          height: 168,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                flex: 155,
-                child: _PrimaryCard(slot: primary, onTap: onPrimary),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 100,
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: _SideCard(
-                        slot: sideTop,
-                        onTap: onSideTop,
-                        tone: _SideTone.group,
-                        flash: groupFlash,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: _SideCard(
-                        slot: sideBottom,
-                        onTap: onSideBottom,
-                        tone: _SideTone.prayer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _TileCard(slot: activity, onTap: onActivity),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _TileCard(slot: read, onTap: onRead),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _TileCard(slot: group, onTap: onGroup, flash: groupFlash),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _TileCard(slot: prayer, onTap: onPrayer),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-enum _SideTone { group, prayer }
-
-String _coverFor(HomeTodaySlot slot) {
+String _tileImageFor(HomeTodaySlot slot) {
   final resolved = resolveCampaignCoverUrl(slot.coverUrl);
   if (resolved != null) return resolved;
-  // 稳定风景：用 slot id 哈希选 illustration
+  if (slot.id.startsWith('campaign-')) {
+    return _illustrationAssetUrl('home/tile_activity.svg');
+  }
+  if (slot.id == 'shelf') {
+    return _illustrationAssetUrl('home/tile_shelf.svg');
+  }
+  if (slot.id == 'group' || slot.tag == '共读') {
+    return _illustrationAssetUrl('home/tile_fellowship.svg');
+  }
+  if (slot.id == 'prayer' || slot.tag == '祷告') {
+    return _illustrationAssetUrl('home/tile_prayer.svg');
+  }
+  if (slot.id == 'suggest') {
+    return _illustrationAssetUrl('home/tile_theme.svg');
+  }
   final h = slot.id.hashCode.abs();
   final day = (h % illustrationFiles.length) + 1;
   return dailyVerseWallpaperUrl(day);
 }
 
-class _PrimaryCard extends StatelessWidget {
-  const _PrimaryCard({required this.slot, required this.onTap});
-  final HomeTodaySlot slot;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final src = _coverFor(slot);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              HomeDayNetworkImage(
-                url: src,
-                fit: BoxFit.cover,
-                cacheWidth: 800,
-                cacheHeight: 600,
-                errorBuilder: (_, __, ___) => Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF3D5A48), Color(0xFF2C4034)],
-                    ),
-                  ),
-                ),
-              ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.15),
-                      Colors.black.withValues(alpha: 0.55),
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        slot.tag,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    // 自适应字号：短文单行，长文缩小并最多 2 行兜底，避免被遮挡
-                    LayoutBuilder(
-                      builder: (context, c) {
-                        final title = slot.title;
-                        final long = title.characters.length > 10;
-                        final veryLong = title.characters.length > 16;
-                        return Text(
-                          title,
-                          maxLines: veryLong ? 2 : 1,
-                          softWrap: veryLong,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: veryLong
-                                ? 12
-                                : long
-                                    ? 13
-                                    : 14.5,
-                            height: 1.22,
-                          ),
-                        );
-                      },
-                    ),
-                    if (slot.sub.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        slot.sub,
-                        maxLines: slot.sub.characters.length > 18 ? 2 : 1,
-                        softWrap: slot.sub.characters.length > 18,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.82),
-                          fontSize: slot.sub.characters.length > 14 ? 10.5 : 11.5,
-                          height: 1.2,
-                        ),
-                      ),
-                    ],
-                    if (slot.cta != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        slot.cta!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.95),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              // 对齐 PWA HomeTodayProgressRing：右下角环
-              if (slot.progressPct != null && slot.progressPct! > 0)
-                Positioned(
-                  right: 10,
-                  bottom: 10,
-                  child: _TodayProgressRing(pct: slot.progressPct!),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+String _illustrationAssetUrl(String relative) {
+  final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
+  return '$base/illustrations/$relative';
 }
 
-class _TodayProgressRing extends StatelessWidget {
-  const _TodayProgressRing({required this.pct});
-  final int pct;
-
-  @override
-  Widget build(BuildContext context) {
-    final value = (pct.clamp(0, 100)) / 100.0;
-    return SizedBox(
-      width: 36,
-      height: 36,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 36,
-            height: 36,
-            child: CircularProgressIndicator(
-              value: value,
-              strokeWidth: 3,
-              backgroundColor: Colors.white.withValues(alpha: 0.28),
-              color: Colors.white.withValues(alpha: 0.95),
-            ),
-          ),
-          Text(
-            '${pct.clamp(0, 100)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SideCard extends StatelessWidget {
-  const _SideCard({
+class _TileCard extends StatelessWidget {
+  const _TileCard({
     required this.slot,
     required this.onTap,
-    required this.tone,
     this.flash = false,
   });
+
   final HomeTodaySlot slot;
   final VoidCallback onTap;
-  final _SideTone tone;
   final bool flash;
 
   @override
   Widget build(BuildContext context) {
-    final muted = slot.done;
-    final base = tone == _SideTone.group
-        ? const Color(0xFFE8F0EA)
-        : const Color(0xFFF3EDE4);
-    final accent = tone == _SideTone.group
-        ? AppColors.accentDeep
-        : const Color(0xFF8A6A3B);
+    final src = _tileImageFor(slot);
+    final borderColor = slot.pending
+        ? AppColors.accentDeep.withValues(alpha: 0.55)
+        : AppColors.line.withValues(alpha: 0.55);
 
-    // 填满 Expanded，保证上下副卡等高（对齐 PWA SideCard flex:1）
-    return SizedBox.expand(
-      child: AnimatedScale(
-        scale: flash ? 1.02 : 1.0,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOut,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: flash
-                ? [
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.28),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+    return AnimatedScale(
+      scale: flash ? 1.02 : 1.0,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+      child: Material(
+        color: AppColors.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: borderColor, width: flash ? 1.5 : 1),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Opacity(
+            opacity: slot.done ? 0.58 : 1,
+            child: SizedBox(
+              height: 116,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: 64,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        HomeDayNetworkImage(
+                          url: src,
+                          fit: BoxFit.cover,
+                          cacheWidth: 400,
+                          cacheHeight: 200,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFFE6E3DC),
+                          ),
+                        ),
+                        if (slot.badge != null && slot.badge!.isNotEmpty)
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.88),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                slot.badge!,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ]
-                : null,
-          ),
-          child: Material(
-            color: muted ? base.withValues(alpha: 0.55) : base,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: flash
-                        ? accent.withValues(alpha: 0.55)
-                        : slot.pending
-                        ? accent.withValues(alpha: 0.35)
-                        : AppColors.line.withValues(alpha: 0.6),
-                    width: flash ? 1.5 : 1,
                   ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -368,82 +219,41 @@ class _SideCard extends StatelessWidget {
                             slot.tag,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: accent.withValues(alpha: muted ? 0.55 : 0.9),
+                              color: AppColors.inkFaint,
                             ),
                           ),
-                      const Spacer(),
-                      Text(
-                        slot.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12.5,
-                          height: 1.25,
-                          color: muted ? AppColors.inkFaint : AppColors.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        slot.cta ?? slot.sub,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          color: muted
-                              ? AppColors.inkFaint.withValues(alpha: 0.8)
-                              : AppColors.inkFaint,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (slot.badge != null && slot.badge!.isNotEmpty) ...[
-                  const SizedBox(width: 4),
-                  Align(
-                    alignment: Alignment.center,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 40),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          slot.badge!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: accent,
+                          const SizedBox(height: 2),
+                          Text(
+                            slot.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.ink,
+                            ),
                           ),
-                        ),
+                          if (slot.sub.isNotEmpty)
+                            Text(
+                              slot.sub,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.inkFaint,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                ] else
-                  Padding(
-                    padding: const EdgeInsets.only(left: 2),
-                    child: Icon(
-                      tone == _SideTone.group
-                          ? Icons.groups_outlined
-                          : Icons.volunteer_activism_outlined,
-                      size: 16,
-                      color: accent.withValues(alpha: 0.55),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ),
         ),
       ),
     );

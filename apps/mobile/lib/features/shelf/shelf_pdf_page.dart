@@ -92,7 +92,7 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
       _loading = true;
       _error = null;
     });
-    await _controller?.dispose();
+    _controller?.dispose();
     _controller = null;
     try {
       final bytes = await widget.repo.fetchAssetBytes(
@@ -107,7 +107,7 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
         initialPage: initial,
       );
       if (!mounted) {
-        await ctrl.dispose();
+        ctrl.dispose();
         return;
       }
       setState(() {
@@ -139,13 +139,23 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
 
   bool _onScroll(ScrollNotification n) {
     if (_syncingPage) return false;
-    if (n is ScrollUpdateNotification || n is OverscrollNotification) {
+    if (n is ScrollUpdateNotification) {
       final m = n.metrics;
       final atBottom = m.pixels >= m.maxScrollExtent - 24;
       final atTop = m.pixels <= m.minScrollExtent + 24;
-      if (atBottom && (n.scrollDelta ?? 0) > 0) {
+      final dy = n.scrollDelta ?? 0;
+      if (atBottom && dy > 0) {
         _maybeSectionEdge('next');
-      } else if (atTop && (n.scrollDelta ?? 0) < 0) {
+      } else if (atTop && dy < 0) {
+        _maybeSectionEdge('prev');
+      }
+    } else if (n is OverscrollNotification) {
+      final m = n.metrics;
+      final atBottom = m.pixels >= m.maxScrollExtent - 24;
+      final atTop = m.pixels <= m.minScrollExtent + 24;
+      if (atBottom && n.overscroll > 0) {
+        _maybeSectionEdge('next');
+      } else if (atTop && n.overscroll < 0) {
         _maybeSectionEdge('prev');
       }
     }

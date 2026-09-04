@@ -129,7 +129,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     }
     store.saveBook(
       widget.bookId,
-      sectionId: sid,
+      sid,
       pageIndex: _isPdfSection ? _pageIndex : 0,
       scrollOffset: 1,
       progressRatio: 1,
@@ -893,6 +893,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

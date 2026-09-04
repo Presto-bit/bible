@@ -11,10 +11,10 @@ class ShelfBrandCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
+    return ColoredBox(
       color: shelfBrandCoverBg,
       child: Image(
-        image: AssetImage('assets/app_icon_shelf.png'),
+        image: const AssetImage('assets/app_icon_shelf.png'),
         fit: BoxFit.cover,
         gaplessPlayback: true,
         errorBuilder: (_, __, ___) => Center(

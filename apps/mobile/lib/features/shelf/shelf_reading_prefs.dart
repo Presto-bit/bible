@@ -14,13 +14,13 @@ const _lineHeightManualKey = 'shelf_line_height_manual';
 const shelfFontSteps = [18.0, 20.0, 24.0];
 const shelfLineHeightSteps = [1.75, 1.9, 2.05, 2.2];
 
-const shelfFontStepLabels = {
+final shelfFontStepLabels = <double, String>{
   18.0: '中',
   20.0: '大',
   24.0: '特大',
 };
 
-const shelfLineHeightLabels = {
+final shelfLineHeightLabels = <double, String>{
   1.75: '紧凑',
   1.9: '标准',
   2.05: '宽松',

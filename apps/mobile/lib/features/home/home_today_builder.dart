@@ -30,6 +30,22 @@ class HomeTodayCampaign {
       );
 }
 
+class HomeTodayShelfInput {
+  const HomeTodayShelfInput({
+    this.bookId,
+    required this.title,
+    this.sub,
+    required this.href,
+    this.coverUrl,
+  });
+
+  final String? bookId;
+  final String title;
+  final String? sub;
+  final String href;
+  final String? coverUrl;
+}
+
 class HomeTodayInput {
   const HomeTodayInput({
     this.resumeTitle,
@@ -45,6 +61,7 @@ class HomeTodayInput {
     this.groupTitle,
     this.groupSub,
     this.groupStatLabel,
+    this.shelf,
     this.campaigns = const [],
     this.planDoneToday = false,
     this.readToday = false,
@@ -64,10 +81,25 @@ class HomeTodayInput {
   final String? groupTitle;
   final String? groupSub;
   final String? groupStatLabel;
+  final HomeTodayShelfInput? shelf;
   final List<HomeTodayCampaign> campaigns;
   final bool planDoneToday;
   final bool readToday;
   final bool welcomeBack;
+}
+
+class HomeTodayPanelResult {
+  const HomeTodayPanelResult({
+    required this.activity,
+    required this.read,
+    required this.group,
+    required this.prayer,
+  });
+
+  final HomeTodaySlot activity;
+  final HomeTodaySlot read;
+  final HomeTodaySlot group;
+  final HomeTodaySlot prayer;
 }
 
 String _trimTitle(String text, [int max = 24]) {
@@ -83,7 +115,7 @@ String _trimSide(String text, [int max = 10]) {
   return '${t.substring(0, max - 1)}…';
 }
 
-HomeTodaySlot _campaignPrimary(HomeTodayCampaign c) {
+HomeTodaySlot _campaignActivity(HomeTodayCampaign c) {
   final tag = c.tag.trim();
   final safeTag =
       tag.isEmpty || tag == '空白' || tag == '空白页' || tag == '未命名'
@@ -102,84 +134,55 @@ HomeTodaySlot _campaignPrimary(HomeTodayCampaign c) {
   );
 }
 
-HomeTodaySlot _campaignSide(HomeTodayCampaign c) {
-  final tag = c.tag.trim();
-  final safeTag =
-      tag.isEmpty || tag == '空白' || tag == '空白页' || tag == '未命名'
-          ? '活动'
-          : tag;
-  return HomeTodaySlot(
-    id: 'campaign-${c.id}',
-    tag: safeTag,
-    title: _trimSide(c.title),
-    sub: '',
-    href: c.href,
-    cta: '进入',
+HomeTodaySlot _activitySlot(HomeTodayInput input) {
+  if (input.campaigns.isNotEmpty) {
+    return _campaignActivity(input.campaigns.first);
+  }
+  return _shelfSlot(input);
+}
+
+HomeTodaySlot _shelfSlot(HomeTodayInput input) {
+  final s = input.shelf;
+  if (s != null) {
+    return HomeTodaySlot(
+      id: 'shelf',
+      tag: '书架',
+      title: _trimTitle(s.title),
+      sub: _trimSide(s.sub ?? ''),
+      href: s.href.isEmpty ? '/shelf' : s.href,
+      cta: s.bookId != null ? '继续' : '打开',
+      coverUrl: s.coverUrl,
+    );
+  }
+  return const HomeTodaySlot(
+    id: 'shelf',
+    tag: '书架',
+    title: '打开书柜',
+    sub: '灵修书与资料',
+    href: '/shelf',
+    cta: '打开',
   );
 }
 
-HomeTodaySlot _primaryFromInput(HomeTodayInput input) {
-  final planDone =
-      (input.planProgressPct ?? 0) >= 100 || input.planDoneToday;
-  final hasPlan =
-      input.planTitle != null && input.planTitle!.trim().isNotEmpty;
+HomeTodaySlot _readSlot(HomeTodayInput input) {
   final hasResume =
       input.resumeTitle != null && input.resumeTitle!.trim().isNotEmpty;
 
-  if (input.welcomeBack && !planDone && !input.readToday) {
-    if (hasPlan) {
-      return HomeTodaySlot(
-        id: 'plan',
-        tag: '欢迎回来',
-        title: _trimTitle(input.planTitle!),
-        sub: _trimTitle(input.planSub ?? '从上次继续就好', 20),
-        href: '/plans',
-        cta: '继续',
-        progressPct: input.planProgressPct,
-      );
-    }
-    if (hasResume) {
-      return HomeTodaySlot(
-        id: 'resume',
-        tag: '欢迎回来',
-        title: _trimTitle(input.resumeTitle!),
-        sub: '从上次继续就好',
-        href: '/reader',
-        cta: '继续',
-      );
-    }
-  }
-
-  if (hasPlan) {
-    if (planDone) {
-      return HomeTodaySlot(
-        id: 'plan',
-        tag: '计划',
-        title: _trimTitle(input.planTitle!),
-        sub: '今日已完成 · 可回顾',
-        href: '/plans',
-        cta: '看看',
-        done: true,
-        progressPct: 100,
-      );
-    }
-    final pct = input.planProgressPct;
-    final inProgress = pct != null && pct > 0;
+  if (input.welcomeBack && !input.readToday && hasResume) {
     return HomeTodaySlot(
-      id: 'plan',
-      tag: '计划',
-      title: _trimTitle(input.planTitle!),
-      sub: _trimTitle(input.planSub ?? '', 20),
-      href: '/plans',
-      cta: inProgress ? '继续' : '开始',
-      progressPct: pct,
+      id: 'resume',
+      tag: '欢迎回来',
+      title: _trimTitle(input.resumeTitle!),
+      sub: '从上次继续就好',
+      href: '/reader',
+      cta: '继续',
     );
   }
 
   if (hasResume) {
     return HomeTodaySlot(
       id: 'resume',
-      tag: input.readToday ? '已读' : '继续',
+      tag: '继续阅读',
       title: _trimTitle(input.resumeTitle!),
       sub: input.readToday ? '今日已读 · 可继续' : '圣经 Tab 也可随时续读',
       href: '/reader',
@@ -189,7 +192,7 @@ HomeTodaySlot _primaryFromInput(HomeTodayInput input) {
 
   return const HomeTodaySlot(
     id: 'suggest',
-    tag: '自由读',
+    tag: '继续阅读',
     title: '从约翰福音开始',
     sub: '想按日程再去选计划',
     href: '/reader?book=JHN&chapter=1',
@@ -317,34 +320,12 @@ HomeTodaySlot _prayerSlot(HomeTodayInput input) {
   );
 }
 
-/// 固定三坑：主行动 | 共读 | 祷告；活动最多占 3 坑。
-({HomeTodaySlot primary, HomeTodaySlot group, HomeTodaySlot prayer})
-    buildHomeTodayPanel(HomeTodayInput input) {
-  final camps = input.campaigns.take(3).toList();
-  final primary =
-      camps.isNotEmpty ? _campaignPrimary(camps[0]) : _primaryFromInput(input);
-  var group = camps.length > 1 ? _campaignSide(camps[1]) : _groupSlot(input);
-  var prayer = camps.length > 2 ? _campaignSide(camps[2]) : _prayerSlot(input);
-
-  final resume = input.resumeTitle;
-  final resumeDiffers = resume != null &&
-      resume.isNotEmpty &&
-      (input.resumeBookId != input.planBookId ||
-          input.resumeChapter != input.planChapter);
-
-  if (camps.length < 3 &&
-      primary.id == 'plan' &&
-      resumeDiffers &&
-      (input.prayerTitle == null || input.prayerTitle!.isEmpty)) {
-    prayer = HomeTodaySlot(
-      id: 'resume',
-      tag: '自由读',
-      title: _trimSide(resume!),
-      sub: '',
-      href: '/reader',
-      cta: '续读',
-    );
-  }
-
-  return (primary: primary, group: group, prayer: prayer);
+/// 固定四坑：[1] 活动/书架 · [2] 继续阅读 · [3] 共读 · [4] 祷告
+HomeTodayPanelResult buildHomeTodayPanel(HomeTodayInput input) {
+  return HomeTodayPanelResult(
+    activity: _activitySlot(input),
+    read: _readSlot(input),
+    group: _groupSlot(input),
+    prayer: _prayerSlot(input),
+  );
 }

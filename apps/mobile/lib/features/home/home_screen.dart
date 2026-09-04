@@ -536,6 +536,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         openH5IfAllowed(context, '/pray');
         return;
       }
+      if (s.id == 'shelf' || href.startsWith('/shelf')) {
+        context.push(href.startsWith('/') ? href : '/shelf');
+        return;
+      }
       if (href.startsWith('/plans')) {
         // 对齐 PWA：创建/查看计划走原生计划页
         context.push(href.contains('generate') ? '/plans/generate' : '/plans');
@@ -725,13 +729,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           enabled: _stagger,
                           delayMs: 80,
                           child: HomeTodayPanel(
-                            primary: panel.primary,
-                            sideTop: panel.group,
-                            sideBottom: panel.prayer,
+                            activity: panel.activity,
+                            read: panel.read,
+                            group: panel.group,
+                            prayer: panel.prayer,
                             groupFlash: _groupFlash,
-                            onPrimary: () => openSlot(panel.primary),
-                            onSideTop: () => openSlot(panel.group),
-                            onSideBottom: () => openSlot(panel.prayer),
+                            onActivity: () => openSlot(panel.activity),
+                            onRead: () => openSlot(panel.read),
+                            onGroup: () => openSlot(panel.group),
+                            onPrayer: () => openSlot(panel.prayer),
                           ),
                         ),
                       ],
@@ -752,8 +758,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               todayMin: todayMins,
                               monthDays: monthDays,
                               occupied: occupiedFromIds([
-                                panel.primary.id,
-                                panel.group.id,
+                                panel.read.id,
                                 panel.prayer.id,
                               ]),
                               plan: HomeGrowthFeatureInput(

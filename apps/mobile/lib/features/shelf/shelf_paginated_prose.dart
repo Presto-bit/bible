@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
+// ignore: implementation_imports
+import 'package:flutter_html/src/extension/helpers/image_tap_extension.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config.dart';
@@ -326,34 +328,26 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         fontWeight: FontWeight.w700,
         margin: Margins.only(bottom: 12),
         textAlign: TextAlign.left,
-        textIndent: TextIndent.zero,
       )),
       '.shelf-docx-h1': withFamily(Style(
         fontSize: FontSize(bodySize * 1.02),
         fontWeight: FontWeight.w700,
         margin: Margins.only(top: 12, bottom: 8),
         textAlign: TextAlign.left,
-        textIndent: TextIndent.zero,
       )),
       '.shelf-docx-h2': withFamily(Style(
         fontSize: FontSize(bodySize * 0.98),
         fontWeight: FontWeight.w600,
         margin: Margins.only(top: 10, bottom: 6),
         textAlign: TextAlign.left,
-        textIndent: TextIndent.zero,
       )),
       '.shelf-docx-h3': withFamily(Style(
         fontSize: FontSize(bodySize * 0.94),
         fontWeight: FontWeight.w600,
         margin: Margins.only(top: 8, bottom: 4),
         textAlign: TextAlign.left,
-        textIndent: TextIndent.zero,
       )),
-      '.shelf-docx-p': withFamily(
-        bodyParagraph().copyWith(
-          textIndent: widget.lessonTone ? TextIndent.zero : TextIndent(32),
-        ),
-      ),
+      '.shelf-docx-p': withFamily(bodyParagraph()),
       '.shelf-docx-indent': withFamily(bodyParagraph()),
       'mark': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
       '.shelf-hl': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
@@ -363,7 +357,6 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         fontWeight: FontWeight.w400,
         margin: Margins.only(bottom: 10),
         textAlign: TextAlign.justify,
-        textIndent: TextIndent.zero,
       )),
       '.shelf-dialogue-speaker': withFamily(Style(fontWeight: FontWeight.w600)),
       '.shelf-dialogue-text': withFamily(Style(fontWeight: FontWeight.w400)),
@@ -581,7 +574,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
                 _clearSelection();
                 return;
               }
-              widget.onTap?.();
+              widget.onTap?.call();
             },
             child: SingleChildScrollView(
               controller: _scroll,
@@ -599,11 +592,15 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
                         onLinkTap: (url, attributes, _) {
                           unawaited(_onHtmlLinkTap(url, attributes));
                         },
-                        onImageTap: (url, attributes, element) {
-                          final src = (url ?? '').trim();
-                          if (src.isEmpty) return;
-                          setState(() => _lightboxUrl = _absAssetUrl(src));
-                        },
+                        extensions: [
+                          OnImageTapExtension(
+                            onImageTap: (url, attributes, element) {
+                              final src = (url ?? '').trim();
+                              if (src.isEmpty) return;
+                              setState(() => _lightboxUrl = _absAssetUrl(src));
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ),

@@ -62,6 +62,22 @@ if [[ "${ORG_GRADLE_OFFLINE:-0}" == "1" ]] || { [[ "${ORG_GRADLE_OFFLINE:-auto}"
   echo "Gradle offline (cached deps in .gradle-home)"
 fi
 
+# flutter_html 3.0.0 × html≥0.15.7：qs.matches 已移除，用仓库补丁覆盖 pub-cache
+android_patch_flutter_html() {
+  local patch="$MOBILE/tool/flutter_html_styled_element_patch.dart"
+  [[ -f "$patch" ]] || return 0
+  local target
+  target="$(find "${PUB_CACHE:-$HOME/.pub-cache}/hosted" -path '*/flutter_html-3.0.0/lib/src/tree/styled_element.dart' 2>/dev/null | head -1 || true)"
+  if [[ -z "$target" ]]; then
+    echo "flutter_html styled_element.dart not in pub-cache yet (ok until after pub get)"
+    return 0
+  fi
+  if ! cmp -s "$patch" "$target"; then
+    echo "Patching flutter_html styled_element.dart (html qs.matches compat)"
+    cp "$patch" "$target"
+  fi
+}
+
 # pub get 仅 lock 变更时执行
 android_flutter_pub_get() {
   local stamp="$MOBILE/.dart_tool/pub_get.stamp"
@@ -72,4 +88,5 @@ android_flutter_pub_get() {
   else
     echo "pub get skipped (lock unchanged)"
   fi
+  android_patch_flutter_html
 }

@@ -153,9 +153,9 @@ class ShelfLibraryStore {
         booksMap[book.id] = ShelfBookLibraryMeta(addedAt: now).toJson();
         dirty = true;
       }
-      if (last?.bookId == book.id && last.at != null) {
+      if (last?.bookId == book.id && last?.at != null) {
         final m = ShelfBookLibraryMeta.fromJson(Map<String, dynamic>.from(booksMap[book.id] as Map));
-        final ts = last.at!;
+        final ts = last!.at!;
         if (m.lastReadAt != ts) {
           booksMap[book.id] = ShelfBookLibraryMeta(
             groupId: m.groupId,
