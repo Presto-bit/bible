@@ -2,6 +2,7 @@
 
 import { isTabKeepAliveEnabled } from './platform';
 import { markReaderTabEntry } from './reading';
+import { beginSoftNavProgress } from './soft_nav_progress';
 import { isSecondaryAppPath, keepAliveTabId, normalizeAppPath } from './tab_keep_alive';
 import { clientWithBasePath, withBasePath } from './basePath';
 
@@ -57,6 +58,10 @@ export function navigateAppHref(
     return;
   }
   markRouteNavigation();
+  // 弱网下 soft nav 可能卡在拉 chunk：立刻给顶栏进度，避免「点了没反应」
+  if (isSecondaryAppPath(pathOnly) || keepAliveTabId(pathOnly) === null) {
+    beginSoftNavProgress(normalized);
+  }
   router.push(normalized);
   // Next soft nav 不触发 popstate；补一次同步，避免 pwaPath 停在旧 Tab 路径
   // 导致保活层继续盖住二级页（iOS PWA 无地址栏时像「点了没反应」）。

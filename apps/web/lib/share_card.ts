@@ -19,12 +19,20 @@ export interface ShareCardInput {
   badge?: string;
 }
 
-function loadImage(src: string): Promise<HTMLImageElement | null> {
+function loadImage(src: string, timeoutMs = 1200): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
+    let settled = false;
+    const done = (value: HTMLImageElement | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => done(null), timeoutMs);
     img.decoding = 'async';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    img.onload = () => done(img);
+    img.onerror = () => done(null);
     img.src = src;
   });
 }

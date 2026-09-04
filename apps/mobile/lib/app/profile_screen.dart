@@ -1,6 +1,8 @@
 /// 「我的」页：头像 + 签名 + 今日时长 + 成就 + 统计磁贴 + 功能入口。布局对齐 canvas。
 library;
 
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -390,6 +392,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (_shareOpening) return;
     _shareOpening = true;
     HapticFeedback.lightImpact();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('正在准备分享…'),
+          duration: Duration(milliseconds: 900),
+        ),
+      );
+    }
     try {
       final code = ref.read(sessionProvider).effectiveUserCode;
       await shareInviteProduct(context, userCode: code);
@@ -850,9 +860,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               subject: '读经笔记',
                             ),
                           ),
-                  onTap: () async {
-                    await markFootprintSeen(prefs, 'thoughts', thoughts.length);
-                    if (!context.mounted) return;
+                  onTap: () {
+                    unawaited(markFootprintSeen(prefs, 'thoughts', thoughts.length));
                     context.push('/notes');
                   },
                 ),
@@ -876,9 +885,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               subject: '经文划线',
                             ),
                           ),
-                  onTap: () async {
-                    await markFootprintSeen(prefs, 'marks', highlights);
-                    if (!context.mounted) return;
+                  onTap: () {
+                    unawaited(markFootprintSeen(prefs, 'marks', highlights));
                     context.push('/notes?tab=highlights');
                   },
                 ),
@@ -891,9 +899,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   hideValue: badgeCount > 0,
                   isNew: badgeNew,
                   badgeIcons: doneBadges.map((b) => b.icon).toList(),
-                  onTap: () async {
-                    await markFootprintSeen(prefs, 'badges', badgeCount);
-                    if (!mounted) return;
+                  onTap: () {
+                    unawaited(markFootprintSeen(prefs, 'badges', badgeCount));
                     ref.read(badgesProvider).whenData(_showBadgeGallery);
                     setState(() {});
                   },

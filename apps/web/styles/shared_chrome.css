@@ -923,3 +923,46 @@ textarea.input {
   border-color: var(--accent);
 }
 
+
+/* Soft nav：弱网二级页跳转即时反馈 */
+.soft-nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  height: 2px;
+  pointer-events: none;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: transparent;
+}
+
+.soft-nav-progress-bar {
+  height: 2px;
+  width: 40%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-deep, #3d5a45) 78%, #fff);
+  animation: soft-nav-slide 1.05s ease-in-out infinite;
+  transform: translateX(-120%);
+}
+
+@keyframes soft-nav-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  50% {
+    transform: translateX(140%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
+}
+
+.soft-nav-loading {
+  min-height: 40vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+}

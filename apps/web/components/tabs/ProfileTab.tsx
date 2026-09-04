@@ -592,6 +592,27 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       .catch(() => setShelfBooks([]));
   }, [profileAwake]);
 
+  // 弱网：预热「我的」常用二级页 chunk，减少首次点击空白窗
+  useEffect(() => {
+    if (!profileAwake) return;
+    const paths = ['/notes', '/shelf', PROFILE_SETTINGS_HREF, '/report'] as const;
+    const run = () => {
+      for (const href of paths) {
+        try {
+          router.prefetch(href);
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(run, { timeout: 2500 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(run, 400);
+    return () => window.clearTimeout(t);
+  }, [profileAwake, router]);
+
   useEffect(() => {
     let cancelled = false;
     const boot = async () => {
@@ -879,6 +900,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   };
 
   const inviteFriends = async () => {
+    toast('正在准备分享…');
     const result = await shareInviteProduct();
     if (result === 'shared') toast('已调起分享');
     else if (result === 'copied') toast('邀请文案与链接已复制');
@@ -1231,6 +1253,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           className="card profile-companion-card"
           onClick={(e) => {
             e.preventDefault();
+            clearBlockingOverlays();
             markRouteNavigation();
             navigateAppHref('/report', router);
           }}
@@ -1419,6 +1442,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             className="profile-shelf-more"
             onClick={(e) => {
               e.preventDefault();
+              clearBlockingOverlays();
               navigateAppHref('/shelf', router);
             }}
           >
@@ -1431,6 +1455,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             className="card profile-shelf-summary"
             onClick={(e) => {
               e.preventDefault();
+              clearBlockingOverlays();
               navigateAppHref('/shelf', router);
             }}
           >
@@ -1457,6 +1482,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             className="card profile-shelf-empty"
             onClick={(e) => {
               e.preventDefault();
+              clearBlockingOverlays();
               navigateAppHref('/shelf', router);
             }}
           >
