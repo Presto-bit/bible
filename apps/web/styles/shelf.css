@@ -846,6 +846,52 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   right: 0;
 }
 
+.shelf-edge-nav {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shelf-edge-nav {
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: min(18%, 112px);
+    z-index: 6;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .shelf-edge-nav-prev {
+    left: 0;
+  }
+
+  .shelf-edge-nav-next {
+    right: 0;
+  }
+
+  .shelf-edge-nav:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ink) 4%, transparent);
+  }
+
+  .shelf-edge-nav:disabled {
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .shelf-reader-bottom-btn {
+    cursor: pointer;
+  }
+
+  .shelf-reader-bottom-btn:hover:not(:disabled) {
+    color: var(--accent-deep, #4a6b52);
+  }
+}
+
 .shelf-reader-pdf-scroll .shelf-turn-viewport:not(.is-turning) {
   touch-action: pan-y pinch-zoom;
 }

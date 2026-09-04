@@ -35,6 +35,7 @@ import { friendlyError } from '@/lib/friendly_error';
 import { touchShelfBookLastRead } from '@/lib/shelf_library';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
+import { isFinePointerUI } from '@/lib/touch_ui';
 import '@/styles/plans.css';
 import '@/styles/shelf.css';
 
@@ -133,6 +134,11 @@ export default function ShelfReader({
   const canNextSection = sectionIndex >= 0 && sectionIndex < sections.length - 1;
   const canPrev = canPrevSection;
   const canNext = canNextSection;
+  const canNavPrevPc = isPdfSection && pageCount > 1 ? pageIndex > 0 || canPrevSection : canPrevSection;
+  const canNavNextPc =
+    isPdfSection && pageCount > 1
+      ? pageIndex < pageCount - 1 || canNextSection
+      : canNextSection;
 
   useEffect(() => {
     setShelfReaderChrome(true);
@@ -426,6 +432,55 @@ export default function ShelfReader({
     }
   }, [goSection, sectionIndex, sections]);
 
+  const navShelfPc = useCallback(
+    (delta: -1 | 1) => {
+      if (delta < 0) {
+        if (isPdfSection && pageCount > 1 && pageIndex > 0) {
+          setPageIndex((p) => p - 1);
+          return;
+        }
+        goPrevSection();
+        return;
+      }
+      if (isPdfSection && pageCount > 1 && pageIndex < pageCount - 1) {
+        setPageIndex((p) => p + 1);
+        return;
+      }
+      goNextSection();
+    },
+    [isPdfSection, pageCount, pageIndex, goPrevSection, goNextSection],
+  );
+
+  useEffect(() => {
+    if (!isFinePointerUI()) return;
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (e.key === 'Escape') {
+        if (moreOpen) setMoreOpen(false);
+        else if (shareOpen) setShareOpen(false);
+        else if (appendOpen) setAppendOpen(false);
+        else if (fontOpen) setFontOpen(false);
+        else if (mediaOpen) setMediaOpen(false);
+        else if (tocOpen) setTocOpen(false);
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (overlayOpen) return;
+      if (e.key === 'ArrowLeft') {
+        if (!canNavPrevPc) return;
+        e.preventDefault();
+        navShelfPc(-1);
+      } else if (e.key === 'ArrowRight') {
+        if (!canNavNextPc) return;
+        e.preventDefault();
+        navShelfPc(1);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [overlayOpen, moreOpen, shareOpen, appendOpen, fontOpen, mediaOpen, tocOpen, canNavPrevPc, canNavNextPc, navShelfPc]);
+
   const resolveTurn = useCallback(
     (delta: 1 | -1): ShelfTurnKind => {
       if (delta > 0 && canNextSection) return 'section';
@@ -688,6 +743,32 @@ export default function ShelfReader({
           ref={pageTurn.viewportRef}
           {...pageTurn.turnHandlers}
         >
+          {!overlayOpen ? (
+            <>
+              <button
+                type="button"
+                className="shelf-edge-nav shelf-edge-nav-prev"
+                aria-label="上一节"
+                title="上一节（←）"
+                disabled={!canNavPrevPc}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navShelfPc(-1);
+                }}
+              />
+              <button
+                type="button"
+                className="shelf-edge-nav shelf-edge-nav-next"
+                aria-label="下一节"
+                title="下一节（→）"
+                disabled={!canNavNextPc}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navShelfPc(1);
+                }}
+              />
+            </>
+          ) : null}
           {sectionErr ? (
             <div className="shelf-section-error" role="alert">
               <p className="muted">{sectionErr}</p>

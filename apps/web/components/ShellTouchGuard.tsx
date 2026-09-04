@@ -1,10 +1,16 @@
 'use client';
 
 import { useEffect } from 'react';
+import { initPcUiClass } from '@/lib/pc_ui';
 import { initPcWheelPassthrough } from '@/lib/pc_wheel_passthrough';
 import { purgeShellTouchBlockers, softRecoverShellTouch } from '@/lib/sheet_overlay';
 
 export default function ShellTouchGuard() {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    return initPcUiClass();
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     return initPcWheelPassthrough();

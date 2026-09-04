@@ -232,6 +232,31 @@ a {
   }
 }
 
+/* PC 桌面：卡片 hover、宽屏首页栅格 */
+@media (hover: hover) and (pointer: fine) {
+  .home-today-tile:hover {
+    border-color: color-mix(in srgb, var(--ink) 14%, transparent);
+    box-shadow:
+      var(--home-shadow),
+      0 4px 16px color-mix(in srgb, var(--ink) 6%, transparent);
+  }
+
+  .home-today-tile:active {
+    transform: none;
+  }
+
+  body.pc-ui .home-growth-feature:hover {
+    border-color: color-mix(in srgb, var(--ink) 12%, transparent);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) {
+  body.pc-ui .home-today-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
 /* 主屏幕 PWA / 安卓壳（均挂 pwa-standalone）共用顶栏最小顶距 */
 body.pwa-standalone .app-body {
   padding-top: max(var(--safe-top), 4px);
