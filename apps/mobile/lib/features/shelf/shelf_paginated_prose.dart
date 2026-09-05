@@ -200,44 +200,57 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
     });
   }
 
-  Map<String, Style> get _styles {
+  /// flutter_html 对 `width:100%` 在父级为 auto 时会缩成「最小内容宽」→ 右侧大留白。
+  /// 根节点与块级元素改用 LayoutBuilder 给出的明确像素宽。
+  Map<String, Style> _stylesFor(double contentWidth) {
     final scale = widget.lessonTone ? 1.04 : 1.0;
     final bodySize = (widget.variantDocx ? widget.fontPx * 0.94 : widget.fontPx) * scale;
     final lh = widget.lineHeight * (widget.lessonTone ? 1.04 : 1.0);
     final family = widget.fontFamily == ShelfFontFamily.sans
         ? 'PingFang SC, sans-serif'
         : 'Georgia, Songti SC, serif';
+    final rootW = Width(contentWidth, Unit.px);
     Style withFamily(Style s) => s.copyWith(fontFamily: family);
 
-    Style fullWidth(Style s) => s.copyWith(width: Width(100, Unit.percent));
+    Style block(Style s) => withFamily(s.copyWith(
+          width: rootW,
+          display: Display.block,
+        ));
 
-    Style bodyParagraph() => fullWidth(withFamily(Style(
+    Style bodyParagraph() => block(Style(
           fontSize: FontSize(bodySize),
           lineHeight: LineHeight(lh),
           margin: Margins.only(bottom: widget.lessonTone ? 14 : 12),
           textAlign: TextAlign.justify,
           letterSpacing: widget.variantDocx ? 0.01 * bodySize : null,
-        )));
+        ));
 
     Style heading({
       required double sizeFactor,
       required FontWeight weight,
       required Margins margin,
     }) =>
-        fullWidth(withFamily(Style(
+        block(Style(
           fontSize: FontSize(bodySize * sizeFactor),
           lineHeight: LineHeight(lh * 0.95),
           fontWeight: weight,
           margin: margin,
           textAlign: TextAlign.left,
-        )));
+        ));
 
     return {
-      'html': fullWidth(Style(margin: Margins.zero, padding: HtmlPaddings.zero)),
-      'body': fullWidth(withFamily(Style(
+      'html': Style(
         margin: Margins.zero,
         padding: HtmlPaddings.zero,
-      ))),
+        width: rootW,
+        display: Display.block,
+      ),
+      'body': withFamily(Style(
+        margin: Margins.zero,
+        padding: HtmlPaddings.zero,
+        width: rootW,
+        display: Display.block,
+      )),
       'p': bodyParagraph(),
       '.shelf-body': bodyParagraph(),
       'h1': heading(
@@ -260,11 +273,14 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         weight: FontWeight.w700,
         margin: Margins.only(top: 12, bottom: 8),
       ),
-      'div': fullWidth(withFamily(Style(
+      'div': block(Style(
         margin: Margins.zero,
         padding: HtmlPaddings.zero,
-        display: Display.block,
-      ))),
+      )),
+      '.shelf-docx-root': block(Style(
+        margin: Margins.zero,
+        padding: HtmlPaddings.zero,
+      )),
       'span': withFamily(Style(fontSize: FontSize(bodySize), lineHeight: LineHeight(lh))),
       'font': withFamily(Style(fontSize: FontSize(bodySize), lineHeight: LineHeight(lh))),
       'h3': heading(
@@ -282,43 +298,40 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         weight: FontWeight.w600,
         margin: Margins.only(top: 6, bottom: 4),
       ),
-      'ul': fullWidth(withFamily(Style(
+      'ul': block(Style(
         margin: Margins.only(left: widget.lessonTone ? 0 : 18, bottom: 12),
         padding: widget.lessonTone ? HtmlPaddings.only(left: 22) : HtmlPaddings.zero,
-      ))),
-      'ol': fullWidth(withFamily(Style(
+      )),
+      'ol': block(Style(
         margin: Margins.only(left: widget.lessonTone ? 0 : 18, bottom: 12),
         padding: widget.lessonTone ? HtmlPaddings.only(left: 22) : HtmlPaddings.zero,
-      ))),
-      '.shelf-docx-list': fullWidth(withFamily(Style(
+      )),
+      '.shelf-docx-list': block(Style(
         margin: Margins.only(left: widget.lessonTone ? 0 : 18, bottom: 12),
         padding: widget.lessonTone ? HtmlPaddings.only(left: 22) : HtmlPaddings.zero,
-      ))),
+      )),
       'li': withFamily(Style(
         fontSize: FontSize(bodySize),
         lineHeight: LineHeight(lh),
         margin: Margins.only(bottom: 6),
       )),
-      'blockquote': fullWidth(withFamily(Style(
+      'blockquote': block(Style(
         fontSize: FontSize(bodySize),
         lineHeight: LineHeight(lh),
         margin: Margins.symmetric(vertical: 12),
         padding: HtmlPaddings.only(left: 12),
         border: const Border(left: BorderSide(color: Color(0x553D5A45), width: 3)),
         color: const Color(0xFF5A534D),
-      ))),
-      'table': fullWidth(withFamily(Style(
+      )),
+      'table': block(Style(
         margin: Margins.symmetric(vertical: 12),
-        display: Display.block,
-      ))),
-      '.shelf-docx-table': fullWidth(withFamily(Style(
+      )),
+      '.shelf-docx-table': block(Style(
         margin: Margins.zero,
-        display: Display.block,
-      ))),
-      '.shelf-docx-table-wrap': fullWidth(withFamily(Style(
+      )),
+      '.shelf-docx-table-wrap': block(Style(
         margin: Margins.symmetric(vertical: 12),
-        display: Display.block,
-      ))),
+      )),
       'td': withFamily(Style(
         padding: HtmlPaddings.all(8),
         width: Width.auto(),
@@ -331,17 +344,16 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
       'img': Style(
         maxLines: null,
         display: Display.block,
-        width: Width(100, Unit.percent),
+        width: rootW,
       ),
       '.shelf-docx-img': Style(
         maxLines: null,
         display: Display.block,
-        width: Width(100, Unit.percent),
+        width: rootW,
       ),
-      '.shelf-docx-gallery': fullWidth(withFamily(Style(
+      '.shelf-docx-gallery': block(Style(
         margin: Margins.symmetric(vertical: 12),
-        display: Display.block,
-      ))),
+      )),
       '.shelf-docx-title': heading(
         sizeFactor: 1.08,
         weight: FontWeight.w700,
@@ -366,22 +378,22 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
       '.shelf-docx-indent': bodyParagraph(),
       'mark': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
       '.shelf-hl': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
-      '.shelf-dialogue': fullWidth(withFamily(Style(
+      '.shelf-dialogue': block(Style(
         fontSize: FontSize(bodySize),
         lineHeight: LineHeight(lh * 1.02),
         fontWeight: FontWeight.w400,
         margin: Margins.only(bottom: 10),
         textAlign: TextAlign.justify,
-      ))),
+      )),
       '.shelf-dialogue-speaker': withFamily(Style(fontWeight: FontWeight.w600)),
       '.shelf-dialogue-text': withFamily(Style(fontWeight: FontWeight.w400)),
-      '.shelf-dialogue-q-head': fullWidth(withFamily(Style(
+      '.shelf-dialogue-q-head': block(Style(
         fontSize: FontSize(bodySize),
         fontWeight: FontWeight.w600,
         margin: Margins.only(top: 16, bottom: 6),
         textAlign: TextAlign.left,
-      ))),
-      '.shelf-dialogue-q': fullWidth(withFamily(Style(
+      )),
+      '.shelf-dialogue-q': block(Style(
         fontSize: FontSize(bodySize),
         lineHeight: LineHeight(lh * 1.02),
         fontStyle: FontStyle.italic,
@@ -389,7 +401,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         color: const Color(0xFF3D5A45),
         margin: Margins.only(bottom: 8),
         textAlign: TextAlign.left,
-      ))),
+      )),
       'a.shelf-inline-ref': withFamily(Style(
         color: const Color(0xFF3D5A45),
         textDecoration: TextDecoration.underline,
@@ -665,26 +677,34 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: _shelfTextMaxWidth),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: RepaintBoundary(
-                      child: Html(
-                        data: _renderHtml,
-                        style: _styles,
-                        onLinkTap: (url, attributes, _) {
-                          unawaited(_onHtmlLinkTap(url, attributes));
-                        },
-                        extensions: [
-                          OnImageTapExtension(
-                            onImageTap: (url, attributes, element) {
-                              final src = (url ?? '').trim();
-                              if (src.isEmpty) return;
-                              setState(() => _lightboxUrl = _absAssetUrl(src));
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final contentW = constraints.maxWidth.isFinite
+                          ? constraints.maxWidth
+                          : _shelfTextMaxWidth;
+                      return SizedBox(
+                        width: contentW,
+                        child: RepaintBoundary(
+                          child: Html(
+                            data: _renderHtml,
+                            shrinkWrap: false,
+                            style: _stylesFor(contentW),
+                            onLinkTap: (url, attributes, _) {
+                              unawaited(_onHtmlLinkTap(url, attributes));
                             },
+                            extensions: [
+                              OnImageTapExtension(
+                                onImageTap: (url, attributes, element) {
+                                  final src = (url ?? '').trim();
+                                  if (src.isEmpty) return;
+                                  setState(() => _lightboxUrl = _absAssetUrl(src));
+                                },
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
