@@ -105,9 +105,11 @@ class DeepLink {
       '/knowledge-bases',
       '/profile/appearance',
       '/profile/settings',
+      '/profile/account',
       '/profile/reminders',
       '/notes',
       '/shelf',
+      '/login',
     };
     if (known.contains(path) ||
         (path.startsWith('/search/') && !path.startsWith('/search/series')) ||

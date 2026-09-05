@@ -713,7 +713,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         p.startsWith('/notes/') ||
         p == '/profile/appearance' ||
         p == '/profile/settings' ||
+        p == '/profile/account' ||
         p == '/profile/reminders' ||
+        p == '/login' ||
         p == '/knowledge-bases' ||
         p.startsWith('/knowledge-bases/') ||
         p == '/wrapped' ||
@@ -794,8 +796,16 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       context.push('/profile/settings');
       return;
     }
+    if (p == '/profile/account') {
+      context.push('/profile/account');
+      return;
+    }
     if (p == '/profile/reminders') {
       context.push('/profile/reminders');
+      return;
+    }
+    if (p == '/login') {
+      context.push('/login');
       return;
     }
     if (p == '/knowledge-bases' || p.startsWith('/knowledge-bases/')) {

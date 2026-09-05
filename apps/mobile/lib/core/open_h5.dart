@@ -42,10 +42,12 @@ bool openH5IfAllowed(BuildContext context, String href, {String? title}) {
     return true;
   }
 
-  // 设置 / 提醒 / 外观：Flutter 原生
+  // 设置 / 提醒 / 外观 / 账号：Flutter 原生
   if (pathOnly == '/profile/settings' ||
+      pathOnly == '/profile/account' ||
       pathOnly == '/profile/reminders' ||
-      pathOnly == '/profile/appearance') {
+      pathOnly == '/profile/appearance' ||
+      pathOnly == '/login') {
     context.push(pathOnly);
     return true;
   }

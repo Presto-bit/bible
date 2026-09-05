@@ -159,20 +159,16 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
             children: [
               _SettingsNavRow(
                 title: '账号与安全',
-                hint: '密码、手机号、设备',
+                hint: '密码、用户 ID',
                 icon: Icons.manage_accounts_outlined,
-                onTap: () => openOverlayH5(
-                  context,
-                  '/profile/settings',
-                  title: '账号与安全',
-                ),
+                onTap: () => context.push('/profile/account'),
               ),
               if (!signedIn)
                 _SettingsNavRow(
                   title: '在其他设备恢复',
                   hint: '登录或恢复账号',
                   icon: Icons.phonelink_lock_outlined,
-                  onTap: () => openOverlayH5(context, '/login', title: '登录'),
+                  onTap: () => context.push('/login'),
                 ),
             ],
           ),

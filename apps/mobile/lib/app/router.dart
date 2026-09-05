@@ -22,8 +22,10 @@ import '../features/bible/dictionary_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/notes/notes_screen.dart';
 import '../features/settings/appearance_screen.dart';
+import '../features/settings/account_security_screen.dart';
 import '../features/settings/profile_settings_screen.dart';
 import '../features/settings/reminders_screen.dart';
+import '../features/auth/login_screen.dart';
 import '../features/knowledge/knowledge_explore.dart';
 import '../features/assistant/knowledge_bases_screen.dart';
 import '../features/bible/reading_report_screen.dart';
@@ -221,12 +223,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProfileSettingsScreen(),
       ),
       GoRoute(
+        path: '/profile/account',
+        builder: (context, state) => const AccountSecurityScreen(),
+      ),
+      GoRoute(
         path: '/profile/reminders',
         builder: (context, state) => const RemindersScreen(),
       ),
       GoRoute(
         path: '/profile/appearance',
         builder: (context, state) => const AppearanceScreen(),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
         path: '/knowledge-bases',

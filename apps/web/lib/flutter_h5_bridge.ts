@@ -206,7 +206,7 @@ export function isFlutterNativeBackHref(href?: string | null): boolean {
   const path = href.split('?')[0] || '/';
   if (path === '/' || path === '/home') return true;
   if (path === '/profile' || path === '/me') return true;
-  if (path === '/profile/settings' || path === '/profile/reminders' || path === '/profile/appearance') {
+  if (path === '/profile/settings' || path === '/profile/reminders' || path === '/profile/appearance' || path === '/profile/account') {
     return true;
   }
   if (path === '/report') return true;

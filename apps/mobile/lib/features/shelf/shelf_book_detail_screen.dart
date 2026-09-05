@@ -5,16 +5,17 @@ import 'dart:async' show unawaited;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
-import 'shelf_navigator.dart';
 import 'shelf_post_sheets.dart';
 import 'shelf_posts_repository.dart';
 import 'shelf_progress.dart';
+import 'shelf_reader_screen.dart';
 import 'shelf_repository.dart';
 
 class ShelfBookDetailScreen extends ConsumerStatefulWidget {
@@ -117,28 +118,31 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   }
 
   Future<void> _openRead() async {
-    ShelfProgressStore(ref.read(prefsProvider)).clearFinished(widget.bookId);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('正在打开…'),
-        duration: Duration(milliseconds: 600),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    final progress =
-        ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId);
-    final sid = progress?.sectionId.trim() ?? '';
+    // 根因：go_router 对 /shelf/:id → /shelf/:id/read 的 push 在部分栈态下会静默失败
+    // （不抛异常 → try/catch 无效）。详情 CTA 改用根 Navigator 直推阅读器，深链仍走路由。
     try {
-      await ShelfNavigator.openRead(
-        context,
-        widget.bookId,
-        section: sid.isEmpty ? null : sid,
-        page: (progress != null && progress.pageIndex > 0)
-            ? progress.pageIndex
-            : null,
+      ShelfProgressStore(ref.read(prefsProvider)).clearFinished(widget.bookId);
+      if (!mounted) return;
+      HapticFeedback.selectionClick();
+      final progress =
+          ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId);
+      final sid = progress?.sectionId.trim() ?? '';
+      debugPrint(
+        '[ShelfDetail] openRead bookId=${widget.bookId} section=$sid',
       );
-    } catch (e) {
+      await Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ShelfReaderScreen(
+            bookId: widget.bookId,
+            sectionId: sid.isEmpty ? null : sid,
+            pageIndex: (progress != null && progress.pageIndex > 0)
+                ? progress.pageIndex
+                : null,
+          ),
+        ),
+      );
+    } catch (e, st) {
+      debugPrint('[ShelfDetail] openRead failed $e\n$st');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
