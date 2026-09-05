@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
+import '../../core/theme_ext.dart';
 import 'shelf_checkin_sheet.dart';
 import 'shelf_lesson_media_dock.dart';
 import 'shelf_media_sheet.dart';
@@ -754,51 +756,64 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final paper = context.peiaiPaper;
     if (_loading && _book == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('加载中…')),
-        body: const Center(child: Text('加载中…', style: AppTypography.meta)),
+        backgroundColor: paper,
+        body: Column(
+          children: [
+            _ShelfReaderTopBar(
+              paper: paper,
+              title: '加载中…',
+              onBack: () => context.go('/shelf'),
+            ),
+            const Expanded(child: Center(child: Text('加载中…', style: AppTypography.meta))),
+          ],
+        ),
       );
     }
     if (_err != null && _book == null) {
       return Scaffold(
-        backgroundColor: AppColors.paper,
-        appBar: AppBar(
-          backgroundColor: AppColors.paper,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-            onPressed: () => context.pop(),
-          ),
-          title: const Text('阅读', style: AppTypography.title),
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _err!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    height: 1.45,
-                    color: AppColors.inkSoft,
-                    fontWeight: FontWeight.w500,
+        backgroundColor: paper,
+        body: Column(
+          children: [
+            _ShelfReaderTopBar(
+              paper: paper,
+              title: '阅读',
+              onBack: () => context.pop(),
+            ),
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _err!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          height: 1.45,
+                          color: AppColors.inkSoft,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: _loadBook,
+                        child: const Text('重试'),
+                      ),
+                      TextButton(
+                        onPressed: () => context.go('/shelf'),
+                        child: const Text('返回书架'),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _loadBook,
-                  child: const Text('重试'),
-                ),
-                TextButton(
-                  onPressed: () => context.go('/shelf'),
-                  child: const Text('返回书架'),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       );
     }
@@ -808,42 +823,25 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final title = section?.title ?? book.title;
     final showBar = !_chromeHidden;
     final showPageIndicator = _isPdfSection && _pageCount > 1 && showBar;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
       child: Scaffold(
-        backgroundColor: AppColors.paper,
-        appBar: showBar
-            ? AppBar(
-                backgroundColor: AppColors.paper,
-                elevation: 0,
-                scrolledUnderElevation: 0,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                  onPressed: () => context.go('/shelf'),
-                ),
-                title: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (section?.unit != null && section!.unit!.isNotEmpty)
-                      Text(section.unit!, style: AppTypography.meta),
-                    Text(
-                      title,
-                      style: AppTypography.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              )
-            : null,
-        body: SafeArea(
-          top: !showBar,
-          bottom: !showBar,
-          child: Stack(
+        backgroundColor: paper,
+        body: Stack(
           children: [
             Column(
               children: [
+                if (showBar)
+                  _ShelfReaderTopBar(
+                    paper: paper,
+                    unit: section?.unit,
+                    title: title,
+                    onBack: () => context.go('/shelf'),
+                  )
+                else
+                  SizedBox(height: MediaQuery.paddingOf(context).top),
                 Expanded(
                   child: ShelfSnapTurnGesture(
                     enabled: section != null && !_blocked,
@@ -868,66 +866,37 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                   ),
                 ),
                 if (showBar)
-                  SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextButton.icon(
-                              onPressed: () => unawaited(_openToc()),
-                              icon: const Icon(Icons.menu, size: 20),
-                              label: const Text('目录'),
+                  _ShelfReaderBottomBar(
+                    paper: paper,
+                    onToc: () => unawaited(_openToc()),
+                    onFont: () => unawaited(_openFontSheet()),
+                    onComments: () => unawaited(_openCommentsSheet()),
+                    onShare: _sectionId == null
+                        ? null
+                        : () => unawaited(
+                              _withOverlay(
+                                () => showShelfCheckinSheet(
+                                  context,
+                                  ref,
+                                  bookId: widget.bookId,
+                                  bookTitle: book.title,
+                                  sectionId: _sectionId!,
+                                  sectionTitle: section?.title ?? '',
+                                  pageIndex: _pageIndex,
+                                  presetGroupId: widget.groupId,
+                                ),
+                              ),
                             ),
-                          ),
-                          Expanded(
-                            child: TextButton.icon(
-                              onPressed: () => unawaited(_openFontSheet()),
-                              icon: const Icon(Icons.text_fields, size: 20),
-                              label: const Text('字体'),
-                            ),
-                          ),
-                          Expanded(
-                            child: TextButton.icon(
-                              onPressed: () => unawaited(_openCommentsSheet()),
-                              icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                              label: const Text('评论'),
-                            ),
-                          ),
-                          Expanded(
-                            child: TextButton.icon(
-                              onPressed: _sectionId == null
-                                  ? null
-                                  : () => unawaited(
-                                        _withOverlay(
-                                          () => showShelfCheckinSheet(
-                                            context,
-                                            ref,
-                                            bookId: widget.bookId,
-                                            bookTitle: book.title,
-                                            sectionId: _sectionId!,
-                                            sectionTitle: section?.title ?? '',
-                                            pageIndex: _pageIndex,
-                                            presetGroupId: widget.groupId,
-                                          ),
-                                        ),
-                                      ),
-                              icon: const Icon(Icons.share_outlined, size: 20),
-                              label: const Text('分享'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  )
+                else
+                  SizedBox(height: bottomInset),
               ],
             ),
             if (showPageIndicator)
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: showBar ? 56 : 16,
+                bottom: showBar ? 56 + bottomInset : 16 + bottomInset,
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -942,11 +911,28 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                   ),
                 ),
               ),
+            if (!_isPdfSection &&
+                section != null &&
+                _sections.length > 1 &&
+                _sectionIndex >= 0)
+              Positioned(
+                right: 14,
+                bottom: showBar ? 58 + bottomInset : 12 + bottomInset,
+                child: IgnorePointer(
+                  child: Text(
+                    '${_sectionIndex + 1} / ${_sections.length}',
+                    style: AppTypography.meta.copyWith(
+                      fontSize: 11,
+                      color: AppColors.inkSoft.withValues(alpha: 0.72),
+                    ),
+                  ),
+                ),
+              ),
             if (!_isPdfSection && section != null && showBar)
               Positioned(
                 left: 16,
                 right: 16,
-                bottom: 52,
+                bottom: 52 + bottomInset,
                 child: IgnorePointer(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(999),
@@ -965,7 +951,195 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
           ],
         ),
       ),
-    ),
+    );
+  }
+}
+
+/// 对齐 PWA `.shelf-reader-top`：半透纸感 + 细底边，弱化 Material AppBar。
+class _ShelfReaderTopBar extends StatelessWidget {
+  const _ShelfReaderTopBar({
+    required this.paper,
+    required this.title,
+    required this.onBack,
+    this.unit,
+  });
+
+  final Color paper;
+  final String title;
+  final String? unit;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: paper.withValues(alpha: 0.92),
+            border: Border(
+              bottom: BorderSide(color: AppColors.ink.withValues(alpha: 0.06)),
+            ),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: SizedBox(
+              height: 48,
+              child: Row(
+                children: [
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                    color: AppColors.inkSoft,
+                    onPressed: onBack,
+                    tooltip: '返回书架',
+                  ),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (unit != null && unit!.trim().isNotEmpty)
+                          Text(
+                            unit!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.meta.copyWith(fontSize: 11),
+                          ),
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.title.copyWith(fontSize: 15),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 对齐 PWA `.shelf-reader-bottom`：左侧芯片按钮，分享靠右。
+class _ShelfReaderBottomBar extends StatelessWidget {
+  const _ShelfReaderBottomBar({
+    required this.paper,
+    required this.onToc,
+    required this.onFont,
+    required this.onComments,
+    required this.onShare,
+  });
+
+  final Color paper;
+  final VoidCallback onToc;
+  final VoidCallback onFont;
+  final VoidCallback onComments;
+  final VoidCallback? onShare;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: paper.withValues(alpha: 0.94),
+            border: Border(
+              top: BorderSide(color: AppColors.ink.withValues(alpha: 0.06)),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+              child: Row(
+                children: [
+                  _ShelfChromeChip(
+                    icon: Icons.menu,
+                    label: '目录',
+                    onTap: onToc,
+                  ),
+                  const SizedBox(width: 6),
+                  _ShelfChromeChip(
+                    icon: Icons.text_fields,
+                    label: '字体',
+                    onTap: onFont,
+                  ),
+                  const SizedBox(width: 6),
+                  _ShelfChromeChip(
+                    icon: Icons.chat_bubble_outline,
+                    label: '评论',
+                    onTap: onComments,
+                  ),
+                  const Spacer(),
+                  _ShelfChromeChip(
+                    icon: Icons.ios_share_outlined,
+                    label: '分享',
+                    onTap: onShare,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShelfChromeChip extends StatelessWidget {
+  const _ShelfChromeChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Opacity(
+          opacity: enabled ? 1 : 0.45,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.line),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: AppColors.inkSoft),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

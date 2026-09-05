@@ -17,6 +17,8 @@ import '../bible/markings_repository.dart';
 import '../bible/reader_focus_bar.dart';
 import '../bible/reader_marking_models.dart';
 import '../bible/reader_preferences.dart';
+import '../bible/reader_thoughts_sheet.dart';
+import '../bible/thoughts_repository.dart';
 import 'shelf_highlight_html.dart';
 import 'shelf_mark_ref.dart';
 import 'shelf_post_sheets.dart';
@@ -207,108 +209,125 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         : 'Georgia, Songti SC, serif';
     Style withFamily(Style s) => s.copyWith(fontFamily: family);
 
-    Style bodyParagraph() => withFamily(Style(
+    Style fullWidth(Style s) => s.copyWith(width: Width(100, Unit.percent));
+
+    Style bodyParagraph() => fullWidth(withFamily(Style(
           fontSize: FontSize(bodySize),
           lineHeight: LineHeight(lh),
           margin: Margins.only(bottom: widget.lessonTone ? 14 : 12),
           textAlign: TextAlign.justify,
-          width: Width(100, Unit.percent),
-        ));
+          letterSpacing: widget.variantDocx ? 0.01 * bodySize : null,
+        )));
+
+    Style heading({
+      required double sizeFactor,
+      required FontWeight weight,
+      required Margins margin,
+    }) =>
+        fullWidth(withFamily(Style(
+          fontSize: FontSize(bodySize * sizeFactor),
+          lineHeight: LineHeight(lh * 0.95),
+          fontWeight: weight,
+          margin: margin,
+          textAlign: TextAlign.left,
+        )));
 
     return {
-      'body': withFamily(Style(
+      'html': fullWidth(Style(margin: Margins.zero, padding: HtmlPaddings.zero)),
+      'body': fullWidth(withFamily(Style(
         margin: Margins.zero,
         padding: HtmlPaddings.zero,
-        width: Width(100, Unit.percent),
-      )),
+      ))),
       'p': bodyParagraph(),
       '.shelf-body': bodyParagraph(),
-      'h1': withFamily(Style(
-        fontSize: FontSize(bodySize * 1.08),
-        lineHeight: LineHeight(lh * 0.95),
-        fontWeight: FontWeight.w700,
+      'h1': heading(
+        sizeFactor: 1.08,
+        weight: FontWeight.w700,
         margin: Margins.only(top: 8, bottom: 12),
-        textAlign: TextAlign.left,
-      )),
-      '.shelf-title': withFamily(Style(
-        fontSize: FontSize(bodySize * 1.08),
-        fontWeight: FontWeight.w700,
+      ),
+      '.shelf-title': heading(
+        sizeFactor: 1.08,
+        weight: FontWeight.w700,
         margin: Margins.only(bottom: 12),
-        textAlign: TextAlign.left,
-      )),
-      'h2': withFamily(Style(
-        fontSize: FontSize(bodySize * 1.02),
-        fontWeight: FontWeight.w600,
+      ),
+      'h2': heading(
+        sizeFactor: 1.02,
+        weight: FontWeight.w600,
         margin: Margins.only(top: 10, bottom: 8),
-        textAlign: TextAlign.left,
-      )),
-      '.shelf-h1': withFamily(Style(
-        fontSize: FontSize(bodySize * 1.02),
-        fontWeight: FontWeight.w700,
+      ),
+      '.shelf-h1': heading(
+        sizeFactor: 1.02,
+        weight: FontWeight.w700,
         margin: Margins.only(top: 12, bottom: 8),
-        textAlign: TextAlign.left,
-      )),
-      'div': withFamily(Style(
+      ),
+      'div': fullWidth(withFamily(Style(
         margin: Margins.zero,
         padding: HtmlPaddings.zero,
-        width: Width(100, Unit.percent),
-      )),
-      'h3': withFamily(Style(
-        fontSize: FontSize(bodySize * 0.98),
-        fontWeight: FontWeight.w600,
+        display: Display.block,
+      ))),
+      'span': withFamily(Style(fontSize: FontSize(bodySize), lineHeight: LineHeight(lh))),
+      'font': withFamily(Style(fontSize: FontSize(bodySize), lineHeight: LineHeight(lh))),
+      'h3': heading(
+        sizeFactor: 0.98,
+        weight: FontWeight.w600,
         margin: Margins.only(top: 8, bottom: 6),
-        textAlign: TextAlign.left,
-      )),
-      '.shelf-h2': withFamily(Style(
-        fontSize: FontSize(bodySize * 0.98),
-        fontWeight: FontWeight.w600,
+      ),
+      '.shelf-h2': heading(
+        sizeFactor: 0.98,
+        weight: FontWeight.w600,
         margin: Margins.only(top: 10, bottom: 6),
-        textAlign: TextAlign.left,
-      )),
-      'h4': withFamily(Style(
-        fontSize: FontSize(bodySize * 0.94),
-        fontWeight: FontWeight.w600,
+      ),
+      'h4': heading(
+        sizeFactor: 0.94,
+        weight: FontWeight.w600,
         margin: Margins.only(top: 6, bottom: 4),
-        textAlign: TextAlign.left,
-      )),
-      'ul': withFamily(Style(
+      ),
+      'ul': fullWidth(withFamily(Style(
         margin: Margins.only(left: widget.lessonTone ? 0 : 18, bottom: 12),
         padding: widget.lessonTone ? HtmlPaddings.only(left: 22) : HtmlPaddings.zero,
-        width: Width(100, Unit.percent),
-      )),
-      'ol': withFamily(Style(
+      ))),
+      'ol': fullWidth(withFamily(Style(
         margin: Margins.only(left: widget.lessonTone ? 0 : 18, bottom: 12),
         padding: widget.lessonTone ? HtmlPaddings.only(left: 22) : HtmlPaddings.zero,
-        width: Width(100, Unit.percent),
-      )),
-      '.shelf-docx-list': withFamily(Style(
+      ))),
+      '.shelf-docx-list': fullWidth(withFamily(Style(
         margin: Margins.only(left: widget.lessonTone ? 0 : 18, bottom: 12),
         padding: widget.lessonTone ? HtmlPaddings.only(left: 22) : HtmlPaddings.zero,
-        width: Width(100, Unit.percent),
-      )),
+      ))),
       'li': withFamily(Style(
         fontSize: FontSize(bodySize),
         lineHeight: LineHeight(lh),
         margin: Margins.only(bottom: 6),
       )),
-      'blockquote': withFamily(Style(
+      'blockquote': fullWidth(withFamily(Style(
         fontSize: FontSize(bodySize),
         lineHeight: LineHeight(lh),
         margin: Margins.symmetric(vertical: 12),
         padding: HtmlPaddings.only(left: 12),
         border: const Border(left: BorderSide(color: Color(0x553D5A45), width: 3)),
         color: const Color(0xFF5A534D),
-      )),
-      'table': withFamily(Style(
+      ))),
+      'table': fullWidth(withFamily(Style(
         margin: Margins.symmetric(vertical: 12),
-        width: Width(100, Unit.percent),
-      )),
-      '.shelf-docx-table-wrap': withFamily(Style(
+        display: Display.block,
+      ))),
+      '.shelf-docx-table': fullWidth(withFamily(Style(
+        margin: Margins.zero,
+        display: Display.block,
+      ))),
+      '.shelf-docx-table-wrap': fullWidth(withFamily(Style(
         margin: Margins.symmetric(vertical: 12),
-        width: Width(100, Unit.percent),
+        display: Display.block,
+      ))),
+      'td': withFamily(Style(
+        padding: HtmlPaddings.all(8),
+        width: Width.auto(),
       )),
-      'td': withFamily(Style(padding: HtmlPaddings.all(8))),
-      'th': withFamily(Style(padding: HtmlPaddings.all(8), fontWeight: FontWeight.w600)),
+      'th': withFamily(Style(
+        padding: HtmlPaddings.all(8),
+        fontWeight: FontWeight.w600,
+        width: Width.auto(),
+      )),
       'img': Style(
         maxLines: null,
         display: Display.block,
@@ -319,54 +338,50 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         display: Display.block,
         width: Width(100, Unit.percent),
       ),
-      '.shelf-docx-gallery': withFamily(Style(
+      '.shelf-docx-gallery': fullWidth(withFamily(Style(
         margin: Margins.symmetric(vertical: 12),
-        width: Width(100, Unit.percent),
-      )),
-      '.shelf-docx-title': withFamily(Style(
-        fontSize: FontSize(bodySize * 1.08),
-        fontWeight: FontWeight.w700,
+        display: Display.block,
+      ))),
+      '.shelf-docx-title': heading(
+        sizeFactor: 1.08,
+        weight: FontWeight.w700,
         margin: Margins.only(bottom: 12),
-        textAlign: TextAlign.left,
-      )),
-      '.shelf-docx-h1': withFamily(Style(
-        fontSize: FontSize(bodySize * 1.02),
-        fontWeight: FontWeight.w700,
+      ),
+      '.shelf-docx-h1': heading(
+        sizeFactor: 1.02,
+        weight: FontWeight.w700,
         margin: Margins.only(top: 12, bottom: 8),
-        textAlign: TextAlign.left,
-      )),
-      '.shelf-docx-h2': withFamily(Style(
-        fontSize: FontSize(bodySize * 0.98),
-        fontWeight: FontWeight.w600,
+      ),
+      '.shelf-docx-h2': heading(
+        sizeFactor: 0.98,
+        weight: FontWeight.w600,
         margin: Margins.only(top: 10, bottom: 6),
-        textAlign: TextAlign.left,
-      )),
-      '.shelf-docx-h3': withFamily(Style(
-        fontSize: FontSize(bodySize * 0.94),
-        fontWeight: FontWeight.w600,
+      ),
+      '.shelf-docx-h3': heading(
+        sizeFactor: 0.94,
+        weight: FontWeight.w600,
         margin: Margins.only(top: 8, bottom: 4),
-        textAlign: TextAlign.left,
-      )),
-      '.shelf-docx-p': withFamily(bodyParagraph()),
-      '.shelf-docx-indent': withFamily(bodyParagraph()),
+      ),
+      '.shelf-docx-p': bodyParagraph(),
+      '.shelf-docx-indent': bodyParagraph(),
       'mark': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
       '.shelf-hl': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
-      '.shelf-dialogue': withFamily(Style(
+      '.shelf-dialogue': fullWidth(withFamily(Style(
         fontSize: FontSize(bodySize),
         lineHeight: LineHeight(lh * 1.02),
         fontWeight: FontWeight.w400,
         margin: Margins.only(bottom: 10),
         textAlign: TextAlign.justify,
-      )),
+      ))),
       '.shelf-dialogue-speaker': withFamily(Style(fontWeight: FontWeight.w600)),
       '.shelf-dialogue-text': withFamily(Style(fontWeight: FontWeight.w400)),
-      '.shelf-dialogue-q-head': withFamily(Style(
+      '.shelf-dialogue-q-head': fullWidth(withFamily(Style(
         fontSize: FontSize(bodySize),
         fontWeight: FontWeight.w600,
         margin: Margins.only(top: 16, bottom: 6),
         textAlign: TextAlign.left,
-      )),
-      '.shelf-dialogue-q': withFamily(Style(
+      ))),
+      '.shelf-dialogue-q': fullWidth(withFamily(Style(
         fontSize: FontSize(bodySize),
         lineHeight: LineHeight(lh * 1.02),
         fontStyle: FontStyle.italic,
@@ -374,7 +389,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         color: const Color(0xFF3D5A45),
         margin: Margins.only(bottom: 8),
         textAlign: TextAlign.left,
-      )),
+      ))),
       'a.shelf-inline-ref': withFamily(Style(
         color: const Color(0xFF3D5A45),
         textDecoration: TextDecoration.underline,
@@ -386,6 +401,13 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         textDecoration: TextDecoration.underline,
         textDecorationStyle: TextDecorationStyle.dashed,
         textDecorationColor: const Color(0xB84A6B52),
+      )),
+      'a.shelf-thought-hint': withFamily(Style(
+        color: const Color(0xFF3D5A45),
+        backgroundColor: const Color(0x3328A745),
+        textDecoration: TextDecoration.underline,
+        textDecorationStyle: TextDecorationStyle.dotted,
+        textDecorationColor: const Color(0x993D5A45),
       )),
     };
   }
@@ -421,6 +443,27 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         postId: postId,
       );
       widget.onPublicNotesChanged?.call();
+      return;
+    }
+    if (href.startsWith('shelf-thought:')) {
+      final refStr = Uri.decodeComponent(href.substring('shelf-thought:'.length));
+      if (refStr.isEmpty) return;
+      final parsed = parseShelfMarkRef(refStr);
+      final plain = plainTextFromHtml(widget.html);
+      var verseText = '';
+      if (parsed?.spanStart != null && parsed?.spanEnd != null) {
+        final start = parsed!.spanStart!.clamp(0, plain.length);
+        final end = parsed.spanEnd!.clamp(start, plain.length);
+        verseText = plain.substring(start, end);
+      }
+      await showThoughtHubSheet(
+        context,
+        ref,
+        refStr: refStr,
+        refLabel: formatShelfMarkRefLabel(refStr),
+        verseText: verseText,
+      );
+      if (mounted) setState(() {});
     }
   }
 
@@ -444,16 +487,43 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         );
     base = applyShelfHighlightsToHtml(base, marks, widget.bookId, widget.sectionId);
     base = applyShelfPublicNotesToHtml(base, _publicNoteSpans);
+    base = applyShelfThoughtsToHtml(base, _thoughtSpans);
     return base;
   }
 
+  List<({int start, int end, String ref})> get _thoughtSpans {
+    final thoughts = ref.watch(myThoughtsProvider);
+    final out = <({int start, int end, String ref})>[];
+    for (final t in thoughts) {
+      final p = parseShelfMarkRef(t.ref);
+      if (p == null) continue;
+      if (p.bookId != widget.bookId || p.sectionId != widget.sectionId) continue;
+      if (p.spanStart == null || p.spanEnd == null) continue;
+      out.add((start: p.spanStart!, end: p.spanEnd!, ref: t.ref));
+    }
+    return out;
+  }
+
   String _indentBodyParagraphs(String html) {
-    if (widget.variantDocx) return html;
+    // 教案无首行缩进（对齐 PWA .shelf-docx-prose-lesson）；普通 HTML/Word 用全角缩进近似 text-indent:2em。
+    if (widget.lessonTone) return html;
     var out = html;
     for (final cls in ['shelf-body', 'shelf-docx-p', 'shelf-docx-indent']) {
       out = out.replaceAllMapped(
-        RegExp('<p class="$cls">\\s*'),
-        (m) => '${m.group(0)!}\u3000\u3000',
+        RegExp('<p class="([^"]*\\b$cls\\b[^"]*)">\\s*'),
+        (m) {
+          final classes = m.group(1)!;
+          if (classes.contains('shelf-dialogue') ||
+              classes.contains('shelf-docx-title') ||
+              classes.contains('shelf-docx-h') ||
+              classes.contains('shelf-title') ||
+              classes.contains('shelf-h')) {
+            return m.group(0)!;
+          }
+          final tag = m.group(0)!;
+          if (tag.contains('\u3000\u3000')) return tag;
+          return '$tag\u3000\u3000';
+        },
       );
     }
     return out;
@@ -529,7 +599,18 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
               spanStart: spanStart,
               spanEnd: spanEnd,
             );
+        final thoughtVis = switch (visibility) {
+          ShelfPostVisibility.public => ThoughtVisibility.public,
+          ShelfPostVisibility.friends => ThoughtVisibility.friends,
+          ShelfPostVisibility.private => ThoughtVisibility.private,
+        };
+        await ref.read(thoughtsRepoProvider).addThought(
+              refStr,
+              body,
+              visibility: thoughtVis,
+            );
         widget.onPublicNotesChanged?.call();
+        if (mounted) setState(() {});
       },
     );
   }
@@ -578,7 +659,8 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
             },
             child: SingleChildScrollView(
               controller: _scroll,
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
+              // 对齐 PWA .shelf-flow-viewport：水平约 20px
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(

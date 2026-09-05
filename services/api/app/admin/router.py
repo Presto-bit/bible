@@ -926,7 +926,7 @@ def admin_shelf_books(_admin: str = Depends(require_admin)) -> dict:
 def admin_shelf_patch_book(
     book_id: str,
     body: ShelfBookPatchBody,
-    _admin: str = Depends(require_admin),
+    _admin: str = Depends(require_shelf_admin),
 ) -> dict:
     from ..shelf.service import update_platform_book_meta
 
@@ -939,14 +939,14 @@ def admin_shelf_patch_book(
 
 
 @router.delete("/shelf/books/{book_id}")
-def admin_shelf_delete_book(book_id: str, _admin: str = Depends(require_admin)) -> dict:
+def admin_shelf_delete_book(book_id: str, _admin: str = Depends(require_shelf_admin)) -> dict:
     from ..shelf.service import archive_platform_book
 
     return archive_platform_book(book_id)
 
 
 @router.get("/shelf/groups")
-def admin_shelf_groups(_admin: str = Depends(require_admin)) -> dict:
+def admin_shelf_groups(_admin: str = Depends(require_shelf_admin)) -> dict:
     from ..shelf.service import list_platform_groups
 
     return {"groups": list_platform_groups()}
@@ -955,7 +955,7 @@ def admin_shelf_groups(_admin: str = Depends(require_admin)) -> dict:
 @router.post("/shelf/groups")
 def admin_shelf_create_group(
     body: ShelfGroupCreateBody,
-    _admin: str = Depends(require_admin),
+    _admin: str = Depends(require_shelf_admin),
 ) -> dict:
     from ..shelf.service import create_shelf_group
 

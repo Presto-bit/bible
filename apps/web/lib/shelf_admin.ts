@@ -1,5 +1,5 @@
 import { API_BASE, authHeaders } from './api_core';
-import { adminHeaders, getAdminToken } from './admin_rag';
+import { getAdminToken } from './admin_rag';
 
 export type ShelfGroup = {
   id: string;
@@ -16,7 +16,7 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
-      ...adminHeaders(),
+      ...shelfManageHeaders(),
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
       ...init?.headers,
     },

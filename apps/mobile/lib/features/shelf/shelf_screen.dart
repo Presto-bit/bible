@@ -1,6 +1,8 @@
 /// 书架列表（Android 原生；对齐 PWA /shelf 图书馆视图）。
 library;
 
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +12,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'shelf_book_card.dart';
+import 'shelf_checkin_sheet.dart';
 import 'shelf_library_store.dart';
+import 'shelf_manage_sheet.dart';
 import 'shelf_navigator.dart';
 import 'shelf_progress.dart';
 import 'shelf_repository.dart';
@@ -36,17 +40,22 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   final _searchCtrl = TextEditingController();
   List<ShelfUserGroup> _userGroups = const [];
   var _canAppendLesson = false;
+  var _canManage = false;
 
   @override
   void initState() {
     super.initState();
     _reloadGroups();
-    _loadCap();
+    unawaited(_loadCaps());
   }
 
-  Future<void> _loadCap() async {
-    final ok = await ref.read(shelfRepoProvider).canAppendCollectionLesson();
-    if (mounted) setState(() => _canAppendLesson = ok);
+  Future<void> _loadCaps() async {
+    final cap = await ref.read(shelfRepoProvider).platformCapabilities();
+    if (!mounted) return;
+    setState(() {
+      _canAppendLesson = cap.canAppend;
+      _canManage = cap.shelfAdmin;
+    });
   }
 
   @override
@@ -172,6 +181,16 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(title: Text(book.title, style: AppTypography.meta)),
+            ListTile(
+              leading: const Icon(Icons.menu_book_outlined),
+              title: const Text('继续阅读'),
+              onTap: () => Navigator.pop(ctx, 'read'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('书籍详情'),
+              onTap: () => Navigator.pop(ctx, 'detail'),
+            ),
             if (_canAppendLesson &&
                 (book.bookType == 'collection' ||
                     shelfIsChildrenLessonBook(id: book.id, title: book.title)))
@@ -181,15 +200,31 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                 onTap: () => Navigator.pop(ctx, 'append'),
               ),
             ListTile(
+              leading: const Icon(Icons.ios_share_outlined),
+              title: const Text('分享到群'),
+              onTap: () => Navigator.pop(ctx, 'share'),
+            ),
+            ListTile(
               leading: const Icon(Icons.folder_outlined),
               title: const Text('移到分组'),
               onTap: () => Navigator.pop(ctx, 'move'),
             ),
+            if (_canManage)
+              ListTile(
+                leading: const Icon(Icons.settings_outlined),
+                title: const Text('管理此书'),
+                onTap: () => Navigator.pop(ctx, 'manage'),
+              ),
           ],
         ),
       ),
     );
-    if (action == 'append') {
+    if (!mounted || action == null) return;
+    if (action == 'read') {
+      await ShelfNavigator.openRead(context, book.id);
+    } else if (action == 'detail') {
+      await ShelfNavigator.openDetail(context, book.id);
+    } else if (action == 'append') {
       final ok = await showShelfAppendLessonSheet(
         context,
         ref,
@@ -197,8 +232,25 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
         bookTitle: book.title,
       );
       if (ok) await _refresh(ref);
+    } else if (action == 'share') {
+      await showShelfCheckinSheet(
+        context,
+        ref,
+        bookId: book.id,
+        bookTitle: book.title,
+      );
     } else if (action == 'move') {
       await _moveBook(book);
+    } else if (action == 'manage') {
+      final groups =
+          ref.read(shelfListProvider).asData?.value.groups ?? const <ShelfGroup>[];
+      final changed = await showShelfManageSheet(
+        context,
+        ref,
+        book: book,
+        groups: groups,
+      );
+      if (changed) await _refresh(ref);
     }
   }
 

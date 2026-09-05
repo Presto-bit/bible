@@ -1,4 +1,4 @@
-/// 书架分享到共读群（对齐 Web ShelfCheckinSheet）。
+/// 书架分享到共读群（对齐 Web ShelfCheckinSheet；可整本或按节）。
 library;
 
 import 'package:flutter/material.dart';
@@ -12,15 +12,20 @@ import '../social/social_repository.dart';
 import 'shelf_repository.dart';
 
 const _checkinBodyMax = 120;
-const _checkinChips = [
+const _sectionChips = [
   '读到这里很有感触 🙏',
   '完成本节 ✓',
   '愿与弟兄共勉',
 ];
+const _bookChips = [
+  '推荐一本好书 📖',
+  '一起来读',
+  '愿与弟兄共勉',
+];
 
-String _normalizeBody(String raw) {
+String _normalizeBody(String raw, {required bool bookShare}) {
   final t = raw.trim();
-  if (t.isEmpty) return '完成本节 ✓';
+  if (t.isEmpty) return bookShare ? '一起来读' : '完成本节 ✓';
   return t.length > _checkinBodyMax ? t.substring(0, _checkinBodyMax) : t;
 }
 
@@ -29,8 +34,8 @@ Future<void> showShelfCheckinSheet(
   WidgetRef ref, {
   required String bookId,
   required String bookTitle,
-  required String sectionId,
-  required String sectionTitle,
+  String? sectionId,
+  String sectionTitle = '',
   int pageIndex = 0,
   String? presetGroupId,
 }) {
@@ -59,15 +64,15 @@ class _ShelfCheckinBody extends ConsumerStatefulWidget {
   const _ShelfCheckinBody({
     required this.bookId,
     required this.bookTitle,
-    required this.sectionId,
-    required this.sectionTitle,
+    this.sectionId,
+    this.sectionTitle = '',
     this.pageIndex = 0,
     this.presetGroupId,
   });
 
   final String bookId;
   final String bookTitle;
-  final String sectionId;
+  final String? sectionId;
   final String sectionTitle;
   final int pageIndex;
   final String? presetGroupId;
@@ -83,8 +88,19 @@ class _ShelfCheckinBodyState extends ConsumerState<_ShelfCheckinBody> {
   var _submitted = false;
   String? _err;
 
-  String get _ref => shelfCheckinRef(widget.bookId, widget.sectionId, widget.pageIndex);
-  String get _label => shelfCheckinLabel(widget.bookTitle, widget.sectionTitle);
+  bool get _bookShare =>
+      widget.sectionId == null || widget.sectionId!.trim().isEmpty;
+
+  String get _ref => _bookShare
+      ? shelfBookShareRef(widget.bookId)
+      : shelfCheckinRef(widget.bookId, widget.sectionId!, widget.pageIndex);
+
+  String get _label => shelfCheckinLabel(
+        widget.bookTitle,
+        _bookShare ? '推荐书目' : widget.sectionTitle,
+      );
+
+  List<String> get _chips => _bookShare ? _bookChips : _sectionChips;
 
   @override
   void dispose() {
@@ -103,7 +119,7 @@ class _ShelfCheckinBodyState extends ConsumerState<_ShelfCheckinBody> {
       await ref.read(socialRepoProvider).checkin(
             gid,
             ref: _ref,
-            body: _normalizeBody(_body.text),
+            body: _normalizeBody(_body.text, bookShare: _bookShare),
           );
       ref.read(badgeStatsRecorderProvider).recordGroupCheckin(groupId: gid);
       if (!mounted) return;
@@ -198,9 +214,9 @@ class _ShelfCheckinBodyState extends ConsumerState<_ShelfCheckinBody> {
                     TextField(
                       controller: _body,
                       maxLength: _checkinBodyMax,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: '说点什么（可选）',
-                        hintText: '读到这里很有感触…',
+                        hintText: _bookShare ? '推荐一本好书…' : '读到这里很有感触…',
                       ),
                       enabled: !_busy && !_submitted,
                     ),
@@ -208,7 +224,7 @@ class _ShelfCheckinBodyState extends ConsumerState<_ShelfCheckinBody> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (final chip in _checkinChips)
+                        for (final chip in _chips)
                           ActionChip(
                             label: Text(chip, style: const TextStyle(fontSize: 12)),
                             onPressed: _busy || _submitted
@@ -228,7 +244,7 @@ class _ShelfCheckinBodyState extends ConsumerState<_ShelfCheckinBody> {
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _busy || _submitted || _gid == null ? null : _submit,
-              child: Text(_submitted ? '已分享' : (_busy ? '分享中…' : '分享')),
+              child: Text(_submitted ? '已分享' : '分享'),
             ),
           ],
         ),

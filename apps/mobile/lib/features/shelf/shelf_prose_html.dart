@@ -186,12 +186,25 @@ final _layoutStyleKeys = {
   'width',
   'max-width',
   'min-width',
+  'height',
+  'max-height',
+  'min-height',
   'text-indent',
   'left',
   'right',
   'top',
+  'bottom',
   'float',
   'position',
+  'display',
+  'flex',
+  'flex-basis',
+  'flex-grow',
+  'flex-shrink',
+  'transform',
+  'translate',
+  'vertical-align',
+  'table-layout',
 };
 
 final _stripStyleKeys = <String>[
@@ -201,16 +214,48 @@ final _stripStyleKeys = <String>[
   'color',
   'letter-spacing',
   'mso-',
+  'word-spacing',
 ];
 
-final _styleAttrRe = RegExp(r'\sstyle="([^"]*)"', caseSensitive: false);
-final _dimAttrRe = RegExp(r'\s(?:width|height|align|valign)="[^"]*"', caseSensitive: false);
+final _styleAttrRe = RegExp(
+  r'''\sstyle=(["'])(.*?)\1''',
+  caseSensitive: false,
+  dotAll: true,
+);
+final _dimAttrRe = RegExp(
+  r'''\s(?:width|height|align|valign|hspace|vspace|bgcolor)=(["'])[^"']*\1''',
+  caseSensitive: false,
+);
+final _colgroupRe = RegExp(
+  r'<colgroup\b[^>]*>.*?</colgroup>',
+  caseSensitive: false,
+  dotAll: true,
+);
+final _colTagRe = RegExp(r'<col\b[^>]*/?\s*>', caseSensitive: false);
 final _simpleDivRe = RegExp(
   r'<div\b([^>]*)>(.*?)</div>',
   caseSensitive: false,
   dotAll: true,
 );
 final _blockInsideRe = RegExp(r'<\s*(table|ul|ol|h[1-4]|blockquote|img)\b', caseSensitive: false);
+final _singletonTableRe = RegExp(
+  r'<table\b([^>]*)>\s*(?:<tbody\b[^>]*>\s*)?<tr\b[^>]*>\s*'
+  r'<td\b([^>]*)>((?:(?!</td>).)*)</td>\s*'
+  r'</tr>\s*(?:</tbody>\s*)?</table>',
+  caseSensitive: false,
+  dotAll: true,
+);
+final _spacerCellTableRe = RegExp(
+  r'<table\b([^>]*)>\s*(?:<tbody\b[^>]*>\s*)?<tr\b[^>]*>\s*'
+  r'(?:'
+  r'(?:<td\b[^>]*>\s*</td>\s*)+<td\b([^>]*)>((?:(?!</td>).)*)</td>(?:\s*<td\b[^>]*>\s*</td>)*'
+  r'|'
+  r'<td\b([^>]*)>((?:(?!</td>).)*)</td>(?:\s*<td\b[^>]*>\s*</td>)+'
+  r')'
+  r'\s*</tr>\s*(?:</tbody>\s*)?</table>',
+  caseSensitive: false,
+  dotAll: true,
+);
 
 String _stripInlineLayoutStyle(String style) {
   final parts = <String>[];
@@ -225,14 +270,19 @@ String _stripInlineLayoutStyle(String style) {
   return parts.join('; ');
 }
 
-String _cleanTagAttrs(String attrs) {
-  var out = attrs;
-  out = out.replaceAllMapped(_styleAttrRe, (m) {
-    final cleaned = _stripInlineLayoutStyle(m.group(1)!);
+String _rewriteStyleAttrs(String html) {
+  return html.replaceAllMapped(_styleAttrRe, (m) {
+    final cleaned = _stripInlineLayoutStyle(m.group(2)!);
     return cleaned.isEmpty ? '' : ' style="$cleaned"';
   });
-  out = out.replaceAll(_dimAttrRe, '');
-  return out;
+}
+
+bool _isPreservedLayoutContainer(String attrs) {
+  return attrs.contains('shelf-docx-table-wrap') ||
+      attrs.contains('shelf-docx-root') ||
+      attrs.contains('shelf-docx-gallery') ||
+      attrs.contains('shelf-epub-root') ||
+      attrs.contains('shelf-docx-table');
 }
 
 String _flattenSimpleDivs(String html) {
@@ -241,12 +291,7 @@ String _flattenSimpleDivs(String html) {
     var changed = false;
     out = out.replaceAllMapped(_simpleDivRe, (m) {
       final attrs = m.group(1) ?? '';
-      if (attrs.contains('shelf-docx-table-wrap') ||
-          attrs.contains('shelf-docx-root') ||
-          attrs.contains('shelf-docx-gallery') ||
-          attrs.contains('shelf-epub-root')) {
-        return m.group(0)!;
-      }
+      if (_isPreservedLayoutContainer(attrs)) return m.group(0)!;
       final body = (m.group(2) ?? '').trim();
       if (body.isEmpty) {
         changed = true;
@@ -262,14 +307,81 @@ String _flattenSimpleDivs(String html) {
   return out;
 }
 
-/// Word/Mammoth 残留 margin/width 与嵌套 div 会导致正文列变窄，右侧留空。
+/// Word 常用单格/空边栏表格撑出窄列，右侧大块留白；解开后交给 prose 满宽排。
+String _unwrapLayoutTables(String html) {
+  var out = html;
+  for (var i = 0; i < 16; i++) {
+    var changed = false;
+    out = out.replaceAllMapped(_singletonTableRe, (m) {
+      final tableAttrs = m.group(1) ?? '';
+      if (_isPreservedLayoutContainer(tableAttrs)) return m.group(0)!;
+      final body = (m.group(3) ?? '').trim();
+      if (body.isEmpty) {
+        changed = true;
+        return '';
+      }
+      // 真表格（含嵌套 table）保留；已有块级段落直接展开，避免再包一层 p。
+      if (body.contains('<table') || body.contains('<tr')) return m.group(0)!;
+      changed = true;
+      if (body.contains('<p') ||
+          body.contains('shelf-docx-') ||
+          _blockInsideRe.hasMatch(body)) {
+        return body;
+      }
+      return '<p class="shelf-docx-p">$body</p>';
+    });
+    out = out.replaceAllMapped(_spacerCellTableRe, (m) {
+      final tableAttrs = m.group(1) ?? '';
+      if (_isPreservedLayoutContainer(tableAttrs)) return m.group(0)!;
+      final body = (m.group(3) ?? m.group(5) ?? '').trim();
+      if (body.isEmpty) return m.group(0)!;
+      if (body.contains('<table') || body.contains('<tr')) return m.group(0)!;
+      changed = true;
+      if (body.contains('<p') ||
+          body.contains('shelf-docx-') ||
+          _blockInsideRe.hasMatch(body)) {
+        return body;
+      }
+      return '<p class="shelf-docx-p">$body</p>';
+    });
+    if (!changed) break;
+  }
+  return out;
+}
+
+String _wrapContentTables(String html) {
+  return html.replaceAllMapped(
+    RegExp(r'<table\b([^>]*)>(.*?)</table>', caseSensitive: false, dotAll: true),
+    (m) {
+      final attrs = (m.group(1) ?? '').trim();
+      final body = m.group(2) ?? '';
+      if (_alreadyInTableWrap(m.start, html)) return m.group(0)!;
+      final withClass = attrs.contains('shelf-docx-table')
+          ? attrs
+          : (attrs.isEmpty ? 'class="shelf-docx-table"' : 'class="shelf-docx-table" $attrs');
+      return '<div class="shelf-docx-table-wrap"><table $withClass>$body</table></div>';
+    },
+  );
+}
+
+bool _alreadyInTableWrap(int tableStart, String html) {
+  final before = html.substring(0, tableStart).toLowerCase();
+  final open = before.lastIndexOf('shelf-docx-table-wrap');
+  if (open < 0) return false;
+  final afterOpen = before.substring(open);
+  return !afterOpen.contains('</div>');
+}
+
+/// Word/Mammoth 残留 margin/width 与嵌套 div/布局表会导致正文列变窄，右侧留空。
 String prepareShelfDocxLayoutHtml(String html) {
   if (html.trim().isEmpty) return html;
-  var out = _flattenSimpleDivs(html);
-  out = out.replaceAllMapped(_styleAttrRe, (m) {
-    final cleaned = _stripInlineLayoutStyle(m.group(1)!);
-    return cleaned.isEmpty ? '' : ' style="$cleaned"';
-  });
+  var out = html.replaceAll(_colgroupRe, '').replaceAll(_colTagRe, '');
+  out = _flattenSimpleDivs(out);
+  out = _unwrapLayoutTables(out);
+  out = _rewriteStyleAttrs(out);
+  out = out.replaceAll(_dimAttrRe, '');
+  out = _wrapContentTables(out);
+  out = _rewriteStyleAttrs(out);
   out = out.replaceAll(_dimAttrRe, '');
   return out;
 }

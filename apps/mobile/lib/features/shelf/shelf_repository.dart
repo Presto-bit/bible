@@ -407,14 +407,64 @@ class ShelfRepository {
     return res.data ?? const {};
   }
 
-  Future<bool> canAppendCollectionLesson() async {
+  Future<({bool shelfAdmin, bool canAppend})> platformCapabilities() async {
     try {
       final res = await _dio.get<Map<String, dynamic>>('/shelf/platform/capabilities');
       final data = res.data ?? const {};
-      return data['can_append_collection'] == true || data['shelf_admin'] == true;
+      final admin = data['shelf_admin'] == true;
+      final append = data['can_append_collection'] == true || admin;
+      return (shelfAdmin: admin, canAppend: append);
     } catch (_) {
-      return false;
+      return (shelfAdmin: false, canAppend: false);
     }
+  }
+
+  Future<bool> canAppendCollectionLesson() async {
+    return (await platformCapabilities()).canAppend;
+  }
+
+  Future<bool> canManageShelf() async {
+    return (await platformCapabilities()).shelfAdmin;
+  }
+
+  Future<void> adminRenameBook(String bookId, String title) async {
+    await _dio.patch(
+      '/admin/shelf/books/${Uri.encodeComponent(bookId)}',
+      data: {'title': title.trim()},
+    );
+    await _fetchListFresh(force: true);
+  }
+
+  Future<void> adminMoveBook(String bookId, String groupId) async {
+    await _dio.patch(
+      '/admin/shelf/books/${Uri.encodeComponent(bookId)}',
+      data: {'group_id': groupId},
+    );
+    await _fetchListFresh(force: true);
+  }
+
+  Future<void> adminArchiveBook(String bookId) async {
+    await _dio.delete('/admin/shelf/books/${Uri.encodeComponent(bookId)}');
+    await _fetchListFresh(force: true);
+  }
+
+  Future<List<ShelfGroup>> adminListGroups() async {
+    final res = await _dio.get<Map<String, dynamic>>('/admin/shelf/groups');
+    final groups = res.data?['groups'];
+    if (groups is! List) return const [];
+    return groups
+        .map((e) => ShelfGroup.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  Future<ShelfGroup> adminCreateGroup(String title) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/admin/shelf/groups',
+      data: {'title': title.trim()},
+    );
+    final g = res.data?['group'];
+    if (g is Map) return ShelfGroup.fromJson(Map<String, dynamic>.from(g));
+    throw StateError('创建分组失败');
   }
 
   Future<List<String>> listCollectionUnits(String bookId) async {
@@ -470,11 +520,17 @@ int shelfCoverHue(String title) {
   return h % 360;
 }
 
+/// 整本书分享到群的 section 占位（对齐 Web SHELF_BOOK_SHARE_SECTION）。
+const shelfBookShareSection = '_book';
+
 String shelfCheckinRef(String bookId, String sectionId, [int pageIndex = 0]) {
   final base = 'SHELF.$bookId.$sectionId';
   if (pageIndex > 0) return '$base.p$pageIndex';
   return base;
 }
+
+String shelfBookShareRef(String bookId) =>
+    shelfCheckinRef(bookId, shelfBookShareSection);
 
 String shelfCheckinLabel(String bookTitle, String sectionTitle) {
   if (sectionTitle.trim().isEmpty) return bookTitle.trim();

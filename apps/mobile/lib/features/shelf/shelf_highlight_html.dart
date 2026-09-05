@@ -57,6 +57,29 @@ String applyShelfPublicNotesToHtml(
   return out;
 }
 
+/// 本地想法 span（对齐 PWA shelf-thought-hint）；点击打开 ThoughtHub。
+String applyShelfThoughtsToHtml(
+  String html,
+  List<({int start, int end, String ref})> spans,
+) {
+  if (spans.isEmpty || html.isEmpty) return html;
+  final ranges = spans
+      .where((s) => s.start >= 0 && s.end > s.start)
+      .toList()
+    ..sort((a, b) => b.start.compareTo(a.start));
+  var out = html;
+  for (final span in ranges) {
+    out = _wrapPlainRangeWithLink(
+      out,
+      span.start,
+      span.end,
+      'shelf-thought:${Uri.encodeComponent(span.ref)}',
+      'shelf-thought-hint',
+    );
+  }
+  return out;
+}
+
 String _wrapPlainRangeWithLink(
   String html,
   int start,
