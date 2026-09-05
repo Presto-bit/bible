@@ -103,18 +103,15 @@ function ShelfListInner() {
   }, [refreshLibrary]);
 
   useEffect(() => {
-    void fetchCaps() {
-      void fetchShelfAdminCapabilities().then((cap) {
-        setCanAppendLesson(cap.can_append_collection);
-        // 全站 Admin 令牌，或登录用户属于书柜管理员名单，均可管理
-        if (canManageShelf()) {
-          void adminCheck().then((ok) => setCanManage(ok || cap.shelf_admin));
-        } else {
-          setCanManage(cap.shelf_admin);
-        }
-      });
-    }
-    fetchCaps();
+    void fetchShelfAdminCapabilities().then((cap) => {
+      setCanAppendLesson(cap.can_append_collection);
+      // 全站 Admin 令牌，或登录用户属于书柜管理员名单，均可管理
+      if (canManageShelf()) {
+        void adminCheck().then((ok) => setCanManage(ok || cap.shelf_admin));
+      } else {
+        setCanManage(cap.shelf_admin);
+      }
+    });
   }, []);
 
   const visibleBooks = useMemo(
