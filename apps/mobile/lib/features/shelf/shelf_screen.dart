@@ -3,6 +3,7 @@ library;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -253,6 +254,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
 
   Future<void> _openBook(ShelfBookSummary book) async {
     final id = book.id.trim();
+    debugPrint('[ShelfScreen] _openBook id=$id title=${book.title}');
     if (id.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -261,16 +263,14 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
       return;
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('正在打开…'),
-        duration: Duration(milliseconds: 600),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    HapticFeedback.selectionClick();
+    final path = _library.bookCardPath(id);
+    debugPrint('[ShelfScreen] push $path');
     try {
-      await ShelfNavigator.openCard(context, _library, id);
-    } catch (e) {
+      final result = await ShelfNavigator.openCard(context, _library, id);
+      debugPrint('[ShelfScreen] push done result=$result');
+    } catch (e, st) {
+      debugPrint('[ShelfScreen] push failed $e\n$st');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('无法打开：${e.toString().replaceFirst('Exception: ', '')}')),

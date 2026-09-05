@@ -1,4 +1,4 @@
-/// 我的 · 设置（Flutter 原生，对齐 Web ProfileSettingsPanel 主路径）。
+/// 我的 · 设置（Flutter 原生，布局对齐 PWA ProfileSettingsPanel）。
 library;
 
 import 'dart:async' show unawaited;
@@ -19,7 +19,6 @@ import '../auth/auth_controller.dart';
 import '../bible/offline_download_sheet.dart';
 import '../social/social_repository.dart';
 
-/// 与 profile_screen 一致：官方客服号。
 const _kOfficialSupportUserCode = '70625146';
 
 class ProfileSettingsScreen extends ConsumerStatefulWidget {
@@ -98,7 +97,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       await ref.read(syncControllerProvider.notifier).runSync(force: true);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已同步到云端')),
+        const SnackBar(content: Text('已同步')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -144,95 +143,123 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     final signedIn = auth.signedIn;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
+      backgroundColor: AppColors.paper,
+      appBar: AppBar(
+        backgroundColor: AppColors.paper,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: const Text('设置', style: AppTypography.title),
+      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 40),
         children: [
-          _Section(
-            title: '读经与体验',
+          // 顺序对齐 PWA：账号 → 读经体验 → 支持关于 → 数据
+          _SettingsGroup(
+            label: '账号与安全',
             children: [
-              _NavRow(
-                title: '外观',
-                hint: '主题与读经页样式',
-                onTap: () => context.push('/profile/appearance'),
-              ),
-              _NavRow(
-                title: '提醒与勿扰',
-                hint: '每日读经提醒 · 读经勿扰',
-                onTap: () => context.push('/profile/reminders'),
-              ),
-              _NavRow(
-                title: '离线下载',
-                hint: '译本与音频包',
-                onTap: () => showOfflineDownloadSheet(context, ref),
-              ),
-              _NavRow(
-                title: '知识库',
-                hint: '小爱检索范围',
-                onTap: () => context.push('/knowledge-bases'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _Section(
-            title: '支持与关于',
-            children: [
-              _NavRow(
-                title: '帮助与反馈',
-                hint: '联系客服',
-                onTap: () => unawaited(_openSupport()),
-              ),
-              _NavRow(
-                title: '数据来源与许可',
-                hint: '经文与资料出处',
-                onTap: () =>
-                    openOverlayH5(context, '/profile/licenses', title: '许可'),
-              ),
-              _NavRow(
-                title: _checkingUpdate ? '正在检查…' : '检查更新',
-                hint: _versionLabel ?? '…',
-                onTap: _checkingUpdate ? null : () => unawaited(_checkUpdate()),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _Section(
-            title: '数据',
-            children: [
-              _NavRow(
-                title: _syncing ? '同步中…' : '同步到云端',
-                hint: signedIn ? '上传本地进度与想法' : '登录后可同步',
-                onTap:
-                    !signedIn || _syncing ? null : () => unawaited(_sync()),
-              ),
-              if (signedIn)
-                _NavRow(
-                  title: '退出登录',
-                  danger: true,
-                  onTap: () => unawaited(_logout()),
-                )
-              else
-                _NavRow(
-                  title: '登录 / 在其他设备恢复',
-                  hint: '手机号或用户 ID',
-                  onTap: () => openOverlayH5(context, '/login', title: '登录'),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _Section(
-            title: '账号',
-            children: [
-              _NavRow(
+              _SettingsNavRow(
                 title: '账号与安全',
                 hint: '密码、手机号、设备',
-                // 叠层 H5 仍加载 Web 设置页（账号表单）；原生壳只覆盖主路径
+                icon: Icons.manage_accounts_outlined,
                 onTap: () => openOverlayH5(
                   context,
                   '/profile/settings',
                   title: '账号与安全',
                 ),
               ),
+              if (!signedIn)
+                _SettingsNavRow(
+                  title: '在其他设备恢复',
+                  hint: '登录或恢复账号',
+                  icon: Icons.phonelink_lock_outlined,
+                  onTap: () => openOverlayH5(context, '/login', title: '登录'),
+                ),
+            ],
+          ),
+          _SettingsGroup(
+            label: '读经与体验',
+            children: [
+              _SettingsNavRow(
+                title: '外观',
+                hint: '主题与阅读器',
+                icon: Icons.wb_sunny_outlined,
+                onTap: () => context.push('/profile/appearance'),
+              ),
+              _SettingsNavRow(
+                title: '提醒与勿扰',
+                hint: '读经提醒 · 圣经勿扰',
+                icon: Icons.notifications_none_rounded,
+                onTap: () => context.push('/profile/reminders'),
+              ),
+              _SettingsNavRow(
+                title: '离线下载',
+                hint: '圣经与资料',
+                icon: Icons.download_outlined,
+                onTap: () => showOfflineDownloadSheet(context, ref),
+              ),
+              _SettingsNavRow(
+                title: '知识库',
+                hint: '知识库与专题',
+                icon: Icons.menu_book_outlined,
+                onTap: () => context.push('/knowledge-bases'),
+              ),
+            ],
+          ),
+          _SettingsGroup(
+            label: '支持与关于',
+            children: [
+              _SettingsNavRow(
+                title: '帮助与反馈',
+                hint: '帮助与反馈',
+                icon: Icons.help_outline_rounded,
+                onTap: () => unawaited(_openSupport()),
+              ),
+              _SettingsNavRow(
+                title: '数据来源与许可',
+                hint: '经文与资料出处',
+                icon: Icons.description_outlined,
+                onTap: () =>
+                    openOverlayH5(context, '/profile/licenses', title: '许可'),
+              ),
+              _SettingsNavRow(
+                title: _checkingUpdate ? '正在检查…' : '检查更新',
+                hint: _versionLabel == null
+                    ? '彼爱安装包'
+                    : '彼爱 $_versionLabel',
+                icon: Icons.system_update_alt_outlined,
+                onTap:
+                    _checkingUpdate ? null : () => unawaited(_checkUpdate()),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                child: Text(
+                  '版本 ${_versionLabel ?? '…'}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.inkFaint,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          _SettingsGroup(
+            label: '数据',
+            children: [
+              _SettingsNavRow(
+                title: _syncing ? '同步中…' : '同步到云端',
+                hint: signedIn ? '上传本地进度与想法' : '登录后可同步',
+                icon: Icons.cloud_sync_outlined,
+                onTap: !signedIn || _syncing
+                    ? null
+                    : () => unawaited(_sync()),
+              ),
+              if (signedIn)
+                _SettingsNavRow(
+                  title: '退出登录',
+                  icon: Icons.logout_rounded,
+                  danger: true,
+                  onTap: () => unawaited(_logout()),
+                ),
             ],
           ),
         ],
@@ -241,84 +268,124 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.children});
+class _SettingsGroup extends StatelessWidget {
+  const _SettingsGroup({required this.label, required this.children});
 
-  final String title;
+  final String label;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkFaint,
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 8),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+                color: AppColors.inkFaint,
+              ),
             ),
           ),
-        ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.line),
-          ),
-          child: Column(
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0)
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-                children[i],
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.line),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0)
+                    const Divider(height: 1, indent: 48, endIndent: 0),
+                  children[i],
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _NavRow extends StatelessWidget {
-  const _NavRow({
+class _SettingsNavRow extends StatelessWidget {
+  const _SettingsNavRow({
     required this.title,
     this.hint,
+    this.icon,
     this.onTap,
     this.danger = false,
   });
 
   final String title;
   final String? hint;
+  final IconData? icon;
   final VoidCallback? onTap;
   final bool danger;
 
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
-    return ListTile(
-      enabled: enabled,
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          color: danger ? Colors.red.shade700 : AppColors.ink,
+    final ink = danger ? const Color(0xFFB42318) : AppColors.ink;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Opacity(
+          opacity: enabled ? 1 : 0.45,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+            child: Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 20, color: ink.withValues(alpha: 0.78)),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          height: 1.25,
+                          color: ink,
+                        ),
+                      ),
+                      if (hint != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          hint!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            height: 1.35,
+                            color: AppColors.inkFaint,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (!danger)
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.inkFaint,
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
-      subtitle: hint == null
-          ? null
-          : Text(
-              hint!,
-              style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
-            ),
-      trailing: danger
-          ? null
-          : const Icon(Icons.chevron_right, color: AppColors.inkFaint),
-      onTap: onTap,
     );
   }
 }

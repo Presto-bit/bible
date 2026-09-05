@@ -1,4 +1,4 @@
-/// 书架导航统一入口：只允许绝对路径，避免 go_router 相对 push 静默失败。
+/// 书架导航统一入口：只允许绝对路径字符串，避免 Uri 二次编码与相对 push。
 library;
 
 import 'package:flutter/material.dart';
@@ -16,13 +16,29 @@ class ShelfNavigator {
     String? tab,
     bool finished = false,
   }) {
-    final q = <String, String>{
-      if (tab != null && tab.isNotEmpty) 'tab': tab,
-      if (finished) 'finished': '1',
-    };
+    final parts = <String>[
+      if (tab != null && tab.isNotEmpty) 'tab=${Uri.encodeComponent(tab)}',
+      if (finished) 'finished=1',
+    ];
     final base = '/shelf/${encodeId(bookId)}';
-    if (q.isEmpty) return base;
-    return Uri(path: base, queryParameters: q).toString();
+    return parts.isEmpty ? base : '$base?${parts.join('&')}';
+  }
+
+  static String readPath(
+    String bookId, {
+    String? section,
+    int? page,
+    String? group,
+  }) {
+    final parts = <String>[
+      if (section != null && section.trim().isNotEmpty)
+        'section=${Uri.encodeComponent(section.trim())}',
+      if (page != null && page > 0) 'page=$page',
+      if (group != null && group.isNotEmpty)
+        'group=${Uri.encodeComponent(group)}',
+    ];
+    final base = '/shelf/${encodeId(bookId)}/read';
+    return parts.isEmpty ? base : '$base?${parts.join('&')}';
   }
 
   static Future<T?> openLibrary<T extends Object?>(BuildContext context) {
@@ -37,12 +53,12 @@ class ShelfNavigator {
   }) {
     final id = bookId.trim();
     if (id.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法打开：书目无效')),
-      );
+      _toast(context, '无法打开：书目无效');
       return Future<T?>.value(null);
     }
-    return context.push<T>(detailPath(id, tab: tab, finished: finished));
+    final path = detailPath(id, tab: tab, finished: finished);
+    debugPrint('[ShelfNavigator] openDetail $path');
+    return context.push<T>(path);
   }
 
   static Future<T?> openRead<T extends Object?>(
@@ -54,22 +70,11 @@ class ShelfNavigator {
   }) {
     final id = bookId.trim();
     if (id.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法打开：书目无效')),
-      );
+      _toast(context, '无法打开：书目无效');
       return Future<T?>.value(null);
     }
-    final q = <String, String>{
-      if (section != null && section.trim().isNotEmpty) 'section': section.trim(),
-      if (page != null && page > 0) 'page': '$page',
-      if (group != null && group.isNotEmpty) 'group': group,
-    };
-    final path = q.isEmpty
-        ? '/shelf/${encodeId(id)}/read'
-        : Uri(
-            path: '/shelf/${encodeId(id)}/read',
-            queryParameters: q,
-          ).toString();
+    final path = readPath(id, section: section, page: page, group: group);
+    debugPrint('[ShelfNavigator] openRead $path');
     return context.push<T>(path);
   }
 
@@ -80,12 +85,12 @@ class ShelfNavigator {
   ) {
     final id = bookId.trim();
     if (id.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法打开：书目无效')),
-      );
+      _toast(context, '无法打开：书目无效');
       return Future<T?>.value(null);
     }
-    return context.push<T>(library.bookCardPath(id));
+    final path = library.bookCardPath(id);
+    debugPrint('[ShelfNavigator] openCard $path');
+    return context.push<T>(path);
   }
 
   static void goLibrary(BuildContext context) => context.go('/shelf');
@@ -96,5 +101,9 @@ class ShelfNavigator {
     bool finished = false,
   }) {
     context.go(detailPath(bookId, finished: finished));
+  }
+
+  static void _toast(BuildContext context, String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }

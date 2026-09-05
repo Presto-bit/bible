@@ -195,14 +195,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/shelf',
         builder: (context, state) => const ShelfScreen(),
       ),
-      GoRoute(
-        path: '/shelf/:id',
-        builder: (context, state) => ShelfBookDetailScreen(
-          bookId: Uri.decodeComponent(state.pathParameters['id']!),
-          initialTab: state.uri.queryParameters['tab'],
-          celebrateFinished: state.uri.queryParameters['finished'] == '1',
-        ),
-      ),
+      // read 必须在 :id 之前注册，避免被单段 :id 误吃（go_router 匹配顺序）
       GoRoute(
         path: '/shelf/:id/read',
         builder: (context, state) {
@@ -214,6 +207,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             groupId: state.uri.queryParameters['group'],
           );
         },
+      ),
+      GoRoute(
+        path: '/shelf/:id',
+        builder: (context, state) => ShelfBookDetailScreen(
+          bookId: Uri.decodeComponent(state.pathParameters['id']!),
+          initialTab: state.uri.queryParameters['tab'],
+          celebrateFinished: state.uri.queryParameters['finished'] == '1',
+        ),
       ),
       GoRoute(
         path: '/profile/settings',

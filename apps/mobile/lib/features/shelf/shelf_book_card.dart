@@ -1,4 +1,4 @@
-/// 书架书卡：AspectRatio 3/4 + Listener 整格命中（避开网格滚动吞掉 InkWell.onTap）。
+/// 书架书卡：铺满格子 + GestureDetector.onTap（与滚动同竞技场，避开 Listener 被 cancel）。
 library;
 
 import 'package:flutter/material.dart';
@@ -7,7 +7,7 @@ import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
 import 'shelf_repository.dart';
 
-class ShelfBookCard extends StatefulWidget {
+class ShelfBookCard extends StatelessWidget {
   const ShelfBookCard({
     super.key,
     required this.book,
@@ -26,71 +26,22 @@ class ShelfBookCard extends StatefulWidget {
   final VoidCallback? onLongPress;
 
   @override
-  State<ShelfBookCard> createState() => _ShelfBookCardState();
-}
-
-class _ShelfBookCardState extends State<ShelfBookCard> {
-  Offset? _down;
-  var _moved = false;
-  var _detailPress = false;
-
-  static const _tapSlop = 18.0;
-
-  void _resetPointer() {
-    _down = null;
-    _moved = false;
-  }
-
-  void _onPointerDown(PointerDownEvent e) {
-    _down = e.position;
-    _moved = false;
-  }
-
-  void _onPointerMove(PointerMoveEvent e) {
-    final start = _down;
-    if (start == null || _moved) return;
-    if ((e.position - start).distance > _tapSlop) _moved = true;
-  }
-
-  void _onPointerUp(PointerUpEvent e) {
-    if (_detailPress) {
-      _detailPress = false;
-      return;
-    }
-    final start = _down;
-    _resetPointer();
-    if (start == null || _moved) return;
-    if ((e.position - start).distance > _tapSlop) return;
-    widget.onTap?.call();
-  }
-
-  void _onPointerCancel(PointerCancelEvent e) {
-    _detailPress = false;
-    _resetPointer();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final ratio = widget.progressRatio?.clamp(0.0, 1.0);
-    final resolvedCover = (widget.coverUrl ?? '').trim();
+    final ratio = progressRatio?.clamp(0.0, 1.0);
+    final resolvedCover = (coverUrl ?? '').trim();
 
+    // 格子约束是 tight：必须 expand，否则空白区无命中、滚动易吞掉子树
     return Material(
       color: Colors.transparent,
-      child: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: widget.onTap == null ? null : _onPointerDown,
-        onPointerMove: widget.onTap == null ? null : _onPointerMove,
-        onPointerUp: widget.onTap == null ? null : _onPointerUp,
-        onPointerCancel: widget.onTap == null ? null : _onPointerCancel,
+      child: SizedBox.expand(
         child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onLongPress: widget.onLongPress,
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          onLongPress: onLongPress,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
             children: [
-              AspectRatio(
-                aspectRatio: 3 / 4,
+              Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: Stack(
@@ -127,26 +78,20 @@ class _ShelfBookCardState extends State<ShelfBookCard> {
                             ),
                           ),
                         ),
-                      if (widget.onDetailTap != null)
+                      if (onDetailTap != null)
                         Positioned(
-                          top: 5,
-                          right: 5,
-                          child: Listener(
-                            behavior: HitTestBehavior.opaque,
-                            onPointerDown: (_) => _detailPress = true,
-                            onPointerUp: (_) {
-                              if (_detailPress) widget.onDetailTap?.call();
-                              _detailPress = false;
-                            },
-                            onPointerCancel: (_) => _detailPress = false,
-                            child: const SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: Colors.black38,
-                                  shape: BoxShape.circle,
-                                ),
+                          top: 4,
+                          right: 4,
+                          child: Material(
+                            color: Colors.black38,
+                            shape: const CircleBorder(),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: onDetailTap,
+                              child: const SizedBox(
+                                width: 30,
+                                height: 30,
                                 child: Center(
                                   child: Text(
                                     'i',
@@ -167,15 +112,18 @@ class _ShelfBookCardState extends State<ShelfBookCard> {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                widget.book.title.isEmpty ? '未命名' : widget.book.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  height: 1.35,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.ink,
+              SizedBox(
+                height: 34,
+                child: Text(
+                  book.title.isEmpty ? '未命名' : book.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
             ],
