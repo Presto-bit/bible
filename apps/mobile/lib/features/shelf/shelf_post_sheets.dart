@@ -5,10 +5,10 @@ import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
+import 'shelf_navigator.dart';
 import 'shelf_posts_repository.dart';
 import 'shelf_repository.dart';
 
@@ -500,7 +500,7 @@ Future<void> showShelfReaderMoreSheet(
             label: '本书笔记',
             onTap: () {
               Navigator.pop(ctx);
-              ctx.push('/shelf/$bookId?tab=notes');
+              ShelfNavigator.openDetail(ctx, bookId, tab: 'notes');
             },
           ),
           const SizedBox(height: 8),
@@ -508,7 +508,7 @@ Future<void> showShelfReaderMoreSheet(
             label: '书评与公开笔记',
             onTap: () {
               Navigator.pop(ctx);
-              ctx.push('/shelf/$bookId?tab=reviews');
+              ShelfNavigator.openDetail(ctx, bookId, tab: 'reviews');
             },
           ),
           const SizedBox(height: 8),

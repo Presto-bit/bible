@@ -17,7 +17,6 @@ import '../core/config.dart';
 import '../core/gamification.dart';
 import '../core/h5_bridge_channel.dart' show discoverH5PathProvider;
 import '../core/open_h5.dart';
-import '../core/overlay_h5.dart';
 import '../core/profile_avatar.dart';
 import '../core/profile_footprint.dart';
 import '../core/peiai_polish.dart';
@@ -383,7 +382,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (_settingsOpening) return;
     _settingsOpening = true;
     HapticFeedback.lightImpact();
-    openOverlayH5(context, '/profile/settings', title: '设置');
+    context.push('/profile/settings');
     Future<void>.delayed(const Duration(milliseconds: 400), () {
       if (mounted) _settingsOpening = false;
     });
@@ -1676,9 +1675,7 @@ class _SettingsSheet extends ConsumerWidget {
                 '读经提醒',
                 onTap: () {
                   Navigator.pop(context);
-                  if (!openH5IfAllowed(context, '/profile/reminders')) {
-                    context.push('/profile/reminders');
-                  }
+                  context.push('/profile/reminders');
                 },
               ),
               const SizedBox(height: 8),

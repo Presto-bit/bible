@@ -16,6 +16,7 @@ import BottomTabs from '@/components/BottomTabs';
 import TabKeepAlive from '@/components/shell/TabKeepAlive';
 import DeferredShellOverlays from '@/components/shell/DeferredShellOverlays';
 import SoftNavProgress from '@/components/shell/SoftNavProgress';
+import SoftNavTransitionShell from '@/components/shell/SoftNavTransitionShell';
 import ShellNavBridge from '@/components/ShellNavBridge';
 
 import { BASE_PATH } from '@/lib/basePath';
@@ -122,6 +123,7 @@ export default function RootLayout({
               <AppThemeShell />
               <OfflineBar />
               <SoftNavProgress />
+              <SoftNavTransitionShell />
               <div className="app-body">
                 <TabKeepAlive>{children}</TabKeepAlive>
               </div>

@@ -310,7 +310,11 @@ function FootprintCell({
         longPressFired.current = false;
         clearTimer();
         startXY.current = { x: e.clientX, y: e.clientY };
-        if (!onShare) return;
+        if (!onShare) {
+          // 与设置一致：无长按分享时 pointerdown 立刻打开
+          openOnce();
+          return;
+        }
         longPressTimer.current = setTimeout(() => {
           longPressTimer.current = null;
           longPressFired.current = true;
@@ -330,6 +334,10 @@ function FootprintCell({
         if (dx > 12 || dy > 12) clearLongPressTimer();
       }}
       onPointerUp={(e) => {
+        if (!onShare) {
+          clearTimer();
+          return;
+        }
         const start = startXY.current;
         const fired = longPressFired.current;
         clearTimer();
@@ -353,6 +361,7 @@ function FootprintCell({
         onShare();
       }}
       onClick={() => {
+        if (!onShare) return;
         if (longPressFired.current) {
           longPressFired.current = false;
           return;
@@ -966,7 +975,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
 
   /** 开层 / 跳转前硬卸吞点击遮罩，避免 PWA 上「点了没反应」 */
   const clearBlockingOverlays = () => {
-    recoverProfileShellTouch(true);
+    recoverProfileShellTouch(false);
   };
 
   const openSettings = () => {

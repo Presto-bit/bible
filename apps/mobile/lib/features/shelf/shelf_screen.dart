@@ -10,6 +10,7 @@ import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'shelf_book_card.dart';
 import 'shelf_library_store.dart';
+import 'shelf_navigator.dart';
 import 'shelf_progress.dart';
 import 'shelf_repository.dart';
 import 'shelf_append_lesson_sheet.dart';
@@ -259,10 +260,16 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
       );
       return;
     }
-    final path = _library.bookCardPath(id);
     if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('正在打开…'),
+        duration: Duration(milliseconds: 600),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
     try {
-      await context.push(path);
+      await ShelfNavigator.openCard(context, _library, id);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -273,9 +280,15 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
 
   Future<void> _openBookDetail(ShelfBookSummary book) async {
     final id = book.id.trim();
-    if (id.isEmpty) return;
+    if (id.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('无法打开：书目无效')),
+      );
+      return;
+    }
     try {
-      await context.push('/shelf/${Uri.encodeComponent(id)}');
+      await ShelfNavigator.openDetail(context, id);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -16,7 +16,6 @@ import {
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 import {
   getPwaTabPathname,
-  isSecondaryNavPending,
   markRouteNavigation,
   resolvePwaShellPathname,
   subscribePwaTabNav,
@@ -129,13 +128,6 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
   const [mounted, setMounted] = useState<Record<KeepAliveTabId, boolean>>(emptyMounted);
   const prevActiveTabRef = useRef<KeepAliveTabId | null>(null);
 
-  // pushState 已指向二级页时，即便 Next router 仍在旧 Tab，也不 suppress 路由层
-  const routeOverlayPath = isSecondaryAppPath(routerPath)
-    ? routerPath
-    : isSecondaryAppPath(pwaPath)
-      ? pwaPath
-      : routerPath;
-  const secondaryNavPending = isSecondaryNavPending(routerPathname);
   // 仅当 router 已到二级页才卸主 Tab；pending 期间保留来源 Tab，避免「闪一下空白再进设置」
   const effectiveActiveTab = isSecondaryAppPath(routerPath) ? null : activeTab;
 
@@ -143,13 +135,12 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
   const paneVisible = (tab: KeepAliveTabId) =>
     Boolean(mounted[tab] || (enabled && effectiveActiveTab === tab));
 
-  // 主 Tab 可见时 suppress 路由层；二级页 / pending 不 suppress，让目标页可渲染
+  // 仅当 Next pathname 已是二级页才放开路由层；pending 仍 suppress，避免双挂 Profile
   const suppressRoute =
     enabled
     && effectiveActiveTab !== null
     && paneVisible(effectiveActiveTab)
-    && !isSecondaryAppPath(routeOverlayPath)
-    && !secondaryNavPending;
+    && !isSecondaryAppPath(routerPath);
 
   useEffect(() => {
     if (!enabled) return;

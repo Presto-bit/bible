@@ -968,3 +968,41 @@ textarea.input {
   padding: 48px 16px;
   pointer-events: none;
 }
+
+/* 二级 soft-nav 乐观壳：不挡点击、非全屏蒙层 */
+.soft-nav-transition-shell {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  z-index: 900;
+  pointer-events: none !important;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 24px;
+  background: color-mix(in srgb, var(--paper, #faf8f5) 92%, transparent);
+}
+
+.soft-nav-transition-inner {
+  width: min(480px, 100%);
+  pointer-events: none !important;
+}
+
+.soft-nav-transition-title {
+  margin: 8px 0 0;
+  font-size: 20px;
+  font-weight: 650;
+  color: var(--ink, #191919);
+}
+
+.soft-nav-transition-sub {
+  margin: 6px 0 16px;
+  font-size: 13px;
+}
+
+.soft-nav-transition-skel {
+  margin-bottom: 10px;
+  pointer-events: none !important;
+}

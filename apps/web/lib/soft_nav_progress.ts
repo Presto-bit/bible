@@ -19,7 +19,7 @@ let activeHref: string | null = null;
 let clearTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** 二级 soft-nav 超时：清进度 + 通知壳层清 pending + toast */
-const SOFT_NAV_TIMEOUT_MS = 15_000;
+const SOFT_NAV_TIMEOUT_MS = 6_000;
 
 function emit(active: boolean, href?: string) {
   if (typeof window === 'undefined') return;

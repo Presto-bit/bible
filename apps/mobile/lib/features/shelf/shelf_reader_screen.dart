@@ -13,6 +13,7 @@ import '../../core/theme.dart';
 import 'shelf_checkin_sheet.dart';
 import 'shelf_lesson_media_dock.dart';
 import 'shelf_media_sheet.dart';
+import 'shelf_navigator.dart';
 import 'shelf_paginated_prose.dart';
 import 'shelf_pdf_page.dart';
 import 'shelf_post_sheets.dart';
@@ -153,7 +154,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
-    context.go('/shelf/${Uri.encodeComponent(widget.bookId)}?finished=1');
+    ShelfNavigator.goDetail(context, widget.bookId, finished: true);
   }
 
   Future<void> _loadBook() async {

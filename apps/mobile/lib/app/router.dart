@@ -22,6 +22,8 @@ import '../features/bible/dictionary_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/notes/notes_screen.dart';
 import '../features/settings/appearance_screen.dart';
+import '../features/settings/profile_settings_screen.dart';
+import '../features/settings/reminders_screen.dart';
 import '../features/knowledge/knowledge_explore.dart';
 import '../features/assistant/knowledge_bases_screen.dart';
 import '../features/bible/reading_report_screen.dart';
@@ -131,16 +133,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             const H5HostPage(path: '/profile/licenses'),
       ),
       GoRoute(
-        path: '/profile/settings',
-        builder: (context, state) =>
-            const H5HostPage(path: '/profile/settings'),
-      ),
-      GoRoute(
-        path: '/profile/reminders',
-        builder: (context, state) =>
-            const H5HostPage(path: '/profile/reminders'),
-      ),
-      GoRoute(
         path: '/dictionary',
         builder: (context, state) => const DictionaryScreen(),
       ),
@@ -202,30 +194,34 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/shelf',
         builder: (context, state) => const ShelfScreen(),
-        routes: [
-          GoRoute(
-            path: ':id',
-            builder: (context, state) => ShelfBookDetailScreen(
-              bookId: Uri.decodeComponent(state.pathParameters['id']!),
-              initialTab: state.uri.queryParameters['tab'],
-              celebrateFinished: state.uri.queryParameters['finished'] == '1',
-            ),
-            routes: [
-              GoRoute(
-                path: 'read',
-                builder: (context, state) {
-                  final section = state.uri.queryParameters['section']?.trim();
-                  return ShelfReaderScreen(
-                    bookId: Uri.decodeComponent(state.pathParameters['id']!),
-                    sectionId: (section == null || section.isEmpty) ? null : section,
-                    pageIndex: int.tryParse(state.uri.queryParameters['page'] ?? ''),
-                    groupId: state.uri.queryParameters['group'],
-                  );
-                },
-              ),
-            ],
-          ),
-        ],
+      ),
+      GoRoute(
+        path: '/shelf/:id',
+        builder: (context, state) => ShelfBookDetailScreen(
+          bookId: Uri.decodeComponent(state.pathParameters['id']!),
+          initialTab: state.uri.queryParameters['tab'],
+          celebrateFinished: state.uri.queryParameters['finished'] == '1',
+        ),
+      ),
+      GoRoute(
+        path: '/shelf/:id/read',
+        builder: (context, state) {
+          final section = state.uri.queryParameters['section']?.trim();
+          return ShelfReaderScreen(
+            bookId: Uri.decodeComponent(state.pathParameters['id']!),
+            sectionId: (section == null || section.isEmpty) ? null : section,
+            pageIndex: int.tryParse(state.uri.queryParameters['page'] ?? ''),
+            groupId: state.uri.queryParameters['group'],
+          );
+        },
+      ),
+      GoRoute(
+        path: '/profile/settings',
+        builder: (context, state) => const ProfileSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/profile/reminders',
+        builder: (context, state) => const RemindersScreen(),
       ),
       GoRoute(
         path: '/profile/appearance',

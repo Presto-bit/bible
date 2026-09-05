@@ -42,6 +42,14 @@ bool openH5IfAllowed(BuildContext context, String href, {String? title}) {
     return true;
   }
 
+  // 设置 / 提醒 / 外观：Flutter 原生
+  if (pathOnly == '/profile/settings' ||
+      pathOnly == '/profile/reminders' ||
+      pathOnly == '/profile/appearance') {
+    context.push(pathOnly);
+    return true;
+  }
+
   if (!H5Whitelist.allows(pathOnly)) return false;
 
   // 创世记 50 桥接页走 Custom Tabs（Chrome 内核），不能进叠层 H5 WebView。

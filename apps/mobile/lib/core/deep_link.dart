@@ -104,11 +104,15 @@ class DeepLink {
       '/wrapped',
       '/knowledge-bases',
       '/profile/appearance',
+      '/profile/settings',
+      '/profile/reminders',
       '/notes',
+      '/shelf',
     };
     if (known.contains(path) ||
         (path.startsWith('/search/') && !path.startsWith('/search/series')) ||
-        path.startsWith('/knowledge-bases/')) {
+        path.startsWith('/knowledge-bases/') ||
+        path.startsWith('/shelf/')) {
       return uri.hasQuery ? '$path?${uri.query}' : path;
     }
 

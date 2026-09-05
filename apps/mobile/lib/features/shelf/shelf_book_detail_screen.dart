@@ -11,7 +11,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
-import 'shelf_library_store.dart';
+import 'shelf_navigator.dart';
 import 'shelf_post_sheets.dart';
 import 'shelf_posts_repository.dart';
 import 'shelf_progress.dart';
@@ -117,15 +117,27 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   }
 
   Future<void> _openRead() async {
-    // go_router 17 仅把以 `./` 开头的 location 当相对路径；裸 `read` 会静默匹配失败。
     ShelfProgressStore(ref.read(prefsProvider)).clearFinished(widget.bookId);
-    final path = ShelfLibraryStore(
-      ref.read(prefsProvider),
-      ShelfProgressStore(ref.read(prefsProvider)),
-    ).bookReadPath(widget.bookId);
     if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('正在打开…'),
+        duration: Duration(milliseconds: 600),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    final progress =
+        ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId);
+    final sid = progress?.sectionId.trim() ?? '';
     try {
-      await context.push(path);
+      await ShelfNavigator.openRead(
+        context,
+        widget.bookId,
+        section: sid.isEmpty ? null : sid,
+        page: (progress != null && progress.pageIndex > 0)
+            ? progress.pageIndex
+            : null,
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
