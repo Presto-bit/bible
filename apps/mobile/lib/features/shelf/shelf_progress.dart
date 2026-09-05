@@ -117,9 +117,8 @@ class ShelfProgressStore {
     String? sectionTitle,
   }) {
     final store = _readStore();
-    final byBook = Map<String, dynamic>.from(
-      store['byBook'] as Map<String, dynamic>? ?? {},
-    );
+    // jsonDecode 得到的是 Map<dynamic,dynamic>，不可 as Map<String,dynamic>
+    final byBook = _stringKeyMap(store['byBook']);
     final entry = <String, dynamic>{
       'sectionId': sectionId,
       'pageIndex': pageIndex < 0 ? 0 : pageIndex,
@@ -153,12 +152,10 @@ class ShelfProgressStore {
 
   void clearFinished(String bookId) {
     final store = _readStore();
-    final byBook = Map<String, dynamic>.from(
-      store['byBook'] as Map<String, dynamic>? ?? {},
-    );
+    final byBook = _stringKeyMap(store['byBook']);
     final entry = byBook[bookId];
     if (entry is! Map) return;
-    final next = Map<String, dynamic>.from(entry);
+    final next = _stringKeyMap(entry);
     next.remove('finished');
     byBook[bookId] = next;
     store['byBook'] = byBook;
@@ -168,16 +165,11 @@ class ShelfProgressStore {
   Map<String, dynamic> _readStore() {
     try {
       final raw = _prefs.getString(_progressKey);
-      if (raw == null || raw.isEmpty) return {'byBook': {}};
+      if (raw == null || raw.isEmpty) return {'byBook': <String, dynamic>{}};
       final parsed = jsonDecode(raw);
-      if (parsed is Map<String, dynamic>) {
-        return parsed;
-      }
-      if (parsed is Map) {
-        return Map<String, dynamic>.from(parsed);
-      }
+      if (parsed is Map) return _stringKeyMap(parsed);
     } catch (_) {}
-    return {'byBook': {}};
+    return {'byBook': <String, dynamic>{}};
   }
 
   void _writeStore(Map<String, dynamic> store) {
@@ -185,4 +177,13 @@ class ShelfProgressStore {
       _prefs.setString(_progressKey, jsonEncode(store));
     } catch (_) {}
   }
+}
+
+/// jsonDecode / SharedPreferences 常见为 Map&lt;dynamic,dynamic&gt;，统一转成 String key。
+Map<String, dynamic> _stringKeyMap(Object? value) {
+  if (value is Map<String, dynamic>) return Map<String, dynamic>.from(value);
+  if (value is Map) {
+    return value.map((k, v) => MapEntry(k.toString(), v));
+  }
+  return <String, dynamic>{};
 }
