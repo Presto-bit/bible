@@ -12,49 +12,74 @@ import {
 const SSR_SPLASH_ID = 'peiai-brand-splash-ssr';
 
 function removeSplashNode(node: HTMLElement | null) {
-  document.documentElement.classList.remove('peiai-splash-pending', 'peiai-splash-lock');
+  document.documentElement.classList.remove(
+    'peiai-splash-pending',
+    'peiai-splash-lock',
+    'peiai-splash-active',
+  );
   node?.remove();
 }
 
+function scheduleDismiss(node: HTMLElement) {
+  if (window.__PEIAI_SPLASH_DISMISS__ === true) return;
+  window.__PEIAI_SPLASH_DISMISS__ = true;
+
+  let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+  let finished = false;
+
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    markBrandSplashDone();
+    removeSplashNode(node);
+  };
+
+  const beginFade = () => {
+    if (fadeTimer || finished || !document.getElementById(SSR_SPLASH_ID)) return;
+    document.documentElement.classList.remove('peiai-splash-pending');
+    node.classList.add('is-fading');
+    node.setAttribute('aria-hidden', 'true');
+    fadeTimer = setTimeout(finish, BRAND_SPLASH_FADE_MS);
+  };
+
+  const start = window.__PEIAI_SPLASH_START__ ?? Date.now();
+  const elapsed = Date.now() - start;
+  const waitMin = Math.max(0, BRAND_SPLASH_MIN_MS - elapsed);
+  const waitMax = Math.max(0, BRAND_SPLASH_MAX_MS - elapsed);
+
+  const minTimer = setTimeout(beginFade, waitMin);
+  const maxTimer = setTimeout(beginFade, waitMax);
+
+  return () => {
+    clearTimeout(minTimer);
+    clearTimeout(maxTimer);
+    if (fadeTimer) clearTimeout(fadeTimer);
+  };
+}
+
 /**
- * PWA 冷启动：仅控制 SSR 开屏节点计时淡出，不另挂一层，避免 hydration 双开屏跳动。
+ * PWA 冷启动：内联脚本负责首屏计时；此处仅兜底并避免 hydration 误删开屏。
  */
 export default function BrandSplash() {
   useEffect(() => {
     const node = document.getElementById(SSR_SPLASH_ID) as HTMLElement | null;
+    const root = document.documentElement;
 
-    if (!shouldShowBrandSplash()) {
+    if (window.__PEIAI_SPLASH_DONE__ || !node) {
       removeSplashNode(node);
       return;
     }
 
-    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
-    let finished = false;
+    if (!root.classList.contains('peiai-splash-active')) {
+      if (!shouldShowBrandSplash()) {
+        removeSplashNode(node);
+      }
+      return;
+    }
 
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      markBrandSplashDone();
-      removeSplashNode(node);
-    };
+    if (window.__PEIAI_SPLASH_DISMISS__) return;
 
-    const beginFade = () => {
-      if (fadeTimer || finished) return;
-      // 先露出底层页（仍被固定开屏遮住），再淡出，避免去掉 pending 时底栏/layout 闪跳
-      document.documentElement.classList.remove('peiai-splash-pending');
-      node?.classList.add('is-fading');
-      node?.setAttribute('aria-hidden', 'true');
-      fadeTimer = setTimeout(finish, BRAND_SPLASH_FADE_MS);
-    };
-
-    const minTimer = setTimeout(beginFade, BRAND_SPLASH_MIN_MS);
-    const maxTimer = setTimeout(beginFade, BRAND_SPLASH_MAX_MS);
-
-    return () => {
-      clearTimeout(minTimer);
-      clearTimeout(maxTimer);
-      if (fadeTimer) clearTimeout(fadeTimer);
-    };
+    return scheduleDismiss(node) ?? undefined;
   }, []);
 
   return null;

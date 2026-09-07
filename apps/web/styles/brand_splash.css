@@ -1,12 +1,8 @@
-/**
- * PWA 冷启动品牌开屏（YouVersion 式：纸底 + 居中 App icon + 字标）
- */
-
 #peiai-brand-splash-ssr {
   display: none;
 }
 
-html.peiai-splash-pending #peiai-brand-splash-ssr {
+html.peiai-splash-active #peiai-brand-splash-ssr {
   display: flex !important;
 }
 

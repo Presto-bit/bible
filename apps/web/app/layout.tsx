@@ -118,7 +118,7 @@ export default function RootLayout({
       <body style={{ backgroundColor: PWA_SHELL_BG_COLOR }}>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;var done=false;try{done=sessionStorage.getItem('peiai_brand_splash_done_v1')==='1';}catch(_){}var flutter=false;try{flutter=sessionStorage.getItem('peiai_client_kind')==='android_h5_tab';}catch(_){}if(s){document.documentElement.classList.add('pwa-standalone');document.body.classList.add('pwa-standalone');}if(s&&!done&&!flutter){document.documentElement.classList.add('peiai-splash-pending','peiai-splash-lock');}}catch(_){}})();`,
+            __html: `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;if(s){document.documentElement.classList.add('pwa-standalone');document.body.classList.add('pwa-standalone');}}catch(_){}})();`,
           }}
         />
         <div
@@ -140,6 +140,11 @@ export default function RootLayout({
             <p className="peiai-brand-splash-sub">{BRAND_SPLASH_SUBTITLE}</p>
           </div>
         </div>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;var done=window.__PEIAI_SPLASH_DONE__===true;var flutter=false;try{flutter=sessionStorage.getItem('peiai_client_kind')==='android_h5_tab';}catch(_){}if(!s||done||flutter)return;var root=document.documentElement;var node=document.getElementById('peiai-brand-splash-ssr');if(!node)return;root.classList.add('peiai-splash-pending','peiai-splash-lock','peiai-splash-active');window.__PEIAI_SPLASH_START__=Date.now();window.__PEIAI_SPLASH_DISMISS__=true;var finished=false;function finish(){if(finished)return;finished=true;window.__PEIAI_SPLASH_DONE__=true;try{sessionStorage.setItem('peiai_brand_splash_done_v1','1');}catch(_){}root.classList.remove('peiai-splash-pending','peiai-splash-lock','peiai-splash-active');node.remove();}function beginFade(){if(finished||node.classList.contains('is-fading'))return;root.classList.remove('peiai-splash-pending');node.classList.add('is-fading');setTimeout(finish,250);}setTimeout(beginFade,1500);setTimeout(beginFade,2000);}catch(_){}})();`,
+          }}
+        />
         {/* release.sh 健康检查锚点（须出现在 SSR HTML，勿删） */}
         <span hidden aria-hidden="true">
           每日问答
