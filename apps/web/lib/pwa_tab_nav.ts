@@ -83,6 +83,12 @@ export function markRouteNavigation(): void {
   lastNavSource = 'route';
 }
 
+/** 发现 · 消息线程：已有缓存/骨架，跳过 soft-nav 进度与「正在打开」壳 */
+function isDiscoverImThreadPath(pathname: string): boolean {
+  const p = normalizeAppPath(pathname);
+  return p.startsWith('/discover/dm/') || p.startsWith('/discover/group/');
+}
+
 export const PWA_MAIN_TAB_HREFS = ['/', '/reader', '/assistant', '/discover', '/profile'] as const;
 
 export type PwaMainTabHref = (typeof PWA_MAIN_TAB_HREFS)[number];
@@ -134,6 +140,13 @@ export function navigateAppHref(
     if (pendingSecondaryTarget === pathOnly) {
       return;
     }
+    // IM 线程：直接进页，勿挡 progress / 过渡壳
+    if (isDiscoverImThreadPath(pathOnly)) {
+      markRouteNavigation();
+      router.push(normalized);
+      window.dispatchEvent(new Event('presto-tab-nav'));
+      return;
+    }
     beginPendingSecondaryNav(pathOnly);
     markRouteNavigation();
     beginSoftNavProgress(normalized);
@@ -145,7 +158,10 @@ export function navigateAppHref(
     return;
   }
   markRouteNavigation();
-  if (isSecondaryAppPath(pathOnly) || keepAliveTabId(pathOnly) === null) {
+  if (
+    !isDiscoverImThreadPath(pathOnly)
+    && (isSecondaryAppPath(pathOnly) || keepAliveTabId(pathOnly) === null)
+  ) {
     beginSoftNavProgress(normalized);
   }
   router.push(normalized);
