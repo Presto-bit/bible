@@ -14,6 +14,7 @@ from .posts import (
     delete_post,
     get_post,
     list_posts,
+    section_post_stats,
     section_public_notes,
     toggle_like,
     update_post_visibility,
@@ -65,6 +66,15 @@ def shelf_list_posts(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get("/platform/{book_id}/posts/section/{section_id}/stats")
+def shelf_section_post_stats(
+    book_id: str,
+    section_id: str,
+    viewer_id: str | None = Depends(try_get_current_user),
+) -> dict:
+    return section_post_stats(get_pool(), book_id, section_id, viewer_id)
 
 
 @router.get("/platform/{book_id}/posts/section/{section_id}/public-notes")

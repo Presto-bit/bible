@@ -43,6 +43,7 @@ class ShelfPaginatedProse extends ConsumerStatefulWidget {
     this.scrollOffset = 0,
     this.scrollAnchor,
     this.scrollToEnd = false,
+    this.scrollSnapKey = 0,
     this.onTap,
     this.onScrollProgress,
     this.onScrollAnchor,
@@ -63,6 +64,7 @@ class ShelfPaginatedProse extends ConsumerStatefulWidget {
   final double scrollOffset;
   final ShelfScrollAnchor? scrollAnchor;
   final bool scrollToEnd;
+  final int scrollSnapKey;
   final VoidCallback? onTap;
   final ValueChanged<double>? onScrollProgress;
   final ValueChanged<ShelfScrollAnchor>? onScrollAnchor;
@@ -116,7 +118,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   }
 
   String _contentScrollKey() =>
-      '${widget.sectionId}:${widget.html.length}:${widget.fontPx}:${widget.lineHeight}:${widget.scrollToEnd}';
+      '${widget.sectionId}:${widget.html.length}:${widget.fontPx}:${widget.lineHeight}:${widget.scrollToEnd}:${widget.scrollSnapKey}';
 
   @override
   void didUpdateWidget(covariant ShelfPaginatedProse oldWidget) {

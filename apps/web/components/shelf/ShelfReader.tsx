@@ -28,6 +28,8 @@ import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/l
 import { buildShelfCheckinRef, formatShelfCheckinLabel, rememberShelfRefLabel } from '@/lib/shelf_checkin';
 import {
   fetchSectionPublicNotes,
+  fetchSectionPostStats,
+  formatShelfCommentCount,
   type ShelfPost,
 } from '@/lib/shelf_posts';
 import { shelfSectionIsPdf, shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
@@ -98,6 +100,7 @@ export default function ShelfReader({
   const [mediaVideo, setMediaVideo] = useState<ShelfAttachment | null>(null);
   const [pdfPinching, setPdfPinching] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [sectionReviewCount, setSectionReviewCount] = useState(0);
   const [publicNotes, setPublicNotes] = useState<ShelfPost[]>([]);
   const { fontPx, lineHeight, setFontPx, setLineHeight, setFontFamily } = useShelfReadingPrefs();
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -307,6 +310,24 @@ export default function ShelfReader({
       cancelled = true;
     };
   }, [bookId, sectionId]);
+
+  const reloadSectionStats = useCallback(() => {
+    if (!sectionId) {
+      setSectionReviewCount(0);
+      return;
+    }
+    void fetchSectionPostStats(bookId, sectionId)
+      .then((stats) => setSectionReviewCount(stats.reviews))
+      .catch(() => setSectionReviewCount(0));
+  }, [bookId, sectionId]);
+
+  useEffect(() => {
+    reloadSectionStats();
+  }, [reloadSectionStats]);
+
+  useEffect(() => {
+    if (!moreOpen) reloadSectionStats();
+  }, [moreOpen, reloadSectionStats]);
 
   const setPageCountForSection = useCallback(
     (count: number) => {
@@ -819,10 +840,15 @@ export default function ShelfReader({
             disabled={!sectionId}
             onClick={() => setMoreOpen(true)}
           >
-            <span className="shelf-reader-bottom-icon" aria-hidden>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H7l-4 3V11.5A8.5 8.5 0 0 1 11.5 3h1A8.5 8.5 0 0 1 21 11.5z" />
-              </svg>
+            <span className="shelf-reader-bottom-icon-wrap">
+              <span className="shelf-reader-bottom-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H7l-4 3V11.5A8.5 8.5 0 0 1 11.5 3h1A8.5 8.5 0 0 1 21 11.5z" />
+                </svg>
+              </span>
+              {formatShelfCommentCount(sectionReviewCount) ? (
+                <span className="shelf-comment-badge">{formatShelfCommentCount(sectionReviewCount)}</span>
+              ) : null}
             </span>
             <span>评论</span>
           </button>
@@ -983,6 +1009,7 @@ export default function ShelfReader({
           sectionId={sectionId}
           pageIndex={pageIndex}
           onClose={() => setMoreOpen(false)}
+          onPostsChanged={reloadSectionStats}
         />
       ) : null}
     </main>

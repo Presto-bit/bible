@@ -73,6 +73,8 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   final _scrollBySection = <String, double>{};
   final _scrollAnchorBySection = <String, ShelfScrollAnchor>{};
   final _pageCountBySection = <String, int>{};
+  var _scrollSnapGeneration = 0;
+  var _sectionReviewCount = 0;
 
   bool get _blocked => _overlayOpen > 0 || _pdfPinching;
   bool get _isPdfSection => _section != null && shelfSectionIsPdf(_section!);
@@ -244,6 +246,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         setState(() => _pendingScrollEnd = false);
       }
       unawaited(_loadPublicNotes(sectionId));
+      unawaited(_reloadSectionStats());
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -262,6 +265,21 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     }
   }
 
+  Future<void> _reloadSectionStats() async {
+    final sid = _sectionId;
+    if (sid == null) {
+      if (mounted) setState(() => _sectionReviewCount = 0);
+      return;
+    }
+    try {
+      final stats =
+          await ref.read(shelfPostsRepoProvider).sectionPostStats(widget.bookId, sid);
+      if (mounted) setState(() => _sectionReviewCount = stats.reviews);
+    } catch (_) {
+      if (mounted) setState(() => _sectionReviewCount = 0);
+    }
+  }
+
   Future<void> _openCommentsSheet() async {
     final book = _book;
     final section = _section;
@@ -274,7 +292,9 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       sectionId: _sectionId!,
       sectionTitle: section.title,
       pageIndex: _pageIndex,
+      onPostsChanged: _reloadSectionStats,
     );
+    await _reloadSectionStats();
   }
 
   void _prefetchNeighbor(String edge) {
@@ -292,8 +312,15 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
 
   bool get _canPrevSection => _sectionIndex > 0;
   bool get _canNextSection => _sectionIndex >= 0 && _sectionIndex < _sections.length - 1;
-  bool get _canPrev => _isPdfSection ? _canPrevSection : _canPrevSection;
-  bool get _canNext => _isPdfSection ? _canNextSection : _canNextSection;
+  bool get _canPrev {
+    if (_isPdfSection && _pageCount > 1 && _pageIndex > 0) return true;
+    return _canPrevSection;
+  }
+
+  bool get _canNext {
+    if (_isPdfSection && _pageCount > 1 && _pageIndex < _pageCount - 1) return true;
+    return _canNextSection;
+  }
 
   bool get _isChildrenLesson =>
       shelfIsChildrenLessonBook(id: _book?.id, title: _book?.title);
@@ -384,9 +411,15 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         }
       }
     }
-    final savedScroll = _scrollBySection[id] ?? 0.0;
-    final savedAnchor = _scrollAnchorBySection[id];
+    final savedScroll = scrollStart ? 0.0 : (_scrollBySection[id] ?? 0.0);
+    final savedAnchor = scrollStart ? null : _scrollAnchorBySection[id];
     final cached = ref.read(shelfRepoProvider).peekSection(widget.bookId, id);
+    if (scrollStart) {
+      _scrollBySection[id] = 0;
+      _scrollAnchorBySection.remove(id);
+      _pageBySection[id] = page ?? 0;
+      _scrollSnapGeneration++;
+    }
     setState(() {
       _sectionId = id;
       if (cached != null && !cached.docxHtmlLooksLegacy) {
@@ -411,10 +444,16 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       _flowScrollAnchor = scrollStart || scrollEnd ? null : savedAnchor;
     });
     unawaited(_loadSection(id));
+    unawaited(_reloadSectionStats());
     _scheduleProgress();
   }
 
   void _turnNext() {
+    if (_isPdfSection && _pageCount > 1 && _pageIndex < _pageCount - 1) {
+      setState(() => _pageIndex += 1);
+      _scheduleProgress();
+      return;
+    }
     if (_canNextSection) {
       _goSection(
         _sections[_sectionIndex + 1].id,
@@ -427,6 +466,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   void _turnPrev() {
+    if (_isPdfSection && _pageCount > 1 && _pageIndex > 0) {
+      setState(() => _pageIndex -= 1);
+      _scheduleProgress();
+      return;
+    }
     if (_canPrevSection) {
       // 左右滑切节：一律落到目标节开头
       _goSection(
@@ -679,6 +723,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         scrollOffset: _scrollBySection[section.id] ?? _flowScrollRatio,
         scrollAnchor: _scrollAnchorBySection[section.id] ?? _flowScrollAnchor,
         scrollToEnd: _pendingScrollEnd,
+        scrollSnapKey: _scrollSnapGeneration,
         onTap: _toggleChrome,
         onScrollProgress: _onFlowScrollProgress,
         onScrollAnchor: _onFlowScrollAnchor,
@@ -871,6 +916,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                     onToc: () => unawaited(_openToc()),
                     onFont: () => unawaited(_openFontSheet()),
                     onComments: () => unawaited(_openCommentsSheet()),
+                    commentBadge: formatShelfCommentCount(_sectionReviewCount),
                     onShare: _sectionId == null
                         ? null
                         : () => unawaited(
@@ -1033,6 +1079,7 @@ class _ShelfReaderBottomBar extends StatelessWidget {
     required this.onToc,
     required this.onFont,
     required this.onComments,
+    this.commentBadge,
     required this.onShare,
   });
 
@@ -1040,6 +1087,7 @@ class _ShelfReaderBottomBar extends StatelessWidget {
   final VoidCallback onToc;
   final VoidCallback onFont;
   final VoidCallback onComments;
+  final String? commentBadge;
   final VoidCallback? onShare;
 
   @override
@@ -1075,6 +1123,7 @@ class _ShelfReaderBottomBar extends StatelessWidget {
                   _ShelfChromeChip(
                     icon: Icons.chat_bubble_outline,
                     label: '评论',
+                    badge: commentBadge,
                     onTap: onComments,
                   ),
                   const Spacer(),
@@ -1098,11 +1147,13 @@ class _ShelfChromeChip extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.badge,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final String? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -1125,7 +1176,35 @@ class _ShelfChromeChip extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 16, color: AppColors.inkSoft),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(icon, size: 16, color: AppColors.inkSoft),
+                    if (badge != null)
+                      Positioned(
+                        top: -6,
+                        right: -10,
+                        child: Container(
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.accent,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            badge!,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              height: 1,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 const SizedBox(width: 6),
                 Text(
                   label,

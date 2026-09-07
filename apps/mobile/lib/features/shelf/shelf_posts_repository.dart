@@ -10,6 +10,26 @@ final shelfPostsRepoProvider = Provider<ShelfPostsRepository>((ref) {
   return ShelfPostsRepository(ref.watch(dioProvider));
 });
 
+/// 阅读器底栏评论角标：0 不展示，≥999 显示 999+。
+String? formatShelfCommentCount(int n) {
+  if (n <= 0) return null;
+  if (n >= 999) return '999+';
+  return '$n';
+}
+
+class ShelfSectionPostStats {
+  const ShelfSectionPostStats({required this.reviews, required this.notes});
+
+  final int reviews;
+  final int notes;
+
+  factory ShelfSectionPostStats.fromJson(Map<String, dynamic> j) =>
+      ShelfSectionPostStats(
+        reviews: (j['reviews'] as num?)?.toInt() ?? 0,
+        notes: (j['notes'] as num?)?.toInt() ?? 0,
+      );
+}
+
 enum ShelfPostVisibility { public, friends, private }
 
 enum ShelfPostKind { review, note }
@@ -199,6 +219,16 @@ class ShelfPostsRepository {
         .whereType<Map>()
         .map((e) => ShelfPost.fromJson(Map<String, dynamic>.from(e)))
         .toList();
+  }
+
+  Future<ShelfSectionPostStats> sectionPostStats(
+    String bookId,
+    String sectionId,
+  ) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '${_bookPath(bookId)}/posts/section/${Uri.encodeComponent(sectionId)}/stats',
+    );
+    return ShelfSectionPostStats.fromJson(res.data ?? const {});
   }
 
   Future<ShelfPost> getPost(String bookId, String postId) async {

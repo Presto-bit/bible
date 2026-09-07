@@ -46,6 +46,18 @@ export type ShelfPostList = {
   stats: { reviews: number; notes: number };
 };
 
+export type ShelfSectionPostStats = {
+  reviews: number;
+  notes: number;
+};
+
+/** 阅读器底栏评论角标：0 不展示，≥999 显示 999+ */
+export function formatShelfCommentCount(n: number): string | null {
+  if (n <= 0) return null;
+  if (n >= 999) return '999+';
+  return String(n);
+}
+
 const VIS_PREF = 'shelf_post_visibility_pref';
 
 export function shelfVisibilityLabel(v: ShelfPostVisibility): string {
@@ -106,6 +118,15 @@ export function fetchSectionPublicNotes(
 ): Promise<{ items: ShelfPost[] }> {
   return getJson<{ items: ShelfPost[] }>(
     `/shelf/platform/${encodeURIComponent(bookId)}/posts/section/${encodeURIComponent(sectionId)}/public-notes`,
+  );
+}
+
+export function fetchSectionPostStats(
+  bookId: string,
+  sectionId: string,
+): Promise<ShelfSectionPostStats> {
+  return getJson<ShelfSectionPostStats>(
+    `/shelf/platform/${encodeURIComponent(bookId)}/posts/section/${encodeURIComponent(sectionId)}/stats`,
   );
 }
 

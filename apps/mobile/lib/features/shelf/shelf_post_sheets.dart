@@ -62,6 +62,7 @@ Future<void> showShelfCommentsSheet(
   required String sectionId,
   required String sectionTitle,
   int pageIndex = 0,
+  VoidCallback? onPostsChanged,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -73,6 +74,7 @@ Future<void> showShelfCommentsSheet(
       sectionId: sectionId,
       sectionTitle: sectionTitle,
       pageIndex: pageIndex,
+      onPostsChanged: onPostsChanged,
     ),
   );
 }
@@ -84,6 +86,7 @@ class _ShelfCommentsSheet extends ConsumerStatefulWidget {
     required this.sectionId,
     required this.sectionTitle,
     required this.pageIndex,
+    this.onPostsChanged,
   });
 
   final String bookId;
@@ -91,6 +94,7 @@ class _ShelfCommentsSheet extends ConsumerStatefulWidget {
   final String sectionId;
   final String sectionTitle;
   final int pageIndex;
+  final VoidCallback? onPostsChanged;
 
   @override
   ConsumerState<_ShelfCommentsSheet> createState() => _ShelfCommentsSheetState();
@@ -166,6 +170,7 @@ class _ShelfCommentsSheetState extends ConsumerState<_ShelfCommentsSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('已发布'), behavior: SnackBarBehavior.floating),
         );
+        widget.onPostsChanged?.call();
         await _load();
       }
     } catch (_) {

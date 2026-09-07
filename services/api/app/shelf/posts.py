@@ -182,6 +182,40 @@ def list_posts(
         return {"items": items, "stats": stats}
 
 
+def section_post_stats(
+    pool,
+    book_id: str,
+    section_id: str,
+    viewer_id: str | None,
+) -> dict:
+    """本章评论/笔记计数（阅读器底栏角标；与 list_posts 可见性一致）。"""
+    with pool.connection() as conn:
+        _ensure_book(conn, book_id)
+
+        def _count(kind: str) -> int:
+            sql = (
+                "SELECT COUNT(*) FROM shelf_post p "
+                "WHERE p.book_id = %s AND p.section_id = %s AND p.kind = %s"
+            )
+            params: list[Any] = [book_id, section_id, kind]
+            if viewer_id:
+                sql += (
+                    " AND (p.visibility = 'public' "
+                    "OR (p.visibility = 'friends' AND ("
+                    "p.user_id = %s OR EXISTS ("
+                    "SELECT 1 FROM friendship f WHERE f.user_id = %s AND f.friend_id = p.user_id"
+                    ")))"
+                    "OR (p.visibility = 'private' AND p.user_id = %s))"
+                )
+                params.extend([viewer_id, viewer_id, viewer_id])
+            else:
+                sql += " AND p.visibility = 'public'"
+            row = conn.execute(sql, params).fetchone()
+            return int(row[0] if row else 0)
+
+        return {"reviews": _count("review"), "notes": _count("note")}
+
+
 def get_post(pool, book_id: str, post_id: str, viewer_id: str | None) -> dict:
     with pool.connection() as conn:
         _ensure_book(conn, book_id)

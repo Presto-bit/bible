@@ -34,6 +34,7 @@ export default function ShelfReaderMoreSheet({
   sectionId,
   pageIndex = 0,
   onClose,
+  onPostsChanged,
 }: {
   bookId: string;
   bookTitle: string;
@@ -41,6 +42,7 @@ export default function ShelfReaderMoreSheet({
   sectionId?: string | null;
   pageIndex?: number;
   onClose: () => void;
+  onPostsChanged?: () => void;
 }) {
   const flashToast = useToast();
   const requireLogin = useShelfLoginGate(flashToast);
@@ -95,6 +97,7 @@ export default function ShelfReaderMoreSheet({
       setDraft('');
       flashToast('已发布');
       reloadPosts();
+      onPostsChanged?.();
     } catch {
       flashToast('发布失败');
     } finally {
