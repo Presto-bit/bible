@@ -961,24 +961,27 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     setMilestone(null);
   };
 
+  /** 开层 / 跳转前硬卸吞点击遮罩，避免 PWA 上「点了没反应」 */
+  const clearBlockingOverlays = () => {
+    recoverProfileShellTouch(false);
+  };
+
   const openThoughts = () => {
+    clearBlockingOverlays();
     markFootprintSeen('thoughts', thoughtCount);
     setFootprintSeen(readFootprintSeen());
     navigateAppHref('/notes', router);
   };
 
   const openShelf = () => {
+    clearBlockingOverlays();
     markFootprintSeen('shelf', shelfBooks.length);
     setFootprintSeen(readFootprintSeen());
     navigateAppHref('/shelf', router);
   };
 
-  /** 开层 / 跳转前硬卸吞点击遮罩，避免 PWA 上「点了没反应」 */
-  const clearBlockingOverlays = () => {
-    recoverProfileShellTouch(false);
-  };
-
   const openSettings = () => {
+    clearBlockingOverlays();
     navigateAppHref(PROFILE_SETTINGS_HREF, router);
   };
 

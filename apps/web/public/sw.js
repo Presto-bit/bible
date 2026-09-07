@@ -1,7 +1,7 @@
 // CACHE 名须在每次 web 发版时变化，否则 activate 不会清空旧 Cache Storage。
 // 生产镜像在 Dockerfile 内按 NEXT_PUBLIC_APP_VERSION 重写；本地可 scripts/bump_sw_cache.sh。
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v45';
+const CACHE = 'presto-bible-v46';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -64,6 +64,9 @@ const APP_SHELL_WARM_PATHS = [
   '/search',
   '/assistant',
   '/profile',
+  '/profile/settings',
+  '/notes',
+  '/shelf',
   '/discover',
   '/discover/invites',
 ].map(bp);
@@ -78,6 +81,7 @@ const SHELL_DATA_SEGMENTS = [
   '/search',
   '/challenge',
   '/notes',
+  '/shelf',
   '/plans',
 ];
 

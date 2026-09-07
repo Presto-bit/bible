@@ -12,7 +12,7 @@ import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useSettleSoftSecondaryNav } from '@/lib/use_settle_soft_secondary_nav';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
-import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { markRouteNavigation, settleSoftSecondaryNav } from '@/lib/pwa_tab_nav';
 import {
   addThought,
   listAllThoughts,
@@ -77,12 +77,18 @@ function bookLabel(bookId: string, bookNames: Record<string, string>): string {
 export default function NotesPage() {
   const suppress = useSuppressKeepAliveRoute();
   if (suppress) return null;
-  return <NotesInner />;
+  return <NotesPageSettled />;
 }
 
-function NotesInner() {
-  useEdgeSwipeBack({ href: '/profile' });
+/** 真路由到达：收 soft-nav + 清遮罩 */
+function NotesPageSettled() {
   useSettleSoftSecondaryNav();
+  return <NotesPageContent />;
+}
+
+/** 可供乐观壳复用（勿在此 settle，否则会立刻卸掉过渡壳） */
+export function NotesPageContent() {
+  useEdgeSwipeBack({ href: '/profile' });
 
   const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>(() => {
@@ -255,7 +261,14 @@ function NotesInner() {
   return (
     <main className="container">
       <header className="page-head">
-        <PageBackBar href="/profile" label="我的" onClick={() => markRouteNavigation()} />
+        <PageBackBar
+          href="/profile"
+          label="我的"
+          onClick={() => {
+            settleSoftSecondaryNav();
+            markRouteNavigation();
+          }}
+        />
         <h2 className="page-head-title">我的笔记</h2>
         <div className="page-head-actions">
           <button

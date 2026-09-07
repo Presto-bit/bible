@@ -37,7 +37,37 @@ function wallpaperCacheKeys(src: string): string[] {
   return [...out];
 }
 
-/** 优先返回当日缓存的 blob URL；未命中返回 null。 */
+/** 校验是否像可用壁纸（拦 HTML/空体/网关错误页进 Cache） */
+async function isLikelyImageBlob(blob: Blob): Promise<boolean> {
+  if (!blob || blob.size < 200) return false;
+  const ct = (blob.type || '').toLowerCase();
+  if (ct.startsWith('image/')) return blob.size >= 200;
+  if (ct && !ct.startsWith('application/octet-stream') && ct !== '') {
+    // text/html、application/json 等
+    if (ct.includes('html') || ct.includes('json') || ct.startsWith('text/')) return false;
+  }
+  try {
+    const head = new Uint8Array(await blob.slice(0, 3).arrayBuffer());
+    const isJpeg = head[0] === 0xff && head[1] === 0xd8;
+    const isPng = head[0] === 0x89 && head[1] === 0x50;
+    const isWebp =
+      blob.size >= 12
+      && head[0] === 0x52
+      && head[1] === 0x49
+      && head[2] === 0x46;
+    if (isJpeg || isPng) return true;
+    if (isWebp) {
+      const riff = new Uint8Array(await blob.slice(8, 12).arrayBuffer());
+      return riff[0] === 0x57 && riff[1] === 0x45 && riff[2] === 0x42 && riff[3] === 0x50;
+    }
+  } catch {
+    /* ignore */
+  }
+  // 无魔数且体积过小：不可信
+  return blob.size >= 8_000 && (!ct || ct === 'application/octet-stream');
+}
+
+/** 优先返回当日缓存的 blob URL；坏缓存会删掉再返回 null。 */
 export async function getCachedHomeWallpaperUrl(
   src: string,
   ymd: string = localYmd(),
@@ -49,14 +79,26 @@ export async function getCachedHomeWallpaperUrl(
       const hit = await cache.match(key);
       if (!hit || !hit.ok) continue;
       const blob = await hit.blob();
-      if (!blob.size) continue;
-      const ct = (blob.type || '').toLowerCase();
-      if (ct && !ct.startsWith('image/') && blob.size < 800) continue;
+      if (!(await isLikelyImageBlob(blob))) {
+        await cache.delete(key);
+        continue;
+      }
       return URL.createObjectURL(blob);
     }
     return null;
   } catch {
     return null;
+  }
+}
+
+/** 删除某壁纸的坏缓存键（解码失败后调用）。 */
+export async function invalidateCachedHomeWallpaper(src: string): Promise<void> {
+  if (!canUseCaches() || !src) return;
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    await Promise.all(wallpaperCacheKeys(src).map((key) => cache.delete(key)));
+  } catch {
+    /* ignore */
   }
 }
 
@@ -80,7 +122,11 @@ export async function ensureHomeDayWallpapers(
       list.flatMap((url) =>
         wallpaperCacheKeys(url).map(async (key) => {
           const hit = await cache.match(key);
-          if (hit?.ok) return;
+          if (hit?.ok) {
+            const blob = await hit.blob();
+            if (await isLikelyImageBlob(blob)) return;
+            await cache.delete(key);
+          }
           try {
             const fetchUrl = /^https?:\/\//i.test(url) ? url : clientAssetUrl(url);
             const res = await fetch(fetchUrl, {
@@ -88,8 +134,8 @@ export async function ensureHomeDayWallpapers(
               cache: 'default',
             });
             if (!res.ok) return;
-            const ct = (res.headers.get('content-type') || '').toLowerCase();
-            if (ct && !ct.includes('image') && (await res.clone().blob()).size < 800) return;
+            const blob = await res.clone().blob();
+            if (!(await isLikelyImageBlob(blob))) return;
             await cache.put(key, res.clone());
           } catch {
             /* ignore */

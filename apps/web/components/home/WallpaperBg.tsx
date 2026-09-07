@@ -223,6 +223,14 @@ export function WallpaperBg({
             /* ignore */
           }
           blobRef.current = null;
+          try {
+            const { invalidateCachedHomeWallpaper } = await import(
+              '@/lib/home_day_wallpaper_cache'
+            );
+            await invalidateCachedHomeWallpaper(src);
+          } catch {
+            /* ignore */
+          }
         }
         void ensureHomeDayWallpapers([src]);
       } catch {

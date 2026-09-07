@@ -130,6 +130,10 @@ export function navigateAppHref(
     return;
   }
   if (isTabKeepAliveEnabled() && isSecondaryAppPath(pathOnly)) {
+    // 防连点：同目标 pending 中不再重置超时，避免「反复正在打开」
+    if (pendingSecondaryTarget === pathOnly) {
+      return;
+    }
     beginPendingSecondaryNav(pathOnly);
     markRouteNavigation();
     beginSoftNavProgress(normalized);

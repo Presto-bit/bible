@@ -43,12 +43,18 @@ const ShelfAppendLessonSheet = dynamic(
 export default function ShelfPage() {
   const suppress = useSuppressKeepAliveRoute();
   if (suppress) return null;
-  return <ShelfListInner />;
+  return <ShelfPageSettled />;
 }
 
-function ShelfListInner() {
-  useEdgeSwipeBack({ href: '/profile' });
+/** 真路由到达：收 soft-nav + 清遮罩 */
+function ShelfPageSettled() {
   useSettleSoftSecondaryNav();
+  return <ShelfListContent />;
+}
+
+/** 可供乐观壳复用（勿在此 settle，否则会立刻卸掉过渡壳） */
+export function ShelfListContent() {
+  useEdgeSwipeBack({ href: '/profile' });
 
   const cached = peekShelfListCache(true);
   const [groups, setGroups] = useState<ShelfGroup[]>(() => cached?.groups ?? []);

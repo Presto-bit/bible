@@ -969,7 +969,7 @@ textarea.input {
   pointer-events: none;
 }
 
-/* 二级 soft-nav 乐观壳：不挡点击、非全屏蒙层 */
+/* 二级 soft-nav 乐观壳：默认可拦截点击，避免穿透连点重置导航 */
 .soft-nav-transition-shell {
   position: fixed;
   left: 0;
@@ -977,17 +977,38 @@ textarea.input {
   top: 0;
   bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   z-index: 900;
-  pointer-events: none !important;
+  pointer-events: auto;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 24px;
   background: color-mix(in srgb, var(--paper, #faf8f5) 92%, transparent);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 设置/笔记/书架：铺满纸面，直接可交互 */
+.soft-nav-transition-shell--live {
+  z-index: 960;
+  padding: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+  background: var(--paper, #faf8f5);
+}
+
+.soft-nav-transition-shell--blocking {
+  z-index: 960;
+}
+
+.soft-nav-live-main {
+  width: 100%;
+  min-height: 100%;
+  pointer-events: auto;
 }
 
 .soft-nav-transition-inner {
   width: min(480px, 100%);
-  pointer-events: none !important;
+  pointer-events: auto;
 }
 
 .soft-nav-transition-title {

@@ -28,7 +28,17 @@ export default function ShelfLibraryHeader({
 
   return (
     <header className="shelf-library-header">
-      <PageBackBar href="/profile" label="我的" />
+      <PageBackBar
+        href="/profile"
+        label="我的"
+        onClick={() => {
+          // 乐观壳期间 URL 可能仍在「我的」：先收壳再回，避免返回无效
+          void import('@/lib/pwa_tab_nav').then((m) => {
+            m.settleSoftSecondaryNav();
+            m.markRouteNavigation();
+          });
+        }}
+      />
       {searchOpen ? (
         <div className="shelf-library-search-row">
           <input
