@@ -214,6 +214,8 @@ export type SubscribeRealtimeOpts = {
   watch?: 'group' | 'dm' | 'all';
   /** 合并短时多次变更，默认 0（立即） */
   debounceMs?: number;
+  /** 发现 Tab 等 IM 热路径：跳过首页 bootstrap 等待，立即开 SSE */
+  urgent?: boolean;
 };
 
 /**
@@ -250,7 +252,12 @@ export function subscribeSocialRealtime(
   };
 
   listeners.add(handler);
-  scheduleEnsureStarted();
+  if (opts?.urgent && !started) {
+    ensureStarted();
+    void api.realtimeCursor().then(emit).catch(() => {});
+  } else {
+    scheduleEnsureStarted();
+  }
   return () => {
     if (timer) window.clearTimeout(timer);
     listeners.delete(handler);

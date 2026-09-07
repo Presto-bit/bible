@@ -45,6 +45,7 @@ import { queueCheckin } from '@/lib/checkin_queue';
 import { clearGroupCheckinDraft, readGroupCheckinDraft } from '@/lib/group_checkin_draft';
 import { enqueueFailedMediaMeta, dequeueFailedMediaMeta, listFailedMediaMeta, takeMediaFile, enqueueFailedText, dequeueFailedText, listFailedText } from '@/lib/im_send_queue';
 import { useOnline } from '@/lib/use_online';
+import { readImThreadCache, writeImThreadCache } from '@/lib/im_thread_cache';
 
 function GroupPageInner() {
   const confirm = useConfirm();
@@ -131,21 +132,26 @@ function GroupPageInner() {
       const incoming = Array.isArray(f.messages) ? f.messages : [];
       setFeed((prev) => {
         const temps = prev.filter((m) => m.id.startsWith('temp-'));
-        if (!temps.length) return keepIfSameMessageList(prev, incoming);
-        const merged = [...incoming];
-        for (const t of temps) {
-          const dup = merged.some(
-            (m) =>
-              m.mine
-              && m.kind === t.kind
-              && (m.body || '') === (t.body || '')
-              && (m.ref || '') === (t.ref || '')
-              && Math.abs(new Date(m.created_at).getTime() - new Date(t.created_at).getTime()) < 120000,
-          );
-          if (!dup) merged.push(t);
+        let next: GroupMessage[];
+        if (!temps.length) next = keepIfSameMessageList(prev, incoming);
+        else {
+          const merged = [...incoming];
+          for (const t of temps) {
+            const dup = merged.some(
+              (m) =>
+                m.mine
+                && m.kind === t.kind
+                && (m.body || '') === (t.body || '')
+                && (m.ref || '') === (t.ref || '')
+                && Math.abs(new Date(m.created_at).getTime() - new Date(t.created_at).getTime()) < 120000,
+            );
+            if (!dup) merged.push(t);
+          }
+          merged.sort((a, b) => a.created_at.localeCompare(b.created_at));
+          next = keepIfSameMessageList(prev, merged);
         }
-        merged.sort((a, b) => a.created_at.localeCompare(b.created_at));
-        return keepIfSameMessageList(prev, merged);
+        writeImThreadCache('group', gid, next, { title: d.name || null });
+        return next;
       });
       setHasMore(Boolean(f.has_more));
       hasMoreRef.current = Boolean(f.has_more);
@@ -170,7 +176,11 @@ function GroupPageInner() {
         const f = await api.groupFeed(gid);
         const incoming = Array.isArray(f.messages) ? f.messages : [];
         startTransition(() => {
-          setFeed((prev) => mergeImMessageTail(prev, incoming));
+          setFeed((prev) => {
+            const next = mergeImMessageTail(prev, incoming);
+            writeImThreadCache('group', gid, next, { title: detail?.name || null });
+            return next;
+          });
           // 仅当尚未翻页时用服务端 has_more；已 loadMore 则保留本地 hasMore
           if (!hasMoreRef.current || feedRef.current.length <= incoming.length + 2) {
             hasMoreRef.current = Boolean(f.has_more);
@@ -182,7 +192,7 @@ function GroupPageInner() {
         /* 静默：下次可见时再全量 */
       }
     });
-  }, [gid]);
+  }, [gid, detail?.name]);
 
   const prayerPendingCountRef = useRef(0);
   const refreshPrayerPending = useCallback(async () => {
@@ -202,6 +212,14 @@ function GroupPageInner() {
     } catch {
       prayerPendingCountRef.current = 0;
       setPrayerPending({ count: 0, title: null });
+    }
+  }, [gid]);
+
+  useEffect(() => {
+    if (!gid) return;
+    const cached = readImThreadCache<GroupMessage>('group', gid);
+    if (cached?.messages?.length) {
+      setFeed(cached.messages);
     }
   }, [gid]);
 
@@ -281,8 +299,11 @@ function GroupPageInner() {
   }, [gid, detail?.members]);
 
   useEffect(() => {
-    void refreshPrayerPending();
-    setPrayerBannerDismissed(false);
+    const t = window.setTimeout(() => {
+      void refreshPrayerPending();
+      setPrayerBannerDismissed(false);
+    }, 480);
+    return () => window.clearTimeout(t);
   }, [refreshPrayerPending]);
 
   const openPrayer = useCallback((opts?: { compose?: boolean }) => {

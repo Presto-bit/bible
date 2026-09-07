@@ -1,14 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Suspense, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
 import { api, contentAssetUrl, effectiveId, ensureAccountReady, type DmMessage } from '@/lib/api';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
-import { ReportSheet, type ReportReason } from '@/components/social/ReportSheet';
+import type { ReportReason } from '@/components/social/ReportSheet';
 import { ImMessageBody } from '@/components/social/ImMessageBody';
-import { ForwardPickerSheet, type ForwardPayload } from '@/components/social/ForwardPickerSheet';
+import type { ForwardPayload } from '@/components/social/ForwardPickerSheet';
+import { ImThreadSkeleton } from '@/components/social/ImThreadSkeleton';
 import {
   CHAT_TIME_GAP_MS,
   canRecallOwnMessage,
@@ -19,7 +21,6 @@ import {
   replySnippet,
 } from '@/lib/im_ui';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
-import { ImVoiceRecordHud } from '@/components/social/ImVoiceRecordHud';
 import {
   IconClose,
   IconFile,
@@ -28,8 +29,7 @@ import {
   IconMic,
   IconPlus,
 } from '@/components/social/ImComposerIcons';
-import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImImageLightbox';
-import { ImFilePreviewSheet } from '@/components/social/ImFilePreviewSheet';
+import type { ImLightboxImage } from '@/components/social/ImImageLightbox';
 import { ImMediaAttachment, parseVoiceDurationHint } from '@/components/social/ImMediaAttachment';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
@@ -73,6 +73,24 @@ import { subscribeSocialRealtime } from '@/lib/social_realtime';
 import { keepIfSameMessageList, mergeImMessageTail, runReloadGate, type ReloadGate } from '@/lib/im_list_perf';
 import { useOnline } from '@/lib/use_online';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { readImThreadCache, writeImThreadCache } from '@/lib/im_thread_cache';
+
+const ReportSheet = dynamic(() =>
+  import('@/components/social/ReportSheet').then((m) => ({ default: m.ReportSheet })),
+);
+const ForwardPickerSheet = dynamic(() =>
+  import('@/components/social/ForwardPickerSheet').then((m) => ({ default: m.ForwardPickerSheet })),
+);
+const ImImageLightbox = dynamic(() =>
+  import('@/components/social/ImImageLightbox').then((m) => ({ default: m.ImImageLightbox })),
+);
+const ImFilePreviewSheet = dynamic(() =>
+  import('@/components/social/ImFilePreviewSheet').then((m) => ({ default: m.ImFilePreviewSheet })),
+);
+const ImVoiceRecordHud = dynamic(
+  () => import('@/components/social/ImVoiceRecordHud').then((m) => ({ default: m.ImVoiceRecordHud })),
+  { ssr: false },
+);
 
 type LocalDm = DmMessage & {
   pending?: boolean;
@@ -111,6 +129,8 @@ function DmThreadPageInner() {
   const [peerTitleRaw, setPeerTitleRaw] = useState('私信');
   const [peerUserId, setPeerUserId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<LocalDm[]>([]);
+  const [threadBooting, setThreadBooting] = useState(true);
+  const threadLoadedRef = useRef(false);
   const [text, setText] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -276,7 +296,14 @@ function DmThreadPageInner() {
           setTitle(dmTitleWithRemark(r.peer_user_id, raw));
         }
         startTransition(() => {
-          setMsgs((prev) => mergeImMessageTail(prev, incoming));
+          setMsgs((prev) => {
+            const next = mergeImMessageTail(prev, incoming);
+            writeImThreadCache('dm', threadId, next, {
+              peer_user_id: r.peer_user_id,
+              peer_title: r.peer_title || (r.peer_user_id ? '私信' : undefined),
+            });
+            return next;
+          });
           // 已翻页时勿被热刷新把 has_more 打回 true 导致哨兵误触
           if (!hasMoreRef.current || msgsRef.current.length <= incoming.length + 2) {
             hasMoreRef.current = Boolean(r.has_more);
@@ -287,10 +314,13 @@ function DmThreadPageInner() {
             markedReadRef.current = true;
             void import('@/lib/discover_unread').then((m) => m.notifyDiscoverUnreadChanged());
           }
+          threadLoadedRef.current = true;
+          setThreadBooting(false);
           setErr(null);
         });
       } catch (e) {
         setErr(errorMessage(e, '加载失败'));
+        if (!threadLoadedRef.current) setThreadBooting(false);
       }
     });
   }, [threadId]);
@@ -326,15 +356,33 @@ function DmThreadPageInner() {
   useFocusMessage(activeFocus, { loadOlder: loadMore });
 
   useEffect(() => {
+    const id = effectiveId();
+    if (id) setUid(id);
     void ensureAccountReady().then(() => setUid(effectiveId() || null));
   }, []);
 
   useEffect(() => {
+    if (!threadId) return;
+    threadLoadedRef.current = false;
+    setThreadBooting(true);
     markedReadRef.current = false;
+    const cached = readImThreadCache<LocalDm>('dm', threadId);
+    if (cached?.messages?.length) {
+      setMsgs(cached.messages);
+      if (cached.meta?.peer_user_id) setPeerUserId(cached.meta.peer_user_id);
+      if (cached.meta?.peer_title) {
+        setPeerTitleRaw(cached.meta.peer_title);
+        setTitle(dmTitleWithRemark(cached.meta.peer_user_id, cached.meta.peer_title));
+      }
+      threadLoadedRef.current = true;
+      setThreadBooting(false);
+    }
   }, [threadId]);
 
   useEffect(() => {
-    if (!uid || !threadId) return;
+    if (!threadId) return;
+    const id = effectiveId();
+    if (!uid && !id) return;
     void reload();
   }, [uid, threadId, reload]);
 
@@ -1293,7 +1341,10 @@ function DmThreadPageInner() {
             {loadingMore ? <span className="muted">加载更早消息…</span> : null}
             {!hasMore && msgs.length > 12 ? <span className="muted">没有更早消息了</span> : null}
           </div>
-          {msgs.length === 0 ? (
+          {threadBooting && msgs.length === 0 ? (
+            <ImThreadSkeleton variant="dm" />
+          ) : null}
+          {msgs.length === 0 && !threadBooting ? (
             <div className="dm-empty">
               <strong>打个招呼吧</strong>
               <p className="muted">发一句问候，开始这段对话。</p>
@@ -1885,11 +1936,7 @@ function DmThreadPageInner() {
 
 export default function DmThreadPage() {
   return (
-    <Suspense fallback={(
-      <main className="container">
-        <p className="muted">加载中…</p>
-      </main>
-    )}>
+    <Suspense fallback={<ImThreadSkeleton variant="dm" />}>
       <DmThreadPageInner />
     </Suspense>
   );

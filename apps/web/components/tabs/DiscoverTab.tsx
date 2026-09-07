@@ -2,7 +2,7 @@
 
 import '@/styles/discover.css';
 import '@/styles/discover_list.css';
-import '@/styles/group_chat.css';
+import '@/styles/discover_im_list.css';
 import '@/styles/swipe_reveal.css';
 
 import Link from 'next/link';
@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnline, isBrowserOnline } from '@/lib/use_online';
 import {
   api,
+  effectiveId,
   type ConversationItem,
   type Friend,
 } from '@/lib/api';
@@ -266,19 +267,23 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       setLoading(false);
       return;
     }
-    if (!uid || !paneActive) return;
+    if (!paneActive) return;
+    const localId = effectiveId();
+    if (account.status === 'loading' && !localId) return;
     void reload();
-  }, [uid, paneActive, online, reload]);
+  }, [paneActive, online, reload, account.status]);
 
   useEffect(() => {
-    if (!uid || !paneActive) return;
+    if (!paneActive) return;
+    const localId = effectiveId();
+    if (account.status === 'loading' && !localId) return;
     return subscribeSocialRealtime(
       (_c, changed) => {
         if (changed) void reload();
       },
-      { watch: 'all', debounceMs: 300 },
+      { watch: 'all', debounceMs: 300, urgent: true },
     );
-  }, [uid, paneActive, reload]);
+  }, [paneActive, account.status, reload]);
 
   useEffect(() => {
     if (searchQ.trim().length < 1) {
@@ -306,7 +311,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   }, [searchQ]);
 
   const { refreshing: ptrRefreshing } = useHomePullRefresh({
-    enabled: Boolean(paneActive && online && uid),
+    enabled: Boolean(paneActive && online && (uid || effectiveId())),
     reducedMotion,
     enableBottomStretch: false,
     onRefresh: async () => {
@@ -422,7 +427,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     );
   }
 
-  if (account.status === 'loading') {
+  if (account.status === 'loading' && !effectiveId() && items.length === 0) {
     return (
       <main className="container">
         <div className="card card-2">

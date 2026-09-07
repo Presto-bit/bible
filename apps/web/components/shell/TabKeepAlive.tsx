@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import '@/styles/discover_im_list.css';
 import { isTabKeepAliveEnabled, isStandalonePwa } from '@/lib/platform';
 import {
   APP_SECONDARY_PREFIXES,
@@ -24,6 +25,7 @@ import {
 import { isAssistantStreamBusy } from '@/lib/assistant_stream_busy';
 import { onKeepAliveTabChange, clearInteractiveFocusArtifacts } from '@/lib/tab_keep_chrome';
 import { TabKeepAliveProvider } from './TabKeepAliveContext';
+import { DiscoverTabSkeleton } from '@/components/social/ImThreadSkeleton';
 
 function subscribeKeepAlive(onChange: () => void) {
   const mq = window.matchMedia('(display-mode: standalone)');
@@ -75,7 +77,7 @@ const AssistantTab = dynamic(() => loadTab(() => import('@/components/tabs/Assis
 
 const DiscoverTab = dynamic(() => loadTab(() => import('@/components/tabs/DiscoverTab')), {
   ssr: false,
-  loading: () => paneLoading,
+  loading: () => <DiscoverTabSkeleton />,
 });
 
 const ProfileTab = dynamic(() => loadTab(() => import('@/components/tabs/ProfileTab')), {
@@ -231,6 +233,21 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (enabled) return;
     setMounted(emptyMounted());
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const prefetch = () => {
+      void import('@/components/tabs/DiscoverTab');
+    };
+    const id =
+      typeof window.requestIdleCallback === 'function'
+        ? window.requestIdleCallback(prefetch, { timeout: 3000 })
+        : window.setTimeout(prefetch, 1800);
+    return () => {
+      if (typeof id === 'number') window.clearTimeout(id);
+      else window.cancelIdleCallback?.(id);
+    };
   }, [enabled]);
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   api,
@@ -11,6 +11,11 @@ import {
 } from '@/lib/api';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
+import { DiscoverContactsSkeleton } from '@/components/social/ImThreadSkeleton';
+import {
+  readDiscoverContactsCache,
+  writeDiscoverContactsCache,
+} from '@/lib/discover_contacts_cache';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { friendDisplayName, friendRequestLabel } from '@/lib/friend_label';
 import { FRIEND_REMARKS_EVENT, friendRemarkOrName } from '@/lib/friend_remarks';
@@ -29,6 +34,8 @@ export default function DiscoverContactsPane() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [remarkTick, setRemarkTick] = useState(0);
+  const cacheHydratedRef = useRef(false);
+  const loadedRef = useRef(false);
 
   const query = q.trim().toLowerCase();
 
@@ -45,42 +52,73 @@ export default function DiscoverContactsPane() {
 
   const pendingCount = groupInviteCount + incoming.length + outgoing.length;
 
+  useEffect(() => {
+    if (cacheHydratedRef.current) return;
+    cacheHydratedRef.current = true;
+    const cached = readDiscoverContactsCache();
+    if (cached) {
+      setFriends(cached.friends);
+      setGroupCount(cached.groupCount);
+      setGroupInviteCount(cached.groupInviteCount);
+      setIncoming(cached.incoming);
+      setOutgoing(cached.outgoing);
+      loadedRef.current = true;
+      setLoading(false);
+    }
+  }, []);
+
   const reload = useCallback(async () => {
     if (!isBrowserOnline()) {
       setErr(null);
       setLoading(false);
       return;
     }
+    const soft = loadedRef.current;
     try {
-      setLoading(true);
+      if (!soft) setLoading(true);
       const [fRes, gRes, reqRes, invRes] = await Promise.allSettled([
         api.friends(),
         api.myGroups(),
         api.friendRequests(),
         api.groupInviteInbox(),
       ]);
-      if (fRes.status === 'fulfilled') {
-        setFriends(Array.isArray(fRes.value.friends) ? fRes.value.friends : []);
-      } else {
-        throw fRes.reason;
+      const nextFriends =
+        fRes.status === 'fulfilled' && Array.isArray(fRes.value.friends)
+          ? fRes.value.friends
+          : null;
+      if (nextFriends === null) {
+        if (fRes.status === 'rejected') throw fRes.reason;
+        throw new Error('加载失败');
       }
-      if (gRes.status === 'fulfilled') {
-        setGroupCount(Array.isArray(gRes.value.groups) ? gRes.value.groups.length : 0);
-      } else {
-        setGroupCount(0);
-      }
-      if (reqRes.status === 'fulfilled') {
-        setIncoming(Array.isArray(reqRes.value.incoming) ? reqRes.value.incoming : []);
-        setOutgoing(Array.isArray(reqRes.value.outgoing) ? reqRes.value.outgoing : []);
-      } else {
-        setIncoming([]);
-        setOutgoing([]);
-      }
-      if (invRes.status === 'fulfilled') {
-        setGroupInviteCount(Array.isArray(invRes.value.invites) ? invRes.value.invites.length : 0);
-      } else {
-        setGroupInviteCount(0);
-      }
+      const nextGroupCount =
+        gRes.status === 'fulfilled' && Array.isArray(gRes.value.groups)
+          ? gRes.value.groups.length
+          : 0;
+      const nextIncoming =
+        reqRes.status === 'fulfilled' && Array.isArray(reqRes.value.incoming)
+          ? reqRes.value.incoming
+          : [];
+      const nextOutgoing =
+        reqRes.status === 'fulfilled' && Array.isArray(reqRes.value.outgoing)
+          ? reqRes.value.outgoing
+          : [];
+      const nextInviteCount =
+        invRes.status === 'fulfilled' && Array.isArray(invRes.value.invites)
+          ? invRes.value.invites.length
+          : 0;
+      setFriends(nextFriends);
+      setGroupCount(nextGroupCount);
+      setIncoming(nextIncoming);
+      setOutgoing(nextOutgoing);
+      setGroupInviteCount(nextInviteCount);
+      writeDiscoverContactsCache({
+        friends: nextFriends,
+        groupCount: nextGroupCount,
+        groupInviteCount: nextInviteCount,
+        incoming: nextIncoming,
+        outgoing: nextOutgoing,
+      });
+      loadedRef.current = true;
       setErr(null);
     } catch (e) {
       if (isBrowserOnline()) setErr(errorMessage(e, '加载失败，请稍后再试'));
@@ -91,6 +129,8 @@ export default function DiscoverContactsPane() {
   }, []);
 
   useEffect(() => {
+    const id = effectiveId();
+    if (id) setUid(id);
     void ensureAccountReady().then(() => setUid(effectiveId() || null));
   }, []);
 
@@ -101,7 +141,8 @@ export default function DiscoverContactsPane() {
   }, []);
 
   useEffect(() => {
-    if (!uid) return;
+    const id = effectiveId();
+    if (!uid && !id) return;
     if (!online) {
       setErr(null);
       setLoading(false);
@@ -115,7 +156,7 @@ export default function DiscoverContactsPane() {
     router.push(href);
   };
 
-  if (!uid) {
+  if (!uid && !effectiveId()) {
     return (
       <div className="discover-friends-pane">
         {!online ? (
@@ -146,7 +187,7 @@ export default function DiscoverContactsPane() {
       </div>
 
       {loading && friends.length === 0 && pendingCount === 0 ? (
-        <p className="muted" style={{ padding: '8px 0' }}>加载中…</p>
+        <DiscoverContactsSkeleton />
       ) : null}
 
       {showPending ? (

@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -548,6 +549,28 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     if (!H5Whitelist.allows(pathOnly)) return;
     await _prepareReadingHydrate(pathOnly);
     if (!mounted) return;
+
+    // 首屏已就绪：走 H5 SPA 桥，避免 loadRequest 全量重载
+    if (_hadFirstPaint) {
+      try {
+        final js = '''
+(function(){
+  try {
+    window.dispatchEvent(new CustomEvent('peiai-shell-navigate', { detail: { href: ${jsonEncode(path)} } }));
+  } catch (e) {}
+})();
+''';
+        await c.runJavaScript(js);
+      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = null;
+        });
+      }
+      return;
+    }
+
     final themeId = ref.read(appThemeProvider);
     final padTop = MediaQuery.paddingOf(context).top;
     final token = await ref.read(sessionProvider).token();
