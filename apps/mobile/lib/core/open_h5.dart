@@ -52,6 +52,20 @@ bool openH5IfAllowed(BuildContext context, String href, {String? title}) {
     return true;
   }
 
+  // 知识探索（除故事系列）：Flutter 原生页（地图/时间线/图鉴/关系图）
+  if (pathOnly == '/search' ||
+      (pathOnly.startsWith('/search/') &&
+          !pathOnly.startsWith('/search/series'))) {
+    context.push(pathAndQuery);
+    return true;
+  }
+
+  // 祷告：专用全屏 H5 路由（非叠层 /h5，改善返回与首屏）
+  if (pathOnly == '/pray' || pathOnly.startsWith('/pray/')) {
+    context.push('/pray');
+    return true;
+  }
+
   if (!H5Whitelist.allows(pathOnly)) return false;
 
   // 创世记 50 桥接页走 Custom Tabs（Chrome 内核），不能进叠层 H5 WebView。

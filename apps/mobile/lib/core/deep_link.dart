@@ -1,7 +1,7 @@
 /// App Link / 通知 payload → go_router 路径。
 ///
 /// 规则：
-/// - 白名单 H5 → `/h5?path=…`（含 /pray、/search/series…）
+/// - 白名单 H5 → `/h5?path=…` 或专用路由（/pray）
 /// - 原生 Tab 面与既有路由 → 对应 location
 /// - 读经/小爱锚点保留 query
 library;
@@ -60,17 +60,31 @@ class DeepLink {
         return '/notes';
     }
 
-    // 故事图册等：优先 H5（勿落入下方 /search/* 原生）
+    // 故事图册：H5（Flutter 暂无原生实现）
     if (path.startsWith('/search/series')) {
       return _h5(uri.replace(path: path));
     }
 
-    // 读经回顾：Flutter 原生（竖滑日历 + 故事回顾 PageView）
+    // 知识探索（除 series）：Flutter 原生
+    if (path == '/search' ||
+        (path.startsWith('/search/') && !path.startsWith('/search/series'))) {
+      return uri.hasQuery ? '$path?${uri.query}' : path;
+    }
+
+    // 祷告：专用全屏 H5 路由
+    if (path == '/pray' || path.startsWith('/pray/')) {
+      return '/pray';
+    }
+
+    // 读经回顾 / 故事回顾：Flutter 原生
     if (path == '/report' || path.startsWith('/report/')) {
       return Uri(path: path, queryParameters: qp.isEmpty ? null : qp).toString();
     }
+    if (path == '/wrapped' || path.startsWith('/wrapped/')) {
+      return Uri(path: path, queryParameters: qp.isEmpty ? null : qp).toString();
+    }
 
-    // 白名单 H5（IM / 活动 / 协议 / 设置 / 祷告）
+    // 白名单 H5（IM / 活动 / 协议 / 设置等）
     if (H5Whitelist.allows(path)) {
       return _h5(uri.replace(path: path));
     }
@@ -81,9 +95,6 @@ class DeepLink {
       return _h5(Uri(path: '/discover/group/$id', queryParameters: qp));
     }
     if (path.startsWith('/campaign') || path.startsWith('/campaigns')) {
-      return _h5(uri.replace(path: path));
-    }
-    if (path.startsWith('/pray')) {
       return _h5(uri.replace(path: path));
     }
     if (path == '/help' || path == '/feedback') {

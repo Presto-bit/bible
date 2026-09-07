@@ -9,6 +9,7 @@ bool isOverlayH5Location(String location) {
   final loc = location.split('?').first;
   if (loc == '/h5') return true;
   if (loc == '/friend/add' || loc == '/group/create') return true;
+  if (loc == '/pray') return true;
   if (loc == '/legal' ||
       loc == '/profile/licenses' ||
       loc == '/help' ||

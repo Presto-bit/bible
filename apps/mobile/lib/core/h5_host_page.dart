@@ -214,7 +214,23 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _reinjectSession();
+      return;
     }
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _pausePrayAmbientAudio();
+    }
+  }
+
+  Future<void> _pausePrayAmbientAudio() async {
+    if (!_isPraySurface) return;
+    final c = _controller;
+    if (c == null) return;
+    try {
+      await c.runJavaScript(
+        'try{document.querySelector("audio")?.pause();}catch(e){}',
+      );
+    } catch (_) {}
   }
 
   @override
@@ -735,7 +751,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         u.host.endsWith('.prestoai.cn');
     if (!appHost) return;
     final p = H5Whitelist.stripAppBasePath(u.path.isEmpty ? '/' : u.path);
-    if (p != '/wrapped' && !p.startsWith('/wrapped/')) return;
+    if (!_isNativePath(p)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _openNativeFromWeb(u.replace(path: p));
@@ -957,6 +973,12 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   Future<bool> _onWillPop() async {
     final c = _controller;
     if (c == null) return true;
+
+    // 祷告：单页 SPA，系统返回直接关壳并停背景音乐
+    if (_isPraySurface) {
+      await _pausePrayAmbientAudio();
+      return true;
+    }
 
     // 1) 关掉 portal / sheet（对齐 Web dismissPortaledOverlays）
     try {

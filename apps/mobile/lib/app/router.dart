@@ -117,6 +117,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ReadingReportScreen(),
       ),
       GoRoute(
+        path: '/pray',
+        builder: (context, state) => const H5HostPage(path: '/pray'),
+      ),
+      GoRoute(
         path: '/help',
         builder: (context, state) => const H5HostPage(path: '/help'),
       ),
