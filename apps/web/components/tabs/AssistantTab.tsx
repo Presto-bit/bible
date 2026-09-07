@@ -23,7 +23,7 @@ import {
   recordXiaoAiQuestion,
 } from '@/lib/badge_events';
 import { bodyText, followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistant_format';
-import { resolveScene, refForChatTurn, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
+import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
@@ -81,6 +81,8 @@ import { AnalysisShareSheet } from '@/components/AnalysisShareSheet';
 interface Msg {
   role: 'user' | 'assistant';
   text: string;
+  /** chip 等短展示文案时，API / 多轮 history 用完整问句 */
+  apiText?: string;
   citations?: Citation[];
   followups?: string[];
   scene?: string;
@@ -634,12 +636,18 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       .filter((msg) => msg.text.trim())
       .map((msg) => ({
         role: msg.role,
-        content: msg.role === 'assistant' ? bodyText(msg.text) : msg.text,
+        content:
+          msg.role === 'assistant'
+            ? bodyText(msg.text)
+            : (msg.apiText ?? msg.text),
       }));
-    const refForApi = refForChatTurn(anchor, history.length);
-    let scene = nextScene && refForApi
-      ? nextScene
-      : resolveScene(nextScene, m, Boolean(refForApi));
+    const { refForApi, scene: resolvedScene } = resolveChatTurn({
+      anchorRef: anchor,
+      historyLength: history.length,
+      explicitScene: nextScene,
+      mode: m,
+    });
+    let scene = resolvedScene;
     // 用户显式要「争议/并列」且未指定其他 scene 时，走并列观点模板
     if (!nextScene && detectsViewpointsIntent(q)) {
       scene = 'chat_viewpoints';
@@ -654,7 +662,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     );
     setMode(m);
     replaceComposerValue('');
-    const base: Msg[] = [...thread, { role: 'user', text: shown }, { role: 'assistant', text: '' }];
+    const userMsg: Msg =
+      shown !== q ? { role: 'user', text: shown, apiText: q } : { role: 'user', text: shown };
+    const base: Msg[] = [...thread, userMsg, { role: 'assistant', text: '' }];
     sessionScrollRef.current = false;
     // 默认跟滚看全文；用户上滑后才锁滚并出现「跟随最新」
     streamFollowLockedRef.current = false;
@@ -802,7 +812,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       : undefined;
     const nextMode = scene ? SCENES[scene].mode : mode;
     void send(
-      userMsg.text,
+      userMsg.apiText ?? userMsg.text,
       nextMode,
       ref || undefined,
       userMsg.text,
@@ -1347,7 +1357,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       });
                     }}
                     onResend={() => {
-                      void send(m.text, mode, ref || undefined, m.text);
+                      void send(m.apiText ?? m.text, mode, ref || undefined, m.text);
                     }}
                   />
                 )}

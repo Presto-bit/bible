@@ -389,7 +389,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     }
 
     // 用户显式要「争议/并列」且未指定 scene 时，走并列观点模板。
-    // 无经文锚点时 REF_BOUND scene 降为 chat_general（对齐 PWA resolveScene + refForChatTurn）。
+    // chip 显式 scene 时多轮仍传锚经，避免 REF_BOUND scene 降为 chat_general。
     final history = _turns
         .where((t) => t.content.trim().isNotEmpty)
         .map(
@@ -399,14 +399,14 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           ),
         )
         .toList();
-    final refForApi = refForChatTurn(_anchorRef, history.length);
-    var activeScene = (scene != null && refForApi != null)
-        ? scene
-        : resolveScene(
-            scene: scene?.id,
-            mode: _mode.id,
-            hasRef: refForApi != null,
-          );
+    final turn = resolveChatTurn(
+      anchorRef: _anchorRef,
+      historyLength: history.length,
+      explicitScene: scene,
+      mode: _mode.id,
+    );
+    final refForApi = turn.refForApi;
+    var activeScene = turn.scene;
     if (scene == null && text.isNotEmpty && detectsViewpointsIntent(text)) {
       activeScene = AssistantScene.chatViewpoints;
     }

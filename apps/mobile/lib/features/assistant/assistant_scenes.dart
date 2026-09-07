@@ -95,6 +95,44 @@ String? refForChatTurn(String? anchorRef, int historyLength) {
   return r.isEmpty ? null : r;
 }
 
+typedef ChatTurnResolve = ({String? refForApi, AssistantScene scene});
+
+/// 解析本轮 API 的 ref + scene（chip 显式 scene 时多轮仍保留锚经与 REF_BOUND scene）。
+ChatTurnResolve resolveChatTurn({
+  required String? anchorRef,
+  required int historyLength,
+  AssistantScene? explicitScene,
+  String? mode,
+}) {
+  final anchor = (anchorRef ?? '').trim();
+  final hasAnchor = anchor.isNotEmpty;
+  final explicitRefBound =
+      explicitScene != null && _refBoundScenes.contains(explicitScene);
+
+  final String? refForApi;
+  if (historyLength == 0) {
+    refForApi = hasAnchor ? anchor : null;
+  } else if (explicitRefBound && hasAnchor) {
+    refForApi = anchor;
+  } else {
+    refForApi = null;
+  }
+
+  final hasRefForScene = refForApi != null;
+  final AssistantScene scene;
+  if (explicitScene != null &&
+      (hasRefForScene || !_refBoundScenes.contains(explicitScene))) {
+    scene = explicitScene;
+  } else {
+    scene = resolveScene(
+      scene: explicitScene?.id,
+      mode: mode,
+      hasRef: hasRefForScene,
+    );
+  }
+  return (refForApi: refForApi, scene: scene);
+}
+
 /// 检测用户是否显式要求「并列观点 / 争议题」作答。
 bool detectsViewpointsIntent(String question) {
   final q = question.trim();

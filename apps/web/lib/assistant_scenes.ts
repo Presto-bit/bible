@@ -148,6 +148,36 @@ export function refForChatTurn(
   return r || null;
 }
 
+/** 解析本轮 API 的 ref + scene（chip 显式 scene 时多轮仍保留锚经与 REF_BOUND scene）。 */
+export function resolveChatTurn(opts: {
+  anchorRef: string | null | undefined;
+  historyLength: number;
+  explicitScene?: AssistantScene | null;
+  mode?: string;
+}): { refForApi: string | null; scene: AssistantScene } {
+  const anchor = (opts.anchorRef ?? '').trim() || null;
+  const explicit = opts.explicitScene ?? null;
+  const explicitRefBound = explicit != null && REF_BOUND_SCENES.has(explicit);
+
+  let refForApi: string | null;
+  if (opts.historyLength === 0) {
+    refForApi = anchor;
+  } else if (explicitRefBound && anchor) {
+    refForApi = anchor;
+  } else {
+    refForApi = null;
+  }
+
+  const hasRefForScene = refForApi != null;
+  let scene: AssistantScene;
+  if (explicit && (hasRefForScene || !REF_BOUND_SCENES.has(explicit))) {
+    scene = explicit;
+  } else {
+    scene = resolveScene(explicit, opts.mode, hasRefForScene);
+  }
+  return { refForApi, scene };
+}
+
 export function resolveScene(
   scene?: string | null,
   mode?: string,
