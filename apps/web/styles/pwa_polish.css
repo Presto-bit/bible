@@ -28,6 +28,12 @@
     transform var(--peiai-motion-fast),
     opacity var(--peiai-motion-fast),
     box-shadow var(--peiai-motion-fast);
+  isolation: isolate;
+}
+
+.home-page .icon-btn svg {
+  display: block;
+  pointer-events: none;
 }
 
 .home-page .icon-btn:active {
@@ -40,6 +46,16 @@
   box-shadow:
     var(--peiai-paper-highlight),
     0 4px 16px color-mix(in srgb, var(--accent-deep) 28%, transparent);
+  /* 实色底勿叠 backdrop-filter，否则 iOS PWA 按压缩放时 + 号易重影 */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.home-page .icon-btn-fill:active {
+  background: var(--accent-deep);
+  opacity: 0.9;
 }
 
 /* L0 · 每日经文 hero */
@@ -283,11 +299,9 @@
 @keyframes peiai-tab-enter {
   from {
     opacity: 0;
-    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

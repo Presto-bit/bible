@@ -1330,6 +1330,10 @@ html:not([data-app-theme]) .card {
   box-shadow: 0 4px 16px rgba(7, 193, 96, 0.28);
 }
 
+.home-page .icon-btn-fill:active {
+  background: var(--accent-deep);
+}
+
 /* hero 区块统一底间距：有/无活动轮播路径一致（取代原 100px hack） */
 .home-page .home-hero-block {
   margin-bottom: var(--home-section-gap);
