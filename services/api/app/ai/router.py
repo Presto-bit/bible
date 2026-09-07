@@ -26,8 +26,8 @@ from .request_log import log_ai_request
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
 
-# 单次 /ai/chat 内所有 LLM 调用的总 wall-clock 上限（秒）
-_LLM_WALL_BUDGET_SEC = 100.0
+# 单次 /ai/chat 内所有 LLM 调用的总 wall-clock 上限（秒）；与客户端 sceneTimeout 上限对齐
+_LLM_WALL_BUDGET_SEC = 120.0
 
 _PREWARM_POOL = None
 
@@ -678,7 +678,8 @@ def chat(
         messages = list(prep["messages"])
         max_tokens = int(prep["max_tokens"])
         llm_t0 = time.monotonic()
-        cont_used = False
+        section_cont_used = False
+        length_cont_used = False
 
         def _budget_left() -> float:
             return _LLM_WALL_BUDGET_SEC - (time.monotonic() - llm_t0)
@@ -702,12 +703,12 @@ def chat(
                 yield _sse("delta", {"text": piece})
 
         def _run_length_continuation(meta: StreamMeta) -> None:
-            nonlocal cont_used
-            if cont_used or not full or meta.finish_reason != "length":
+            nonlocal length_cont_used
+            if length_cont_used or not full or meta.finish_reason != "length":
                 return
             if _budget_left() <= 0:
                 return
-            cont_used = True
+            length_cont_used = True
             cont_budget = min(max(max_tokens // 2, 400), 1200)
             cont_msgs = messages + [
                 {"role": "assistant", "content": "".join(full)},
@@ -725,15 +726,15 @@ def chat(
                 meta.finish_reason = cont_meta.finish_reason
 
         def _run_verse_section_continuation() -> None:
-            nonlocal cont_used
-            if cont_used or scene not in ("verse_full", "verse_quick") or not full:
+            nonlocal section_cont_used
+            if section_cont_used or scene not in ("verse_full", "verse_quick") or not full:
                 return
             if _budget_left() <= 0:
                 return
             body_probe, _ = split_body_and_followups("".join(full))
             if not verse_explain_incomplete(scene, body_probe):
                 return
-            cont_used = True
+            section_cont_used = True
             missing = missing_verse_sections(scene, body_probe)
             hint = "、".join(missing) if missing else "剩余小节"
             cont_budget = min(max(max_tokens // 3, 400), 900)
@@ -750,16 +751,14 @@ def chat(
             cont_meta = StreamMeta()
             yield from _stream_budgeted(cont_msgs, budget=cont_budget, meta=cont_meta)
             if cont_meta.finish_reason:
-                pass  # 续写后不再链式触发
+                meta.finish_reason = cont_meta.finish_reason
 
         try:
             meta = StreamMeta()
             yield from _stream_budgeted(messages, budget=max_tokens, meta=meta)
-            # verse 场景：缺节续写与 length 续写二选一，避免多次 LLM 叠加超时
             if scene in ("verse_full", "verse_quick"):
                 yield from _run_verse_section_continuation()
-                if not cont_used:
-                    yield from _run_length_continuation(meta)
+                yield from _run_length_continuation(meta)
             elif meta.finish_reason == "length" and full:
                 yield from _run_length_continuation(meta)
         except Exception as exc:  # 上游/网络异常 → 友好错误事件

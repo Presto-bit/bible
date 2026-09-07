@@ -67,6 +67,8 @@ def stream_chat(
     with httpx.Client(timeout=httpx.Timeout(timeout_sec, connect=10.0)) as client:
         with client.stream("POST", url, json=payload, headers=headers) as resp:
             resp.raise_for_status()
+            saw_reasoning = False
+            yielded = False
             for line in resp.iter_lines():
                 if not line:
                     continue
@@ -93,9 +95,20 @@ def stream_chat(
                 if meta is not None and fr:
                     meta.finish_reason = str(fr)
                 delta = choice0.get("delta") or {}
+                if isinstance(delta, dict):
+                    reasoning = delta.get("reasoning_content")
+                    if isinstance(reasoning, str) and reasoning:
+                        saw_reasoning = True
                 piece = _content_piece(delta) if isinstance(delta, dict) else ""
                 if piece:
+                    yielded = True
                     yield piece
+            if saw_reasoning and not yielded:
+                logger.warning(
+                    "LLM stream emitted reasoning_content but no content deltas "
+                    "(model=%s)",
+                    s.deepseek_text_model,
+                )
 
 
 def complete_chat(

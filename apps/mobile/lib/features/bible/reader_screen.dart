@@ -154,6 +154,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   FeedActivityHint? _pendingFeedHint;
   String? _lastAudioBindKey;
   bool _lastHasSelectionForAudio = false;
+  String? _lastPrewarmChapterKey;
+  Timer? _prewarmTimer;
+
+  void _scheduleChapterPrewarm(String bookId, int chapter) {
+    final key = '$bookId.$chapter';
+    if (_lastPrewarmChapterKey == key) return;
+    _lastPrewarmChapterKey = key;
+    _prewarmTimer?.cancel();
+    _prewarmTimer = Timer(const Duration(milliseconds: 800), () {
+      if (!mounted || _book?.id != bookId || _chapter != chapter) return;
+      unawaited(
+        ref.read(assistantRepoProvider).prewarmAnswer('$bookId.$chapter.1'),
+      );
+    });
+  }
 
   void _syncReaderAudio() {
     if (!kReaderAudioEnabled) return;
@@ -329,6 +344,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _prewarmTimer?.cancel();
     ref.read(readerImmersiveProvider.notifier).set(false);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -383,6 +399,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final screenVer = _mainVersionId ?? 'cuvs';
 
     _syncReaderAudio();
+    if (_book != null) {
+      _scheduleChapterPrewarm(_book!.id, _chapter);
+    }
     if (_hasSelection != _lastHasSelectionForAudio) {
       _lastHasSelectionForAudio = _hasSelection;
       audioCtrl.setCollapsed(_hasSelection);

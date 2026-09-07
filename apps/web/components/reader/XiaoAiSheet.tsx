@@ -22,6 +22,7 @@ import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
+import { mergeAssistantStreamError } from '@/lib/assistant_stream_error';
 import {
   buildHalfSheetQuestion,
   halfSheetCacheSelection,
@@ -188,7 +189,7 @@ export default function XiaoAiSheet({
             setDone(true);
             return;
           }
-          accRef.current = `⚠️ ${msg}`;
+          accRef.current = mergeAssistantStreamError(accRef.current, msg);
           setAnswer(accRef.current);
           setDone(true);
         },

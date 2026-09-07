@@ -18,6 +18,7 @@ import { getSessionKnowledgeBaseId, DEFAULT_KB_ID } from '@/lib/assistant_knowle
 import { recordHalfSheetXiaoAi, recordXiaoAiQuestion } from '@/lib/badge_events';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { refSpaceToOsis } from '@/lib/inline_ref';
+import { mergeAssistantStreamError } from '@/lib/assistant_stream_error';
 import { sceneTimeout } from '@/lib/assistant_scenes';
 
 /** 知识导览半屏问小爱：不离开当前故事页 */
@@ -121,7 +122,7 @@ export function KnowledgeAskSheet({
         },
         onError: (msg) => {
           if (cancelled) return;
-          accRef.current = `⚠️ ${msg}`;
+          accRef.current = mergeAssistantStreamError(accRef.current, msg);
           setAnswer(accRef.current);
           setDone(true);
         },
@@ -191,7 +192,7 @@ export function KnowledgeAskSheet({
                   citeCount={streamCiteCount}
                   slow={slowHint}
                 />
-              ) : done ? (
+              ) : done && !clean ? (
                 <p className="muted xiaoai-disclaimer">{emptyAnswerMsg}</p>
               ) : null}
               {clean ? (

@@ -486,76 +486,65 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     var receivedDelta = false;
     var terminalError = false;
     try {
-      // 首段正文前的断网/代理断流常见且可重试；最多一次，避免重复回答。
-      for (var attempt = 0; attempt < 2; attempt++) {
-        try {
-          await for (final evt in openStream()) {
-            if (!mounted) return;
-            switch (evt) {
-              case MetaEvent(:final meta):
-                setState(() {
-                  reply.meta = meta;
-                  reply.sceneLabel = meta.sceneLabel;
-                  _lastMeta = meta;
-                  if (meta.quotaLimit > 0) {
-                    // 忽略游客限流 meta：安卓原生不套用 10 次
-                    _quotaUsed = 0;
-                    _quotaLimit = 0;
-                  }
-                  _streamPhase = ThinkingPhase.refs;
-                });
-              case DeltaEvent(:final text):
-                receivedDelta = true;
-                pendingDelta += text;
-                deltaFlush ??= Timer.periodic(
-                  const Duration(milliseconds: 150),
-                  (_) {
-                    flushDelta();
-                    if (pendingDelta.isEmpty) {
-                      deltaFlush?.cancel();
-                      deltaFlush = null;
-                    }
-                  },
-                );
-              case FollowupsEvent(:final items):
-                flushDelta(force: true);
-                setState(() => reply.followups = items);
-              case DoneEvent(:final followups):
-                flushDelta(force: true);
-                if (followups.isNotEmpty) {
-                  setState(() => reply.followups = followups);
+      await for (final evt in openStream()) {
+        if (!mounted) return;
+        switch (evt) {
+          case MetaEvent(:final meta):
+            setState(() {
+              reply.meta = meta;
+              reply.sceneLabel = meta.sceneLabel;
+              _lastMeta = meta;
+              if (meta.quotaLimit > 0) {
+                // 忽略游客限流 meta：安卓原生不套用 10 次
+                _quotaUsed = 0;
+                _quotaLimit = 0;
+              }
+              _streamPhase = ThinkingPhase.refs;
+            });
+          case DeltaEvent(:final text):
+            receivedDelta = true;
+            pendingDelta += text;
+            deltaFlush ??= Timer.periodic(
+              const Duration(milliseconds: 150),
+              (_) {
+                flushDelta();
+                if (pendingDelta.isEmpty) {
+                  deltaFlush?.cancel();
+                  deltaFlush = null;
                 }
-              case ErrorEvent(:final message):
-                terminalError = true;
-                flushDelta(force: true);
-                setState(
-                  () => reply.content = reply.content.isEmpty
-                      ? message
-                      : '${reply.content}\n\n⚠️ $message',
-                );
+              },
+            );
+          case FollowupsEvent(:final items):
+            flushDelta(force: true);
+            setState(() => reply.followups = items);
+          case DoneEvent(:final followups):
+            flushDelta(force: true);
+            if (followups.isNotEmpty) {
+              setState(() => reply.followups = followups);
             }
-          }
-        } catch (_) {
-          // 连接在 headers 已返回后中断会在此抛出；由 finally 统一恢复 UI。
-        }
-
-        deltaFlush?.cancel();
-        deltaFlush = null;
-        flushDelta(force: true);
-        if (receivedDelta || terminalError) break;
-        if (attempt == 0 && mounted) {
-          setState(() {
-            _streamPhase = ThinkingPhase.understanding;
-            _streamSlow = false;
-          });
+          case ErrorEvent(:final message):
+            terminalError = true;
+            flushDelta(force: true);
+            setState(
+              () => reply.content = reply.content.isEmpty
+                  ? message
+                  : '${reply.content}\n\n⚠️ $message',
+            );
         }
       }
+    } catch (_) {
+      // 连接在 headers 已返回后中断会在此抛出；由 finally 统一恢复 UI。
+    }
 
-      if (reply.content.isEmpty && mounted) {
-        setState(() {
-          reply.content = '连接中断，已自动重试一次仍未收到回答，请稍后再试。';
-        });
-      }
+    deltaFlush?.cancel();
+    deltaFlush = null;
+    flushDelta(force: true);
+
+    if (reply.content.isEmpty && !terminalError && !receivedDelta && mounted) {
+      setState(() {
+        reply.content = '未收到回答内容，请稍后再试。';
+      });
+    }
       if (reply.content.isNotEmpty) {
         await repo.addMessage(
           sid,
@@ -586,6 +575,22 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   }) async {
     if (mode != null) setState(() => _mode = mode);
     await _send(seedQuestion: text, scene: scene);
+  }
+
+  AssistantScene? _sceneFromId(String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final s in AssistantScene.values) {
+      if (s.id == id) return s;
+    }
+    return null;
+  }
+
+  Future<void> _resendUserAt(int userIdx) async {
+    if (_streaming || userIdx < 0 || userIdx >= _turns.length) return;
+    final text = _turns[userIdx].content.trim();
+    if (text.isEmpty) return;
+    setState(() => _turns = _turns.sublist(0, userIdx));
+    await _send(seedQuestion: text);
   }
 
   bool get _quotaExhausted => _quotaLimit > 0 && _quotaUsed >= _quotaLimit;
@@ -803,11 +808,16 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                             },
                       onResendUserMessage: (_streaming || _quotaExhausted)
                           ? null
-                          : (text) => unawaited(_send(seedQuestion: text)),
+                          : (_) => unawaited(_resendUserAt(i)),
                       onFollowup: _quotaExhausted
                           ? null
-                          : (q) =>
-                                _sendChip(q, scene: AssistantScene.chatExplain),
+                          : (q) => _sendChip(
+                                q,
+                                scene: turn.role == 'assistant'
+                                    ? (_sceneFromId(turn.scene) ??
+                                          AssistantScene.chatExplain)
+                                    : AssistantScene.chatExplain,
+                              ),
                       onSwitchToPlatform: () => setState(() {
                         _knowledgeBaseId = 'platform';
                         _knowledgeBaseName = '平台知识库';

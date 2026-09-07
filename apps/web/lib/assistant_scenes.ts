@@ -35,7 +35,7 @@ export const SCENES: Record<AssistantScene, SceneConfig> = {
     id: 'verse_full',
     mode: 'explain',
     label: '综合解读',
-    timeoutMs: 150_000,
+    timeoutMs: 120_000,
     wantsFollowups: false,
   },
   chat_explain: {
@@ -138,17 +138,7 @@ const MODE_TO_SCENE: Record<string, AssistantScene> = {
   preach: 'chat_preach',
 };
 
-/** 与 Mobile 一致：仅首轮 API 请求传递经文锚点（history 为空时）。 */
-export function refForChatTurn(
-  anchorRef: string | null | undefined,
-  historyLength: number,
-): string | null {
-  if (historyLength > 0) return null;
-  const r = (anchorRef ?? '').trim();
-  return r || null;
-}
-
-/** 解析本轮 API 的 ref + scene（chip 显式 scene 时多轮仍保留锚经与 REF_BOUND scene）。 */
+/** 解析本轮 API 的 ref + scene（session 有 anchor 时多轮仍传 ref 以保留 RAG）。 */
 export function resolveChatTurn(opts: {
   anchorRef: string | null | undefined;
   historyLength: number;
@@ -156,19 +146,9 @@ export function resolveChatTurn(opts: {
   mode?: string;
 }): { refForApi: string | null; scene: AssistantScene } {
   const anchor = (opts.anchorRef ?? '').trim() || null;
-  const explicit = opts.explicitScene ?? null;
-  const explicitRefBound = explicit != null && REF_BOUND_SCENES.has(explicit);
-
-  let refForApi: string | null;
-  if (opts.historyLength === 0) {
-    refForApi = anchor;
-  } else if (explicitRefBound && anchor) {
-    refForApi = anchor;
-  } else {
-    refForApi = null;
-  }
-
+  const refForApi = anchor;
   const hasRefForScene = refForApi != null;
+  const explicit = opts.explicitScene ?? null;
   let scene: AssistantScene;
   if (explicit && (hasRefForScene || !REF_BOUND_SCENES.has(explicit))) {
     scene = explicit;

@@ -24,6 +24,7 @@ import {
 } from '@/lib/badge_events';
 import { bodyText, followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistant_format';
 import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
+import { mergeAssistantStreamError, appendStreamIncompleteNotice } from '@/lib/assistant_stream_error';
 import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
@@ -730,7 +731,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           history,
           surface,
           reader_context: buildAssistantReaderContext(),
-          knowledge_base_id: undefined,
+          knowledge_base_id:
+            knowledgeBaseId !== DEFAULT_KB_ID ? knowledgeBaseId : undefined,
         },
         {
           onMeta: (meta) => {
@@ -764,11 +766,15 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             serverFollowups = items;
           },
           onError: (msg) => {
-            acc = `⚠️ ${msg}`;
+            acc = mergeAssistantStreamError(acc, msg);
             applyAcc();
           },
           onDone: (payload) => {
             if (payload?.followups?.length) serverFollowups = payload.followups;
+            if (payload?.streamComplete === false && acc.trim()) {
+              acc = appendStreamIncompleteNotice(acc);
+              applyAcc();
+            }
           },
         },
         { signal: abortRef.current.signal },
@@ -1357,7 +1363,15 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       });
                     }}
                     onResend={() => {
-                      void send(m.apiText ?? m.text, mode, ref || undefined, m.text);
+                      void send(
+                        m.apiText ?? m.text,
+                        mode,
+                        ref || undefined,
+                        m.text,
+                        undefined,
+                        undefined,
+                        { historyBase: msgs.slice(0, i) },
+                      );
                     }}
                   />
                 )}
@@ -1405,7 +1419,19 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                             key={q}
                             className="followup-chip"
                             disabled={busy}
-                            onTap={() => send(q, m.scene ? SCENES[resolveScene(m.scene, mode)].mode : 'explain', undefined, q, resolveScene(m.scene, mode))}
+                            onTap={() => {
+                              const priorScene =
+                                m.scene && m.scene in SCENES
+                                  ? (m.scene as AssistantScene)
+                                  : undefined;
+                              void send(
+                                q,
+                                priorScene ? SCENES[priorScene].mode : mode,
+                                undefined,
+                                q,
+                                priorScene,
+                              );
+                            }}
                           >
                             {q}
                           </Pressable>

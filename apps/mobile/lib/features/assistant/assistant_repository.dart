@@ -47,6 +47,21 @@ class AssistantRepository {
     }
   }
 
+  /// 静默预热半屏 verse_full 答案（对齐 PWA prewarmAnswer）。
+  Future<void> prewarmAnswer(
+    String ref, {
+    AssistantScene scene = AssistantScene.verseFull,
+  }) async {
+    try {
+      await _dio.post<void>(
+        '/ai/prewarm',
+        data: {'ref': ref, 'scene': scene.id},
+      );
+    } catch (_) {
+      /* fail-open */
+    }
+  }
+
   Stream<ChatEvent> chat({
     String? ref,
     String? question,

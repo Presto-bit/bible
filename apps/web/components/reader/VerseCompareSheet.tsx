@@ -9,6 +9,7 @@ import {
   chatStream,
   type VerseRendition,
 } from '@/lib/api';
+import { mergeAssistantStreamError } from '@/lib/assistant_stream_error';
 import { chipUserQuestion, sceneTimeout } from '@/lib/assistant_scenes';
 import { bodyText } from '@/lib/assistant_format';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
@@ -170,7 +171,11 @@ export default function VerseCompareSheet({
           },
           onError: (m) => {
             if (cancelled) return;
-            setAiErr(m);
+            if (aiAccRef.current.trim()) {
+              setAiErr(m);
+            } else {
+              setAiErr(mergeAssistantStreamError('', m).replace(/^\s*/, ''));
+            }
             setAiBusy(false);
           },
           onDone: () => {

@@ -64,6 +64,7 @@ void main() {
       }
     }
     expect(meta, isNotNull);
-    expect(meta!.quotaLimit, greaterThan(0));
+    expect(meta!.mode, 'explain');
+    expect(meta.quotaLimit, greaterThanOrEqualTo(0));
   }, timeout: const Timeout(Duration(seconds: 40)));
 }

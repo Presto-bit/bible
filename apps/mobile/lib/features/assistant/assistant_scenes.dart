@@ -3,7 +3,7 @@ library;
 
 enum AssistantScene {
   verseQuick('verse_quick', 'explain', 90000),
-  verseFull('verse_full', 'explain', 150000),
+  verseFull('verse_full', 'explain', 120000),
   chatExplain('chat_explain', 'explain', 90000),
   chatUnderstand('chat_understand', 'understand', 90000),
   chatApply('chat_apply', 'apply', 90000),
@@ -88,36 +88,19 @@ const _refBoundScenes = <AssistantScene>{
   AssistantScene.chatOriginal,
 };
 
-/// 仅首轮 API 请求传递经文锚点（history 为空时）。对齐 PWA `refForChatTurn`。
-String? refForChatTurn(String? anchorRef, int historyLength) {
-  if (historyLength > 0) return null;
-  final r = (anchorRef ?? '').trim();
-  return r.isEmpty ? null : r;
-}
-
 typedef ChatTurnResolve = ({String? refForApi, AssistantScene scene});
 
-/// 解析本轮 API 的 ref + scene（chip 显式 scene 时多轮仍保留锚经与 REF_BOUND scene）。
+/// 解析本轮 API 的 ref + scene（session 有 anchor 时多轮仍传 ref 以保留 RAG）。
 ChatTurnResolve resolveChatTurn({
   required String? anchorRef,
   required int historyLength,
   AssistantScene? explicitScene,
   String? mode,
 }) {
+  // 保留参数供调用方表达「是否已有 history」；ref 策略仅看 anchor。
+  assert(historyLength >= 0);
   final anchor = (anchorRef ?? '').trim();
-  final hasAnchor = anchor.isNotEmpty;
-  final explicitRefBound =
-      explicitScene != null && _refBoundScenes.contains(explicitScene);
-
-  final String? refForApi;
-  if (historyLength == 0) {
-    refForApi = hasAnchor ? anchor : null;
-  } else if (explicitRefBound && hasAnchor) {
-    refForApi = anchor;
-  } else {
-    refForApi = null;
-  }
-
+  final refForApi = anchor.isEmpty ? null : anchor;
   final hasRefForScene = refForApi != null;
   final AssistantScene scene;
   if (explicitScene != null &&
