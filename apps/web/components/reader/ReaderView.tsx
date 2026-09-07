@@ -352,6 +352,7 @@ export default function ReaderView({
   const nativePinSuppressRef = useRef(false);
   const dismissUntilRef = useRef(0);
   const nativeSelectionRef = useRef<NativeVerseSelection | null>(null);
+  const liveNativeSelectionRef = useRef<NativeVerseSelection | null>(null);
   const nativeTouchSelect = useNativeVerseSelection();
   const autoCollapseNativeSel = shouldAutoCollapseNativeSelection();
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
@@ -741,6 +742,10 @@ export default function ReaderView({
   useEffect(() => {
     hasSelRef.current = hasSel;
   }, [hasSel]);
+
+  useEffect(() => {
+    liveNativeSelectionRef.current = liveNativeSelection;
+  }, [liveNativeSelection]);
   useEffect(() => {
     nativeSelectionRef.current = nativeSelection;
   }, [nativeSelection]);
@@ -2290,15 +2295,24 @@ export default function ReaderView({
       }
     };
 
+    const resolveLiveSelection = (): NativeVerseSelection | null => {
+      const fromDom = readNativeVerseSelection(root);
+      if (fromDom?.text) return fromDom;
+      return nativeSelectionRef.current ?? liveNativeSelectionRef.current;
+    };
+
     const collapseSystemSelection = (opts?: { force?: boolean }) => {
       if (!opts?.force && nativeSelectingRef.current) return;
       if (nativePinSuppressRef.current) return;
       if (Date.now() < dismissUntilRef.current) return;
-      const pinned = readNativePinnedHighlight(root)
-        ?? (() => {
-          const basic = readNativeVerseSelection(root);
-          return basic ? { ...basic, spans: [] as NativePinnedHighlight['spans'] } : null;
-        })();
+      const pinnedFromDom = readNativePinnedHighlight(root);
+      const basic = resolveLiveSelection();
+      if (!basic?.text) return;
+      const pinned: NativePinnedHighlight = pinnedFromDom ?? {
+        verses: basic.verses,
+        text: basic.text,
+        spans: [],
+      };
       if (pinned?.text) {
         nativePinnedHighlightRef.current = pinned;
         flushSync(() => {
@@ -2381,8 +2395,8 @@ export default function ReaderView({
         clearBrowserSelection();
         return;
       }
-      const next = readNativeVerseSelection(root);
-      if (next) {
+      const next = resolveLiveSelection();
+      if (next?.verses.length && next.text) {
         flushSync(() => {
           setLiveNativeSelection(next);
           setNativeSelection(next);
@@ -2432,6 +2446,7 @@ export default function ReaderView({
         const next = readNativeVerseSelection(root);
         if (nativeSelectingRef.current) {
           setLiveNativeSelection(next);
+          if (next) nativeSelectionRef.current = next;
           return;
         }
         if (!next) {
@@ -2468,9 +2483,13 @@ export default function ReaderView({
     };
 
     const onPointerUp = (e: PointerEvent | TouchEvent) => {
-      // 先提交选区（内部会结束 selecting 并收起系统栏）
-      commitLiveSelection();
-      if (nativeSelectingRef.current) setSelecting(false);
+      // WebKit 松手时常先清系统选区，双 rAF 再读 + 缓存兜底
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          commitLiveSelection();
+          if (nativeSelectingRef.current) setSelecting(false);
+        });
+      });
       if (e instanceof PointerEvent && e.pointerType === 'mouse' && isFinePointerUI()) {
         if (nativeSelectionRef.current) {
           suppressGhostClickUntil = Date.now() + 400;

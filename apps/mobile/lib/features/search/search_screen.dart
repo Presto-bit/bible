@@ -1,4 +1,4 @@
-/// 全局搜索：经文 FTS + 知识探索 + 搜索历史。
+/// 全局搜索：经文 FTS + 搜索历史（空态展示知识探索入口）。
 library;
 
 import 'dart:async';
@@ -17,10 +17,8 @@ import '../knowledge/knowledge_explore.dart';
 import '../assistant/assistant_seed.dart';
 import '../bible/bible_repository.dart';
 import '../bible/content_repository.dart';
-import '../bible/dictionary_match.dart';
 import '../bible/reader_screen.dart'
     show readerJumpProvider, readerReturnProvider, ReaderReturnTarget;
-import '../notes/notes_repository.dart';
 
 const _historyKey = 'search_history';
 const _searchDebounceMs = 320;
@@ -300,14 +298,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _ScopeTab.ot => '旧约',
       _ScopeTab.nt => '新约',
     };
-    final entityAsync = searchTooShort(searchQ)
-        ? const AsyncValue<List<DictEntity>>.data([])
-        : ref.watch(dictionaryProvider(searchQ));
-    final entityHits = entityAsync.maybeWhen(
-      data: (list) => list.take(8).toList(),
-      orElse: () => const <DictEntity>[],
-    );
-    final entityLoading = !searchTooShort(searchQ) && entityAsync.isLoading;
+    final hasSearchQuery = !searchTooShort(searchQ);
 
     return Scaffold(
       backgroundColor: AppColors.paper,
@@ -341,22 +332,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
             onSubmitted: _saveHistory,
           ),
-          const SizedBox(height: 14),
-          const Text(
-            '知识探索',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              color: AppColors.ink,
+          if (!hasSearchQuery) ...[
+            const SizedBox(height: 14),
+            const Text(
+              '知识探索',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: AppColors.ink,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          const KnowledgeHub(),
-          const SizedBox(height: 8),
-          const Text(
-            '高级语法： "整段精确"  ·  书卷:约翰福音  ·  -排除词',
-            style: TextStyle(fontSize: 11.5, color: AppColors.inkFaint),
-          ),
+            const SizedBox(height: 8),
+            const KnowledgeHub(),
+            const SizedBox(height: 8),
+            const Text(
+              '高级语法： "整段精确"  ·  书卷:约翰福音  ·  -排除词',
+              style: TextStyle(fontSize: 11.5, color: AppColors.inkFaint),
+            ),
+          ],
           if (_history.isNotEmpty) ...[
             const SizedBox(height: 14),
             Wrap(
@@ -377,75 +370,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   .toList(),
             ),
           ],
-          if (!searchTooShort(searchQ)) ...[
+          if (hasSearchQuery) ...[
             const SizedBox(height: 18),
-            if (entityLoading || entityHits.isNotEmpty) ...[
-              const Text(
-                '人物与地点',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              if (entityLoading)
-                const Text(
-                  '查找词条…',
-                  style: TextStyle(fontSize: 13, color: AppColors.inkFaint),
-                )
-              else
-                ...entityHits.map(
-                  (ent) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: PaperCard(
-                      padding: const EdgeInsets.all(12),
-                      onTap: () {
-                        _saveHistory(searchQ);
-                        context.push(
-                          '/dictionary/${Uri.encodeComponent(ent.id)}',
-                        );
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  entityDisplayName(ent),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                              if (entityTypeLabel(ent.type).isNotEmpty)
-                                Text(
-                                  entityTypeLabel(ent.type),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.inkFaint,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          if (ent.summary.trim().isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              ent.summary.length > 48
-                                  ? '${ent.summary.substring(0, 48)}…'
-                                  : ent.summary,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.inkFaint,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 8),
-            ],
             Row(
               children: [
                 const Text(
@@ -657,7 +583,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                 ],
               ),
-            _NotesGroup(query: searchQ),
           ],
         ],
       ),
@@ -704,75 +629,6 @@ class _HighlightedText extends StatelessWidget {
       spans.add(TextSpan(text: text.substring(start)));
     }
     return Text.rich(TextSpan(style: base, children: spans));
-  }
-}
-
-/// 笔记搜索分组：本地笔记按关键词过滤（与经文结果并列展示）。
-class _NotesGroup extends ConsumerWidget {
-  const _NotesGroup({required this.query});
-  final String query;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final notesAsync = ref.watch(notesStreamProvider);
-    final notes = notesAsync.maybeWhen(
-      data: (list) {
-        final q = query.toLowerCase();
-        return list
-            .where(
-              (n) =>
-                  n.body.toLowerCase().contains(q) ||
-                  (n.ref ?? '').toLowerCase().contains(q),
-            )
-            .take(10)
-            .toList();
-      },
-      orElse: () => const [],
-    );
-    if (notes.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 18),
-        Text(
-          '笔记 · ${notes.length}',
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-        ),
-        const SizedBox(height: 8),
-        ...notes.map(
-          (n) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: PaperCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if ((n.ref ?? '').isNotEmpty)
-                    Text(
-                      n.ref!,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        color: AppColors.gold,
-                      ),
-                    ),
-                  if ((n.ref ?? '').isNotEmpty) const SizedBox(height: 4),
-                  Text(
-                    n.body,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.ink,
-                      height: 1.5,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }
 

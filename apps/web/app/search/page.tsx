@@ -10,14 +10,10 @@ import {
   api,
   type BibleSearchHit,
   type BibleVersion,
-  type DictEntity,
   type MapTour,
   type TimelineTour,
 } from '@/lib/api';
-import { entityDisplayName, entityTypeLabel } from '@/lib/dictionary_match';
-import { entityDictionaryHref } from '@/lib/entity_knowledge';
 import { bibleSearch } from '@/lib/bible_client';
-import { listAllThoughts } from '@/lib/reader_thoughts';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
@@ -147,15 +143,12 @@ export default function SearchPage() {
   const [hits, setHits] = useState<BibleSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [thoughts, setThoughts] = useState<ReturnType<typeof listAllThoughts>>([]);
   const [mapTours, setMapTours] = useState<MapTour[]>([]);
   const [timelineTours, setTimelineTours] = useState<TimelineTour[]>([]);
   const [toursReady, setToursReady] = useState(false);
   const [scopeTab, setScopeTab] = useState<ScopeTab>('all');
   const [searchVersion, setSearchVersion] = useState('cuvs');
   const [versions, setVersions] = useState<BibleVersion[]>([]);
-  const [entityHits, setEntityHits] = useState<DictEntity[]>([]);
-  const [entityLoading, setEntityLoading] = useState(false);
   const [searchRetry, setSearchRetry] = useState(0);
   const [totalHits, setTotalHits] = useState(0);
   const [totalOt, setTotalOt] = useState(0);
@@ -183,7 +176,6 @@ export default function SearchPage() {
 
   useEffect(() => {
     setHistory(loadHistory());
-    setThoughts(listAllThoughts());
     setSearchVersion(defaultSearchVersion());
     const params = new URLSearchParams(window.location.search);
     const from = params.get('from');
@@ -235,18 +227,6 @@ export default function SearchPage() {
 
   const searchQ = debouncedQuery.trim();
   const markTerms = useMemo(() => highlightTerms(searchQ), [searchQ]);
-
-  const thoughtHits = useMemo(() => {
-    const q = searchQ.toLowerCase();
-    if (searchTooShort(q)) return [];
-    return thoughts
-      .filter(
-        (t) =>
-          t.body.toLowerCase().includes(q) ||
-          (t.ref || '').toLowerCase().includes(q),
-      )
-      .slice(0, 10);
-  }, [thoughts, searchQ]);
 
   // 关键词 / 译本 / 约别变化时重新搜索（约别走 API testament，避免高频词被旧约截断）
   useEffect(() => {
@@ -325,31 +305,6 @@ export default function SearchPage() {
       .finally(() => setLoadingMore(false));
   };
 
-  useEffect(() => {
-    const q = searchQ;
-    if (searchTooShort(q)) {
-      setEntityHits([]);
-      setEntityLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setEntityLoading(true);
-    void api
-      .dictionary(q)
-      .then((d) => {
-        if (!cancelled) setEntityHits((d.entities ?? []).slice(0, 8));
-      })
-      .catch(() => {
-        if (!cancelled) setEntityHits([]);
-      })
-      .finally(() => {
-        if (!cancelled) setEntityLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [searchQ]);
-
   const displayHits = hits;
   const showNtHint = useMemo(
     () =>
@@ -399,7 +354,7 @@ export default function SearchPage() {
       <input
         className="search-input"
         autoFocus
-        placeholder="搜索经文、笔记…"
+        placeholder="搜索经文…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
@@ -578,36 +533,7 @@ export default function SearchPage() {
 
       {hasQuery && (
         <section style={{ marginTop: 18 }}>
-          {(entityLoading || entityHits.length > 0) && (
-            <>
-              <h3 className="search-section-title">人物与地点</h3>
-              {entityLoading ? (
-                <p className="muted" style={{ fontSize: 13 }}>查找词条…</p>
-              ) : (
-                <div className="search-entity-list">
-                  {entityHits.map((ent) => (
-                    <Link
-                      key={ent.id ?? ent.name}
-                      href={entityDictionaryHref(ent)}
-                      className="card card-2 search-entity-card"
-                    >
-                      <strong>{entityDisplayName(ent)}</strong>
-                      {entityTypeLabel(ent.type) ? (
-                        <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
-                          {entityTypeLabel(ent.type)}
-                        </span>
-                      ) : null}
-                      <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-                        {(ent.summary || '').slice(0, 48)}{(ent.summary || '').length > 48 ? '…' : ''}
-                      </p>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          <div className="search-result-head" style={{ marginTop: entityHits.length ? 16 : 0 }}>
+          <div className="search-result-head">
             <h3 className="search-section-title" style={{ margin: 0 }}>经文</h3>
             <div className="search-filter-tabs" role="tablist" aria-label="搜索范围">
               <button
@@ -727,28 +653,6 @@ export default function SearchPage() {
               {loadingMore ? '正在载入…' : `加载更多（还有 ${Math.max(0, totalHits - displayHits.length)} 处）`}
             </button>
           ) : null}
-        </section>
-      )}
-
-      {hasQuery && thoughtHits.length > 0 && (
-        <section style={{ marginTop: 18 }}>
-          <h3 className="search-section-title">想法 · {thoughtHits.length}</h3>
-          {thoughtHits.map((t) => (
-            <div
-              key={t.id}
-              className="card card-2"
-              style={{ marginBottom: 8, padding: 14 }}
-            >
-              {t.ref && (
-                <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--gold, #b8860b)' }}>
-                  {formatGroupRefLabel(t.ref)}
-                </span>
-              )}
-              <p style={{ margin: t.ref ? '6px 0 0' : 0, lineHeight: 1.55 }}>
-                {highlightText(t.body, markTerms)}
-              </p>
-            </div>
-          ))}
         </section>
       )}
 
