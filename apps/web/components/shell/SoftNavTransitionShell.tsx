@@ -19,11 +19,11 @@ const ProfileSettingsPanel = dynamic(
   { ssr: false },
 );
 const NotesPageContent = dynamic(
-  () => import('@/app/notes/page').then((m) => m.NotesPageContent),
+  () => import('@/components/notes/NotesPageContent').then((m) => m.NotesPageContent),
   { ssr: false },
 );
 const ShelfListContent = dynamic(
-  () => import('@/app/shelf/page').then((m) => m.ShelfListContent),
+  () => import('@/components/shelf/ShelfListContent').then((m) => m.ShelfListContent),
   { ssr: false },
 );
 
