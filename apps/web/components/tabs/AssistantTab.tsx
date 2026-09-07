@@ -23,7 +23,7 @@ import {
   recordXiaoAiQuestion,
 } from '@/lib/badge_events';
 import { bodyText, followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistant_format';
-import { resolveScene, refForChatTurn, SCENES, type AssistantScene } from '@/lib/assistant_scenes';
+import { resolveScene, refForChatTurn, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
@@ -668,6 +668,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     setShowJumpToBottom(false);
     abortRef.current = new AbortController();
     const slowTimer = window.setTimeout(() => setSlowHint(true), 15000);
+    const timeoutTimer = window.setTimeout(
+      () => abortRef.current?.abort(),
+      sceneTimeout(scene),
+    );
     requestAnimationFrame(() => {
       requestAnimationFrame(() => scrollThreadToLatest());
     });
@@ -761,6 +765,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       );
     } finally {
       window.clearTimeout(slowTimer);
+      window.clearTimeout(timeoutTimer);
       abortRef.current = null;
       if (rafRef.current != null) {
         window.clearTimeout(rafRef.current);

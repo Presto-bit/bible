@@ -1598,11 +1598,22 @@ class _Bubble extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: turn.content.isEmpty
-                  ? AssistantThinkingState(
-                      phase: thinkingPhase ?? ThinkingPhase.understanding,
-                      citeCount: cites.length,
-                      slow: streamSlow,
-                    )
+                  ? (streaming
+                      ? AssistantThinkingState(
+                          phase: thinkingPhase ?? ThinkingPhase.understanding,
+                          citeCount: cites.length,
+                          slow: streamSlow,
+                        )
+                      : const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            '生成未完成，请重试',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.inkFaint,
+                            ),
+                          ),
+                        ))
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

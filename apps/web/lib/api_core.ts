@@ -1251,6 +1251,7 @@ export async function chatStream(
       return 'fail';
     }
     if (!sawDone) cb.onDone?.({ streamComplete: false });
+    if (!gotDelta && sawDone) return 'retry';
     if (!gotDelta && !sawDone) return 'retry';
     return 'ok';
   };
@@ -1259,10 +1260,10 @@ export async function chatStream(
   const first = await runOnce(opts?.signal);
   if (first === 'retry' && allowRetry && !opts?.signal?.aborted) {
     const second = await runOnce(opts?.signal);
-    if (second === 'retry') cb.onError?.('连接中断，请重试');
+    if (second === 'retry') cb.onError?.('未收到回答内容，请重试');
     return;
   }
-  if (first === 'retry') cb.onError?.('连接中断，请重试');
+  if (first === 'retry') cb.onError?.('未收到回答内容，请重试');
 }
 
 // ── 带认证头的请求（会话令牌 + 设备头；用户码头仅作兼容展示） ──

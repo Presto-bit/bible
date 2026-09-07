@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -24,6 +25,9 @@ from .request_log import log_ai_request
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+# 单次 /ai/chat 内所有 LLM 调用的总 wall-clock 上限（秒）
+_LLM_WALL_BUDGET_SEC = 100.0
 
 _PREWARM_POOL = None
 
@@ -659,59 +663,91 @@ def chat(
         scene = prep["meta"].get("scene")
         messages = list(prep["messages"])
         max_tokens = int(prep["max_tokens"])
-        try:
-            meta = StreamMeta()
-            for piece in stream_chat(messages, max_tokens=max_tokens, meta=meta):
+        llm_t0 = time.monotonic()
+        cont_used = False
+
+        def _budget_left() -> float:
+            return _LLM_WALL_BUDGET_SEC - (time.monotonic() - llm_t0)
+
+        def _stream_budgeted(
+            msgs: list[dict[str, str]],
+            *,
+            budget: int,
+            meta: StreamMeta | None = None,
+        ):
+            if _budget_left() <= 0:
+                return
+            timeout_sec = min(120.0, max(5.0, _budget_left()))
+            for piece in stream_chat(
+                msgs,
+                max_tokens=budget,
+                meta=meta,
+                timeout_sec=timeout_sec,
+            ):
                 full.append(piece)
                 yield _sse("delta", {"text": piece})
-            # 动态续写：max_tokens 触顶时再请求一次，避免概要等场景半截结束
-            if meta.finish_reason == "length" and full:
-                cont_budget = min(max(max_tokens // 2, 400), 1200)
-                cont_msgs = messages + [
-                    {"role": "assistant", "content": "".join(full)},
-                    {
-                        "role": "user",
-                        "content": (
-                            "请从上文中断处继续写完剩余内容，不要重复已写部分，"
-                            "保持相同 Markdown 结构，自然收束。"
-                        ),
-                    },
-                ]
-                cont_meta = StreamMeta()
-                for piece in stream_chat(
-                    cont_msgs, max_tokens=cont_budget, meta=cont_meta,
-                ):
-                    full.append(piece)
-                    yield _sse("delta", {"text": piece})
-                if cont_meta.finish_reason:
-                    meta.finish_reason = cont_meta.finish_reason
-            # 半屏解读：缺必需小节时再续写一次（非仅 length 触顶）
-            if scene in ("verse_full", "verse_quick") and full:
-                for _ in range(2):
-                    body_probe, _ = split_body_and_followups("".join(full))
-                    if not verse_explain_incomplete(scene, body_probe):
-                        break
-                    missing = missing_verse_sections(scene, body_probe)
-                    hint = "、".join(missing) if missing else "剩余小节"
-                    cont_budget = min(max(max_tokens // 3, 400), 900)
-                    cont_msgs = messages + [
-                        {"role": "assistant", "content": "".join(full)},
-                        {
-                            "role": "user",
-                            "content": (
-                                f"回答尚不完整，请补写缺失部分：{hint}。"
-                                "不要重复已写内容，保持 ### 中文标题格式，自然收束。"
-                            ),
-                        },
-                    ]
-                    cont_meta = StreamMeta()
-                    for piece in stream_chat(
-                        cont_msgs, max_tokens=cont_budget, meta=cont_meta,
-                    ):
-                        full.append(piece)
-                        yield _sse("delta", {"text": piece})
-                    if cont_meta.finish_reason:
-                        meta.finish_reason = cont_meta.finish_reason
+
+        def _run_length_continuation(meta: StreamMeta) -> None:
+            nonlocal cont_used
+            if cont_used or not full or meta.finish_reason != "length":
+                return
+            if _budget_left() <= 0:
+                return
+            cont_used = True
+            cont_budget = min(max(max_tokens // 2, 400), 1200)
+            cont_msgs = messages + [
+                {"role": "assistant", "content": "".join(full)},
+                {
+                    "role": "user",
+                    "content": (
+                        "请从上文中断处继续写完剩余内容，不要重复已写部分，"
+                        "保持相同 Markdown 结构，自然收束。"
+                    ),
+                },
+            ]
+            cont_meta = StreamMeta()
+            yield from _stream_budgeted(cont_msgs, budget=cont_budget, meta=cont_meta)
+            if cont_meta.finish_reason:
+                meta.finish_reason = cont_meta.finish_reason
+
+        def _run_verse_section_continuation() -> None:
+            nonlocal cont_used
+            if cont_used or scene not in ("verse_full", "verse_quick") or not full:
+                return
+            if _budget_left() <= 0:
+                return
+            body_probe, _ = split_body_and_followups("".join(full))
+            if not verse_explain_incomplete(scene, body_probe):
+                return
+            cont_used = True
+            missing = missing_verse_sections(scene, body_probe)
+            hint = "、".join(missing) if missing else "剩余小节"
+            cont_budget = min(max(max_tokens // 3, 400), 900)
+            cont_msgs = messages + [
+                {"role": "assistant", "content": "".join(full)},
+                {
+                    "role": "user",
+                    "content": (
+                        f"回答尚不完整，请补写缺失部分：{hint}。"
+                        "不要重复已写内容，保持 ### 中文标题格式，自然收束。"
+                    ),
+                },
+            ]
+            cont_meta = StreamMeta()
+            yield from _stream_budgeted(cont_msgs, budget=cont_budget, meta=cont_meta)
+            if cont_meta.finish_reason:
+                pass  # 续写后不再链式触发
+
+        try:
+            meta = StreamMeta()
+            yield from _stream_budgeted(messages, budget=max_tokens, meta=meta)
+            # verse 场景：缺节续写与 length 续写二选一，避免多次 LLM 叠加超时
+            if scene in ("verse_full", "verse_quick"):
+                yield from _run_verse_section_continuation()
+                if not cont_used:
+                    yield from _run_length_continuation(meta)
+            elif meta.finish_reason == "length" and full:
+                yield from _run_length_continuation(meta)
         except Exception as exc:  # 上游/网络异常 → 友好错误事件
             logger.exception("ai chat stream failed")
             log_ai_request(
@@ -728,6 +764,23 @@ def chat(
                     "message": f"小爱暂时无法回应：{exc}",
                     "retryable": not bool(full),
                     "delta_count": len(full),
+                },
+            )
+            return
+        if not full:
+            log_ai_request(
+                device_id=x_guest_id,
+                user_id=logged_in,
+                scene=scene,
+                mode=body.mode,
+                surface=body.surface,
+                status="error",
+            )
+            yield _sse(
+                "error",
+                {
+                    "message": "未收到模型回应，请稍后重试",
+                    "retryable": True,
                 },
             )
             return
