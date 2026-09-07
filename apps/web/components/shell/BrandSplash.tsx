@@ -1,86 +1,97 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { BASE_PATH } from '@/lib/basePath';
 import {
   BRAND_SPLASH_FADE_MS,
   BRAND_SPLASH_MAX_MS,
   BRAND_SPLASH_MIN_MS,
+  BRAND_SPLASH_SUBTITLE,
+  BRAND_SPLASH_TITLE,
   markBrandSplashDone,
   shouldShowBrandSplash,
 } from '@/lib/brand_splash';
 
-const SSR_SPLASH_ID = 'peiai-brand-splash-ssr';
-
-function removeSplashNode(node: HTMLElement | null) {
-  document.documentElement.classList.remove(
-    'peiai-splash-pending',
-    'peiai-splash-lock',
-    'peiai-splash-active',
-  );
-  node?.remove();
-}
-
-function scheduleDismiss(node: HTMLElement) {
-  if (window.__PEIAI_SPLASH_DISMISS__ === true) return;
-  window.__PEIAI_SPLASH_DISMISS__ = true;
-
-  let fadeTimer: ReturnType<typeof setTimeout> | null = null;
-  let finished = false;
-
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    markBrandSplashDone();
-    removeSplashNode(node);
-  };
-
-  const beginFade = () => {
-    if (fadeTimer || finished || !document.getElementById(SSR_SPLASH_ID)) return;
-    document.documentElement.classList.remove('peiai-splash-pending');
-    node.classList.add('is-fading');
-    node.setAttribute('aria-hidden', 'true');
-    fadeTimer = setTimeout(finish, BRAND_SPLASH_FADE_MS);
-  };
-
-  const start = window.__PEIAI_SPLASH_START__ ?? Date.now();
-  const elapsed = Date.now() - start;
-  const waitMin = Math.max(0, BRAND_SPLASH_MIN_MS - elapsed);
-  const waitMax = Math.max(0, BRAND_SPLASH_MAX_MS - elapsed);
-
-  const minTimer = setTimeout(beginFade, waitMin);
-  const maxTimer = setTimeout(beginFade, waitMax);
-
-  return () => {
-    clearTimeout(minTimer);
-    clearTimeout(maxTimer);
-    if (fadeTimer) clearTimeout(fadeTimer);
-  };
+function clearSplashChrome() {
+  document.documentElement.classList.remove('peiai-splash-pending', 'peiai-splash-lock');
+  document.getElementById('peiai-brand-splash-ssr')?.remove();
 }
 
 /**
- * PWA 冷启动：内联脚本负责首屏计时；此处仅兜底并避免 hydration 误删开屏。
+ * PWA 冷启动：SSR 占位 → 客户端固定层接管（首版方案，可见 1.5s）。
+ * useLayoutEffect 在首帧绘制前交接，避免仅 SSR 被提前拆掉导致闪退。
  */
 export default function BrandSplash() {
-  useEffect(() => {
-    const node = document.getElementById(SSR_SPLASH_ID) as HTMLElement | null;
-    const root = document.documentElement;
+  const [active, setActive] = useState(false);
+  const [fading, setFading] = useState(false);
 
-    if (window.__PEIAI_SPLASH_DONE__ || !node) {
-      removeSplashNode(node);
+  useLayoutEffect(() => {
+    if (!shouldShowBrandSplash()) {
+      clearSplashChrome();
       return;
     }
 
-    if (!root.classList.contains('peiai-splash-active')) {
-      if (!shouldShowBrandSplash()) {
-        removeSplashNode(node);
-      }
-      return;
-    }
-
-    if (window.__PEIAI_SPLASH_DISMISS__) return;
-
-    return scheduleDismiss(node) ?? undefined;
+    setActive(true);
+    document.getElementById('peiai-brand-splash-ssr')?.remove();
   }, []);
 
-  return null;
+  useEffect(() => {
+    if (!active) return;
+
+    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+    let finished = false;
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      markBrandSplashDone();
+      clearSplashChrome();
+      setActive(false);
+      setFading(false);
+    };
+
+    const beginFade = () => {
+      if (fadeTimer || finished) return;
+      document.documentElement.classList.remove('peiai-splash-pending');
+      setFading(true);
+      fadeTimer = setTimeout(finish, BRAND_SPLASH_FADE_MS);
+    };
+
+    const minTimer = setTimeout(beginFade, BRAND_SPLASH_MIN_MS);
+    const maxTimer = setTimeout(beginFade, BRAND_SPLASH_MAX_MS);
+
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(maxTimer);
+      if (fadeTimer) clearTimeout(fadeTimer);
+    };
+  }, [active]);
+
+  if (!active) return null;
+
+  const iconSrc = `${BASE_PATH || ''}/apple-touch-icon.png`;
+
+  return (
+    <div
+      className={`peiai-brand-splash${fading ? ' is-fading' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="彼爱"
+      aria-busy={!fading}
+    >
+      <div className="peiai-brand-splash-inner">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className="peiai-brand-splash-icon"
+          src={iconSrc}
+          alt=""
+          width={120}
+          height={120}
+          decoding="sync"
+        />
+        <p className="peiai-brand-splash-title">{BRAND_SPLASH_TITLE}</p>
+        <p className="peiai-brand-splash-sub">{BRAND_SPLASH_SUBTITLE}</p>
+      </div>
+    </div>
+  );
 }

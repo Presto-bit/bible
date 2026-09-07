@@ -1,8 +1,13 @@
+/**
+ * PWA 冷启动品牌开屏（YouVersion 式：纸底 + 居中 App icon + 字标）
+ * SSR 占位 #peiai-brand-splash-ssr；客户端 .peiai-brand-splash 接管计时与淡出。
+ */
+
 #peiai-brand-splash-ssr {
   display: none;
 }
 
-html.peiai-splash-active #peiai-brand-splash-ssr {
+html.peiai-splash-pending #peiai-brand-splash-ssr {
   display: flex !important;
 }
 
@@ -19,7 +24,6 @@ html.peiai-splash-active #peiai-brand-splash-ssr {
   pointer-events: auto;
   opacity: 1;
   transition: opacity 0.25s ease;
-  will-change: opacity;
 }
 
 .peiai-brand-splash.is-fading {
@@ -65,7 +69,6 @@ html.peiai-splash-lock body {
   overflow: hidden;
 }
 
-/* 开屏期间藏住壳层，避免底栏/padding 变化从边缘透出 */
 html.peiai-splash-pending .app-body,
 html.peiai-splash-pending nav.tabbar,
 html.peiai-splash-pending .offline-bar,

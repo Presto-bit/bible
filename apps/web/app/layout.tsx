@@ -108,6 +108,11 @@ export default function RootLayout({
           />
         ))}
         <link rel="apple-touch-startup-image" href={`${base}/${IOS_STARTUP_FALLBACK}`} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;var done=window.__PEIAI_SPLASH_DONE__===true;var flutter=false;try{flutter=sessionStorage.getItem('peiai_client_kind')==='android_h5_tab';}catch(_){}if(s&&!done&&!flutter){document.documentElement.classList.add('peiai-splash-pending','peiai-splash-lock');}}catch(_){}})();`,
+          }}
+        />
         {/* 安卓：尽早拦截浏览器「添加主屏幕」mini-infobar，改由 H5 推 APK */}
         <script
           dangerouslySetInnerHTML={{
@@ -125,7 +130,7 @@ export default function RootLayout({
           id="peiai-brand-splash-ssr"
           className="peiai-brand-splash"
           aria-hidden="true"
-          style={{ ['--peiai-brand-splash-bg' as string]: PWA_SPLASH_BG_COLOR }}
+          style={{ display: 'none', ['--peiai-brand-splash-bg' as string]: PWA_SPLASH_BG_COLOR }}
         >
           <div className="peiai-brand-splash-inner">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -140,9 +145,9 @@ export default function RootLayout({
             <p className="peiai-brand-splash-sub">{BRAND_SPLASH_SUBTITLE}</p>
           </div>
         </div>
-        <script
+        <style
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;var done=window.__PEIAI_SPLASH_DONE__===true;var flutter=false;try{flutter=sessionStorage.getItem('peiai_client_kind')==='android_h5_tab';}catch(_){}if(!s||done||flutter)return;var root=document.documentElement;var node=document.getElementById('peiai-brand-splash-ssr');if(!node)return;root.classList.add('peiai-splash-pending','peiai-splash-lock','peiai-splash-active');window.__PEIAI_SPLASH_START__=Date.now();window.__PEIAI_SPLASH_DISMISS__=true;var finished=false;function finish(){if(finished)return;finished=true;window.__PEIAI_SPLASH_DONE__=true;try{sessionStorage.setItem('peiai_brand_splash_done_v1','1');}catch(_){}root.classList.remove('peiai-splash-pending','peiai-splash-lock','peiai-splash-active');node.remove();}function beginFade(){if(finished||node.classList.contains('is-fading'))return;root.classList.remove('peiai-splash-pending');node.classList.add('is-fading');setTimeout(finish,250);}setTimeout(beginFade,1500);setTimeout(beginFade,2000);}catch(_){}})();`,
+            __html: `html.peiai-splash-pending #peiai-brand-splash-ssr{display:flex!important;}`,
           }}
         />
         {/* release.sh 健康检查锚点（须出现在 SSR HTML，勿删） */}

@@ -58,7 +58,5 @@ export function captureBrandSplashEntryHref(): string {
 declare global {
   interface Window {
     __PEIAI_SPLASH_DONE__?: boolean;
-    __PEIAI_SPLASH_START__?: number;
-    __PEIAI_SPLASH_DISMISS__?: boolean;
   }
 }
