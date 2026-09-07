@@ -332,14 +332,19 @@ bool _yieldFromHit(HitTestResult result) {
 }
 
 /// 对齐 PWA `shouldYieldPageTurn`：词典 / 工具条 / 计划条让路，普通经文不让。
+/// 十字 + 对角邻点（半径 10，对齐 Web INTERACTIVE_HIT_RADIUS）。
 bool shouldYieldPageTurn(BuildContext context, Offset global) {
   if (_yieldFromHit(_hitAt(context, global))) return true;
-  const r = 8.0;
+  const r = 10.0;
   const pts = <Offset>[
     Offset(0, -r),
     Offset(0, r),
     Offset(-r, 0),
     Offset(r, 0),
+    Offset(-0.7 * r, -0.7 * r),
+    Offset(0.7 * r, -0.7 * r),
+    Offset(-0.7 * r, 0.7 * r),
+    Offset(0.7 * r, 0.7 * r),
   ];
   for (final d in pts) {
     if (_yieldFromHit(_hitAt(context, global + d))) return true;

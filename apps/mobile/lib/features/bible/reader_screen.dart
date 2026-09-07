@@ -670,13 +670,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                       });
                       prefs.setString('reader_parallel_version', id);
                     },
-                    onNav: _nav,
+                    onNav: (d, {fromSwipe = false}) =>
+                        _nav(d, fromSwipe: fromSwipe),
                     onInteract: _onOpenOverlay,
                     onSelectionChanged: (has) {
                       if (_hasSelection == has) return;
                       setState(() => _hasSelection = has);
                     },
-                    onNextChapter: () => _nav(1),
+                    onNextChapter: () => unawaited(_nav(1)),
                     onAskAi: (refStr, refLabel, selectionText, explainOnly) {
                       _onOpenOverlay();
                       _openXiaoAiSheet(
@@ -952,11 +953,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     );
   }
 
-  Future<void> _nav(int delta) async {
+  Future<void> _nav(int delta, {bool fromSwipe = false}) async {
     final b = _book;
     if (b == null) return;
     final books = ref.read(booksProvider).value;
     if (books == null) return;
+
+    if (!fromSwipe) {
+      await _chapterBodyKey.currentState?.playChapterExit(delta);
+      if (!mounted) return;
+    }
 
     if (_planMeta != null && _planMeta!.steps.isNotEmpty) {
       final target = resolvePlanNav(

@@ -3,6 +3,8 @@ library;
 
 import 'models.dart';
 
+export 'reader_typography.dart' show kProseParagraphIndent;
+
 class VerseParagraph {
   VerseParagraph({
     required this.startVerse,
@@ -17,15 +19,11 @@ class VerseParagraph {
 
 typedef ParagraphRange = (int start, int end);
 
-/// 散文段首缩进（RichText 无 text-indent，1 个全角字宽）。
-const kProseParagraphIndent = '\u3000';
-
 const _poetryBooks = {
   'PSA', 'PRO', 'ECC', 'SNG', 'LAM', 'AMO', 'MIC', 'HAB', 'ZEP', 'NAH',
   'HAG', 'ZEC', 'MAL', 'JOB',
 };
 
-const _minVerses = 2;
 const _maxVerses = 6;
 const _maxChars = 320;
 const _minWeakVerses = 3;
