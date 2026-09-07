@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import '../styles/design_tokens.css';
+import '../styles/brand_splash.css';
 import './globals.css';
 import '../styles/shared_chrome.css';
 import '../styles/pwa_polish.css';
@@ -17,6 +18,7 @@ import TabKeepAlive from '@/components/shell/TabKeepAlive';
 import DeferredShellOverlays from '@/components/shell/DeferredShellOverlays';
 import SoftNavProgress from '@/components/shell/SoftNavProgress';
 import SoftNavTransitionShell from '@/components/shell/SoftNavTransitionShell';
+import BrandSplash from '@/components/shell/BrandSplash';
 import ShellNavBridge from '@/components/ShellNavBridge';
 
 import { BASE_PATH } from '@/lib/basePath';
@@ -27,7 +29,9 @@ import {
   PWA_HOME_NAME,
   PWA_MANIFEST_DESCRIPTION,
   PWA_SHELL_BG_COLOR,
+  PWA_SPLASH_BG_COLOR,
 } from '@/lib/pwa_brand';
+import { BRAND_SPLASH_SUBTITLE, BRAND_SPLASH_TITLE } from '@/lib/brand_splash';
 import { peiaiFontClassNames } from '@/lib/fonts';
 
 export const metadata: Metadata = {
@@ -104,6 +108,11 @@ export default function RootLayout({
           />
         ))}
         <link rel="apple-touch-startup-image" href={`${base}/${IOS_STARTUP_FALLBACK}`} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;var done=false;try{done=sessionStorage.getItem('peiai_brand_splash_done_v1')==='1';}catch(_){}var flutter=false;try{flutter=sessionStorage.getItem('peiai_client_kind')==='android_h5_tab';}catch(_){}if(s&&!done&&!flutter){document.documentElement.classList.add('peiai-splash-pending');}}catch(_){}})();`,
+          }}
+        />
         {/* 安卓：尽早拦截浏览器「添加主屏幕」mini-infobar，改由 H5 推 APK */}
         <script
           dangerouslySetInnerHTML={{
@@ -111,7 +120,31 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>
+      <body style={{ backgroundColor: PWA_SHELL_BG_COLOR }}>
+        <div
+          id="peiai-brand-splash-ssr"
+          className="peiai-brand-splash"
+          aria-hidden="true"
+          style={{ display: 'none', ['--peiai-brand-splash-bg' as string]: PWA_SPLASH_BG_COLOR }}
+        >
+          <div className="peiai-brand-splash-inner">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="peiai-brand-splash-icon"
+              src={`${base}/apple-touch-icon.png`}
+              alt=""
+              width={120}
+              height={120}
+            />
+            <p className="peiai-brand-splash-title">{BRAND_SPLASH_TITLE}</p>
+            <p className="peiai-brand-splash-sub">{BRAND_SPLASH_SUBTITLE}</p>
+          </div>
+        </div>
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `html.peiai-splash-pending #peiai-brand-splash-ssr{display:flex!important;}`,
+          }}
+        />
         {/* release.sh 健康检查锚点（须出现在 SSR HTML，勿删） */}
         <span hidden aria-hidden="true">
           每日问答
@@ -124,6 +157,7 @@ export default function RootLayout({
               <OfflineBar />
               <SoftNavProgress />
               <SoftNavTransitionShell />
+              <BrandSplash />
               <div className="app-body">
                 <TabKeepAlive>{children}</TabKeepAlive>
               </div>

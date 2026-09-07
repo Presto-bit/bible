@@ -15,12 +15,12 @@ const PUBLIC = join(ROOT, 'public');
 /** 主视觉源：仓库根 icon.png */
 const ICON_PNG = join(REPO_ROOT, 'icon.png');
 
-/** 与 icon.png 背景一致 */
-const PWA_BG = '#E32626';
-const PWA_INK = '#FFFFFF';
-const PWA_INK_SOFT = 'rgba(255,255,255,0.85)';
+/** 开屏全屏纸白；App icon 内仍为红底 door+BIBLE */
+const SPLASH_BG = '#FFFCFA';
+const SPLASH_TITLE_INK = '#2C2825';
+const SPLASH_SUB_INK = '#6B6358';
 const HOME_NAME = '彼爱';
-const HOME_SUBTITLE = '安静读经';
+const HOME_SUBTITLE = 'Love Each Other';
 
 const ICON_SIZES = [
   { name: 'icon-192.png', size: 192 },
@@ -43,7 +43,7 @@ const SPLASH_DEVICES = [
 ];
 
 function iconBuffer(size) {
-  return sharp(ICON_PNG).resize(size, size, { fit: 'contain', background: PWA_BG }).png();
+  return sharp(ICON_PNG).resize(size, size, { fit: 'contain', background: '#E32626' }).png();
 }
 
 async function writeMaskable() {
@@ -54,7 +54,7 @@ async function writeMaskable() {
       width: MASKABLE_SIZE,
       height: MASKABLE_SIZE,
       channels: 4,
-      background: PWA_BG,
+      background: '#E32626',
     },
   })
     .composite([{ input: await inner.toBuffer(), gravity: 'centre' }])
@@ -71,9 +71,9 @@ function splashTextSvg(w, h, iconSize) {
   const titleSize = Math.round(w * 0.1);
   const subSize = Math.round(w * 0.048);
   return Buffer.from(`<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${w}" height="${h}" fill="${PWA_BG}"/>
-  <text x="${cx}" y="${titleY}" text-anchor="middle" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="${titleSize}" font-weight="600" fill="${PWA_INK}">${HOME_NAME}</text>
-  <text x="${cx}" y="${subY}" text-anchor="middle" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="${subSize}" fill="${PWA_INK_SOFT}">${HOME_SUBTITLE}</text>
+  <rect width="${w}" height="${h}" fill="${SPLASH_BG}"/>
+  <text x="${cx}" y="${titleY}" text-anchor="middle" font-family="PingFang SC, Hiragino Sans GB, SF Pro Text, Helvetica Neue, sans-serif" font-size="${titleSize}" font-weight="600" fill="${SPLASH_TITLE_INK}">${HOME_NAME}</text>
+  <text x="${cx}" y="${subY}" text-anchor="middle" font-family="PingFang SC, Hiragino Sans GB, SF Pro Text, Helvetica Neue, sans-serif" font-size="${subSize}" font-weight="400" letter-spacing="0.08em" fill="${SPLASH_SUB_INK}">${HOME_SUBTITLE}</text>
 </svg>`);
 }
 

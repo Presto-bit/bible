@@ -2,7 +2,7 @@
 
 /* PWA：开屏色与壳层色分离（--pwa-bg 仅应用内，勿用于 manifest 开屏） */
 :root {
-  --pwa-splash-bg: #e32626;
+  --pwa-splash-bg: #fffcfa;
   --pwa-bg: #fffcfa;
   --pwa-ink: #4f6b5d;
   --pwa-ink-soft: #7d9b8a;

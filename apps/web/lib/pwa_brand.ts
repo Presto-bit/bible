@@ -9,8 +9,11 @@ export const PWA_HOME_NAME = BRAND_NAME;
 export const PWA_HOME_SUBTITLE = BRAND_PWA_SUBTITLE;
 export const PWA_MANIFEST_DESCRIPTION = `${PWA_HOME_SUBTITLE}，在话语中相遇`;
 
-/** OS 开屏 / manifest.background_color（与 icon.png 红底一致） */
-export const PWA_SPLASH_BG_COLOR = '#E32626';
+/** 与 icon.png 背景一致（App 图标内红底；开屏全屏纸白） */
+export const PWA_ICON_RED = '#E32626';
+
+/** iOS startup-image / 品牌开屏全屏底（纸白，与壳层一致） */
+export const PWA_SPLASH_BG_COLOR = '#FFFCFA';
 
 /** 应用壳层：html/body、状态栏、Tab 下方安全区（晨光纸色，不随主题变） */
 export const PWA_SHELL_BG_COLOR = '#FFFCFA';
@@ -18,8 +21,8 @@ export const PWA_SHELL_BG_COLOR = '#FFFCFA';
 /** @deprecated 使用 PWA_SHELL_BG_COLOR；保留别名避免误把开屏色铺进页面 */
 export const PWA_BG_COLOR = PWA_SHELL_BG_COLOR;
 
-export const PWA_SPLASH_INK = '#FFFFFF';
-export const PWA_SPLASH_INK_SOFT = 'rgba(255,255,255,0.85)';
+export const PWA_SPLASH_INK = '#2C2825';
+export const PWA_SPLASH_INK_SOFT = '#6B6358';
 
 /** iPhone 15/16 竖屏逻辑尺寸（pt） */
 export const PWA_SPLASH_BASE = { width: 393, height: 852, dpr: 3 } as const;
