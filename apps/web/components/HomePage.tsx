@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   api,
@@ -57,6 +57,10 @@ import {
   shouldPlayHomeStagger,
   todayHasReadingActivity,
 } from '@/lib/home_liveness';
+import {
+  peiaiStaggerDurationMs,
+  peiaiStaggerProps,
+} from '@/lib/peiai_motion';
 import { buildHomeGroupRailInput } from '@/lib/home_social_line';
 import { HomeSkeleton } from '@/components/Skeleton';
 import {
@@ -340,6 +344,16 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const hideSeasonalForCampaign = Boolean(
     todayPanel?.activity?.id?.startsWith('campaign-'),
   );
+  const hasSeasonal = Boolean(seasonal[0] && !hideSeasonalForCampaign);
+  const homeStagger = {
+    seasonal: hasSeasonal ? 0 : -1,
+    hero: hasSeasonal ? 1 : 0,
+    today: (hasSeasonal ? 1 : 0) + 1,
+    onboarding: (hasSeasonal ? 1 : 0) + 2,
+    growth: (hasSeasonal ? 1 : 0) + 3,
+  };
+  const homeStaggerMaxIndex =
+    homeStagger.growth + Math.max(0, (growthModel?.cards.length ?? 1) - 1);
 
   const panelLiveness = useCallback(
     (): Pick<
@@ -831,7 +845,10 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     setGreeting(homeGreeting());
     if (shouldPlayHomeStagger() && !reducedMotion) {
       setStaggerEnter(true);
-      window.setTimeout(() => setStaggerEnter(false), 700);
+      window.setTimeout(
+        () => setStaggerEnter(false),
+        peiaiStaggerDurationMs(homeStaggerMaxIndex),
+      );
     }
     if (consumeCheckinFlash()) {
       setGroupFlash(true);
@@ -840,7 +857,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     if (isPlanDayDoneToday() && consumePlanDoneHomeHaptic() && !reducedMotion) {
       hapticSuccess();
     }
-  }, [homeAwake, reducedMotion]);
+  }, [homeAwake, reducedMotion, homeStaggerMaxIndex]);
 
   useEffect(() => {
     if (!homeAwake || !dv?.day || !dv?.text) return;
@@ -931,7 +948,10 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       >
         <span ref={ptrLabelRef} className={`home-ptr-label${ptrRefreshing ? ' is-busy' : ''}`} />
       </div>
-      <div ref={ptrContentRef} className="home-ptr-content">
+      <div
+        ref={ptrContentRef}
+        className={`home-ptr-content${staggerEnter ? ' home-stagger-enter' : ''}`}
+      >
       <header className="greet home-greet-header">
         <HomeGreetStreak greeting={greeting} userName={userName} />
         <div className="greet-actions">
@@ -963,7 +983,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       {seasonal[0] && !hideSeasonalForCampaign ? (
         <button
           type="button"
-          className="card row-card home-list-row home-list-row-wrap seasonal-card seasonal-card-pulse"
+          className={[
+            'card row-card home-list-row home-list-row-wrap seasonal-card seasonal-card-pulse',
+            staggerEnter ? 'home-stagger-item' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          style={
+            staggerEnter
+              ? ({ '--stagger-i': homeStagger.seasonal } as CSSProperties)
+              : undefined
+          }
           onClick={() => go(seasonal[0].href)}
         >
           <span className="pill pill-active">{seasonal[0].badge}</span>
@@ -978,6 +1008,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       {showHomeSkeleton ? <HomeSkeleton /> : null}
 
       {!showHomeSkeleton ? (
+      <div {...peiaiStaggerProps(homeStagger.hero, staggerEnter)}>
       <HomeHeroCarousel
         verseSlide={(
       <div
@@ -1182,6 +1213,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         bootstrapReady={bootstrapReady}
         resetToVerseNonce={heroResetNonce}
       />
+      </div>
       ) : null}
 
       {reactSheetOpen && dv?.day ? (
@@ -1200,6 +1232,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           panel={todayPanel}
           groupFlash={groupFlash}
           staggerEnter={staggerEnter}
+          staggerIndex={homeStagger.today}
         />
       ) : null}
       {groupErr ? (
@@ -1208,7 +1241,10 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         </div>
       ) : null}
 
-      <HomeOnboardingBanner />
+      <HomeOnboardingBanner
+        staggerEnter={staggerEnter}
+        staggerIndex={homeStagger.onboarding}
+      />
 
       {!showHomeSkeleton && growthModel ? (
         <HomeGrowthStack
@@ -1218,6 +1254,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           endFooterRef={endFooterRef}
           summaryFlash={summaryFlash}
           staggerEnter={staggerEnter}
+          growthStaggerStart={homeStagger.growth}
         />
       ) : null}
 

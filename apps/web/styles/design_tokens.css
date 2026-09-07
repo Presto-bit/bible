@@ -36,6 +36,8 @@
   --peiai-motion-fast: 0.14s cubic-bezier(0.25, 0.8, 0.25, 1);
   --peiai-motion-normal: 0.22s cubic-bezier(0.22, 0.8, 0.22, 1);
   --peiai-motion-enter: 0.32s cubic-bezier(0.22, 0.84, 0.22, 1);
+  --peiai-stagger-step: 48ms;
+  --peiai-press-scale: 0.978;
   --peiai-layer-l1: 1;
   --peiai-layer-l2: 0.94;
   --peiai-layer-l3: 0.88;

@@ -1765,13 +1765,6 @@ html:not([data-app-theme]) .card {
   .home-today-side.is-checkin-flash {
     animation: home-checkin-flash 1.2s ease;
   }
-  .home-stagger-enter .home-stagger-item {
-    opacity: 0;
-    animation: home-stagger-in 0.32s ease forwards;
-  }
-  .home-stagger-enter .home-stagger-1 { animation-delay: 0ms; }
-  .home-stagger-enter .home-stagger-2 { animation-delay: 40ms; }
-  .home-stagger-enter .home-stagger-3 { animation-delay: 80ms; }
   .home-growth-stack.is-summary-flash .home-growth-summary {
     animation: home-summary-flash 0.42s ease;
   }
@@ -1784,17 +1777,6 @@ html:not([data-app-theme]) .card {
   0% { transform: scale(1); }
   35% { transform: scale(1.02); }
   100% { transform: scale(1); }
-}
-
-@keyframes home-stagger-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @keyframes home-summary-flash {

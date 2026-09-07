@@ -56,6 +56,24 @@
   transform: scale(0.995);
 }
 
+.home-page .hero-b-campaign {
+  transition:
+    transform var(--peiai-motion-normal),
+    box-shadow var(--peiai-motion-normal);
+}
+
+.home-page .hero-b-campaign:active {
+  transform: scale(0.995);
+}
+
+.home-page .home-hero-carousel-dot {
+  transition: transform var(--peiai-motion-fast), opacity var(--peiai-motion-fast);
+}
+
+.home-page .home-hero-carousel-dot:active {
+  transform: scale(0.92);
+}
+
 .home-page .hero-verse .verse-text {
   font-size: clamp(17px, 4.6vw, 20px);
   line-height: 1.72;
@@ -213,9 +231,22 @@
   transition: transform var(--peiai-motion-fast), opacity var(--peiai-motion-fast);
 }
 
+.home-page .card.row-card.seasonal-card:active {
+  transform: scale(var(--peiai-press-scale));
+}
+
 .home-page .home-onboarding-banner {
   border: 1px solid color-mix(in srgb, var(--accent-deep) 16%, transparent);
   box-shadow: var(--peiai-paper-highlight), var(--home-shadow);
+  transition: transform var(--peiai-motion-fast), opacity var(--peiai-motion-fast);
+}
+
+.home-page .home-onboarding-banner:active {
+  transform: scale(var(--peiai-press-scale));
+}
+
+.home-page .home-onboarding-banner .btn:active {
+  transform: scale(0.96);
 }
 
 /* ─── W2：全局壳层微动效 ─── */
@@ -224,14 +255,18 @@
     animation: peiai-tab-enter var(--peiai-motion-enter) ease both;
   }
 
-  .home-page .home-stagger-enter .home-stagger-item {
+  .home-page .home-stagger-enter .home-stagger-item,
+  .profile-page .profile-stagger-enter .profile-stagger-item {
     animation: peiai-stagger-in var(--peiai-motion-enter) ease both;
+    animation-delay: calc(var(--stagger-i, 0) * var(--peiai-stagger-step));
   }
 
-  .home-page .home-stagger-enter .home-stagger-1 { animation-delay: 0ms; }
-  .home-page .home-stagger-enter .home-stagger-2 { animation-delay: 48ms; }
-  .home-page .home-stagger-enter .home-stagger-3 { animation-delay: 96ms; }
+  /* 兼容旧 class 名（逐步移除） */
+  .home-page .home-stagger-enter .home-stagger-1 { --stagger-i: 0; }
+  .home-page .home-stagger-enter .home-stagger-2 { --stagger-i: 1; }
+  .home-page .home-stagger-enter .home-stagger-3 { --stagger-i: 2; }
 
+  /* 我的 · 切 Tab 入场（每块独立，不依赖 JS） */
   .profile-page .profile-companion-wrap,
   .profile-page .profile-block-label,
   .profile-page .profile-footprint-grid,
@@ -240,9 +275,9 @@
   }
 
   .profile-page .profile-companion-wrap { animation-delay: 0ms; }
-  .profile-page .profile-block-label { animation-delay: 48ms; }
-  .profile-page .profile-footprint-grid { animation-delay: 96ms; }
-  .profile-page .profile-shortcut-panel { animation-delay: 144ms; }
+  .profile-page .profile-block-label { animation-delay: var(--peiai-stagger-step); }
+  .profile-page .profile-footprint-grid { animation-delay: calc(var(--peiai-stagger-step) * 2); }
+  .profile-page .profile-shortcut-panel { animation-delay: calc(var(--peiai-stagger-step) * 3); }
 }
 
 @keyframes peiai-tab-enter {
@@ -425,12 +460,26 @@ html[data-app-theme='dark'] .tabbar {
   .profile-page .profile-block-label,
   .profile-page .profile-footprint-grid,
   .profile-page .profile-shortcut-panel,
+  .discover-page .feed-card,
+  .discover-page.discover-im .discover-conv-li,
+  .search-page .hot-keyword-grid .hot-keyword-chip,
   .home-page .hero-verse:active,
+  .home-page .hero-b-campaign:active,
   .home-page .home-today-tile:active,
   .home-page .home-media-row:active,
+  .home-page .card.row-card.seasonal-card:active,
+  .home-page .home-onboarding-banner:active,
   .profile-page .profile-footprint-cell:active,
+  .search-page .theme-chip:active,
+  .search-page .hot-keyword-chip:active,
+  .search-page .story-entry-card:active,
+  .search-page .search-hit-card:active,
+  .assistant-page .citation-evidence-card:active,
+  .reader-catalog-page .catalog-card:active,
+  .discover-page.discover-im .discover-conv-li:active .discover-conv-row,
   .tab:active {
     transform: none;
+    animation: none;
   }
 }
 
@@ -444,4 +493,138 @@ html.perf-lite .profile-page .profile-companion-card {
 html.perf-lite .home-page .home-today-tile-tag {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+/* ─── W4：搜索页 ─── */
+.search-page .theme-chip,
+.search-page .hot-keyword-chip {
+  border: 1px solid var(--peiai-paper-edge);
+  box-shadow: var(--peiai-paper-highlight), var(--peiai-shadow-card);
+  transition:
+    transform var(--peiai-motion-fast),
+    box-shadow var(--peiai-motion-fast),
+    background var(--peiai-motion-fast),
+    border-color var(--peiai-motion-fast);
+}
+
+.search-page .theme-chip:active,
+.search-page .hot-keyword-chip:active {
+  transform: scale(var(--peiai-press-scale));
+  box-shadow: var(--peiai-paper-highlight), var(--peiai-shadow-card-lift);
+}
+
+.search-page .story-entry-card,
+.search-page .search-hit-card,
+.search-page .search-entity-card {
+  border: 1px solid var(--peiai-paper-edge);
+  box-shadow: var(--peiai-paper-highlight), var(--peiai-shadow-card);
+  transition:
+    transform var(--peiai-motion-fast),
+    box-shadow var(--peiai-motion-fast),
+    opacity var(--peiai-motion-fast);
+}
+
+.search-page .story-entry-card:active,
+.search-page .search-hit-card:active,
+.search-page .search-entity-card:active {
+  transform: scale(var(--peiai-press-scale));
+  box-shadow: var(--peiai-paper-highlight), var(--peiai-shadow-card-lift);
+}
+
+.search-page .book-chip {
+  transition:
+    transform var(--peiai-motion-fast),
+    background var(--peiai-motion-fast),
+    border-color var(--peiai-motion-fast);
+}
+
+.search-page .book-chip:active {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .search-page .hot-keyword-grid .hot-keyword-chip {
+    animation: peiai-stagger-in var(--peiai-motion-enter) ease both;
+  }
+
+  .search-page .hot-keyword-grid .hot-keyword-chip:nth-child(1) { animation-delay: 0ms; }
+  .search-page .hot-keyword-grid .hot-keyword-chip:nth-child(2) { animation-delay: var(--peiai-stagger-step); }
+  .search-page .hot-keyword-grid .hot-keyword-chip:nth-child(3) { animation-delay: calc(var(--peiai-stagger-step) * 2); }
+  .search-page .hot-keyword-grid .hot-keyword-chip:nth-child(4) { animation-delay: calc(var(--peiai-stagger-step) * 3); }
+  .search-page .hot-keyword-grid .hot-keyword-chip:nth-child(5) { animation-delay: calc(var(--peiai-stagger-step) * 4); }
+  .search-page .hot-keyword-grid .hot-keyword-chip:nth-child(6) { animation-delay: calc(var(--peiai-stagger-step) * 5); }
+  .search-page .hot-keyword-grid .hot-keyword-chip:nth-child(n + 7) { animation-delay: calc(var(--peiai-stagger-step) * 6); }
+}
+
+/* ─── W5：小爱引用与进度环 ─── */
+.assistant-page .citation-evidence-card {
+  border: 1px solid var(--peiai-paper-edge);
+  box-shadow: var(--peiai-paper-highlight), 0 1px 4px color-mix(in srgb, var(--ink) 4%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--accent-deep) 55%, transparent);
+  transition:
+    transform var(--peiai-motion-fast),
+    box-shadow var(--peiai-motion-fast),
+    border-color var(--peiai-motion-fast);
+}
+
+.assistant-page .citation-evidence-card:active {
+  transform: scale(var(--peiai-press-scale));
+  box-shadow: var(--peiai-paper-highlight), var(--peiai-shadow-card-lift);
+}
+
+.home-page .home-media-progress circle:nth-of-type(3) {
+  transition: stroke-dashoffset var(--peiai-motion-enter) cubic-bezier(0.22, 0.84, 0.22, 1);
+}
+
+.home-page .home-today-progress-ring-fill {
+  transition: stroke-dashoffset var(--peiai-motion-enter) cubic-bezier(0.22, 0.84, 0.22, 1);
+}
+
+/* ─── W6：圣经目录 ─── */
+.reader-catalog-page .catalog-card {
+  border: 1px solid var(--peiai-paper-edge);
+  box-shadow: var(--peiai-paper-highlight), var(--peiai-shadow-card);
+  transition:
+    transform var(--peiai-motion-fast),
+    box-shadow var(--peiai-motion-fast),
+    background var(--peiai-motion-fast);
+}
+
+.reader-catalog-page .catalog-card:active {
+  transform: scale(var(--peiai-press-scale));
+  box-shadow: var(--peiai-paper-highlight), var(--peiai-shadow-card-lift);
+}
+
+.reader-catalog-page .catalog-abbr {
+  font-size: clamp(28px, 7vw, 36px);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+/* ─── W7：发现 IM 会话行 ─── */
+.discover-page.discover-im .discover-conv-row {
+  transition:
+    transform var(--peiai-motion-fast),
+    opacity var(--peiai-motion-fast),
+    background var(--peiai-motion-fast);
+}
+
+.discover-page.discover-im .discover-conv-li:active .discover-conv-row {
+  transform: scale(0.992);
+  opacity: 0.92;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .discover-page.discover-im .discover-conv-li {
+    animation: peiai-stagger-in var(--peiai-motion-enter) ease both;
+  }
+
+  .discover-page.discover-im .discover-conv-list .discover-conv-li:nth-child(1) { animation-delay: 0ms; }
+  .discover-page.discover-im .discover-conv-list .discover-conv-li:nth-child(2) { animation-delay: var(--peiai-stagger-step); }
+  .discover-page.discover-im .discover-conv-list .discover-conv-li:nth-child(3) { animation-delay: calc(var(--peiai-stagger-step) * 2); }
+  .discover-page.discover-im .discover-conv-list .discover-conv-li:nth-child(4) { animation-delay: calc(var(--peiai-stagger-step) * 3); }
+  .discover-page.discover-im .discover-conv-list .discover-conv-li:nth-child(5) { animation-delay: calc(var(--peiai-stagger-step) * 4); }
+  .discover-page.discover-im .discover-conv-list .discover-conv-li:nth-child(6) { animation-delay: calc(var(--peiai-stagger-step) * 5); }
+  .discover-page.discover-im .discover-conv-list .discover-conv-li:nth-child(n + 7) { animation-delay: calc(var(--peiai-stagger-step) * 6); }
 }

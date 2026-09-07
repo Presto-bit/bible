@@ -1,6 +1,6 @@
 'use client';
 
-import type { RefObject } from 'react';
+import type { RefObject, CSSProperties } from 'react';
 import type { HomeGrowthModel } from '@/lib/home_growth_cards';
 import { homeGrowthObjectPositionForCard } from '@/lib/home_growth_tile_image';
 import { HomeEndFooter } from '@/components/home/HomeEndFooter';
@@ -13,6 +13,7 @@ type Props = {
   endFooterRef?: RefObject<HTMLDivElement | null>;
   summaryFlash?: boolean;
   staggerEnter?: boolean;
+  growthStaggerStart?: number;
 };
 
 /**
@@ -25,13 +26,13 @@ export function HomeGrowthStack({
   endFooterRef,
   summaryFlash = false,
   staggerEnter = false,
+  growthStaggerStart = 3,
 }: Props) {
   return (
     <section
       className={[
         'home-stack',
         'home-growth-stack',
-        staggerEnter ? 'home-stagger-enter' : '',
         summaryFlash ? 'is-summary-flash' : '',
       ]
         .filter(Boolean)
@@ -43,9 +44,12 @@ export function HomeGrowthStack({
         return (
           <div
             key={card.id}
-            className={
-              staggerEnter && index === 0
-                ? 'home-stagger-item home-stagger-3'
+            className={staggerEnter ? 'home-stagger-item' : undefined}
+            style={
+              staggerEnter
+                ? ({
+                    '--stagger-i': growthStaggerStart + index,
+                  } as CSSProperties)
                 : undefined
             }
           >

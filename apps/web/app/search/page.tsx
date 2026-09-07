@@ -387,7 +387,7 @@ export default function SearchPage() {
     || searchVersion.toUpperCase();
 
   return (
-    <main className="container">
+    <main className="container search-page">
       <header className="page-head">
         <PageBackBar
           onClick={goBack}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import {
   dismissHomeOnboarding,
@@ -14,7 +14,15 @@ import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 const OFFLINE_PACK_READY = 'presto-offline-pack-ready';
 
-export default function HomeOnboardingBanner() {
+type Props = {
+  staggerEnter?: boolean;
+  staggerIndex?: number;
+};
+
+export default function HomeOnboardingBanner({
+  staggerEnter = false,
+  staggerIndex = 2,
+}: Props) {
   const [stage, setStage] = useState<HomeOnboardingStage | null>(null);
 
   useEffect(() => {
@@ -52,7 +60,19 @@ export default function HomeOnboardingBanner() {
   if (!cta.title) return null;
 
   return (
-    <div className="card card-2 home-onboarding-banner">
+    <div
+      className={[
+        'card card-2 home-onboarding-banner',
+        staggerEnter ? 'home-stagger-item' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={
+        staggerEnter
+          ? ({ '--stagger-i': staggerIndex } as CSSProperties)
+          : undefined
+      }
+    >
       <div className="home-onboarding-head">
         <strong className="home-onboarding-title">{cta.title}</strong>
         <button

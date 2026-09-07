@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
 import type { HomeTodayPanelModel } from '@/lib/home_today_panel';
@@ -15,6 +15,7 @@ type Props = {
   groupFlash?: boolean;
   /** 首屏错落入场 */
   staggerEnter?: boolean;
+  staggerIndex?: number;
 };
 
 function navigate(href: string, router: ReturnType<typeof useRouter>) {
@@ -31,6 +32,7 @@ export function HomeTodayPanel({
   panel,
   groupFlash = false,
   staggerEnter = false,
+  staggerIndex = 1,
 }: Props) {
   const router = useRouter();
   const [activity, read, group, prayer] = homeTodayPanelSlots(panel);
@@ -42,13 +44,20 @@ export function HomeTodayPanel({
   }, []);
 
   return (
-    <section
-      className={`home-today-section${staggerEnter ? ' home-stagger-enter' : ''}`}
-      aria-label="今日推荐"
-    >
+    <section className="home-today-section" aria-label="今日推荐">
       <h2 className="home-today-heading">今日推荐</h2>
       <div
-        className={`home-today-grid${staggerEnter ? ' home-stagger-item home-stagger-1' : ''}`}
+        className={[
+          'home-today-grid',
+          staggerEnter ? 'home-stagger-item' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        style={
+          staggerEnter
+            ? ({ '--stagger-i': staggerIndex } as CSSProperties)
+            : undefined
+        }
       >
         <HomeTodayTile
           slot={activity}
