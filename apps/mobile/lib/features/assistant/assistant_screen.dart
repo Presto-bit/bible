@@ -486,65 +486,66 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     var receivedDelta = false;
     var terminalError = false;
     try {
-      await for (final evt in openStream()) {
-        if (!mounted) return;
-        switch (evt) {
-          case MetaEvent(:final meta):
-            setState(() {
-              reply.meta = meta;
-              reply.sceneLabel = meta.sceneLabel;
-              _lastMeta = meta;
-              if (meta.quotaLimit > 0) {
-                // 忽略游客限流 meta：安卓原生不套用 10 次
-                _quotaUsed = 0;
-                _quotaLimit = 0;
-              }
-              _streamPhase = ThinkingPhase.refs;
-            });
-          case DeltaEvent(:final text):
-            receivedDelta = true;
-            pendingDelta += text;
-            deltaFlush ??= Timer.periodic(
-              const Duration(milliseconds: 150),
-              (_) {
-                flushDelta();
-                if (pendingDelta.isEmpty) {
-                  deltaFlush?.cancel();
-                  deltaFlush = null;
+      try {
+        await for (final evt in openStream()) {
+          if (!mounted) return;
+          switch (evt) {
+            case MetaEvent(:final meta):
+              setState(() {
+                reply.meta = meta;
+                reply.sceneLabel = meta.sceneLabel;
+                _lastMeta = meta;
+                if (meta.quotaLimit > 0) {
+                  // 忽略游客限流 meta：安卓原生不套用 10 次
+                  _quotaUsed = 0;
+                  _quotaLimit = 0;
                 }
-              },
-            );
-          case FollowupsEvent(:final items):
-            flushDelta(force: true);
-            setState(() => reply.followups = items);
-          case DoneEvent(:final followups):
-            flushDelta(force: true);
-            if (followups.isNotEmpty) {
-              setState(() => reply.followups = followups);
-            }
-          case ErrorEvent(:final message):
-            terminalError = true;
-            flushDelta(force: true);
-            setState(
-              () => reply.content = reply.content.isEmpty
-                  ? message
-                  : '${reply.content}\n\n⚠️ $message',
-            );
+                _streamPhase = ThinkingPhase.refs;
+              });
+            case DeltaEvent(:final text):
+              receivedDelta = true;
+              pendingDelta += text;
+              deltaFlush ??= Timer.periodic(
+                const Duration(milliseconds: 150),
+                (_) {
+                  flushDelta();
+                  if (pendingDelta.isEmpty) {
+                    deltaFlush?.cancel();
+                    deltaFlush = null;
+                  }
+                },
+              );
+            case FollowupsEvent(:final items):
+              flushDelta(force: true);
+              setState(() => reply.followups = items);
+            case DoneEvent(:final followups):
+              flushDelta(force: true);
+              if (followups.isNotEmpty) {
+                setState(() => reply.followups = followups);
+              }
+            case ErrorEvent(:final message):
+              terminalError = true;
+              flushDelta(force: true);
+              setState(
+                () => reply.content = reply.content.isEmpty
+                    ? message
+                    : '${reply.content}\n\n⚠️ $message',
+              );
+          }
         }
+      } catch (_) {
+        // 连接在 headers 已返回后中断会在此抛出；由 finally 统一恢复 UI。
       }
-    } catch (_) {
-      // 连接在 headers 已返回后中断会在此抛出；由 finally 统一恢复 UI。
-    }
 
-    deltaFlush?.cancel();
-    deltaFlush = null;
-    flushDelta(force: true);
+      deltaFlush?.cancel();
+      deltaFlush = null;
+      flushDelta(force: true);
 
-    if (reply.content.isEmpty && !terminalError && !receivedDelta && mounted) {
-      setState(() {
-        reply.content = '未收到回答内容，请稍后再试。';
-      });
-    }
+      if (reply.content.isEmpty && !terminalError && !receivedDelta && mounted) {
+        setState(() {
+          reply.content = '未收到回答内容，请稍后再试。';
+        });
+      }
       if (reply.content.isNotEmpty) {
         await repo.addMessage(
           sid,
@@ -589,7 +590,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     if (_streaming || userIdx < 0 || userIdx >= _turns.length) return;
     final text = _turns[userIdx].content.trim();
     if (text.isEmpty) return;
-    setState(() => _turns = _turns.sublist(0, userIdx));
+    setState(() => _turns.removeRange(userIdx, _turns.length));
     await _send(seedQuestion: text);
   }
 
