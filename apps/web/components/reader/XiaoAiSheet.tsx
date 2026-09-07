@@ -93,6 +93,7 @@ export default function XiaoAiSheet({
   const accRef = useRef('');
   const rafRef = useRef<number | null>(null);
   const lockedRef = useRef({ scene, refParam, selectionText, userQuestion, explicitSelection });
+  const emptyAnswerMsg = '⚠️ 未收到回答，请重试';
 
   useEffect(() => {
     lockedRef.current = { scene, refParam, selectionText, userQuestion, explicitSelection };
@@ -197,8 +198,14 @@ export default function XiaoAiSheet({
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
             }
+            if (!accRef.current.trim()) {
+              accRef.current = emptyAnswerMsg;
+            }
             setAnswer(accRef.current);
-            const streamOk = payload?.streamComplete !== false;
+            const streamOk =
+              payload?.streamComplete !== false &&
+              Boolean(accRef.current.trim()) &&
+              !accRef.current.trim().startsWith('⚠️');
             const structOk = isHalfSheetAnswerComplete(accRef.current, s);
             setStreamIncomplete(!streamOk || !structOk);
             setDone(true);
@@ -212,7 +219,13 @@ export default function XiaoAiSheet({
     ).finally(() => {
       window.clearTimeout(timer);
       window.clearTimeout(slowTimer);
-      if (!cancelled) setDone(true);
+      if (!cancelled) {
+        if (!accRef.current.trim()) {
+          accRef.current = emptyAnswerMsg;
+          setAnswer(emptyAnswerMsg);
+        }
+        setDone(true);
+      }
     });
     return () => {
       cancelled = true;
@@ -399,6 +412,8 @@ export default function XiaoAiSheet({
                     />
                   ) : null}
                 </>
+              ) : done ? (
+                <p className="muted xiaoai-disclaimer">{emptyAnswerMsg}</p>
               ) : (
                 <AssistantThinkingState
                   phase={streamPhase}

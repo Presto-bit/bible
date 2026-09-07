@@ -1229,6 +1229,7 @@ class _XiaoAiHalfSheet extends ConsumerStatefulWidget {
 }
 
 class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
+  static const _emptyAnswerMsg = '⚠️ 未收到回答，请重试';
   late final AssistantScene _scene;
   late final String _userQuestion;
   late final String _lockedQuestion;
@@ -1344,10 +1345,16 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
             });
           case am.DoneEvent():
             setState(() {
-              _answer = _pending;
+              if (_pending.trim().isEmpty) {
+                _answer = _emptyAnswerMsg;
+              } else {
+                _answer = _pending;
+                _streamIncomplete = !isHalfSheetAnswerComplete(
+                  _pending,
+                  _scene,
+                );
+              }
               _busy = false;
-              _streamIncomplete =
-                  !isHalfSheetAnswerComplete(_pending, _scene);
             });
             if (_pending.trim().isNotEmpty &&
                 isHalfSheetAnswerComplete(_pending, _scene)) {
@@ -1358,7 +1365,15 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
         }
       },
       onDone: () {
-        if (mounted) setState(() => _busy = false);
+        if (!mounted) return;
+        setState(() {
+          if (_pending.trim().isEmpty &&
+              _answer.trim().isEmpty &&
+              !_answer.startsWith('⚠️')) {
+            _answer = _emptyAnswerMsg;
+          }
+          _busy = false;
+        });
       },
       onError: (_) {
         if (mounted) {
@@ -1664,7 +1679,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                         else
                           AssistantMarkdownBody(
                             text: _answer.isEmpty
-                                ? (_busy ? '' : '暂无内容')
+                                ? (_busy ? '' : _emptyAnswerMsg)
                                 : _answer,
                             streaming: _busy,
                             onCitationTap: (n) {
