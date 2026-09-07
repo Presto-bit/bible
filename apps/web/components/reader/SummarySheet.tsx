@@ -181,7 +181,33 @@ export default function SummarySheet({
             </div>
           )}
           {!activeBusy && !activeErr && !activeBody && (
-            <p className="muted">暂无概要内容，请稍后重试或换一章。</p>
+            <div className="summary-sheet-empty">
+              <p className="muted">暂无概要内容，请稍后重试或换一章。</p>
+              <button
+                type="button"
+                className="font-pill"
+                style={{ marginTop: 10 }}
+                onClick={() => {
+                  if (tab === 'chapter') {
+                    setChapterBusy(true);
+                    setChapterErr(null);
+                    void loadChapterSummary(bookId, bookName, chapter)
+                      .then((t) => setChapterBody(t))
+                      .catch((e) => setChapterErr(String(e)))
+                      .finally(() => setChapterBusy(false));
+                  } else {
+                    setBookBusy(true);
+                    setBookErr(null);
+                    void loadBookSummary(bookId, bookName)
+                      .then((t) => setBookBody(t))
+                      .catch((e) => setBookErr(String(e)))
+                      .finally(() => setBookBusy(false));
+                  }
+                }}
+              >
+                重试
+              </button>
+            </div>
           )}
           {activeBody && (
             <div className="summary-sheet-body">

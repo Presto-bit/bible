@@ -573,6 +573,20 @@ def chat(
             }
             yield _sse("meta", meta)
             answer = cached.get("answer") or ""
+            if not answer.strip():
+                yield _sse(
+                    "error",
+                    {"message": "缓存为空，请重试", "retryable": True},
+                )
+                log_ai_request(
+                    device_id=x_guest_id,
+                    user_id=logged_in,
+                    scene=(cached.get("meta") or {}).get("scene"),
+                    mode=body.mode,
+                    surface=body.surface,
+                    status="error",
+                )
+                return
             # 分小块推送，保持前端流式路径
             step = 48
             for i in range(0, len(answer), step):

@@ -87,6 +87,24 @@ class AssistantRepository {
           .toList();
     }
 
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var gotDelta = false;
+      var terminalError = false;
+      await for (final evt in _chatAttempt(body, resolved)) {
+        if (evt is DeltaEvent && evt.text.isNotEmpty) gotDelta = true;
+        if (evt is ErrorEvent) terminalError = true;
+        yield evt;
+      }
+      if (gotDelta || terminalError) return;
+    }
+    yield const ErrorEvent('未收到回答内容，请重试');
+  }
+
+  /// 单次 POST /ai/chat 并解析 SSE；网络/HTTP 错误在此 yield ErrorEvent。
+  Stream<ChatEvent> _chatAttempt(
+    Map<String, dynamic> body,
+    AssistantScene resolved,
+  ) async* {
     final Response<ResponseBody> res;
     try {
       res = await _dio.post<ResponseBody>(
@@ -95,7 +113,6 @@ class AssistantRepository {
         options: Options(
           responseType: ResponseType.stream,
           headers: {'Accept': 'text/event-stream'},
-          // 按场景给流设置真实无数据超时；避免首包后上游卡住时 UI 永远思考。
           receiveTimeout: Duration(milliseconds: resolved.timeoutMs),
           sendTimeout: const Duration(seconds: 30),
           validateStatus: (s) => s != null && s < 500,

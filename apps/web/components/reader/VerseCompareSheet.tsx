@@ -9,7 +9,7 @@ import {
   chatStream,
   type VerseRendition,
 } from '@/lib/api';
-import { chipUserQuestion } from '@/lib/assistant_scenes';
+import { chipUserQuestion, sceneTimeout } from '@/lib/assistant_scenes';
 import { bodyText } from '@/lib/assistant_format';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { FALLBACK_PARALLEL_VERSION, FALLBACK_PRIMARY_VERSION } from '@/lib/bible_version';
@@ -60,6 +60,8 @@ export default function VerseCompareSheet({
   const [aiDone, setAiDone] = useState(false);
   const [aiRetry, setAiRetry] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  const aiAccRef = useRef('');
+  const emptyAiMsg = '未收到回答，请重试';
 
   const primary = rows.find((r) => r.version === primaryId) ?? rows[0] ?? null;
   const others = rows.filter((r) => r.version !== (primary?.version ?? primaryId));
@@ -116,6 +118,7 @@ export default function VerseCompareSheet({
     const ac = new AbortController();
     abortRef.current = ac;
     let cancelled = false;
+    aiAccRef.current = '';
     setAiText('');
     setAiErr(null);
     setAiDone(false);
@@ -135,13 +138,17 @@ export default function VerseCompareSheet({
 
     // 译本还在加载完但 rows 空：仍可问，只是无对照正文
     setAiBusy(true);
-    const timer = window.setTimeout(() => {
+    const debounceTimer = window.setTimeout(() => {
       const q = chipUserQuestion('译本对照', refLabel);
       const question =
         selectionText && selectionText.trim().length <= 300
           ? `${q}\n\n选中文本：${selectionText.trim()}`
           : q;
       const baseCtx = buildAssistantReaderContext() || {};
+      const timeoutTimer = window.setTimeout(
+        () => ac.abort(),
+        sceneTimeout('chat_compare'),
+      );
       void chatStream(
         {
           ref: refParam,
@@ -158,6 +165,7 @@ export default function VerseCompareSheet({
         {
           onDelta: (t) => {
             if (cancelled) return;
+            aiAccRef.current += t;
             setAiText((prev) => prev + t);
           },
           onError: (m) => {
@@ -167,19 +175,28 @@ export default function VerseCompareSheet({
           },
           onDone: () => {
             if (cancelled) return;
+            if (!aiAccRef.current.trim()) {
+              setAiErr(emptyAiMsg);
+            }
             setAiDone(true);
             setAiBusy(false);
           },
         },
         { signal: ac.signal },
       ).finally(() => {
-        if (!cancelled) setAiBusy(false);
+        window.clearTimeout(timeoutTimer);
+        if (!cancelled) {
+          if (!aiAccRef.current.trim()) {
+            setAiErr((prev) => prev ?? emptyAiMsg);
+          }
+          setAiBusy(false);
+        }
       });
     }, 180);
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
+      window.clearTimeout(debounceTimer);
       ac.abort();
     };
     // secondary.version：换对照本后重新解读
@@ -257,9 +274,6 @@ export default function VerseCompareSheet({
                   <div className="verse-compare-ai">
                     <AnswerText text={aiBody} dense />
                   </div>
-                ) : null}
-                {!aiBusy && !aiErr && !aiBody && aiDone && !loadingCompare ? (
-                  <p className="muted" style={{ fontSize: 13 }}>暂无解读，请稍后重试。</p>
                 ) : null}
               </section>
             ) : null}

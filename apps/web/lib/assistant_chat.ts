@@ -1,6 +1,7 @@
 /** 小爱流式问答（全页 / 半屏共用） */
 
 import { chatStream, type ChatHistoryTurn, type ChatReaderContext, type Citation } from './api';
+import { bodyText } from './assistant_format';
 import { citationsUsedInText } from './citation_display';
 import type { AssistantScene } from './assistant_scenes';
 
@@ -74,6 +75,11 @@ export async function runAssistantStream(opts: AssistantStreamOpts): Promise<Ass
     },
     opts.signal ? { signal: opts.signal } : undefined,
   );
+
+  const text = bodyText(acc).trim();
+  if (!text && !acc.startsWith('⚠️')) {
+    throw new Error('未收到回答内容，请重试');
+  }
 
   return {
     text: acc,

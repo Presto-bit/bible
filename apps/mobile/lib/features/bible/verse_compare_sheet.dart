@@ -81,6 +81,7 @@ class _VerseCompareBody extends ConsumerStatefulWidget {
 }
 
 class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
+  static const _emptyAiMsg = '未收到回答，请重试';
   late Future<List<VerseRendition>> _future;
   StreamSubscription<am.ChatEvent>? _aiSub;
   String _aiText = '';
@@ -178,7 +179,11 @@ class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
             });
           case am.DoneEvent():
             setState(() {
-              _aiText = _aiPending;
+              if (_aiPending.trim().isEmpty) {
+                _aiErr = _emptyAiMsg;
+              } else {
+                _aiText = _aiPending;
+              }
               _aiBusy = false;
               _aiDone = true;
             });
@@ -187,13 +192,16 @@ class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
         }
       },
       onDone: () {
-        if (mounted) {
-          setState(() {
+        if (!mounted) return;
+        setState(() {
+          if (_aiPending.trim().isEmpty && _aiText.trim().isEmpty) {
+            _aiErr = _emptyAiMsg;
+          } else if (_aiText.trim().isEmpty) {
             _aiText = _aiPending;
-            _aiBusy = false;
-            _aiDone = true;
-          });
-        }
+          }
+          _aiBusy = false;
+          _aiDone = true;
+        });
       },
       onError: (e) {
         if (!mounted) return;
@@ -328,15 +336,6 @@ class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
                           text: _aiText,
                           streaming: _aiBusy,
                           dense: true,
-                        ),
-                      if (!_aiBusy &&
-                          _aiErr == null &&
-                          _aiText.trim().isEmpty &&
-                          _aiDone)
-                        const Text(
-                          '暂无解读，请稍后重试。',
-                          style:
-                              TextStyle(fontSize: 14, color: AppColors.inkFaint),
                         ),
                     ],
                   );

@@ -63,7 +63,11 @@ Future<String> _streamAsk(
         break;
     }
   }
-  return bodyText(buf.toString());
+  final body = bodyText(buf.toString()).trim();
+  if (body.isEmpty) {
+    throw Exception('小爱暂时没有生成内容，请稍后重试');
+  }
+  return body;
 }
 
 Future<String> loadBookSummary(

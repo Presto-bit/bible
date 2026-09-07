@@ -18,6 +18,7 @@ import { getSessionKnowledgeBaseId, DEFAULT_KB_ID } from '@/lib/assistant_knowle
 import { recordHalfSheetXiaoAi, recordXiaoAiQuestion } from '@/lib/badge_events';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { refSpaceToOsis } from '@/lib/inline_ref';
+import { sceneTimeout } from '@/lib/assistant_scenes';
 
 /** 知识导览半屏问小爱：不离开当前故事页 */
 export function KnowledgeAskSheet({
@@ -48,6 +49,7 @@ export function KnowledgeAskSheet({
   const rafRef = useRef<number | null>(null);
   const fetchStartedRef = useRef(false);
   const lockedRef = useRef({ question, refParam, title });
+  const emptyAnswerMsg = '⚠️ 未收到回答，请重试';
 
   useEffect(() => {
     lockedRef.current = { question, refParam, title };
@@ -75,7 +77,10 @@ export function KnowledgeAskSheet({
     const { question: q, refParam: ref } = lockedRef.current;
     const osis = ref ? refSpaceToOsis(ref.replace(/\./g, ' ')) : undefined;
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 60_000);
+    const timer = window.setTimeout(
+      () => controller.abort(),
+      sceneTimeout('chat_general'),
+    );
     const slowTimer = window.setTimeout(() => setSlowHint(true), 12_000);
     let cancelled = false;
     let cites: Citation[] = [];
@@ -121,14 +126,25 @@ export function KnowledgeAskSheet({
           setDone(true);
         },
         onDone: () => {
-          if (!cancelled) setDone(true);
+          if (cancelled) return;
+          if (!accRef.current.trim()) {
+            accRef.current = emptyAnswerMsg;
+            setAnswer(emptyAnswerMsg);
+          }
+          setDone(true);
         },
       },
       { signal: controller.signal },
     ).finally(() => {
       window.clearTimeout(timer);
       window.clearTimeout(slowTimer);
-      if (!cancelled) setDone(true);
+      if (!cancelled) {
+        if (!accRef.current.trim()) {
+          accRef.current = emptyAnswerMsg;
+          setAnswer(emptyAnswerMsg);
+        }
+        setDone(true);
+      }
     });
     return () => {
       cancelled = true;
@@ -175,6 +191,8 @@ export function KnowledgeAskSheet({
                   citeCount={streamCiteCount}
                   slow={slowHint}
                 />
+              ) : done ? (
+                <p className="muted xiaoai-disclaimer">{emptyAnswerMsg}</p>
               ) : null}
               {clean ? (
                 <>

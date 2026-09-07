@@ -223,10 +223,29 @@ class _SummarySheetBodyState extends ConsumerState<_SummarySheetBody> {
                         }
                         final body = (snap.data ?? '').trim();
                         if (body.isEmpty) {
-                          return const Text(
-                            '暂无概要内容，请稍后重试或换一章。',
-                            style: TextStyle(
-                                color: AppColors.inkFaint, fontSize: 14),
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '暂无概要内容，请稍后重试或换一章。',
+                                style: TextStyle(
+                                    color: AppColors.inkFaint, fontSize: 14),
+                              ),
+                              const SizedBox(height: 10),
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    if (_tab == 'chapter') {
+                                      _chapterFuture = _loadChapter();
+                                    } else {
+                                      _bookFuture = _loadBook();
+                                    }
+                                  });
+                                },
+                                child: const Text('重试'),
+                              ),
+                            ],
                           );
                         }
                         return AssistantMarkdownBody(
