@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与 PWA 开屏纸白 #FFFCFA 一致 -->
+    <color name="splash_background">#FFFCFA</color>
+</resources>

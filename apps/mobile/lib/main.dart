@@ -19,6 +19,7 @@ import 'core/notifications.dart';
 import 'core/remote_push_service.dart';
 import 'core/session.dart';
 import 'core/app_theme.dart';
+import 'core/brand_splash.dart';
 import 'core/theme.dart';
 import 'features/assistant/assistant_seed.dart';
 import 'features/bible/reader_audio.dart';
@@ -67,6 +68,7 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       unawaited(ref.read(accountBootstrapProvider.future));
+      await BrandSplashState.ready;
       await _initDeepLinks();
       unawaited(ref.read(remotePushServiceProvider).init());
     });
@@ -201,7 +203,9 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp>
         final mq = MediaQuery.of(context);
         return MediaQuery(
           data: mq.copyWith(textScaler: TextScaler.noScaling),
-          child: child ?? const SizedBox.shrink(),
+          child: BrandSplashHost(
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );
