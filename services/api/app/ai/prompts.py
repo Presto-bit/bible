@@ -26,6 +26,12 @@ _ANTI_TEMPLATE = (
     "结尾直接收束，不要祝福语堆砌。\n"
 )
 
+_ANTI_REASONING = (
+    "不要输出思考过程、推理步骤、内心独白或元话语"
+    "（如「让我想想」「首先分析」「我需要先梳理」）；"
+    "直接给出面向读者的成稿答案。\n"
+)
+
 _NARROW = (
     "篇幅：重点突出、结构清晰；各小节要点须写完整再收束，"
     "不要为凑短篇幅而省略关键内容或中途截断。\n"
@@ -64,7 +70,8 @@ _BASE = (
     "5. 重点突出，用短段落；句子完整、通顺自然。"
     "少用括号旁注或中英对照括号；补充说明直接写进句子。\n"
     f"6. {_ANTI_TEMPLATE}"
-    f"7. {_NARROW}"
+    f"7. {_ANTI_REASONING}"
+    f"8. {_NARROW}"
 )
 
 _BASE_NO_RAG = (
@@ -77,7 +84,8 @@ _BASE_NO_RAG = (
     "5. 重点突出，用短段落；句子完整、通顺自然。"
     "少用括号旁注或中英对照括号；补充说明直接写进句子。\n"
     f"6. {_ANTI_TEMPLATE}"
-    f"7. {_NARROW}"
+    f"7. {_ANTI_REASONING}"
+    f"8. {_NARROW}"
 )
 
 _FOLLOWUP_RULE = (
@@ -102,7 +110,8 @@ _BASE_GENERAL = (
     "5. 重点突出，用短段落；句子完整、通顺自然。"
     "少用括号旁注或中英对照括号；补充说明直接写进句子。\n"
     f"6. {_ANTI_TEMPLATE}"
-    f"7. {_NARROW}"
+    f"7. {_ANTI_REASONING}"
+    f"8. {_NARROW}"
 )
 
 _MODE_GUIDE = {

@@ -48,7 +48,7 @@ SCENES: dict[str, SceneSpec] = {
         id="verse_full",
         mode="explain",
         label="综合解读",
-        max_tokens=1800,
+        max_tokens=2000,
         wants_followups=False,
         format_guide=(
             f"{_MD}\n"

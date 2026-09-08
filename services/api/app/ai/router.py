@@ -727,14 +727,18 @@ def chat(
                 full.append(piece)
                 yield _sse("delta", {"text": piece})
 
-        def _run_length_continuation(meta: StreamMeta) -> None:
+        def _run_length_continuation(meta: StreamMeta, *, force: bool = False) -> None:
             nonlocal length_cont_used
-            if length_cont_used or not full or meta.finish_reason != "length":
+            if length_cont_used or not full:
+                return
+            if not force and meta.finish_reason != "length":
                 return
             if _budget_left() <= 0:
                 return
             length_cont_used = True
-            cont_budget = min(max(max_tokens // 2, 400), 1200)
+            cont_budget = min(max(max_tokens // 2, 500), 1400)
+            if verse_span > 3:
+                cont_budget = min(max_tokens, 1600)
             cont_msgs = messages + [
                 {"role": "assistant", "content": "".join(full)},
                 {
@@ -750,35 +754,36 @@ def chat(
             if cont_meta.finish_reason:
                 meta.finish_reason = cont_meta.finish_reason
 
-        def _run_verse_section_continuation() -> None:
+        def _run_verse_section_continuation(*, max_passes: int = 2) -> None:
             nonlocal section_cont_used
-            if section_cont_used or scene not in ("verse_full", "verse_quick") or not full:
+            if scene not in ("verse_full", "verse_quick"):
                 return
-            if _budget_left() <= 0:
-                return
-            body_probe, _ = split_body_and_followups("".join(full))
-            if not verse_explain_incomplete(scene, body_probe, verse_span=verse_span):
-                return
-            section_cont_used = True
-            missing = missing_verse_sections(scene, body_probe)
-            hint = "、".join(missing) if missing else "剩余小节"
-            cont_budget = min(max(max_tokens // 3, 400), 900)
-            if verse_span > 3:
-                cont_budget = min(max(max_tokens // 2, 500), 1200)
-            cont_msgs = messages + [
-                {"role": "assistant", "content": "".join(full)},
-                {
-                    "role": "user",
-                    "content": (
-                        f"回答尚不完整，请补写缺失部分：{hint}。"
-                        "不要重复已写内容，保持 ### 中文标题格式，自然收束。"
-                    ),
-                },
-            ]
-            cont_meta = StreamMeta()
-            yield from _stream_budgeted(cont_msgs, budget=cont_budget, meta=cont_meta)
-            if cont_meta.finish_reason:
-                meta.finish_reason = cont_meta.finish_reason
+            for _ in range(max_passes):
+                if not full or _budget_left() <= 0:
+                    return
+                body_probe, _ = split_body_and_followups("".join(full))
+                if not verse_explain_incomplete(scene, body_probe, verse_span=verse_span):
+                    return
+                section_cont_used = True
+                missing = missing_verse_sections(scene, body_probe)
+                hint = "、".join(missing) if missing else "剩余小节"
+                cont_budget = min(max(max_tokens // 3, 500), 1000)
+                if verse_span > 3:
+                    cont_budget = min(max(max_tokens // 2, 600), 1400)
+                cont_msgs = messages + [
+                    {"role": "assistant", "content": "".join(full)},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"回答尚不完整，请补写缺失部分：{hint}。"
+                            "不要重复已写内容，保持 ### 中文标题格式，自然收束。"
+                        ),
+                    },
+                ]
+                cont_meta = StreamMeta()
+                yield from _stream_budgeted(cont_msgs, budget=cont_budget, meta=cont_meta)
+                if cont_meta.finish_reason:
+                    meta.finish_reason = cont_meta.finish_reason
 
         def _run_summary_section_continuation() -> None:
             nonlocal section_cont_used
@@ -848,7 +853,11 @@ def chat(
             yield from _stream_budgeted(messages, budget=max_tokens, meta=meta)
             if scene in ("verse_full", "verse_quick"):
                 yield from _run_verse_section_continuation()
-                yield from _run_length_continuation(meta)
+                body_probe, _ = split_body_and_followups("".join(full))
+                if meta.finish_reason == "length" or verse_explain_incomplete(
+                    scene, body_probe, verse_span=verse_span
+                ):
+                    yield from _run_length_continuation(meta, force=True)
             elif scene in (
                 "summary_chapter",
                 "summary_chapter_outline",
