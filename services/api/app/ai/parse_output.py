@@ -8,6 +8,26 @@ FOLLOWUP_SECTION_RE = re.compile(
 )
 SECTION_MD_RE = re.compile(r"^###\s+(.+)$", re.MULTILINE)
 SECTION_RE = re.compile(r"【([^】]+)】")
+_FOLLOWUP_FILLER_RE = re.compile(r"^(请|能否|是否可以|可以|麻烦|想要)")
+_MAX_FOLLOWUP_LEN = 18
+
+
+def compact_followup(q: str) -> str:
+    """Chip 展示用：去掉客套/冗余前缀，必要时截断。"""
+    s = q.strip().strip('"“”')
+    s = _FOLLOWUP_FILLER_RE.sub("", s).strip()
+    for prefix in ("这段经文", "本节", "这节经文", "这段经节", "这个经文"):
+        if s.startswith(prefix):
+            s = s[len(prefix) :].lstrip("的")
+            break
+    if len(s) > _MAX_FOLLOWUP_LEN:
+        cut = s[:_MAX_FOLLOWUP_LEN]
+        for i in range(len(cut) - 1, max(5, len(cut) - 6), -1):
+            if cut[i] in "，、；：":
+                cut = cut[:i]
+                break
+        s = cut.rstrip("，,、；;：: ") + "…"
+    return s.strip()
 
 
 def split_body_and_followups(text: str) -> tuple[str, list[str]]:
@@ -21,7 +41,7 @@ def split_body_and_followups(text: str) -> tuple[str, list[str]]:
         mm = re.match(r"^\s*(?:[-*•]|\d+[.)、]|①|②|③|④|⑤)\s*(.+?)\s*$", line.strip())
         if not mm:
             continue
-        q = mm.group(1).strip().strip('"“').strip('"”')
+        q = compact_followup(mm.group(1).strip().strip('"“').strip('"”'))
         if q and q not in followups:
             followups.append(q)
         if len(followups) >= 3:

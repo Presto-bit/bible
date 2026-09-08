@@ -41,14 +41,9 @@ export function halfSheetL1Chips(refLabel?: string): HalfSheetChipDef[] {
   }));
 }
 
-/** 服务端未返回 followups 时的兜底（2–3 条） */
-export function defaultHalfSheetFollowups(refLabel: string): string[] {
-  const r = refLabel.trim() || '这段经文';
-  return [
-    `「${r}」里最关键的词是什么意思？`,
-    '这段经文的背景是什么？',
-    '这对我今天的生活有什么提醒？',
-  ].slice(0, 3);
+/** 服务端未返回 followups 时的兜底（2–3 条，Chip 短问句） */
+export function defaultHalfSheetFollowups(_refLabel: string): string[] {
+  return ['核心词何意？', '历史背景？', '今天怎么用？'];
 }
 
 export function halfSheetSelectionKey(

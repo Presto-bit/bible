@@ -17,6 +17,39 @@ export function normalizeQuestion(q: string): string {
     .toLowerCase();
 }
 
+export function compactFollowupLabel(q: string): string {
+  let s = q.trim().replace(/^["“]|["”]$/g, '');
+  s = s.replace(/^(请|能否|是否可以|可以|麻烦|想要)/, '').trim();
+  s = s.replace(/^(这段经文|本节|这节经文|这段经节|这个经文)的?/, '').trim();
+  const maxLen = 18;
+  if (s.length > maxLen) {
+    let cut = s.slice(0, maxLen);
+    for (let i = cut.length - 1; i >= Math.max(5, cut.length - 6); i -= 1) {
+      if ('，、；：'.includes(cut[i]!)) {
+        cut = cut.slice(0, i);
+        break;
+      }
+    }
+    s = `${cut.replace(/[，,、；;：:]+$/g, '')}…`;
+  }
+  return s.trim();
+}
+
+/** 去重并统一压缩 Chip 追问文案（服务端 / 正文解析共用）。 */
+export function normalizeFollowupItems(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of items) {
+    const q = compactFollowupLabel(raw);
+    const key = normalizeQuestion(q);
+    if (!q || seen.has(key)) continue;
+    seen.add(key);
+    out.push(q);
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 export function followupsOf(text: string): string[] {
   const m = text.match(FOLLOWUP_SECTION_RE);
   if (!m || m.index == null) return [];
@@ -27,7 +60,7 @@ export function followupsOf(text: string): string[] {
   for (const raw of lines) {
     const m = raw.match(/^\s*(?:[-*•]|\d+[.)、]|①|②|③|④|⑤)\s*(.+?)\s*$/);
     if (!m?.[1]) continue;
-    const q = m[1].replace(/^["“]|["”]$/g, '').trim();
+    const q = compactFollowupLabel(m[1].replace(/^["“]|["”]$/g, '').trim());
     const key = normalizeQuestion(q);
     if (!q || seen.has(key)) continue;
     seen.add(key);
@@ -149,8 +182,9 @@ export interface ParsedAnswer {
 
 export function parseAnswer(text: string, serverFollowups?: string[]): ParsedAnswer {
   const body = stripFollowups(text);
-  const followups =
-    serverFollowups && serverFollowups.length > 0 ? serverFollowups : followupsOf(text);
+  const followups = normalizeFollowupItems(
+    serverFollowups && serverFollowups.length > 0 ? serverFollowups : followupsOf(text),
+  );
   return { body, followups };
 }
 

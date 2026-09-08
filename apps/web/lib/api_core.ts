@@ -1180,7 +1180,6 @@ export async function chatStream(
     let dataLines: string[] = [];
     let gotDelta = false;
     let sawDone = false;
-    let gotMeta = false;
 
     const flushFrame = () => {
       if (!event) {
@@ -1195,7 +1194,6 @@ export async function chatStream(
       try {
         const d = JSON.parse(json);
         if (ev === 'meta') {
-          gotMeta = true;
           cb.onMeta?.(d);
         } else if (ev === 'delta') {
           const piece = d.text ?? '';
@@ -1255,13 +1253,7 @@ export async function chatStream(
       return 'fail';
     }
     if (!sawDone) cb.onDone?.({ streamComplete: false });
-    if (!gotDelta && !sawDone) {
-      if (gotMeta) {
-        cb.onError?.('回答未完整送达，请重试');
-        return 'fail';
-      }
-      return 'retry';
-    }
+    if (!gotDelta && !sawDone) return 'retry';
     return 'ok';
   };
 

@@ -115,6 +115,38 @@ List<Citation> citationsUsedInText(String text, List<Citation> citations) {
   return used.isNotEmpty ? used : citations;
 }
 
+String compactFollowupLabel(String q) {
+  var s = q.trim().replaceAll(RegExp(r'^["“]|["”]$'), '');
+  s = s.replaceFirst(RegExp(r'^(请|能否|是否可以|可以|麻烦|想要)'), '').trim();
+  s = s.replaceFirst(RegExp(r'^(这段经文|本节|这节经文|这段经节|这个经文)的?'), '').trim();
+  const maxLen = 18;
+  if (s.length > maxLen) {
+    var cut = s.substring(0, maxLen);
+    for (var i = cut.length - 1; i >= cut.length - 6 && i >= 5; i--) {
+      if ('，、；：'.contains(cut[i])) {
+        cut = cut.substring(0, i);
+        break;
+      }
+    }
+    s = '${cut.replaceAll(RegExp(r'[，,、；;：:]+$'), '')}…';
+  }
+  return s.trim();
+}
+
+List<String> normalizeFollowupItems(List<String> items) {
+  final seen = <String>{};
+  final out = <String>[];
+  for (final raw in items) {
+    final q = compactFollowupLabel(raw);
+    final key = normalizeQuestion(q);
+    if (q.isEmpty || seen.contains(key)) continue;
+    seen.add(key);
+    out.add(q);
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 List<String> followupsOf(String text) {
   final m = _followupSectionRe.firstMatch(text);
   if (m == null) return const [];
@@ -125,7 +157,9 @@ List<String> followupsOf(String text) {
   for (final line in tail) {
     final match = re.firstMatch(line);
     if (match == null) continue;
-    final q = match.group(1)!.replaceAll(RegExp(r'^["“]|["”]$'), '').trim();
+    final q = compactFollowupLabel(
+      match.group(1)!.replaceAll(RegExp(r'^["“]|["”]$'), '').trim(),
+    );
     final key = normalizeQuestion(q);
     if (q.isEmpty || seen.contains(key)) continue;
     seen.add(key);

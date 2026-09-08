@@ -49,12 +49,7 @@ List<HalfSheetChipDef> halfSheetL1Chips(String? refLabel) {
 }
 
 List<String> defaultHalfSheetFollowups(String refLabel) {
-  final r = refLabel.trim().isNotEmpty ? refLabel.trim() : '这段经文';
-  return [
-    '「$r」里最关键的词是什么意思？',
-    '这段经文的背景是什么？',
-    '这对我今天的生活有什么提醒？',
-  ].take(3).toList();
+  return const ['核心词何意？', '历史背景？', '今天怎么用？'];
 }
 
 String halfSheetSelectionKey(

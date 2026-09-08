@@ -14,7 +14,7 @@ import {
   recordSaveAnswerNote,
   recordXiaoAiQuestion,
 } from '@/lib/badge_events';
-import { bodyText } from '@/lib/assistant_format';
+import { bodyText, normalizeFollowupItems } from '@/lib/assistant_format';
 import { localizeCitations, citationsUsedInText, uniqueCitationsForRail } from '@/lib/citation_display';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
@@ -385,12 +385,13 @@ export default function XiaoAiSheet({
               scene === 'verse_full' || scene === 'verse_quick'
                 ? isHalfSheetAnswerComplete(text, scene)
                 : true;
-            const followups =
+            const followups = normalizeFollowupItems(
               payload?.followups?.length
                 ? payload.followups
                 : serverFollowups.length
                   ? serverFollowups
-                  : defaultHalfSheetFollowups(label);
+                  : defaultHalfSheetFollowups(label),
+            );
             setTurns((prev) => {
               const next = prev.map((t) =>
                 t.id === turnId

@@ -517,11 +517,11 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               );
             case FollowupsEvent(:final items):
               flushDelta(force: true);
-              setState(() => reply.followups = items);
+              setState(() => reply.followups = normalizeFollowupItems(items));
             case DoneEvent(:final followups):
               flushDelta(force: true);
               if (followups.isNotEmpty) {
-                setState(() => reply.followups = followups);
+                setState(() => reply.followups = normalizeFollowupItems(followups));
               }
             case ErrorEvent(:final message):
               terminalError = true;

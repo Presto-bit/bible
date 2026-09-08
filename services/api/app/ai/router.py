@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 
 from fastapi import APIRouter, Header
@@ -521,6 +522,10 @@ def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
+def _sse_comment(tag: str = "hb") -> str:
+    return f": {tag}\n\n"
+
+
 @router.post("/chat")
 def chat(
     body: ChatRequest,
@@ -648,17 +653,33 @@ def chat(
                 "quota": {"used": used, "limit": limit},
             },
         )
+        prep_result: dict = {}
+        prep_err: list[Exception] = []
+
+        def _run_prepare() -> None:
+            try:
+                prep_result["prep"] = prepare(
+                    ref_raw=body.ref,
+                    question=body.question,
+                    mode=body.mode,
+                    scene=body.scene,
+                    history=history,
+                    surface=body.surface,
+                    reader_context=body.reader_context,
+                    knowledge_base_id=body.knowledge_base_id,
+                )
+            except Exception as exc:
+                prep_err.append(exc)
+
         try:
-            prep = prepare(
-                ref_raw=body.ref,
-                question=body.question,
-                mode=body.mode,
-                scene=body.scene,
-                history=history,
-                surface=body.surface,
-                reader_context=body.reader_context,
-                knowledge_base_id=body.knowledge_base_id,
-            )
+            thread = threading.Thread(target=_run_prepare, daemon=True)
+            thread.start()
+            while thread.is_alive():
+                yield _sse_comment()
+                thread.join(timeout=3.0)
+            if prep_err:
+                raise prep_err[0]
+            prep = prep_result["prep"]
         except Exception as exc:
             logger.exception("ai chat prepare failed")
             log_ai_request(

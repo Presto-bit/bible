@@ -378,11 +378,13 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                     scene == AssistantScene.verseQuick
                 ? isHalfSheetAnswerComplete(text, scene)
                 : true;
-            final followupItems = followups.isNotEmpty
-                ? followups
-                : serverFollowups.isNotEmpty
-                    ? serverFollowups
-                    : defaultHalfSheetFollowups(widget.refLabel);
+            final followupItems = normalizeFollowupItems(
+              followups.isNotEmpty
+                  ? followups
+                  : serverFollowups.isNotEmpty
+                      ? serverFollowups
+                      : defaultHalfSheetFollowups(widget.refLabel),
+            );
             setState(() {
               final t = _turnFor(turnId);
               if (t != null) {

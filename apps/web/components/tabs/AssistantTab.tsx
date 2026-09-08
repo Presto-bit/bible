@@ -21,7 +21,7 @@ import {
   recordXiaoAiFollowup,
   recordXiaoAiQuestion,
 } from '@/lib/badge_events';
-import { bodyText, followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistant_format';
+import { bodyText, followupsForMessage, followupsOf, normalizeFollowupItems, stripFollowups } from '@/lib/assistant_format';
 import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { mergeAssistantStreamError, appendStreamIncompleteNotice } from '@/lib/assistant_stream_error';
 import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
@@ -763,14 +763,16 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             scheduleApply();
           },
           onFollowups: (items) => {
-            serverFollowups = items;
+            serverFollowups = normalizeFollowupItems(items);
           },
           onError: (msg) => {
             acc = mergeAssistantStreamError(acc, msg);
             applyAcc();
           },
           onDone: (payload) => {
-            if (payload?.followups?.length) serverFollowups = payload.followups;
+            if (payload?.followups?.length) {
+              serverFollowups = normalizeFollowupItems(payload.followups);
+            }
             if (payload?.streamComplete === false && acc.trim()) {
               acc = appendStreamIncompleteNotice(acc);
               applyAcc();
