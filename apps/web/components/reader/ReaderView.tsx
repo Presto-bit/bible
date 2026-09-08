@@ -766,17 +766,15 @@ export default function ReaderView({
       }),
     [verses, wholeVerseSel, wordRange, nativeTouchSelect, activeNativeSelection],
   );
-  const refParam = hasSel ? `${book.id}.${chapter}.${minV}` : `${book.id}.${chapter}`;
+  const refParam = hasSel
+    ? selectionRef(book.id, chapter, sortedSel)
+    : `${book.id}.${chapter}`;
   const refLabel = hasSel
     ? minV === maxV
       ? `${bookAbbr(book.name)} ${chapter}:${minV}`
       : `${bookAbbr(book.name)} ${chapter}:${minV}-${maxV}`
     : `${bookAbbr(book.name)} ${chapter}`;
-  const selectedRef = hasSel
-    ? minV === maxV
-      ? `${book.id}.${chapter}.${minV}`
-      : `${book.id}.${chapter}.${minV}-${maxV}`
-    : '';
+  const selectedRef = hasSel ? refParam : '';
 
   const effSelectionText = selectionText;
   const effRefParam = refParam;
@@ -3548,7 +3546,7 @@ export default function ReaderView({
                     selectionPinRef.current = pinnedText;
                     setMarkPaletteOpen(false);
                     const pinnedRef = hasSel
-                      ? `${book.id}.${chapter}.${minV}`
+                      ? selectionRef(book.id, chapter, sortedSel)
                       : effRefParam;
                     const pinnedLabel = hasSel
                       ? (minV === maxV

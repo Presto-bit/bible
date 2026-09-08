@@ -68,15 +68,29 @@ def get_answer(key: str) -> dict[str, Any] | None:
             _cache.pop(key, None)
             return None
         meta = payload.get("meta") or {}
-        if meta.get("schema_version") != 1:
+        if meta.get("schema_version") != 2:
             _cache.pop(key, None)
             return None
         scene = str(meta.get("scene") or "")
         answer = str(payload.get("answer") or "")
+        verse_span = int(meta.get("verse_span") or 1)
         if scene and answer:
             from ..ai.answer_structured import needs_structure_repair
+            from ..ai.parse_output import verse_explain_incomplete
 
-            if needs_structure_repair(answer, scene, narrow=bool(meta.get("narrow"))):
+            if needs_structure_repair(
+                answer,
+                scene,
+                narrow=bool(meta.get("narrow")),
+                verse_span=verse_span,
+            ):
+                _cache.pop(key, None)
+                return None
+            if scene in ("verse_full", "verse_quick") and verse_explain_incomplete(
+                scene,
+                answer,
+                verse_span=verse_span,
+            ):
                 _cache.pop(key, None)
                 return None
         return dict(payload)

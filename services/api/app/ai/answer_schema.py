@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -333,8 +333,24 @@ def required_sections(scene: str, *, narrow: bool = False) -> tuple[str, ...]:
     return REQUIRED_SECTIONS.get(scene, ())
 
 
-def missing_required_sections(body_text: str, scene: str, *, narrow: bool = False) -> list[str]:
+def missing_required_sections(
+    body_text: str,
+    scene: str,
+    *,
+    narrow: bool = False,
+    verse_span: int = 1,
+) -> list[str]:
     from .parse_output import extract_sections
 
     titles = {s["title"] for s in extract_sections(body_text)}
-    return [s for s in required_sections(scene, narrow=narrow) if s not in titles]
+    missing: list[str] = []
+    for section in required_sections(scene, narrow=narrow):
+        if section == "经文背景":
+            if not verse_has_background(titles):
+                missing.append(section)
+        elif section not in titles:
+            missing.append(section)
+    span = max(1, int(verse_span or 1))
+    if scene == "verse_full" and span >= 6 and "段落脉络" not in titles:
+        missing.append("段落脉络")
+    return missing

@@ -19,8 +19,8 @@ def test_clear_answer_cache_for_ref_prefix():
     clear_answer_cache()
     k13 = cache_key(ref="JHN.13.1", mode="explain", question=None, scene="verse_full")
     k14 = cache_key(ref="JHN.14.1", mode="explain", question=None, scene="verse_full")
-    put_answer(k13, {"answer": "a", "meta": {"ref": "JHN.13.1", "schema_version": 1}})
-    put_answer(k14, {"answer": "b", "meta": {"ref": "JHN.14.1", "schema_version": 1}})
+    put_answer(k13, {"answer": "a", "meta": {"ref": "JHN.13.1", "schema_version": 2}})
+    put_answer(k14, {"answer": "b", "meta": {"ref": "JHN.14.1", "schema_version": 2}})
 
     removed = clear_answer_cache_for_ref_prefix("JHN.13")
     assert removed >= 1

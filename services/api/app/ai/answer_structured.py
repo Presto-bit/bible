@@ -20,8 +20,25 @@ _JSON_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
 
 _VERSE_JSON_GUIDE = (
     "【JSON 输出】仅输出一个 JSON 对象，不要 Markdown，不要解释：\n"
-    '{"summary":"≤40字","sections":[{"title":"背景","items":["≤55字","..."]},'
+    '{"summary":"≤40字","sections":[{"title":"经文背景","items":["≤55字","..."]},'
     '{"title":"经文解释","items":["...","..."]}]}\n'
+    "sections 顺序与必需小节一致；items 为字符串数组。"
+)
+
+_VERSE_PASSAGE_JSON_GUIDE = (
+    "【JSON 输出】仅输出一个 JSON 对象，不要 Markdown，不要解释：\n"
+    '{"summary":"≤50字","sections":['
+    '{"title":"经文背景","items":["≤78字","≤78字"]},'
+    '{"title":"段落脉络","items":["≤78字","≤78字","≤78字"]},'
+    '{"title":"经文解释","items":["≤78字","≤78字","≤78字","≤78字","≤78字"]}'
+    ']}\n'
+    "共多节经文：按整段主线归纳，禁止逐节罗列；sections 顺序固定。"
+)
+
+_VERSE_MID_SPAN_JSON_GUIDE = (
+    "【JSON 输出】仅输出一个 JSON 对象，不要 Markdown，不要解释：\n"
+    '{"summary":"≤42字","sections":[{"title":"经文背景","items":["≤55字","..."]},'
+    '{"title":"经文解释","items":["...","...","..."]}]}\n'
     "sections 顺序与必需小节一致；items 为字符串数组。"
 )
 
@@ -50,9 +67,14 @@ def parse_answer_json(raw: str) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
-def _verse_json_guide(scene: str) -> str:
+def _verse_json_guide(scene: str, verse_span: int = 1) -> str:
     if scene == "verse_quick":
         return _VERSE_QUICK_JSON_GUIDE
+    span = max(1, int(verse_span or 1))
+    if span >= 6:
+        return _VERSE_PASSAGE_JSON_GUIDE
+    if span >= 3:
+        return _VERSE_MID_SPAN_JSON_GUIDE
     return _VERSE_JSON_GUIDE
 
 
@@ -135,7 +157,7 @@ def try_structured_verse_answer(
     if msgs and msgs[0]["role"] == "system":
         msgs[0] = {
             "role": "system",
-            "content": msgs[0]["content"] + "\n" + _verse_json_guide(scene),
+            "content": msgs[0]["content"] + "\n" + _verse_json_guide(scene, verse_span),
         }
     try:
         raw = complete_chat(msgs, max_tokens=min(max_tokens, 900), temperature=0.25)
@@ -169,10 +191,16 @@ def needs_structure_repair(
     scene: str,
     *,
     narrow: bool = False,
+    verse_span: int = 1,
 ) -> bool:
     if not body_text.strip():
         return True
-    if missing_required_sections(body_text, scene, narrow=narrow):
+    if missing_required_sections(
+        body_text,
+        scene,
+        narrow=narrow,
+        verse_span=verse_span,
+    ):
         return True
     if not narrow and is_prose_wall(body_text, scene):
         return True
@@ -186,9 +214,15 @@ def repair_answer_structure(
     *,
     narrow: bool = False,
     max_tokens: int = 600,
+    verse_span: int = 1,
 ) -> str | None:
     """一次性格式修复：补缺失小节 / 散文转列表。"""
-    missing = missing_required_sections(body_text, scene, narrow=narrow)
+    missing = missing_required_sections(
+        body_text,
+        scene,
+        narrow=narrow,
+        verse_span=verse_span,
+    )
     prose = is_prose_wall(body_text, scene)
     if not missing and not prose:
         return None

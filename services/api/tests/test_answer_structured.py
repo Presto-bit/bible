@@ -45,6 +45,31 @@ def test_missing_required_sections():
     assert missing_required_sections(body, "verse_full") == ["经文背景", "经文解释"]
 
 
+def test_missing_required_sections_passage_span():
+    body = (
+        "### 摘要\n摘要。\n\n"
+        "### 经文背景\n- 背景一。\n\n"
+        "### 经文解释\n- 解释一。\n"
+    )
+    assert missing_required_sections(body, "verse_full", verse_span=11) == ["段落脉络"]
+    body_ok = (
+        "### 摘要\n摘要。\n\n"
+        "### 经文背景\n- 背景一。\n\n"
+        "### 段落脉络\n- 脉络一。\n\n"
+        "### 经文解释\n- 解释一。\n"
+    )
+    assert missing_required_sections(body_ok, "verse_full", verse_span=11) == []
+
+
+def test_missing_required_sections_accepts_legacy_background_title():
+    body = (
+        "### 摘要\n摘要。\n\n"
+        "### 背景\n- 背景一。\n\n"
+        "### 经文解释\n- 解释一。\n"
+    )
+    assert missing_required_sections(body, "verse_full") == []
+
+
 def test_needs_structure_repair_prose():
     body = (
         "### 摘要\n摘要。\n\n"

@@ -152,6 +152,8 @@ def normalize_answer_markdown(
             if chunk:
                 parts.append(chunk)
             continue
+        if scene in ("verse_full", "verse_quick") and title == "背景":
+            title = "经文背景"
         parts.append(f"### {title}")
         if title in SUMMARY_LEAD_TITLES:
             lead = chunk.replace("\n", " ").strip()

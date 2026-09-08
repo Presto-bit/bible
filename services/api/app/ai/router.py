@@ -530,6 +530,7 @@ def prewarm_answer(body: PrewarmRequest):
                 body_probe,
                 scene_id,
                 narrow=bool(prep["meta"].get("narrow")),
+                verse_span=verse_span,
             ):
                 repaired = repair_answer_structure(
                     prep["messages"],
@@ -537,6 +538,7 @@ def prewarm_answer(body: PrewarmRequest):
                     scene_id,
                     narrow=bool(prep["meta"].get("narrow")),
                     max_tokens=int(prep["max_tokens"]) // 2,
+                    verse_span=verse_span,
                 )
                 if repaired and repaired.strip():
                     text = normalize_answer_markdown(
@@ -545,7 +547,44 @@ def prewarm_answer(body: PrewarmRequest):
                         narrow=bool(prep["meta"].get("narrow")),
                         verse_span=verse_span,
                     )
+            body_probe, _ = split_body_and_followups(text)
+            if (
+                scene_id in ("verse_full", "verse_quick")
+                and verse_explain_incomplete(scene_id, body_probe, verse_span=verse_span)
+            ):
+                missing = missing_verse_sections(
+                    scene_id,
+                    body_probe,
+                    verse_span=verse_span,
+                )
+                hint = "、".join(missing) if missing else "剩余小节"
+                cont = prep["messages"] + [
+                    {"role": "assistant", "content": body_probe},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"回答尚不完整，请补写缺失部分：{hint}。"
+                            "不要重复已写内容，保持 ### 中文标题格式，自然收束。"
+                        ),
+                    },
+                ]
+                try:
+                    extra = complete_chat(cont, max_tokens=min(int(prep["max_tokens"]) // 2, 700))
+                except Exception:
+                    extra = None
+                if extra and extra.strip():
+                    text = normalize_answer_markdown(
+                        body_probe + "\n\n" + extra.strip(),
+                        scene_id,
+                        narrow=bool(prep["meta"].get("narrow")),
+                        verse_span=verse_span,
+                    )
             body_text, followups = split_body_and_followups(text)
+            if (
+                scene_id in ("verse_full", "verse_quick")
+                and verse_explain_incomplete(scene_id, body_text, verse_span=verse_span)
+            ):
+                return
             sections = extract_sections(body_text)
             put_answer(
                 key,
@@ -1036,7 +1075,12 @@ def chat(
         )
         body_probe, _ = split_body_and_followups(text)
         if (
-            needs_structure_repair(body_probe, scene or "", narrow=narrow)
+            needs_structure_repair(
+                body_probe,
+                scene or "",
+                narrow=narrow,
+                verse_span=verse_span,
+            )
             and _budget_left() > 3
         ):
             repaired = repair_answer_structure(
@@ -1045,10 +1089,45 @@ def chat(
                 scene or "",
                 narrow=narrow,
                 max_tokens=min(max_tokens // 2, 650),
+                verse_span=verse_span,
             )
             if repaired and repaired.strip():
                 text = normalize_answer_markdown(
                     repaired,
+                    scene or "",
+                    narrow=narrow,
+                    verse_span=verse_span,
+                )
+        body_probe, _ = split_body_and_followups(text)
+        if (
+            scene in ("verse_full", "verse_quick")
+            and verse_explain_incomplete(scene, body_probe, verse_span=verse_span)
+            and _budget_left() > 3
+        ):
+            missing = missing_verse_sections(scene, body_probe, verse_span=verse_span)
+            hint = "、".join(missing) if missing else "剩余小节"
+            cont_msgs = messages + [
+                {"role": "assistant", "content": body_probe},
+                {
+                    "role": "user",
+                    "content": (
+                        f"回答尚不完整，请补写缺失部分：{hint}。"
+                        "不要重复已写内容，保持 ### 中文标题格式，自然收束。"
+                    ),
+                },
+            ]
+            try:
+                extra = complete_chat(
+                    cont_msgs,
+                    max_tokens=min(max(max_tokens // 3, 350), 700),
+                    temperature=0.35,
+                )
+            except Exception:
+                logger.exception("verse section tail repair failed scene=%s", scene)
+                extra = None
+            if extra and extra.strip():
+                text = normalize_answer_markdown(
+                    body_probe + "\n\n" + extra.strip(),
                     scene or "",
                     narrow=narrow,
                     verse_span=verse_span,
