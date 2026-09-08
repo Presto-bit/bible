@@ -107,6 +107,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
   final _expandedTurns = <String, bool>{};
   String? _copiedTurnId;
   StreamSubscription<am.ChatEvent>? _sub;
+  bool _chipTapLocked = false;
 
   @override
   void initState() {
@@ -229,6 +230,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     var pending = '';
     var scheduled = false;
     var gotDelta = false;
+    var chatSettled = false;
     var cites = <Citation>[];
     var serverFollowups = <String>[];
     bool? useRag;
@@ -240,7 +242,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
       if (!mounted || runId != _runId) return;
       setState(() {
         final t = _turnFor(turnId);
-        if (t != null) t.answer = pending;
+        if (t != null && t.busy) t.answer = pending;
       });
     }
 
@@ -342,6 +344,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           case am.FollowupsEvent(:final items):
             if (items.isNotEmpty) serverFollowups = items;
           case am.ErrorEvent(:final message):
+            chatSettled = true;
+            flush();
             if (pending.trim().isNotEmpty) {
               setState(() {
                 final t = _turnFor(turnId);
@@ -364,8 +368,10 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               }
             });
           case am.DoneEvent(:final followups):
+            flush();
             var text = pending.trim();
-            if (text.isEmpty) text = _emptyAnswerMsg;
+            if (text.isEmpty) break;
+            chatSettled = true;
             final streamOk =
                 !text.startsWith('⚠️') && text != _emptyAnswerMsg;
             final structOk = scene == AssistantScene.verseFull ||
@@ -409,14 +415,14 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         }
       },
       onDone: () {
-        if (!mounted || runId != _runId) return;
+        if (!mounted || runId != _runId || chatSettled) return;
         setState(() {
           final t = _turnFor(turnId);
           if (t == null || !t.busy) return;
-          if (pending.trim().isEmpty && t.answer.trim().isEmpty) {
-            t.answer = _emptyAnswerMsg;
-          } else if (pending.trim().isNotEmpty) {
+          if (pending.trim().isNotEmpty) {
             t.answer = pending;
+          } else if (t.answer.trim().isEmpty) {
+            t.answer = _emptyAnswerMsg;
           }
           t.busy = false;
         });
@@ -462,7 +468,11 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
   }
 
   void _appendTurn(String question, AssistantScene scene) {
-    if (_turns.length >= 3 || _turns.any((t) => t.busy)) return;
+    if (_turns.length >= 3 || _turns.any((t) => t.busy) || _chipTapLocked) return;
+    _chipTapLocked = true;
+    Future.delayed(const Duration(milliseconds: 480), () {
+      if (mounted) _chipTapLocked = false;
+    });
     final history = _turns
         .where((t) =>
             t.answer.trim().isNotEmpty && !t.answer.trim().startsWith('⚠️'))
@@ -650,33 +660,12 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_turns.length > 1)
-                  ..._turns.take(_turns.length - 1).map((t) {
-                    return Theme(
-                      data: Theme.of(context).copyWith(
-                        dividerColor: Colors.transparent,
-                      ),
-                      child: ExpansionTile(
-                        tilePadding: EdgeInsets.zero,
-                        title: Text(
-                          t.userQuestion.length > 28
-                              ? '${t.userQuestion.substring(0, 28)}…'
-                              : t.userQuestion,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        children: [
-                          AssistantMarkdownBody(
-                            text: bodyText(t.answer),
-                            dense: true,
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                if (_turns.isNotEmpty) ...[
-                  for (var i = 0; i < _turns.length; i++)
-                    if (i == _turns.length - 1) _buildTurn(_turns[i], i),
-                ],
+                for (var i = 0; i < _turns.length; i++)
+                  _buildTurn(
+                    _turns[i],
+                    i,
+                    isLast: i == _turns.length - 1,
+                  ),
                 if (chipTurn != null &&
                     !chipTurn.busy &&
                     !chipTurn.answer.trim().startsWith('⚠️'))
@@ -746,7 +735,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     return '正在阅读这节经文…';
   }
 
-  Widget _buildTurn(HalfSheetTurnView turn, int index) {
+  Widget _buildTurn(HalfSheetTurnView turn, int index, {required bool isLast}) {
     final rawAnswer = turn.answer.trim();
     final waitingFirstToken = turn.busy && rawAnswer.isEmpty;
     final clean = bodyText(turn.answer);
@@ -756,7 +745,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         usedCitations.isNotEmpty ? usedCitations : turn.citations;
     final summaryLead = extractSummaryLead(clean);
     final expanded = _expandedTurns[turn.id] != false;
-    final showCollapsed = !expanded &&
+    final showCollapsed = isLast &&
+        !expanded &&
         !hasError &&
         summaryLead.summary.isNotEmpty &&
         summaryLead.body.length > 20;
@@ -770,6 +760,11 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (index > 0)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Divider(height: 1, color: AppColors.line),
+          ),
         Align(
           alignment: Alignment.centerRight,
           child: ConstrainedBox(
@@ -844,7 +839,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                 if (citation != null) _openCitation(citation);
               },
             ),
-          if (done)
+          if (done && isLast)
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: Wrap(
@@ -900,7 +895,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                 ],
               ),
             ),
-          if (turn.streamIncomplete && !turn.busy)
+          if (turn.streamIncomplete && !turn.busy && isLast)
             const Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
@@ -909,7 +904,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               ),
             ),
         ],
-        if (hasError && !turn.busy)
+        if (hasError && !turn.busy && isLast)
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: OutlinedButton(

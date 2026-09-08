@@ -99,6 +99,7 @@ export default function XiaoAiSheet({
   const l1Chips = useMemo(() => halfSheetL1Chips(refLabel), [refLabel]);
 
   const bootTurnIdRef = useRef<string | null>(null);
+  const chipTapLockRef = useRef(false);
   const [turns, setTurns] = useState<TurnView[]>(() => {
     const saved = readHalfSheetThread(refParam, selectionKey);
     if (saved?.turns.length) {
@@ -257,6 +258,21 @@ export default function XiaoAiSheet({
       let kbId = DEFAULT_KB_ID;
       let kbName: string | undefined;
       let serverFollowups: string[] = [];
+      let settled = false;
+
+      const flushPendingAnswer = () => {
+        if (rafRef.current != null) {
+          window.clearTimeout(rafRef.current);
+          rafRef.current = null;
+        }
+        const pending = accRef.current;
+        if (!pending) return;
+        setTurns((prev) =>
+          prev.map((turn) =>
+            turn.id === turnId && turn.busy ? { ...turn, answer: pending } : turn,
+          ),
+        );
+      };
 
       const sessionKb = getSessionKnowledgeBaseId();
 
@@ -306,7 +322,9 @@ export default function XiaoAiSheet({
                 const batched = accRef.current;
                 setTurns((prev) =>
                   prev.map((turn) =>
-                    turn.id === turnId ? { ...turn, answer: batched } : turn,
+                    turn.id === turnId && turn.busy
+                      ? { ...turn, answer: batched }
+                      : turn,
                   ),
                 );
               }, 48) as unknown as number;
@@ -317,6 +335,8 @@ export default function XiaoAiSheet({
           },
           onError: (msg) => {
             if (cancelled || runId !== runIdRef.current) return;
+            settled = true;
+            flushPendingAnswer();
             if (rafRef.current != null) {
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
@@ -343,12 +363,21 @@ export default function XiaoAiSheet({
           },
           onDone: (payload) => {
             if (cancelled || runId !== runIdRef.current) return;
+            flushPendingAnswer();
             if (rafRef.current != null) {
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
             }
-            let text = accRef.current.trim();
-            if (!text) text = emptyAnswerMsg;
+            const text = accRef.current.trim();
+            settled = true;
+            if (!text) {
+              setTurns((prev) =>
+                prev.map((t) =>
+                  t.id === turnId ? { ...t, answer: emptyAnswerMsg, busy: false } : t,
+                ),
+              );
+              return;
+            }
             const streamOk =
               payload?.streamComplete !== false &&
               Boolean(text) &&
@@ -393,14 +422,6 @@ export default function XiaoAiSheet({
       ).finally(() => {
         window.clearTimeout(timer);
         window.clearTimeout(slowTimer);
-        if (runId !== runIdRef.current) return;
-        setTurns((prev) =>
-          prev.map((t) => {
-            if (t.id !== turnId || !t.busy) return t;
-            const text = accRef.current.trim() || emptyAnswerMsg;
-            return { ...t, answer: text, busy: false };
-          }),
-        );
       });
 
       return () => {
@@ -450,7 +471,13 @@ export default function XiaoAiSheet({
 
   const appendTurn = useCallback(
     (question: string, scene: AssistantScene) => {
-      if (turns.length >= 3) return;
+      if (turns.length >= 3 || turns.some((t) => t.busy) || chipTapLockRef.current) {
+        return;
+      }
+      chipTapLockRef.current = true;
+      window.setTimeout(() => {
+        chipTapLockRef.current = false;
+      }, 480);
       const turnId = newTurnId();
       const history: Array<{ role: 'user' | 'assistant'; content: string }> = turns
         .filter((t) => t.answer.trim() && !t.answer.startsWith('⚠️'))
@@ -527,20 +554,8 @@ export default function XiaoAiSheet({
         </div>
 
         <div className="half-sheet-body reader-ai-half-body" ref={scrollRef}>
-          {turns.length > 1 ? (
-            <div className="half-sheet-thread-fold">
-              {turns.slice(0, -1).map((t) => (
-                <details key={t.id} className="half-sheet-thread-prior">
-                  <summary>{t.userQuestion.slice(0, 28)}…</summary>
-                  <AnswerText text={stripAnswer(t.answer)} dense onCitationClick={() => {}} />
-                </details>
-              ))}
-            </div>
-          ) : null}
-
           {turns.map((turn, index) => {
             const isLast = index === turns.length - 1;
-            if (!isLast) return null;
             const clean = stripAnswer(turn.answer);
             const rawAnswer = turn.answer.trim();
             const waitingFirstToken = turn.busy && !rawAnswer;
@@ -550,10 +565,17 @@ export default function XiaoAiSheet({
             const { summary, body: bodyWithoutSummary } = extractSummaryLead(clean);
             const expanded = expandedTurns[turn.id] !== false;
             const showCollapsed =
-              !expanded && !hasError && summary && bodyWithoutSummary;
+              isLast &&
+              !expanded &&
+              !hasError &&
+              summary &&
+              bodyWithoutSummary;
 
             return (
-              <div key={turn.id} className="half-sheet-turn">
+              <div
+                key={turn.id}
+                className={`half-sheet-turn${isLast ? '' : ' half-sheet-thread-prior-open'}`}
+              >
                 <div className="half-sheet-user-bubble assistant-user-text">
                   {selectionText.trim() && index === 0
                     ? selectionText.length > 120
@@ -630,7 +652,7 @@ export default function XiaoAiSheet({
                             }}
                           />
                         ) : null}
-                        {!turn.busy && !hasError ? (
+                        {!turn.busy && !hasError && isLast ? (
                           <HalfSheetLightActions
                             copied={copiedTurnId === turn.id}
                             saved={savedTurnId === turn.id}
@@ -656,7 +678,7 @@ export default function XiaoAiSheet({
                             onShare={() => setShareTurn(turn)}
                           />
                         ) : null}
-                        {turn.streamIncomplete && !turn.busy ? (
+                        {turn.streamIncomplete && !turn.busy && isLast ? (
                           <p className="muted xiaoai-disclaimer">
                             解读可能未写完，可点「与小爱深聊」补全。
                           </p>
@@ -666,7 +688,7 @@ export default function XiaoAiSheet({
                   </div>
                 </div>
 
-                {hasError && !turn.busy ? (
+                {hasError && !turn.busy && isLast ? (
                   <button
                     type="button"
                     className="half-sheet-action-btn"

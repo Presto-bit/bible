@@ -1,6 +1,8 @@
 /// 读经半屏 L1 / 默认 L3 chip（对齐 v3.1 定稿）。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
@@ -64,7 +66,7 @@ String halfSheetSelectionKey(
   return '${ref.trim().toUpperCase()}\u001e$sel';
 }
 
-class HalfSheetChipRows extends StatelessWidget {
+class HalfSheetChipRows extends StatefulWidget {
   const HalfSheetChipRows({
     super.key,
     required this.followups,
@@ -83,6 +85,53 @@ class HalfSheetChipRows extends StatelessWidget {
   final void Function(HalfSheetChipDef chip) onL1;
 
   @override
+  State<HalfSheetChipRows> createState() => _HalfSheetChipRowsState();
+}
+
+class _HalfSheetChipRowsState extends State<HalfSheetChipRows> {
+  bool _scrollLocked = false;
+  Timer? _scrollUnlockTimer;
+
+  @override
+  void dispose() {
+    _scrollUnlockTimer?.cancel();
+    super.dispose();
+  }
+
+  void _markScrolled() {
+    _scrollLocked = true;
+    _scrollUnlockTimer?.cancel();
+    _scrollUnlockTimer = Timer(const Duration(milliseconds: 280), () {
+      if (mounted) setState(() => _scrollLocked = false);
+    });
+  }
+
+  void _handleFollowup(String q) {
+    if (widget.disabled || _scrollLocked) return;
+    widget.onFollowup(q);
+  }
+
+  void _handleL1(HalfSheetChipDef chip) {
+    if (widget.disabled || _scrollLocked) return;
+    widget.onL1(chip);
+  }
+
+  Widget _scrollTrack({required double height, required Widget child}) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (n is ScrollUpdateNotification) {
+          final delta = n.scrollDelta;
+          if (delta != null && delta.abs() > 1) {
+            _markScrolled();
+          }
+        }
+        return false;
+      },
+      child: SizedBox(height: height, child: child),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,9 +144,9 @@ class HalfSheetChipRows extends StatelessWidget {
           style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 40,
-          child: followupsLoading
+        _scrollTrack(
+          height: 44,
+          child: widget.followupsLoading
               ? ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: 3,
@@ -113,15 +162,24 @@ class HalfSheetChipRows extends StatelessWidget {
                 )
               : ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  itemCount: followups.length,
+                  itemCount: widget.followups.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (_, i) {
-                    final q = followups[i];
+                    final q = widget.followups[i];
                     return ActionChip(
-                      label: Text(q, style: const TextStyle(fontSize: 12)),
+                      label: Text(
+                        q,
+                        style: const TextStyle(fontSize: 12, height: 1.35),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
                       backgroundColor: AppColors.accentWash,
                       side: const BorderSide(color: AppColors.line),
-                      onPressed: disabled ? null : () => onFollowup(q),
+                      onPressed: widget.disabled ? null : () => _handleFollowup(q),
                     );
                   },
                 ),
@@ -132,19 +190,22 @@ class HalfSheetChipRows extends StatelessWidget {
           style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 36,
+        _scrollTrack(
+          height: 44,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: l1Chips.length,
+            itemCount: widget.l1Chips.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (_, i) {
-              final chip = l1Chips[i];
+              final chip = widget.l1Chips[i];
               return OutlinedButton(
-                onPressed: disabled ? null : () => onL1(chip),
+                onPressed: widget.disabled ? null : () => _handleL1(chip),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  minimumSize: const Size(0, 44),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(chip.label, style: const TextStyle(fontSize: 12)),

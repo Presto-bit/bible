@@ -684,10 +684,11 @@ body.reader-active .proper-noun--artifact {
 }
 .half-sheet-chip-track {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding-bottom: 4px;
   -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
   scrollbar-width: none;
 }
 .half-sheet-chip-track::-webkit-scrollbar {
@@ -696,18 +697,30 @@ body.reader-active .proper-noun--artifact {
 .half-sheet-chip {
   flex: 0 0 auto;
   max-width: min(88vw, 320px);
+  min-height: 44px;
   border-radius: 14px;
-  padding: 6px 12px;
+  padding: 10px 14px;
   font-size: 13px;
   line-height: 1.45;
   text-align: left;
   cursor: pointer;
   white-space: normal;
+  touch-action: manipulation;
 }
 .half-sheet-chip-l3 {
+  scroll-snap-align: start;
   border: 1px solid color-mix(in srgb, var(--accent-deep) 22%, var(--line));
   background: var(--accent-wash);
   color: var(--ink);
+}
+.half-sheet-thread-prior-open {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.half-sheet-thread-prior-open .half-sheet-light-actions,
+.half-sheet-thread-prior-open .xiaoai-cite-host {
+  display: none;
 }
 .half-sheet-chip-l1 {
   border: 1px solid var(--line);
