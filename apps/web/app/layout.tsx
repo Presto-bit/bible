@@ -31,7 +31,13 @@ import {
   PWA_SHELL_BG_COLOR,
   PWA_SPLASH_BG_COLOR,
 } from '@/lib/pwa_brand';
-import { BRAND_SPLASH_SUBTITLE, BRAND_SPLASH_TITLE, brandSplashInlineArmScript } from '@/lib/brand_splash';
+import { BRAND_SPLASH_SUBTITLE, BRAND_SPLASH_TITLE } from '@/lib/brand_splash';
+import {
+  brandSplashHeadBootstrapScript,
+  brandSplashInlineArmScript,
+  brandSplashInlineCriticalCss,
+} from '@/lib/brand_splash_arm';
+import ShellSplashReady from '@/components/shell/ShellSplashReady';
 import { peiaiFontClassNames } from '@/lib/fonts';
 
 export const metadata: Metadata = {
@@ -109,9 +115,15 @@ export default function RootLayout({
           />
         ))}
         <link rel="apple-touch-startup-image" href={`${base}/${IOS_STARTUP_FALLBACK}`} />
+        <link rel="preload" href={`${base}/apple-touch-icon.png`} as="image" />
+        <style
+          dangerouslySetInnerHTML={{
+            __html: brandSplashInlineCriticalCss(PWA_SPLASH_BG_COLOR),
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;var done=window.__PEIAI_SPLASH_DONE__===true;var flutter=false;try{flutter=sessionStorage.getItem('peiai_client_kind')==='android_h5_tab';if(!done&&sessionStorage.getItem('peiai_brand_splash_done_v1')==='1')done=true;}catch(_){}if(s&&!done&&!flutter){window.__PEIAI_SPLASH_START__=Date.now();document.documentElement.classList.add('peiai-splash-pending','peiai-splash-lock');}}catch(_){}})();`,
+            __html: brandSplashHeadBootstrapScript(),
           }}
         />
         {/* 安卓：尽早拦截浏览器「添加主屏幕」mini-infobar，改由 H5 推 APK */}
@@ -153,11 +165,6 @@ export default function RootLayout({
             __html: brandSplashInlineArmScript(),
           }}
         />
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `html.peiai-splash-pending #peiai-brand-splash-ssr{display:flex!important;}`,
-          }}
-        />
         {/* release.sh 健康检查锚点（须出现在 SSR HTML，勿删） */}
         <span hidden aria-hidden="true">
           每日问答
@@ -172,6 +179,7 @@ export default function RootLayout({
               <SoftNavTransitionShell />
               <BrandSplash />
               <div className="app-body">
+                <ShellSplashReady />
                 <TabKeepAlive>{children}</TabKeepAlive>
               </div>
               <BottomTabs />

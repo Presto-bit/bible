@@ -82,9 +82,10 @@ html.peiai-splash-pending nav.tabbar,
 html.peiai-splash-pending .offline-bar,
 html.peiai-splash-pending .soft-nav-progress,
 html.peiai-splash-pending .soft-nav-transition-shell {
-  visibility: hidden;
   opacity: 0;
   pointer-events: none;
+  /* 保持 layout 参与绘制，开屏下预渲染首页，拆掉时不白屏 */
+  visibility: visible;
 }
 
 /* 开屏期间不播 Tab/首页错落，避免撤遮罩后「还在滑入」 */

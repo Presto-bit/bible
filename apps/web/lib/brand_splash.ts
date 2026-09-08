@@ -4,23 +4,26 @@ import { isStandalonePwa } from './platform';
 import { isFlutterH5Host } from './flutter_h5_bridge';
 
 export const BRAND_SPLASH_SESSION_KEY = 'peiai_brand_splash_done_v1';
-/** 接管控后至少稳定展示 2s（不含 250ms 淡出） */
+/** 接管控后至少稳定展示 2s（不含 250ms 淡出；从首次可见起算） */
 export const BRAND_SPLASH_MIN_MS = 2000;
 export const BRAND_SPLASH_FADE_MS = 250;
-/** 接管控后兜底最长（MIN + 800ms） */
-export const BRAND_SPLASH_MAX_MS = 2800;
+/** 首次可见后兜底最长（含等待 shell ready） */
+export const BRAND_SPLASH_MAX_MS = 3500;
 export const BRAND_SPLASH_BG = '#FFFCFA';
 export const BRAND_SPLASH_TITLE = '彼爱';
 export const BRAND_SPLASH_SUBTITLE = 'Love Each Other';
 
 export const BRAND_SPLASH_DONE_EVENT = 'peiai-brand-splash-done';
+export const BRAND_SPLASH_SHELL_READY_EVENT = 'peiai-shell-ready';
 
 /** body 内联脚本已接管计时时为 true；React 不得提前拆开屏 */
 export const BRAND_SPLASH_ARMED_FLAG = '__PEIAI_SPLASH_ARMED__' as const;
 
-/** HTML 解析后立即启动 2s 计时，不等待 React hydration */
-export function brandSplashInlineArmScript(): string {
-  return `(function(){try{if(!document.documentElement.classList.contains('peiai-splash-pending'))return;var node=document.getElementById('peiai-brand-splash-ssr');if(!node||window.${BRAND_SPLASH_ARMED_FLAG})return;window.${BRAND_SPLASH_ARMED_FLAG}=true;node.setAttribute('aria-hidden','false');var MIN=${BRAND_SPLASH_MIN_MS},FADE=${BRAND_SPLASH_FADE_MS},MAX=${BRAND_SPLASH_MAX_MS};var KEY='${BRAND_SPLASH_SESSION_KEY}';var EVT='${BRAND_SPLASH_DONE_EVENT}';var fading=false,finished=false;function finish(){if(finished)return;finished=true;window.__PEIAI_SPLASH_DONE__=true;try{sessionStorage.setItem(KEY,'1');}catch(_){}document.documentElement.classList.remove('peiai-splash-pending','peiai-splash-lock');node.remove();window.dispatchEvent(new Event(EVT));}function beginFade(){if(fading||finished)return;fading=true;node.classList.add('is-fading');node.setAttribute('aria-hidden','true');setTimeout(finish,FADE);}setTimeout(beginFade,MIN);setTimeout(beginFade,MAX);}catch(_){}})();`;
+export function markBrandSplashShellReady(): void {
+  if (typeof window === 'undefined') return;
+  if (window.__PEIAI_SHELL_READY__) return;
+  window.__PEIAI_SHELL_READY__ = true;
+  window.dispatchEvent(new Event(BRAND_SPLASH_SHELL_READY_EVENT));
 }
 
 export function markBrandSplashDone(): void {
@@ -94,5 +97,7 @@ declare global {
     __PEIAI_SPLASH_START__?: number;
     /** body 内联脚本已接管开屏计时 */
     __PEIAI_SPLASH_ARMED__?: boolean;
+    /** Tab 壳 / 首页首帧可绘 */
+    __PEIAI_SHELL_READY__?: boolean;
   }
 }

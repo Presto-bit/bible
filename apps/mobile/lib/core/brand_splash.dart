@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 /// 对齐 PWA `apps/web/lib/brand_splash.ts`
 const brandSplashMinMs = 2000;
 const brandSplashFadeMs = 250;
-const brandSplashMaxMs = 2800;
+const brandSplashMaxMs = 3500;
 const brandSplashBg = Color(0xFFFFFCFA);
 const brandSplashTitleInk = Color(0xFF2C2825);
 const brandSplashSubInk = Color(0xFF6B6358);
