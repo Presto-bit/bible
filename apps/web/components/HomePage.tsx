@@ -954,7 +954,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       >
       <header className="greet home-greet-header">
         <HomeGreetStreak greeting={greeting} userName={userName} />
-        <div className="greet-actions">
+        <div className={`greet-actions${plusOpen ? ' is-plus-open' : ''}`}>
           <button
             type="button"
             aria-label="搜索"
@@ -970,8 +970,12 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             ref={plusBtnRef}
             type="button"
             aria-label="添加"
-            className="icon-btn icon-btn-fill"
-            onClick={() => setPlusOpen((v) => !v)}
+            aria-expanded={plusOpen}
+            className={`icon-btn icon-btn-fill${plusOpen ? ' is-open' : ''}`}
+            {...shellTapProps({
+              onTap: () => setPlusOpen((v) => !v),
+              softRecover: true,
+            })}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M12 5v14M5 12h14" />

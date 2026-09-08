@@ -38,13 +38,13 @@ export default function PlusMenu({
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e: MouseEvent) => {
+    const onDoc = (e: PointerEvent) => {
       const t = e.target as Node;
       if (menuRef.current?.contains(t) || anchorRef.current?.contains(t)) return;
       onClose();
     };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
+    document.addEventListener('pointerdown', onDoc, true);
+    return () => document.removeEventListener('pointerdown', onDoc, true);
   }, [open, onClose, anchorRef]);
 
   if (!open) return null;

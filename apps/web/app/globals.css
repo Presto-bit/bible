@@ -1311,6 +1311,16 @@ html:not([data-app-theme]) .card {
   margin-top: 0;
 }
 
+/* 加号菜单打开：顶栏按钮压过 plus-menu-backdrop(100)，再次点击走 toggle 关闭 */
+.home-page .greet-actions.is-plus-open {
+  position: relative;
+  z-index: 102;
+}
+
+.home-page .greet-actions .icon-btn-fill.is-open {
+  transform: rotate(45deg);
+}
+
 .home-page .greet-actions .icon-btn {
   width: 40px;
   height: 40px;
