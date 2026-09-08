@@ -152,9 +152,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     _prewarmTimer?.cancel();
     _prewarmTimer = Timer(const Duration(milliseconds: 800), () {
       if (!mounted || _book?.id != bookId || _chapter != chapter) return;
+      final verse =
+          ref.read(readingRepoProvider).getLastReadVerse(bookId, chapter) ?? 1;
       unawaited(
         ref.read(assistantRepoProvider).prewarmAnswer(
-          '$bookId.$chapter.1',
+          '$bookId.$chapter.$verse',
           scene: AssistantScene.verseQuick,
         ),
       );
@@ -442,9 +444,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     )
                   : null,
               titleSpacing: 8,
-              title: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+              title: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   InkWell(
                     onTap: () {
                       _onOpenOverlay();
@@ -506,6 +510,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                     ),
                   ),
                 ],
+                ),
               ),
               actions: [
                 IconButton(

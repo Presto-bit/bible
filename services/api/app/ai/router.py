@@ -995,21 +995,32 @@ def chat(
             if history:
                 retry_modes.append((True, False))
             retry_modes.append((True, True))
+            recover_variants.append(list(messages))
+            if scene in ("verse_full", "verse_quick"):
+                try:
+                    structured = try_structured_verse_answer(
+                        messages,
+                        scene or "",
+                        max_tokens=min(max_tokens, 900),
+                        verse_span=verse_span,
+                    )
+                except Exception:
+                    logger.exception("structured verse recover failed scene=%s", scene)
+                    structured = None
+                if structured and structured.strip():
+                    step = 48
+                    for i in range(0, len(structured), step):
+                        piece = structured[i : i + step]
+                        full.append(piece)
+                        yield _sse("delta", {"text": piece})
             for nudge, strip_history in retry_modes:
                 if full:
                     break
                 try:
-                    prep_retry = prepare(
-                        ref_raw=body.ref,
-                        question=body.question,
-                        mode=body.mode,
-                        scene=body.scene,
-                        history=None if strip_history else history,
-                        surface=body.surface,
-                        reader_context=body.reader_context,
-                        knowledge_base_id=body.knowledge_base_id,
-                    )
-                    retry_msgs = list(prep_retry["messages"])
+                    if strip_history or not history:
+                        retry_msgs = [dict(messages[0]), dict(messages[-1])]
+                    else:
+                        retry_msgs = list(messages)
                     if nudge and retry_msgs:
                         last = retry_msgs[-1]
                         retry_msgs[-1] = {
@@ -1023,7 +1034,7 @@ def chat(
                     if strip_history or not history:
                         recover_variants.append(list(retry_msgs))
                     retry_meta = StreamMeta()
-                    retry_budget = min(int(prep_retry["max_tokens"]), 900)
+                    retry_budget = min(max_tokens, 900)
                     yield from _stream_budgeted(
                         retry_msgs,
                         budget=retry_budget,

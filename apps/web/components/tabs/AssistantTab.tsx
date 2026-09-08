@@ -683,11 +683,22 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     abortRef.current?.abort(CHAT_ABORT_USER_CANCEL);
     const myGen = ++sendGenRef.current;
     abortRef.current = new AbortController();
-    const slowTimer = window.setTimeout(() => setSlowHint(true), 15000);
-    const timeoutTimer = window.setTimeout(
-      () => abortRef.current?.abort(),
-      sceneTimeout(scene),
-    );
+    const slowTimer = window.setTimeout(() => setSlowHint(true), 12000);
+    let genTimer: number | null = null;
+    const clearGenTimer = () => {
+      if (genTimer != null) {
+        window.clearTimeout(genTimer);
+        genTimer = null;
+      }
+    };
+    const armGenTimeout = () => {
+      clearGenTimer();
+      genTimer = window.setTimeout(
+        () => abortRef.current?.abort(),
+        sceneTimeout(scene),
+      );
+    };
+    const connectTimer = window.setTimeout(() => abortRef.current?.abort(), 50_000);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => scrollThreadToLatest());
     });
@@ -760,6 +771,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               setStreamPhase('refs');
               return;
             }
+            window.clearTimeout(connectTimer);
+            armGenTimeout();
             const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
             cites = localizeCitations(meta.citations || [], book || undefined);
             if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
@@ -777,6 +790,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             if (!gotDelta) {
               gotDelta = true;
               setStreamPhase('writing');
+              window.clearTimeout(connectTimer);
+              armGenTimeout();
             }
             acc += t;
             scheduleApply();
@@ -804,12 +819,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             }
           },
         },
-        { signal: abortRef.current.signal },
+        { signal: abortRef.current.signal, retryOnZeroDelta: false },
       );
     } finally {
       if (myGen !== sendGenRef.current) return;
+      window.clearTimeout(connectTimer);
+      clearGenTimer();
       window.clearTimeout(slowTimer);
-      window.clearTimeout(timeoutTimer);
       abortRef.current = null;
       if (rafRef.current != null) {
         window.clearTimeout(rafRef.current);

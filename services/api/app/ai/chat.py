@@ -147,6 +147,9 @@ def prepare(
     source_types = source_types_for_kb(kb["id"])
 
     use_rag = spec.use_rag and (surface or "") not in NO_RAG_SURFACES
+    # 半屏 L0：跳过 RAG 检索，缩短首 token 等待（正文已含 passage）
+    if (surface or "") == "half_sheet" and spec.id in ("verse_full", "verse_quick"):
+        use_rag = False
 
     citations: list[dict] = []
     if use_rag:

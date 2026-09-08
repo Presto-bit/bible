@@ -152,7 +152,9 @@ import {
   readerBackHref,
 } from '@/lib/reader_return';
 import { clearReaderChrome, restoreMainTabbar, unlockReaderSurface } from '@/lib/reader_chrome';
+import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { shellTapProps } from '@/lib/shell_tap';
+import { useRouter } from 'next/navigation';
 import { scheduleTabChrome } from '@/lib/tab_chrome';
 import {
   applyAppTheme,
@@ -291,6 +293,8 @@ export default function ReaderView({
   paneActive?: boolean;
 }) {
   const flashToast = useToast();
+  const router = useRouter();
+  const paneWasActiveRef = useRef(false);
   const [verses, setVerses] = useState<Verse[]>([]);
   /** 中文和合本结构，用于段落断点（KJV 单栏/对照时与中文段落对齐）。 */
   const [layoutVerses, setLayoutVerses] = useState<Verse[]>([]);
@@ -1167,6 +1171,14 @@ export default function ReaderView({
     window.addEventListener('peiai-reader-toggle-chrome', onToggle);
     return () => window.removeEventListener('peiai-reader-toggle-chrome', onToggle);
   }, [paneActive, toggleChrome]);
+
+  // 从其它 Tab 切回圣经时恢复顶栏，避免「搜索/概要」被沉浸态挡住。
+  useEffect(() => {
+    if (paneActive && !paneWasActiveRef.current) {
+      setChromeHidden(false);
+    }
+    paneWasActiveRef.current = paneActive;
+  }, [paneActive]);
 
   useEffect(() => {
     const syncTheme = () => {
@@ -3216,6 +3228,7 @@ export default function ReaderView({
             type="button"
             className="reader-summary-btn"
             {...shellTapProps({
+              softRecover: true,
               onTap: () => {
                 setChromeHidden(false);
                 setSummaryOpen(true);
@@ -3226,18 +3239,20 @@ export default function ReaderView({
           </button>
         </div>
         <div className="reader-topbar-right">
-          <Link
-            href="/search?from=/reader"
+          <button
+            type="button"
             className="reader-icon-btn"
             aria-label="搜索"
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
+            {...shellTapProps({
+              softRecover: true,
+              onTap: () => navigateAppHref('/search?from=/reader', router),
+            })}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4-4" />
             </svg>
-          </Link>
+          </button>
           {READER_AUDIO_ENABLED ? (
           <div className="reader-audio-btn-wrap">
             <ReaderAudioButton

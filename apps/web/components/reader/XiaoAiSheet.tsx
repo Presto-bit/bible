@@ -131,6 +131,7 @@ export default function XiaoAiSheet({
     return bootTurnIdRef.current;
   });
   const [retryKey, setRetryKey] = useState(0);
+  const [streamSlowHint, setStreamSlowHint] = useState(false);
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
   const [citationTurnId, setCitationTurnId] = useState<string | null>(null);
   const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
@@ -226,6 +227,7 @@ export default function XiaoAiSheet({
             : t,
         ),
       );
+      setStreamSlowHint(false);
 
       const cacheSel = halfSheetCacheSelection(sel, explicitSel);
       const apiQuestion =
@@ -260,8 +262,19 @@ export default function XiaoAiSheet({
       }
 
       const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), sceneTimeout(scene));
-      const slowTimer = window.setTimeout(() => {}, 15000);
+      let genTimer: number | null = null;
+      const clearGenTimer = () => {
+        if (genTimer != null) {
+          window.clearTimeout(genTimer);
+          genTimer = null;
+        }
+      };
+      const armGenTimeout = () => {
+        clearGenTimer();
+        genTimer = window.setTimeout(() => controller.abort(), sceneTimeout(scene));
+      };
+      const connectTimer = window.setTimeout(() => controller.abort(), 50_000);
+      const slowTimer = window.setTimeout(() => setStreamSlowHint(true), 12_000);
       let cancelled = false;
       let cites: Citation[] = [];
       let gotDelta = false;
@@ -306,6 +319,8 @@ export default function XiaoAiSheet({
           onMeta: (meta) => {
             if (cancelled || runId !== runIdRef.current) return;
             if (meta.citations_pending) return;
+            window.clearTimeout(connectTimer);
+            armGenTimeout();
             const book = label.replace(/\s*\d+.*$/, '').trim();
             cites = localizeCitations(meta.citations || [], book || undefined);
             if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
@@ -334,6 +349,8 @@ export default function XiaoAiSheet({
           },
           onDelta: (t) => {
             if (cancelled || runId !== runIdRef.current) return;
+            window.clearTimeout(connectTimer);
+            armGenTimeout();
             streamPhase = 'writing';
             accRef.current += t;
             const pending = accRef.current;
@@ -460,17 +477,21 @@ export default function XiaoAiSheet({
             scrollToBottom();
           },
         },
-        { signal: controller.signal },
+        { signal: controller.signal, retryOnZeroDelta: false },
       ).finally(() => {
-        window.clearTimeout(timer);
+        window.clearTimeout(connectTimer);
+        clearGenTimer();
         window.clearTimeout(slowTimer);
+        setStreamSlowHint(false);
       });
 
       const cleanup = () => {
         cancelled = true;
         controller.abort();
-        window.clearTimeout(timer);
+        window.clearTimeout(connectTimer);
+        clearGenTimer();
         window.clearTimeout(slowTimer);
+        setStreamSlowHint(false);
         if (rafRef.current != null) window.clearTimeout(rafRef.current);
       };
       streamCleanupRef.current = cleanup;
@@ -625,15 +646,20 @@ export default function XiaoAiSheet({
                 >
                   <div className="half-sheet-answer-body reader-ai-answer assistant-answer allow-text-select">
                     {waitingFirstToken ? (
-                      <AssistantThinkingState
-                        variant="halfsheet"
-                        phase={
-                          turn.citations.length
-                            ? 'refs'
-                            : 'understanding'
-                        }
-                        citeCount={turn.citations.length}
-                      />
+                      <>
+                        <AssistantThinkingState
+                          variant="halfsheet"
+                          phase={
+                            turn.citations.length
+                              ? 'refs'
+                              : 'understanding'
+                          }
+                          citeCount={turn.citations.length}
+                        />
+                        {streamSlowHint && turn.id === activeTurnId ? (
+                          <p className="muted half-sheet-slow-hint">仍在准备，请稍候…</p>
+                        ) : null}
+                      </>
                     ) : rawAnswer || !turn.busy ? (
                       <>
                         {!hasError && !turn.busy ? (

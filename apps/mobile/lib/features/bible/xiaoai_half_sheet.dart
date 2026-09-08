@@ -470,22 +470,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         });
       },
     );
-
-    Future.delayed(Duration(milliseconds: scene.timeoutMs), () {
-      if (!mounted || runId != _runId) return;
-      final t = _turnFor(turnId);
-      if (t == null || !t.busy) return;
-      _sub?.cancel();
-      setState(() {
-        if (pending.isEmpty && t.answer.isEmpty) {
-          t.answer = '⚠️ 请求超时，请重试或前往小爱 Tab 继续对话';
-        } else {
-          t.answer = pending;
-          t.streamIncomplete = true;
-        }
-        t.busy = false;
-      });
-    });
   }
 
   HalfSheetTurnView? _turnFor(String id) {

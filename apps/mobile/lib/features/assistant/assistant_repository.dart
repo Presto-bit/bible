@@ -103,21 +103,19 @@ class AssistantRepository {
           .toList();
     }
 
-    for (var attempt = 0; attempt < 2; attempt++) {
-      var gotDelta = false;
-      var sawDone = false;
-      var terminalError = false;
-      await for (final evt in _chatAttempt(body, resolved)) {
-        if (evt is DeltaEvent && evt.text.trim().isNotEmpty) gotDelta = true;
-        if (evt is DoneEvent) sawDone = true;
-        if (evt is ErrorEvent) terminalError = true;
-        yield evt;
-      }
-      if (terminalError || sawDone) return;
-      if (gotDelta) {
-        yield const DoneEvent(streamComplete: false);
-        return;
-      }
+    var gotDelta = false;
+    var sawDone = false;
+    var terminalError = false;
+    await for (final evt in _chatAttempt(body, resolved)) {
+      if (evt is DeltaEvent && evt.text.trim().isNotEmpty) gotDelta = true;
+      if (evt is DoneEvent) sawDone = true;
+      if (evt is ErrorEvent) terminalError = true;
+      yield evt;
+    }
+    if (terminalError || sawDone) return;
+    if (gotDelta) {
+      yield const DoneEvent(streamComplete: false);
+      return;
     }
     yield const ErrorEvent('未收到回答内容，请重试');
   }
@@ -135,7 +133,7 @@ class AssistantRepository {
         options: Options(
           responseType: ResponseType.stream,
           headers: {'Accept': 'text/event-stream'},
-          receiveTimeout: Duration(milliseconds: resolved.timeoutMs),
+          receiveTimeout: Duration(milliseconds: resolved.timeoutMs + 35000),
           sendTimeout: const Duration(seconds: 30),
           validateStatus: (s) => s != null && s < 500,
         ),
