@@ -33,8 +33,13 @@ _ANTI_REASONING = (
 )
 
 _NARROW = (
-    "篇幅与问题匹配：Chip 追问、单节快读宜精炼；多节综合解读可适度加长；"
-    "各小节要点写完整再收束，不要重复已说内容，也不要为凑字而啰嗦。\n"
+    "篇幅与问题匹配：Chip 追问宜极精炼（2–3 条要点）；单节快读宜短；"
+    "各小节用 - 列表写满要点即停，不要重复已说内容，也不要为凑字而啰嗦。\n"
+)
+
+_NARROW_FOLLOWUP = (
+    "本次为短追问：请直接回应，结构为 ### 摘要（≤30 字）+ 2–3 条 - 要点；"
+    "总篇幅约 120–180 字，不要背景铺垫，不要相关追问。\n"
 )
 
 _MARKDOWN_OUTPUT = (
@@ -42,8 +47,10 @@ _MARKDOWN_OUTPUT = (
     "全文使用标准 Markdown（GitHub 风格）。\n"
     "- 小节标题用三级标题 ###，标题用中文（如 ### 摘要），不要用【】包裹标题。\n"
     "- 结构顺序：**必须先写 ### 摘要（章/卷导读则用 ### 本章概览 或 ### 卷概览）**，"
-    "写完整首段后再写其它小节；每节 2–3 句短段，段间空行。\n"
-    "- 无序列表用「- 」；有序列表统一用「1. 」（不要用「1、」或圈号）。\n"
+    "写完整首句后再写其它小节。\n"
+    "- **除摘要/概览外，各小节内容必须用 - 无序列表输出要点**（每条一句）；"
+    "禁止连续超过 2 句的散文段。\n"
+    "- 有序列表统一用「1. 」（不要用「1、」或圈号）。\n"
     "- 关键术语用 **加粗**；引用经文原文可用 *斜体* 或 > 引用块。\n"
     "- 引用【背景注释】时用行内脚注 [1][2]，序号须与注释列表一致。\n"
     "- 不要输出【参考资料】或文末重复列出注释全文；不要输出 HTML。\n"
@@ -190,6 +197,7 @@ def build_messages(
     use_rag: bool = True,
     reader_context: dict | None = None,
     has_prior_turns: bool = False,
+    narrow: bool = False,
 ) -> list[dict[str, str]]:
     mode = scene.mode if scene.mode in _MODE_GUIDE else DEFAULT_MODE
     has_passage = passage_display != "（未指定经文）" and bool(passage_text or passage_display)
@@ -221,12 +229,15 @@ def build_messages(
     if use_rag and citations:
         system_parts.append("\n")
         system_parts.append(_EVIDENCE_WITH_NOTES)
-    if scene.wants_followups:
+    if scene.wants_followups and not narrow:
         system_parts.append("\n")
         system_parts.append(_FOLLOWUP_RULE)
     if has_prior_turns:
         system_parts.append("\n")
         system_parts.append(_CONTINUITY)
+    if narrow:
+        system_parts.append("\n")
+        system_parts.append(_NARROW_FOLLOWUP)
     system = "".join(system_parts)
 
     reader_block = format_reader_context(reader_context)

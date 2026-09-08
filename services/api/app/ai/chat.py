@@ -8,6 +8,7 @@ from ..bible import reader
 from ..bible.refs import parse_ref
 from ..rag.retrieve import retrieve_for_passage
 from .citations import display_citation_title
+from .answer_schema import SCHEMA_VERSION, max_tokens_for_scene
 from .prompts import DEFAULT_MODE, MODES, build_messages
 from .response_profile import resolve_response_profile
 from .structure_assets import resolve_structure_assets
@@ -105,6 +106,23 @@ def _retrieve_hits(
         return []
 
 
+def _is_narrow_followup(
+    question: str | None,
+    *,
+    has_prior_turns: bool,
+    scene_id: str,
+) -> bool:
+    if not has_prior_turns or not scene_id.startswith("chat_"):
+        return False
+    q = (question or "").strip()
+    if not q:
+        return False
+    if len(q) <= 72:
+        return True
+    hints = ("字内", "简短", "概括", "一句话", "用更短", "再简")
+    return any(h in q for h in hints)
+
+
 def prepare(
     *,
     ref_raw: str | None,
@@ -157,7 +175,13 @@ def prepare(
     verse_span = 1
     if ref and ref.verse_start is not None:
         verse_span = (ref.verse_end or ref.verse_start) - ref.verse_start + 1
-    if has_prior_turns := bool(prior):
+    has_prior_turns = bool(prior)
+    narrow = _is_narrow_followup(
+        question,
+        has_prior_turns=has_prior_turns,
+        scene_id=spec.id,
+    )
+    if has_prior_turns:
         if passage_text and len(passage_text) > 900:
             passage_text = passage_text[:900].rstrip() + "…"
     base = build_messages(
@@ -169,13 +193,15 @@ def prepare(
         use_rag=use_rag,
         reader_context=reader_context,
         has_prior_turns=has_prior_turns,
+        narrow=narrow,
     )
     messages = [base[0], *prior, base[1]]
-    max_tokens = spec.max_tokens
-    if spec.id in ("verse_full", "verse_quick") and verse_span >= 3:
-        max_tokens = min(2400, max_tokens + (verse_span - 2) * 100)
-    if has_prior_turns and spec.id.startswith("chat_"):
-        max_tokens = min(max_tokens, 800)
+    max_tokens = max_tokens_for_scene(
+        spec.id,
+        narrow=narrow,
+        has_prior_turns=has_prior_turns,
+        verse_span=verse_span,
+    )
     if spec.id in ("summary_chapter", "summary_chapter_outline") and ref and ref.chapter is not None:
         if ref.verse_start is None:
             verse_count = len(reader.get_chapter(ref.book_id, ref.chapter))
@@ -208,6 +234,8 @@ def prepare(
         "ref": ref.osis if ref else None,
         "display": passage_display,
         "verse_span": verse_span,
+        "schema_version": SCHEMA_VERSION,
+        "narrow": narrow,
         "knowledge_base_id": kb["id"],
         "knowledge_base_name": kb["name"],
         "citations": [

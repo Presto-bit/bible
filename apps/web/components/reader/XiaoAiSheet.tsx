@@ -398,7 +398,10 @@ export default function XiaoAiSheet({
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
             }
-            const text = accRef.current.trim();
+            const text = (payload?.text?.trim() || accRef.current.trim());
+            if (payload?.text?.trim()) {
+              accRef.current = text;
+            }
             settled = true;
             if (!text) {
               setTurns((prev) =>

@@ -131,11 +131,13 @@ class FollowupsEvent extends ChatEvent {
 class DoneEvent extends ChatEvent {
   const DoneEvent({
     this.length = 0,
+    this.text = '',
     this.followups = const [],
     this.sections = const [],
     this.streamComplete = true,
   });
   final int length;
+  final String text;
   final List<String> followups;
   final List<AnswerSection> sections;
   final bool streamComplete;

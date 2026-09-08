@@ -59,3 +59,24 @@ void writeHalfSheetThread(HalfSheetThread thread) {
 
 String newHalfSheetTurnId() =>
     't_${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}_${DateTime.now().microsecond.toRadixString(36)}';
+
+bool _refMatchesPrefix(String ref, String prefix) {
+  final r = ref.trim().toUpperCase();
+  final p = prefix.trim().toUpperCase();
+  if (r.isEmpty || p.isEmpty) return false;
+  return r == p || r.startsWith('$p.');
+}
+
+/// 按 ref 前缀清理进程内半屏会话 thread。
+int clearHalfSheetThreadsForRefPrefix(String refPrefix) {
+  final keys = _threads.keys
+      .where((key) {
+        final ref = key.split('\u001e').first;
+        return _refMatchesPrefix(ref, refPrefix);
+      })
+      .toList(growable: false);
+  for (final key in keys) {
+    _threads.remove(key);
+  }
+  return keys.length;
+}

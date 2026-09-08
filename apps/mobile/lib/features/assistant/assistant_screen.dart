@@ -525,8 +525,11 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             case FollowupsEvent(:final items):
               flushDelta(force: true);
               setState(() => reply.followups = normalizeFollowupItems(items));
-            case DoneEvent(:final followups, :final sections, :final streamComplete):
+            case DoneEvent(:final followups, :final sections, :final streamComplete, :final text):
               flushDelta(force: true);
+              if (text.trim().isNotEmpty) {
+                setState(() => reply.content = text.trim());
+              }
               if (followups.isNotEmpty) {
                 setState(() => reply.followups = normalizeFollowupItems(followups));
               }

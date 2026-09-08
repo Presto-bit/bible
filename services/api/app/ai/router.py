@@ -14,6 +14,13 @@ from ..auth.session import resolve_user_id, try_get_current_user
 from ..config import get_settings
 from ..db import get_pool
 from .chat import prepare
+from .answer_normalize import normalize_answer_markdown
+from .answer_schema import SCHEMA_VERSION
+from .answer_structured import (
+    needs_structure_repair,
+    repair_answer_structure,
+    try_structured_verse_answer,
+)
 from .llm import StreamMeta, complete_chat, stream_chat
 from .parse_output import (
     answer_ends_abruptly,
@@ -466,6 +473,8 @@ def prewarm_answer(body: PrewarmRequest):
     """读经进入经节时静默预生成「解释这节」首答，写入答案缓存。"""
     from ..bible.refs import parse_ref
     from ..rag.answer_cache import cache_key, get_answer, put_answer
+    from .answer_normalize import normalize_answer_markdown
+    from .answer_schema import SCHEMA_VERSION
     from .llm import complete_chat
     from .parse_output import extract_sections, split_body_and_followups
 
@@ -497,7 +506,44 @@ def prewarm_answer(body: PrewarmRequest):
                 reader_context=None,
                 knowledge_base_id=None,
             )
-            text = complete_chat(prep["messages"], max_tokens=int(prep["max_tokens"]))
+            scene_id = prep["meta"].get("scene") or scene
+            verse_span = int(prep["meta"].get("verse_span") or 1)
+            structured = try_structured_verse_answer(
+                prep["messages"],
+                scene_id,
+                max_tokens=int(prep["max_tokens"]),
+                verse_span=verse_span,
+            )
+            if structured:
+                text = structured
+            else:
+                text = complete_chat(prep["messages"], max_tokens=int(prep["max_tokens"]))
+            text = normalize_answer_markdown(
+                text,
+                scene_id,
+                narrow=bool(prep["meta"].get("narrow")),
+                verse_span=verse_span,
+            )
+            body_probe, _ = split_body_and_followups(text)
+            if needs_structure_repair(
+                body_probe,
+                scene_id,
+                narrow=bool(prep["meta"].get("narrow")),
+            ):
+                repaired = repair_answer_structure(
+                    prep["messages"],
+                    body_probe,
+                    scene_id,
+                    narrow=bool(prep["meta"].get("narrow")),
+                    max_tokens=int(prep["max_tokens"]) // 2,
+                )
+                if repaired:
+                    text = normalize_answer_markdown(
+                        repaired,
+                        scene_id,
+                        narrow=bool(prep["meta"].get("narrow")),
+                        verse_span=verse_span,
+                    )
             body_text, followups = split_body_and_followups(text)
             sections = extract_sections(body_text)
             put_answer(
@@ -508,6 +554,7 @@ def prewarm_answer(body: PrewarmRequest):
                     "sections": sections,
                     "meta": {
                         **prep["meta"],
+                        "schema_version": SCHEMA_VERSION,
                         "cache_hit": True,
                         "cache_source": "prewarm",
                         "instant": True,
@@ -703,6 +750,7 @@ def chat(
         messages = list(prep["messages"])
         max_tokens = int(prep["max_tokens"])
         verse_span = int(prep["meta"].get("verse_span") or 1)
+        narrow = bool(prep["meta"].get("narrow"))
         llm_t0 = time.monotonic()
         section_cont_used = False
         length_cont_used = False
@@ -738,9 +786,9 @@ def chat(
             if _budget_left() <= 0:
                 return
             length_cont_used = True
-            cont_budget = min(max(max_tokens // 2, 400), 1000)
+            cont_budget = min(max(max_tokens // 3, 280), 600)
             if verse_span > 5:
-                cont_budget = min(max_tokens // 2, 1200)
+                cont_budget = min(max_tokens // 3, 750)
             cont_msgs = messages + [
                 {"role": "assistant", "content": "".join(full)},
                 {
@@ -863,25 +911,30 @@ def chat(
         try:
             meta = StreamMeta()
             yield from _stream_budgeted(messages, budget=max_tokens, meta=meta)
-            if scene in ("verse_full", "verse_quick"):
-                yield from _run_verse_section_continuation()
-                body_probe, _ = split_body_and_followups("".join(full))
-                if verse_needs_length_continuation(
-                    scene,
-                    body_probe,
-                    verse_span=verse_span,
-                    finish_reason=meta.finish_reason,
+            if not narrow:
+                if scene in ("verse_full", "verse_quick"):
+                    yield from _run_verse_section_continuation()
+                    body_probe, _ = split_body_and_followups("".join(full))
+                    if verse_needs_length_continuation(
+                        scene,
+                        body_probe,
+                        verse_span=verse_span,
+                        finish_reason=meta.finish_reason,
+                    ):
+                        yield from _run_length_continuation(meta, force=True)
+                elif scene in (
+                    "summary_chapter",
+                    "summary_chapter_outline",
+                    "summary_book",
                 ):
-                    yield from _run_length_continuation(meta, force=True)
-            elif scene in (
-                "summary_chapter",
-                "summary_chapter_outline",
-                "summary_book",
-            ):
-                yield from _run_summary_section_continuation()
-                yield from _run_length_continuation(meta)
-            elif meta.finish_reason == "length" and full:
-                yield from _run_length_continuation(meta)
+                    yield from _run_summary_section_continuation()
+                    body_probe, _ = split_body_and_followups("".join(full))
+                    if meta.finish_reason == "length" and answer_ends_abruptly(body_probe):
+                        yield from _run_length_continuation(meta)
+                elif meta.finish_reason == "length" and full:
+                    body_probe, _ = split_body_and_followups("".join(full))
+                    if answer_ends_abruptly(body_probe):
+                        yield from _run_length_continuation(meta)
             yield from _run_citation_repair()
         except Exception as exc:  # 上游/网络异常 → 友好错误事件
             logger.exception("ai chat stream failed")
@@ -993,7 +1046,31 @@ def chat(
                 },
             )
             return
-        text = "".join(full)
+        text = normalize_answer_markdown(
+            "".join(full),
+            scene or "",
+            narrow=narrow,
+            verse_span=verse_span,
+        )
+        body_probe, _ = split_body_and_followups(text)
+        if (
+            needs_structure_repair(body_probe, scene or "", narrow=narrow)
+            and _budget_left() > 3
+        ):
+            repaired = repair_answer_structure(
+                messages,
+                body_probe,
+                scene or "",
+                narrow=narrow,
+                max_tokens=min(max_tokens // 2, 650),
+            )
+            if repaired:
+                text = normalize_answer_markdown(
+                    repaired,
+                    scene or "",
+                    narrow=narrow,
+                    verse_span=verse_span,
+                )
         body_text, followups = split_body_and_followups(text)
         sections = extract_sections(body_text)
         from .parse_output import parse_answer_blocks
@@ -1006,6 +1083,7 @@ def chat(
             {
                 "length": len(text),
                 "word_count": len(body_text),
+                "text": text,
                 "sections": sections,
                 "followups": followups,
                 "lead": blocks_payload.get("lead") or "",
@@ -1020,7 +1098,7 @@ def chat(
                     "answer": body_text,
                     "followups": followups,
                     "sections": sections,
-                    "meta": {**prep["meta"]},
+                    "meta": {**prep["meta"], "schema_version": SCHEMA_VERSION},
                     "source": "cache",
                 },
             )

@@ -219,6 +219,7 @@ class AssistantRepository {
             const <AnswerSection>[];
         return DoneEvent(
           length: (data['length'] ?? 0) as int,
+          text: (data['text'] ?? '') as String,
           followups: followups,
           sections: sections,
           streamComplete: data['streamComplete'] != false,

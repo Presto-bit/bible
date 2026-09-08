@@ -78,3 +78,25 @@ void writeHalfSheetCache(
       ..addEntries(sorted.take(_maxEntries));
   }
 }
+
+bool _refMatchesPrefix(String ref, String prefix) {
+  final r = ref.trim().toUpperCase();
+  final p = prefix.trim().toUpperCase();
+  if (r.isEmpty || p.isEmpty) return false;
+  return r == p || r.startsWith('$p.');
+}
+
+/// 按 ref 前缀清理半屏小爱进程内缓存（如 JHN.13 整章）。
+int clearHalfSheetCacheForRefPrefix(String refPrefix) {
+  final keys = _cache.keys
+      .where((key) {
+        final parts = key.split('\u001e');
+        final ref = parts.length > 1 ? parts[1] : '';
+        return _refMatchesPrefix(ref, refPrefix);
+      })
+      .toList(growable: false);
+  for (final key in keys) {
+    _cache.remove(key);
+  }
+  return keys.length;
+}

@@ -51,3 +51,12 @@ def test_answer_ends_abruptly_detects_cut():
     body = "### 摘要\n说到一半就被"
     assert answer_ends_abruptly(body)
     assert verse_needs_length_continuation("verse_full", body, finish_reason="stop")
+
+
+def test_length_not_continued_when_sections_complete():
+    body = (
+        "### 摘要\n神爱世人。\n\n"
+        "### 背景\n- 约翰福音第三章。\n\n"
+        "### 经文解释\n- 强调神主动赐下独生子。"
+    )
+    assert not verse_needs_length_continuation("verse_full", body, finish_reason="length")

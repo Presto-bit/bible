@@ -1113,6 +1113,8 @@ export interface StructureAssetPayload {
 export interface ChatDonePayload {
   length?: number;
   word_count?: number;
+  /** 服务端归一化后的完整 Markdown（流结束后替换展示） */
+  text?: string;
   followups?: string[];
   sections?: { id: string; title: string }[];
   lead?: string;

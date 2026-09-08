@@ -67,6 +67,18 @@ def get_answer(key: str) -> dict[str, Any] | None:
         if now - ts >= ttl:
             _cache.pop(key, None)
             return None
+        meta = payload.get("meta") or {}
+        if meta.get("schema_version") != 1:
+            _cache.pop(key, None)
+            return None
+        scene = str(meta.get("scene") or "")
+        answer = str(payload.get("answer") or "")
+        if scene and answer:
+            from ..ai.answer_structured import needs_structure_repair
+
+            if needs_structure_repair(answer, scene, narrow=bool(meta.get("narrow"))):
+                _cache.pop(key, None)
+                return None
         return dict(payload)
 
 
@@ -80,6 +92,43 @@ def put_answer(key: str, payload: dict[str, Any]) -> None:
         if len(_cache) > _MAX_ENTRIES:
             oldest_key = min(_cache.items(), key=lambda x: x[1][0])[0]
             _cache.pop(oldest_key, None)
+
+
+def _ref_matches_prefix(ref: str, prefix: str) -> bool:
+    if not ref or not prefix:
+        return False
+    if ref == prefix:
+        return True
+    return ref.startswith(prefix + ".")
+
+
+def clear_answer_cache_for_ref_prefix(ref_prefix: str, *, max_verse: int = 176) -> int:
+    """按 ref 前缀清理答案缓存（如 JHN.13 → 整章各节与区间）。"""
+    prefix = normalize_ref(ref_prefix)
+    if not prefix:
+        return 0
+    to_del: set[str] = set()
+    with _lock:
+        for k, (_, payload) in _cache.items():
+            meta = payload.get("meta") or {}
+            ref = normalize_ref(meta.get("ref") or "")
+            if ref and _ref_matches_prefix(ref, prefix):
+                to_del.add(k)
+
+        parts = prefix.split(".")
+        if len(parts) >= 2 and parts[-1].isdigit():
+            book, chapter = parts[0], parts[-1]
+            base = f"{book}.{chapter}"
+            refs = [base, prefix]
+            for v in range(1, max_verse + 1):
+                refs.append(f"{base}.{v}")
+            for scene in ("verse_full", "verse_quick"):
+                for ref in refs:
+                    to_del.add(cache_key(ref=ref, mode="explain", question=None, scene=scene))
+
+        for k in to_del:
+            _cache.pop(k, None)
+    return len(to_del)
 
 
 def clear_answer_cache() -> None:

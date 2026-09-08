@@ -225,6 +225,24 @@ def admin_rag_inventory(_phone: str = Depends(require_admin)) -> dict:
         raise HTTPException(status_code=503, detail=f"资料清单不可用：{exc}") from exc
 
 
+@router.post("/ai/clear-answer-cache")
+def admin_clear_answer_cache(
+    ref_prefix: str = Query(..., min_length=3, description="OSIS ref 前缀，如 JHN.13"),
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """按 ref 前缀清理服务端小爱答案 L1 缓存（半屏释经秒回）。"""
+    from ..rag.answer_cache import clear_answer_cache, clear_answer_cache_for_ref_prefix
+
+    prefix = ref_prefix.strip()
+    if not prefix:
+        raise HTTPException(status_code=400, detail="ref_prefix 不能为空")
+    if prefix.upper() in {"ALL", "*"}:
+        clear_answer_cache()
+        return {"status": "ok", "scope": "all", "removed": "all"}
+    removed = clear_answer_cache_for_ref_prefix(prefix)
+    return {"status": "ok", "scope": prefix, "removed": removed}
+
+
 @router.post("/rag/orphans/purge")
 def admin_purge_rag_orphans(_phone: str = Depends(require_admin)) -> dict:
     """一键删除孤儿文档（仅库、磁盘无对应文件）。"""

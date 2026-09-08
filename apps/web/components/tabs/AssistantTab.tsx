@@ -795,6 +795,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             if (payload?.sections?.length) {
               answerSections = payload.sections;
             }
+            if (payload?.text?.trim()) {
+              acc = payload.text.trim();
+            }
             if (payload?.streamComplete === false && acc.trim()) {
               acc = appendStreamIncompleteNotice(acc);
               applyAcc();

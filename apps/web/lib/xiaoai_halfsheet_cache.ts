@@ -145,3 +145,25 @@ export function writeHalfSheetCache(
   };
   writeMap(map);
 }
+
+function refMatchesPrefix(ref: string, prefix: string): boolean {
+  const r = ref.trim().toUpperCase();
+  const p = prefix.trim().toUpperCase();
+  if (!r || !p) return false;
+  return r === p || r.startsWith(`${p}.`);
+}
+
+/** 按 ref 前缀清理半屏小爱 localStorage 缓存（如 JHN.13 整章）。 */
+export function clearHalfSheetCacheForRefPrefix(refPrefix: string): number {
+  const map = readMap();
+  let removed = 0;
+  for (const key of Object.keys(map)) {
+    const ref = key.split('\x1e')[1] ?? '';
+    if (refMatchesPrefix(ref, refPrefix)) {
+      delete map[key];
+      removed += 1;
+    }
+  }
+  if (removed > 0) writeMap(map);
+  return removed;
+}

@@ -114,12 +114,15 @@ def verse_needs_length_continuation(
 ) -> bool:
     """是否值得做长度续写（避免把已完整的短答越续越长）。"""
     if scene not in ("verse_full", "verse_quick"):
-        return finish_reason == "length"
+        if finish_reason == "length":
+            return answer_ends_abruptly(body_text)
+        return False
+    incomplete = verse_explain_incomplete(scene, body_text, verse_span=verse_span)
+    if not incomplete:
+        return False
     if finish_reason == "length":
-        return True
-    return verse_explain_incomplete(scene, body_text, verse_span=verse_span) and answer_ends_abruptly(
-        body_text
-    )
+        return answer_ends_abruptly(body_text)
+    return answer_ends_abruptly(body_text)
 
 
 def missing_verse_sections(scene: str, body_text: str) -> list[str]:

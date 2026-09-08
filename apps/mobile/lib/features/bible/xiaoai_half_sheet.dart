@@ -376,11 +376,11 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..busy = false;
               }
             });
-          case am.DoneEvent(:final followups, :final sections, :final streamComplete):
+          case am.DoneEvent(:final followups, :final sections, :final streamComplete, :final text):
             if (chatSettled) break;
             flush();
-            var text = pending.trim();
-            if (text.isEmpty) {
+            var answerText = text.trim().isNotEmpty ? text.trim() : pending.trim();
+            if (answerText.isEmpty) {
               setState(() {
                 final t = _turnFor(turnId);
                 if (t != null) {
@@ -393,11 +393,11 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             }
             chatSettled = true;
             final streamOk = streamComplete &&
-                !text.startsWith('⚠️') &&
-                text != _emptyAnswerMsg;
+                !answerText.startsWith('⚠️') &&
+                answerText != _emptyAnswerMsg;
             final structOk = scene == AssistantScene.verseFull ||
                     scene == AssistantScene.verseQuick
-                ? isHalfSheetAnswerComplete(text, scene)
+                ? isHalfSheetAnswerComplete(answerText, scene)
                 : true;
             final followupItems = normalizeFollowupItems(
               followups.isNotEmpty
@@ -410,7 +410,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               final t = _turnFor(turnId);
               if (t != null) {
                 t
-                  ..answer = text
+                  ..answer = answerText
                   ..citations = cites.isNotEmpty ? cites : t.citations
                   ..followups = followupItems
                   ..busy = false
@@ -427,7 +427,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                 widget.refStr,
                 cacheSel,
                 apiQuestion,
-                text,
+                answerText,
                 cites,
               );
             }

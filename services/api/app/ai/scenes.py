@@ -10,10 +10,11 @@ _MD = (
 )
 # 篇幅为建议区间：写完整即可收束，单节宜精炼，多节可适度加长
 _LEN_HINT = (
-    "建议控制篇幅：各小节要点写完整、句子自然收束即可，不要中途截断；"
-    "单节或 Chip 追问宜精炼（约建议区间中位），多节范围可适度加长；"
-    "不要重复、堆砌或为了凑字而加长。"
+    "各小节下必须用 - 列表输出要点，禁止连续超过 2 句的散文段；"
+    "写满要点即停，不要重复、堆砌或为了凑字而加长；"
+    "句子自然收束，不要中途截断。"
 )
+_BULLETS = "每条要点单独一行，以「- 」开头（≤55 字/条）。"
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,7 @@ SCENES: dict[str, SceneSpec] = {
         id="verse_quick",
         mode="explain",
         label="快读解释",
-        max_tokens=1000,
+        max_tokens=650,
         wants_followups=False,
         format_guide=(
             f"{_MD}\n"
@@ -40,25 +41,25 @@ SCENES: dict[str, SceneSpec] = {
             "### 摘要\n"
             "1 句（≤40 字），概括本节要旨。\n"
             "### 经文解释\n"
-            "3–5 句，说清原意与关键词，口语自然，避免术语堆砌。\n"
-            f"建议篇幅约 180–320 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
+            f"3–4 条要点，{_BULLETS}说清原意与关键词。\n"
+            f"建议篇幅约 180–260 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
         ),
     ),
     "verse_full": SceneSpec(
         id="verse_full",
         mode="explain",
         label="综合解读",
-        max_tokens=1800,
+        max_tokens=900,
         wants_followups=False,
         format_guide=(
             f"{_MD}\n"
             "### 摘要\n"
             "1 句（≤40 字）。\n"
             "### 背景\n"
-            "2–4 句，交代历史与上下文。\n"
+            f"2–3 条要点，{_BULLETS}交代历史与上下文。\n"
             "### 经文解释\n"
-            "2–4 句，说清原意与关键词。\n"
-            f"建议篇幅约 180–320 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
+            f"3–4 条要点，{_BULLETS}说清原意与关键词。\n"
+            f"建议篇幅约 260–360 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
         ),
     ),
     "chat_explain": SceneSpec(
@@ -72,10 +73,10 @@ SCENES: dict[str, SceneSpec] = {
             "### 摘要\n"
             "1 句（≤40 字）。\n"
             "### 背景\n"
-            "1–3 句。\n"
+            f"2–3 条，{_BULLETS}\n"
             "### 经文解释\n"
-            "2–4 句。\n"
-            f"建议篇幅约 160–320 字。{_LEN_HINT}"
+            f"3–4 条，{_BULLETS}\n"
+            f"建议篇幅约 300–420 字。{_LEN_HINT}"
         ),
     ),
     "chat_understand": SceneSpec(
@@ -89,10 +90,10 @@ SCENES: dict[str, SceneSpec] = {
             "### 摘要\n"
             "1 句。\n"
             "### 经文要旨\n"
-            "2–4 句。\n"
+            f"2–3 条，{_BULLETS}\n"
             "### 默想引导\n"
-            "1–3 句，温柔连接生命。\n"
-            f"建议篇幅约 160–300 字。{_LEN_HINT}"
+            f"2–3 条，{_BULLETS}温柔连接生命。\n"
+            f"建议篇幅约 300–420 字。{_LEN_HINT}"
         ),
     ),
     "chat_apply": SceneSpec(
@@ -106,10 +107,10 @@ SCENES: dict[str, SceneSpec] = {
             "### 摘要\n"
             "1 句。\n"
             "### 核心提醒\n"
-            "1–2 句。\n"
+            f"1–2 条，{_BULLETS}\n"
             "### 具体行动\n"
-            "2–4 条，用 - 列表，贴近日常。\n"
-            f"建议篇幅约 150–280 字。{_LEN_HINT}"
+            f"2–4 条，{_BULLETS}贴近日常。\n"
+            f"建议篇幅约 280–380 字。{_LEN_HINT}"
         ),
     ),
     "chat_study": SceneSpec(

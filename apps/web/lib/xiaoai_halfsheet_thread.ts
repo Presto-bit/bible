@@ -47,3 +47,23 @@ export function writeHalfSheetThread(thread: HalfSheetThread): void {
 export function newTurnId(): string {
   return `t_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
+
+function refMatchesPrefix(ref: string, prefix: string): boolean {
+  const r = ref.trim().toUpperCase();
+  const p = prefix.trim().toUpperCase();
+  if (!r || !p) return false;
+  return r === p || r.startsWith(`${p}.`);
+}
+
+/** 按 ref 前缀清理进程内半屏会话 thread。 */
+export function clearHalfSheetThreadsForRefPrefix(refPrefix: string): number {
+  let removed = 0;
+  for (const key of [..._threads.keys()]) {
+    const ref = key.split('\x1e')[0] ?? '';
+    if (refMatchesPrefix(ref, refPrefix)) {
+      _threads.delete(key);
+      removed += 1;
+    }
+  }
+  return removed;
+}
