@@ -954,7 +954,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       >
       <header className="greet home-greet-header">
         <HomeGreetStreak greeting={greeting} userName={userName} />
-        <div className={`greet-actions${plusOpen ? ' is-plus-open' : ''}`}>
+        <div className="greet-actions">
           <button
             type="button"
             aria-label="搜索"
@@ -973,7 +973,9 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             aria-expanded={plusOpen}
             className={`icon-btn icon-btn-fill${plusOpen ? ' is-open' : ''}`}
             {...shellTapProps({
-              onTap: () => setPlusOpen((v) => !v),
+              onTap: () => {
+                if (!plusOpen) setPlusOpen(true);
+              },
               softRecover: true,
             })}
           >

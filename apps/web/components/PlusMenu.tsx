@@ -13,7 +13,10 @@ const ITEMS = [
   { id: 'plans', label: '创建计划', sub: '定制读经计划', href: '/plans', icon: '📅' },
 ];
 
-/** 微信式加号菜单：锚定在按钮附近弹出，点项跳转独立页。 */
+/**
+ * 微信式加号菜单。Portal 层(z=300)盖住顶栏：加号按钮只负责打开；
+ * 再点加号区域或空白 → backdrop 关闭，避免 toggle 误重开。
+ */
 export default function PlusMenu({
   anchorRef,
   open,
@@ -36,17 +39,6 @@ export default function PlusMenu({
     });
   }, [open, anchorRef]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: PointerEvent) => {
-      const t = e.target as Node;
-      if (menuRef.current?.contains(t) || anchorRef.current?.contains(t)) return;
-      onClose();
-    };
-    document.addEventListener('pointerdown', onDoc, true);
-    return () => document.removeEventListener('pointerdown', onDoc, true);
-  }, [open, onClose, anchorRef]);
-
   if (!open) return null;
 
   return (
@@ -55,7 +47,7 @@ export default function PlusMenu({
         className="plus-menu-backdrop"
         data-dismiss-on-tab-nav
         data-shell-touch-blocker
-        {...shellTapProps({ onTap: onClose })}
+        {...shellTapProps({ onTap: onClose, preventDefault: true })}
       />
       <div
         ref={menuRef}
