@@ -564,12 +564,19 @@ body.reader-active .proper-noun--artifact {
   color: var(--accent-deep);
   font-weight: 500;
 }
-/* 小爱半屏弹窗：覆盖约 80% 视口 */
+/* 小爱半屏弹窗：覆盖约 90% 视口；透明 shield 锁底层交互 */
 .reader-ai-portal {
   position: fixed;
   inset: 0;
   z-index: 240;
-  pointer-events: none;
+  pointer-events: auto;
+}
+.reader-ai-shield {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: auto;
+  touch-action: none;
 }
 .reader-ai-portal .reader-ai-half-sheet {
   pointer-events: auto;
@@ -577,6 +584,7 @@ body.reader-active .proper-noun--artifact {
   left: 50%;
   bottom: 0;
   transform: translateX(-50%);
+  z-index: 1;
   height: min(90dvh, 90svh);
   max-height: calc(100dvh - max(12px, var(--safe-top, 0px)) - 8px);
   width: 100%;
@@ -768,6 +776,16 @@ body.reader-active .proper-noun--artifact {
 .reader-page.reader-ai-sheet-open .reader-topbar {
   z-index: 241;
   pointer-events: auto;
+  cursor: default;
+}
+/* 方案 B：顶栏任意点按=关半屏，子控件不可点 */
+.reader-page.reader-ai-sheet-open .reader-topbar > * {
+  pointer-events: none;
+}
+.reader-page.reader-ai-sheet-open .reader-body,
+.reader-page.reader-ai-sheet-open .reader-fab-stack {
+  pointer-events: none;
+  touch-action: none;
 }
 .reader-ai-portal {
   --assistant-answer-font-size: 16px;

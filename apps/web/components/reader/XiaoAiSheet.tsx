@@ -507,10 +507,11 @@ export default function XiaoAiSheet({
 
   const sheet = (
     <div className="reader-ai-portal" data-dismiss-on-tab-nav>
+      <div className="reader-ai-shield" aria-hidden onPointerDown={stopBubble} />
       <div
         className="half-sheet reader-ai-half-sheet"
         role="dialog"
-        aria-modal="false"
+        aria-modal="true"
         aria-label="小爱解经"
         onClick={stopBubble}
         onMouseDown={stopBubble}

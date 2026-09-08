@@ -886,6 +886,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       heightFactor: 0.90,
       transparentBarrier: true,
       barrierTapDismiss: false,
+      topBarDismissStrip: true,
       builder: (_) => XiaoAiHalfSheet(
         refStr: r,
         refLabel: label,

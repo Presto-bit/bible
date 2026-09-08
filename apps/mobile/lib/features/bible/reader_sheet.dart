@@ -43,6 +43,8 @@ Future<T?> showReaderSheet<T>({
   ValueNotifier<ReaderSheetSize>? sizeListenable,
   bool transparentBarrier = false,
   bool barrierTapDismiss = true,
+  /// 透明 barrier 时顶栏条带（状态栏+AppBar）点按关闭，其余区域仅拦截。
+  bool topBarDismissStrip = false,
 }) {
   final initial = ReaderSheetSize(
     heightFactor: heightFactor ?? 0.88,
@@ -77,10 +79,25 @@ Future<T?> showReaderSheet<T>({
         builder: (ctx, size, _) {
           final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
           final maxH = resolveHeight(ctx, size);
+          final topStripH =
+              MediaQuery.paddingOf(ctx).top + kToolbarHeight;
           return Stack(
+            fit: StackFit.expand,
             children: [
-              if (barrierTapDismiss)
-                Positioned.fill(
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: barrierTapDismiss
+                      ? () => Navigator.of(ctx).pop()
+                      : () {},
+                ),
+              ),
+              if (topBarDismissStrip && !barrierTapDismiss)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: topStripH,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () => Navigator.of(ctx).pop(),

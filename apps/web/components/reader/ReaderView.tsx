@@ -3165,8 +3165,9 @@ export default function ReaderView({
       <div
         className="reader-topbar"
         aria-hidden={chromeHidden}
-        onPointerDown={(e) => {
+        onPointerDownCapture={(e) => {
           if (!aiSheet) return;
+          e.preventDefault();
           e.stopPropagation();
           setAiSheet(false);
           setAiSheetContext(null);
@@ -3355,7 +3356,7 @@ export default function ReaderView({
 
       {paneActive && !chromeHidden && readingMode !== 'focus' ? (
       <div
-        className={`reader-fab-stack${hasSel ? ' is-hidden' : ''}${audioOrbVisible ? ' is-audio-playing' : ''}`}
+        className={`reader-fab-stack${hasSel || aiSheet ? ' is-hidden' : ''}${audioOrbVisible ? ' is-audio-playing' : ''}`}
         aria-hidden={hasSel}
       >
         {planMeta && onPlanExit && (
