@@ -867,21 +867,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text('存想法', style: TextStyle(fontSize: 12)),
+                    child: const Text('存笔记', style: TextStyle(fontSize: 12)),
                   ),
-                  if (evidenceCites.isNotEmpty) ...[
-                    const Text('·',
-                        style: TextStyle(color: AppColors.inkFaint)),
-                    TextButton(
-                      onPressed: () => _openCitation(evidenceCites.first),
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text('看来源', style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
                   const Text('·', style: TextStyle(color: AppColors.inkFaint)),
                   TextButton(
                     onPressed: () => _shareAnalysis(turn.answer),

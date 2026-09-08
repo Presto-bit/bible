@@ -110,7 +110,7 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href={`${base}/${IOS_STARTUP_FALLBACK}`} />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;var done=window.__PEIAI_SPLASH_DONE__===true;var flutter=false;try{flutter=sessionStorage.getItem('peiai_client_kind')==='android_h5_tab';}catch(_){}if(s&&!done&&!flutter){window.__PEIAI_SPLASH_START__=Date.now();document.documentElement.classList.add('peiai-splash-pending','peiai-splash-lock');}}catch(_){}})();`,
+            __html: `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;var done=window.__PEIAI_SPLASH_DONE__===true;var flutter=false;try{flutter=sessionStorage.getItem('peiai_client_kind')==='android_h5_tab';if(!done&&sessionStorage.getItem('peiai_brand_splash_done_v1')==='1')done=true;}catch(_){}if(s&&!done&&!flutter){window.__PEIAI_SPLASH_START__=Date.now();document.documentElement.classList.add('peiai-splash-pending','peiai-splash-lock');}}catch(_){}})();`,
           }}
         />
         {/* 安卓：尽早拦截浏览器「添加主屏幕」mini-infobar，改由 H5 推 APK */}

@@ -1,10 +1,15 @@
 /** 发现页 / 分享卡 → 小爱预填（问题走 sid 暂存，不暴露在 URL） */
 
 import type { Citation } from './api';
+import { clientWithBasePath } from './basePath';
 import { isFlutterH5Host, peiaiOpenNativeAssistant } from './flutter_h5_bridge';
+import { isTabKeepAliveEnabled } from './platform';
 
 const SEED_PREFIX = 'presto_ai_seed:';
 const SEED_TTL_MS = 30 * 60 * 1000;
+
+/** Tab 保活内跳转小爱时触发，供 AssistantTab 读取 URL 预填 */
+export const ASSISTANT_PREFILL_NAV_EVENT = 'peiai-assistant-prefill-nav';
 
 export type AssistantSeedMessage = {
   role: 'user' | 'assistant';
@@ -150,5 +155,13 @@ export function navigateToAssistant(
     const q = opts?.question ?? (ref ? explainVerseQuestion(ref, opts?.excerpt) : '');
     if (peiaiOpenNativeAssistant({ ref: ref || undefined, q })) return;
   }
-  window.location.href = assistantHref(ref, opts);
+  const href = assistantHref(ref, opts);
+  if (isTabKeepAliveEnabled()) {
+    const fullHref = clientWithBasePath(href);
+    window.history.pushState({ pwaTab: true }, '', fullHref);
+    window.dispatchEvent(new Event('presto-tab-nav'));
+    window.dispatchEvent(new Event(ASSISTANT_PREFILL_NAV_EVENT));
+    return;
+  }
+  window.location.href = clientWithBasePath(href);
 }

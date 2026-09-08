@@ -38,7 +38,7 @@ export function CitationEvidenceRail({
               <span className="citation-evidence-title">{title}</span>
               {snip ? (
                 <span className="citation-evidence-snip">
-                  {snip.length > 48 ? `${snip.slice(0, 48)}…` : snip}
+                  {snip.length > 40 ? `${snip.slice(0, 40)}…` : snip}
                 </span>
               ) : null}
               <span className="citation-evidence-tag">注释</span>

@@ -1713,7 +1713,7 @@ class _Bubble extends ConsumerWidget {
                     onTap: () => _copy(context, stripFollowups(turn.content)),
                   ),
                   _ActionText(
-                    label: '存想法',
+                    label: '存笔记',
                     onTap: () => _saveThought(context, ref),
                   ),
                   _ActionText(
@@ -1738,20 +1738,6 @@ class _Bubble extends ConsumerWidget {
                         ref.read(navIndexProvider.notifier).set(1);
                       },
                     ),
-                  if (cites.isNotEmpty)
-                    _ActionText(
-                      label: '看来源',
-                      onTap: () {
-                        ref.read(badgeStatsRecorderProvider).recordCitationClick();
-                        showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          showDragHandle: true,
-                          builder: (ctx) =>
-                              _CitationBilingualSheet(citation: cites.first),
-                        );
-                      },
-                    ),
                 ],
               ),
             ),
@@ -1771,7 +1757,7 @@ class _Bubble extends ConsumerWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('已存想法'),
+        content: Text('已存笔记'),
         duration: Duration(milliseconds: 1500),
       ),
     );
@@ -2101,7 +2087,7 @@ class _ComposerState extends State<_Composer> {
     final tabOverlay =
         PeiaiShellMetrics.maybeOf(context)?.tabOverlayExtent ??
         peiaiTabBarOverlayExtent(context);
-    final bottom = kb > 80 ? kb + 8 : (widget.docked ? tabOverlay + 4 : 8.0);
+    final bottom = kb > 80 ? kb + 8 : (widget.docked ? tabOverlay - 2 : 8.0);
     return Container(
       padding: EdgeInsets.fromLTRB(12, 8, 12, bottom),
       decoration: BoxDecoration(

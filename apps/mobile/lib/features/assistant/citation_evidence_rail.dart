@@ -38,46 +38,46 @@ class CitationEvidenceRail extends StatelessWidget {
     if (citations.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.only(top: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '参考来源',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.6,
               color: AppColors.inkSoft,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           SizedBox(
-            height: 82,
+            height: 68,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: citations.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
               itemBuilder: (_, i) {
                 final c = citations[i];
                 final title = formatCitationTitle(c.title, bookName: bookName);
                 var snip = (c.snippet ?? '')
                     .replaceAll(RegExp(r'\s+'), ' ')
                     .trim();
-                if (snip.length > 48) snip = '${snip.substring(0, 48)}…';
+                if (snip.length > 40) snip = '${snip.substring(0, 40)}…';
                 return Material(
                   color:
                       Color.lerp(AppColors.goldWash, Colors.white, 0.45) ??
                       AppColors.goldWash,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     onTap: onOpen == null ? null : () => onOpen!(c.n),
                     child: Container(
-                      width: 154,
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                      width: 124,
+                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: AppColors.line.withValues(alpha: 0.9),
                         ),
@@ -88,32 +88,32 @@ class CitationEvidenceRail extends StatelessWidget {
                           Text(
                             '[${c.n}]',
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: FontWeight.w700,
                               color: AppColors.accentDeep,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              height: 1.35,
+                              height: 1.3,
                               color: AppColors.ink,
                             ),
                           ),
                           if (snip.isNotEmpty) ...[
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text(
                               snip,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 11,
-                                height: 1.4,
+                                fontSize: 10,
+                                height: 1.35,
                                 color: AppColors.inkSoft,
                               ),
                             ),
@@ -122,7 +122,7 @@ class CitationEvidenceRail extends StatelessWidget {
                           const Text(
                             '注释',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 9,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.4,
                               color: AppColors.inkFaint,

@@ -52,7 +52,7 @@ import {
   sessionPreviewText,
 } from '@/lib/assistant_sessions';
 import { readingStreak } from '@/lib/gamification';
-import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
+import { consumeAssistantPrefill, ASSISTANT_PREFILL_NAV_EVENT, explainVerseQuestion } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
@@ -193,6 +193,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const [composerFocused, setComposerFocused] = useState(false);
   /** 程序改写输入后 remount，避免 iOS 把清空记入「撤销键入」栈 */
   const [composerNonce, setComposerNonce] = useState(0);
+  const [prefillNavTick, setPrefillNavTick] = useState(0);
 
   const replaceComposerValue = (next: string) => {
     inputRef.current?.blur();
@@ -834,11 +835,25 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const sid = searchParams.get('sid');
-    const legacyQ = searchParams.get('q');
-    const autoSendParam = searchParams.get('auto_send') === '1';
-    const refParam = searchParams.get('ref') || '';
-    const kbParam = searchParams.get('kb');
+    if (!paneActive) return;
+    const bump = () => setPrefillNavTick((n) => n + 1);
+    window.addEventListener(ASSISTANT_PREFILL_NAV_EVENT, bump);
+    return () => {
+      window.removeEventListener(ASSISTANT_PREFILL_NAV_EVENT, bump);
+    };
+  }, [paneActive]);
+
+  useEffect(() => {
+    if (!paneActive) return;
+    const liveParams =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search)
+        : null;
+    const sid = liveParams?.get('sid') ?? searchParams.get('sid');
+    const legacyQ = liveParams?.get('q') ?? searchParams.get('q');
+    const autoSendParam = (liveParams?.get('auto_send') ?? searchParams.get('auto_send')) === '1';
+    const refParam = liveParams?.get('ref') ?? searchParams.get('ref') ?? '';
+    const kbParam = liveParams?.get('kb') ?? searchParams.get('kb');
     const storedSessions = loadAssistantSessions() as Session[];
 
     if (kbParam) {
@@ -975,7 +990,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     }
 
     hydratedRef.current = true;
-  }, [searchParams, router]);
+  }, [searchParams, router, paneActive, prefillNavTick]);
 
   const startNewSession = () => {
     streamFollowLockedRef.current = false;
@@ -1399,14 +1414,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           skipPublish: true,
                         });
                         recordSaveAnswerNote();
-                        flashToast('已存为想法（本机）');
-                      }}
-                      showSources={usedCitations.length > 0}
-                      onOpenSources={() => {
-                        if (usedCitations[0]) {
-                          setCitationMsgIdx(i);
-                          setCitationOpen(usedCitations[0].n);
-                        }
+                        flashToast('已存为笔记（本机）');
                       }}
                       onCopy={() => copyText(m.text)}
                       onShare={() => shareAnswer(m.text, usedCitations)}

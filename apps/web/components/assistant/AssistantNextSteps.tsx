@@ -1,15 +1,13 @@
 'use client';
 
 /**
- * 小爱回答后操作：与复制/分享同一行，不单独成块。
+ * 小爱回答后操作：复制 · 存笔记 · 分享（与半屏轻操作对齐）。
  */
 export function AssistantNextSteps({
   showContinueRead,
   onContinueRead,
   onSaveThought,
   savedThought,
-  showSources,
-  onOpenSources,
   onCopy,
   copied,
   onShare,
@@ -21,8 +19,6 @@ export function AssistantNextSteps({
   onContinueRead?: () => void;
   onSaveThought: () => void;
   savedThought?: boolean;
-  showSources?: boolean;
-  onOpenSources?: () => void;
   onCopy?: () => void;
   copied?: boolean;
   onShare?: () => void;
@@ -37,22 +33,17 @@ export function AssistantNextSteps({
           {copied ? '已复制' : '复制'}
         </button>
       ) : null}
+      <button type="button" className="msg-action" onClick={onSaveThought}>
+        {savedThought ? '已存笔记' : '存笔记'}
+      </button>
       {onShare ? (
         <button type="button" className="msg-action" onClick={onShare}>
           分享
         </button>
       ) : null}
-      <button type="button" className="msg-action" onClick={onSaveThought}>
-        {savedThought ? '已存想法' : '存想法'}
-      </button>
       {showContinueRead && onContinueRead ? (
         <button type="button" className="msg-action" onClick={onContinueRead}>
           继续读
-        </button>
-      ) : null}
-      {showSources && onOpenSources ? (
-        <button type="button" className="msg-action" onClick={onOpenSources}>
-          看来源
         </button>
       ) : null}
       {onContinueChat ? (

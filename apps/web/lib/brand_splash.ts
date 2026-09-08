@@ -38,12 +38,17 @@ export function subscribeBrandSplashDone(onDone: () => void): () => void {
   return () => window.removeEventListener(BRAND_SPLASH_DONE_EVENT, handler);
 }
 
-/** 同会话热启动：不再出开屏（进程内内存标记；杀进程后随 window 清零） */
+/** 同会话热启动：不再出开屏（进程内内存 + sessionStorage） */
 export function hasBrandSplashDone(): boolean {
   if (typeof window !== 'undefined' && window.__PEIAI_SPLASH_DONE__ === true) {
     return true;
   }
-  return false;
+  if (typeof sessionStorage === 'undefined') return false;
+  try {
+    return sessionStorage.getItem(BRAND_SPLASH_SESSION_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 /**

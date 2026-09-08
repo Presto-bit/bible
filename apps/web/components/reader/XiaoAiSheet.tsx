@@ -656,7 +656,6 @@ export default function XiaoAiSheet({
                           <HalfSheetLightActions
                             copied={copiedTurnId === turn.id}
                             saved={savedTurnId === turn.id}
-                            showSources={evidenceCites.length > 0}
                             onCopy={() => {
                               void navigator.clipboard.writeText(clean);
                               setCopiedTurnId(turn.id);
@@ -668,12 +667,8 @@ export default function XiaoAiSheet({
                               });
                               recordSaveAnswerNote();
                               setSavedTurnId(turn.id);
-                              flash('已存为想法（本机）');
+                              flash('已存为笔记（本机）');
                               window.setTimeout(() => setSavedTurnId(null), 1800);
-                            }}
-                            onOpenSources={() => {
-                              setCitationTurnId(turn.id);
-                              setCitationOpen(evidenceCites[0]?.n ?? null);
                             }}
                             onShare={() => setShareTurn(turn)}
                           />

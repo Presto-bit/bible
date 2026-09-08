@@ -105,13 +105,15 @@ class AssistantRepository {
 
     for (var attempt = 0; attempt < 2; attempt++) {
       var gotDelta = false;
+      var sawDone = false;
       var terminalError = false;
       await for (final evt in _chatAttempt(body, resolved)) {
         if (evt is DeltaEvent && evt.text.isNotEmpty) gotDelta = true;
+        if (evt is DoneEvent) sawDone = true;
         if (evt is ErrorEvent) terminalError = true;
         yield evt;
       }
-      if (gotDelta || terminalError) return;
+      if (gotDelta || terminalError || sawDone) return;
     }
     yield const ErrorEvent('未收到回答内容，请重试');
   }

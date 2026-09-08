@@ -1251,7 +1251,6 @@ export async function chatStream(
       return 'fail';
     }
     if (!sawDone) cb.onDone?.({ streamComplete: false });
-    if (!gotDelta && sawDone) return 'retry';
     if (!gotDelta && !sawDone) return 'retry';
     return 'ok';
   };
