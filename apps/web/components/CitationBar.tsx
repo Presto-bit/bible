@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { explainCitation, type Citation } from '@/lib/api';
 import { formatCitationTitle } from '@/lib/citation_display';
 import AppBodyPortal from '@/components/AppBodyPortal';
@@ -37,6 +37,7 @@ export function CitationBar({
   const [explainLoading, setExplainLoading] = useState(false);
   const [snippetExpanded, setSnippetExpanded] = useState(false);
   const [disclaimer, setDisclaimer] = useState(DISCLAIMER);
+  const snippetRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -49,6 +50,14 @@ export function CitationBar({
   }, [controlled]);
 
   const detail = detailN != null ? citations.find((c) => c.n === detailN) ?? null : null;
+
+  useEffect(() => {
+    if (detailN == null || !sheetOpen) return;
+    const t = window.setTimeout(() => {
+      snippetRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [detailN, sheetOpen, detail?.snippet]);
 
   useEffect(() => {
     if (!detail?.snippet) {
@@ -181,7 +190,8 @@ export function CitationBar({
                   {snip ? (
                     <>
                       <p
-                        className="citation-popup-body citation-snippet-orig"
+                        ref={snippetRef}
+                        className="citation-popup-body citation-snippet-orig citation-snippet-focus"
                         style={{
                           marginTop: 0,
                           maxHeight: snippetExpanded ? undefined : '5.2em',

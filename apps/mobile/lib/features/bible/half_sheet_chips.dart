@@ -66,6 +66,94 @@ String halfSheetSelectionKey(
   return '${ref.trim().toUpperCase()}\u001e$sel';
 }
 
+class _SlopChip extends StatefulWidget {
+  const _SlopChip({
+    required this.onTap,
+    required this.child,
+    this.disabled = false,
+    this.backgroundColor,
+    this.side,
+    this.outlined = false,
+  });
+
+  final VoidCallback onTap;
+  final Widget child;
+  final bool disabled;
+  final Color? backgroundColor;
+  final BorderSide? side;
+  final bool outlined;
+
+  @override
+  State<_SlopChip> createState() => _SlopChipState();
+}
+
+class _SlopChipState extends State<_SlopChip> {
+  static const _slopPx = 12.0;
+  Offset? _down;
+  bool _slopExceeded = false;
+
+  void _onDown(PointerDownEvent e) {
+    _down = e.localPosition;
+    _slopExceeded = false;
+  }
+
+  void _onMove(PointerMoveEvent e) {
+    final start = _down;
+    if (start == null || _slopExceeded) return;
+    if ((e.localPosition - start).distance > _slopPx) _slopExceeded = true;
+  }
+
+  void _onUp(PointerUpEvent e) {
+    final blocked = widget.disabled || _slopExceeded;
+    _down = null;
+    _slopExceeded = false;
+    if (!blocked) widget.onTap();
+  }
+
+  void _onCancel(PointerCancelEvent e) {
+    _down = null;
+    _slopExceeded = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(20);
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: _onDown,
+      onPointerMove: _onMove,
+      onPointerUp: _onUp,
+      onPointerCancel: _onCancel,
+      child: Opacity(
+        opacity: widget.disabled ? 0.5 : 1,
+        child: Material(
+          color: widget.outlined
+              ? Colors.transparent
+              : (widget.backgroundColor ?? AppColors.accentWash),
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            side: widget.side ?? BorderSide(color: AppColors.line),
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.outlined ? 14 : 12,
+              vertical: widget.outlined ? 10 : 8,
+            ),
+            child: DefaultTextStyle(
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.35,
+                color: widget.disabled ? AppColors.inkFaint : AppColors.inkSoft,
+              ),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class HalfSheetChipRows extends StatefulWidget {
   const HalfSheetChipRows({
     super.key,
@@ -166,20 +254,12 @@ class _HalfSheetChipRowsState extends State<HalfSheetChipRows> {
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (_, i) {
                     final q = widget.followups[i];
-                    return ActionChip(
-                      label: Text(
-                        q,
-                        style: const TextStyle(fontSize: 12, height: 1.35),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
+                    return _SlopChip(
+                      disabled: widget.disabled,
                       backgroundColor: AppColors.accentWash,
                       side: const BorderSide(color: AppColors.line),
-                      onPressed: widget.disabled ? null : () => _handleFollowup(q),
+                      onTap: () => _handleFollowup(q),
+                      child: Text(q),
                     );
                   },
                 ),
@@ -198,17 +278,11 @@ class _HalfSheetChipRowsState extends State<HalfSheetChipRows> {
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (_, i) {
               final chip = widget.l1Chips[i];
-              return OutlinedButton(
-                onPressed: widget.disabled ? null : () => _handleL1(chip),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  minimumSize: const Size(0, 44),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(chip.label, style: const TextStyle(fontSize: 12)),
+              return _SlopChip(
+                outlined: true,
+                disabled: widget.disabled,
+                onTap: () => _handleL1(chip),
+                child: Text(chip.label),
               );
             },
           ),

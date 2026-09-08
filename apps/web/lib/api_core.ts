@@ -1180,6 +1180,7 @@ export async function chatStream(
     let dataLines: string[] = [];
     let gotDelta = false;
     let sawDone = false;
+    let gotMeta = false;
 
     const flushFrame = () => {
       if (!event) {
@@ -1193,10 +1194,13 @@ export async function chatStream(
       if (!json) return;
       try {
         const d = JSON.parse(json);
-        if (ev === 'meta') cb.onMeta?.(d);
-        else if (ev === 'delta') {
-          gotDelta = true;
-          cb.onDelta?.(d.text ?? '');
+        if (ev === 'meta') {
+          gotMeta = true;
+          cb.onMeta?.(d);
+        } else if (ev === 'delta') {
+          const piece = d.text ?? '';
+          if (piece) gotDelta = true;
+          cb.onDelta?.(piece);
         } else if (ev === 'followups') {
           const items = Array.isArray(d.items) ? (d.items as string[]) : [];
           if (items.length) cb.onFollowups?.(items);
@@ -1251,13 +1255,21 @@ export async function chatStream(
       return 'fail';
     }
     if (!sawDone) cb.onDone?.({ streamComplete: false });
-    if (!gotDelta && !sawDone) return 'retry';
+    if (!gotDelta && !sawDone) {
+      if (gotMeta) {
+        cb.onError?.('回答未完整送达，请重试');
+        return 'fail';
+      }
+      return 'retry';
+    }
     return 'ok';
   };
 
   const allowRetry = opts?.retryOnZeroDelta !== false;
   const first = await runOnce(opts?.signal);
   if (first === 'retry' && allowRetry && !opts?.signal?.aborted) {
+    await new Promise((r) => setTimeout(r, 500));
+    if (opts?.signal?.aborted) return;
     const second = await runOnce(opts?.signal);
     if (second === 'retry') cb.onError?.('未收到回答内容，请重试');
     return;

@@ -21,6 +21,24 @@ String formatCitationTitle(String? title, {String? bookName}) {
   return '圣经背景注释';
 }
 
+String citationDocumentKey(Citation c) {
+  final doc = (c.documentId ?? '').trim();
+  if (doc.isNotEmpty) return 'doc:$doc';
+  return 'title:${c.title.trim().toLowerCase()}';
+}
+
+List<Citation> uniqueCitationsForRail(List<Citation> citations) {
+  final seen = <String>{};
+  final out = <Citation>[];
+  for (final c in citations) {
+    final key = citationDocumentKey(c);
+    if (seen.contains(key)) continue;
+    seen.add(key);
+    out.add(c);
+  }
+  return out;
+}
+
 class CitationEvidenceRail extends StatelessWidget {
   const CitationEvidenceRail({
     super.key,
@@ -35,7 +53,8 @@ class CitationEvidenceRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (citations.isEmpty) return const SizedBox.shrink();
+    final items = uniqueCitationsForRail(citations);
+    if (items.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -56,10 +75,10 @@ class CitationEvidenceRail extends StatelessWidget {
             height: 68,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: citations.length,
+              itemCount: items.length,
               separatorBuilder: (_, __) => const SizedBox(width: 6),
               itemBuilder: (_, i) {
-                final c = citations[i];
+                final c = items[i];
                 final title = formatCitationTitle(c.title, bookName: bookName);
                 var snip = (c.snippet ?? '')
                     .replaceAll(RegExp(r'\s+'), ' ')

@@ -57,7 +57,7 @@ Future<T?> showReaderSheet<T>({
 
   double resolveHeight(BuildContext ctx, ReaderSheetSize size) {
     final screenH = MediaQuery.sizeOf(ctx).height;
-    final factor = size.heightFactor.clamp(0.42, 0.92);
+    final factor = size.heightFactor.clamp(0.42, 0.95);
     var maxH = screenH * factor;
     if (size.maxHeight != null) maxH = maxH.clamp(0, size.maxHeight!);
     return maxH;

@@ -883,7 +883,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final label = refLabel ?? '${bibleBookAbbr(b.name)} $_chapter';
     showReaderSheet(
       context: context,
-      heightFactor: 0.90,
+      heightFactor: 0.95,
       transparentBarrier: true,
       barrierTapDismiss: false,
       topBarDismissStrip: true,

@@ -106,14 +106,20 @@ class AssistantRepository {
     for (var attempt = 0; attempt < 2; attempt++) {
       var gotDelta = false;
       var sawDone = false;
+      var gotMeta = false;
       var terminalError = false;
       await for (final evt in _chatAttempt(body, resolved)) {
-        if (evt is DeltaEvent && evt.text.isNotEmpty) gotDelta = true;
+        if (evt is DeltaEvent && evt.text.trim().isNotEmpty) gotDelta = true;
+        if (evt is MetaEvent) gotMeta = true;
         if (evt is DoneEvent) sawDone = true;
         if (evt is ErrorEvent) terminalError = true;
         yield evt;
       }
       if (gotDelta || terminalError || sawDone) return;
+      if (gotMeta) {
+        yield const ErrorEvent('回答未完整送达，请重试');
+        return;
+      }
     }
     yield const ErrorEvent('未收到回答内容，请重试');
   }

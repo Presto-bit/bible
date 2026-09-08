@@ -366,6 +366,12 @@ body.assistant-keyboard.assistant-active .tabbar {
   color: var(--ink-faint);
   letter-spacing: 0.04em;
 }
+.citation-snippet-focus {
+  scroll-margin-top: 12px;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent-deep) 35%, transparent);
+  background: color-mix(in srgb, var(--accent-wash) 55%, transparent);
+}
 .xiaoai-cite-host {
   position: absolute;
   width: 1px;

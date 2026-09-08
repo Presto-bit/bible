@@ -503,7 +503,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 _streamPhase = ThinkingPhase.refs;
               });
             case DeltaEvent(:final text):
-              receivedDelta = true;
+              if (text.trim().isNotEmpty) receivedDelta = true;
               pendingDelta += text;
               deltaFlush ??= Timer.periodic(
                 const Duration(milliseconds: 150),

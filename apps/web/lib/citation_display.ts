@@ -24,6 +24,25 @@ export function citationsUsedInText(text: string, citations: Citation[]): Citati
   return citations.filter((c) => nums.has(c.n));
 }
 
+/** 同一 document / 标题的资料在横向卡片里只展示一次 */
+export function citationDocumentKey(c: Citation): string {
+  const doc = (c.document_id || '').trim();
+  if (doc) return `doc:${doc}`;
+  return `title:${(c.title || '').trim().toLowerCase()}`;
+}
+
+export function uniqueCitationsForRail(citations: Citation[]): Citation[] {
+  const seen = new Set<string>();
+  const out: Citation[] = [];
+  for (const c of citations) {
+    const key = citationDocumentKey(c);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+  }
+  return out;
+}
+
 /** 将 RAG 文档标题规范为中文展示名 */
 export function formatCitationTitle(title: string | undefined, bookName?: string): string {
   const raw = (title || '').trim();

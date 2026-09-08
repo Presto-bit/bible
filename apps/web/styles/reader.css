@@ -564,7 +564,7 @@ body.reader-active .proper-noun--artifact {
   color: var(--accent-deep);
   font-weight: 500;
 }
-/* 小爱半屏弹窗：覆盖约 90% 视口；透明 shield 锁底层交互 */
+/* 小爱半屏弹窗：覆盖约 95% 视口；透明 shield 锁底层交互 */
 .reader-ai-portal {
   position: fixed;
   inset: 0;
@@ -585,7 +585,7 @@ body.reader-active .proper-noun--artifact {
   bottom: 0;
   transform: translateX(-50%);
   z-index: 1;
-  height: min(90dvh, 90svh);
+  height: min(95dvh, 95svh);
   max-height: calc(100dvh - max(12px, var(--safe-top, 0px)) - 8px);
   width: 100%;
   max-width: 480px;

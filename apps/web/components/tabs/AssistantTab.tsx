@@ -57,7 +57,7 @@ import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
 import { refToChineseLabel } from '@/lib/ref_label';
-import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
+import { localizeCitations, citationsUsedInText, uniqueCitationsForRail } from '@/lib/citation_display';
 import { HistorySessionSwipeRow } from '@/components/assistant/HistorySessionSwipeRow';
 import AssistantHistoryDrawer from '@/components/assistant/AssistantHistoryDrawer';
 import AppBodyPortal from '@/components/AppBodyPortal';
@@ -1394,7 +1394,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                   <>
                     {usedCitations.length > 0 && (
                       <CitationEvidenceRail
-                        citations={usedCitations}
+                        citations={uniqueCitationsForRail(usedCitations)}
                         bookName={refToChineseLabel(ref)?.replace(/\s*\d+.*$/, '').trim()}
                         onOpen={(n) => {
                           recordCitationClick();

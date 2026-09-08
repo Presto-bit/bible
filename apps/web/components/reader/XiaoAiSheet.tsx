@@ -16,7 +16,7 @@ import {
   recordXiaoAiQuestion,
 } from '@/lib/badge_events';
 import { bodyText } from '@/lib/assistant_format';
-import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
+import { localizeCitations, citationsUsedInText, uniqueCitationsForRail } from '@/lib/citation_display';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
@@ -562,6 +562,7 @@ export default function XiaoAiSheet({
             const hasError = clean.startsWith('⚠️');
             const usedCitations = citationsUsedInText(clean, turn.citations);
             const evidenceCites = usedCitations.length > 0 ? usedCitations : turn.citations;
+            const railCites = uniqueCitationsForRail(evidenceCites);
             const { summary, body: bodyWithoutSummary } = extractSummaryLead(clean);
             const expanded = expandedTurns[turn.id] !== false;
             const showCollapsed =
@@ -641,9 +642,9 @@ export default function XiaoAiSheet({
                             }}
                           />
                         )}
-                        {!turn.busy && !hasError && evidenceCites.length > 0 ? (
+                        {!turn.busy && !hasError && railCites.length > 0 ? (
                           <CitationEvidenceRail
-                            citations={evidenceCites}
+                            citations={railCites}
                             bookName={refLabel.split(' ')[0]}
                             onOpen={(n) => {
                               recordCitationClick();
