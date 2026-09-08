@@ -11,9 +11,12 @@ export const BRAND_SPLASH_BG = '#FFFCFA';
 export const BRAND_SPLASH_TITLE = '彼爱';
 export const BRAND_SPLASH_SUBTITLE = 'Love Each Other';
 
+export const BRAND_SPLASH_DONE_EVENT = 'peiai-brand-splash-done';
+
 export function markBrandSplashDone(): void {
   if (typeof window !== 'undefined') {
     window.__PEIAI_SPLASH_DONE__ = true;
+    window.dispatchEvent(new Event(BRAND_SPLASH_DONE_EVENT));
   }
   if (typeof sessionStorage === 'undefined') return;
   try {
@@ -21,6 +24,18 @@ export function markBrandSplashDone(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** 开屏已结束或从未展示时立刻回调 */
+export function subscribeBrandSplashDone(onDone: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  if (hasBrandSplashDone()) {
+    onDone();
+    return () => {};
+  }
+  const handler = () => onDone();
+  window.addEventListener(BRAND_SPLASH_DONE_EVENT, handler);
+  return () => window.removeEventListener(BRAND_SPLASH_DONE_EVENT, handler);
 }
 
 /** 同会话热启动：不再出开屏（进程内内存标记；杀进程后随 window 清零） */
@@ -58,5 +73,7 @@ export function captureBrandSplashEntryHref(): string {
 declare global {
   interface Window {
     __PEIAI_SPLASH_DONE__?: boolean;
+    /** head 脚本写入；hydration 晚到时不缩短可见开屏 */
+    __PEIAI_SPLASH_START__?: number;
   }
 }

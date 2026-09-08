@@ -1,6 +1,6 @@
 /**
  * PWA 冷启动品牌开屏（YouVersion 式：纸底 + 居中 App icon + 字标）
- * SSR 占位 #peiai-brand-splash-ssr；客户端 .peiai-brand-splash 接管计时与淡出。
+ * 唯一 DOM：SSR #peiai-brand-splash-ssr；客户端 BrandSplash 只控计时与 class。
  */
 
 #peiai-brand-splash-ssr {
@@ -75,6 +75,17 @@ html.peiai-splash-pending .offline-bar,
 html.peiai-splash-pending .soft-nav-progress,
 html.peiai-splash-pending .soft-nav-transition-shell {
   visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 开屏期间不播 Tab/首页错落，避免撤遮罩后「还在滑入」 */
+html.peiai-splash-pending .tab-keep-pane.tab-keep-pane-active {
+  animation: none !important;
+}
+
+html.peiai-splash-pending .home-page .home-stagger-enter .home-stagger-item {
+  animation: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

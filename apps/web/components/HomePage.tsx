@@ -89,6 +89,10 @@ import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { shellTapProps } from '@/lib/shell_tap';
 import { markHomeBootstrapReady } from '@/lib/offline_bootstrap';
+import {
+  hasBrandSplashDone,
+  subscribeBrandSplashDone,
+} from '@/lib/brand_splash';
 import HomeOnboardingBanner from '@/components/home/HomeOnboardingBanner';
 import {
   HOME_BOOTSTRAP_TTL_MS,
@@ -172,6 +176,22 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   useEffect(() => {
     setHeroArtReady(false);
+  }, [heroIllustration]);
+
+  /** 开屏 1.5s 窗口内预解码 hero 风景，减少撤遮罩后换肤跳变 */
+  useEffect(() => {
+    if (!heroIllustration) return;
+    let cancelled = false;
+    const img = new Image();
+    img.src = heroIllustration;
+    void (typeof img.decode === 'function' ? img.decode() : Promise.resolve())
+      .then(() => {
+        if (!cancelled) setHeroArtReady(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [heroIllustration]);
 
   const applyHeroBCampaign = useCallback(async (campaign: HeroBCampaign | null) => {
@@ -853,13 +873,29 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   useEffect(() => {
     if (!homeAwake) return;
     setGreeting(homeGreeting());
-    if (shouldPlayHomeStagger() && !reducedMotion) {
-      setStaggerEnter(true);
-      window.setTimeout(
-        () => setStaggerEnter(false),
-        peiaiStaggerDurationMs(homeStaggerMaxIndex),
-      );
+
+    let staggerTimer: number | undefined;
+    let cancelled = false;
+
+    const playStagger = () => {
+      if (cancelled) return;
+      if (shouldPlayHomeStagger() && !reducedMotion) {
+        setStaggerEnter(true);
+        staggerTimer = window.setTimeout(
+          () => setStaggerEnter(false),
+          peiaiStaggerDurationMs(homeStaggerMaxIndex),
+        );
+      }
+    };
+
+    const pendingSplash = document.documentElement.classList.contains('peiai-splash-pending');
+    let unsubSplash: (() => void) | undefined;
+    if (hasBrandSplashDone() || !pendingSplash) {
+      playStagger();
+    } else {
+      unsubSplash = subscribeBrandSplashDone(playStagger);
     }
+
     if (consumeCheckinFlash()) {
       setGroupFlash(true);
       window.setTimeout(() => setGroupFlash(false), 1200);
@@ -867,6 +903,12 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     if (isPlanDayDoneToday() && consumePlanDoneHomeHaptic() && !reducedMotion) {
       hapticSuccess();
     }
+
+    return () => {
+      cancelled = true;
+      unsubSplash?.();
+      if (staggerTimer != null) window.clearTimeout(staggerTimer);
+    };
   }, [homeAwake, reducedMotion, homeStaggerMaxIndex]);
 
   useEffect(() => {
