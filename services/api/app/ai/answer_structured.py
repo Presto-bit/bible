@@ -75,13 +75,24 @@ def try_structured_verse_answer(
         return None
     draft = parse_answer_json(raw)
     if not draft:
+        if "###" in raw or "【摘要】" in raw:
+            return normalize_answer_markdown(raw, scene, verse_span=verse_span)
         return None
-    required = required_sections(scene)
     titles = {str(s.get("title") or "").strip() for s in draft.get("sections") or [] if isinstance(s, dict)}
-    if not draft.get("summary") or not all(r in titles for r in required if r != "摘要"):
+    summary = str(draft.get("summary") or "").strip()
+    if not summary:
+        for sec in draft.get("sections") or []:
+            if isinstance(sec, dict) and str(sec.get("title") or "").strip() == "摘要":
+                items = sec.get("items") or []
+                if items:
+                    summary = str(items[0]).strip()
+                    draft["summary"] = summary
+                break
+    if not summary:
         return None
     md = render_answer_draft(draft, scene)
-    return normalize_answer_markdown(md, scene, verse_span=verse_span)
+    normalized = normalize_answer_markdown(md, scene, verse_span=verse_span)
+    return normalized if normalized.strip() else None
 
 
 def needs_structure_repair(
@@ -134,3 +145,65 @@ def repair_answer_structure(
         logger.exception("structure repair failed scene=%s", scene)
         return None
     return repaired.strip() or None
+
+
+def recover_empty_response(
+    messages: list[dict[str, str]],
+    scene: str,
+    *,
+    max_tokens: int,
+    verse_span: int = 1,
+    narrow: bool = False,
+) -> str | None:
+    """流式零 delta 时的多级兜底（半屏释经优先 structured）。"""
+    scene = (scene or "").strip()
+    if scene in ("verse_full", "verse_quick"):
+        md = try_structured_verse_answer(
+            messages,
+            scene,
+            max_tokens=max_tokens,
+            verse_span=verse_span,
+        )
+        if md and md.strip():
+            return md
+
+    nudge = (
+        "\n\n请直接用 Markdown 输出成稿答案（含 ### 小节与 - 列表），"
+        "不要输出思考过程，不要留空。"
+    )
+    base_msgs = [dict(m) for m in messages]
+    if base_msgs and base_msgs[-1].get("role") == "user":
+        base_msgs[-1] = {
+            "role": "user",
+            "content": str(base_msgs[-1].get("content") or "") + nudge,
+        }
+
+    for budget in (min(max_tokens, 900), min(max_tokens, 700)):
+        try:
+            raw = complete_chat(base_msgs, max_tokens=budget, temperature=0.45)
+        except Exception:
+            logger.exception("recover_empty_response failed scene=%s", scene)
+            continue
+        if not raw.strip():
+            continue
+        if scene in ("verse_full", "verse_quick"):
+            draft = parse_answer_json(raw)
+            if draft:
+                md = render_answer_draft(draft, scene)
+                md = normalize_answer_markdown(
+                    md,
+                    scene,
+                    narrow=narrow,
+                    verse_span=verse_span,
+                )
+                if md.strip():
+                    return md
+        text = normalize_answer_markdown(
+            raw,
+            scene,
+            narrow=narrow,
+            verse_span=verse_span,
+        )
+        if text.strip():
+            return text
+    return None

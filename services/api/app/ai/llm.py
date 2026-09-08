@@ -130,6 +130,42 @@ def complete_chat(
         return ""
     msg = choices[0].get("message") or {}
     content = msg.get("content")
+    text = ""
     if isinstance(content, str):
-        return content
-    return _content_piece({"content": content}) if content else ""
+        text = content
+    elif content:
+        text = _content_piece({"content": content})
+    text = text.strip()
+    if text:
+        return text
+    # 部分模型仅输出 reasoning；再 nudge 一次非流式成稿
+    retry_msgs = [
+        *messages,
+        {
+            "role": "user",
+            "content": (
+                "请直接输出完整 Markdown 成稿答案（含 ### 小节），"
+                "不要输出思考过程，不要留空。"
+            ),
+        },
+    ]
+    with httpx.Client(timeout=httpx.Timeout(timeout_sec, connect=10.0)) as client:
+        resp = client.post(
+            url,
+            json={
+                **payload,
+                "messages": retry_msgs,
+                "temperature": min(float(temperature) + 0.15, 0.7),
+            },
+            headers=headers,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    choices = data.get("choices") or []
+    if not choices:
+        return ""
+    msg = choices[0].get("message") or {}
+    content = msg.get("content")
+    if isinstance(content, str):
+        return content.strip()
+    return _content_piece({"content": content}).strip() if content else ""

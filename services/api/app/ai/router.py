@@ -18,6 +18,7 @@ from .answer_normalize import normalize_answer_markdown
 from .answer_schema import SCHEMA_VERSION
 from .answer_structured import (
     needs_structure_repair,
+    recover_empty_response,
     repair_answer_structure,
     try_structured_verse_answer,
 )
@@ -537,7 +538,7 @@ def prewarm_answer(body: PrewarmRequest):
                     narrow=bool(prep["meta"].get("narrow")),
                     max_tokens=int(prep["max_tokens"]) // 2,
                 )
-                if repaired:
+                if repaired and repaired.strip():
                     text = normalize_answer_markdown(
                         repaired,
                         scene_id,
@@ -655,6 +656,7 @@ def chat(
                 {
                     "length": len(answer),
                     "word_count": len(answer),
+                    "text": answer,
                     "sections": cached.get("sections") or [],
                     "followups": followups,
                     "cache_hit": True,
@@ -961,7 +963,7 @@ def chat(
                 retry_modes.append((True, False))
             retry_modes.append((True, True))
             for nudge, strip_history in retry_modes:
-                if full or _budget_left() <= 0:
+                if full:
                     break
                 try:
                     prep_retry = prepare(
@@ -994,41 +996,24 @@ def chat(
                     )
                 except Exception:
                     logger.exception("ai chat empty-response retry failed")
-            if not full and _budget_left() > 3:
+            if not full:
                 try:
-                    prep_fb = prepare(
-                        ref_raw=body.ref,
-                        question=body.question,
-                        mode=body.mode,
-                        scene=body.scene,
-                        history=None,
-                        surface=body.surface,
-                        reader_context=body.reader_context,
-                        knowledge_base_id=body.knowledge_base_id,
+                    recovered = recover_empty_response(
+                        messages,
+                        scene or "",
+                        max_tokens=max_tokens,
+                        verse_span=verse_span,
+                        narrow=narrow,
                     )
-                    fb_msgs = list(prep_fb["messages"])
-                    if fb_msgs:
-                        last = fb_msgs[-1]
-                        fb_msgs[-1] = {
-                            "role": last["role"],
-                            "content": (
-                                f"{last['content']}\n\n"
-                                "请直接用 Markdown 输出成稿答案，不要输出思考过程。"
-                            ),
-                        }
-                    fb_text = complete_chat(
-                        fb_msgs,
-                        max_tokens=min(int(prep_fb["max_tokens"]), 800),
-                        temperature=0.5,
-                    ).strip()
-                    if fb_text:
-                        step = 48
-                        for i in range(0, len(fb_text), step):
-                            piece = fb_text[i : i + step]
-                            full.append(piece)
-                            yield _sse("delta", {"text": piece})
                 except Exception:
-                    logger.exception("ai chat complete_chat fallback failed")
+                    logger.exception("ai chat recover_empty_response failed")
+                    recovered = None
+                if recovered:
+                    step = 48
+                    for i in range(0, len(recovered), step):
+                        piece = recovered[i : i + step]
+                        full.append(piece)
+                        yield _sse("delta", {"text": piece})
         if not full:
             log_ai_request(
                 device_id=x_guest_id,
@@ -1064,7 +1049,7 @@ def chat(
                 narrow=narrow,
                 max_tokens=min(max_tokens // 2, 650),
             )
-            if repaired:
+            if repaired and repaired.strip():
                 text = normalize_answer_markdown(
                     repaired,
                     scene or "",
