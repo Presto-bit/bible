@@ -694,11 +694,6 @@ export default function XiaoAiSheet({
                             onShare={() => setShareTurn(turn)}
                           />
                         ) : null}
-                        {turn.streamIncomplete && !turn.busy && isLast ? (
-                          <p className="muted xiaoai-disclaimer">
-                            解读可能未写完，可点「与小爱深聊」补全。
-                          </p>
-                        ) : null}
                       </>
                     ) : null}
                   </div>
