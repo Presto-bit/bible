@@ -4,9 +4,11 @@ import { isStandalonePwa } from './platform';
 import { isFlutterH5Host } from './flutter_h5_bridge';
 
 export const BRAND_SPLASH_SESSION_KEY = 'peiai_brand_splash_done_v1';
-export const BRAND_SPLASH_MIN_MS = 1500;
+/** 接管控后至少稳定展示 2s（不含 250ms 淡出） */
+export const BRAND_SPLASH_MIN_MS = 2000;
 export const BRAND_SPLASH_FADE_MS = 250;
-export const BRAND_SPLASH_MAX_MS = 2000;
+/** 接管控后兜底最长（MIN + 800ms） */
+export const BRAND_SPLASH_MAX_MS = 2800;
 export const BRAND_SPLASH_BG = '#FFFCFA';
 export const BRAND_SPLASH_TITLE = '彼爱';
 export const BRAND_SPLASH_SUBTITLE = 'Love Each Other';
@@ -57,6 +59,8 @@ export function hasBrandSplashDone(): boolean {
  */
 export function shouldShowBrandSplash(): boolean {
   if (typeof window === 'undefined') return false;
+  /* head 已挂 pending 时须走完计时，勿因 session 标记提前拆掉 */
+  if (document.documentElement.classList.contains('peiai-splash-pending')) return true;
   if (!isStandalonePwa()) return false;
   if (isFlutterH5Host()) return false;
   if (hasBrandSplashDone()) return false;

@@ -48,13 +48,9 @@ export default function BrandSplash() {
       fadeTimer = setTimeout(finish, BRAND_SPLASH_FADE_MS);
     };
 
-    const start = window.__PEIAI_SPLASH_START__ ?? Date.now();
-    const elapsed = Date.now() - start;
-    const waitMin = Math.max(0, BRAND_SPLASH_MIN_MS - elapsed);
-    const waitMax = Math.max(0, BRAND_SPLASH_MAX_MS - elapsed);
-
-    const minTimer = setTimeout(beginFade, waitMin);
-    const maxTimer = setTimeout(beginFade, waitMax);
+    /* 从客户端接管控起算满 2s，勿按 head START 扣减（hydration 晚时会闪没） */
+    const minTimer = setTimeout(beginFade, BRAND_SPLASH_MIN_MS);
+    const maxTimer = setTimeout(beginFade, BRAND_SPLASH_MAX_MS);
 
     return () => {
       clearTimeout(minTimer);

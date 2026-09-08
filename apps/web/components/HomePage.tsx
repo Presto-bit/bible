@@ -178,7 +178,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     setHeroArtReady(false);
   }, [heroIllustration]);
 
-  /** 开屏 1.5s 窗口内预解码 hero 风景，减少撤遮罩后换肤跳变 */
+  /** 开屏 2s 窗口内预解码 hero 风景，减少撤遮罩后换肤跳变 */
   useEffect(() => {
     if (!heroIllustration) return;
     let cancelled = false;
