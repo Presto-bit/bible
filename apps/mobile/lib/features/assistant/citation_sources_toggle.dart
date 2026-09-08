@@ -180,6 +180,7 @@ class _CitationDetailSheetState extends ConsumerState<_CitationDetailSheet> {
   String? _err;
   bool _loading = true;
   bool _snipExpanded = false;
+  String _resolvedSnippet = '';
   String _disclaimer = '以下中文为便于阅读的释义，非官方译本；请以圣经与原文摘录为准。';
 
   @override
@@ -188,8 +189,27 @@ class _CitationDetailSheetState extends ConsumerState<_CitationDetailSheet> {
     _load();
   }
 
+  Future<String> _resolveSnippet() async {
+    final direct = widget.citation.snippet?.trim() ?? '';
+    if (direct.isNotEmpty) return direct;
+    final docId = widget.citation.documentId?.trim() ?? '';
+    if (docId.isEmpty) return '';
+    try {
+      final preview =
+          await ref.read(assistantRepoProvider).previewKnowledgeDocument(docId);
+      final raw = (preview['content'] as String? ?? '')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      return raw.length > 260 ? raw.substring(0, 260) : raw;
+    } catch (_) {
+      return '';
+    }
+  }
+
   Future<void> _load() async {
-    final snip = widget.citation.snippet?.trim() ?? '';
+    final snip = await _resolveSnippet();
+    if (!mounted) return;
+    setState(() => _resolvedSnippet = snip);
     if (snip.isEmpty) {
       setState(() {
         _loading = false;
@@ -226,7 +246,9 @@ class _CitationDetailSheetState extends ConsumerState<_CitationDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final snip = widget.citation.snippet?.trim() ?? '';
+    final snip = _resolvedSnippet.isNotEmpty
+        ? _resolvedSnippet
+        : (widget.citation.snippet?.trim() ?? '');
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),

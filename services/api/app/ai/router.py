@@ -700,6 +700,7 @@ def chat(
         scene = prep["meta"].get("scene")
         messages = list(prep["messages"])
         max_tokens = int(prep["max_tokens"])
+        verse_span = int(prep["meta"].get("verse_span") or 1)
         llm_t0 = time.monotonic()
         section_cont_used = False
         length_cont_used = False
@@ -756,12 +757,14 @@ def chat(
             if _budget_left() <= 0:
                 return
             body_probe, _ = split_body_and_followups("".join(full))
-            if not verse_explain_incomplete(scene, body_probe):
+            if not verse_explain_incomplete(scene, body_probe, verse_span=verse_span):
                 return
             section_cont_used = True
             missing = missing_verse_sections(scene, body_probe)
             hint = "、".join(missing) if missing else "剩余小节"
             cont_budget = min(max(max_tokens // 3, 400), 900)
+            if verse_span > 3:
+                cont_budget = min(max(max_tokens // 2, 500), 1200)
             cont_msgs = messages + [
                 {"role": "assistant", "content": "".join(full)},
                 {
@@ -875,6 +878,26 @@ def chat(
                 },
             )
             return
+        if not full and history:
+            try:
+                prep_retry = prepare(
+                    ref_raw=body.ref,
+                    question=body.question,
+                    mode=body.mode,
+                    scene=body.scene,
+                    history=None,
+                    surface=body.surface,
+                    reader_context=body.reader_context,
+                    knowledge_base_id=body.knowledge_base_id,
+                )
+                retry_meta = StreamMeta()
+                yield from _stream_budgeted(
+                    list(prep_retry["messages"]),
+                    budget=int(prep_retry["max_tokens"]),
+                    meta=retry_meta,
+                )
+            except Exception:
+                logger.exception("ai chat empty-response retry failed")
         if not full:
             log_ai_request(
                 device_id=x_guest_id,

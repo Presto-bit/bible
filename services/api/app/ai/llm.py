@@ -68,6 +68,7 @@ def stream_chat(
         with client.stream("POST", url, json=payload, headers=headers) as resp:
             resp.raise_for_status()
             saw_reasoning = False
+            reasoning_parts: list[str] = []
             yielded = False
             for line in resp.iter_lines():
                 if not line:
@@ -99,16 +100,28 @@ def stream_chat(
                     reasoning = delta.get("reasoning_content")
                     if isinstance(reasoning, str) and reasoning:
                         saw_reasoning = True
+                        reasoning_parts.append(reasoning)
                 piece = _content_piece(delta) if isinstance(delta, dict) else ""
                 if piece:
                     yielded = True
                     yield piece
             if saw_reasoning and not yielded:
-                logger.warning(
-                    "LLM stream emitted reasoning_content but no content deltas "
-                    "(model=%s)",
-                    s.deepseek_text_model,
-                )
+                fallback = "".join(reasoning_parts).strip()
+                if fallback:
+                    logger.warning(
+                        "LLM stream used reasoning_content fallback "
+                        "(model=%s, chars=%d)",
+                        s.deepseek_text_model,
+                        len(fallback),
+                    )
+                    yield fallback
+                    yielded = True
+                else:
+                    logger.warning(
+                        "LLM stream emitted reasoning_content but no content deltas "
+                        "(model=%s)",
+                        s.deepseek_text_model,
+                    )
 
 
 def complete_chat(

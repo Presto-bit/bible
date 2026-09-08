@@ -31,6 +31,8 @@ def _passage_text(ref) -> str:
 
 _VALID_ROLES = {"user", "assistant"}
 MAX_HISTORY_TURNS = 12
+_MAX_HIST_ASSISTANT_CHARS = 1400
+_MAX_HIST_USER_CHARS = 420
 
 _FOLLOWUP_TAIL_RE = re.compile(
     r"\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])[\s\S]*$"
@@ -68,6 +70,10 @@ def _sanitize_history(history: list[dict] | None) -> list[dict[str, str]]:
             if _is_excluded_assistant_content(content):
                 continue
             content = _strip_followups_for_history(content)
+            if len(content) > _MAX_HIST_ASSISTANT_CHARS:
+                content = content[:_MAX_HIST_ASSISTANT_CHARS].rstrip() + "…"
+        elif role == "user" and len(content) > _MAX_HIST_USER_CHARS:
+            content = content[:_MAX_HIST_USER_CHARS].rstrip() + "…"
         if content:
             out.append({"role": role, "content": content})
     return out
@@ -148,6 +154,12 @@ def prepare(
         )
 
     prior = _sanitize_history(history)
+    verse_span = 1
+    if ref and ref.verse_start is not None:
+        verse_span = (ref.verse_end or ref.verse_start) - ref.verse_start + 1
+    if has_prior_turns := bool(prior):
+        if passage_text and len(passage_text) > 900:
+            passage_text = passage_text[:900].rstrip() + "…"
     base = build_messages(
         scene=spec,
         passage_display=passage_display,
@@ -156,10 +168,12 @@ def prepare(
         citations=citations,
         use_rag=use_rag,
         reader_context=reader_context,
-        has_prior_turns=bool(prior),
+        has_prior_turns=has_prior_turns,
     )
     messages = [base[0], *prior, base[1]]
     max_tokens = spec.max_tokens
+    if spec.id in ("verse_full", "verse_quick") and verse_span > 1:
+        max_tokens = min(2400, max_tokens + (verse_span - 1) * 100)
     if spec.id in ("summary_chapter", "summary_chapter_outline") and ref and ref.chapter is not None:
         if ref.verse_start is None:
             verse_count = len(reader.get_chapter(ref.book_id, ref.chapter))
@@ -191,6 +205,7 @@ def prepare(
         "surface": surface,
         "ref": ref.osis if ref else None,
         "display": passage_display,
+        "verse_span": verse_span,
         "knowledge_base_id": kb["id"],
         "knowledge_base_name": kb["name"],
         "citations": [

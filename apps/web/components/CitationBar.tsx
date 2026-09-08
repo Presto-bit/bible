@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { explainCitation, type Citation } from '@/lib/api';
+import { explainCitation, previewKnowledgeDocument, type Citation } from '@/lib/api';
 import { formatCitationTitle } from '@/lib/citation_display';
 import AppBodyPortal from '@/components/AppBodyPortal';
 
@@ -37,6 +37,7 @@ export function CitationBar({
   const [explainLoading, setExplainLoading] = useState(false);
   const [snippetExpanded, setSnippetExpanded] = useState(false);
   const [disclaimer, setDisclaimer] = useState(DISCLAIMER);
+  const [resolvedSnippet, setResolvedSnippet] = useState('');
   const snippetRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => setMounted(true), []);
@@ -60,49 +61,64 @@ export function CitationBar({
       snippetRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }, 120);
     return () => window.clearTimeout(t);
-  }, [detailN, sheetOpen, detail?.snippet]);
+  }, [detailN, sheetOpen, resolvedSnippet]);
 
   useEffect(() => {
-    if (!detail?.snippet) {
-      setExplainZh('');
-      setExplainErr('');
-      setExplainLoading(false);
+    if (detailN == null || !sheetOpen || !detail) {
+      setResolvedSnippet('');
       return;
     }
     let cancelled = false;
     const title = detail.title;
-    const snippet = detail.snippet;
+
+    const loadSnippet = async (): Promise<string> => {
+      const direct = detail.snippet?.trim() || '';
+      if (direct) return direct;
+      const docId = detail.document_id?.trim();
+      if (!docId) return '';
+      try {
+        const preview = await previewKnowledgeDocument(docId);
+        const raw = (preview.content || '').replace(/\s+/g, ' ').trim();
+        return raw.slice(0, 260);
+      } catch {
+        return '';
+      }
+    };
+
     setExplainLoading(true);
     setExplainZh('');
     setExplainErr('');
     setSnippetExpanded(false);
-    void explainCitation({ title, snippet })
-      .then(async (res) => {
+    setResolvedSnippet('');
+
+    void loadSnippet().then(async (snippet) => {
+      if (cancelled) return;
+      setResolvedSnippet(snippet);
+      if (!snippet) {
+        setExplainLoading(false);
+        setExplainErr('该来源未提供可显示的摘录');
+        return;
+      }
+      try {
+        let res = await explainCitation({ title, snippet });
+        if (!res.explain_zh && res.error) {
+          res = await explainCitation({ title, snippet, force: true });
+        }
         if (cancelled) return;
-        // 单次生成可能受短暂网关超时影响，自动再试一次。
-        const resolved =
-          !res.explain_zh && res.error
-            ? await explainCitation({
-                title,
-                snippet,
-                force: true,
-              })
-            : res;
-        if (cancelled) return;
-        setExplainZh(resolved.explain_zh || '');
-        setDisclaimer(resolved.disclaimer || DISCLAIMER);
-        if (resolved.error) setExplainErr(resolved.error);
-      })
-      .catch(() => {
+        setExplainZh(res.explain_zh || '');
+        setDisclaimer(res.disclaimer || DISCLAIMER);
+        if (res.error) setExplainErr(res.error);
+      } catch {
         if (!cancelled) setExplainErr('暂无法生成中文释义');
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setExplainLoading(false);
-      });
+      }
+    });
+
     return () => {
       cancelled = true;
     };
-  }, [detail?.n, detail?.snippet, detail?.title]);
+  }, [detail?.n, detail?.snippet, detail?.title, detail?.document_id, sheetOpen]);
 
   if (!citations.length) return null;
 
@@ -124,7 +140,7 @@ export function CitationBar({
   };
 
   const displayTitle = (c: Citation) => formatCitationTitle(c.title, bookName);
-  const snip = detail?.snippet?.trim() || '';
+  const snip = resolvedSnippet.trim() || detail?.snippet?.trim() || '';
   const snipLong = snip.length > 180;
 
   const trigger =

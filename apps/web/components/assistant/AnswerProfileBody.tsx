@@ -1,9 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
-import AnswerExpandable from '@/components/AnswerExpandable';
+import { useMemo, useRef, useState } from 'react';
 import AnswerText from '@/components/AnswerText';
-import SectionToc from '@/components/assistant/SectionToc';
 import StructureAssetCard from '@/components/assistant/StructureAssetCard';
 import TimelineRail from '@/components/assistant/TimelineRail';
 import { bodyText } from '@/lib/assistant_format';
@@ -12,7 +10,6 @@ import { mergeAnswerSections, type AnswerSection } from '@/lib/assistant_section
 import {
   extractStudySheetCopyText,
   parseTimelineNodes,
-  streamingWrittenSections,
   type StructureAsset,
 } from '@/lib/assistant_blocks';
 
@@ -56,17 +53,12 @@ export default function AnswerProfileBody({
   streamSummaryFirst = true,
 }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
-  const [activeSection, setActiveSection] = useState<string | undefined>();
   const [copiedStudy, setCopiedStudy] = useState(false);
 
   const clean = useMemo(() => bodyText(text), [text]);
   const mergedSections = useMemo(
     () => mergeAnswerSections(sections, clean),
     [sections, clean],
-  );
-  const writtenSectionIds = useMemo(
-    () => (streaming ? streamingWrittenSections(clean, mergedSections) : undefined),
-    [streaming, clean, mergedSections],
   );
   const timelineNodes = useMemo(() => parseTimelineNodes(clean), [clean]);
   const profileClass = responseProfile ? `answer-profile-${responseProfile}` : '';
@@ -82,14 +74,7 @@ export default function AnswerProfileBody({
     [responseProfile, clean],
   );
 
-  const handleSectionSelect = useCallback((id: string) => {
-    setActiveSection(id);
-    const root = bodyRef.current;
-    const el = root?.querySelector(`#${CSS.escape(id)}`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
-
-  const handleCopyStudy = useCallback(async () => {
+  const handleCopyStudy = async () => {
     if (!studyCopyText) return;
     try {
       await navigator.clipboard.writeText(studyCopyText);
@@ -98,7 +83,7 @@ export default function AnswerProfileBody({
     } catch {
       /* ignore */
     }
-  }, [studyCopyText]);
+  };
 
   const { summary, body: bodyWithoutSummary } = useMemo(
     () => extractSummaryLead(clean),
@@ -130,15 +115,6 @@ export default function AnswerProfileBody({
       {showPresetStructure && structureAssets?.[0] ? (
         <StructureAssetCard asset={structureAssets[0]} />
       ) : null}
-      {mergedSections.length >= 2 ? (
-        <SectionToc
-          sections={mergedSections}
-          activeId={activeSection}
-          writtenSectionIds={writtenSectionIds}
-          streaming={streaming}
-          onSelect={handleSectionSelect}
-        />
-      ) : null}
       {showParsedTimeline ? <TimelineRail nodes={timelineNodes} /> : null}
       {studyCopyText ? (
         <div className="study-sheet-copy-row">
@@ -147,13 +123,10 @@ export default function AnswerProfileBody({
           </button>
         </div>
       ) : null}
-      <AnswerExpandable
+      <AnswerText
         text={text}
         streaming={streaming}
         dense={dense}
-        defaultCollapsed={defaultCollapsed}
-        collapseMinBodyLen={collapseMinBodyLen}
-        expandLabel={expandLabel}
         onCitationClick={onCitationClick}
       />
     </div>

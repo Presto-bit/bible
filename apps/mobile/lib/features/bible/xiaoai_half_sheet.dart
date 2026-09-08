@@ -283,7 +283,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           )
         : question;
 
-    if (!isRetry) {
+    if (!isRetry && history.isEmpty) {
       final cached = readHalfSheetCache(
         scene,
         widget.refStr,
@@ -380,7 +380,17 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             if (chatSettled) break;
             flush();
             var text = pending.trim();
-            if (text.isEmpty) break;
+            if (text.isEmpty) {
+              setState(() {
+                final t = _turnFor(turnId);
+                if (t != null) {
+                  t
+                    ..answer = _emptyAnswerMsg
+                    ..busy = false;
+                }
+              });
+              break;
+            }
             chatSettled = true;
             final streamOk = streamComplete &&
                 !text.startsWith('⚠️') &&
@@ -808,12 +818,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             responseProfile: turn.responseProfile,
             sections: turn.sections,
             structureAssets: turn.structureAssets,
-            defaultCollapsed: isLast &&
-                !hasError &&
-                (turn.scene == AssistantScene.verseFull ||
-                    turn.scene == AssistantScene.verseQuick),
-            collapseMinBodyLen: 40,
-            expandLabel: '展开完整解读',
             onCitationTap: (n) {
               final citation =
                   turn.citations.where((c) => c.n == n).firstOrNull;
@@ -975,13 +979,27 @@ class _RagSourceStatusHalfSheet extends StatelessWidget {
         : '本次以圣经与通识作答 · 资料库暂无直接对应注释$kbSuffix';
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12,
-          height: 1.4,
-          color: AppColors.inkFaint,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.4,
+              color: AppColors.inkFaint,
+            ),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'AI释义，观点仅供参考',
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.35,
+              color: AppColors.inkFaint,
+            ),
+          ),
+        ],
       ),
     );
   }

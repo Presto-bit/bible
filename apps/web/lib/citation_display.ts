@@ -32,15 +32,19 @@ export function citationDocumentKey(c: Citation): string {
 }
 
 export function uniqueCitationsForRail(citations: Citation[]): Citation[] {
-  const seen = new Set<string>();
-  const out: Citation[] = [];
+  const seen = new Map<string, Citation>();
   for (const c of citations) {
     const key = citationDocumentKey(c);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(c);
+    const prev = seen.get(key);
+    if (!prev) {
+      seen.set(key, c);
+      continue;
+    }
+    const prevSnip = (prev.snippet || '').trim();
+    const nextSnip = (c.snippet || '').trim();
+    if (!prevSnip && nextSnip) seen.set(key, c);
   }
-  return out;
+  return Array.from(seen.values());
 }
 
 /** 将 RAG 文档标题规范为中文展示名 */

@@ -34,7 +34,11 @@ function sectionTitles(text: string): Set<string> {
 }
 
 /** 半屏解读回答是否结构完整，避免缓存/展示半截生成。 */
-export function isHalfSheetAnswerComplete(answer: string, scene: AssistantScene): boolean {
+export function isHalfSheetAnswerComplete(
+  answer: string,
+  scene: AssistantScene,
+  verseSpan = 1,
+): boolean {
   const text = answer.trim();
   if (!text || text.startsWith('⚠️')) return false;
 
@@ -44,7 +48,11 @@ export function isHalfSheetAnswerComplete(answer: string, scene: AssistantScene)
       : scene === 'verse_quick'
         ? VERSE_QUICK_SECTIONS
         : null;
-  const minLen = scene === 'verse_full' ? 100 : scene === 'verse_quick' ? 60 : 80;
+  const minLen = scene === 'verse_full'
+    ? Math.max(80, 100 + Math.max(0, verseSpan - 1) * 30)
+    : scene === 'verse_quick'
+      ? Math.max(50, 60 + Math.max(0, verseSpan - 1) * 20)
+      : 80;
 
   if (text.length < minLen) return false;
   if (!required) return true;

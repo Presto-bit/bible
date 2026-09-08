@@ -51,7 +51,7 @@ export function RagSourceStatus({
             </>
           ) : null}
         </p>
-        <p className="assistant-rag-disclaimer">AI 释义，请以圣经原文为准</p>
+        <p className="assistant-rag-disclaimer">AI释义，观点仅供参考</p>
       </div>
     );
   }
@@ -74,7 +74,7 @@ export function RagSourceStatus({
           </>
         ) : null}
       </p>
-      <p className="assistant-rag-disclaimer">AI 释义，请以圣经原文为准</p>
+      <p className="assistant-rag-disclaimer">AI释义，观点仅供参考</p>
     </div>
   );
 }

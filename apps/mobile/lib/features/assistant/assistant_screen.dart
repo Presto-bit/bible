@@ -1830,27 +1830,41 @@ class _RagSourceStatus extends StatelessWidget {
         : '本次以圣经与通识作答 · 资料库暂无直接对应注释$kbSuffix';
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 12,
-              height: 1.4,
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: AppColors.inkFaint,
+                ),
+              ),
+              if (count == 0 && isTopic && onSwitchToPlatform != null)
+                TextButton(
+                  onPressed: onSwitchToPlatform,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('换回平台库', style: TextStyle(fontSize: 12)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'AI释义，观点仅供参考',
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.35,
               color: AppColors.inkFaint,
             ),
           ),
-          if (count == 0 && isTopic && onSwitchToPlatform != null)
-            TextButton(
-              onPressed: onSwitchToPlatform,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text('换回平台库', style: TextStyle(fontSize: 12)),
-            ),
         ],
       ),
     );

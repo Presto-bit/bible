@@ -252,6 +252,25 @@
   border: 1px solid var(--line);
 }
 
+.reader-ai-half-sheet .half-sheet-answer-plain {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+}
+
+.reader-ai-half-sheet .half-sheet-answer-plain .half-sheet-answer-body {
+  margin-top: 0;
+}
+
+.reader-ai-half-sheet .half-sheet-answer-plain .answer-rich .ans-section {
+  margin-top: 12px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border-left: none;
+}
+
 .half-sheet-badge {
   display: inline-block;
   padding: 1px 8px;

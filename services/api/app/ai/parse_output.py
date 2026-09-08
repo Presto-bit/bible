@@ -66,7 +66,7 @@ _VERSE_FULL_SECTIONS = frozenset({"摘要", "背景", "经文解释"})
 _VERSE_QUICK_SECTIONS = frozenset({"摘要", "经文解释"})
 
 
-def verse_explain_incomplete(scene: str, body_text: str) -> bool:
+def verse_explain_incomplete(scene: str, body_text: str, *, verse_span: int = 1) -> bool:
     """读经半屏解读是否缺必需小节或明显过短。"""
     if scene not in ("verse_full", "verse_quick"):
         return False
@@ -74,11 +74,14 @@ def verse_explain_incomplete(scene: str, body_text: str) -> bool:
     if not text:
         return True
     titles = {s["title"] for s in extract_sections(text)}
+    span = max(1, int(verse_span or 1))
     if scene == "verse_full":
-        if len(text) < 100:
+        min_len = 100 + max(0, span - 1) * 35
+        if len(text) < min_len:
             return True
         return not _VERSE_FULL_SECTIONS.issubset(titles)
-    if len(text) < 60:
+    min_len = 60 + max(0, span - 1) * 25
+    if len(text) < min_len:
         return True
     return not _VERSE_QUICK_SECTIONS.issubset(titles)
 

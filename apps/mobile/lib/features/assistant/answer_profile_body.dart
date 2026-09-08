@@ -5,13 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme.dart';
-import 'answer_expandable.dart';
 import 'answer_text.dart' show AssistantMarkdownBody, kAssistantAnswerFontSize;
 import 'assistant_blocks.dart';
 import 'assistant_format.dart';
 import 'assistant_markdown.dart';
 import 'assistant_sections.dart';
-import 'section_toc.dart';
 import 'structure_asset_card.dart';
 import 'timeline_rail.dart';
 
@@ -50,19 +48,12 @@ class AnswerProfileBody extends StatefulWidget {
 }
 
 class _AnswerProfileBodyState extends State<AnswerProfileBody> {
-  String? _activeSection;
   bool _copiedStudy = false;
 
   @override
   Widget build(BuildContext context) {
     final clean = bodyText(widget.text);
     final merged = mergeAnswerSections(widget.sections, clean);
-    final written = widget.streaming
-        ? streamingWrittenSections(
-            clean,
-            merged.map((s) => (id: s.id, title: s.title)).toList(),
-          )
-        : null;
     final timelineNodes = parseTimelineNodes(clean);
     final profile = widget.responseProfile ?? '';
     final showPreset = !widget.streaming &&
@@ -120,17 +111,6 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showPreset) StructureAssetCard(asset: widget.structureAssets.first),
-        if (merged.length >= 2)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: SectionToc(
-              sections: merged,
-              activeId: _activeSection,
-              writtenSectionIds: written,
-              streaming: widget.streaming,
-              onSelect: (id) => setState(() => _activeSection = id),
-            ),
-          ),
         if (showParsedTimeline) TimelineRail(nodes: timelineNodes),
         if (studyCopy.isNotEmpty)
           Padding(
@@ -151,14 +131,11 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
               child: Text(_copiedStudy ? '已复制讨论题' : '复制讨论题'),
             ),
           ),
-        AnswerExpandable(
+        AssistantMarkdownBody(
           text: widget.text,
           fontSize: widget.fontSize,
           streaming: widget.streaming,
           dense: widget.dense,
-          defaultCollapsed: widget.defaultCollapsed,
-          collapseMinBodyLen: widget.collapseMinBodyLen,
-          expandLabel: widget.expandLabel,
           onCitationTap: widget.onCitationTap,
         ),
       ],

@@ -4,7 +4,7 @@ import { SheetCloseButton } from '@/components/PageBackBar';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { chatStream, type Citation } from '@/lib/api';
-import AnswerProfileBody from '@/components/assistant/AnswerProfileBody';
+import AnswerText from '@/components/AnswerText';
 import type { AnswerSection } from '@/lib/assistant_sections';
 import type { StructureAsset } from '@/lib/assistant_blocks';
 import { CitationBar } from '@/components/CitationBar';
@@ -199,6 +199,8 @@ export default function XiaoAiSheet({
       scene: AssistantScene,
       opts?: { isRetry?: boolean; history?: Array<{ role: 'user' | 'assistant'; content: string }> },
     ) => {
+      streamCleanupRef.current?.();
+      streamCleanupRef.current = null;
       const runId = ++runIdRef.current;
       accRef.current = '';
       const {
@@ -229,7 +231,7 @@ export default function XiaoAiSheet({
           ? buildHalfSheetQuestion(question, sel, explicitSel)
           : question;
 
-      if (!opts?.isRetry) {
+      if (!opts?.isRetry && !opts?.history?.length) {
         const cached = readHalfSheetCache(scene, ref, cacheSel, apiQuestion);
         if (cached) {
           const followups = defaultHalfSheetFollowups(label);
@@ -614,9 +616,9 @@ export default function XiaoAiSheet({
                 </div>
 
                 <div
-                  className={`half-sheet-answer half-sheet-answer-rich${waitingFirstToken ? ' half-sheet-answer-loading' : ''}`}
+                  className={`half-sheet-answer half-sheet-answer-plain${waitingFirstToken ? ' half-sheet-answer-loading' : ''}`}
                 >
-                  <div className="half-sheet-answer-body reader-ai-answer assistant-answer">
+                  <div className="half-sheet-answer-body reader-ai-answer assistant-answer allow-text-select">
                     {waitingFirstToken ? (
                       <AssistantThinkingState
                         variant="halfsheet"
@@ -645,20 +647,10 @@ export default function XiaoAiSheet({
                             }
                           />
                         ) : null}
-                        <AnswerProfileBody
+                        <AnswerText
                           text={clean || rawAnswer}
                           streaming={turn.busy}
                           dense={turn.scene === 'verse_quick'}
-                          responseProfile={turn.responseProfile}
-                          sections={turn.sections}
-                          structureAssets={turn.structureAssets}
-                          defaultCollapsed={
-                            isLast
-                            && !hasError
-                            && (turn.scene === 'verse_full' || turn.scene === 'verse_quick')
-                          }
-                          collapseMinBodyLen={40}
-                          expandLabel="展开完整解读"
                           onCitationClick={(n) => {
                             recordCitationClick();
                             setCitationTurnId(turn.id);
