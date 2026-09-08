@@ -1095,6 +1095,19 @@ export interface ChatMetaPayload {
   cache_hit?: boolean;
   cache_source?: 'cache' | 'prewarm' | string;
   instant?: boolean;
+  /** 客户端选版式：side_compare / viewpoint_stack / … */
+  response_profile?: string;
+  /** P3 静态结构参考（年表/谱系/示意图） */
+  structure_assets?: StructureAssetPayload[];
+}
+
+export interface StructureAssetPayload {
+  kind: 'timeline' | 'diagram' | 'graph';
+  id: string;
+  label: string;
+  subtitle?: string;
+  href?: string;
+  nodes?: { year: string; label: string; note?: string }[];
 }
 
 export interface ChatDonePayload {
@@ -1102,6 +1115,9 @@ export interface ChatDonePayload {
   word_count?: number;
   followups?: string[];
   sections?: { id: string; title: string }[];
+  lead?: string;
+  blocks?: Array<Record<string, unknown>>;
+  timeline?: { year: string; label: string; note?: string }[];
   cache_hit?: boolean;
   cache_source?: 'cache' | 'prewarm' | string;
   instant?: boolean;

@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
-import '../assistant/answer_text.dart';
+import '../assistant/answer_profile_body.dart';
 import 'bible_summary.dart';
 import 'content_repository.dart';
 import 'reader_sheet.dart';
@@ -248,9 +248,13 @@ class _SummarySheetBodyState extends ConsumerState<_SummarySheetBody> {
                             ],
                           );
                         }
-                        return AssistantMarkdownBody(
+                        return AnswerProfileBody(
                           text: body,
                           dense: true,
+                          responseProfile: 'chapter_outline',
+                          defaultCollapsed: body.length > 220,
+                          collapseMinBodyLen: 100,
+                          expandLabel: '展开导读',
                         );
                       },
                     ),

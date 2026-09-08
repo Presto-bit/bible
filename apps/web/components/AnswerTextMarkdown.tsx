@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
 import { streamingSafeBody } from '@/lib/assistant_format';
 import { prepareAssistantMarkdown, parseCitationHref } from '@/lib/assistant_markdown';
+import { sectionSlug } from '@/lib/assistant_sections';
 
 type Props = {
   text: string;
@@ -60,8 +61,11 @@ export default function AnswerText({
     h2: ({ children }) => <h3 className="ans-md-h">{children}</h3>,
     h3: ({ children }) => {
       const plain = childrenToPlain(children).trim();
-      if (plain === '摘要') {
-        return <h3 className="ans-md-h ans-md-h-summary">{children}</h3>;
+      const id = sectionSlug(plain);
+      if (plain === '摘要' || plain === '本章概览' || plain === '卷概览') {
+        return (
+          <h3 id={id} className="ans-md-h ans-md-h-summary">{children}</h3>
+        );
       }
       const viewpoint = /观点\s*([ABC一二三]|[AaBbCc])/.exec(plain);
       if (viewpoint) {
@@ -69,13 +73,14 @@ export default function AnswerText({
         const isB = key === 'B' || key === '二';
         return (
           <h3
+            id={id}
             className={`ans-md-h ans-md-h-viewpoint${isB ? ' ans-md-h-viewpoint-b' : ''}`}
           >
             {children}
           </h3>
         );
       }
-      return <h3 className="ans-md-h ans-md-h-section">{children}</h3>;
+      return <h3 id={id} className="ans-md-h ans-md-h-section">{children}</h3>;
     },
     h4: ({ children }) => <h4 className="ans-md-h4">{children}</h4>,
     p: ({ children }) => <p className="ans-md-p">{children}</p>,

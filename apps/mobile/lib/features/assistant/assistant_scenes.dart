@@ -13,7 +13,8 @@ enum AssistantScene {
   chatOriginal('chat_original', 'original', 90000),
   chatGeneral('chat_general', 'explain', 90000),
   chatViewpoints('chat_viewpoints', 'explain', 90000),
-  summaryChapter('summary_chapter', 'explain', 60000),
+  summaryChapter('summary_chapter', 'explain', 90000),
+  summaryChapterOutline('summary_chapter_outline', 'explain', 120000),
   summaryBook('summary_book', 'explain', 60000);
 
   const AssistantScene(this.id, this.mode, this.timeoutMs);

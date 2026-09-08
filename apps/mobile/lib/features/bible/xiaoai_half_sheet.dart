@@ -12,7 +12,9 @@ import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/badge_stats.dart';
 import '../../core/config.dart';
 import '../../core/theme.dart';
-import '../assistant/answer_text.dart';
+import '../assistant/answer_profile_body.dart';
+import '../assistant/assistant_blocks.dart';
+import '../assistant/assistant_sections.dart';
 import '../assistant/assistant_format.dart';
 import '../assistant/assistant_markdown.dart';
 import '../assistant/assistant_reader_context.dart';
@@ -59,6 +61,9 @@ class HalfSheetTurnView {
     this.useRag,
     this.kbId,
     this.kbName,
+    this.responseProfile,
+    this.sections = const [],
+    this.structureAssets = const [],
   });
 
   final String id;
@@ -72,6 +77,9 @@ class HalfSheetTurnView {
   bool? useRag;
   String? kbId;
   String? kbName;
+  String? responseProfile;
+  List<AnswerSection> sections;
+  List<StructureAsset> structureAssets;
 }
 
 class XiaoAiHalfSheet extends ConsumerStatefulWidget {
@@ -104,7 +112,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
   final _turns = <HalfSheetTurnView>[];
   String? _activeTurnId;
   int _runId = 0;
-  final _expandedTurns = <String, bool>{};
   String? _copiedTurnId;
   StreamSubscription<am.ChatEvent>? _sub;
   bool _chipTapLocked = false;
@@ -213,7 +220,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           ),
         );
       _activeTurnId = turnId;
-      _expandedTurns[turnId] = true;
     });
     _runChat(turnId, _userQuestion, _initialScene, isRetry: isRetry);
   }
@@ -331,7 +337,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..citations = cites
                   ..useRag = useRag
                   ..kbId = kbId
-                  ..kbName = kbName;
+                  ..kbName = kbName
+                  ..responseProfile = meta.responseProfile
+                  ..structureAssets = meta.structureAssets;
               }
             });
           case am.DeltaEvent(:final text):
@@ -368,7 +376,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..busy = false;
               }
             });
-          case am.DoneEvent(:final followups, :final streamComplete):
+          case am.DoneEvent(:final followups, :final sections, :final streamComplete):
             if (chatSettled) break;
             flush();
             var text = pending.trim();
@@ -399,7 +407,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..streamIncomplete = !streamOk || !structOk
                   ..useRag = useRag
                   ..kbId = kbId
-                  ..kbName = kbName;
+                  ..kbName = kbName
+                  ..sections = sections;
               }
             });
             if (streamOk && structOk) {
@@ -502,7 +511,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         ),
       );
       _activeTurnId = turnId;
-      _expandedTurns[turnId] = true;
     });
     _scrollToBottom();
     _runChat(turnId, question, scene, history: history);
@@ -736,13 +744,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     final usedCitations = citationsUsedInText(clean, turn.citations);
     final evidenceCites =
         usedCitations.isNotEmpty ? usedCitations : turn.citations;
-    final summaryLead = extractSummaryLead(clean);
-    final expanded = _expandedTurns[turn.id] != false;
-    final showCollapsed = isLast &&
-        !expanded &&
-        !hasError &&
-        summaryLead.summary.isNotEmpty &&
-        summaryLead.body.length > 20;
     final displayText = prepareAssistantDisplay(
       turn.answer.isEmpty ? (turn.busy ? '' : _emptyAnswerMsg) : turn.answer,
       streaming: turn.busy,
@@ -792,36 +793,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         ),
         if (waitingFirstToken)
           _HalfSheetThinkingState(label: _thinkingLabel(turn))
-        else if (showCollapsed)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                decoration: BoxDecoration(
-                  color: Color.lerp(AppColors.surface, AppColors.accentWash, 0.35) ??
-                      AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  summaryLead.summary,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    height: 1.72,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () =>
-                    setState(() => _expandedTurns[turn.id] = true),
-                child: const Text('展开完整解读'),
-              ),
-            ],
-          )
         else ...[
           if (!hasError && !turn.busy)
             _RagSourceStatusHalfSheet(
@@ -830,10 +801,19 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               knowledgeBaseId: turn.kbId,
               knowledgeBaseName: turn.kbName,
             ),
-          AssistantMarkdownBody(
+          AnswerProfileBody(
             text: displayText,
             streaming: turn.busy,
             dense: turn.scene == AssistantScene.verseQuick,
+            responseProfile: turn.responseProfile,
+            sections: turn.sections,
+            structureAssets: turn.structureAssets,
+            defaultCollapsed: isLast &&
+                !hasError &&
+                (turn.scene == AssistantScene.verseFull ||
+                    turn.scene == AssistantScene.verseQuick),
+            collapseMinBodyLen: 40,
+            expandLabel: '展开完整解读',
             onCitationTap: (n) {
               final citation =
                   turn.citations.where((c) => c.n == n).firstOrNull;

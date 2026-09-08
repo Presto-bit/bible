@@ -2,7 +2,11 @@
 
 import { chatStream } from './api';
 import { bodyText } from './assistant_format';
+import { loadChapterVerses } from './chapter_prefetch';
 import { withBasePath } from './basePath';
+
+/** 长章（>20 节）走结构导读 scene */
+export const LONG_CHAPTER_VERSE_THRESHOLD = 21;
 
 /** v3：作废旧版逐章概述格式与截断缓存 */
 const CACHE_KEY = 'presto_bible_summaries_v3';
@@ -124,15 +128,25 @@ function looksTruncated(text: string, kind: 'book' | 'chapter'): boolean {
   if (!t) return true;
   if (/[…⋯]$|\.\.\.$/.test(t)) return true;
   if (/第\s*\d+\s*章[：:]\s*$/.test(t)) return true;
+  if (t.includes('生成未完成')) return true;
+  const hasOverview = /(?:^|\n)###\s*本章概览/m.test(t) || /(?:^|\n)###\s*卷概览/m.test(t);
+  const hasBody =
+    /(?:^|\n)###\s*核心内容/m.test(t)
+    || /(?:^|\n)###\s*分段要点/m.test(t)
+    || /(?:^|\n)###\s*结构脉络/m.test(t);
+  const listItems = (t.match(/^\s*[-*•]\s+\S/gm) ?? []).length;
   if (kind === 'book') {
-    // 旧版逐章列表格式作废
     if (/各章概述/.test(t) && /第\s*\d+\s*章[：:]/.test(t)) return true;
-    // 明显半截：极短且无句号
     if (t.length < 24 && !/[。！？]/.test(t)) return true;
-  } else if (t.length < 8) {
-    return true;
+    if (!hasOverview || !hasBody) return true;
+    return t.length < 120;
   }
-  return false;
+  if (t.length < 8) return true;
+  if (!hasOverview || !hasBody) return true;
+  if (/分段要点/.test(t)) {
+    return listItems < 3 || t.length < 80;
+  }
+  return listItems < 2 || t.length < 40;
 }
 
 function resolveBookSeed(bookId: string): string | null {
@@ -175,10 +189,11 @@ export function invalidateSummaryCache(bookId?: string, chapter?: number) {
 async function streamAsk(
   question: string,
   ref?: string,
-  scene: 'summary_chapter' | 'summary_book' = 'summary_chapter',
+  scene: 'summary_chapter' | 'summary_chapter_outline' | 'summary_book' = 'summary_chapter',
 ): Promise<string> {
   let text = '';
   let err: string | null = null;
+  let streamComplete = true;
   await chatStream(
     { ref: ref ?? null, question, mode: 'explain', scene },
     {
@@ -188,12 +203,23 @@ async function streamAsk(
       onError: (m) => {
         err = m;
       },
+      onDone: (payload) => {
+        if (payload?.streamComplete === false) streamComplete = false;
+      },
     },
   );
   const body = bodyText(text).trim();
   if (err && !body) throw new Error(err);
   if (!body) throw new Error(err || '小爱暂时没有生成内容，请稍后重试');
+  if (!streamComplete) {
+    throw new Error('导读未完整送达，请重试');
+  }
   return body;
+}
+
+async function chapterVerseCount(bookId: string, chapter: number): Promise<number> {
+  const verses = await loadChapterVerses(bookId, chapter, null);
+  return verses?.length ?? 0;
 }
 
 export async function loadBookSummary(bookId: string, bookName: string): Promise<string> {
@@ -247,10 +273,15 @@ export async function loadChapterSummary(
   }
 
   try {
+    const verseCount = await chapterVerseCount(bookId, chapter);
+    const useOutline = verseCount >= LONG_CHAPTER_VERSE_THRESHOLD;
+    const scene = useOutline ? 'summary_chapter_outline' : 'summary_chapter';
     const body = await streamAsk(
-      `请概括《${bookName}》第${chapter}章的核心内容与要点。务必写完整，不要中途截断。`,
+      useOutline
+        ? `请为《${bookName}》第${chapter}章写结构导读：本章概览、分段要点（3–5 段，不要逐节罗列）与读经提示。务必写完整，不要中途截断。`
+        : `请概括《${bookName}》第${chapter}章的核心内容与要点（本章概览 + 核心内容列表）。务必写完整，不要中途截断。`,
       `${bookId}.${chapter}`,
-      'summary_chapter',
+      scene,
     );
     if (!looksTruncated(body, 'chapter')) {
       map[key] = body;

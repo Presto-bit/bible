@@ -43,7 +43,7 @@ export function halfSheetL1Chips(refLabel?: string): HalfSheetChipDef[] {
 
 /** 服务端未返回 followups 时的兜底（2–3 条，Chip 短问句） */
 export function defaultHalfSheetFollowups(_refLabel: string): string[] {
-  return ['核心词何意？', '历史背景？', '今天怎么用？'];
+  return ['这段核心词什么意思？', '能补充历史背景吗？', '今天可以怎么用？'];
 }
 
 export function halfSheetSelectionKey(

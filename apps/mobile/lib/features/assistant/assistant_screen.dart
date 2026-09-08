@@ -21,7 +21,8 @@ import '../../core/theme.dart';
 import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../bible/reading_repository.dart';
 import '../bible/thoughts_repository.dart';
-import 'answer_text.dart';
+import 'answer_profile_body.dart';
+import 'answer_text.dart' show kAssistantTabAnswerFontSize;
 import 'assistant_chip_prompts.dart';
 import 'assistant_draft.dart';
 import 'assistant_format.dart';
@@ -499,6 +500,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               setState(() {
                 reply.meta = meta;
                 reply.sceneLabel = meta.sceneLabel;
+                reply.structureAssets = meta.structureAssets;
                 _lastMeta = meta;
                 if (meta.quotaLimit > 0) {
                   // 忽略游客限流 meta：安卓原生不套用 10 次
@@ -523,10 +525,13 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             case FollowupsEvent(:final items):
               flushDelta(force: true);
               setState(() => reply.followups = normalizeFollowupItems(items));
-            case DoneEvent(:final followups, :final streamComplete):
+            case DoneEvent(:final followups, :final sections, :final streamComplete):
               flushDelta(force: true);
               if (followups.isNotEmpty) {
                 setState(() => reply.followups = normalizeFollowupItems(followups));
+              }
+              if (sections.isNotEmpty) {
+                setState(() => reply.sections = sections);
               }
               if (!streamComplete && reply.content.trim().isNotEmpty) {
                 setState(
@@ -1648,10 +1653,20 @@ class _Bubble extends ConsumerWidget {
                             knowledgeBaseName: turn.meta?.knowledgeBaseName,
                             onSwitchToPlatform: onSwitchToPlatform,
                           ),
-                        AssistantMarkdownBody(
+                        AnswerProfileBody(
                           text: turn.content,
                           fontSize: kAssistantTabAnswerFontSize,
                           streaming: streaming,
+                          responseProfile: turn.meta?.responseProfile,
+                          sections: turn.sections,
+                          structureAssets: turn.structureAssets,
+                          defaultCollapsed:
+                              turn.scene == AssistantScene.verseFull.id ||
+                              (turn.content.length > 480 &&
+                                  !(turn.scene?.startsWith('summary_') ?? false)),
+                          expandLabel: (turn.scene?.startsWith('summary_') ?? false)
+                              ? '展开导读'
+                              : '展开全文',
                           onCitationTap: cites.isEmpty
                               ? null
                               : (n) {

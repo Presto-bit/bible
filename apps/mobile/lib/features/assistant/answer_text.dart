@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import 'assistant_markdown.dart';
+import 'assistant_sections.dart' show leadSectionTitles;
 
 /// PWA `--assistant-answer-font-size: 16px`（Tab 内 17px；半屏/导读统一 16）。
 const double kAssistantAnswerFontSize = 16;
@@ -392,7 +393,7 @@ class AnswerText extends StatelessWidget {
     required TextStyle base,
     required String sectionTitle,
   }) {
-    final isSummary = sectionTitle == '摘要';
+    final isSummary = leadSectionTitles.contains(sectionTitle);
     final bodyStyle = isSummary
         ? base.copyWith(
             fontSize: fontSize + 1,
@@ -420,7 +421,7 @@ class AnswerText extends StatelessWidget {
     String tail = '',
     bool viewpoint = false,
   }) {
-    if (title == '摘要' && tail.isEmpty) {
+    if (leadSectionTitles.contains(title) && tail.isEmpty) {
       return Padding(
         padding: EdgeInsets.only(top: dense ? 8 : 12, bottom: 6),
         child: Text(

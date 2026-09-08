@@ -17,11 +17,13 @@ export function normalizeQuestion(q: string): string {
     .toLowerCase();
 }
 
+/** Chip 追问展示字数上限（与 prompts / parse_output 对齐） */
+export const MAX_FOLLOWUP_LABEL_LEN = 24;
+
 export function compactFollowupLabel(q: string): string {
   let s = q.trim().replace(/^["“]|["”]$/g, '');
   s = s.replace(/^(请|能否|是否可以|可以|麻烦|想要)/, '').trim();
-  s = s.replace(/^(这段经文|本节|这节经文|这段经节|这个经文)的?/, '').trim();
-  const maxLen = 18;
+  const maxLen = MAX_FOLLOWUP_LABEL_LEN;
   if (s.length > maxLen) {
     let cut = s.slice(0, maxLen);
     for (let i = cut.length - 1; i >= Math.max(5, cut.length - 6); i -= 1) {

@@ -1,6 +1,9 @@
 /// 小爱（AI 释经）模型。
 library;
 
+import 'assistant_blocks.dart';
+import 'assistant_sections.dart';
+
 /// 六种模式（与后端 ai/prompts MODES 对齐）。
 enum AssistantMode {
   understand('understand', '读懂经文'),
@@ -61,6 +64,8 @@ class ChatMeta {
     this.knowledgeBaseId,
     this.knowledgeBaseName,
     this.citationsPending = false,
+    this.responseProfile,
+    this.structureAssets = const [],
   });
 
   final String mode;
@@ -75,6 +80,8 @@ class ChatMeta {
   final String? knowledgeBaseId;
   final String? knowledgeBaseName;
   final bool citationsPending;
+  final String? responseProfile;
+  final List<StructureAsset> structureAssets;
 
   factory ChatMeta.fromJson(Map<String, dynamic> j) {
     final q = (j['quota'] ?? const {}) as Map<String, dynamic>;
@@ -93,6 +100,10 @@ class ChatMeta {
       quotaUsed: (q['used'] ?? 0) as int,
       quotaLimit: (q['limit'] ?? 0) as int,
       citationsPending: j['citations_pending'] == true,
+      responseProfile: j['response_profile'] as String?,
+      structureAssets: ((j['structure_assets'] ?? []) as List)
+          .map((e) => StructureAsset.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }
@@ -121,10 +132,12 @@ class DoneEvent extends ChatEvent {
   const DoneEvent({
     this.length = 0,
     this.followups = const [],
+    this.sections = const [],
     this.streamComplete = true,
   });
   final int length;
   final List<String> followups;
+  final List<AnswerSection> sections;
   final bool streamComplete;
 }
 
@@ -142,6 +155,8 @@ class ChatTurn {
     this.followups = const [],
     this.scene,
     this.sceneLabel,
+    this.sections = const [],
+    this.structureAssets = const [],
   });
   final String role; // user / assistant
   String content;
@@ -149,4 +164,6 @@ class ChatTurn {
   List<String> followups;
   String? scene;
   String? sceneLabel;
+  List<AnswerSection> sections;
+  List<StructureAsset> structureAssets;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { SheetCloseButton } from '@/components/PageBackBar';
-import AnswerText from '@/components/AnswerText';
+import AnswerProfileBody from '@/components/assistant/AnswerProfileBody';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useEffect, useState } from 'react';
 import { api, type GeoPlace, type TimelineChapter } from '@/lib/api';
@@ -211,7 +211,14 @@ export default function SummarySheet({
           )}
           {activeBody && (
             <div className="summary-sheet-body">
-              <AnswerText text={activeBody} dense />
+              <AnswerProfileBody
+                text={activeBody}
+                dense
+                responseProfile="chapter_outline"
+                defaultCollapsed={activeBody.length > 220}
+                collapseMinBodyLen={100}
+                expandLabel="展开导读"
+              />
             </div>
           )}
           {showContext && (

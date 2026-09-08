@@ -88,7 +88,7 @@ function isStructuredLine(line: string): boolean {
   return false;
 }
 
-function breakLongPlainBlocks(text: string, maxSentences = 2, minBreakLen = 72): string {
+function breakLongPlainBlocks(text: string, maxSentences = 2, minBreakLen = 56): string {
   const lines = text.split('\n');
   const out: string[] = [];
   let i = 0;
@@ -146,12 +146,12 @@ export function parseCitationHref(href?: string): number | null {
 export const FOOTNOTE_RE =
   /^(\s*(?:\[\d{1,2}\]|［\d{1,2}］|【\d{1,2}】|（\d{1,2}）)\s*)+$/;
 
-/** 半屏解读折叠态：提取摘要首句（兼容 Markdown 与旧【摘要】）。 */
+/** 半屏解读折叠态：提取摘要/概览首句（兼容 Markdown 与旧【摘要】）。 */
 export function extractSummaryLead(text: string): { summary: string; body: string } {
-  const md = text.match(/(?:^|\n)###\s*摘要\s*\n+([^\n#]+)/);
+  const md = text.match(/(?:^|\n)###\s*(?:摘要|本章概览|卷概览)\s*\n+([^\n#]+)/);
   if (md?.[1]) {
     const summary = md[1].trim();
-    const body = text.replace(/(?:^|\n)###\s*摘要\s*\n+[^\n#]+/, '').trim();
+    const body = text.replace(/(?:^|\n)###\s*(?:摘要|本章概览|卷概览)\s*\n+[^\n#]+/, '').trim();
     return { summary, body };
   }
   const legacy = text.match(/【摘要】\s*([^\n【]+)/);

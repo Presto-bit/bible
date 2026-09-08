@@ -4,10 +4,11 @@ import { SheetCloseButton } from '@/components/PageBackBar';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { chatStream, type Citation } from '@/lib/api';
-import AnswerText from '@/components/AnswerText';
+import AnswerProfileBody from '@/components/assistant/AnswerProfileBody';
+import type { AnswerSection } from '@/lib/assistant_sections';
+import type { StructureAsset } from '@/lib/assistant_blocks';
 import { CitationBar } from '@/components/CitationBar';
 import { addThought } from '@/lib/reader_thoughts';
-import { extractSummaryLead } from '@/lib/assistant_markdown';
 import {
   recordCitationClick,
   recordHalfSheetXiaoAi,
@@ -60,6 +61,9 @@ type TurnView = HalfSheetTurn & {
   useRag?: boolean;
   kbId?: string;
   kbName?: string;
+  responseProfile?: string;
+  sections?: AnswerSection[];
+  structureAssets?: StructureAsset[];
 };
 
 function resolveInitialScene(explicitSelection: boolean, selectionText: string): AssistantScene {
@@ -125,7 +129,6 @@ export default function XiaoAiSheet({
     return bootTurnIdRef.current;
   });
   const [retryKey, setRetryKey] = useState(0);
-  const [expandedTurns, setExpandedTurns] = useState<Record<string, boolean>>({});
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
   const [citationTurnId, setCitationTurnId] = useState<string | null>(null);
   const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
@@ -263,6 +266,9 @@ export default function XiaoAiSheet({
       let kbId = DEFAULT_KB_ID;
       let kbName: string | undefined;
       let serverFollowups: string[] = [];
+      let responseProfile: string | undefined;
+      let answerSections: AnswerSection[] | undefined;
+      let structureAssets: StructureAsset[] | undefined;
       let settled = false;
 
       const flushPendingAnswer = () => {
@@ -301,10 +307,24 @@ export default function XiaoAiSheet({
             if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
             if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
             if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
+            if (meta.response_profile) responseProfile = meta.response_profile;
+            if (meta.structure_assets?.length) {
+              structureAssets = meta.structure_assets as StructureAsset[];
+            }
             streamPhase = 'refs';
             setTurns((prev) =>
               prev.map((t) =>
-                t.id === turnId ? { ...t, citations: cites, useRag, kbId, kbName } : t,
+                t.id === turnId
+                  ? {
+                      ...t,
+                      citations: cites,
+                      useRag,
+                      kbId,
+                      kbName,
+                      responseProfile,
+                      structureAssets,
+                    }
+                  : t,
               ),
             );
           },
@@ -401,6 +421,9 @@ export default function XiaoAiSheet({
                   ? serverFollowups
                   : defaultHalfSheetFollowups(label),
             );
+            if (payload?.sections?.length) {
+              answerSections = payload.sections;
+            }
             setTurns((prev) => {
               const next = prev.map((t) =>
                 t.id === turnId
@@ -414,6 +437,9 @@ export default function XiaoAiSheet({
                       useRag,
                       kbId,
                       kbName,
+                      responseProfile,
+                      sections: answerSections,
+                      structureAssets,
                     }
                   : t,
               );
@@ -575,14 +601,6 @@ export default function XiaoAiSheet({
             const usedCitations = citationsUsedInText(clean, turn.citations);
             const evidenceCites = usedCitations.length > 0 ? usedCitations : turn.citations;
             const railCites = uniqueCitationsForRail(evidenceCites);
-            const { summary, body: bodyWithoutSummary } = extractSummaryLead(clean);
-            const expanded = expandedTurns[turn.id] !== false;
-            const showCollapsed =
-              isLast &&
-              !expanded &&
-              !hasError &&
-              summary &&
-              bodyWithoutSummary;
 
             return (
               <div
@@ -629,31 +647,26 @@ export default function XiaoAiSheet({
                             }
                           />
                         ) : null}
-                        {showCollapsed ? (
-                          <>
-                            <p className="xiaoai-summary-lead">{summary}</p>
-                            <button
-                              type="button"
-                              className="text-link xiaoai-expand-btn"
-                              onClick={() =>
-                                setExpandedTurns((m) => ({ ...m, [turn.id]: true }))
-                              }
-                            >
-                              展开完整解读
-                            </button>
-                          </>
-                        ) : (
-                          <AnswerText
-                            text={clean || rawAnswer}
-                            streaming={turn.busy}
-                            dense={turn.scene === 'verse_quick'}
-                            onCitationClick={(n) => {
-                              recordCitationClick();
-                              setCitationTurnId(turn.id);
-                              setCitationOpen(n);
-                            }}
-                          />
-                        )}
+                        <AnswerProfileBody
+                          text={clean || rawAnswer}
+                          streaming={turn.busy}
+                          dense={turn.scene === 'verse_quick'}
+                          responseProfile={turn.responseProfile}
+                          sections={turn.sections}
+                          structureAssets={turn.structureAssets}
+                          defaultCollapsed={
+                            isLast
+                            && !hasError
+                            && (turn.scene === 'verse_full' || turn.scene === 'verse_quick')
+                          }
+                          collapseMinBodyLen={40}
+                          expandLabel="展开完整解读"
+                          onCitationClick={(n) => {
+                            recordCitationClick();
+                            setCitationTurnId(turn.id);
+                            setCitationOpen(n);
+                          }}
+                        />
                         {!turn.busy && !hasError && railCites.length > 0 ? (
                           <CitationBar
                             className="half-sheet-citations-toggle"

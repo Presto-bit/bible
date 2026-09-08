@@ -9,6 +9,8 @@ from ..bible.refs import parse_ref
 from ..rag.retrieve import retrieve_for_passage
 from .citations import display_citation_title
 from .prompts import DEFAULT_MODE, MODES, build_messages
+from .response_profile import resolve_response_profile
+from .structure_assets import resolve_structure_assets
 from .scenes import NO_RAG_SURFACES, resolve_scene
 
 logger = logging.getLogger(__name__)
@@ -157,9 +159,30 @@ def prepare(
         has_prior_turns=bool(prior),
     )
     messages = [base[0], *prior, base[1]]
+    max_tokens = spec.max_tokens
+    if spec.id in ("summary_chapter", "summary_chapter_outline") and ref and ref.chapter is not None:
+        if ref.verse_start is None:
+            verse_count = len(reader.get_chapter(ref.book_id, ref.chapter))
+            if verse_count > 50:
+                max_tokens = max(max_tokens, 1800)
+            elif verse_count > 20:
+                max_tokens = max(max_tokens, 1600)
+    structure_assets = resolve_structure_assets(
+        scene_id=spec.id,
+        ref_osis=ref.osis if ref else None,
+        question=question,
+    )
     meta = {
         "scene": spec.id,
         "scene_label": spec.label,
+        "response_profile": resolve_response_profile(
+            spec.id,
+            reader_context=reader_context,
+            has_rag=use_rag and bool(citations),
+            question=question,
+            structure_assets=structure_assets,
+        ),
+        "structure_assets": structure_assets,
         "mode": effective_mode,
         "mode_label": MODES.get(effective_mode),
         "wants_followups": spec.wants_followups,
@@ -181,4 +204,4 @@ def prepare(
             for c in citations
         ],
     }
-    return {"meta": meta, "messages": messages, "max_tokens": spec.max_tokens}
+    return {"meta": meta, "messages": messages, "max_tokens": max_tokens}

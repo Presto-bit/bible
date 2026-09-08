@@ -199,6 +199,15 @@ def test_sanitize_history_filters_and_caps():
     assert len(_sanitize_history(big)) == MAX_HISTORY_TURNS
 
 
+def test_summary_incomplete_detects_missing_sections():
+    from app.ai.parse_output import summary_incomplete
+
+    ok = "### 本章概览\n\n神创造天地。\n\n### 核心内容\n\n- 第一日\n- 第二日\n"
+    assert summary_incomplete("summary_chapter", ok) is False
+    bad = "### 本章概览\n\n神创造天地"
+    assert summary_incomplete("summary_chapter", bad) is True
+
+
 def test_build_messages_no_rag_omits_commentary():
     msgs = build_messages(
         scene=SCENES["summary_chapter"],
@@ -295,3 +304,63 @@ def test_prepare_degrades_without_pg():
     assert isinstance(prep["meta"]["citations"], list)
     user_msg = prep["messages"][-1]["content"]
     assert "约翰福音 3:16" in user_msg
+
+
+def test_resolve_response_profile():
+    from app.ai.response_profile import resolve_response_profile
+
+    assert resolve_response_profile("chat_viewpoints") == "viewpoint_stack"
+    assert resolve_response_profile("chat_apply") == "apply_steps"
+    assert resolve_response_profile("summary_chapter") == "bullet_rail"
+    assert resolve_response_profile("summary_chapter_outline") == "chapter_outline"
+    assert (
+        resolve_response_profile(
+            "chat_compare",
+            reader_context={"compare_versions": ["CUVS", "CNVS"]},
+        )
+        == "side_compare"
+    )
+
+
+def test_needs_citation_repair():
+    from app.ai.post_process import needs_citation_repair
+
+    assert not needs_citation_repair("纯文本", has_rag=True, citation_count=2)
+    assert needs_citation_repair(
+        "正文引用注释但未标脚注。",
+        has_rag=True,
+        citation_count=1,
+    )
+    assert not needs_citation_repair(
+        "已有脚注[1]。",
+        has_rag=True,
+        citation_count=1,
+    )
+
+
+def test_resolve_structure_assets():
+    from app.ai.structure_assets import resolve_structure_assets
+
+    assets = resolve_structure_assets(scene_id="chat_general", ref_osis="MAT.5.3")
+    assert any(a.get("id") == "life-of-jesus" for a in assets)
+    assets = resolve_structure_assets(scene_id="chat_general", ref_osis="EXO.25.1")
+    assert any(a.get("id") == "tabernacle-layout" for a in assets)
+
+
+def test_parse_timeline_nodes():
+    from app.ai.parse_output import parse_timeline_nodes
+
+    text = (
+        "### 摘要\n"
+        "一句话。\n"
+        "### 时间线\n"
+        "- **约930年** 国分裂\n"
+        "- **约586年** 被掳\n"
+        "### 正文\n"
+        "补充说明。"
+    )
+    nodes = parse_timeline_nodes(text)
+    assert len(nodes) == 2
+    assert nodes[0]["year"] == "约930年"
+
+

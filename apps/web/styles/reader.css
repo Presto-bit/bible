@@ -1895,13 +1895,17 @@ body.reader-overlay-open .reader-page {
   background: var(--surface);
   color: var(--ink);
 }
-.summary-sheet-body {
-  margin: 10px 0 0;
-  font-size: var(--app-font-size);
-  color: var(--ink-soft);
+.summary-sheet-body .answer-rich-md .ans-md-li {
+  margin: 8px 0;
+  line-height: 1.78;
 }
-.summary-sheet-body .answer-rich {
-  line-height: 1.85;
+.summary-sheet-body .xiaoai-summary-lead {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent-wash));
+  font-weight: 600;
+  line-height: 1.72;
 }
 
 /* relocated: verse-preview / selection / summary / tools from verse_fullscreen */

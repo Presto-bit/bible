@@ -13,6 +13,7 @@ export type AssistantScene =
   | 'chat_general'
   | 'chat_viewpoints'
   | 'summary_chapter'
+  | 'summary_chapter_outline'
   | 'summary_book';
 
 export interface SceneConfig {
@@ -105,7 +106,14 @@ export const SCENES: Record<AssistantScene, SceneConfig> = {
     id: 'summary_chapter',
     mode: 'explain',
     label: '章导读',
-    timeoutMs: 60_000,
+    timeoutMs: 90_000,
+    wantsFollowups: false,
+  },
+  summary_chapter_outline: {
+    id: 'summary_chapter_outline',
+    mode: 'explain',
+    label: '章结构导读',
+    timeoutMs: 120_000,
     wantsFollowups: false,
   },
   summary_book: {

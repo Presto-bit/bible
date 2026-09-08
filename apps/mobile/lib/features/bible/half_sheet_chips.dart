@@ -49,7 +49,7 @@ List<HalfSheetChipDef> halfSheetL1Chips(String? refLabel) {
 }
 
 List<String> defaultHalfSheetFollowups(String refLabel) {
-  return const ['核心词何意？', '历史背景？', '今天怎么用？'];
+  return const ['这段核心词什么意思？', '能补充历史背景吗？', '今天可以怎么用？'];
 }
 
 String halfSheetSelectionKey(

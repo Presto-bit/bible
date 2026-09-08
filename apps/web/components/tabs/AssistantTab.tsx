@@ -8,7 +8,9 @@ import { chatStream, currentUserId, type Citation } from '@/lib/api';
 import { fetchAiQuota, type AiQuota } from '@/lib/api/ai';
 import Link from 'next/link';
 import { useOnline } from '@/lib/use_online';
-import AnswerText from '@/components/AnswerText';
+import AnswerProfileBody from '@/components/assistant/AnswerProfileBody';
+import type { AnswerSection } from '@/lib/assistant_sections';
+import type { StructureAsset } from '@/lib/assistant_blocks';
 import { useToast } from '@/components/ui/ToastProvider';
 import { CitationBar } from '@/components/CitationBar';
 import { AssistantNextSteps } from '@/components/assistant/AssistantNextSteps';
@@ -91,6 +93,9 @@ interface Msg {
   useRag?: boolean;
   knowledgeBaseId?: string;
   knowledgeBaseName?: string;
+  responseProfile?: string;
+  sections?: AnswerSection[];
+  structureAssets?: StructureAsset[];
 }
 
 interface Session {
@@ -693,6 +698,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let kbName: string | undefined;
     let serverFollowups: string[] = [];
     let sceneLabel = SCENES[scene].label;
+    let responseProfile: string | undefined;
+    let answerSections: AnswerSection[] | undefined;
+    let structureAssets: StructureAsset[] | undefined;
     let gotDelta = false;
     const applyAcc = () => {
       rafRef.current = null;
@@ -711,6 +719,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           useRag,
           knowledgeBaseId: kbId,
           knowledgeBaseName: kbName,
+          responseProfile,
+          sections: answerSections,
+          structureAssets,
         };
         return copy;
       });
@@ -755,6 +766,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             if (meta.scene_label) sceneLabel = meta.scene_label;
             if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
             if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
+            if (meta.response_profile) responseProfile = meta.response_profile;
+            if (meta.structure_assets?.length) {
+              structureAssets = meta.structure_assets as StructureAsset[];
+            }
             setStreamCiteCount(cites.length);
             setStreamPhase('refs');
           },
@@ -776,6 +791,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           onDone: (payload) => {
             if (payload?.followups?.length) {
               serverFollowups = normalizeFollowupItems(payload.followups);
+            }
+            if (payload?.sections?.length) {
+              answerSections = payload.sections;
             }
             if (payload?.streamComplete === false && acc.trim()) {
               acc = appendStreamIncompleteNotice(acc);
@@ -1348,10 +1366,23 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                         />
                       )}
                       <div className="allow-text-select">
-                        <AnswerText
+                        <AnswerProfileBody
                           text={m.text}
                           streaming={isStreaming}
                           dense={Boolean(m.scene?.startsWith('summary_'))}
+                          responseProfile={m.responseProfile}
+                          sections={m.sections}
+                          structureAssets={m.structureAssets}
+                          defaultCollapsed={
+                            m.scene === 'verse_full'
+                            || (
+                              !m.scene?.startsWith('summary_')
+                              && m.text.length > 480
+                            )
+                          }
+                          expandLabel={
+                            m.scene?.startsWith('summary_') ? '展开导读' : '展开全文'
+                          }
                           onCitationClick={(n) => {
                             recordCitationClick();
                             setCitationMsgIdx(i);

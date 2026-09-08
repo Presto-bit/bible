@@ -212,9 +212,15 @@ class AssistantRepository {
                 .where((s) => s.isNotEmpty)
                 .toList() ??
             const <String>[];
+        final sections =
+            (data['sections'] as List?)
+                ?.map((e) => AnswerSection.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const <AnswerSection>[];
         return DoneEvent(
           length: (data['length'] ?? 0) as int,
           followups: followups,
+          sections: sections,
           streamComplete: data['streamComplete'] != false,
         );
       case 'error':

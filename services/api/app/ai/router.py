@@ -17,8 +17,10 @@ from .chat import prepare
 from .llm import StreamMeta, stream_chat
 from .parse_output import (
     extract_sections,
+    missing_summary_sections,
     missing_verse_sections,
     split_body_and_followups,
+    summary_incomplete,
     verse_explain_incomplete,
 )
 from .usage import consume_quota, peek_quota, record_ai_request
@@ -701,6 +703,7 @@ def chat(
         llm_t0 = time.monotonic()
         section_cont_used = False
         length_cont_used = False
+        citation_cont_used = False
 
         def _budget_left() -> float:
             return _LLM_WALL_BUDGET_SEC - (time.monotonic() - llm_t0)
@@ -774,14 +777,85 @@ def chat(
             if cont_meta.finish_reason:
                 meta.finish_reason = cont_meta.finish_reason
 
+        def _run_summary_section_continuation() -> None:
+            nonlocal section_cont_used
+            if section_cont_used or scene not in (
+                "summary_chapter",
+                "summary_chapter_outline",
+                "summary_book",
+            ) or not full:
+                return
+            if _budget_left() <= 0:
+                return
+            body_probe, _ = split_body_and_followups("".join(full))
+            if not summary_incomplete(scene, body_probe):
+                return
+            section_cont_used = True
+            missing = missing_summary_sections(scene, body_probe)
+            hint = "、".join(missing) if missing else "剩余小节"
+            cont_budget = min(max(max_tokens // 2, 400), 1000)
+            cont_msgs = messages + [
+                {"role": "assistant", "content": "".join(full)},
+                {
+                    "role": "user",
+                    "content": (
+                        f"章导读尚不完整，请补写缺失部分：{hint}。"
+                        "不要重复已写内容，保持 ### 中文标题与 - 列表格式，自然收束。"
+                    ),
+                },
+            ]
+            cont_meta = StreamMeta()
+            yield from _stream_budgeted(cont_msgs, budget=cont_budget, meta=cont_meta)
+            if cont_meta.finish_reason:
+                meta.finish_reason = cont_meta.finish_reason
+
+        def _run_citation_repair() -> None:
+            nonlocal citation_cont_used
+            if citation_cont_used or not full:
+                return
+            if _budget_left() <= 0:
+                return
+            from .post_process import needs_citation_repair
+
+            body_probe, _ = split_body_and_followups("".join(full))
+            meta_prep = prep.get("meta") or {}
+            cite_list = meta_prep.get("citations") or []
+            if not needs_citation_repair(
+                body_probe,
+                has_rag=bool(meta_prep.get("use_rag") and cite_list),
+                citation_count=len(cite_list),
+            ):
+                return
+            citation_cont_used = True
+            cont_msgs = messages + [
+                {"role": "assistant", "content": "".join(full)},
+                {
+                    "role": "user",
+                    "content": (
+                        "正文已使用注释观点但缺少脚注。请在现有正文句末适当位置"
+                        "补充 [1][2] 脚注（序号须与注释列表一致），不要重写或明显拉长正文。"
+                    ),
+                },
+            ]
+            cont_meta = StreamMeta()
+            yield from _stream_budgeted(cont_msgs, budget=220, meta=cont_meta)
+
         try:
             meta = StreamMeta()
             yield from _stream_budgeted(messages, budget=max_tokens, meta=meta)
             if scene in ("verse_full", "verse_quick"):
                 yield from _run_verse_section_continuation()
                 yield from _run_length_continuation(meta)
+            elif scene in (
+                "summary_chapter",
+                "summary_chapter_outline",
+                "summary_book",
+            ):
+                yield from _run_summary_section_continuation()
+                yield from _run_length_continuation(meta)
             elif meta.finish_reason == "length" and full:
                 yield from _run_length_continuation(meta)
+            yield from _run_citation_repair()
         except Exception as exc:  # 上游/网络异常 → 友好错误事件
             logger.exception("ai chat stream failed")
             log_ai_request(
@@ -821,6 +895,9 @@ def chat(
         text = "".join(full)
         body_text, followups = split_body_and_followups(text)
         sections = extract_sections(body_text)
+        from .parse_output import parse_answer_blocks
+
+        blocks_payload = parse_answer_blocks(body_text)
         if followups:
             yield _sse("followups", {"items": followups})
         yield _sse(
@@ -830,6 +907,9 @@ def chat(
                 "word_count": len(body_text),
                 "sections": sections,
                 "followups": followups,
+                "lead": blocks_payload.get("lead") or "",
+                "blocks": blocks_payload.get("blocks") or [],
+                "timeline": blocks_payload.get("timeline") or [],
             },
         )
         if key and body_text and not body_text.startswith("⚠️"):

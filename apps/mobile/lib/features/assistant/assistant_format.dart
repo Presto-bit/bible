@@ -133,11 +133,13 @@ List<Citation> citationsUsedInText(String text, List<Citation> citations) {
   return used.isNotEmpty ? used : citations;
 }
 
+/// Chip 追问展示字数上限（与 prompts / parse_output 对齐）
+const maxFollowupLabelLen = 24;
+
 String compactFollowupLabel(String q) {
   var s = q.trim().replaceAll(RegExp(r'^["“]|["”]$'), '');
   s = s.replaceFirst(RegExp(r'^(请|能否|是否可以|可以|麻烦|想要)'), '').trim();
-  s = s.replaceFirst(RegExp(r'^(这段经文|本节|这节经文|这段经节|这个经文)的?'), '').trim();
-  const maxLen = 18;
+  const maxLen = maxFollowupLabelLen;
   if (s.length > maxLen) {
     var cut = s.substring(0, maxLen);
     for (var i = cut.length - 1; i >= cut.length - 6 && i >= 5; i--) {
