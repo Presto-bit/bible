@@ -41,6 +41,8 @@ Future<T?> showReaderSheet<T>({
   double? heightFactor,
   double? maxHeight,
   ValueNotifier<ReaderSheetSize>? sizeListenable,
+  bool transparentBarrier = false,
+  bool barrierTapDismiss = true,
 }) {
   final initial = ReaderSheetSize(
     heightFactor: heightFactor ?? 0.88,
@@ -66,7 +68,9 @@ Future<T?> showReaderSheet<T>({
     enableDrag: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: 0.35),
+    barrierColor: transparentBarrier
+        ? Colors.transparent
+        : Colors.black.withValues(alpha: 0.35),
     builder: (ctx) {
       return ValueListenableBuilder<ReaderSheetSize>(
         valueListenable: sizes,
@@ -75,12 +79,13 @@ Future<T?> showReaderSheet<T>({
           final maxH = resolveHeight(ctx, size);
           return Stack(
             children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => Navigator.of(ctx).pop(),
+              if (barrierTapDismiss)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(ctx).pop(),
+                  ),
                 ),
-              ),
               Padding(
                 padding: EdgeInsets.only(bottom: bottom),
                 child: Align(

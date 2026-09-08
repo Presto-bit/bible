@@ -1779,7 +1779,7 @@ export default function ReaderView({
     return () => window.clearTimeout(timer);
   }, [bookCelebrate]);
 
-  // 进入章节时静默预热首节「解释」答案（支撑半屏秒回）
+  // 进入章节时静默预热（FAB 无选区 → verse_quick）
   useEffect(() => {
     if (!verses.length) return;
     const v =
@@ -1788,7 +1788,7 @@ export default function ReaderView({
       ?? 1;
     const ref = `${book.id}.${chapter}.${v}`;
     const t = window.setTimeout(() => {
-      void api.prewarmAnswer(ref);
+      void api.prewarmAnswer(ref, { scene: 'verse_quick' });
     }, 800);
     return () => window.clearTimeout(t);
   }, [book.id, chapter, verses]);
@@ -3147,7 +3147,7 @@ export default function ReaderView({
 
   return (
     <main
-      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}${audioMinimized ? ' reader-audio-minimized' : ''}${audioFocusOpen ? ' reader-audio-focus-open' : ''}`}
+      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}${audioMinimized ? ' reader-audio-minimized' : ''}${audioFocusOpen ? ' reader-audio-focus-open' : ''}${aiSheet ? ' reader-ai-sheet-open' : ''}`}
       onClick={(e) => {
         if (focusBarRef.current?.contains(e.target as Node)) return;
         const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
@@ -3162,7 +3162,16 @@ export default function ReaderView({
         toggleChrome('content');
       }}
     >
-      <div className="reader-topbar" aria-hidden={chromeHidden}>
+      <div
+        className="reader-topbar"
+        aria-hidden={chromeHidden}
+        onPointerDown={(e) => {
+          if (!aiSheet) return;
+          e.stopPropagation();
+          setAiSheet(false);
+          setAiSheetContext(null);
+        }}
+      >
         <div className="reader-topbar-left">
           {backHref && (
             <PageBackBar
@@ -3781,8 +3790,7 @@ export default function ReaderView({
 
       {aiSheet && aiSheetContext && (
         <XiaoAiSheet
-          key={`ask-${aiSheetContext.refParam}`}
-          mode="ask"
+          key={`ai-${aiSheetContext.refParam}-${aiSheetContext.explicitSelection ? aiSheetContext.selectionText.trim().slice(0, 48) : 'fab'}`}
           refParam={aiSheetContext.refParam}
           refLabel={aiSheetContext.refLabel}
           selectionText={aiSheetContext.selectionText}

@@ -3,12 +3,10 @@
 import { SheetCloseButton } from '@/components/PageBackBar';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { chatStream } from '@/lib/api';
+import { chatStream, type Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { CitationBar } from '@/components/CitationBar';
 import { CitationEvidenceRail } from '@/components/assistant/CitationEvidenceRail';
-import { AssistantNextSteps } from '@/components/assistant/AssistantNextSteps';
 import { addThought } from '@/lib/reader_thoughts';
 import { extractSummaryLead } from '@/lib/assistant_markdown';
 import {
@@ -17,19 +15,31 @@ import {
   recordSaveAnswerNote,
   recordXiaoAiQuestion,
 } from '@/lib/badge_events';
-import { bodyText, assistantDisplayTrimmed } from '@/lib/assistant_format';
+import { bodyText } from '@/lib/assistant_format';
 import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
-import { sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
+import { SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { mergeAssistantStreamError } from '@/lib/assistant_stream_error';
 import {
   buildHalfSheetQuestion,
   halfSheetCacheSelection,
-  isHalfSheetAnswerComplete,
   readHalfSheetCache,
   writeHalfSheetCache,
+  isHalfSheetAnswerComplete,
 } from '@/lib/xiaoai_halfsheet_cache';
+import {
+  defaultHalfSheetFollowups,
+  halfSheetL1Chips,
+  halfSheetSelectionKey,
+  type HalfSheetChipDef,
+} from '@/lib/half_sheet_chips';
+import {
+  newTurnId,
+  readHalfSheetThread,
+  writeHalfSheetThread,
+  type HalfSheetTurn,
+} from '@/lib/xiaoai_halfsheet_thread';
 import {
   AssistantThinkingState,
   type ThinkingPhase,
@@ -37,251 +47,443 @@ import {
 import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
 import { getSessionKnowledgeBaseId, DEFAULT_KB_ID } from '@/lib/assistant_knowledge_base';
 import { AnalysisShareSheet } from '@/components/AnalysisShareSheet';
-import { readerHrefFromRef } from '@/lib/group_footprint';
-import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
 import { useToast } from '@/components/ui/ToastProvider';
-import { useSheetOpenGuard } from '@/lib/use_sheet_open_guard';
-import { SHEET_OPEN_GUARD_MS } from '@/lib/reader_gesture';
+import { HalfSheetChipRows } from '@/components/reader/HalfSheetChipRows';
+import { HalfSheetLightActions } from '@/components/reader/HalfSheetLightActions';
 
 function stripAnswer(raw: string): string {
   return bodyText(raw);
 }
 
+type TurnView = HalfSheetTurn & {
+  busy?: boolean;
+  streamIncomplete?: boolean;
+  useRag?: boolean;
+  kbId?: string;
+  kbName?: string;
+};
+
+function resolveInitialScene(explicitSelection: boolean, selectionText: string): AssistantScene {
+  const sel = explicitSelection ? selectionText.trim() : '';
+  return sel ? 'verse_full' : 'verse_quick';
+}
+
+function buildUserQuestion(refLabel: string, selectionText: string): string {
+  const snippet = selectionText.trim();
+  if (snippet) {
+    const short = snippet.length > 80 ? `${snippet.slice(0, 80)}…` : snippet;
+    return `请解读：${refLabel}\n「${short}」`;
+  }
+  return `请解读：${refLabel}`;
+}
+
 export default function XiaoAiSheet({
-  mode,
   refParam,
   refLabel,
   selectionText,
   explicitSelection = true,
   onClose,
 }: {
-  mode: 'ask' | 'explain';
   refParam: string;
   refLabel: string;
   selectionText: string;
-  /** false = FAB 视口段落仅展示，不参与 cache key / API 问句 */
   explicitSelection?: boolean;
   onClose: () => void;
 }) {
-  const router = useRouter();
-  const scene: AssistantScene = mode === 'ask' ? 'verse_full' : 'verse_quick';
-  const userQuestion = useMemo(() => {
-    const snippet = selectionText.trim();
-    if (snippet) {
-      const short = snippet.length > 80 ? `${snippet.slice(0, 80)}…` : snippet;
-      return `请解读：${refLabel}\n「${short}」`;
-    }
-    return `请解读：${refLabel}`;
-  }, [refLabel, selectionText]);
+  const initialScene = resolveInitialScene(explicitSelection, selectionText);
+  const selectionKey = halfSheetSelectionKey(refParam, selectionText, explicitSelection);
+  const userQuestion = useMemo(
+    () => buildUserQuestion(refLabel, explicitSelection ? selectionText : ''),
+    [refLabel, selectionText, explicitSelection],
+  );
+  const l1Chips = useMemo(() => halfSheetL1Chips(refLabel), [refLabel]);
 
-  const [answer, setAnswer] = useState('');
-  const [done, setDone] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [turns, setTurns] = useState<TurnView[]>(() => {
+    const saved = readHalfSheetThread(refParam, selectionKey);
+    if (saved?.turns.length) {
+      return saved.turns.map((t) => ({ ...t, busy: false }));
+    }
+    return [];
+  });
+  const [activeTurnId, setActiveTurnId] = useState<string | null>(() => {
+    const saved = readHalfSheetThread(refParam, selectionKey);
+    return saved?.turns.at(-1)?.id ?? null;
+  });
   const [retryKey, setRetryKey] = useState(0);
-  const [expanded, setExpanded] = useState(true);
+  const [expandedTurns, setExpandedTurns] = useState<Record<string, boolean>>({});
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
-  const [citations, setCitations] = useState<import('@/lib/api').Citation[]>([]);
+  const [citationTurnId, setCitationTurnId] = useState<string | null>(null);
+  const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
+  const [savedTurnId, setSavedTurnId] = useState<string | null>(null);
+  const [shareTurn, setShareTurn] = useState<TurnView | null>(null);
   const flash = useToast();
-  const [useRag, setUseRag] = useState<boolean | undefined>(undefined);
-  const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
-  const [streamCiteCount, setStreamCiteCount] = useState(0);
-  const [slowHint, setSlowHint] = useState(false);
-  const [kbId, setKbId] = useState(DEFAULT_KB_ID);
-  const [kbName, setKbName] = useState<string | undefined>();
-  const [shareOpen, setShareOpen] = useState(false);
-  const [streamIncomplete, setStreamIncomplete] = useState(false);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
   const accRef = useRef('');
   const rafRef = useRef<number | null>(null);
-  const lockedRef = useRef({ scene, refParam, selectionText, userQuestion, explicitSelection });
+  const runIdRef = useRef(0);
+  const lockedRef = useRef({
+    refParam,
+    refLabel,
+    selectionText,
+    explicitSelection,
+    selectionKey,
+    userQuestion,
+  });
   const emptyAnswerMsg = '⚠️ 未收到回答，请重试';
 
   useEffect(() => {
-    lockedRef.current = { scene, refParam, selectionText, userQuestion, explicitSelection };
-  }, [scene, refParam, selectionText, userQuestion, explicitSelection]);
+    lockedRef.current = {
+      refParam,
+      refLabel,
+      selectionText,
+      explicitSelection,
+      selectionKey,
+      userQuestion,
+    };
+  }, [refParam, refLabel, selectionText, explicitSelection, selectionKey, userQuestion]);
 
   useEffect(() => {
     recordHalfSheetXiaoAi();
-    recordXiaoAiQuestion({ scene, ref: refParam });
-  }, [scene, refParam]);
+    recordXiaoAiQuestion({ scene: initialScene, ref: refParam });
+  }, [initialScene, refParam]);
 
-  const runChat = useCallback(() => {
-    accRef.current = '';
-    setAnswer('');
-    setDone(false);
-    setCopied(false);
-    setCitations([]);
-    setUseRag(undefined);
-    setStreamPhase('understanding');
-    setStreamCiteCount(0);
-    setSlowHint(false);
-    setKbName(undefined);
-    setStreamIncomplete(false);
-    const sessionKb = getSessionKnowledgeBaseId();
-    setKbId(sessionKb);
-    const {
-      scene: s,
-      refParam: ref,
-      selectionText: sel,
-      userQuestion: q,
-      explicitSelection: explicitSel,
-    } = lockedRef.current;
-    const cacheSel = halfSheetCacheSelection(sel, explicitSel);
-    const question = buildHalfSheetQuestion(q, sel, explicitSel);
-    const cached = retryKey > 0 ? null : readHalfSheetCache(s, ref, cacheSel, question);
-    if (cached) {
-      accRef.current = cached.answer;
-      setAnswer(cached.answer);
-      setCitations(cached.citations);
-      setDone(true);
-      return () => {};
-    }
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), sceneTimeout(s));
-    const slowTimer = window.setTimeout(() => setSlowHint(true), 15000);
-    let cancelled = false;
-    let cites: import('@/lib/api').Citation[] = [];
-    let gotDelta = false;
-    void chatStream(
-      {
-        ref,
-        question,
-        mode: 'explain',
-        scene: s,
-        reader_context: buildAssistantReaderContext(),
-        knowledge_base_id: sessionKb !== DEFAULT_KB_ID ? sessionKb : undefined,
-      },
-      {
-        onMeta: (meta) => {
-          const book = refLabel.replace(/\s*\d+.*$/, '').trim();
-          cites = localizeCitations(meta.citations || [], book || undefined);
-          setCitations(cites);
-          if (typeof meta.use_rag === 'boolean') setUseRag(meta.use_rag);
-          if (meta.knowledge_base_id) setKbId(meta.knowledge_base_id);
-          if (meta.knowledge_base_name) setKbName(meta.knowledge_base_name);
-          setStreamCiteCount(cites.length);
-          setStreamPhase('refs');
+  const persistThread = useCallback(
+    (nextTurns: TurnView[]) => {
+      const doneTurns = nextTurns.filter((t) => !t.busy && t.answer.trim());
+      writeHalfSheetThread({
+        ref: refParam,
+        selectionKey,
+        turns: doneTurns.map(({ busy: _b, streamIncomplete: _s, useRag: _u, kbId: _k, kbName: _n, ...t }) => t),
+      });
+    },
+    [refParam, selectionKey],
+  );
+
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    });
+  }, []);
+
+  const runChat = useCallback(
+    (
+      turnId: string,
+      question: string,
+      scene: AssistantScene,
+      opts?: { isRetry?: boolean; history?: Array<{ role: 'user' | 'assistant'; content: string }> },
+    ) => {
+      const runId = ++runIdRef.current;
+      accRef.current = '';
+      const {
+        refParam: ref,
+        refLabel: label,
+        selectionText: sel,
+        explicitSelection: explicitSel,
+      } = lockedRef.current;
+
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === turnId
+            ? {
+                ...t,
+                busy: true,
+                answer: '',
+                streamIncomplete: false,
+                userQuestion: question,
+                scene,
+              }
+            : t,
+        ),
+      );
+
+      const cacheSel = halfSheetCacheSelection(sel, explicitSel);
+      const apiQuestion =
+        scene === 'verse_full' || scene === 'verse_quick'
+          ? buildHalfSheetQuestion(question, sel, explicitSel)
+          : question;
+
+      if (!opts?.isRetry) {
+        const cached = readHalfSheetCache(scene, ref, cacheSel, apiQuestion);
+        if (cached) {
+          const followups = defaultHalfSheetFollowups(label);
+          setTurns((prev) => {
+            const next = prev.map((t) =>
+              t.id === turnId
+                ? {
+                    ...t,
+                    answer: cached.answer,
+                    citations: cached.citations,
+                    followups,
+                    busy: false,
+                    streamIncomplete: false,
+                  }
+                : t,
+            );
+            persistThread(next);
+            return next;
+          });
+          setActiveTurnId(turnId);
+          scrollToBottom();
+          return () => {};
+        }
+      }
+
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), sceneTimeout(scene));
+      const slowTimer = window.setTimeout(() => {}, 15000);
+      let cancelled = false;
+      let cites: Citation[] = [];
+      let gotDelta = false;
+      let streamPhase: ThinkingPhase = 'understanding';
+      let useRag: boolean | undefined;
+      let kbId = DEFAULT_KB_ID;
+      let kbName: string | undefined;
+      let serverFollowups: string[] = [];
+
+      const sessionKb = getSessionKnowledgeBaseId();
+
+      void chatStream(
+        {
+          ref,
+          question: apiQuestion,
+          mode: SCENES[scene].mode,
+          scene,
+          reader_context: buildAssistantReaderContext(),
+          knowledge_base_id: sessionKb !== DEFAULT_KB_ID ? sessionKb : undefined,
+          surface: 'half_sheet',
+          history: opts?.history,
         },
-        onDelta: (t) => {
-          if (cancelled) return;
-          if (!gotDelta) {
-            gotDelta = true;
-            setStreamPhase('writing');
-          }
-          accRef.current += t;
-          // 对齐小爱 Tab：约 72ms 节流，避免每帧 setState + Markdown 区抖动
-          if (rafRef.current == null) {
-            rafRef.current = window.setTimeout(() => {
-              rafRef.current = null;
-              setAnswer(accRef.current);
-            }, 72) as unknown as number;
-          }
-        },
-        onError: (msg) => {
-          if (cancelled) return;
-          if (accRef.current.trim()) {
+        {
+          onMeta: (meta) => {
+            if (cancelled || runId !== runIdRef.current) return;
+            const book = label.replace(/\s*\d+.*$/, '').trim();
+            cites = localizeCitations(meta.citations || [], book || undefined);
+            if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
+            if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
+            if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
+            streamPhase = 'refs';
+            setTurns((prev) =>
+              prev.map((t) =>
+                t.id === turnId ? { ...t, citations: cites, useRag, kbId, kbName } : t,
+              ),
+            );
+          },
+          onDelta: (t) => {
+            if (cancelled || runId !== runIdRef.current) return;
+            if (!gotDelta) gotDelta = true;
+            streamPhase = 'writing';
+            accRef.current += t;
+            if (rafRef.current == null) {
+              rafRef.current = window.setTimeout(() => {
+                rafRef.current = null;
+                const pending = accRef.current;
+                setTurns((prev) =>
+                  prev.map((turn) =>
+                    turn.id === turnId ? { ...turn, answer: pending } : turn,
+                  ),
+                );
+              }, 72) as unknown as number;
+            }
+          },
+          onFollowups: (items) => {
+            if (items.length) serverFollowups = items;
+          },
+          onError: (msg) => {
+            if (cancelled || runId !== runIdRef.current) return;
             if (rafRef.current != null) {
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
             }
-            setAnswer(accRef.current);
-            setStreamIncomplete(true);
-            setDone(true);
-            return;
-          }
-          accRef.current = mergeAssistantStreamError(accRef.current, msg);
-          setAnswer(accRef.current);
-          setDone(true);
-        },
-        onDone: (payload) => {
-          if (!cancelled) {
+            const partial = accRef.current.trim();
+            if (partial) {
+              setTurns((prev) => {
+                const next = prev.map((t) =>
+                  t.id === turnId
+                    ? { ...t, answer: partial, busy: false, streamIncomplete: true }
+                    : t,
+                );
+                persistThread(next);
+                return next;
+              });
+              return;
+            }
+            const err = mergeAssistantStreamError('', msg);
+            setTurns((prev) =>
+              prev.map((t) =>
+                t.id === turnId ? { ...t, answer: err, busy: false } : t,
+              ),
+            );
+          },
+          onDone: (payload) => {
+            if (cancelled || runId !== runIdRef.current) return;
             if (rafRef.current != null) {
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
             }
-            if (!accRef.current.trim()) {
-              accRef.current = emptyAnswerMsg;
-            }
-            setAnswer(accRef.current);
+            let text = accRef.current.trim();
+            if (!text) text = emptyAnswerMsg;
             const streamOk =
               payload?.streamComplete !== false &&
-              Boolean(accRef.current.trim()) &&
-              !accRef.current.trim().startsWith('⚠️');
-            const structOk = isHalfSheetAnswerComplete(accRef.current, s);
-            setStreamIncomplete(!streamOk || !structOk);
-            setDone(true);
-            if (streamOk && structOk) {
-              writeHalfSheetCache(s, ref, cacheSel, question, accRef.current, cites);
-            }
-          }
+              Boolean(text) &&
+              !text.startsWith('⚠️');
+            const structOk =
+              scene === 'verse_full' || scene === 'verse_quick'
+                ? isHalfSheetAnswerComplete(text, scene)
+                : true;
+            const followups =
+              payload?.followups?.length
+                ? payload.followups
+                : serverFollowups.length
+                  ? serverFollowups
+                  : defaultHalfSheetFollowups(label);
+            setTurns((prev) => {
+              const next = prev.map((t) =>
+                t.id === turnId
+                  ? {
+                      ...t,
+                      answer: text,
+                      citations: cites.length ? cites : t.citations,
+                      followups,
+                      busy: false,
+                      streamIncomplete: !streamOk || !structOk,
+                      useRag,
+                      kbId,
+                      kbName,
+                    }
+                  : t,
+              );
+              if (streamOk && structOk && !text.startsWith('⚠️')) {
+                writeHalfSheetCache(scene, ref, cacheSel, apiQuestion, text, cites);
+              }
+              persistThread(next);
+              return next;
+            });
+            setActiveTurnId(turnId);
+            scrollToBottom();
+          },
         },
-      },
-      { signal: controller.signal },
-    ).finally(() => {
-      window.clearTimeout(timer);
-      window.clearTimeout(slowTimer);
-      if (!cancelled) {
-        if (!accRef.current.trim()) {
-          accRef.current = emptyAnswerMsg;
-          setAnswer(emptyAnswerMsg);
+        { signal: controller.signal },
+      ).finally(() => {
+        window.clearTimeout(timer);
+        window.clearTimeout(slowTimer);
+        if (!cancelled && runId === runIdRef.current) {
+          setTurns((prev) =>
+            prev.map((t) => {
+              if (t.id !== turnId || !t.busy) return t;
+              const text = accRef.current.trim() || emptyAnswerMsg;
+              return { ...t, answer: text, busy: false };
+            }),
+          );
         }
-        setDone(true);
-      }
-    });
-    return () => {
-      cancelled = true;
-      controller.abort();
-      window.clearTimeout(timer);
-      window.clearTimeout(slowTimer);
-      if (rafRef.current != null) window.clearTimeout(rafRef.current);
-    };
-  }, [refLabel, retryKey]);
+      });
 
-  useEffect(() => runChat(), [runChat]); // runChat returns abort cleanup
-
-  const clean = stripAnswer(answer);
-  const usedCitations = useMemo(
-    () => citationsUsedInText(clean, citations),
-    [clean, citations],
+      return () => {
+        cancelled = true;
+        controller.abort();
+        window.clearTimeout(timer);
+        window.clearTimeout(slowTimer);
+        if (rafRef.current != null) window.clearTimeout(rafRef.current);
+      };
+    },
+    [persistThread, scrollToBottom],
   );
-  const hasError = clean.startsWith('⚠️');
-  const displayTrimmed = useMemo(
-    () => done && !hasError && assistantDisplayTrimmed(answer),
-    [answer, done, hasError],
+
+  useEffect(() => {
+    if (turns.length > 0) return;
+    const turnId = newTurnId();
+    setTurns([
+      {
+        id: turnId,
+        userQuestion,
+        answer: '',
+        citations: [],
+        scene: initialScene,
+        followups: [],
+        busy: true,
+      },
+    ]);
+    setActiveTurnId(turnId);
+    setExpandedTurns({ [turnId]: true });
+    return runChat(turnId, userQuestion, initialScene);
+  }, [turns.length, initialScene, userQuestion, runChat]);
+
+  useEffect(() => {
+    if (retryKey === 0) return;
+    const turnId = newTurnId();
+    setTurns([
+      {
+        id: turnId,
+        userQuestion,
+        answer: '',
+        citations: [],
+        scene: initialScene,
+        followups: [],
+        busy: true,
+      },
+    ]);
+    setActiveTurnId(turnId);
+    return runChat(turnId, userQuestion, initialScene, { isRetry: true });
+  }, [retryKey, initialScene, userQuestion, runChat]);
+
+  const activeTurn = turns.find((t) => t.id === activeTurnId) ?? turns.at(-1);
+  const completedTurns = turns.filter((t) => !t.busy && t.answer.trim());
+  const chipTurn = activeTurn && !activeTurn.busy ? activeTurn : completedTurns.at(-1);
+  const followupCount = turns.filter(
+    (t) => t.scene.startsWith('chat_') || turns.indexOf(t) > 0,
+  ).length;
+  const deepChatEmphasis = followupCount >= 2;
+
+  const appendTurn = useCallback(
+    (question: string, scene: AssistantScene) => {
+      if (turns.length >= 3) return;
+      const turnId = newTurnId();
+      const history: Array<{ role: 'user' | 'assistant'; content: string }> = turns
+        .filter((t) => t.answer.trim() && !t.answer.startsWith('⚠️'))
+        .flatMap((t) => [
+          { role: 'user' as const, content: t.userQuestion },
+          { role: 'assistant' as const, content: stripAnswer(t.answer) },
+        ]);
+      setTurns((prev) => [
+        ...prev,
+        {
+          id: turnId,
+          userQuestion: question,
+          answer: '',
+          citations: [],
+          scene,
+          followups: [],
+          busy: true,
+        },
+      ]);
+      setActiveTurnId(turnId);
+      setExpandedTurns((m) => ({ ...m, [turnId]: true }));
+      scrollToBottom();
+      runChat(turnId, question, scene, { history });
+    },
+    [runChat, scrollToBottom, turns],
   );
-  const { summary, body: bodyWithoutSummary } = extractSummaryLead(clean);
-  const showCollapsed = !expanded && !hasError && summary && bodyWithoutSummary;
-
-  const copyAnswer = async () => {
-    if (!clean || hasError) return;
-    try {
-      await navigator.clipboard.writeText(clean);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const shareAnswer = () => {
-    if (!clean || hasError) return;
-    setShareOpen(true);
-  };
 
   const continueWithAssistant = () => {
-    if (done && clean && !hasError) {
+    const seedTurns = turns.filter((t) => t.answer.trim() && !t.answer.startsWith('⚠️'));
+    if (seedTurns.length) {
       navigateToAssistant(refParam, {
-        seedMessages: [
-          { role: 'user', text: userQuestion },
-          {
-            role: 'assistant',
-            text: clean,
-            citations: usedCitations.length ? usedCitations : undefined,
-            scene,
-            sceneLabel: mode === 'ask' ? '经文解读' : '经文解释',
-          },
-        ],
-        scene,
+        seedMessages: seedTurns.flatMap((t) => {
+          const clean = stripAnswer(t.answer);
+          const used = citationsUsedInText(clean, t.citations);
+          return [
+            { role: 'user' as const, text: t.userQuestion },
+            {
+              role: 'assistant' as const,
+              text: clean,
+              citations: used.length ? used : undefined,
+              scene: t.scene,
+            },
+          ];
+        }),
+        scene: seedTurns.at(-1)?.scene ?? initialScene,
       });
     } else {
       navigateToAssistant(refParam);
@@ -289,207 +491,245 @@ export default function XiaoAiSheet({
     onClose();
   };
 
-  const saveThought = () => {
-    if (!clean || hasError) return;
-    addThought(refParam || 'FREE', clean, 'private', { skipPublish: true });
-    recordSaveAnswerNote();
-    setSaved(true);
-    flash('已存为想法（本机）');
-    setTimeout(() => setSaved(false), 1800);
-  };
-
-  const continueRead = () => {
-    const href = readerHrefFromRef(refParam);
-    if (!href) return;
-    onClose();
-    navigateToReaderHref(href, router);
-  };
-
-  const openSources = () => {
-    const cites = usedCitations.length ? usedCitations : citations;
-    if (cites[0]) setCitationOpen(cites[0].n);
-  };
-
-  const evidenceCites = usedCitations.length > 0 ? usedCitations : citations;
-  const canContinueRead = Boolean(readerHrefFromRef(refParam));
-  const onCitationClick = useCallback((n: number) => {
-    recordCitationClick();
-    setCitationOpen(n);
-  }, []);
-
   const stopBubble = (e: React.SyntheticEvent) => e.stopPropagation();
-  const { guardedClose } = useSheetOpenGuard(SHEET_OPEN_GUARD_MS);
 
   const sheet = (
-    <div
-      className="sheet-backdrop reader-ai-backdrop"
-      onClick={() => guardedClose(onClose)}
-      data-dismiss-on-tab-nav
-    >
+    <div className="reader-ai-portal" data-dismiss-on-tab-nav>
       <div
         className="half-sheet reader-ai-half-sheet"
         role="dialog"
-        aria-modal="true"
+        aria-modal="false"
+        aria-label="小爱解经"
         onClick={stopBubble}
         onMouseDown={stopBubble}
-        onMouseUp={stopBubble}
         onPointerDown={stopBubble}
-        onPointerUp={stopBubble}
       >
-        <div className="half-sheet-head">
-          <div className="half-sheet-grab" />
+        <div className="half-sheet-head reader-ai-half-head">
+          <div className="half-sheet-grab" aria-hidden />
           <div className="half-sheet-title">
-            <strong>{mode === 'ask' ? '问小爱' : '解释'} · {refLabel}</strong>
+            <strong className="reader-ai-head-title">小爱解经</strong>
+            <span className="reader-ai-ref-pill">{refLabel}</span>
             <SheetCloseButton onClick={onClose} />
           </div>
         </div>
-        <div className="half-sheet-body" onMouseDown={stopBubble} onMouseUp={stopBubble}>
-          <div className="half-sheet-user-bubble assistant-user-text">
-            {selectionText.trim()
-              ? (selectionText.length > 120 ? `${selectionText.slice(0, 120)}…` : selectionText)
-              : userQuestion}
-          </div>
-          <div className="half-sheet-answer half-sheet-answer-rich">
-            <span className="half-sheet-badge">
-              {mode === 'ask' ? '小爱解读 · 摘要·背景·解释' : '小爱解释'}
-            </span>
-            <div className="half-sheet-answer-body reader-ai-answer assistant-answer">
-              {clean ? (
-                <>
-                  {!clean.startsWith('⚠️') && done && (
-                    <RagSourceStatus
-                      count={
-                        usedCitations.length > 0
-                          ? usedCitations.length
-                          : citations.length
-                      }
-                      useRag={useRag}
-                      knowledgeBaseId={kbId}
-                      knowledgeBaseName={kbName}
-                      onReview={evidenceCites.length > 0 ? openSources : undefined}
-                    />
-                  )}
-                  {showCollapsed ? (
-                    <>
-                      <p className="xiaoai-summary-lead">{summary}</p>
-                      <button
-                        type="button"
-                        className="text-link xiaoai-expand-btn"
-                        onClick={() => setExpanded(true)}
-                      >
-                        展开完整解读
-                      </button>
-                    </>
-                  ) : (
-                    <AnswerText
-                      text={clean}
-                      streaming={!done}
-                      dense={mode === 'explain'}
-                      onCitationClick={onCitationClick}
-                    />
-                  )}
-                  {done && !hasError && evidenceCites.length > 0 ? (
-                    <CitationEvidenceRail
-                      citations={evidenceCites}
-                      bookName={refLabel.split(' ')[0]}
-                      onOpen={(n) => {
-                        recordCitationClick();
-                        setCitationOpen(n);
-                      }}
-                    />
-                  ) : null}
-                  {done && clean && !hasError ? (
-                    <AssistantNextSteps
-                      showContinueRead={canContinueRead}
-                      onContinueRead={continueRead}
-                      onSaveThought={saveThought}
-                      savedThought={saved}
-                      showSources={evidenceCites.length > 0}
-                      onOpenSources={openSources}
-                      onCopy={() => void copyAnswer()}
-                      copied={copied}
-                      onShare={shareAnswer}
-                      onContinueChat={continueWithAssistant}
-                    />
-                  ) : null}
-                </>
-              ) : done ? (
-                <p className="muted xiaoai-disclaimer">{emptyAnswerMsg}</p>
-              ) : (
-                <AssistantThinkingState
-                  phase={streamPhase}
-                  citeCount={streamCiteCount}
-                  slow={slowHint && !done}
-                />
-              )}
+
+        <div className="half-sheet-body reader-ai-half-body" ref={scrollRef}>
+          {turns.length > 1 ? (
+            <div className="half-sheet-thread-fold">
+              {turns.slice(0, -1).map((t) => (
+                <details key={t.id} className="half-sheet-thread-prior">
+                  <summary>{t.userQuestion.slice(0, 28)}…</summary>
+                  <AnswerText text={stripAnswer(t.answer)} dense onCitationClick={() => {}} />
+                </details>
+              ))}
             </div>
-          </div>
-          {hasError && (
+          ) : null}
+
+          {turns.map((turn, index) => {
+            const isLast = index === turns.length - 1;
+            if (!isLast) return null;
+            const clean = stripAnswer(turn.answer);
+            const hasError = clean.startsWith('⚠️');
+            const usedCitations = citationsUsedInText(clean, turn.citations);
+            const evidenceCites = usedCitations.length > 0 ? usedCitations : turn.citations;
+            const { summary, body: bodyWithoutSummary } = extractSummaryLead(clean);
+            const expanded = expandedTurns[turn.id] !== false;
+            const showCollapsed =
+              !expanded && !hasError && summary && bodyWithoutSummary;
+
+            return (
+              <div key={turn.id} className="half-sheet-turn">
+                <div className="half-sheet-user-bubble assistant-user-text">
+                  {selectionText.trim() && index === 0
+                    ? selectionText.length > 120
+                      ? `${selectionText.slice(0, 120)}…`
+                      : selectionText
+                    : turn.userQuestion}
+                </div>
+
+                <div className="half-sheet-answer half-sheet-answer-rich">
+                  <div className="half-sheet-answer-body reader-ai-answer assistant-answer">
+                    {turn.busy && !clean ? (
+                      <AssistantThinkingState
+                        variant="halfsheet"
+                        phase={
+                          turn.citations.length
+                            ? 'refs'
+                            : clean
+                              ? 'writing'
+                              : 'understanding'
+                        }
+                        citeCount={turn.citations.length}
+                      />
+                    ) : clean ? (
+                      <>
+                        {!hasError && !turn.busy ? (
+                          <RagSourceStatus
+                            count={evidenceCites.length}
+                            useRag={turn.useRag}
+                            knowledgeBaseId={turn.kbId}
+                            knowledgeBaseName={turn.kbName}
+                            onReview={
+                              evidenceCites.length > 0
+                                ? () => {
+                                    setCitationTurnId(turn.id);
+                                    setCitationOpen(evidenceCites[0]?.n ?? null);
+                                  }
+                                : undefined
+                            }
+                          />
+                        ) : null}
+                        {showCollapsed ? (
+                          <>
+                            <p className="xiaoai-summary-lead">{summary}</p>
+                            <button
+                              type="button"
+                              className="text-link xiaoai-expand-btn"
+                              onClick={() =>
+                                setExpandedTurns((m) => ({ ...m, [turn.id]: true }))
+                              }
+                            >
+                              展开完整解读
+                            </button>
+                          </>
+                        ) : (
+                          <AnswerText
+                            text={clean}
+                            streaming={turn.busy}
+                            dense={turn.scene === 'verse_quick'}
+                            onCitationClick={(n) => {
+                              recordCitationClick();
+                              setCitationTurnId(turn.id);
+                              setCitationOpen(n);
+                            }}
+                          />
+                        )}
+                        {!turn.busy && !hasError && evidenceCites.length > 0 ? (
+                          <CitationEvidenceRail
+                            citations={evidenceCites}
+                            bookName={refLabel.split(' ')[0]}
+                            onOpen={(n) => {
+                              recordCitationClick();
+                              setCitationTurnId(turn.id);
+                              setCitationOpen(n);
+                            }}
+                          />
+                        ) : null}
+                        {!turn.busy && !hasError ? (
+                          <HalfSheetLightActions
+                            copied={copiedTurnId === turn.id}
+                            saved={savedTurnId === turn.id}
+                            showSources={evidenceCites.length > 0}
+                            onCopy={() => {
+                              void navigator.clipboard.writeText(clean);
+                              setCopiedTurnId(turn.id);
+                              window.setTimeout(() => setCopiedTurnId(null), 1800);
+                            }}
+                            onSaveThought={() => {
+                              addThought(refParam || 'FREE', clean, 'private', {
+                                skipPublish: true,
+                              });
+                              recordSaveAnswerNote();
+                              setSavedTurnId(turn.id);
+                              flash('已存为想法（本机）');
+                              window.setTimeout(() => setSavedTurnId(null), 1800);
+                            }}
+                            onOpenSources={() => {
+                              setCitationTurnId(turn.id);
+                              setCitationOpen(evidenceCites[0]?.n ?? null);
+                            }}
+                            onShare={() => setShareTurn(turn)}
+                          />
+                        ) : null}
+                        {turn.streamIncomplete && !turn.busy ? (
+                          <p className="muted xiaoai-disclaimer">
+                            解读可能未写完，可点「与小爱深聊」补全。
+                          </p>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+
+                {hasError && !turn.busy ? (
+                  <button
+                    type="button"
+                    className="half-sheet-action-btn"
+                    onClick={() => setRetryKey((k) => k + 1)}
+                  >
+                    重试
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+
+          {chipTurn && !chipTurn.busy && !chipTurn.answer.startsWith('⚠️') ? (
+            <HalfSheetChipRows
+              followups={chipTurn.followups}
+              followupsLoading={false}
+              l1Chips={l1Chips}
+              disabled={turns.some((t) => t.busy) || turns.length >= 3}
+              onFollowup={(q) => appendTurn(q, chipTurn.scene.startsWith('chat_') ? chipTurn.scene : 'chat_explain')}
+              onL1={(chip: HalfSheetChipDef) => appendTurn(chip.q, chip.scene)}
+            />
+          ) : chipTurn?.busy ? (
+            <HalfSheetChipRows
+              followups={[]}
+              followupsLoading
+              l1Chips={l1Chips}
+              disabled
+              onFollowup={() => {}}
+              onL1={() => {}}
+            />
+          ) : null}
+        </div>
+
+        {chipTurn && !chipTurn.busy && !chipTurn.answer.startsWith('⚠️') ? (
+          <div className="half-sheet-foot reader-ai-half-foot">
             <button
               type="button"
-              className="half-sheet-action-btn"
-              style={{ marginTop: 10 }}
-              onClick={() => setRetryKey((k) => k + 1)}
+              className={
+                deepChatEmphasis
+                  ? 'half-sheet-deep-chat half-sheet-deep-chat-emphasis'
+                  : 'half-sheet-deep-chat'
+              }
+              onClick={continueWithAssistant}
             >
-              重试
+              与小爱深聊 ›
             </button>
-          )}
-          {done && clean && !hasError && (
-            <>
-              {streamIncomplete && (
-                <p className="muted xiaoai-disclaimer">
-                  解读可能未写完，可点「继续聊」让小爱补全。
-                </p>
-              )}
-              {displayTrimmed && (
-                <p className="muted xiaoai-disclaimer">
-                  相关追问与参考资料已在下方引用区展示。
-                </p>
-              )}
-              <p className="muted xiaoai-disclaimer">
-                内容由 AI 生成，请以圣经原文为准。
-              </p>
-            </>
-          )}
-        </div>
-        {done && !hasError && evidenceCites.length > 0 ? (
+          </div>
+        ) : null}
+
+        {citationOpen != null && citationTurnId ? (
           <div className="xiaoai-cite-host" aria-hidden={citationOpen == null}>
             <CitationBar
               variant="action"
               compact
               className="xiaoai-cite-host-trigger"
-              citations={evidenceCites}
+              citations={
+                (turns.find((t) => t.id === citationTurnId)?.citations ?? []).length
+                  ? citationsUsedInText(
+                      stripAnswer(turns.find((t) => t.id === citationTurnId)?.answer ?? ''),
+                      turns.find((t) => t.id === citationTurnId)?.citations ?? [],
+                    )
+                  : turns.find((t) => t.id === citationTurnId)?.citations ?? []
+              }
               activeN={citationOpen}
               onActiveChange={setCitationOpen}
               bookName={refLabel.split(' ')[0]}
             />
           </div>
         ) : null}
-        {(!done || hasError) && (
-          <div className="half-sheet-foot half-sheet-actions reader-ai-actions">
-            <button
-              type="button"
-              className="half-sheet-action-btn half-sheet-action-primary"
-              onClick={continueWithAssistant}
-            >
-              继续聊
-            </button>
-          </div>
-        )}
       </div>
-      {shareOpen && clean && !hasError ? (
+
+      {shareTurn ? (
         <AnalysisShareSheet
           refLabel={refLabel}
           refParam={refParam}
-          answerText={clean}
-          citations={
-            (usedCitations.length ? usedCitations : citations).length
-              ? usedCitations.length
-                ? usedCitations
-                : citations
-              : undefined
-          }
-          onClose={() => setShareOpen(false)}
+          answerText={stripAnswer(shareTurn.answer)}
+          citations={shareTurn.citations.length ? shareTurn.citations : undefined}
+          onClose={() => setShareTurn(null)}
           onToast={flash}
         />
       ) : null}

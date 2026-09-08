@@ -2,6 +2,7 @@
 library;
 
 import 'assistant_scenes.dart';
+import 'models.dart' show Citation;
 
 export 'assistant_markdown.dart'
     show extractSummaryLead, prepareAssistantDisplay, prepareAssistantMarkdown;
@@ -90,12 +91,28 @@ bool isHalfSheetAnswerComplete(String answer, AssistantScene scene) {
   }
 }
 
-/// 半屏 API 问句：长选区不拼进 prompt。
-String buildHalfSheetQuestion(String userQuestion, String selection) {
-  final sel = selection.trim();
-  if (sel.isEmpty) return userQuestion;
-  if (sel.length > 300) return userQuestion;
+/// FAB 无选区时选区不参与 cache key / 问句，仅 ref + scene。
+String halfSheetCacheSelection(String selection, bool explicitSelection) {
+  if (!explicitSelection) return '';
+  return selection.trim();
+}
+
+/// 半屏 API 问句：长选区不拼进 prompt，经文由 ref 在后端展开。
+String buildHalfSheetQuestion(
+  String userQuestion,
+  String selection, [
+  bool explicitSelection = true,
+]) {
+  final sel = halfSheetCacheSelection(selection, explicitSelection);
+  if (sel.isEmpty || sel.length > 300) return userQuestion;
   return '$userQuestion\n\n选中文本：$sel';
+}
+
+/// 回答正文中实际引用的脚注（无 [n] 标记则返回全部）。
+List<Citation> citationsUsedInText(String text, List<Citation> citations) {
+  if (citations.isEmpty) return const [];
+  final used = citations.where((c) => text.contains('[${c.n}]')).toList();
+  return used.isNotEmpty ? used : citations;
 }
 
 List<String> followupsOf(String text) {

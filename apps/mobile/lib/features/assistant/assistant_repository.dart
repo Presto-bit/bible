@@ -71,6 +71,7 @@ class AssistantRepository {
     AssistantScene? scene,
     String? knowledgeBaseId,
     Map<String, dynamic>? readerContext,
+    String surface = 'mobile',
   }) async* {
     final hasRef = ref != null && ref.isNotEmpty;
     final resolved =
@@ -78,7 +79,7 @@ class AssistantRepository {
     final body = <String, dynamic>{
       'mode': mode.id,
       'scene': resolved.id,
-      'surface': 'mobile',
+      'surface': surface,
     };
     if (hasRef) body['ref'] = ref;
     if (question != null && question.isNotEmpty) body['question'] = question;
