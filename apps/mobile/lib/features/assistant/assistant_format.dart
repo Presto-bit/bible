@@ -119,7 +119,7 @@ bool isHalfSheetAnswerComplete(
         ? 70
         : span <= 5
             ? 90 + (span - 2).clamp(0, 99) * 15
-            : 90 + (span - 1) * 25,
+            : 140 + span * 22,
     AssistantScene.verseQuick => span <= 2
         ? 45
         : span <= 5
@@ -130,9 +130,14 @@ bool isHalfSheetAnswerComplete(
   if (text.length < minLen) return false;
   switch (scene) {
     case AssistantScene.verseFull:
-      if (!titles.contains('摘要') || !titles.contains('经文解释')) return false;
-      if (titles.contains('背景')) return true;
-      return span >= 6 && titles.contains('段落脉络');
+      if (!titles.contains('摘要') || !titles.contains('经文解释')) {
+        return false;
+      }
+      if (!titles.contains('经文背景') && !titles.contains('背景')) {
+        return false;
+      }
+      if (span >= 6 && !titles.contains('段落脉络')) return false;
+      return true;
     case AssistantScene.verseQuick:
       return _verseQuickSections.every(titles.contains);
     default:

@@ -42,7 +42,7 @@ def test_render_answer_draft():
 
 def test_missing_required_sections():
     body = "### 摘要\n只有摘要。"
-    assert missing_required_sections(body, "verse_full") == ["背景", "经文解释"]
+    assert missing_required_sections(body, "verse_full") == ["经文背景", "经文解释"]
 
 
 def test_needs_structure_repair_prose():

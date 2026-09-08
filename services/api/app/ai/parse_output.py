@@ -4,9 +4,13 @@ from __future__ import annotations
 import re
 
 from .answer_schema import (
-    verse_context_section_ok,
+    verse_explain_max_bullets,
+    verse_has_background,
+    verse_min_background_bullets,
     verse_min_chars,
     verse_min_explain_bullets,
+    verse_min_outline_bullets,
+    verse_passage_structure_ok,
 )
 
 FOLLOWUP_SECTION_RE = re.compile(
@@ -104,6 +108,29 @@ def _section_bullet_count(body_text: str, section_title: str) -> int:
     return 0
 
 
+def _section_bullet_count_any(body_text: str, section_titles: tuple[str, ...]) -> int:
+    return max(_section_bullet_count(body_text, title) for title in section_titles)
+
+
+def _section_bullets_avg_len(body_text: str, section_title: str) -> float:
+    matches = list(SECTION_MD_RE.finditer(body_text))
+    for i, m in enumerate(matches):
+        if m.group(1).strip() != section_title:
+            continue
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(body_text)
+        chunk = body_text[start:end]
+        items: list[str] = []
+        for line in chunk.split("\n"):
+            mm = re.match(r"^\s*(?:[-*•]|\d+[.)、])\s+(.+?)\s*$", line.strip())
+            if mm and mm.group(1).strip():
+                items.append(mm.group(1).strip())
+        if not items:
+            return 0.0
+        return sum(len(s) for s in items) / len(items)
+    return 0.0
+
+
 def _verse_sections_satisfied(
     scene: str,
     titles: set[str],
@@ -114,7 +141,7 @@ def _verse_sections_satisfied(
         return _VERSE_QUICK_SECTIONS.issubset(titles)
     if "摘要" not in titles or "经文解释" not in titles:
         return False
-    return verse_context_section_ok(titles, verse_span=verse_span)
+    return verse_passage_structure_ok(titles, verse_span=verse_span)
 
 
 def verse_explain_incomplete(scene: str, body_text: str, *, verse_span: int = 1) -> bool:
@@ -134,6 +161,17 @@ def verse_explain_incomplete(scene: str, body_text: str, *, verse_span: int = 1)
     explain_bullets = _section_bullet_count(text, "经文解释")
     if explain_bullets < verse_min_explain_bullets(span):
         return True
+    if scene == "verse_full" and span >= 6:
+        bg_bullets = _section_bullet_count_any(text, ("经文背景", "背景"))
+        if bg_bullets < verse_min_background_bullets(span):
+            return True
+        if _section_bullet_count(text, "段落脉络") < verse_min_outline_bullets(span):
+            return True
+        if explain_bullets > verse_explain_max_bullets(span):
+            return True
+        avg_len = _section_bullets_avg_len(text, "经文解释")
+        if explain_bullets >= 4 and 0 < avg_len < 32:
+            return True
     return answer_ends_abruptly(text)
 
 
@@ -169,8 +207,10 @@ def missing_verse_sections(
         missing: list[str] = []
         if "摘要" not in titles:
             missing.append("摘要")
-        if not verse_context_section_ok(titles, verse_span=span):
-            missing.append("段落脉络" if span >= 6 else "背景")
+        if not verse_has_background(titles):
+            missing.append("经文背景")
+        if span >= 6 and "段落脉络" not in titles:
+            missing.append("段落脉络")
         if "经文解释" not in titles:
             missing.append("经文解释")
         return missing

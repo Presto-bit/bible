@@ -43,6 +43,10 @@ export function verseSpanFromRef(ref: string): number {
   return Math.max(1, end - start + 1);
 }
 
+function verseHasBackground(titles: Set<string>): boolean {
+  return titles.has('经文背景') || titles.has('背景');
+}
+
 /** 半屏解读回答是否结构完整，避免缓存/展示半截生成。 */
 export function isHalfSheetAnswerComplete(
   answer: string,
@@ -59,7 +63,7 @@ export function isHalfSheetAnswerComplete(
         ? 70
         : span <= 5
           ? 90 + Math.max(0, span - 2) * 15
-          : 90 + (span - 1) * 25
+          : 140 + span * 22
       : scene === 'verse_quick'
         ? span <= 2
           ? 45
@@ -76,8 +80,9 @@ export function isHalfSheetAnswerComplete(
     return VERSE_QUICK_SECTIONS.every((s) => titles.has(s));
   }
   if (!titles.has('摘要') || !titles.has('经文解释')) return false;
-  if (titles.has('背景')) return true;
-  return span >= 6 && titles.has('段落脉络');
+  if (!verseHasBackground(titles)) return false;
+  if (span >= 6 && !titles.has('段落脉络')) return false;
+  return true;
 }
 
 /** FAB 无选区时选区不参与 cache key / 问句，仅 ref + scene。 */

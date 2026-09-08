@@ -104,6 +104,21 @@ def is_prose_wall(body_text: str, scene: str) -> bool:
     return False
 
 
+def _section_max_bullets(
+    title: str,
+    default_max: int,
+    scene: str,
+    verse_span: int,
+) -> int:
+    span = max(1, int(verse_span or 1))
+    if scene == "verse_full" and span >= 6:
+        if title == "经文解释":
+            return min(default_max, 5)
+        if title in ("段落脉络", "经文背景", "背景"):
+            return min(default_max, 4)
+    return default_max
+
+
 def answer_over_budget(body_text: str, scene: str, *, narrow: bool = False, verse_span: int = 1) -> bool:
     bud = effective_budget_for_scene(scene, narrow=narrow, verse_span=verse_span)
     if not bud:
@@ -150,7 +165,11 @@ def normalize_answer_markdown(
             parts.append(prose)
             parts.append("")
             continue
-        bullets = _chunk_to_bullets(chunk, bud.item_max, max_bullets)
+        bullets = _chunk_to_bullets(
+            chunk,
+            bud.item_max,
+            _section_max_bullets(title, max_bullets, scene, verse_span),
+        )
         if not bullets and chunk.strip():
             bullets = [_trim_chars(chunk.replace("\n", " "), bud.item_max)]
         for b in bullets:
@@ -158,7 +177,8 @@ def normalize_answer_markdown(
         parts.append("")
 
     normalized_body = "\n".join(parts).strip()
-    while len(normalized_body) > bud.total_chars + 20 and parts:
+    trim_slack = 40 if scene in ("verse_full", "verse_quick") and verse_span >= 6 else 20
+    while len(normalized_body) > bud.total_chars + trim_slack and parts:
         removed = False
         for i in range(len(parts) - 1, -1, -1):
             if parts[i].startswith("- "):

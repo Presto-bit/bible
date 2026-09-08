@@ -165,7 +165,7 @@ SUMMARY_LEAD_TITLES = frozenset({"摘要", "本章概览", "卷概览", "主题�
 
 REQUIRED_SECTIONS: dict[str, tuple[str, ...]] = {
     "verse_quick": ("摘要", "经文解释"),
-    "verse_full": ("摘要", "背景", "经文解释"),
+    "verse_full": ("摘要", "经文背景", "经文解释"),
     "chat_explain": ("摘要", "背景", "经文解释"),
     "chat_understand": ("摘要", "经文要旨", "默想引导"),
     "chat_apply": ("摘要", "核心提醒", "具体行动"),
@@ -217,13 +217,16 @@ def effective_budget_for_scene(
             max_bullets=5,
         )
     if scene == "verse_full":
+        total_chars = 820 if span >= 6 else 480
+        if span >= 9:
+            total_chars = 920
         return SceneBudget(
-            total_chars=640,
+            total_chars=total_chars,
             max_tokens=bud.max_tokens,
-            summary_max=45,
-            item_max=60,
+            summary_max=50,
+            item_max=78,
             min_bullets=2,
-            max_bullets=6,
+            max_bullets=5,
         )
     return SceneBudget(
         total_chars=420,
@@ -242,7 +245,7 @@ def verse_min_chars(scene: str, verse_span: int = 1) -> int:
             return 70
         if span <= 5:
             return 90 + max(0, span - 2) * 15
-        return 90 + (span - 1) * 25
+        return 140 + span * 22
     if scene == "verse_quick":
         if span <= 2:
             return 45
@@ -261,11 +264,42 @@ def verse_min_explain_bullets(verse_span: int = 1) -> int:
     return 4
 
 
+def verse_min_outline_bullets(verse_span: int = 1) -> int:
+    return 3 if max(1, int(verse_span or 1)) >= 6 else 0
+
+
+def verse_min_background_bullets(verse_span: int = 1) -> int:
+    span = max(1, int(verse_span or 1))
+    if span >= 6:
+        return 2
+    if span >= 3:
+        return 2
+    return 1
+
+
+def verse_explain_max_bullets(verse_span: int = 1) -> int:
+    return 5 if max(1, int(verse_span or 1)) >= 6 else 6
+
+
+VERSE_BACKGROUND_TITLES = frozenset({"背景", "经文背景"})
+
+
+def verse_has_background(titles: set[str]) -> bool:
+    return bool(titles & VERSE_BACKGROUND_TITLES)
+
+
+def verse_passage_structure_ok(titles: set[str], *, verse_span: int) -> bool:
+    span = max(1, int(verse_span or 1))
+    if not verse_has_background(titles):
+        return False
+    if span >= 6:
+        return "段落脉络" in titles
+    return True
+
+
 def verse_context_section_ok(titles: set[str], *, verse_span: int) -> bool:
-    """verse_full：6+ 节可用「段落脉络」替代「背景」。"""
-    if "背景" in titles:
-        return True
-    return verse_span >= 6 and "段落脉络" in titles
+    """兼容旧调用：多节须同时有经文背景与段落脉络。"""
+    return verse_passage_structure_ok(titles, verse_span=verse_span)
 
 
 def max_tokens_for_scene(
@@ -286,7 +320,7 @@ def max_tokens_for_scene(
     if scene in ("verse_full", "verse_quick"):
         span = max(1, int(verse_span or 1))
         if span >= 3:
-            bonus = min((span - 2) * 40, 200 if span >= 6 else 120)
+            bonus = min((span - 2) * 40, 280 if span >= 9 else (200 if span >= 6 else 120))
             cap = cap + bonus
     if scene in ("summary_chapter", "summary_chapter_outline") and verse_span > 20:
         cap = max(cap, 1400)

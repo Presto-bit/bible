@@ -22,7 +22,7 @@ def test_verse_full_complete():
 def test_verse_full_missing_sections():
     body = "### 摘要\n只有摘要。"
     assert verse_explain_incomplete("verse_full", body)
-    assert set(missing_verse_sections("verse_full", body)) == {"背景", "经文解释"}
+    assert set(missing_verse_sections("verse_full", body)) == {"经文背景", "经文解释"}
 
 
 def test_verse_quick_complete():
@@ -56,6 +56,7 @@ def test_verse_full_passage_span_thin_incomplete():
     )
     assert verse_explain_incomplete("verse_full", body, verse_span=11)
     assert set(missing_verse_sections("verse_full", body, verse_span=11)) == {
+        "经文背景",
         "段落脉络",
     }
 
@@ -64,18 +65,20 @@ def test_verse_full_passage_span_complete_with_outline():
     body = (
         "### 摘要\n"
         "保罗劝哥林多教会不可在世俗法庭互诉，要活出与世有别、被洗净的见证。\n\n"
+        "### 经文背景\n"
+        "- 哥林多是港口商贸城，诉讼文化盛行，教会成员也受世俗风气影响。\n"
+        "- 保罗在此纠正：圣徒纠纷应在教会内解决，而非羞辱见证。\n\n"
         "### 段落脉络\n"
-        "- 诉讼问题：为何不可在不信者面前争讼，以免羞辱教会。\n"
-        "- 伦理警告：恶行与神的国，列出不能承受国度的生活方式。\n"
-        "- 福音转折：你们中间也有人如此，如今却被洗净、称义、成圣。\n\n"
+        "- 1–6 节：弟兄互诉，暴露关系破裂与见证受损。\n"
+        "- 7–8 节：为何不当在 unbelievers 面前争讼，反要接受教会内判断。\n"
+        "- 9–11 节：恶行与神的国不相容；「你们中间也有人如此，如今却被洗净」。\n\n"
         "### 经文解释\n"
-        "- 诉讼羞辱教会合一与见证，也反映对彼此缺乏信任。\n"
-        "- 恶行表列出不能承受神国的生活方式，提醒省察与悔改。\n"
-        "- 清单不是给人定罪，而是呼召离开旧人旧习。\n"
-        "- 「你们中间也有人如此」指向福音转变：曾被罪辖制，如今被洗净、称义、成圣。\n"
-        "- 整段呼召教会以被赎身份活出新生命，而非凭旧习彼此伤害。\n"
+        "- 诉讼羞辱教会合一与见证，也反映对彼此缺乏信任与爱的操练。\n"
+        "- 「你们要在 unbelievers 面前争讼吗」指向另一种解决冲突的方式。\n"
+        "- 9–10 节清单不是贴标签定罪，而是提醒某些生活方式与承受神国不相容。\n"
+        "- 11 节是整段钥匙：福音转变——我们也曾如此，如今却被洗净、称义、成圣。\n"
     )
-    assert not verse_explain_incomplete("verse_full", body, verse_span=7)
+    assert not verse_explain_incomplete("verse_full", body, verse_span=11)
 
 
 def test_answer_ends_abruptly_detects_cut():
