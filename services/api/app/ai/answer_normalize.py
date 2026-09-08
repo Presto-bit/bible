@@ -8,6 +8,7 @@ from .answer_schema import (
     SUMMARY_LEAD_TITLES,
     SceneBudget,
     budget_for_scene,
+    effective_budget_for_scene,
 )
 from .parse_output import FOLLOWUP_SECTION_RE, SECTION_MD_RE, split_body_and_followups
 
@@ -103,8 +104,8 @@ def is_prose_wall(body_text: str, scene: str) -> bool:
     return False
 
 
-def answer_over_budget(body_text: str, scene: str, *, narrow: bool = False) -> bool:
-    bud = budget_for_scene(scene, narrow=narrow)
+def answer_over_budget(body_text: str, scene: str, *, narrow: bool = False, verse_span: int = 1) -> bool:
+    bud = effective_budget_for_scene(scene, narrow=narrow, verse_span=verse_span)
     if not bud:
         return False
     return len(body_text.strip()) > bud.total_chars + 40
@@ -119,13 +120,16 @@ def normalize_answer_markdown(
 ) -> str:
     """归一化为 ### + bullets Markdown，并按 scene 预算裁剪。"""
     body, followups = split_body_and_followups(text)
-    bud = budget_for_scene(scene, narrow=narrow)
+    bud = effective_budget_for_scene(scene, narrow=narrow, verse_span=verse_span)
     if not bud or not body.strip():
         return text
 
     max_bullets = bud.max_bullets
     if scene in ("verse_full", "verse_quick") and verse_span >= 3:
-        max_bullets = min(max_bullets + (verse_span - 2) // 2, bud.max_bullets + 2)
+        max_bullets = min(
+            max_bullets + (verse_span - 2) // 2,
+            bud.max_bullets + (2 if verse_span >= 6 else 1),
+        )
 
     parts: list[str] = []
     for title, chunk in _section_chunks(body):

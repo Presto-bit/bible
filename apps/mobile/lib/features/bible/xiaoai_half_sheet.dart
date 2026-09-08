@@ -397,7 +397,11 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                 answerText != _emptyAnswerMsg;
             final structOk = scene == AssistantScene.verseFull ||
                     scene == AssistantScene.verseQuick
-                ? isHalfSheetAnswerComplete(answerText, scene)
+                ? isHalfSheetAnswerComplete(
+                    answerText,
+                    scene,
+                    verseSpanFromRef(widget.refStr),
+                  )
                 : true;
             final followupItems = normalizeFollowupItems(
               followups.isNotEmpty

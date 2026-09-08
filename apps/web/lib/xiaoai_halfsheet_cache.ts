@@ -8,7 +8,6 @@ import { userLsGet, userLsSet } from './user_storage';
 const STORAGE_KEY = 'presto_xiaoai_halfsheet_v1';
 const MAX_ENTRIES = 48;
 
-const VERSE_FULL_SECTIONS = ['摘要', '背景', '经文解释'] as const;
 const VERSE_QUICK_SECTIONS = ['摘要', '经文解释'] as const;
 
 type CacheEntry = {
@@ -33,6 +32,17 @@ function sectionTitles(text: string): Set<string> {
   return titles;
 }
 
+/** 从 OSIS ref 末段解析选区节数（如 1CO.6.1-11 → 11）。 */
+export function verseSpanFromRef(ref: string): number {
+  const tail = ref.trim().split('.').pop() ?? '';
+  const m = tail.match(/^(\d+)(?:-(\d+))?$/);
+  if (!m) return 1;
+  const start = parseInt(m[1]!, 10);
+  const end = m[2] ? parseInt(m[2], 10) : start;
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 1;
+  return Math.max(1, end - start + 1);
+}
+
 /** 半屏解读回答是否结构完整，避免缓存/展示半截生成。 */
 export function isHalfSheetAnswerComplete(
   answer: string,
@@ -42,23 +52,32 @@ export function isHalfSheetAnswerComplete(
   const text = answer.trim();
   if (!text || text.startsWith('⚠️')) return false;
 
-  const required =
+  const span = Math.max(1, verseSpan);
+  const minLen =
     scene === 'verse_full'
-      ? VERSE_FULL_SECTIONS
+      ? span <= 2
+        ? 70
+        : span <= 5
+          ? 90 + Math.max(0, span - 2) * 15
+          : 90 + (span - 1) * 25
       : scene === 'verse_quick'
-        ? VERSE_QUICK_SECTIONS
-        : null;
-  const minLen = scene === 'verse_full'
-    ? Math.max(70, 90 + Math.max(0, verseSpan - 2) * 25)
-    : scene === 'verse_quick'
-      ? Math.max(45, 55 + Math.max(0, verseSpan - 2) * 15)
-      : 80;
+        ? span <= 2
+          ? 45
+          : span <= 5
+            ? 55 + Math.max(0, span - 2) * 12
+            : 55 + (span - 1) * 18
+        : 80;
 
   if (text.length < minLen) return false;
-  if (!required) return true;
+  if (scene !== 'verse_full' && scene !== 'verse_quick') return true;
 
   const titles = sectionTitles(text);
-  return required.every((s) => titles.has(s));
+  if (scene === 'verse_quick') {
+    return VERSE_QUICK_SECTIONS.every((s) => titles.has(s));
+  }
+  if (!titles.has('摘要') || !titles.has('经文解释')) return false;
+  if (titles.has('背景')) return true;
+  return span >= 6 && titles.has('段落脉络');
 }
 
 /** FAB 无选区时选区不参与 cache key / 问句，仅 ref + scene。 */
@@ -109,13 +128,14 @@ export function readHalfSheetCache(
   ref: string,
   selection: string,
   question: string,
+  verseSpan = verseSpanFromRef(ref),
 ): { answer: string; citations: Citation[] } | null {
   const key = buildKey(scene, ref, selection, question);
   const entry = readMap()[key];
   if (!entry?.answer?.trim()) return null;
   const today = chinaTodayYmd();
   if (entry.day !== today) return null;
-  if (!isHalfSheetAnswerComplete(entry.answer, scene)) {
+  if (!isHalfSheetAnswerComplete(entry.answer, scene, verseSpan)) {
     const map = readMap();
     delete map[key];
     writeMap(map);
@@ -131,10 +151,11 @@ export function writeHalfSheetCache(
   question: string,
   answer: string,
   citations: Citation[],
+  verseSpan = verseSpanFromRef(ref),
 ) {
   const text = answer.trim();
   if (!text || text.startsWith('⚠️')) return;
-  if (!isHalfSheetAnswerComplete(text, scene)) return;
+  if (!isHalfSheetAnswerComplete(text, scene, verseSpan)) return;
   const key = buildKey(scene, ref, selection, question);
   const map = readMap();
   map[key] = {

@@ -38,6 +38,7 @@ String _buildKey(
   String selection,
   String question,
 ) {
+  final verseSpan = verseSpanFromRef(ref);
   final key = _buildKey(scene, ref, selection, question);
   final entry = _cache[key];
   if (entry == null || entry.answer.trim().isEmpty) return null;
@@ -45,7 +46,7 @@ String _buildKey(
     _cache.remove(key);
     return null;
   }
-  if (!isHalfSheetAnswerComplete(entry.answer, scene)) {
+  if (!isHalfSheetAnswerComplete(entry.answer, scene, verseSpan)) {
     _cache.remove(key);
     return null;
   }
@@ -62,7 +63,7 @@ void writeHalfSheetCache(
 ) {
   final text = answer.trim();
   if (text.isEmpty || text.startsWith('⚠️')) return;
-  if (!isHalfSheetAnswerComplete(text, scene)) return;
+  if (!isHalfSheetAnswerComplete(text, scene, verseSpanFromRef(ref))) return;
   final key = _buildKey(scene, ref, selection, question);
   _cache[key] = HalfSheetCacheEntry(
     answer: text,

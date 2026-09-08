@@ -184,6 +184,8 @@ def prepare(
     if has_prior_turns:
         if passage_text and len(passage_text) > 900:
             passage_text = passage_text[:900].rstrip() + "…"
+    elif passage_text and verse_span >= 6 and len(passage_text) > 1400:
+        passage_text = passage_text[:1400].rstrip() + "…"
     base = build_messages(
         scene=spec,
         passage_display=passage_display,
@@ -194,6 +196,7 @@ def prepare(
         reader_context=reader_context,
         has_prior_turns=has_prior_turns,
         narrow=narrow,
+        verse_span=verse_span,
     )
     messages = [base[0], *prior, base[1]]
     max_tokens = max_tokens_for_scene(

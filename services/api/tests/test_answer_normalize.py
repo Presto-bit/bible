@@ -10,7 +10,10 @@ from app.ai.answer_normalize import (  # noqa: E402
     is_prose_wall,
     normalize_answer_markdown,
 )
-from app.ai.answer_schema import max_tokens_for_scene  # noqa: E402
+from app.ai.answer_schema import (  # noqa: E402
+    effective_budget_for_scene,
+    max_tokens_for_scene,
+)
 from app.ai.parse_output import verse_needs_length_continuation  # noqa: E402
 
 
@@ -30,6 +33,15 @@ def test_normalize_prose_to_bullets():
 def test_max_tokens_verse_full_capped():
     assert max_tokens_for_scene("verse_full", verse_span=1) == 900
     assert max_tokens_for_scene("verse_full", verse_span=5) <= 1020
+    assert max_tokens_for_scene("verse_full", verse_span=11) == 1100
+
+
+def test_effective_budget_scales_with_span():
+    single = effective_budget_for_scene("verse_full", verse_span=1)
+    passage = effective_budget_for_scene("verse_full", verse_span=11)
+    assert single is not None and passage is not None
+    assert passage.total_chars > single.total_chars
+    assert passage.max_bullets >= single.max_bullets
 
 
 def test_max_tokens_narrow():

@@ -27,6 +27,7 @@ import {
   readHalfSheetCache,
   writeHalfSheetCache,
   isHalfSheetAnswerComplete,
+  verseSpanFromRef,
 } from '@/lib/xiaoai_halfsheet_cache';
 import {
   defaultHalfSheetFollowups,
@@ -94,6 +95,7 @@ export default function XiaoAiSheet({
   onClose: () => void;
 }) {
   const initialScene = resolveInitialScene(explicitSelection, selectionText);
+  const verseSpan = useMemo(() => verseSpanFromRef(refParam), [refParam]);
   const selectionKey = halfSheetSelectionKey(refParam, selectionText, explicitSelection);
   const userQuestion = useMemo(
     () => buildUserQuestion(refLabel, explicitSelection ? selectionText : ''),
@@ -417,7 +419,7 @@ export default function XiaoAiSheet({
               !text.startsWith('⚠️');
             const structOk =
               scene === 'verse_full' || scene === 'verse_quick'
-                ? isHalfSheetAnswerComplete(text, scene)
+                ? isHalfSheetAnswerComplete(text, scene, verseSpan)
                 : true;
             const followups = normalizeFollowupItems(
               payload?.followups?.length

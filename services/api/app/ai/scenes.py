@@ -331,6 +331,53 @@ MODE_TO_SCENE: dict[str, str] = {
 }
 
 
+def verse_scene_format_guide(scene_id: str, verse_span: int = 1) -> str:
+    """半屏释经：按选区节数动态输出格式指引。"""
+    spec = SCENES.get(scene_id)
+    if not spec or scene_id not in ("verse_full", "verse_quick"):
+        return spec.format_guide if spec else ""
+    span = max(1, int(verse_span or 1))
+    if span <= 2:
+        return spec.format_guide
+    if scene_id == "verse_quick":
+        lo, hi = (200, 320) if span <= 5 else (280, 420)
+        return (
+            f"{_MD}\n"
+            f"共 {span} 节经文：按主题归纳，不要逐节罗列。\n"
+            "### 摘要\n"
+            "1 句（≤40 字），概括整段要旨。\n"
+            "### 经文解释\n"
+            f"4–5 条要点，{_BULLETS}抓核心论点与转折。\n"
+            f"建议篇幅约 {lo}–{hi} 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
+        )
+    if span <= 5:
+        return (
+            f"{_MD}\n"
+            f"共 {span} 节经文：按主题归纳，不要逐节罗列。\n"
+            "### 摘要\n"
+            "1 句（≤42 字）。\n"
+            "### 背景\n"
+            f"2–3 条要点，{_BULLETS}\n"
+            "### 经文解释\n"
+            f"3–5 条要点，{_BULLETS}\n"
+            f"建议篇幅约 320–480 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
+        )
+    return (
+        f"{_MD}\n"
+        f"共 {span} 节连续经文：先抓整段主线，**禁止逐节解释**。\n"
+        "清单式经文（如恶行表）用 1–2 条概括，不要逐字展开。\n"
+        "### 摘要\n"
+        "1 句（≤45 字），概括整段要旨。\n"
+        "### 段落脉络\n"
+        f"2–4 条，{_BULLETS}交代论述如何推进（如：问题 → 警告 → 福音转折）。\n"
+        "### 背景\n"
+        f"1–2 条，{_BULLETS}交代历史与教会处境（可与脉络呼应，勿重复）。\n"
+        "### 经文解释\n"
+        f"4–6 条，{_BULLETS}抓核心论点、伦理提醒与关键转折句。\n"
+        f"建议篇幅约 380–640 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
+    )
+
+
 def resolve_scene(scene: str | None, mode: str, *, has_ref: bool = True) -> SceneSpec:
     if not has_ref:
         if scene and scene in SCENES and scene not in REF_BOUND_SCENES:

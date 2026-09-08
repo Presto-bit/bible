@@ -185,6 +185,89 @@ def budget_for_scene(scene: str, *, narrow: bool = False) -> SceneBudget | None:
     return SCENE_BUDGETS.get(scene)
 
 
+def effective_budget_for_scene(
+    scene: str,
+    *,
+    narrow: bool = False,
+    verse_span: int = 1,
+) -> SceneBudget | None:
+    """半屏释经：多节选段按 span 放大字数与 bullets 上限。"""
+    bud = budget_for_scene(scene, narrow=narrow)
+    if not bud or scene not in ("verse_full", "verse_quick"):
+        return bud
+    span = max(1, int(verse_span or 1))
+    if span <= 2:
+        return bud
+    if span <= 5:
+        if scene == "verse_full":
+            return SceneBudget(
+                total_chars=480,
+                max_tokens=bud.max_tokens,
+                summary_max=42,
+                item_max=58,
+                min_bullets=bud.min_bullets,
+                max_bullets=5,
+            )
+        return SceneBudget(
+            total_chars=340,
+            max_tokens=bud.max_tokens,
+            summary_max=40,
+            item_max=55,
+            min_bullets=bud.min_bullets,
+            max_bullets=5,
+        )
+    if scene == "verse_full":
+        return SceneBudget(
+            total_chars=640,
+            max_tokens=bud.max_tokens,
+            summary_max=45,
+            item_max=60,
+            min_bullets=2,
+            max_bullets=6,
+        )
+    return SceneBudget(
+        total_chars=420,
+        max_tokens=bud.max_tokens,
+        summary_max=42,
+        item_max=58,
+        min_bullets=3,
+        max_bullets=5,
+    )
+
+
+def verse_min_chars(scene: str, verse_span: int = 1) -> int:
+    span = max(1, int(verse_span or 1))
+    if scene == "verse_full":
+        if span <= 2:
+            return 70
+        if span <= 5:
+            return 90 + max(0, span - 2) * 15
+        return 90 + (span - 1) * 25
+    if scene == "verse_quick":
+        if span <= 2:
+            return 45
+        if span <= 5:
+            return 55 + max(0, span - 2) * 12
+        return 55 + (span - 1) * 18
+    return 80
+
+
+def verse_min_explain_bullets(verse_span: int = 1) -> int:
+    span = max(1, int(verse_span or 1))
+    if span <= 2:
+        return 2
+    if span <= 5:
+        return 3
+    return 4
+
+
+def verse_context_section_ok(titles: set[str], *, verse_span: int) -> bool:
+    """verse_full：6+ 节可用「段落脉络」替代「背景」。"""
+    if "背景" in titles:
+        return True
+    return verse_span >= 6 and "段落脉络" in titles
+
+
 def max_tokens_for_scene(
     scene: str,
     *,
@@ -200,8 +283,11 @@ def max_tokens_for_scene(
         return cap
     if has_prior_turns and scene.startswith("chat_"):
         cap = min(cap, HISTORY_CHAT_MAX_TOKENS)
-    if scene in ("verse_full", "verse_quick") and verse_span >= 3:
-        cap = min(cap + (verse_span - 2) * 40, cap + 120)
+    if scene in ("verse_full", "verse_quick"):
+        span = max(1, int(verse_span or 1))
+        if span >= 3:
+            bonus = min((span - 2) * 40, 200 if span >= 6 else 120)
+            cap = cap + bonus
     if scene in ("summary_chapter", "summary_chapter_outline") and verse_span > 20:
         cap = max(cap, 1400)
     return cap

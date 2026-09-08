@@ -1,7 +1,7 @@
 """小爱三模式提示词 + 场景化输出契约。"""
 from __future__ import annotations
 
-from .scenes import SceneSpec
+from .scenes import SceneSpec, verse_scene_format_guide
 
 MODES = {
     "understand": "理解默想",
@@ -198,6 +198,7 @@ def build_messages(
     reader_context: dict | None = None,
     has_prior_turns: bool = False,
     narrow: bool = False,
+    verse_span: int = 1,
 ) -> list[dict[str, str]]:
     mode = scene.mode if scene.mode in _MODE_GUIDE else DEFAULT_MODE
     has_passage = passage_display != "（未指定经文）" and bool(passage_text or passage_display)
@@ -224,7 +225,11 @@ def build_messages(
         "\n",
         _MARKDOWN_OUTPUT,
         "\n【输出格式】\n",
-        scene.format_guide,
+        (
+            verse_scene_format_guide(scene.id, verse_span)
+            if scene.id in ("verse_full", "verse_quick")
+            else scene.format_guide
+        ),
     ]
     if use_rag and citations:
         system_parts.append("\n")

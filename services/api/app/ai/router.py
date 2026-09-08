@@ -810,24 +810,17 @@ def chat(
             nonlocal section_cont_used
             if scene not in ("verse_full", "verse_quick"):
                 return
-            passes = max_passes if max_passes is not None else (2 if verse_span >= 5 else 1)
+            passes = max_passes if max_passes is not None else (
+                3 if verse_span >= 6 else (2 if verse_span >= 5 else 1)
+            )
             for _ in range(passes):
                 if not full or _budget_left() <= 0:
                     return
                 body_probe, _ = split_body_and_followups("".join(full))
                 if not verse_explain_incomplete(scene, body_probe, verse_span=verse_span):
                     return
-                # 小节齐全且只是略短、无截断迹象 → 不再续写
-                titles = {s["title"] for s in extract_sections(body_probe)}
-                required = (
-                    {"摘要", "背景", "经文解释"}
-                    if scene == "verse_full"
-                    else {"摘要", "经文解释"}
-                )
-                if required.issubset(titles) and not answer_ends_abruptly(body_probe):
-                    return
                 section_cont_used = True
-                missing = missing_verse_sections(scene, body_probe)
+                missing = missing_verse_sections(scene, body_probe, verse_span=verse_span)
                 hint = "、".join(missing) if missing else "剩余小节"
                 cont_budget = min(max(max_tokens // 4, 350), 700)
                 if verse_span >= 5:

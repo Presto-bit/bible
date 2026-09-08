@@ -3,6 +3,12 @@ from __future__ import annotations
 
 import re
 
+from .answer_schema import (
+    verse_context_section_ok,
+    verse_min_chars,
+    verse_min_explain_bullets,
+)
+
 FOLLOWUP_SECTION_RE = re.compile(
     r"\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])"
 )
@@ -82,6 +88,35 @@ def answer_ends_abruptly(body_text: str) -> bool:
     return False
 
 
+def _section_bullet_count(body_text: str, section_title: str) -> int:
+    matches = list(SECTION_MD_RE.finditer(body_text))
+    for i, m in enumerate(matches):
+        if m.group(1).strip() != section_title:
+            continue
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(body_text)
+        chunk = body_text[start:end]
+        return sum(
+            1
+            for line in chunk.split("\n")
+            if re.match(r"^\s*(?:[-*•]|\d+[.)、])\s+\S", line.strip())
+        )
+    return 0
+
+
+def _verse_sections_satisfied(
+    scene: str,
+    titles: set[str],
+    *,
+    verse_span: int,
+) -> bool:
+    if scene == "verse_quick":
+        return _VERSE_QUICK_SECTIONS.issubset(titles)
+    if "摘要" not in titles or "经文解释" not in titles:
+        return False
+    return verse_context_section_ok(titles, verse_span=verse_span)
+
+
 def verse_explain_incomplete(scene: str, body_text: str, *, verse_span: int = 1) -> bool:
     """读经半屏解读是否缺必需小节或明显被截断（非「偏短但已完整」）。"""
     if scene not in ("verse_full", "verse_quick"):
@@ -91,16 +126,13 @@ def verse_explain_incomplete(scene: str, body_text: str, *, verse_span: int = 1)
         return True
     titles = {s["title"] for s in extract_sections(text)}
     span = max(1, int(verse_span or 1))
-    required = _VERSE_FULL_SECTIONS if scene == "verse_full" else _VERSE_QUICK_SECTIONS
-    missing = not required.issubset(titles)
-    if missing:
-        floor = (80 if scene == "verse_full" else 50) + max(0, span - 1) * 20
-        if len(text) < floor:
-            return True
+    if not _verse_sections_satisfied(scene, titles, verse_span=span):
         return True
-    # 小节齐全：仅在硬下限或截断迹象时续写，不因「略短」而加长
-    hard_floor = 70 if scene == "verse_full" else 45
-    if len(text) < hard_floor:
+    min_len = verse_min_chars(scene, span)
+    if len(text) < min_len:
+        return True
+    explain_bullets = _section_bullet_count(text, "经文解释")
+    if explain_bullets < verse_min_explain_bullets(span):
         return True
     return answer_ends_abruptly(text)
 
@@ -125,13 +157,24 @@ def verse_needs_length_continuation(
     return answer_ends_abruptly(body_text)
 
 
-def missing_verse_sections(scene: str, body_text: str) -> list[str]:
+def missing_verse_sections(
+    scene: str,
+    body_text: str,
+    *,
+    verse_span: int = 1,
+) -> list[str]:
     titles = {s["title"] for s in extract_sections(body_text)}
-    required = (
-        list(_VERSE_FULL_SECTIONS)
-        if scene == "verse_full"
-        else list(_VERSE_QUICK_SECTIONS)
-    )
+    span = max(1, int(verse_span or 1))
+    if scene == "verse_full":
+        missing: list[str] = []
+        if "摘要" not in titles:
+            missing.append("摘要")
+        if not verse_context_section_ok(titles, verse_span=span):
+            missing.append("段落脉络" if span >= 6 else "背景")
+        if "经文解释" not in titles:
+            missing.append("经文解释")
+        return missing
+    required = list(_VERSE_QUICK_SECTIONS)
     return [s for s in required if s not in titles]
 
 

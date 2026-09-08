@@ -92,20 +92,51 @@ Set<String> _sectionTitles(String text) {
   return titles;
 }
 
+/// 从 OSIS ref 末段解析选区节数（如 1CO.6.1-11 → 11）。
+int verseSpanFromRef(String ref) {
+  final parts = ref.trim().split('.');
+  if (parts.isEmpty) return 1;
+  final tail = parts.last;
+  final m = RegExp(r'^(\d+)(?:-(\d+))?$').firstMatch(tail);
+  if (m == null) return 1;
+  final start = int.tryParse(m.group(1) ?? '') ?? 1;
+  final end = int.tryParse(m.group(2) ?? m.group(1) ?? '') ?? start;
+  return (end - start + 1).clamp(1, 999);
+}
+
 /// 半屏解读回答是否结构完整（对齐 PWA `isHalfSheetAnswerComplete`）。
-bool isHalfSheetAnswerComplete(String answer, AssistantScene scene) {
+bool isHalfSheetAnswerComplete(
+  String answer,
+  AssistantScene scene, [
+  int verseSpan = 1,
+]) {
   final text = answer.trim();
   if (text.isEmpty || text.startsWith('⚠️')) return false;
   final titles = _sectionTitles(text);
+  final span = verseSpan.clamp(1, 999);
+  final minLen = switch (scene) {
+    AssistantScene.verseFull => span <= 2
+        ? 70
+        : span <= 5
+            ? 90 + (span - 2).clamp(0, 99) * 15
+            : 90 + (span - 1) * 25,
+    AssistantScene.verseQuick => span <= 2
+        ? 45
+        : span <= 5
+            ? 55 + (span - 2).clamp(0, 99) * 12
+            : 55 + (span - 1) * 18,
+    _ => 80,
+  };
+  if (text.length < minLen) return false;
   switch (scene) {
     case AssistantScene.verseFull:
-      if (!_verseFullSections.every(titles.contains)) return false;
-      return text.length >= 70;
+      if (!titles.contains('摘要') || !titles.contains('经文解释')) return false;
+      if (titles.contains('背景')) return true;
+      return span >= 6 && titles.contains('段落脉络');
     case AssistantScene.verseQuick:
-      if (!_verseQuickSections.every(titles.contains)) return false;
-      return text.length >= 45;
+      return _verseQuickSections.every(titles.contains);
     default:
-      return text.length >= 80;
+      return true;
   }
 }
 
