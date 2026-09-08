@@ -49,9 +49,9 @@ export function isHalfSheetAnswerComplete(
         ? VERSE_QUICK_SECTIONS
         : null;
   const minLen = scene === 'verse_full'
-    ? Math.max(80, 100 + Math.max(0, verseSpan - 1) * 30)
+    ? Math.max(70, 90 + Math.max(0, verseSpan - 2) * 25)
     : scene === 'verse_quick'
-      ? Math.max(50, 60 + Math.max(0, verseSpan - 1) * 20)
+      ? Math.max(45, 55 + Math.max(0, verseSpan - 2) * 15)
       : 80;
 
   if (text.length < minLen) return false;

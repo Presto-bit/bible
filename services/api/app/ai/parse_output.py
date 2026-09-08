@@ -64,10 +64,26 @@ def extract_sections(text: str) -> list[dict[str, str]]:
 
 _VERSE_FULL_SECTIONS = frozenset({"摘要", "背景", "经文解释"})
 _VERSE_QUICK_SECTIONS = frozenset({"摘要", "经文解释"})
+_SENTENCE_END_CHARS = "。！？）」』》】"
+
+
+def answer_ends_abruptly(body_text: str) -> bool:
+    """正文是否在句中/段中被截断（非自然收束）。"""
+    text = body_text.strip()
+    if not text:
+        return False
+    if text.endswith("…") or text.endswith("..."):
+        return True
+    tail = text.rstrip()
+    if tail.endswith("###"):
+        return True
+    if tail and tail[-1] not in _SENTENCE_END_CHARS:
+        return True
+    return False
 
 
 def verse_explain_incomplete(scene: str, body_text: str, *, verse_span: int = 1) -> bool:
-    """读经半屏解读是否缺必需小节或明显过短。"""
+    """读经半屏解读是否缺必需小节或明显被截断（非「偏短但已完整」）。"""
     if scene not in ("verse_full", "verse_quick"):
         return False
     text = body_text.strip()
@@ -75,15 +91,35 @@ def verse_explain_incomplete(scene: str, body_text: str, *, verse_span: int = 1)
         return True
     titles = {s["title"] for s in extract_sections(text)}
     span = max(1, int(verse_span or 1))
-    if scene == "verse_full":
-        min_len = 100 + max(0, span - 1) * 35
-        if len(text) < min_len:
+    required = _VERSE_FULL_SECTIONS if scene == "verse_full" else _VERSE_QUICK_SECTIONS
+    missing = not required.issubset(titles)
+    if missing:
+        floor = (80 if scene == "verse_full" else 50) + max(0, span - 1) * 20
+        if len(text) < floor:
             return True
-        return not _VERSE_FULL_SECTIONS.issubset(titles)
-    min_len = 60 + max(0, span - 1) * 25
-    if len(text) < min_len:
         return True
-    return not _VERSE_QUICK_SECTIONS.issubset(titles)
+    # 小节齐全：仅在硬下限或截断迹象时续写，不因「略短」而加长
+    hard_floor = 70 if scene == "verse_full" else 45
+    if len(text) < hard_floor:
+        return True
+    return answer_ends_abruptly(text)
+
+
+def verse_needs_length_continuation(
+    scene: str,
+    body_text: str,
+    *,
+    verse_span: int = 1,
+    finish_reason: str | None = None,
+) -> bool:
+    """是否值得做长度续写（避免把已完整的短答越续越长）。"""
+    if scene not in ("verse_full", "verse_quick"):
+        return finish_reason == "length"
+    if finish_reason == "length":
+        return True
+    return verse_explain_incomplete(scene, body_text, verse_span=verse_span) and answer_ends_abruptly(
+        body_text
+    )
 
 
 def missing_verse_sections(scene: str, body_text: str) -> list[str]:

@@ -172,8 +172,10 @@ def prepare(
     )
     messages = [base[0], *prior, base[1]]
     max_tokens = spec.max_tokens
-    if spec.id in ("verse_full", "verse_quick") and verse_span > 1:
-        max_tokens = min(2800, max_tokens + (verse_span - 1) * 120)
+    if spec.id in ("verse_full", "verse_quick") and verse_span >= 3:
+        max_tokens = min(2400, max_tokens + (verse_span - 2) * 100)
+    if has_prior_turns and spec.id.startswith("chat_"):
+        max_tokens = min(max_tokens, 800)
     if spec.id in ("summary_chapter", "summary_chapter_outline") and ref and ref.chapter is not None:
         if ref.verse_start is None:
             verse_count = len(reader.get_chapter(ref.book_id, ref.chapter))

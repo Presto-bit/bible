@@ -99,11 +99,11 @@ bool isHalfSheetAnswerComplete(String answer, AssistantScene scene) {
   final titles = _sectionTitles(text);
   switch (scene) {
     case AssistantScene.verseFull:
-      if (text.length < 100) return false;
-      return _verseFullSections.every(titles.contains);
+      if (!_verseFullSections.every(titles.contains)) return false;
+      return text.length >= 70;
     case AssistantScene.verseQuick:
-      if (text.length < 60) return false;
-      return _verseQuickSections.every(titles.contains);
+      if (!_verseQuickSections.every(titles.contains)) return false;
+      return text.length >= 45;
     default:
       return text.length >= 80;
   }

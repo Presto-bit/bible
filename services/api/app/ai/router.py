@@ -14,14 +14,16 @@ from ..auth.session import resolve_user_id, try_get_current_user
 from ..config import get_settings
 from ..db import get_pool
 from .chat import prepare
-from .llm import StreamMeta, stream_chat
+from .llm import StreamMeta, complete_chat, stream_chat
 from .parse_output import (
+    answer_ends_abruptly,
     extract_sections,
     missing_summary_sections,
     missing_verse_sections,
     split_body_and_followups,
     summary_incomplete,
     verse_explain_incomplete,
+    verse_needs_length_continuation,
 )
 from .usage import consume_quota, peek_quota, record_ai_request
 from .request_log import log_ai_request
@@ -736,9 +738,9 @@ def chat(
             if _budget_left() <= 0:
                 return
             length_cont_used = True
-            cont_budget = min(max(max_tokens // 2, 500), 1400)
-            if verse_span > 3:
-                cont_budget = min(max_tokens, 1600)
+            cont_budget = min(max(max_tokens // 2, 400), 1000)
+            if verse_span > 5:
+                cont_budget = min(max_tokens // 2, 1200)
             cont_msgs = messages + [
                 {"role": "assistant", "content": "".join(full)},
                 {
@@ -754,22 +756,32 @@ def chat(
             if cont_meta.finish_reason:
                 meta.finish_reason = cont_meta.finish_reason
 
-        def _run_verse_section_continuation(*, max_passes: int = 2) -> None:
+        def _run_verse_section_continuation(*, max_passes: int | None = None) -> None:
             nonlocal section_cont_used
             if scene not in ("verse_full", "verse_quick"):
                 return
-            for _ in range(max_passes):
+            passes = max_passes if max_passes is not None else (2 if verse_span >= 5 else 1)
+            for _ in range(passes):
                 if not full or _budget_left() <= 0:
                     return
                 body_probe, _ = split_body_and_followups("".join(full))
                 if not verse_explain_incomplete(scene, body_probe, verse_span=verse_span):
                     return
+                # 小节齐全且只是略短、无截断迹象 → 不再续写
+                titles = {s["title"] for s in extract_sections(body_probe)}
+                required = (
+                    {"摘要", "背景", "经文解释"}
+                    if scene == "verse_full"
+                    else {"摘要", "经文解释"}
+                )
+                if required.issubset(titles) and not answer_ends_abruptly(body_probe):
+                    return
                 section_cont_used = True
                 missing = missing_verse_sections(scene, body_probe)
                 hint = "、".join(missing) if missing else "剩余小节"
-                cont_budget = min(max(max_tokens // 3, 500), 1000)
-                if verse_span > 3:
-                    cont_budget = min(max(max_tokens // 2, 600), 1400)
+                cont_budget = min(max(max_tokens // 4, 350), 700)
+                if verse_span >= 5:
+                    cont_budget = min(max(max_tokens // 3, 450), 900)
                 cont_msgs = messages + [
                     {"role": "assistant", "content": "".join(full)},
                     {
@@ -854,8 +866,11 @@ def chat(
             if scene in ("verse_full", "verse_quick"):
                 yield from _run_verse_section_continuation()
                 body_probe, _ = split_body_and_followups("".join(full))
-                if meta.finish_reason == "length" or verse_explain_incomplete(
-                    scene, body_probe, verse_span=verse_span
+                if verse_needs_length_continuation(
+                    scene,
+                    body_probe,
+                    verse_span=verse_span,
+                    finish_reason=meta.finish_reason,
                 ):
                     yield from _run_length_continuation(meta, force=True)
             elif scene in (
@@ -887,26 +902,80 @@ def chat(
                 },
             )
             return
-        if not full and history:
-            try:
-                prep_retry = prepare(
-                    ref_raw=body.ref,
-                    question=body.question,
-                    mode=body.mode,
-                    scene=body.scene,
-                    history=None,
-                    surface=body.surface,
-                    reader_context=body.reader_context,
-                    knowledge_base_id=body.knowledge_base_id,
-                )
-                retry_meta = StreamMeta()
-                yield from _stream_budgeted(
-                    list(prep_retry["messages"]),
-                    budget=int(prep_retry["max_tokens"]),
-                    meta=retry_meta,
-                )
-            except Exception:
-                logger.exception("ai chat empty-response retry failed")
+        if not full:
+            retry_modes: list[tuple[bool, bool]] = []
+            if history:
+                retry_modes.append((True, False))
+            retry_modes.append((True, True))
+            for nudge, strip_history in retry_modes:
+                if full or _budget_left() <= 0:
+                    break
+                try:
+                    prep_retry = prepare(
+                        ref_raw=body.ref,
+                        question=body.question,
+                        mode=body.mode,
+                        scene=body.scene,
+                        history=None if strip_history else history,
+                        surface=body.surface,
+                        reader_context=body.reader_context,
+                        knowledge_base_id=body.knowledge_base_id,
+                    )
+                    retry_msgs = list(prep_retry["messages"])
+                    if nudge and retry_msgs:
+                        last = retry_msgs[-1]
+                        retry_msgs[-1] = {
+                            "role": last["role"],
+                            "content": (
+                                f"{last['content']}\n\n"
+                                "请直接用 Markdown 输出成稿答案（含规定小节），"
+                                "不要输出思考过程。"
+                            ),
+                        }
+                    retry_meta = StreamMeta()
+                    retry_budget = min(int(prep_retry["max_tokens"]), 900)
+                    yield from _stream_budgeted(
+                        retry_msgs,
+                        budget=retry_budget,
+                        meta=retry_meta,
+                    )
+                except Exception:
+                    logger.exception("ai chat empty-response retry failed")
+            if not full and _budget_left() > 3:
+                try:
+                    prep_fb = prepare(
+                        ref_raw=body.ref,
+                        question=body.question,
+                        mode=body.mode,
+                        scene=body.scene,
+                        history=None,
+                        surface=body.surface,
+                        reader_context=body.reader_context,
+                        knowledge_base_id=body.knowledge_base_id,
+                    )
+                    fb_msgs = list(prep_fb["messages"])
+                    if fb_msgs:
+                        last = fb_msgs[-1]
+                        fb_msgs[-1] = {
+                            "role": last["role"],
+                            "content": (
+                                f"{last['content']}\n\n"
+                                "请直接用 Markdown 输出成稿答案，不要输出思考过程。"
+                            ),
+                        }
+                    fb_text = complete_chat(
+                        fb_msgs,
+                        max_tokens=min(int(prep_fb["max_tokens"]), 800),
+                        temperature=0.5,
+                    ).strip()
+                    if fb_text:
+                        step = 48
+                        for i in range(0, len(fb_text), step):
+                            piece = fb_text[i : i + step]
+                            full.append(piece)
+                            yield _sse("delta", {"text": piece})
+                except Exception:
+                    logger.exception("ai chat complete_chat fallback failed")
         if not full:
             log_ai_request(
                 device_id=x_guest_id,
