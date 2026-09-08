@@ -113,7 +113,11 @@ class AssistantRepository {
         if (evt is ErrorEvent) terminalError = true;
         yield evt;
       }
-      if (gotDelta || terminalError || sawDone) return;
+      if (terminalError || sawDone) return;
+      if (gotDelta) {
+        yield const DoneEvent(streamComplete: false);
+        return;
+      }
     }
     yield const ErrorEvent('未收到回答内容，请重试');
   }
@@ -211,6 +215,7 @@ class AssistantRepository {
         return DoneEvent(
           length: (data['length'] ?? 0) as int,
           followups: followups,
+          streamComplete: data['streamComplete'] != false,
         );
       case 'error':
         return ErrorEvent((data['message'] ?? '小爱暂时无法回应') as String);

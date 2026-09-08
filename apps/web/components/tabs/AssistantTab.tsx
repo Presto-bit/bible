@@ -23,7 +23,7 @@ import {
 } from '@/lib/badge_events';
 import { bodyText, followupsForMessage, followupsOf, normalizeFollowupItems, stripFollowups } from '@/lib/assistant_format';
 import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
-import { mergeAssistantStreamError, appendStreamIncompleteNotice } from '@/lib/assistant_stream_error';
+import { mergeAssistantStreamError, appendStreamIncompleteNotice, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
@@ -111,11 +111,7 @@ function newSessionId(): string {
 
 /** 失败 / 中断等待用户重试的回复（与 send 里 ⚠️ · cancel 文案对齐） */
 function isAssistantRegenCandidate(text: string): boolean {
-  const t = text.trim();
-  if (!t) return true;
-  if (t.startsWith('⚠️')) return true;
-  if (t === '（已停止生成）' || t.includes('已停止生成')) return true;
-  return false;
+  return isAssistantHistoryExcluded(text);
 }
 
 export default function AssistantTab({ paneActive = true }: { paneActive?: boolean }) {
@@ -174,6 +170,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   /** 发送后默认锁滚（阅读优先）；用户滑到底或点「跟随」后解锁 */
   const streamFollowLockedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const sendGenRef = useRef(0);
   const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
   const [streamCiteCount, setStreamCiteCount] = useState(0);
   const [aiQuota, setAiQuota] = useState<AiQuota | null>(null);
@@ -588,7 +585,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   };
 
   const cancelStream = () => {
-    abortRef.current?.abort();
+    abortRef.current?.abort(CHAT_ABORT_USER_CANCEL);
     abortRef.current = null;
     if (rafRef.current != null) {
       window.clearTimeout(rafRef.current);
@@ -611,7 +608,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
 
   useEffect(() => {
     return () => {
-      abortRef.current?.abort();
+      abortRef.current?.abort(CHAT_ABORT_USER_CANCEL);
       setAssistantStreamBusy(false);
     };
   }, []);
@@ -635,6 +632,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     const thread = opts?.historyBase ?? msgs;
     const history = thread
       .filter((msg) => msg.text.trim())
+      .filter((msg) => msg.role !== 'assistant' || !isAssistantHistoryExcluded(msg.text))
       .map((msg) => ({
         role: msg.role,
         content:
@@ -677,6 +675,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     setStreamCiteCount(0);
     setSlowHint(false);
     setShowJumpToBottom(false);
+    abortRef.current?.abort(CHAT_ABORT_USER_CANCEL);
+    const myGen = ++sendGenRef.current;
     abortRef.current = new AbortController();
     const slowTimer = window.setTimeout(() => setSlowHint(true), 15000);
     const timeoutTimer = window.setTimeout(
@@ -745,6 +745,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             } else if (meta.quota) {
               setAiQuota({ used: 0, limit: 0, unlimited: true });
             }
+            if (meta.citations_pending) {
+              setStreamPhase('refs');
+              return;
+            }
             const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
             cites = localizeCitations(meta.citations || [], book || undefined);
             if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
@@ -782,6 +786,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         { signal: abortRef.current.signal },
       );
     } finally {
+      if (myGen !== sendGenRef.current) return;
       window.clearTimeout(slowTimer);
       window.clearTimeout(timeoutTimer);
       abortRef.current = null;
@@ -1007,6 +1012,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   };
 
   const openSession = (s: Session) => {
+    abortRef.current?.abort(CHAT_ABORT_USER_CANCEL);
+    sendGenRef.current += 1;
+    setBusy(false);
+    setAssistantStreamBusy(false);
+    setSlowHint(false);
     streamFollowLockedRef.current = false;
     setShowJumpToBottom(false);
     setActiveId(s.id);

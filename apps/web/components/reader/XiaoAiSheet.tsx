@@ -19,7 +19,7 @@ import { localizeCitations, citationsUsedInText, uniqueCitationsForRail } from '
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
-import { mergeAssistantStreamError } from '@/lib/assistant_stream_error';
+import { mergeAssistantStreamError, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import {
   buildHalfSheetQuestion,
   halfSheetCacheSelection,
@@ -137,6 +137,7 @@ export default function XiaoAiSheet({
   const accRef = useRef('');
   const rafRef = useRef<number | null>(null);
   const runIdRef = useRef(0);
+  const streamCleanupRef = useRef<(() => void) | null>(null);
   const lockedRef = useRef({
     refParam,
     refLabel,
@@ -162,6 +163,11 @@ export default function XiaoAiSheet({
     recordHalfSheetXiaoAi();
     recordXiaoAiQuestion({ scene: initialScene, ref: refParam });
   }, [initialScene, refParam]);
+
+  useEffect(() => () => {
+    streamCleanupRef.current?.();
+    streamCleanupRef.current = null;
+  }, []);
 
   const persistThread = useCallback(
     (nextTurns: TurnView[]) => {
@@ -289,6 +295,7 @@ export default function XiaoAiSheet({
         {
           onMeta: (meta) => {
             if (cancelled || runId !== runIdRef.current) return;
+            if (meta.citations_pending) return;
             const book = label.replace(/\s*\d+.*$/, '').trim();
             cites = localizeCitations(meta.citations || [], book || undefined);
             if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
@@ -354,6 +361,7 @@ export default function XiaoAiSheet({
               return;
             }
             const err = mergeAssistantStreamError('', msg);
+            accRef.current = err;
             setTurns((prev) =>
               prev.map((t) =>
                 t.id === turnId ? { ...t, answer: err, busy: false } : t,
@@ -362,6 +370,7 @@ export default function XiaoAiSheet({
           },
           onDone: (payload) => {
             if (cancelled || runId !== runIdRef.current) return;
+            if (settled) return;
             flushPendingAnswer();
             if (rafRef.current != null) {
               window.clearTimeout(rafRef.current);
@@ -424,13 +433,15 @@ export default function XiaoAiSheet({
         window.clearTimeout(slowTimer);
       });
 
-      return () => {
+      const cleanup = () => {
         cancelled = true;
         controller.abort();
         window.clearTimeout(timer);
         window.clearTimeout(slowTimer);
         if (rafRef.current != null) window.clearTimeout(rafRef.current);
       };
+      streamCleanupRef.current = cleanup;
+      return cleanup;
     },
     [persistThread, scrollToBottom],
   );
@@ -481,7 +492,7 @@ export default function XiaoAiSheet({
       }, 480);
       const turnId = newTurnId();
       const history: Array<{ role: 'user' | 'assistant'; content: string }> = turns
-        .filter((t) => t.answer.trim() && !t.answer.startsWith('⚠️'))
+        .filter((t) => t.answer.trim() && !isAssistantHistoryExcluded(t.answer))
         .flatMap((t) => [
           { role: 'user' as const, content: t.userQuestion },
           { role: 'assistant' as const, content: stripAnswer(t.answer) },

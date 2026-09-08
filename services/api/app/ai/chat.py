@@ -39,6 +39,19 @@ def _strip_followups_for_history(content: str) -> str:
     return _FOLLOWUP_TAIL_RE.sub("", content).strip()
 
 
+def _is_excluded_assistant_content(content: str) -> bool:
+    t = content.strip()
+    if not t:
+        return True
+    if t.startswith("⚠️"):
+        return True
+    if "已停止生成" in t:
+        return True
+    if "生成未完成" in t:
+        return True
+    return False
+
+
 def _sanitize_history(history: list[dict] | None) -> list[dict[str, str]]:
     """客户端本地持有的多轮对话（local-first），裁剪并校验后拼入上下文。"""
     if not history:
@@ -50,6 +63,8 @@ def _sanitize_history(history: list[dict] | None) -> list[dict[str, str]]:
         if role not in _VALID_ROLES or not content:
             continue
         if role == "assistant":
+            if _is_excluded_assistant_content(content):
+                continue
             content = _strip_followups_for_history(content)
         if content:
             out.append({"role": role, "content": content})

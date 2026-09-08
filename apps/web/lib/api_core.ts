@@ -1077,7 +1077,9 @@ export interface ChatStreamBody {
 }
 
 export interface ChatMetaPayload {
-  citations: Citation[];
+  citations?: Citation[];
+  /** 首包占位 meta，引用列表尚未就绪 */
+  citations_pending?: boolean;
   scene?: string;
   scene_label?: string;
   mode?: string;
@@ -1115,6 +1117,14 @@ export interface ChatCallbacks {
   onDone?: (payload?: ChatDonePayload) => void;
 }
 
+import { CHAT_ABORT_USER_CANCEL } from './assistant_stream_error';
+
+export { CHAT_ABORT_USER_CANCEL };
+
+function isUserCancelAbort(signal?: AbortSignal): boolean {
+  return Boolean(signal?.aborted && signal.reason === CHAT_ABORT_USER_CANCEL);
+}
+
 // SSE over POST（浏览器 EventSource 不支持 POST，手动解析流）。
 export async function chatStream(
   body: ChatStreamBody,
@@ -1143,7 +1153,9 @@ export async function chatStream(
       });
     } catch (e) {
       if (signal?.aborted) {
-        cb.onError?.('请求超时，请重试或前往小爱 Tab 继续对话');
+        if (!isUserCancelAbort(signal)) {
+          cb.onError?.('请求超时，请重试或前往小爱 Tab 继续对话');
+        }
         return 'fail';
       }
       if (opts?.retryOnZeroDelta === false) {
@@ -1180,6 +1192,7 @@ export async function chatStream(
     let dataLines: string[] = [];
     let gotDelta = false;
     let sawDone = false;
+    let terminalError = false;
 
     const flushFrame = () => {
       if (!event) {
@@ -1203,6 +1216,7 @@ export async function chatStream(
           const items = Array.isArray(d.items) ? (d.items as string[]) : [];
           if (items.length) cb.onFollowups?.(items);
         } else if (ev === 'error') {
+          terminalError = true;
           cb.onError?.(d.message ?? '出错了');
         } else if (ev === 'done') {
           sawDone = true;
@@ -1245,13 +1259,16 @@ export async function chatStream(
       }
     } catch (e) {
       if (signal?.aborted) {
-        cb.onError?.('请求超时，请重试或前往小爱 Tab 继续对话');
+        if (!isUserCancelAbort(signal)) {
+          cb.onError?.('请求超时，请重试或前往小爱 Tab 继续对话');
+        }
         return 'fail';
       }
       if (!gotDelta) return 'retry';
       cb.onError?.('生成中断，请重试');
       return 'fail';
     }
+    if (terminalError) return 'fail';
     if (!sawDone) cb.onDone?.({ streamComplete: false });
     if (!gotDelta && !sawDone) return 'retry';
     return 'ok';

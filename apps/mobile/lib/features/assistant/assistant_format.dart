@@ -50,6 +50,24 @@ String joinOrphanFootnotes(String text) {
 String bodyText(String text) =>
     joinOrphanFootnotes(stripTrailingReferences(stripFollowups(text)));
 
+/// 失败 / 中断 / 空答 — 不应进入多轮 history。
+bool isAssistantHistoryExcluded(String text) {
+  final t = text.trim();
+  if (t.isEmpty) return true;
+  if (t.startsWith('⚠️')) return true;
+  if (t == '（已停止生成）' || t.contains('已停止生成')) return true;
+  if (t.contains('生成未完成')) return true;
+  return false;
+}
+
+/// 流未正常结束时追加轻提示（对齐 PWA `appendStreamIncompleteNotice`）。
+String appendStreamIncompleteNotice(String acc) {
+  final trimmed = acc.trim();
+  if (trimmed.isEmpty || trimmed.startsWith('⚠️')) return trimmed;
+  if (trimmed.contains('生成未完成')) return trimmed;
+  return '$trimmed\n\n（生成未完成，可点重新生成）';
+}
+
 /// 正文展示是否剥离了追问区或末尾参考资料。
 bool assistantDisplayTrimmed(String raw) {
   final t = raw.trim();

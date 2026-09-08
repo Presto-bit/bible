@@ -392,6 +392,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     // chip 显式 scene 时多轮仍传锚经，避免 REF_BOUND scene 降为 chat_general。
     final history = _turns
         .where((t) => t.content.trim().isNotEmpty)
+        .where((t) => t.role != 'assistant' || !isAssistantHistoryExcluded(t.content))
         .map(
           (t) => ChatTurn(
             role: t.role,
@@ -491,6 +492,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           if (!mounted) return;
           switch (evt) {
             case MetaEvent(:final meta):
+              if (meta.citationsPending) {
+                setState(() => _streamPhase = ThinkingPhase.refs);
+                break;
+              }
               setState(() {
                 reply.meta = meta;
                 reply.sceneLabel = meta.sceneLabel;
@@ -518,10 +523,15 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             case FollowupsEvent(:final items):
               flushDelta(force: true);
               setState(() => reply.followups = normalizeFollowupItems(items));
-            case DoneEvent(:final followups):
+            case DoneEvent(:final followups, :final streamComplete):
               flushDelta(force: true);
               if (followups.isNotEmpty) {
                 setState(() => reply.followups = normalizeFollowupItems(followups));
+              }
+              if (!streamComplete && reply.content.trim().isNotEmpty) {
+                setState(
+                  () => reply.content = appendStreamIncompleteNotice(reply.content),
+                );
               }
             case ErrorEvent(:final message):
               terminalError = true;
@@ -546,7 +556,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           reply.content = '未收到回答内容，请稍后再试。';
         });
       }
-      if (reply.content.isNotEmpty) {
+      if (reply.content.isNotEmpty && !isAssistantHistoryExcluded(reply.content)) {
         await repo.addMessage(
           sid,
           'assistant',

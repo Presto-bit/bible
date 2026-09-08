@@ -319,6 +319,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         if (!mounted || runId != _runId) return;
         switch (evt) {
           case am.MetaEvent(:final meta):
+            if (meta.citationsPending) break;
             cites = meta.citations;
             useRag = meta.useRag;
             kbId = meta.knowledgeBaseId;
@@ -367,13 +368,15 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..busy = false;
               }
             });
-          case am.DoneEvent(:final followups):
+          case am.DoneEvent(:final followups, :final streamComplete):
+            if (chatSettled) break;
             flush();
             var text = pending.trim();
             if (text.isEmpty) break;
             chatSettled = true;
-            final streamOk =
-                !text.startsWith('⚠️') && text != _emptyAnswerMsg;
+            final streamOk = streamComplete &&
+                !text.startsWith('⚠️') &&
+                text != _emptyAnswerMsg;
             final structOk = scene == AssistantScene.verseFull ||
                     scene == AssistantScene.verseQuick
                 ? isHalfSheetAnswerComplete(text, scene)
@@ -477,7 +480,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     });
     final history = _turns
         .where((t) =>
-            t.answer.trim().isNotEmpty && !t.answer.trim().startsWith('⚠️'))
+            t.answer.trim().isNotEmpty && !isAssistantHistoryExcluded(t.answer))
         .expand(
           (t) => [
             am.ChatTurn(role: 'user', content: t.userQuestion),

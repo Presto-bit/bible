@@ -60,6 +60,7 @@ class ChatMeta {
     this.useRag,
     this.knowledgeBaseId,
     this.knowledgeBaseName,
+    this.citationsPending = false,
   });
 
   final String mode;
@@ -73,6 +74,7 @@ class ChatMeta {
   final bool? useRag;
   final String? knowledgeBaseId;
   final String? knowledgeBaseName;
+  final bool citationsPending;
 
   factory ChatMeta.fromJson(Map<String, dynamic> j) {
     final q = (j['quota'] ?? const {}) as Map<String, dynamic>;
@@ -90,6 +92,7 @@ class ChatMeta {
           .toList(),
       quotaUsed: (q['used'] ?? 0) as int,
       quotaLimit: (q['limit'] ?? 0) as int,
+      citationsPending: j['citations_pending'] == true,
     );
   }
 }
@@ -115,9 +118,14 @@ class FollowupsEvent extends ChatEvent {
 }
 
 class DoneEvent extends ChatEvent {
-  const DoneEvent({this.length = 0, this.followups = const []});
+  const DoneEvent({
+    this.length = 0,
+    this.followups = const [],
+    this.streamComplete = true,
+  });
   final int length;
   final List<String> followups;
+  final bool streamComplete;
 }
 
 class ErrorEvent extends ChatEvent {
