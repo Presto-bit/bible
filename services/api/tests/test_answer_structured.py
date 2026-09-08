@@ -9,8 +9,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.ai.answer_render import render_answer_draft  # noqa: E402
 from app.ai.answer_schema import missing_required_sections  # noqa: E402
 from app.ai.answer_structured import (  # noqa: E402
+    _chat_json_guide,
+    _message_variants,
     needs_structure_repair,
     parse_answer_json,
+    recover_empty_response,
 )
 
 
@@ -49,3 +52,55 @@ def test_needs_structure_repair_prose():
         "这是一段很长的散文没有任何列表格式应该被识别为散文墙需要修复处理。"
     )
     assert needs_structure_repair(body, "verse_full")
+
+
+def test_chat_json_guide():
+    guide = _chat_json_guide("chat_explain")
+    assert guide is not None
+    assert "背景" in guide
+    assert "经文解释" in guide
+    assert _chat_json_guide("chat_general") is None
+
+
+def test_message_variants_strips_history():
+    msgs = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "u1"},
+        {"role": "assistant", "content": "a1"},
+        {"role": "user", "content": "u2"},
+    ]
+    variants = _message_variants(msgs)
+    assert variants[0] == [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "u2"},
+    ]
+
+
+def test_recover_empty_response_chat(monkeypatch):
+    calls: list[int] = []
+
+    def fake_complete(msgs, *, max_tokens, temperature=0.3):
+        calls.append(max_tokens)
+        return (
+            "### 摘要\n神爱世人。\n\n"
+            "### 背景\n- 犹太教背景。\n\n"
+            "### 经文解释\n- 爱的定义。"
+        )
+
+    monkeypatch.setattr(
+        "app.ai.answer_structured.complete_chat",
+        fake_complete,
+    )
+    msgs = [
+        {"role": "system", "content": "你是小爱"},
+        {"role": "user", "content": "解释这段经文"},
+    ]
+    out = recover_empty_response(
+        msgs,
+        "chat_explain",
+        max_tokens=400,
+        narrow=True,
+    )
+    assert out is not None
+    assert "### 摘要" in out
+    assert calls and calls[0] >= 900

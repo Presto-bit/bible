@@ -959,6 +959,7 @@ def chat(
             return
         if not full:
             retry_modes: list[tuple[bool, bool]] = []
+            recover_variants: list[list[dict[str, str]]] = []
             if history:
                 retry_modes.append((True, False))
             retry_modes.append((True, True))
@@ -987,6 +988,8 @@ def chat(
                                 "不要输出思考过程。"
                             ),
                         }
+                    if strip_history or not history:
+                        recover_variants.append(list(retry_msgs))
                     retry_meta = StreamMeta()
                     retry_budget = min(int(prep_retry["max_tokens"]), 900)
                     yield from _stream_budgeted(
@@ -1001,9 +1004,10 @@ def chat(
                     recovered = recover_empty_response(
                         messages,
                         scene or "",
-                        max_tokens=max_tokens,
+                        max_tokens=max(max_tokens, 900),
                         verse_span=verse_span,
-                        narrow=narrow,
+                        narrow=False,
+                        message_variants=recover_variants or None,
                     )
                 except Exception:
                     logger.exception("ai chat recover_empty_response failed")
