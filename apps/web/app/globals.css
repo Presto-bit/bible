@@ -1311,9 +1311,10 @@ html:not([data-app-theme]) .card {
   margin-top: 0;
 }
 
-/* 加号打开态：旋转为 ×，提示可再点关闭（实际由 portal backdrop 承接点击） */
+/* 加号打开态：旋转为 ×；pointer-events 交给 portal backdrop，防与底层按钮双触发 */
 .home-page .greet-actions .icon-btn-fill.is-open {
   transform: rotate(45deg);
+  pointer-events: none;
 }
 
 .home-page .greet-actions .icon-btn {

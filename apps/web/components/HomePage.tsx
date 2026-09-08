@@ -310,6 +310,16 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   }, [router]);
 
   const [plusOpen, setPlusOpen] = useState(false);
+  /** backdrop 关闭后同一次触控会穿透到加号；450ms 内忽略重开（对齐 shellTap 去重） */
+  const plusSuppressOpenUntilRef = useRef(0);
+  const openPlusMenu = useCallback(() => {
+    if (performance.now() < plusSuppressOpenUntilRef.current) return;
+    setPlusOpen(true);
+  }, []);
+  const closePlusMenu = useCallback(() => {
+    plusSuppressOpenUntilRef.current = performance.now() + 450;
+    setPlusOpen(false);
+  }, []);
   const [todayPanel, setTodayPanel] = useState<HomeTodayPanelModel | null>(null);
   const [growthModel, setGrowthModel] = useState<HomeGrowthModel | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -973,9 +983,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             aria-expanded={plusOpen}
             className={`icon-btn icon-btn-fill${plusOpen ? ' is-open' : ''}`}
             {...shellTapProps({
-              onTap: () => {
-                if (!plusOpen) setPlusOpen(true);
-              },
+              onTap: openPlusMenu,
               softRecover: true,
             })}
           >
@@ -1271,7 +1279,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       ) : null}
       </div>
 
-      <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />
+      <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={closePlusMenu} />
 
       {verseFull && dv ? (
         <DailyVerseWallpaper
