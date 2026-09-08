@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
@@ -44,6 +44,8 @@ import {
   resumeStoryAlbum,
 } from '@/lib/story_album_progress';
 import { KnowledgeTopicCardBody } from '@/components/search/KnowledgeTopicCardBody';
+import { searchHitReaderHref } from '@/lib/search_reader_href';
+import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
 
 const HISTORY_KEY = 'search_history';
 const SEARCH_PAGE_SIZE = 40;
@@ -80,6 +82,111 @@ function saveHistory(q: string) {
   const next = [trimmed, ...prev.filter((h) => h !== trimmed)].slice(0, 20);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
   return next;
+}
+
+function removeHistoryItem(item: string): string[] {
+  const next = loadHistory().filter((h) => h !== item);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+  return next;
+}
+
+const HISTORY_LONG_PRESS_MS = 520;
+const HISTORY_MOVE_TOLERANCE_PX = 12;
+
+function SearchHistoryChip({
+  label,
+  editMode,
+  onSelect,
+  onEnterEditMode,
+  onRemove,
+}: {
+  label: string;
+  editMode: boolean;
+  onSelect: () => void;
+  onEnterEditMode: () => void;
+  onRemove: () => void;
+}) {
+  const longPressTimerRef = useRef<number | null>(null);
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressFiredRef = useRef(false);
+
+  const clearLongPress = () => {
+    if (longPressTimerRef.current != null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  if (editMode) {
+    return (
+      <span className="search-history-chip is-editing">
+        <button
+          type="button"
+          className="search-history-chip-label book-chip"
+          onClick={onSelect}
+        >
+          {label}
+        </button>
+        <button
+          type="button"
+          className="search-history-chip-close"
+          aria-label={`删除「${label}」`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          ×
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="book-chip search-history-chip"
+      style={{ width: 'auto' }}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        longPressFiredRef.current = false;
+        startRef.current = { x: e.clientX, y: e.clientY };
+        clearLongPress();
+        longPressTimerRef.current = window.setTimeout(() => {
+          longPressFiredRef.current = true;
+          onEnterEditMode();
+        }, HISTORY_LONG_PRESS_MS);
+      }}
+      onPointerMove={(e) => {
+        const start = startRef.current;
+        if (!start || longPressFiredRef.current) return;
+        if (
+          Math.abs(e.clientX - start.x) > HISTORY_MOVE_TOLERANCE_PX
+          || Math.abs(e.clientY - start.y) > HISTORY_MOVE_TOLERANCE_PX
+        ) {
+          clearLongPress();
+        }
+      }}
+      onPointerUp={() => {
+        clearLongPress();
+        if (!longPressFiredRef.current) onSelect();
+        startRef.current = null;
+      }}
+      onPointerCancel={() => {
+        clearLongPress();
+        startRef.current = null;
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        if (!longPressFiredRef.current) {
+          longPressFiredRef.current = true;
+          onEnterEditMode();
+        }
+      }}
+    >
+      {label}
+    </button>
+  );
 }
 
 function escapeRegExp(s: string): string {
@@ -140,6 +247,7 @@ export default function SearchPage() {
   /** 防抖后的查询：驱动 API / 本地过滤，输入框仍即时更新 */
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [history, setHistory] = useState<string[]>([]);
+  const [historyEditMode, setHistoryEditMode] = useState(false);
   const [hits, setHits] = useState<BibleSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -321,13 +429,24 @@ export default function SearchPage() {
   };
 
   const applyHistoryQuery = (name: string) => {
+    setHistoryEditMode(false);
     flushQuery(name);
     onSubmit(name);
   };
 
   const openReader = (hit: BibleSearchHit) => {
     onSubmit(searchQ || query);
-    window.location.href = `/reader?book=${encodeURIComponent(hit.book)}&chapter=${hit.chapter}`;
+    navigateToReaderHref(searchHitReaderHref(hit), router);
+  };
+
+  const removeHistory = (item: string) => {
+    const next = removeHistoryItem(item);
+    setHistory(next);
+    if (next.length === 0) setHistoryEditMode(false);
+  };
+
+  const enterHistoryEditMode = () => {
+    setHistoryEditMode(true);
   };
 
   const openAssistant = (hit: BibleSearchHit) => {
@@ -337,6 +456,10 @@ export default function SearchPage() {
   };
 
   const hasQuery = !searchTooShort(searchQ);
+  useEffect(() => {
+    if (hasQuery) setHistoryEditMode(false);
+  }, [hasQuery]);
+
   const versionLabel =
     versions.find((v) => v.id === searchVersion)?.label
     || searchVersion.toUpperCase();
@@ -356,6 +479,7 @@ export default function SearchPage() {
         autoFocus
         placeholder="搜索经文…"
         value={query}
+        onFocus={() => setHistoryEditMode(false)}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -365,18 +489,17 @@ export default function SearchPage() {
         }}
       />
 
-      {history.length > 0 && (
-        <div className="chip-row" style={{ marginTop: 12 }}>
+      {history.length > 0 && !hasQuery && (
+        <div className="chip-row search-history-row" style={{ marginTop: 12 }}>
           {history.map((h) => (
-            <button
+            <SearchHistoryChip
               key={h}
-              type="button"
-              className="book-chip"
-              style={{ width: 'auto' }}
-              onClick={() => applyHistoryQuery(h)}
-            >
-              {h}
-            </button>
+              label={h}
+              editMode={historyEditMode}
+              onSelect={() => applyHistoryQuery(h)}
+              onEnterEditMode={enterHistoryEditMode}
+              onRemove={() => removeHistory(h)}
+            />
           ))}
         </div>
       )}

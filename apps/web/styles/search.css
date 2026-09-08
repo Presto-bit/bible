@@ -26,6 +26,51 @@
   gap: 8px;
 }
 
+.search-history-row {
+  align-items: center;
+}
+
+.search-history-chip.is-editing {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: 999px;
+  background: var(--card, #f3f1ec);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.search-history-chip-label {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 36px;
+  padding-right: 6px;
+}
+
+.search-history-chip-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  color: var(--muted, #6b6b6b);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.search-history-chip-close:active {
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  color: var(--ink);
+}
+
 .theme-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
