@@ -8,6 +8,39 @@ final _followupHeadRe = RegExp(
   r'^[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])\s*$',
 );
 
+final _orderedCnRe = RegExp(r'^(\s*)(\d+)[、.)）]\s+(.*)$');
+final _circledOrderedRe = RegExp(r'^(\s*)([①②③④⑤⑥⑦⑧⑨⑩⑪⑫])[、.)）]?\s*(.*)$');
+
+const _circledToNum = {
+  '①': '1',
+  '②': '2',
+  '③': '3',
+  '④': '4',
+  '⑤': '5',
+  '⑥': '6',
+  '⑦': '7',
+  '⑧': '8',
+  '⑨': '9',
+  '⑩': '10',
+  '⑪': '11',
+  '⑫': '12',
+};
+
+/// 将「1、」「①」等规范为 Markdown 有序列表「1. 」。
+String normalizeOrderedLists(String text) {
+  return text.split('\n').map((line) {
+    final circled = _circledOrderedRe.firstMatch(line);
+    if (circled != null) {
+      final mark = circled.group(2)!;
+      final num = _circledToNum[mark] ?? mark;
+      return '${circled.group(1)}$num. ${circled.group(3)}';
+    }
+    final cn = _orderedCnRe.firstMatch(line);
+    if (cn != null) return '${cn.group(1)}${cn.group(2)}. ${cn.group(3)}';
+    return line;
+  }).join('\n');
+}
+
 /// 将【摘要】等标签行提升为 Markdown 三级标题。
 String promoteSectionLabels(String text) {
   return text
@@ -35,6 +68,7 @@ String prepareAssistantMarkdown(String text, {required bool streaming}) {
     return raw;
   }
   raw = promoteSectionLabels(raw);
+  raw = normalizeOrderedLists(raw);
   return breakLongPlainBlocks(raw);
 }
 

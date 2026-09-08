@@ -11,7 +11,6 @@ import { useOnline } from '@/lib/use_online';
 import AnswerText from '@/components/AnswerText';
 import { useToast } from '@/components/ui/ToastProvider';
 import { CitationBar } from '@/components/CitationBar';
-import { CitationEvidenceRail } from '@/components/assistant/CitationEvidenceRail';
 import { AssistantNextSteps } from '@/components/assistant/AssistantNextSteps';
 import { AssistantUserBubble } from '@/components/assistant/AssistantUserBubble';
 import { setAssistantStreamBusy } from '@/lib/assistant_stream_busy';
@@ -1393,12 +1392,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                 {showActions && (
                   <>
                     {usedCitations.length > 0 && (
-                      <CitationEvidenceRail
+                      <CitationBar
+                        className="assistant-citations-bar"
                         citations={uniqueCitationsForRail(usedCitations)}
                         bookName={refToChineseLabel(ref)?.replace(/\s*\d+.*$/, '').trim()}
-                        onOpen={(n) => {
-                          recordCitationClick();
-                          setCitationMsgIdx(i);
+                        activeN={citationMsgIdx === i ? citationOpen : undefined}
+                        onActiveChange={(n) => {
+                          if (n != null) recordCitationClick();
+                          setCitationMsgIdx(n != null ? i : null);
                           setCitationOpen(n);
                         }}
                       />
@@ -1444,21 +1445,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                             {q}
                           </Pressable>
                         ))}
-                      </div>
-                    )}
-                    {usedCitations.length > 0 && (
-                      <div className="xiaoai-cite-host">
-                        <CitationBar
-                          variant="action"
-                          className="xiaoai-cite-host-trigger"
-                          citations={usedCitations}
-                          activeN={citationMsgIdx === i ? citationOpen : undefined}
-                          onActiveChange={(n) => {
-                            setCitationMsgIdx(i);
-                            setCitationOpen(n);
-                          }}
-                          bookName={refToChineseLabel(ref)?.replace(/\s*\d+.*$/, '').trim()}
-                        />
                       </div>
                     )}
                   </>

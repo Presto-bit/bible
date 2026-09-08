@@ -46,7 +46,10 @@ export function CitationBar({
     if (controlled != null) {
       setSheetOpen(true);
       setDetailN(controlled);
+      return;
     }
+    setSheetOpen(false);
+    setDetailN(null);
   }, [controlled]);
 
   const detail = detailN != null ? citations.find((c) => c.n === detailN) ?? null : null;

@@ -19,7 +19,7 @@ import '../assistant/assistant_reader_context.dart';
 import '../assistant/assistant_repository.dart';
 import '../assistant/assistant_scenes.dart';
 import '../assistant/assistant_seed.dart';
-import '../assistant/citation_evidence_rail.dart';
+import '../assistant/citation_sources_toggle.dart';
 import '../assistant/models.dart' as am;
 import '../assistant/models.dart' show Citation;
 import 'half_sheet_chips.dart';
@@ -588,12 +588,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
 
   void _openCitation(Citation citation) {
     ref.read(badgeStatsRecorderProvider).recordCitationClick();
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => _HalfSheetCitationDetail(citation: citation),
-    );
+    showCitationDetailSheet(context, citation: citation);
   }
 
   @override
@@ -601,6 +596,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     final completedTurns =
         _turns.where((t) => !t.busy && t.answer.trim().isNotEmpty).toList();
     final activeTurn = _activeTurnId != null ? _turnFor(_activeTurnId!) : null;
+    final anyTurnBusy = _turns.any((t) => t.busy);
     final chipTurn = activeTurn != null && !activeTurn.busy
         ? activeTurn
         : completedTurns.isNotEmpty
@@ -666,7 +662,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                     i,
                     isLast: i == _turns.length - 1,
                   ),
-                if (chipTurn != null &&
+                if (!anyTurnBusy &&
+                    chipTurn != null &&
                     !chipTurn.busy &&
                     !chipTurn.answer.trim().startsWith('⚠️'))
                   HalfSheetChipRows(
@@ -681,15 +678,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                           : AssistantScene.chatExplain,
                     ),
                     onL1: (chip) => _appendTurn(chip.q, chip.scene),
-                  )
-                else if (chipTurn?.busy == true)
-                  HalfSheetChipRows(
-                    followups: const [],
-                    followupsLoading: true,
-                    l1Chips: _l1Chips,
-                    disabled: true,
-                    onFollowup: (_) {},
-                    onL1: (_) {},
                   ),
               ],
             ),
@@ -803,7 +791,25 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AssistantMarkdownBody(text: summaryLead.summary, dense: true),
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                decoration: BoxDecoration(
+                  color: Color.lerp(AppColors.surface, AppColors.accentWash, 0.35) ??
+                      AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  summaryLead.summary,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    height: 1.72,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
               TextButton(
                 onPressed: () =>
                     setState(() => _expandedTurns[turn.id] = true),
@@ -830,14 +836,11 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             },
           ),
           if (!turn.busy && !hasError && evidenceCites.isNotEmpty)
-            CitationEvidenceRail(
+            CitationSourcesToggle(
               citations: evidenceCites,
               bookName: bookName,
-              onOpen: (n) {
-                final citation =
-                    turn.citations.where((c) => c.n == n).firstOrNull;
-                if (citation != null) _openCitation(citation);
-              },
+              onRecordClick: () =>
+                  ref.read(badgeStatsRecorderProvider).recordCitationClick(),
             ),
           if (done && isLast)
             Padding(
@@ -993,147 +996,6 @@ class _RagSourceStatusHalfSheet extends StatelessWidget {
           fontSize: 12,
           height: 1.4,
           color: AppColors.inkFaint,
-        ),
-      ),
-    );
-  }
-}
-
-class _HalfSheetCitationDetail extends ConsumerStatefulWidget {
-  const _HalfSheetCitationDetail({required this.citation});
-  final Citation citation;
-
-  @override
-  ConsumerState<_HalfSheetCitationDetail> createState() =>
-      _HalfSheetCitationDetailState();
-}
-
-class _HalfSheetCitationDetailState
-    extends ConsumerState<_HalfSheetCitationDetail> {
-  String? _explain;
-  String? _err;
-  bool _loading = true;
-  bool _snipExpanded = false;
-  String _disclaimer = '以下中文为便于阅读的释义，非官方译本；请以圣经与原文摘录为准。';
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final snip = widget.citation.snippet?.trim() ?? '';
-    if (snip.isEmpty) {
-      setState(() {
-        _loading = false;
-        _err = '暂无摘录内容';
-      });
-      return;
-    }
-    try {
-      var res = await ref
-          .read(assistantRepoProvider)
-          .explainCitation(snippet: snip, title: widget.citation.title);
-      if (res.explainZh.trim().isEmpty && res.error != null) {
-        res = await ref.read(assistantRepoProvider).explainCitation(
-              snippet: snip,
-              title: widget.citation.title,
-              force: true,
-            );
-      }
-      if (!mounted) return;
-      setState(() {
-        _explain = res.explainZh;
-        _disclaimer = res.disclaimer;
-        _err = res.error;
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _err = '暂无法生成中文释义';
-        _loading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final snip = widget.citation.snippet?.trim() ?? '';
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '[${widget.citation.n}] ${widget.citation.title}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                '中文释义',
-                style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
-              ),
-              const SizedBox(height: 6),
-              if (_loading)
-                const Text(
-                  '正在生成释义…',
-                  style: TextStyle(color: AppColors.inkFaint),
-                )
-              else if ((_explain ?? '').isNotEmpty)
-                Text(
-                  _explain!,
-                  style: const TextStyle(height: 1.6, fontSize: 15),
-                )
-              else
-                Text(
-                  _err ?? '暂无法生成中文释义',
-                  style: const TextStyle(color: AppColors.inkFaint),
-                ),
-              const SizedBox(height: 14),
-              const Text(
-                '原文摘录',
-                style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
-              ),
-              const SizedBox(height: 6),
-              if (snip.isEmpty)
-                const Text(
-                  '暂无摘录内容',
-                  style: TextStyle(color: AppColors.inkFaint),
-                )
-              else ...[
-                Text(
-                  snip,
-                  maxLines: _snipExpanded ? null : 5,
-                  overflow: _snipExpanded
-                      ? TextOverflow.visible
-                      : TextOverflow.ellipsis,
-                  style: const TextStyle(height: 1.55, fontSize: 14),
-                ),
-                if (snip.length > 180)
-                  TextButton(
-                    onPressed: () =>
-                        setState(() => _snipExpanded = !_snipExpanded),
-                    child: Text(_snipExpanded ? '收起' : '展开更多'),
-                  ),
-              ],
-              const SizedBox(height: 14),
-              Text(
-                _disclaimer,
-                style: const TextStyle(
-                  fontSize: 11,
-                  height: 1.45,
-                  color: AppColors.inkFaint,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

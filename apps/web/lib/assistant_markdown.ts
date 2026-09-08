@@ -11,6 +11,40 @@ const SECTION_LABEL_RE = /^【([^】]+)】\s*(.*)$/;
 const FOLLOWUP_HEAD_RE =
   /^[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])\s*$/;
 const CITE_LINK_RE = /^#cite-(\d{1,2})$/;
+const ORDERED_CN_RE = /^(\s*)(\d+)[、.)）]\s+(.*)$/;
+const CIRCLED_ORDERED_RE = /^(\s*)([①②③④⑤⑥⑦⑧⑨⑩⑪⑫])[、.)）]?\s*(.*)$/;
+
+const CIRCLED_TO_NUM: Record<string, string> = {
+  '①': '1',
+  '②': '2',
+  '③': '3',
+  '④': '4',
+  '⑤': '5',
+  '⑥': '6',
+  '⑦': '7',
+  '⑧': '8',
+  '⑨': '9',
+  '⑩': '10',
+  '⑪': '11',
+  '⑫': '12',
+};
+
+/** 将「1、」「①」等规范为 Markdown 有序列表「1. 」。 */
+function normalizeOrderedLists(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => {
+      const circled = line.match(CIRCLED_ORDERED_RE);
+      if (circled) {
+        const num = CIRCLED_TO_NUM[circled[2]!] ?? circled[2]!;
+        return `${circled[1]}${num}. ${circled[3]}`;
+      }
+      const cn = line.match(ORDERED_CN_RE);
+      if (cn) return `${cn[1]}${cn[2]}. ${cn[3]}`;
+      return line;
+    })
+    .join('\n');
+}
 
 /** 将中文/数字脚标转为可点击的伪链接，供 Markdown 解析后替换为按钮。 */
 function linkifyCitations(text: string): string {
@@ -45,6 +79,8 @@ function isStructuredLine(line: string): boolean {
   if (/^#{1,6}\s/.test(t)) return true;
   if (/^[-*+]\s/.test(t)) return true;
   if (/^\d+\.\s/.test(t)) return true;
+  if (/^\d+[、.)）]\s/.test(t)) return true;
+  if (/^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫]/.test(t)) return true;
   if (/^>\s/.test(t)) return true;
   if (/^\|/.test(t)) return true;
   if (/^---+$/.test(t)) return true;
@@ -95,6 +131,7 @@ export function prepareAssistantMarkdown(text: string, streaming: boolean): stri
     raw = joinOrphanFootnotes(raw);
   }
   raw = promoteSectionLabels(raw);
+  raw = normalizeOrderedLists(raw);
   if (!streaming) {
     raw = breakLongPlainBlocks(raw);
   }

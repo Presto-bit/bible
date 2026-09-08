@@ -59,7 +59,10 @@ export default function AnswerText({
     h1: ({ children }) => <h3 className="ans-md-h">{children}</h3>,
     h2: ({ children }) => <h3 className="ans-md-h">{children}</h3>,
     h3: ({ children }) => {
-      const plain = childrenToPlain(children);
+      const plain = childrenToPlain(children).trim();
+      if (plain === '摘要') {
+        return <h3 className="ans-md-h ans-md-h-summary">{children}</h3>;
+      }
       const viewpoint = /观点\s*([ABC一二三]|[AaBbCc])/.exec(plain);
       if (viewpoint) {
         const key = viewpoint[1].toUpperCase();
@@ -82,7 +85,7 @@ export default function AnswerText({
     blockquote: ({ children }) => (
       <blockquote className="ans-md-quote">{children}</blockquote>
     ),
-    strong: ({ children }) => <strong className="ans-strong">{children}</strong>,
+    strong: ({ children }) => <strong className="ans-md-strong">{children}</strong>,
     em: ({ children }) => <em className="ans-md-em">{children}</em>,
     hr: () => <hr className="ans-md-hr" />,
     a: ({ href, children }) => {

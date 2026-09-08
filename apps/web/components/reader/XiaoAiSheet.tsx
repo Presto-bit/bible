@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { chatStream, type Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { CitationBar } from '@/components/CitationBar';
-import { CitationEvidenceRail } from '@/components/assistant/CitationEvidenceRail';
 import { addThought } from '@/lib/reader_thoughts';
 import { extractSummaryLead } from '@/lib/assistant_markdown';
 import {
@@ -463,6 +462,7 @@ export default function XiaoAiSheet({
 
   const activeTurn = turns.find((t) => t.id === activeTurnId) ?? turns.at(-1);
   const completedTurns = turns.filter((t) => !t.busy && t.answer.trim());
+  const anyTurnBusy = turns.some((t) => t.busy);
   const chipTurn = activeTurn && !activeTurn.busy ? activeTurn : completedTurns.at(-1);
   const followupCount = turns.filter(
     (t) => t.scene.startsWith('chat_') || turns.indexOf(t) > 0,
@@ -643,12 +643,14 @@ export default function XiaoAiSheet({
                           />
                         )}
                         {!turn.busy && !hasError && railCites.length > 0 ? (
-                          <CitationEvidenceRail
+                          <CitationBar
+                            className="half-sheet-citations-toggle"
                             citations={railCites}
                             bookName={refLabel.split(' ')[0]}
-                            onOpen={(n) => {
-                              recordCitationClick();
-                              setCitationTurnId(turn.id);
+                            activeN={citationTurnId === turn.id ? citationOpen : undefined}
+                            onActiveChange={(n) => {
+                              if (n != null) recordCitationClick();
+                              setCitationTurnId(n != null ? turn.id : null);
                               setCitationOpen(n);
                             }}
                           />
@@ -697,23 +699,17 @@ export default function XiaoAiSheet({
             );
           })}
 
-          {chipTurn && !chipTurn.busy && !chipTurn.answer.startsWith('⚠️') ? (
+          {!anyTurnBusy &&
+          chipTurn &&
+          !chipTurn.busy &&
+          !chipTurn.answer.startsWith('⚠️') ? (
             <HalfSheetChipRows
               followups={chipTurn.followups}
               followupsLoading={false}
               l1Chips={l1Chips}
-              disabled={turns.some((t) => t.busy) || turns.length >= 3}
+              disabled={turns.length >= 3}
               onFollowup={(q) => appendTurn(q, chipTurn.scene.startsWith('chat_') ? chipTurn.scene : 'chat_explain')}
               onL1={(chip: HalfSheetChipDef) => appendTurn(chip.q, chip.scene)}
-            />
-          ) : chipTurn?.busy ? (
-            <HalfSheetChipRows
-              followups={[]}
-              followupsLoading
-              l1Chips={l1Chips}
-              disabled
-              onFollowup={() => {}}
-              onL1={() => {}}
             />
           ) : null}
         </div>
@@ -734,26 +730,6 @@ export default function XiaoAiSheet({
           </div>
         ) : null}
 
-        {citationOpen != null && citationTurnId ? (
-          <div className="xiaoai-cite-host" aria-hidden={citationOpen == null}>
-            <CitationBar
-              variant="action"
-              compact
-              className="xiaoai-cite-host-trigger"
-              citations={
-                (turns.find((t) => t.id === citationTurnId)?.citations ?? []).length
-                  ? citationsUsedInText(
-                      stripAnswer(turns.find((t) => t.id === citationTurnId)?.answer ?? ''),
-                      turns.find((t) => t.id === citationTurnId)?.citations ?? [],
-                    )
-                  : turns.find((t) => t.id === citationTurnId)?.citations ?? []
-              }
-              activeN={citationOpen}
-              onActiveChange={setCitationOpen}
-              bookName={refLabel.split(' ')[0]}
-            />
-          </div>
-        ) : null}
       </div>
 
       {shareTurn ? (

@@ -207,7 +207,7 @@ class AnswerText extends StatelessWidget {
     final widgets = <Widget>[];
     final lines = text.split('\n');
     var i = 0;
-    var afterSection = false;
+    String? pendingSectionTitle;
 
     while (i < lines.length) {
       final raw = lines[i];
@@ -215,7 +215,7 @@ class AnswerText extends StatelessWidget {
       if (line.trim().isEmpty) {
         widgets.add(SizedBox(height: dense ? 4 : 6));
         i += 1;
-        afterSection = false;
+        pendingSectionTitle = null;
         continue;
       }
 
@@ -228,7 +228,7 @@ class AnswerText extends StatelessWidget {
         }
         if (i < lines.length) i += 1;
         widgets.add(_codeBlock(buf.join('\n')));
-        afterSection = false;
+        pendingSectionTitle = null;
         continue;
       }
 
@@ -239,7 +239,7 @@ class AnswerText extends StatelessWidget {
           i += 1;
         }
         widgets.add(_tableBlock(tableLines));
-        afterSection = false;
+        pendingSectionTitle = null;
         continue;
       }
 
@@ -259,13 +259,14 @@ class AnswerText extends StatelessWidget {
           child: const Divider(color: AppColors.line, height: 1),
         ));
         i += 1;
-        afterSection = false;
+        pendingSectionTitle = null;
         continue;
       }
 
       if (label != null) {
         widgets.add(_sectionHeading(label.group(1)!, tail: label.group(2) ?? ''));
-        afterSection = (label.group(2) ?? '').isEmpty;
+        pendingSectionTitle =
+            (label.group(2) ?? '').isEmpty ? label.group(1)! : null;
         i += 1;
         continue;
       }
@@ -274,8 +275,11 @@ class AnswerText extends StatelessWidget {
         final level = heading.group(1)!.length;
         final title = heading.group(2)!.trim();
         if (level <= 3) {
-          widgets.add(_sectionHeading(title, viewpoint: _viewpointRe.hasMatch(title)));
-          afterSection = true;
+          widgets.add(_sectionHeading(
+            title,
+            viewpoint: _viewpointRe.hasMatch(title),
+          ));
+          pendingSectionTitle = title;
         } else {
           widgets.add(Padding(
             padding: const EdgeInsets.only(top: 10, bottom: 4),
@@ -284,7 +288,7 @@ class AnswerText extends StatelessWidget {
               style: _baseStyle().copyWith(fontWeight: FontWeight.w700),
             ),
           ));
-          afterSection = false;
+          pendingSectionTitle = null;
         }
         i += 1;
         continue;
@@ -296,7 +300,7 @@ class AnswerText extends StatelessWidget {
           content: bullet.group(1)!,
           base: base,
         ));
-        afterSection = false;
+        pendingSectionTitle = null;
         i += 1;
         continue;
       }
@@ -304,11 +308,11 @@ class AnswerText extends StatelessWidget {
       if (numbered != null || mdOrdered != null) {
         final m = numbered ?? mdOrdered!;
         widgets.add(_listRow(
-          marker: _indexMarker('${m.group(1)!}${numbered != null ? '、' : '.'} ', base),
+          marker: _indexMarker('${m.group(1)!}. ', base),
           content: m.group(2)!,
           base: base,
         ));
-        afterSection = false;
+        pendingSectionTitle = null;
         i += 1;
         continue;
       }
@@ -319,7 +323,7 @@ class AnswerText extends StatelessWidget {
           content: circled.group(2)!,
           base: base,
         ));
-        afterSection = false;
+        pendingSectionTitle = null;
         i += 1;
         continue;
       }
@@ -345,29 +349,20 @@ class AnswerText extends StatelessWidget {
             ),
           ),
         ));
-        afterSection = false;
+        pendingSectionTitle = null;
         i += 1;
         continue;
       }
 
-      final para = Padding(
-        padding: EdgeInsets.only(bottom: dense ? 6 : 10),
-        child: Text.rich(TextSpan(children: _inline(trimmed, base))),
-      );
-      if (afterSection) {
-        widgets.add(Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text.rich(TextSpan(children: _inline(trimmed, base))),
+      if (pendingSectionTitle != null) {
+        widgets.add(_sectionBodyParagraph(
+          trimmed,
+          base: base,
+          sectionTitle: pendingSectionTitle,
         ));
-        afterSection = false;
+        pendingSectionTitle = null;
       } else {
-        widgets.add(para);
+        widgets.add(_bodyParagraph(trimmed, base));
       }
       i += 1;
     }
@@ -378,11 +373,68 @@ class AnswerText extends StatelessWidget {
     );
   }
 
+  Widget _bodyParagraph(String content, TextStyle base) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: dense ? 6 : 10),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: '\u3000\u3000', style: base),
+            ..._inline(content, base),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionBodyParagraph(
+    String content, {
+    required TextStyle base,
+    required String sectionTitle,
+  }) {
+    final isSummary = sectionTitle == '摘要';
+    final bodyStyle = isSummary
+        ? base.copyWith(
+            fontSize: fontSize + 1,
+            fontWeight: FontWeight.w600,
+            height: 1.72,
+          )
+        : base.copyWith(height: 1.78);
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.only(bottom: dense ? 8 : 10),
+      padding: EdgeInsets.fromLTRB(12, dense ? 8 : 10, 12, dense ? 8 : 10),
+      decoration: BoxDecoration(
+        color: isSummary
+            ? Color.lerp(AppColors.surface, AppColors.accentWash, 0.35) ??
+                AppColors.surface
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text.rich(TextSpan(children: _inline(content, bodyStyle))),
+    );
+  }
+
   Widget _sectionHeading(
     String title, {
     String tail = '',
     bool viewpoint = false,
   }) {
+    if (title == '摘要' && tail.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.only(top: dense ? 8 : 12, bottom: 6),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: fontSize - 1,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+            color: AppColors.accentDeep,
+            height: 1.4,
+          ),
+        ),
+      );
+    }
     final isViewpointB = RegExp(r'观点\s*(B|二|b)').hasMatch(title);
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 6),
