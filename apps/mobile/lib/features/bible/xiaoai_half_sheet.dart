@@ -768,29 +768,37 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     final bookName = widget.refLabel.split(' ').first;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          width: double.infinity,
-          margin: EdgeInsets.only(bottom: waitingFirstToken ? 8 : 12),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.goldWash.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.line),
-          ),
-          child: Text(
-            widget.selectionText.trim().isNotEmpty && index == 0
-                ? (widget.selectionText.trim().length > 120
-                    ? '${widget.selectionText.trim().substring(0, 120)}…'
-                    : widget.selectionText.trim())
-                : turn.userQuestion,
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.55,
-              color: AppColors.inkSoft,
-              fontFamily: 'Songti SC',
-              fontFamilyFallback: ['STSong', 'Noto Serif SC', 'serif'],
+        Align(
+          alignment: Alignment.centerRight,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * 0.88,
+            ),
+            child: Container(
+              margin: EdgeInsets.only(bottom: waitingFirstToken ? 8 : 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.goldWash.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: Text(
+                widget.selectionText.trim().isNotEmpty && index == 0
+                    ? (widget.selectionText.trim().length > 120
+                        ? '${widget.selectionText.trim().substring(0, 120)}…'
+                        : widget.selectionText.trim())
+                    : turn.userQuestion,
+                textAlign: TextAlign.left,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.55,
+                  color: AppColors.inkSoft,
+                  fontFamily: 'Songti SC',
+                  fontFamilyFallback: ['STSong', 'Noto Serif SC', 'serif'],
+                ),
+              ),
             ),
           ),
         ),

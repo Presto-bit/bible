@@ -98,16 +98,31 @@ export default function XiaoAiSheet({
   );
   const l1Chips = useMemo(() => halfSheetL1Chips(refLabel), [refLabel]);
 
+  const bootTurnIdRef = useRef<string | null>(null);
   const [turns, setTurns] = useState<TurnView[]>(() => {
     const saved = readHalfSheetThread(refParam, selectionKey);
     if (saved?.turns.length) {
       return saved.turns.map((t) => ({ ...t, busy: false }));
     }
-    return [];
+    const turn: TurnView = {
+      id: newTurnId(),
+      userQuestion: buildUserQuestion(
+        refLabel,
+        explicitSelection ? selectionText : '',
+      ),
+      answer: '',
+      citations: [],
+      scene: resolveInitialScene(explicitSelection, selectionText),
+      followups: [],
+      busy: true,
+    };
+    bootTurnIdRef.current = turn.id;
+    return [turn];
   });
   const [activeTurnId, setActiveTurnId] = useState<string | null>(() => {
     const saved = readHalfSheetThread(refParam, selectionKey);
-    return saved?.turns.at(-1)?.id ?? null;
+    if (saved?.turns.length) return saved.turns.at(-1)?.id ?? null;
+    return bootTurnIdRef.current;
   });
   const [retryKey, setRetryKey] = useState(0);
   const [expandedTurns, setExpandedTurns] = useState<Record<string, boolean>>({});
@@ -378,15 +393,14 @@ export default function XiaoAiSheet({
       ).finally(() => {
         window.clearTimeout(timer);
         window.clearTimeout(slowTimer);
-        if (!cancelled && runId === runIdRef.current) {
-          setTurns((prev) =>
-            prev.map((t) => {
-              if (t.id !== turnId || !t.busy) return t;
-              const text = accRef.current.trim() || emptyAnswerMsg;
-              return { ...t, answer: text, busy: false };
-            }),
-          );
-        }
+        if (runId !== runIdRef.current) return;
+        setTurns((prev) =>
+          prev.map((t) => {
+            if (t.id !== turnId || !t.busy) return t;
+            const text = accRef.current.trim() || emptyAnswerMsg;
+            return { ...t, answer: text, busy: false };
+          }),
+        );
       });
 
       return () => {
@@ -401,23 +415,12 @@ export default function XiaoAiSheet({
   );
 
   useEffect(() => {
-    if (turns.length > 0) return;
-    const turnId = newTurnId();
-    setTurns([
-      {
-        id: turnId,
-        userQuestion,
-        answer: '',
-        citations: [],
-        scene: initialScene,
-        followups: [],
-        busy: true,
-      },
-    ]);
-    setActiveTurnId(turnId);
+    const turnId = bootTurnIdRef.current;
+    if (!turnId) return;
+    bootTurnIdRef.current = null;
     setExpandedTurns({ [turnId]: true });
     return runChat(turnId, userQuestion, initialScene);
-  }, [turns.length, initialScene, userQuestion, runChat]);
+  }, [initialScene, userQuestion, runChat]);
 
   useEffect(() => {
     if (retryKey === 0) return;

@@ -724,6 +724,18 @@ body.reader-active .proper-noun--artifact {
   margin-bottom: 10px;
 }
 
+/* 半屏用户选区/问句：靠右对齐（覆盖 assistant-user-text margin:0） */
+.reader-ai-half-sheet .half-sheet-turn {
+  display: flex;
+  flex-direction: column;
+}
+.reader-ai-half-sheet .half-sheet-user-bubble.assistant-user-text {
+  align-self: flex-end;
+  width: auto;
+  max-width: 92%;
+  margin: 0 0 12px auto;
+}
+
 /* 半屏等待首包：文案靠上、回答区紧凑 */
 .reader-ai-half-sheet .half-sheet-answer-loading {
   padding: 2px 12px 6px;
