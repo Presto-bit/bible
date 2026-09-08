@@ -31,7 +31,7 @@ import {
   PWA_SHELL_BG_COLOR,
   PWA_SPLASH_BG_COLOR,
 } from '@/lib/pwa_brand';
-import { BRAND_SPLASH_SUBTITLE, BRAND_SPLASH_TITLE } from '@/lib/brand_splash';
+import { BRAND_SPLASH_SUBTITLE, BRAND_SPLASH_TITLE, brandSplashInlineArmScript } from '@/lib/brand_splash';
 import { peiaiFontClassNames } from '@/lib/fonts';
 
 export const metadata: Metadata = {
@@ -96,6 +96,7 @@ export default function RootLayout({
       lang="zh-CN"
       className={peiaiFontClassNames}
       style={{ backgroundColor: PWA_SHELL_BG_COLOR }}
+      suppressHydrationWarning
     >
       <head>
         <meta name="app-version" content={appVersion} />
@@ -130,7 +131,8 @@ export default function RootLayout({
           id="peiai-brand-splash-ssr"
           className="peiai-brand-splash"
           aria-hidden="true"
-          style={{ display: 'none', ['--peiai-brand-splash-bg' as string]: PWA_SPLASH_BG_COLOR }}
+          suppressHydrationWarning
+          style={{ ['--peiai-brand-splash-bg' as string]: PWA_SPLASH_BG_COLOR }}
         >
           <div className="peiai-brand-splash-inner">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -146,6 +148,11 @@ export default function RootLayout({
             <p className="peiai-brand-splash-sub">{BRAND_SPLASH_SUBTITLE}</p>
           </div>
         </div>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: brandSplashInlineArmScript(),
+          }}
+        />
         <style
           dangerouslySetInnerHTML={{
             __html: `html.peiai-splash-pending #peiai-brand-splash-ssr{display:flex!important;}`,

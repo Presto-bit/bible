@@ -9,6 +9,14 @@
 
 html.peiai-splash-pending #peiai-brand-splash-ssr {
   display: flex !important;
+  visibility: visible !important;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+html.peiai-splash-pending #peiai-brand-splash-ssr.is-fading {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .peiai-brand-splash {

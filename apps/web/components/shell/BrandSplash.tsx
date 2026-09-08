@@ -16,13 +16,43 @@ function removeSplashNode(node: HTMLElement | null) {
   node?.remove();
 }
 
+function armSplashTimer(node: HTMLElement) {
+  let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+  let finished = false;
+
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    markBrandSplashDone();
+    removeSplashNode(node);
+  };
+
+  const beginFade = () => {
+    if (fadeTimer || finished) return;
+    node.classList.add('is-fading');
+    node.setAttribute('aria-hidden', 'true');
+    fadeTimer = setTimeout(finish, BRAND_SPLASH_FADE_MS);
+  };
+
+  const minTimer = setTimeout(beginFade, BRAND_SPLASH_MIN_MS);
+  const maxTimer = setTimeout(beginFade, BRAND_SPLASH_MAX_MS);
+
+  return () => {
+    clearTimeout(minTimer);
+    clearTimeout(maxTimer);
+    if (fadeTimer) clearTimeout(fadeTimer);
+  };
+}
+
 /**
- * PWA 冷启动：仅控制 SSR 开屏节点计时淡出，不另挂客户端层，避免双开屏交接跳动。
- * pending 与壳层露出同帧在 finish 解除，fade 期间仍遮罩首页。
+ * PWA 冷启动开屏：body 内联脚本在 HTML 解析时即启动 2s 计时；
+ * 此处仅作 hydration 兜底，且绝不在内联已接管时提前拆除。
  */
 export default function BrandSplash() {
   useEffect(() => {
     const node = document.getElementById(SSR_SPLASH_ID) as HTMLElement | null;
+
+    if (window.__PEIAI_SPLASH_ARMED__) return;
 
     if (!shouldShowBrandSplash()) {
       removeSplashNode(node);
@@ -31,32 +61,9 @@ export default function BrandSplash() {
 
     if (!node) return;
 
-    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
-    let finished = false;
-
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      markBrandSplashDone();
-      removeSplashNode(node);
-    };
-
-    const beginFade = () => {
-      if (fadeTimer || finished) return;
-      node.classList.add('is-fading');
-      node.setAttribute('aria-hidden', 'true');
-      fadeTimer = setTimeout(finish, BRAND_SPLASH_FADE_MS);
-    };
-
-    /* 从客户端接管控起算满 2s，勿按 head START 扣减（hydration 晚时会闪没） */
-    const minTimer = setTimeout(beginFade, BRAND_SPLASH_MIN_MS);
-    const maxTimer = setTimeout(beginFade, BRAND_SPLASH_MAX_MS);
-
-    return () => {
-      clearTimeout(minTimer);
-      clearTimeout(maxTimer);
-      if (fadeTimer) clearTimeout(fadeTimer);
-    };
+    window.__PEIAI_SPLASH_ARMED__ = true;
+    node.setAttribute('aria-hidden', 'false');
+    return armSplashTimer(node);
   }, []);
 
   return null;

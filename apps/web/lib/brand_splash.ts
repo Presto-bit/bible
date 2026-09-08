@@ -15,6 +15,14 @@ export const BRAND_SPLASH_SUBTITLE = 'Love Each Other';
 
 export const BRAND_SPLASH_DONE_EVENT = 'peiai-brand-splash-done';
 
+/** body 内联脚本已接管计时时为 true；React 不得提前拆开屏 */
+export const BRAND_SPLASH_ARMED_FLAG = '__PEIAI_SPLASH_ARMED__' as const;
+
+/** HTML 解析后立即启动 2s 计时，不等待 React hydration */
+export function brandSplashInlineArmScript(): string {
+  return `(function(){try{if(!document.documentElement.classList.contains('peiai-splash-pending'))return;var node=document.getElementById('peiai-brand-splash-ssr');if(!node||window.${BRAND_SPLASH_ARMED_FLAG})return;window.${BRAND_SPLASH_ARMED_FLAG}=true;node.setAttribute('aria-hidden','false');var MIN=${BRAND_SPLASH_MIN_MS},FADE=${BRAND_SPLASH_FADE_MS},MAX=${BRAND_SPLASH_MAX_MS};var KEY='${BRAND_SPLASH_SESSION_KEY}';var EVT='${BRAND_SPLASH_DONE_EVENT}';var fading=false,finished=false;function finish(){if(finished)return;finished=true;window.__PEIAI_SPLASH_DONE__=true;try{sessionStorage.setItem(KEY,'1');}catch(_){}document.documentElement.classList.remove('peiai-splash-pending','peiai-splash-lock');node.remove();window.dispatchEvent(new Event(EVT));}function beginFade(){if(fading||finished)return;fading=true;node.classList.add('is-fading');node.setAttribute('aria-hidden','true');setTimeout(finish,FADE);}setTimeout(beginFade,MIN);setTimeout(beginFade,MAX);}catch(_){}})();`;
+}
+
 export function markBrandSplashDone(): void {
   if (typeof window !== 'undefined') {
     window.__PEIAI_SPLASH_DONE__ = true;
@@ -84,5 +92,7 @@ declare global {
     __PEIAI_SPLASH_DONE__?: boolean;
     /** head 脚本写入；hydration 晚到时不缩短可见开屏 */
     __PEIAI_SPLASH_START__?: number;
+    /** body 内联脚本已接管开屏计时 */
+    __PEIAI_SPLASH_ARMED__?: boolean;
   }
 }
