@@ -26,6 +26,7 @@ import { isAssistantStreamBusy } from '@/lib/assistant_stream_busy';
 import { onKeepAliveTabChange, clearInteractiveFocusArtifacts } from '@/lib/tab_keep_chrome';
 import { TabKeepAliveProvider } from './TabKeepAliveContext';
 import { DiscoverTabSkeleton } from '@/components/social/ImThreadSkeleton';
+import ProfileTab from '@/components/tabs/ProfileTab';
 
 function subscribeKeepAlive(onChange: () => void) {
   const mq = window.matchMedia('(display-mode: standalone)');
@@ -78,11 +79,6 @@ const AssistantTab = dynamic(() => loadTab(() => import('@/components/tabs/Assis
 const DiscoverTab = dynamic(() => loadTab(() => import('@/components/tabs/DiscoverTab')), {
   ssr: false,
   loading: () => <DiscoverTabSkeleton />,
-});
-
-const ProfileTab = dynamic(() => loadTab(() => import('@/components/tabs/ProfileTab')), {
-  ssr: false,
-  loading: () => paneLoading,
 });
 
 const TAB_COMPONENTS: Record<KeepAliveTabId, React.ComponentType<{ paneActive?: boolean }>> = {
@@ -233,6 +229,11 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (enabled) return;
     setMounted(emptyMounted());
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    setMounted((prev) => (prev.profile ? prev : { ...prev, profile: true }));
   }, [enabled]);
 
   useEffect(() => {

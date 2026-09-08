@@ -89,6 +89,15 @@ function isDiscoverImThreadPath(pathname: string): boolean {
   return p.startsWith('/discover/dm/') || p.startsWith('/discover/group/');
 }
 
+/** 搜索主页：本地壳 + 轻路由，直接打开勿挡进度条 */
+function isInstantSecondaryPath(pathname: string): boolean {
+  return normalizeAppPath(pathname) === '/search';
+}
+
+function isDirectSecondaryNav(pathname: string): boolean {
+  return isDiscoverImThreadPath(pathname) || isInstantSecondaryPath(pathname);
+}
+
 export const PWA_MAIN_TAB_HREFS = ['/', '/reader', '/assistant', '/discover', '/profile'] as const;
 
 export type PwaMainTabHref = (typeof PWA_MAIN_TAB_HREFS)[number];
@@ -140,8 +149,8 @@ export function navigateAppHref(
     if (pendingSecondaryTarget === pathOnly) {
       return;
     }
-    // IM 线程：直接进页，勿挡 progress / 过渡壳
-    if (isDiscoverImThreadPath(pathOnly)) {
+    // IM 线程 / 搜索：直接进页，勿挡 progress / 过渡壳
+    if (isDirectSecondaryNav(pathOnly)) {
       markRouteNavigation();
       router.push(normalized);
       window.dispatchEvent(new Event('presto-tab-nav'));
@@ -159,7 +168,7 @@ export function navigateAppHref(
   }
   markRouteNavigation();
   if (
-    !isDiscoverImThreadPath(pathOnly)
+    !isDirectSecondaryNav(pathOnly)
     && (isSecondaryAppPath(pathOnly) || keepAliveTabId(pathOnly) === null)
   ) {
     beginSoftNavProgress(normalized);

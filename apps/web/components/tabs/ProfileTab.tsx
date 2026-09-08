@@ -392,16 +392,31 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const confirm = useConfirm();
   const toast = useToast();
   const router = useRouter();
-  const [uid, setUid] = useState<string | null>(null);
-  const [gid, setGid] = useState<string>('');
-  const [mins, setMins] = useState(0);
+  const [uid, setUid] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? currentUserId() : null,
+  );
+  const [gid, setGid] = useState<string>(() =>
+    typeof window !== 'undefined' ? guestId() : '',
+  );
+  const [mins, setMins] = useState(() =>
+    typeof window !== 'undefined' ? todayMinutes() : 0,
+  );
   const [idCopied, setIdCopied] = useState(false);
-  const [avatarId, setAvatarId] = useState('a1');
+  const [avatarId, setAvatarId] = useState(() => {
+    if (typeof window === 'undefined') return 'a1';
+    const saved = userLsGet(AVATAR_KEY);
+    if (saved && isCustomAvatarId(saved)) return normalizeCustomAvatarId(saved);
+    return saved || defaultAvatarId(effectiveId() || undefined);
+  });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadHint, setDownloadHint] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [bio, setBio] = useState('');
+  const [name, setName] = useState(() =>
+    typeof window !== 'undefined' ? getDisplayName() : '',
+  );
+  const [bio, setBio] = useState(() =>
+    typeof window !== 'undefined' ? (userLsGet(BIO_KEY) || '') : '',
+  );
   const [dataStatus, setDataStatus] = useState<string | null>(null);
   const [bioEditing, setBioEditing] = useState(false);
   const [nameEditing, setNameEditing] = useState(false);
@@ -613,13 +628,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
 
   useEffect(() => {
     let cancelled = false;
-    const boot = async () => {
-      try {
-        await ensureAccountReady();
-      } catch {
-        /* ignore */
-      }
-      if (cancelled) return;
+    const applyLocalProfile = () => {
       setUid(currentUserId());
       setGid(guestId());
       const saved = userLsGet(AVATAR_KEY);
@@ -641,9 +650,20 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setAccountComplete(isAccountComplete());
       setFootprintSeen(readFootprintSeen());
       setMilestone(pendingStreakMilestone(readingStreak()));
-      refreshFootprintLocal();
     };
-    void boot();
+    applyLocalProfile();
+    refreshFootprintLocal();
+
+    void (async () => {
+      try {
+        await ensureAccountReady();
+      } catch {
+        /* ignore */
+      }
+      if (cancelled) return;
+      applyLocalProfile();
+      refreshFootprintLocal();
+    })();
     return () => {
       cancelled = true;
     };

@@ -152,9 +152,9 @@ import {
   readerBackHref,
 } from '@/lib/reader_return';
 import { clearReaderChrome, restoreMainTabbar, unlockReaderSurface } from '@/lib/reader_chrome';
-import { navigateAppHref } from '@/lib/pwa_tab_nav';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { softRecoverShellTouch } from '@/lib/sheet_overlay';
 import { shellTapProps } from '@/lib/shell_tap';
-import { useRouter } from 'next/navigation';
 import { scheduleTabChrome } from '@/lib/tab_chrome';
 import {
   applyAppTheme,
@@ -293,7 +293,6 @@ export default function ReaderView({
   paneActive?: boolean;
 }) {
   const flashToast = useToast();
-  const router = useRouter();
   const paneWasActiveRef = useRef(false);
   const [verses, setVerses] = useState<Verse[]>([]);
   /** 中文和合本结构，用于段落断点（KJV 单栏/对照时与中文段落对齐）。 */
@@ -3239,20 +3238,26 @@ export default function ReaderView({
           </button>
         </div>
         <div className="reader-topbar-right">
-          <button
-            type="button"
+          <Link
+            href="/search?from=/reader"
             className="reader-icon-btn"
             aria-label="搜索"
-            {...shellTapProps({
-              softRecover: true,
-              onTap: () => navigateAppHref('/search?from=/reader', router),
-            })}
+            prefetch
+            onClick={(e) => {
+              e.stopPropagation();
+              markRouteNavigation();
+            }}
+            onPointerDown={(e) => {
+              if (e.button !== 0) return;
+              e.stopPropagation();
+              softRecoverShellTouch();
+            }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4-4" />
             </svg>
-          </button>
+          </Link>
           {READER_AUDIO_ENABLED ? (
           <div className="reader-audio-btn-wrap">
             <ReaderAudioButton

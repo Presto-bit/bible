@@ -166,6 +166,7 @@ export default function BottomTabs() {
             void import('@/components/tabs/DiscoverTab');
             router.prefetch('/assistant');
             router.prefetch('/discover');
+            router.prefetch('/profile');
           }, 4_000);
         },
         { afterMs: 10_000, fallbackMs: 30_000 },
