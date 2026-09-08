@@ -476,7 +476,6 @@ export default function XiaoAiSheet({
     const turnId = bootTurnIdRef.current;
     if (!turnId) return;
     bootTurnIdRef.current = null;
-    setExpandedTurns({ [turnId]: true });
     return runChat(turnId, userQuestion, initialScene);
   }, [initialScene, userQuestion, runChat]);
 
@@ -536,7 +535,6 @@ export default function XiaoAiSheet({
         },
       ]);
       setActiveTurnId(turnId);
-      setExpandedTurns((m) => ({ ...m, [turnId]: true }));
       scrollToBottom();
       runChat(turnId, question, scene, { history });
     },
