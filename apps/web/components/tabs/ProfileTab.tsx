@@ -310,11 +310,7 @@ function FootprintCell({
         longPressFired.current = false;
         clearTimer();
         startXY.current = { x: e.clientX, y: e.clientY };
-        if (!onShare) {
-          // 与设置一致：无长按分享时 pointerdown 立刻打开
-          openOnce();
-          return;
-        }
+        if (!onShare) return;
         longPressTimer.current = setTimeout(() => {
           longPressTimer.current = null;
           longPressFired.current = true;
@@ -334,10 +330,6 @@ function FootprintCell({
         if (dx > 12 || dy > 12) clearLongPressTimer();
       }}
       onPointerUp={(e) => {
-        if (!onShare) {
-          clearTimer();
-          return;
-        }
         const start = startXY.current;
         const fired = longPressFired.current;
         clearTimer();
@@ -1106,6 +1098,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               aria-label="设置"
               softRecover
               beforePointerTap={clearBlockingOverlays}
+              phase="up"
               onTap={() => openSettings()}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
