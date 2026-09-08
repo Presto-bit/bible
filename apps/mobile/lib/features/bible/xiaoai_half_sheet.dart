@@ -228,6 +228,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     final runId = ++_runId;
     var pending = '';
     var scheduled = false;
+    var gotDelta = false;
     var cites = <Citation>[];
     var serverFollowups = <String>[];
     bool? useRag;
@@ -332,7 +333,12 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             });
           case am.DeltaEvent(:final text):
             pending += text;
-            scheduleFlush();
+            if (!gotDelta) {
+              gotDelta = true;
+              flush();
+            } else {
+              scheduleFlush();
+            }
           case am.FollowupsEvent(:final items):
             if (items.isNotEmpty) serverFollowups = items;
           case am.ErrorEvent(:final message):
@@ -733,7 +739,16 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     );
   }
 
+  String _thinkingLabel(HalfSheetTurnView turn) {
+    if (turn.citations.isNotEmpty) {
+      return '已找到 ${turn.citations.length} 条释经资料，正在组织回答…';
+    }
+    return '正在阅读这节经文…';
+  }
+
   Widget _buildTurn(HalfSheetTurnView turn, int index) {
+    final rawAnswer = turn.answer.trim();
+    final waitingFirstToken = turn.busy && rawAnswer.isEmpty;
     final clean = bodyText(turn.answer);
     final hasError = clean.startsWith('⚠️');
     final usedCitations = citationsUsedInText(clean, turn.citations);
@@ -757,7 +772,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
       children: [
         Container(
           width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: EdgeInsets.only(bottom: waitingFirstToken ? 8 : 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: AppColors.goldWash.withValues(alpha: 0.7),
@@ -779,11 +794,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             ),
           ),
         ),
-        if (turn.busy && clean.isEmpty)
-          const Text(
-            '正在阅读这节经文…',
-            style: TextStyle(color: AppColors.inkFaint, fontSize: 13),
-          )
+        if (waitingFirstToken)
+          _HalfSheetThinkingState(label: _thinkingLabel(turn))
         else if (showCollapsed)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -904,6 +916,57 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _HalfSheetThinkingState extends StatelessWidget {
+  const _HalfSheetThinkingState({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.inkFaint,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const _HalfSheetThinkingLine(widthFactor: 1),
+          const SizedBox(height: 6),
+          const _HalfSheetThinkingLine(widthFactor: 0.72),
+        ],
+      ),
+    );
+  }
+}
+
+class _HalfSheetThinkingLine extends StatelessWidget {
+  const _HalfSheetThinkingLine({required this.widthFactor});
+
+  final double widthFactor;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        height: 8,
+        decoration: BoxDecoration(
+          color: AppColors.line.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(6),
+        ),
+      ),
     );
   }
 }

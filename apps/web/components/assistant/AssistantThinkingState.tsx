@@ -39,13 +39,26 @@ export function AssistantThinkingState({
   }
 
   return (
-    <div className="assistant-thinking" role="status" aria-live="polite">
+    <div
+      className={`assistant-thinking${variant === 'halfsheet' ? ' halfsheet-thinking' : ''}`}
+      role="status"
+      aria-live="polite"
+    >
+      {variant === 'halfsheet' ? (
+        <p className="assistant-thinking-label muted">{label}</p>
+      ) : null}
       <div className="assistant-thinking-skeleton" aria-hidden>
         <span className="assistant-thinking-line" />
-        <span className="assistant-thinking-line assistant-thinking-line-short" />
-        <span className="assistant-thinking-line assistant-thinking-line-mid" />
+        <span
+          className={`assistant-thinking-line assistant-thinking-line-short${variant === 'halfsheet' ? ' halfsheet-thinking-line-last' : ''}`}
+        />
+        {variant === 'default' ? (
+          <span className="assistant-thinking-line assistant-thinking-line-mid" />
+        ) : null}
       </div>
-      <p className="assistant-thinking-label muted">{label}</p>
+      {variant === 'default' ? (
+        <p className="assistant-thinking-label muted">{label}</p>
+      ) : null}
       {slow && (
         <p className="assistant-thinking-slow muted">网络较慢，可稍候或点「停止」后重试</p>
       )}

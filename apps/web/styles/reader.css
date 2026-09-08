@@ -723,6 +723,30 @@ body.reader-active .proper-noun--artifact {
 .half-sheet-thread-fold {
   margin-bottom: 10px;
 }
+
+/* 半屏等待首包：文案靠上、回答区紧凑 */
+.reader-ai-half-sheet .half-sheet-answer-loading {
+  padding: 2px 12px 6px;
+  margin-top: -6px;
+}
+.reader-ai-half-sheet .halfsheet-thinking {
+  padding: 0;
+}
+.reader-ai-half-sheet .halfsheet-thinking .assistant-thinking-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.reader-ai-half-sheet .halfsheet-thinking .assistant-thinking-skeleton {
+  margin-bottom: 0;
+  gap: 6px;
+}
+.reader-ai-half-sheet .halfsheet-thinking .assistant-thinking-line {
+  height: 8px;
+}
+.reader-ai-half-sheet .half-sheet-turn:has(.half-sheet-answer-loading) .half-sheet-user-bubble {
+  margin-bottom: 8px;
+}
+
 .half-sheet-thread-prior summary {
   cursor: pointer;
   font-size: 12px;

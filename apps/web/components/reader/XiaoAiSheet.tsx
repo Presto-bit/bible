@@ -273,19 +273,28 @@ export default function XiaoAiSheet({
           },
           onDelta: (t) => {
             if (cancelled || runId !== runIdRef.current) return;
-            if (!gotDelta) gotDelta = true;
             streamPhase = 'writing';
             accRef.current += t;
+            const pending = accRef.current;
+            if (!gotDelta) {
+              gotDelta = true;
+              setTurns((prev) =>
+                prev.map((turn) =>
+                  turn.id === turnId ? { ...turn, answer: pending } : turn,
+                ),
+              );
+              return;
+            }
             if (rafRef.current == null) {
               rafRef.current = window.setTimeout(() => {
                 rafRef.current = null;
-                const pending = accRef.current;
+                const batched = accRef.current;
                 setTurns((prev) =>
                   prev.map((turn) =>
-                    turn.id === turnId ? { ...turn, answer: pending } : turn,
+                    turn.id === turnId ? { ...turn, answer: batched } : turn,
                   ),
                 );
-              }, 72) as unknown as number;
+              }, 48) as unknown as number;
             }
           },
           onFollowups: (items) => {
@@ -529,6 +538,8 @@ export default function XiaoAiSheet({
             const isLast = index === turns.length - 1;
             if (!isLast) return null;
             const clean = stripAnswer(turn.answer);
+            const rawAnswer = turn.answer.trim();
+            const waitingFirstToken = turn.busy && !rawAnswer;
             const hasError = clean.startsWith('⚠️');
             const usedCitations = citationsUsedInText(clean, turn.citations);
             const evidenceCites = usedCitations.length > 0 ? usedCitations : turn.citations;
@@ -547,21 +558,21 @@ export default function XiaoAiSheet({
                     : turn.userQuestion}
                 </div>
 
-                <div className="half-sheet-answer half-sheet-answer-rich">
+                <div
+                  className={`half-sheet-answer half-sheet-answer-rich${waitingFirstToken ? ' half-sheet-answer-loading' : ''}`}
+                >
                   <div className="half-sheet-answer-body reader-ai-answer assistant-answer">
-                    {turn.busy && !clean ? (
+                    {waitingFirstToken ? (
                       <AssistantThinkingState
                         variant="halfsheet"
                         phase={
                           turn.citations.length
                             ? 'refs'
-                            : clean
-                              ? 'writing'
-                              : 'understanding'
+                            : 'understanding'
                         }
                         citeCount={turn.citations.length}
                       />
-                    ) : clean ? (
+                    ) : rawAnswer || !turn.busy ? (
                       <>
                         {!hasError && !turn.busy ? (
                           <RagSourceStatus
@@ -594,7 +605,7 @@ export default function XiaoAiSheet({
                           </>
                         ) : (
                           <AnswerText
-                            text={clean}
+                            text={clean || rawAnswer}
                             streaming={turn.busy}
                             dense={turn.scene === 'verse_quick'}
                             onCitationClick={(n) => {
