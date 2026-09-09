@@ -278,7 +278,37 @@ def verse_min_background_bullets(verse_span: int = 1) -> int:
 
 
 def verse_explain_max_bullets(verse_span: int = 1) -> int:
-    return 5 if max(1, int(verse_span or 1)) >= 6 else 6
+    span = max(1, int(verse_span or 1))
+    if span >= 6:
+        return 5
+    if span >= 3:
+        return 4
+    return 4
+
+
+def verse_max_background_bullets(verse_span: int = 1) -> int:
+    span = max(1, int(verse_span or 1))
+    if span >= 6:
+        return 2
+    if span >= 3:
+        return 3
+    return 2
+
+
+def verse_max_outline_bullets(verse_span: int = 1) -> int:
+    return 4 if max(1, int(verse_span or 1)) >= 6 else 3
+
+
+def section_bullet_cap(title: str, verse_span: int = 1) -> int | None:
+    """各小节 bullets 硬上限（归一化裁剪）。"""
+    canonical = "经文背景" if title == "背景" else title
+    span = max(1, int(verse_span or 1))
+    caps: dict[str, int] = {
+        "经文背景": verse_max_background_bullets(span),
+        "段落脉络": verse_max_outline_bullets(span),
+        "经文解释": verse_explain_max_bullets(span),
+    }
+    return caps.get(canonical)
 
 
 VERSE_BACKGROUND_TITLES = frozenset({"背景", "经文背景"})

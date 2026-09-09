@@ -86,6 +86,42 @@ def test_flash_keeps_prose_body():
     assert "自然叙述" in out
 
 
+def test_long_passage_caps_background_and_explain_bullets():
+    raw = (
+        "### 摘要\n马太15章主线。\n\n"
+        "### 经文背景\n"
+        + "\n".join(f"- 背景要点{i}。" for i in range(1, 7))
+        + "\n\n### 段落脉络\n"
+        + "\n".join(f"- 脉络{i}。" for i in range(1, 5))
+        + "\n\n### 经文解释\n"
+        + "\n".join(f"- 解释碎点{i}。" for i in range(1, 9))
+    )
+    out = normalize_answer_markdown(raw, "verse_full", verse_span=39, depth="deep")
+    bg = out.split("### 段落脉络")[0]
+    explain = out.split("### 经文解释")[-1]
+    assert bg.count("- ") <= 2
+    assert explain.count("- ") <= 5
+    assert "（续）" not in out
+
+
+def test_normalize_drops_incomplete_tail_bullet():
+    raw = (
+        "### 摘要\n摘要。\n\n"
+        "### 经文背景\n"
+        "- 完整背景句。\n"
+        "- 说到一半就被"
+    )
+    out = normalize_answer_markdown(raw, "verse_full", verse_span=11)
+    assert "说到一半就被" not in out
+    assert "完整背景句" in out
+
+
+def test_summary_renders_as_bullet():
+    raw = "### 摘要\n神爱世人，甚至将独生子赐给他们。"
+    out = normalize_answer_markdown(raw, "verse_full")
+    assert "### 摘要\n- 神爱世人" in out
+
+
 def test_format_only_preserves_long_bullet():
     long_item = "这" * 130 + "。"
     raw = f"### 摘要\n短。\n\n### 经文解释\n- {long_item}"

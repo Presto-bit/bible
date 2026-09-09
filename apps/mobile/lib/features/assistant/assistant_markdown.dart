@@ -89,11 +89,26 @@ String prepareAssistantMarkdown(String text, {required bool streaming}) {
 
 /// 半屏解读折叠态：提取摘要/概览首句（兼容 Markdown 与旧【摘要】）。
 ({String summary, String body}) extractSummaryLead(String text) {
+  final mdBullet = RegExp(
+    r'(?:^|\n)###\s*(?:摘要|本章概览|卷概览)\s*\n+\s*[-*•]\s*([^\n#]+)',
+  ).firstMatch(text);
+  if (mdBullet != null) {
+    final summary = mdBullet.group(1)!.trim();
+    final body = text
+        .replaceFirst(
+          RegExp(
+            r'(?:^|\n)###\s*(?:摘要|本章概览|卷概览)\s*\n+\s*[-*•]\s*[^\n#]+',
+          ),
+          '',
+        )
+        .trim();
+    return (summary: summary, body: body);
+  }
   final md = RegExp(
     r'(?:^|\n)###\s*(?:摘要|本章概览|卷概览)\s*\n+([^\n#]+)',
   ).firstMatch(text);
   if (md != null) {
-    final summary = md.group(1)!.trim();
+    final summary = md.group(1)!.trim().replaceFirst(RegExp(r'^[-*•]\s+'), '');
     final body = text
         .replaceFirst(
           RegExp(r'(?:^|\n)###\s*(?:摘要|本章概览|卷概览)\s*\n+[^\n#]+'),

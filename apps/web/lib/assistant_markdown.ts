@@ -162,9 +162,20 @@ export const FOOTNOTE_RE =
 
 /** 半屏解读折叠态：提取摘要/概览首句（兼容 Markdown 与旧【摘要】）。 */
 export function extractSummaryLead(text: string): { summary: string; body: string } {
+  const mdBullet = text.match(
+    /(?:^|\n)###\s*(?:摘要|本章概览|卷概览)\s*\n+\s*[-*•]\s*([^\n#]+)/,
+  );
+  if (mdBullet?.[1]) {
+    const summary = mdBullet[1].trim();
+    const body = text.replace(
+      /(?:^|\n)###\s*(?:摘要|本章概览|卷概览)\s*\n+\s*[-*•]\s*[^\n#]+/,
+      '',
+    ).trim();
+    return { summary, body };
+  }
   const md = text.match(/(?:^|\n)###\s*(?:摘要|本章概览|卷概览)\s*\n+([^\n#]+)/);
   if (md?.[1]) {
-    const summary = md[1].trim();
+    const summary = md[1].trim().replace(/^[-*•]\s+/, '');
     const body = text.replace(/(?:^|\n)###\s*(?:摘要|本章概览|卷概览)\s*\n+[^\n#]+/, '').trim();
     return { summary, body };
   }

@@ -411,23 +411,13 @@ class AnswerText extends StatelessWidget {
     required TextStyle base,
     required String sectionTitle,
   }) {
-    final isSummary = leadSectionTitles.contains(sectionTitle);
-    final bodyStyle = isSummary
-        ? base.copyWith(
-            fontSize: fontSize + 1,
-            fontWeight: FontWeight.w600,
-            height: 1.72,
-          )
-        : base.copyWith(height: 1.78);
+    final bodyStyle = base.copyWith(height: 1.78);
     return Container(
       width: double.infinity,
       margin: EdgeInsets.only(bottom: dense ? 8 : 10),
       padding: EdgeInsets.fromLTRB(12, dense ? 8 : 10, 12, dense ? 8 : 10),
       decoration: BoxDecoration(
-        color: isSummary
-            ? Color.lerp(AppColors.surface, AppColors.accentWash, 0.35) ??
-                AppColors.surface
-            : AppColors.surface,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text.rich(TextSpan(children: _inline(content, bodyStyle))),
@@ -439,21 +429,6 @@ class AnswerText extends StatelessWidget {
     String tail = '',
     bool viewpoint = false,
   }) {
-    if (leadSectionTitles.contains(title) && tail.isEmpty) {
-      return Padding(
-        padding: EdgeInsets.only(top: dense ? 8 : 12, bottom: 6),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: fontSize - 1,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
-            color: AppColors.accentDeep,
-            height: 1.4,
-          ),
-        ),
-      );
-    }
     final isViewpointB = RegExp(r'观点\s*(B|二|b)').hasMatch(title);
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 6),

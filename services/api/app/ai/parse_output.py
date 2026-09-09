@@ -4,7 +4,6 @@ from __future__ import annotations
 import re
 
 from .answer_schema import (
-    verse_explain_max_bullets,
     verse_has_background,
     verse_min_background_bullets,
     verse_min_chars,
@@ -283,11 +282,6 @@ def verse_explain_incomplete(
             if "段落脉络" in (expected_sections or ("段落脉络",)):
                 if _section_bullet_count(text, "段落脉络") < verse_min_outline_bullets(span):
                     return True
-            if explain_bullets > verse_explain_max_bullets(span):
-                return True
-            avg_len = _section_bullets_avg_len(text, "经文解释")
-            if explain_bullets >= 4 and 0 < avg_len < 32:
-                return True
     return False
 
 

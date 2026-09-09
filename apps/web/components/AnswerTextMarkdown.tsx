@@ -53,7 +53,7 @@ function useMarkdownComponents(onCitationClick?: (n: number) => void): Component
       const id = sectionSlug(plain);
       if (plain === '摘要' || plain === '本章概览' || plain === '卷概览') {
         return (
-          <h3 id={id} className="ans-md-h ans-md-h-summary">{children}</h3>
+          <h3 id={id} className="ans-md-h ans-md-h-section">{children}</h3>
         );
       }
       const viewpoint = /观点\s*([ABC一二三]|[AaBbCc])/.exec(plain);

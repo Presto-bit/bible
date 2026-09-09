@@ -8,6 +8,7 @@ from .answer_schema import (
     SUMMARY_LEAD_TITLES,
     budget_for_scene,
     effective_budget_for_scene,
+    section_bullet_cap,
 )
 from .parse_output import (
     FOLLOWUP_SECTION_RE,
@@ -90,15 +91,25 @@ def _chunk_to_bullets(
             merged = bullets[-1] + ln
             bullets[-1] = merged if format_only else _trim_chars(merged, item_max)
     if bullets:
-        return bullets[:max_items]
+        return _finalize_bullets(
+            bullets,
+            item_max=item_max,
+            max_items=max_items,
+            format_only=format_only,
+        )
     if format_only:
         return lines[:max_items]
     prose = " ".join(lines)
     for sent in _split_sentences(prose):
         bullets.append(_trim_chars(sent, item_max))
-        if len(bullets) >= max_items:
+        if len(bullets) >= max_items * 2:
             break
-    return bullets[:max_items]
+    return _finalize_bullets(
+        bullets,
+        item_max=item_max,
+        max_items=max_items,
+        format_only=format_only,
+    )
 
 
 def _section_allows_prose(title: str) -> bool:
@@ -157,15 +168,71 @@ def _section_max_bullets(
     scene: str,
     verse_span: int,
 ) -> int:
-    span = max(1, int(verse_span or 1))
-    if scene in ("verse_full", "verse_quick") and span >= 6:
-        if title == "经文解释":
-            from .answer_schema import verse_explain_max_bullets
-
-            return max(default_max, verse_explain_max_bullets(span))
-        if title in ("段落脉络", "经文背景", "背景"):
-            return max(default_max, min(4 + span // 8, 6))
+    if scene in ("verse_full", "verse_quick"):
+        cap = section_bullet_cap(title, verse_span)
+        if cap is not None:
+            return cap
     return default_max
+
+
+def _bullet_complete(text: str) -> bool:
+    item = text.strip()
+    if not item or item.endswith("…") or item.endswith("..."):
+        return False
+    return item[-1] in _SENTENCE_END
+
+
+def _trim_incomplete_bullets(bullets: list[str]) -> list[str]:
+    out = list(bullets)
+    while out and not _bullet_complete(out[-1]):
+        out.pop()
+    return out
+
+
+def _consolidate_short_bullets(bullets: list[str], max_items: int) -> list[str]:
+    """合并过碎、过短的要点，避免为凑字数拆条。"""
+    if len(bullets) <= max_items:
+        avg = sum(len(b) for b in bullets) / len(bullets) if bullets else 0
+        if len(bullets) < 5 or avg >= 38:
+            return bullets
+    merged: list[str] = []
+    buf = ""
+    for b in bullets:
+        if len(b) >= 38:
+            if buf:
+                merged.append(buf)
+                buf = ""
+            merged.append(b)
+        elif buf:
+            buf = f"{buf}；{b}" if buf else b
+        else:
+            buf = b
+    if buf:
+        merged.append(buf)
+    if len(merged) <= max_items:
+        return merged
+    kept = merged[: max_items - 1]
+    kept.append("；".join(merged[max_items - 1 :]))
+    return kept
+
+
+def _finalize_bullets(
+    bullets: list[str],
+    *,
+    item_max: int,
+    max_items: int,
+    format_only: bool,
+) -> list[str]:
+    cleaned = _trim_incomplete_bullets(bullets)
+    cleaned = _consolidate_short_bullets(cleaned, max_items)
+    if len(cleaned) > max_items:
+        kept = cleaned[: max_items - 1]
+        kept.append("；".join(cleaned[max_items - 1 :]))
+        cleaned = kept
+    out: list[str] = []
+    for b in cleaned[:max_items]:
+        out.append(b if format_only else _trim_chars(b, item_max))
+    return out
 
 
 def _trim_incomplete_tail_bullet(parts: list[str]) -> bool:
@@ -227,11 +294,6 @@ def normalize_answer_markdown(
         prefer_prose = True
 
     max_bullets = bud.max_bullets
-    if scene in ("verse_full", "verse_quick") and verse_span >= 3:
-        max_bullets = min(
-            max_bullets + (verse_span - 2) // 2,
-            bud.max_bullets + (2 if verse_span >= 6 else 1),
-        )
 
     parts: list[str] = []
     for title, chunk in _section_chunks(body):
@@ -244,7 +306,10 @@ def normalize_answer_markdown(
         parts.append(f"### {title}")
         if title in SUMMARY_LEAD_TITLES or title in {"一句话", "主题"}:
             lead = chunk.replace("\n", " ").strip()
-            parts.append(lead if format_only else _trim_chars(lead, bud.summary_max))
+            if lead.startswith("- "):
+                lead = lead[2:].strip()
+            lead = lead if format_only else _trim_chars(lead, bud.summary_max)
+            parts.append(f"- {lead}" if lead else "")
             parts.append("")
             continue
         if format_only or _keep_section_prose(title, depth=depth, prefer_prose=prefer_prose):
