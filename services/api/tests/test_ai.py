@@ -223,6 +223,32 @@ def test_build_messages_no_rag_omits_commentary():
     assert SCENES["verse_full"].use_rag is True
 
 
+def test_build_messages_flash_first_turn_compact():
+    from app.ai.depth_router import resolve_depth
+
+    prof = resolve_depth(
+        "verse_quick",
+        "请解读：诗篇 23:1",
+        surface="half_sheet",
+    )
+    msgs = build_messages(
+        scene=SCENES["verse_quick"],
+        passage_display="诗篇 23:1",
+        passage_text="耶和华是我的牧者，我必不至缺乏。",
+        question="请解读：诗篇 23:1",
+        citations=[],
+        use_rag=False,
+        has_prior_turns=False,
+        depth=prof,
+    )
+    assert prof.depth == "flash"
+    sys = msgs[0]["content"]
+    assert "快懂模式" in sys
+    assert "Chip 追问" not in sys
+    assert "第一个问题" not in sys
+    assert "总之" not in sys or "禁用空泛套话" not in sys
+
+
 @pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")
 def test_prepare_half_sheet_skips_rag():
     from app.ai.chat import prepare

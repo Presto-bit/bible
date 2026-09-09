@@ -26,6 +26,7 @@ import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { buildHalfSheetTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
 import { mergeAssistantStreamError, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
+import { AssistantStreamPerf } from '@/lib/assistant_perf';
 import {
   buildHalfSheetQuestion,
   halfSheetCacheSelection,
@@ -291,6 +292,7 @@ export default function XiaoAiSheet({
       let cancelled = false;
       let cites: Citation[] = [];
       let gotDelta = false;
+      const streamPerf = new AssistantStreamPerf({ surface: 'half_sheet', scene });
       let streamPhase: ThinkingPhase = 'understanding';
       let useRag: boolean | undefined;
       let kbId = DEFAULT_KB_ID;
@@ -348,7 +350,11 @@ export default function XiaoAiSheet({
         {
           onMeta: (meta) => {
             if (cancelled || runId !== runIdRef.current) return;
-            if (meta.citations_pending) return;
+            if (meta.citations_pending) {
+              streamPerf.onPlaceholderMeta();
+              return;
+            }
+            streamPerf.onFullMeta(meta);
             if (meta.conversation_id) {
               conversationIdRef.current = meta.conversation_id;
             }
@@ -400,6 +406,7 @@ export default function XiaoAiSheet({
             streamPhase = 'writing';
             if (!gotDelta) {
               gotDelta = true;
+              streamPerf.onFirstToken();
               setTurns((prev) =>
                 prev.map((turn) =>
                   turn.id === turnId
@@ -422,6 +429,7 @@ export default function XiaoAiSheet({
             const pending = accRef.current;
             if (!gotDelta) {
               gotDelta = true;
+              streamPerf.onFirstToken();
               setTurns((prev) =>
                 prev.map((turn) =>
                   turn.id === turnId ? { ...turn, ...streamTurnPatch() } : turn,
@@ -429,6 +437,7 @@ export default function XiaoAiSheet({
               );
               return;
             }
+            streamPerf.onTextUpdate(pending);
             if (rafRef.current == null) {
               rafRef.current = window.setTimeout(() => {
                 rafRef.current = null;
@@ -465,6 +474,8 @@ export default function XiaoAiSheet({
             const pending = accRef.current;
             if (!gotDelta) {
               gotDelta = true;
+              streamPerf.onFirstToken();
+              streamPerf.onTextUpdate(pending);
               setTurns((prev) =>
                 prev.map((turn) =>
                   turn.id === turnId ? { ...turn, answer: pending } : turn,
@@ -476,6 +487,7 @@ export default function XiaoAiSheet({
               rafRef.current = window.setTimeout(() => {
                 rafRef.current = null;
                 const batched = accRef.current;
+                streamPerf.onTextUpdate(batched);
                 setTurns((prev) =>
                   prev.map((turn) =>
                     turn.id === turnId && turn.busy
@@ -491,6 +503,7 @@ export default function XiaoAiSheet({
           },
           onError: (msg) => {
             if (cancelled || runId !== runIdRef.current) return;
+            streamPerf.onError();
             settled = true;
             flushPendingAnswer();
             if (rafRef.current != null) {
@@ -521,6 +534,7 @@ export default function XiaoAiSheet({
           onDone: (payload) => {
             if (cancelled || runId !== runIdRef.current) return;
             if (settled) return;
+            streamPerf.onDone();
             if (payload?.conversation_id) {
               conversationIdRef.current = payload.conversation_id;
             }

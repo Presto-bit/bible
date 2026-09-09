@@ -778,6 +778,8 @@ def chat(
         )
 
     def gen():
+        t_gen = time.monotonic()
+        first_token_ms: int | None = None
         # 尽早推送 meta，避免 prepare/RAG 阻塞首包导致客户端超时
         yield _sse(
             "meta",
@@ -828,12 +830,14 @@ def chat(
             yield _sse("error", {"message": f"小爱暂时无法回应：{exc}", "retryable": True})
             return
 
+        prepare_ms = int((time.monotonic() - t_gen) * 1000)
         yield _sse(
             "meta",
             {
                 **prep["meta"],
                 "quota": {"used": used, "limit": limit},
                 "conversation_id": conversation_id,
+                "timings": {"prepare_ms": prepare_ms},
             },
         )
         full = []
@@ -868,6 +872,7 @@ def chat(
             budget: int,
             meta: StreamMeta | None = None,
         ):
+            nonlocal first_token_ms
             if _budget_left() <= 0:
                 return
             timeout_sec = min(120.0, max(5.0, _budget_left()))
@@ -877,6 +882,8 @@ def chat(
                 meta=meta,
                 timeout_sec=timeout_sec,
             ):
+                if first_token_ms is None:
+                    first_token_ms = int((time.monotonic() - t_gen) * 1000)
                 full.append(piece)
                 yield _sse("delta", {"text": piece})
                 if section_tracker:

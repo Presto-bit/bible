@@ -1118,6 +1118,11 @@ export interface ChatMetaPayload {
   };
   /** P3：服务端会话 id（半屏 → Tab 接力） */
   conversation_id?: string;
+  /** 关键路径耗时（服务端观测） */
+  timings?: {
+    prepare_ms?: number;
+    first_token_ms?: number;
+  };
 }
 
 export interface StructureAssetPayload {

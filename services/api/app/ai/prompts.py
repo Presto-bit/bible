@@ -104,6 +104,12 @@ _BASE_NO_RAG = (
     f"8. {_NARROW}"
 )
 
+_BASE_FLASH = (
+    _PERSONA
+    + "请用简体中文回答：紧扣经文，语气温暖；不确定时说明，不杜撰。\n"
+    + _ANTI_REASONING
+)
+
 _FOLLOWUP_RULE = (
     "8. 在回答正文最末尾，另起一节输出：\n"
     "### 相关追问\n"
@@ -245,6 +251,7 @@ def build_messages(
         f"[{c['n']}]（{c['title']}）{c['snippet']}" for c in citations
     ) or "（暂无可用背景注释）"
 
+    flash_first = bool(depth and depth.depth == "flash" and not has_prior_turns)
     if scene.id == "chat_general":
         base = _BASE_GENERAL
         mode_guide = "本次为未绑定经文的主题问答，请直接回答读者问题，并用 ### 相关经节 推荐延伸阅读。"
@@ -254,6 +261,9 @@ def build_messages(
             "本次为「并列观点」模式：对争议或易分歧主题并列呈现主要理解与依据，"
             "不替读者做教义裁决；释义不等于圣经正文。"
         )
+    elif flash_first:
+        base = _BASE_FLASH
+        mode_guide = _MODE_GUIDE[mode]
     else:
         base = _BASE if use_rag else _BASE_NO_RAG
         mode_guide = _MODE_GUIDE[mode]
@@ -278,7 +288,7 @@ def build_messages(
     if use_rag and citations:
         system_parts.append("\n")
         system_parts.append(_EVIDENCE_WITH_NOTES)
-    if scene.wants_followups and not narrow:
+    if scene.wants_followups and not narrow and not flash_first:
         system_parts.append("\n")
         system_parts.append(_FOLLOWUP_RULE)
     if has_prior_turns:

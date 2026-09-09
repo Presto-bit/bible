@@ -32,6 +32,7 @@ import { bodyText, followupsForMessage, followupsOf, normalizeFollowupItems, str
 import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { buildAssistantTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
 import { mergeAssistantStreamError, appendStreamIncompleteNotice, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
+import { AssistantStreamPerf } from '@/lib/assistant_perf';
 import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
@@ -736,6 +737,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let cacheSource: string | undefined;
     let streamSections: StreamSection[] = [];
     let gotDelta = false;
+    const streamPerf = new AssistantStreamPerf({ surface: 'tab', scene });
     const applyAcc = () => {
       rafRef.current = null;
       setMsgs((prev) => {
@@ -763,6 +765,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         };
         return copy;
       });
+      streamPerf.onTextUpdate(acc);
       maybeFollowStreamScroll();
     };
     /** 节流：约 12–15fps，减轻整表重渲染卡顿 */
@@ -800,9 +803,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               setAiQuota({ used: 0, limit: 0, unlimited: true });
             }
             if (meta.citations_pending) {
+              streamPerf.onPlaceholderMeta();
               setStreamPhase('refs');
               return;
             }
+            streamPerf.onFullMeta(meta);
             window.clearTimeout(connectTimer);
             armGenTimeout();
             const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
@@ -832,6 +837,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             syncSectionStream();
             if (!gotDelta && sectionStream.active) {
               gotDelta = true;
+              streamPerf.onFirstToken();
               setStreamPhase('writing');
               window.clearTimeout(connectTimer);
               armGenTimeout();
@@ -843,6 +849,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             syncSectionStream();
             if (!gotDelta) {
               gotDelta = true;
+              streamPerf.onFirstToken();
               setStreamPhase('writing');
               window.clearTimeout(connectTimer);
               armGenTimeout();
@@ -858,6 +865,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             if (sectionStream.active) return;
             if (!gotDelta) {
               gotDelta = true;
+              streamPerf.onFirstToken();
               setStreamPhase('writing');
               window.clearTimeout(connectTimer);
               armGenTimeout();
@@ -869,10 +877,12 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             serverFollowups = normalizeFollowupItems(items);
           },
           onError: (msg) => {
+            streamPerf.onError();
             acc = mergeAssistantStreamError(acc, msg);
             applyAcc();
           },
           onDone: (payload) => {
+            streamPerf.onDone();
             if (payload?.conversation_id) {
               conversationIdRef.current = payload.conversation_id;
             }
