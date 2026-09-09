@@ -22,6 +22,8 @@ import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../bible/reading_repository.dart';
 import '../bible/thoughts_repository.dart';
 import 'answer_profile_body.dart';
+import 'assistant_answer_document.dart';
+import 'assistant_section_stream.dart';
 import 'answer_text.dart' show kAssistantTabAnswerFontSize;
 import 'assistant_chip_prompts.dart';
 import 'assistant_draft.dart';
@@ -57,6 +59,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   AssistantScene? _scene;
   bool _streaming = false;
   ChatMeta? _lastMeta;
+  String? _conversationId;
   int _quotaUsed = 0;
   int _quotaLimit = 0;
   ThinkingPhase _streamPhase = ThinkingPhase.understanding;
@@ -163,6 +166,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       _anchorRef = seed.ref;
       _turns.clear();
       _lastMeta = null;
+      _conversationId = seed.conversationId;
     });
 
     // 同锚点 · 72 小时内续用
@@ -256,6 +260,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       _anchorRef = null;
       _turns.clear();
       _lastMeta = null;
+      _conversationId = null;
       _knowledgeBaseId = 'platform';
       _knowledgeBaseName = '平台知识库';
     });
@@ -457,7 +462,22 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
     var gotDelta = false;
     var pendingDelta = '';
+    final sectionStream = SectionStreamAccumulator();
     Timer? deltaFlush;
+
+    void applySectionStream() {
+      if (!sectionStream.active) return;
+      final md = sectionStream.toMarkdown();
+      if (md.isEmpty) return;
+      setState(() {
+        gotDelta = true;
+        _streamPhase = ThinkingPhase.writing;
+        reply.content = md;
+        reply.sections = sectionStream.getSections();
+      });
+      _autoScroll();
+    }
+
     void flushDelta({bool force = false}) {
       if (pendingDelta.isEmpty && !force) return;
       final chunk = pendingDelta;
@@ -481,6 +501,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           mode: modeFromScene,
           scene: activeScene,
           history: history,
+          conversationId: _conversationId,
           knowledgeBaseId: _knowledgeBaseId,
           readerContext: buildAssistantReaderContext(ref),
         );
@@ -499,6 +520,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               }
               setState(() {
                 reply.meta = meta;
+                if (meta.conversationId != null && meta.conversationId!.isNotEmpty) {
+                  _conversationId = meta.conversationId;
+                }
                 reply.sceneLabel = meta.sceneLabel;
                 reply.structureAssets = meta.structureAssets;
                 _lastMeta = meta;
@@ -509,7 +533,19 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 }
                 _streamPhase = ThinkingPhase.refs;
               });
+              sectionStream.seedFromPlan(meta.outputPlan?.sections);
+            case SectionStartEvent(:final id, :final title):
+              sectionStream.onStart(id: id, title: title);
+              applySectionStream();
+            case SectionDeltaEvent(:final id, :final text):
+              if (text.trim().isNotEmpty) receivedDelta = true;
+              sectionStream.onDelta(id: id, text: text);
+              applySectionStream();
+            case SectionDoneEvent(:final id, :final title, :final text):
+              sectionStream.onDone(id: id, title: title, text: text);
+              applySectionStream();
             case DeltaEvent(:final text):
+              if (sectionStream.active) break;
               if (text.trim().isNotEmpty) receivedDelta = true;
               pendingDelta += text;
               deltaFlush ??= Timer.periodic(
@@ -525,16 +561,36 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             case FollowupsEvent(:final items):
               flushDelta(force: true);
               setState(() => reply.followups = normalizeFollowupItems(items));
-            case DoneEvent(:final followups, :final sections, :final streamComplete, :final text):
+            case DoneEvent(
+              :final followups,
+              :final sections,
+              :final streamComplete,
+              :final text,
+              :final document,
+              :final conversationId,
+            ):
               flushDelta(force: true);
-              if (text.trim().isNotEmpty) {
-                setState(() => reply.content = text.trim());
+              if (conversationId != null && conversationId.isNotEmpty) {
+                _conversationId = conversationId;
               }
-              if (followups.isNotEmpty) {
-                setState(() => reply.followups = normalizeFollowupItems(followups));
+              final resolved = resolveDoneAnswer(
+                reply.content,
+                doneText: text,
+                doneSections: sections,
+                doneFollowups: followups,
+                document: document,
+                sectionStream: sectionStream,
+              );
+              if (resolved.text.trim().isNotEmpty) {
+                setState(() => reply.content = resolved.text.trim());
               }
-              if (sections.isNotEmpty) {
-                setState(() => reply.sections = sections);
+              if (resolved.followups.isNotEmpty) {
+                setState(
+                  () => reply.followups = normalizeFollowupItems(resolved.followups),
+                );
+              }
+              if (resolved.sections.isNotEmpty) {
+                setState(() => reply.sections = resolved.sections);
               }
               if (!streamComplete && reply.content.trim().isNotEmpty) {
                 setState(
@@ -1604,6 +1660,9 @@ class _Bubble extends ConsumerWidget {
     final displayText = turn.content;
     final showActions = !isUser && turn.content.isNotEmpty && !streaming;
     final cites = turn.meta?.citations ?? const <Citation>[];
+    final hasPlanSkeleton =
+        streaming && (turn.meta?.outputPlan?.sections.length ?? 0) >= 2;
+    final showAssistantBody = turn.content.isNotEmpty || hasPlanSkeleton;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
@@ -1626,7 +1685,7 @@ class _Bubble extends ConsumerWidget {
             // 助手答文：无外框全宽，对齐 PWA .assistant-answer
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: turn.content.isEmpty
+              child: !showAssistantBody
                   ? (streaming
                       ? AssistantThinkingState(
                           phase: thinkingPhase ?? ThinkingPhase.understanding,
@@ -1662,6 +1721,7 @@ class _Bubble extends ConsumerWidget {
                           streaming: streaming,
                           responseProfile: turn.meta?.responseProfile,
                           sections: turn.sections,
+                          outputPlan: turn.meta?.outputPlan,
                           structureAssets: turn.structureAssets,
                           defaultCollapsed:
                               turn.scene == AssistantScene.verseFull.id ||

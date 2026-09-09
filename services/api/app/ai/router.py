@@ -14,22 +14,25 @@ from ..auth.session import resolve_user_id, try_get_current_user
 from ..config import get_settings
 from ..db import get_pool
 from .chat import prepare
+from .answer_document import build_done_sse_payload, document_from_cache_entry
 from .answer_normalize import normalize_answer_markdown
+from .output_plan import build_output_plan
 from .answer_schema import SCHEMA_VERSION
-from .answer_structured import (
-    needs_structure_repair,
-    recover_empty_response,
-    repair_answer_structure,
-    try_structured_verse_answer,
+from .conversation_store import (
+    append_turns,
+    find_resumable_conversation,
+    history_for_prompt,
+    merge_client_history,
+    open_conversation,
 )
+from .section_fill import section_fill_once
+from .section_stream import SectionStreamTracker, iter_replay_stream
+from .answer_structured import recover_empty_response, try_structured_verse_answer
 from .llm import StreamMeta, complete_chat, stream_chat
 from .parse_output import (
     answer_ends_abruptly,
     extract_sections,
-    missing_summary_sections,
-    missing_verse_sections,
     split_body_and_followups,
-    summary_incomplete,
     verse_explain_incomplete,
     verse_needs_length_continuation,
 )
@@ -157,6 +160,7 @@ class ChatRequest(BaseModel):
     surface: str | None = None
     conversation_id: str | None = None
     knowledge_base_id: str | None = None
+    client_capabilities: dict | None = None
 
 
 class CitationExplainRequest(BaseModel):
@@ -526,59 +530,21 @@ def prewarm_answer(body: PrewarmRequest):
                 verse_span=verse_span,
             )
             body_probe, _ = split_body_and_followups(text)
-            if needs_structure_repair(
-                body_probe,
-                scene_id,
-                narrow=bool(prep["meta"].get("narrow")),
-                verse_span=verse_span,
-            ):
-                repaired = repair_answer_structure(
+            filled = section_fill_once(
                     prep["messages"],
                     body_probe,
                     scene_id,
                     narrow=bool(prep["meta"].get("narrow")),
-                    max_tokens=int(prep["max_tokens"]) // 2,
+                    max_tokens=min(int(prep["max_tokens"]) // 2, 700),
                     verse_span=verse_span,
-                )
-                if repaired and repaired.strip():
-                    text = normalize_answer_markdown(
-                        repaired,
-                        scene_id,
-                        narrow=bool(prep["meta"].get("narrow")),
-                        verse_span=verse_span,
-                    )
-            body_probe, _ = split_body_and_followups(text)
-            if (
-                scene_id in ("verse_full", "verse_quick")
-                and verse_explain_incomplete(scene_id, body_probe, verse_span=verse_span)
-            ):
-                missing = missing_verse_sections(
+            )
+            if filled and filled.strip():
+                text = normalize_answer_markdown(
+                    filled,
                     scene_id,
-                    body_probe,
+                    narrow=bool(prep["meta"].get("narrow")),
                     verse_span=verse_span,
                 )
-                hint = "、".join(missing) if missing else "剩余小节"
-                cont = prep["messages"] + [
-                    {"role": "assistant", "content": body_probe},
-                    {
-                        "role": "user",
-                        "content": (
-                            f"回答尚不完整，请补写缺失部分：{hint}。"
-                            "不要重复已写内容，保持 ### 中文标题格式，自然收束。"
-                        ),
-                    },
-                ]
-                try:
-                    extra = complete_chat(cont, max_tokens=min(int(prep["max_tokens"]) // 2, 700))
-                except Exception:
-                    extra = None
-                if extra and extra.strip():
-                    text = normalize_answer_markdown(
-                        body_probe + "\n\n" + extra.strip(),
-                        scene_id,
-                        narrow=bool(prep["meta"].get("narrow")),
-                        verse_span=verse_span,
-                    )
             body_text, followups = split_body_and_followups(text)
             if (
                 scene_id in ("verse_full", "verse_quick")
@@ -586,12 +552,14 @@ def prewarm_answer(body: PrewarmRequest):
             ):
                 return
             sections = extract_sections(body_text)
+            document = document_from_cache_entry(body_text, followups=followups, sections=sections)
             put_answer(
                 key,
                 {
                     "answer": body_text,
                     "followups": followups,
-                    "sections": sections,
+                    "sections": document["sections"],
+                    "document": document,
                     "meta": {
                         **prep["meta"],
                         "schema_version": SCHEMA_VERSION,
@@ -630,9 +598,41 @@ def chat(
     from ..rag.answer_cache import cache_key, get_answer, put_answer
 
     settings = get_settings()
-    history = [t.model_dump() for t in body.history] if body.history else None
+    logged_in = try_get_current_user(authorization, x_user_id, x_user_code, cookie)
+    user_id_str = str(logged_in) if logged_in else None
+    client_history = [t.model_dump() for t in body.history] if body.history else None
+    resume_id: str | None = None
+    if (
+        not body.conversation_id
+        and not client_history
+        and user_id_str
+        and (body.ref or "").strip()
+    ):
+        resume_id = find_resumable_conversation(
+            user_id=user_id_str,
+            ref=(body.ref or ""),
+            mode=body.mode or "explain",
+        )
+    conversation_id = open_conversation(
+        body.conversation_id or resume_id,
+        guest_id=x_guest_id,
+        user_id=user_id_str,
+        ref=(body.ref or ""),
+        mode=body.mode,
+        scene=body.scene or "",
+    )
+    merged_history = merge_client_history(
+        history_for_prompt(conversation_id),
+        client_history,
+    )
+    history = merged_history if merged_history else None
+    supports_section_stream = bool(
+        (body.client_capabilities or {}).get("supports_section_stream"),
+    )
     cacheable = (
-        not history
+        not client_history
+        and not body.conversation_id
+        and not resume_id
         and bool((body.ref or "").strip())
         and bool((body.question or "").strip())
     )
@@ -648,7 +648,6 @@ def chat(
     )
     cached = get_answer(key) if key else None
 
-    logged_in = try_get_current_user(authorization, x_user_id, x_user_code, cookie)
     android_native = _is_android_native_client(
         x_client_kind=x_client_kind, surface=body.surface
     )
@@ -660,12 +659,25 @@ def chat(
         )
 
         def gen_cached():
+            cached_meta = cached.get("meta") or {}
+            scene_id = cached_meta.get("scene") or body.scene or ""
+            verse_span = int(cached_meta.get("verse_span") or 1)
+            narrow = bool(cached_meta.get("narrow"))
+            output_plan = build_output_plan(
+                scene_id,
+                narrow=narrow,
+                verse_span=verse_span,
+                surface=body.surface or "",
+                wants_followups=bool(cached_meta.get("wants_followups")),
+            )
             meta = {
-                **(cached.get("meta") or {}),
+                **cached_meta,
                 "cache_hit": True,
                 "cache_source": cached.get("source") or "cache",
                 "instant": True,
                 "quota": {"used": used, "limit": limit},
+                "output_plan": output_plan,
+                "conversation_id": conversation_id,
             }
             yield _sse("meta", meta)
             answer = cached.get("answer") or ""
@@ -683,25 +695,49 @@ def chat(
                     status="error",
                 )
                 return
-            # 分小块推送，保持前端流式路径
-            step = 48
-            for i in range(0, len(answer), step):
-                yield _sse("delta", {"text": answer[i : i + step]})
+            # 分小块推送，保持前端流式路径；支持 section_* 的客户端走同一套增量协议
+            plan_titles = (
+                output_plan.get("sections")
+                if isinstance(output_plan, dict)
+                else None
+            )
+            if supports_section_stream:
+                for ev, payload in iter_replay_stream(
+                    answer,
+                    plan_titles,
+                    emit_delta=True,
+                    emit_sections=True,
+                ):
+                    yield _sse(ev, payload)
+            else:
+                step = 48
+                for i in range(0, len(answer), step):
+                    yield _sse("delta", {"text": answer[i : i + step]})
             followups = cached.get("followups") or []
             if followups:
                 yield _sse("followups", {"items": followups})
+            document = document_from_cache_entry(
+                answer,
+                followups=followups,
+                sections=cached.get("sections"),
+                cached_document=cached.get("document"),
+            )
             yield _sse(
                 "done",
-                {
-                    "length": len(answer),
-                    "word_count": len(answer),
-                    "text": answer,
-                    "sections": cached.get("sections") or [],
-                    "followups": followups,
-                    "cache_hit": True,
-                    "cache_source": cached.get("source") or "cache",
-                    "instant": True,
-                },
+                build_done_sse_payload(
+                    answer,
+                    followups=followups,
+                    document=document,
+                    cache_hit=True,
+                    cache_source=cached.get("source") or "cache",
+                    instant=True,
+                    conversation_id=conversation_id,
+                ),
+            )
+            append_turns(
+                conversation_id,
+                user_content=body.question or "",
+                assistant_content=answer,
             )
             log_ai_request(
                 device_id=x_guest_id,
@@ -785,15 +821,31 @@ def chat(
             yield _sse("error", {"message": f"小爱暂时无法回应：{exc}", "retryable": True})
             return
 
-        yield _sse("meta", {**prep["meta"], "quota": {"used": used, "limit": limit}})
+        yield _sse(
+            "meta",
+            {
+                **prep["meta"],
+                "quota": {"used": used, "limit": limit},
+                "conversation_id": conversation_id,
+            },
+        )
         full = []
         scene = prep["meta"].get("scene")
         messages = list(prep["messages"])
         max_tokens = int(prep["max_tokens"])
         verse_span = int(prep["meta"].get("verse_span") or 1)
         narrow = bool(prep["meta"].get("narrow"))
+        section_tracker = (
+            SectionStreamTracker(
+                (prep["meta"].get("output_plan") or {}).get("sections"),
+            )
+            if supports_section_stream
+            else None
+        )
+        if section_tracker:
+            for start in section_tracker.bootstrap_starts():
+                yield _sse("section_start", start)
         llm_t0 = time.monotonic()
-        section_cont_used = False
         length_cont_used = False
         citation_cont_used = False
 
@@ -817,6 +869,12 @@ def chat(
             ):
                 full.append(piece)
                 yield _sse("delta", {"text": piece})
+                if section_tracker:
+                    starts, s_deltas = section_tracker.on_delta(piece)
+                    for start in starts:
+                        yield _sse("section_start", start)
+                    for sd in s_deltas:
+                        yield _sse("section_delta", sd)
 
         def _run_length_continuation(meta: StreamMeta, *, force: bool = False) -> None:
             nonlocal length_cont_used
@@ -837,72 +895,6 @@ def chat(
                     "content": (
                         "请从上文中断处继续写完剩余内容，不要重复已写部分，"
                         "保持相同 Markdown 结构，自然收束。"
-                    ),
-                },
-            ]
-            cont_meta = StreamMeta()
-            yield from _stream_budgeted(cont_msgs, budget=cont_budget, meta=cont_meta)
-            if cont_meta.finish_reason:
-                meta.finish_reason = cont_meta.finish_reason
-
-        def _run_verse_section_continuation(*, max_passes: int | None = None) -> None:
-            nonlocal section_cont_used
-            if scene not in ("verse_full", "verse_quick"):
-                return
-            passes = max_passes if max_passes is not None else (
-                3 if verse_span >= 6 else (2 if verse_span >= 5 else 1)
-            )
-            for _ in range(passes):
-                if not full or _budget_left() <= 0:
-                    return
-                body_probe, _ = split_body_and_followups("".join(full))
-                if not verse_explain_incomplete(scene, body_probe, verse_span=verse_span):
-                    return
-                section_cont_used = True
-                missing = missing_verse_sections(scene, body_probe, verse_span=verse_span)
-                hint = "、".join(missing) if missing else "剩余小节"
-                cont_budget = min(max(max_tokens // 4, 350), 700)
-                if verse_span >= 5:
-                    cont_budget = min(max(max_tokens // 3, 450), 900)
-                cont_msgs = messages + [
-                    {"role": "assistant", "content": "".join(full)},
-                    {
-                        "role": "user",
-                        "content": (
-                            f"回答尚不完整，请补写缺失部分：{hint}。"
-                            "不要重复已写内容，保持 ### 中文标题格式，自然收束。"
-                        ),
-                    },
-                ]
-                cont_meta = StreamMeta()
-                yield from _stream_budgeted(cont_msgs, budget=cont_budget, meta=cont_meta)
-                if cont_meta.finish_reason:
-                    meta.finish_reason = cont_meta.finish_reason
-
-        def _run_summary_section_continuation() -> None:
-            nonlocal section_cont_used
-            if section_cont_used or scene not in (
-                "summary_chapter",
-                "summary_chapter_outline",
-                "summary_book",
-            ) or not full:
-                return
-            if _budget_left() <= 0:
-                return
-            body_probe, _ = split_body_and_followups("".join(full))
-            if not summary_incomplete(scene, body_probe):
-                return
-            section_cont_used = True
-            missing = missing_summary_sections(scene, body_probe)
-            hint = "、".join(missing) if missing else "剩余小节"
-            cont_budget = min(max(max_tokens // 2, 400), 1000)
-            cont_msgs = messages + [
-                {"role": "assistant", "content": "".join(full)},
-                {
-                    "role": "user",
-                    "content": (
-                        f"章导读尚不完整，请补写缺失部分：{hint}。"
-                        "不要重复已写内容，保持 ### 中文标题与 - 列表格式，自然收束。"
                     ),
                 },
             ]
@@ -945,30 +937,20 @@ def chat(
         try:
             meta = StreamMeta()
             yield from _stream_budgeted(messages, budget=max_tokens, meta=meta)
-            if not narrow:
-                if scene in ("verse_full", "verse_quick"):
-                    yield from _run_verse_section_continuation()
-                    body_probe, _ = split_body_and_followups("".join(full))
-                    if verse_needs_length_continuation(
+            if not narrow and full:
+                body_probe, _ = split_body_and_followups("".join(full))
+                need_length = meta.finish_reason == "length" and answer_ends_abruptly(
+                    body_probe,
+                )
+                if scene in ("verse_full", "verse_quick") and not need_length:
+                    need_length = verse_needs_length_continuation(
                         scene,
                         body_probe,
                         verse_span=verse_span,
                         finish_reason=meta.finish_reason,
-                    ):
-                        yield from _run_length_continuation(meta, force=True)
-                elif scene in (
-                    "summary_chapter",
-                    "summary_chapter_outline",
-                    "summary_book",
-                ):
-                    yield from _run_summary_section_continuation()
-                    body_probe, _ = split_body_and_followups("".join(full))
-                    if meta.finish_reason == "length" and answer_ends_abruptly(body_probe):
-                        yield from _run_length_continuation(meta)
-                elif meta.finish_reason == "length" and full:
-                    body_probe, _ = split_body_and_followups("".join(full))
-                    if answer_ends_abruptly(body_probe):
-                        yield from _run_length_continuation(meta)
+                    )
+                if need_length:
+                    yield from _run_length_continuation(meta, force=True)
             yield from _run_citation_repair()
         except Exception as exc:  # 上游/网络异常 → 友好错误事件
             logger.exception("ai chat stream failed")
@@ -1085,83 +1067,43 @@ def chat(
             verse_span=verse_span,
         )
         body_probe, _ = split_body_and_followups(text)
-        if (
-            needs_structure_repair(
-                body_probe,
-                scene or "",
-                narrow=narrow,
-                verse_span=verse_span,
-            )
-            and _budget_left() > 3
-        ):
-            repaired = repair_answer_structure(
+        if _budget_left() > 3:
+            filled = section_fill_once(
                 messages,
                 body_probe,
                 scene or "",
                 narrow=narrow,
-                max_tokens=min(max_tokens // 2, 650),
+                max_tokens=min(max_tokens // 2, 700),
                 verse_span=verse_span,
             )
-            if repaired and repaired.strip():
+            if filled and filled.strip():
                 text = normalize_answer_markdown(
-                    repaired,
-                    scene or "",
-                    narrow=narrow,
-                    verse_span=verse_span,
-                )
-        body_probe, _ = split_body_and_followups(text)
-        if (
-            scene in ("verse_full", "verse_quick")
-            and verse_explain_incomplete(scene, body_probe, verse_span=verse_span)
-            and _budget_left() > 3
-        ):
-            missing = missing_verse_sections(scene, body_probe, verse_span=verse_span)
-            hint = "、".join(missing) if missing else "剩余小节"
-            cont_msgs = messages + [
-                {"role": "assistant", "content": body_probe},
-                {
-                    "role": "user",
-                    "content": (
-                        f"回答尚不完整，请补写缺失部分：{hint}。"
-                        "不要重复已写内容，保持 ### 中文标题格式，自然收束。"
-                    ),
-                },
-            ]
-            try:
-                extra = complete_chat(
-                    cont_msgs,
-                    max_tokens=min(max(max_tokens // 3, 350), 700),
-                    temperature=0.35,
-                )
-            except Exception:
-                logger.exception("verse section tail repair failed scene=%s", scene)
-                extra = None
-            if extra and extra.strip():
-                text = normalize_answer_markdown(
-                    body_probe + "\n\n" + extra.strip(),
+                    filled,
                     scene or "",
                     narrow=narrow,
                     verse_span=verse_span,
                 )
         body_text, followups = split_body_and_followups(text)
-        sections = extract_sections(body_text)
-        from .parse_output import parse_answer_blocks
-
-        blocks_payload = parse_answer_blocks(body_text)
+        if section_tracker:
+            for item in section_tracker.finalize(body_text):
+                yield _sse("section_done", item)
         if followups:
             yield _sse("followups", {"items": followups})
+        document = document_from_cache_entry(body_text, followups=followups)
         yield _sse(
             "done",
-            {
-                "length": len(text),
-                "word_count": len(body_text),
-                "text": text,
-                "sections": sections,
-                "followups": followups,
-                "lead": blocks_payload.get("lead") or "",
-                "blocks": blocks_payload.get("blocks") or [],
-                "timeline": blocks_payload.get("timeline") or [],
-            },
+            build_done_sse_payload(
+                text,
+                followups=followups,
+                document=document,
+                scene=scene or "",
+                conversation_id=conversation_id,
+            ),
+        )
+        append_turns(
+            conversation_id,
+            user_content=body.question or "",
+            assistant_content=body_text,
         )
         if key and body_text and not body_text.startswith("⚠️"):
             put_answer(
@@ -1169,7 +1111,8 @@ def chat(
                 {
                     "answer": body_text,
                     "followups": followups,
-                    "sections": sections,
+                    "sections": document["sections"],
+                    "document": document,
                     "meta": {**prep["meta"], "schema_version": SCHEMA_VERSION},
                     "source": "cache",
                 },

@@ -4,9 +4,12 @@ import { SheetCloseButton } from '@/components/PageBackBar';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { chatStream, type Citation } from '@/lib/api';
-import AnswerText from '@/components/AnswerText';
+import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
 import type { StructureAsset } from '@/lib/assistant_blocks';
+import type { OutputPlan } from '@/lib/assistant_output_plan';
+import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
+import { SectionStreamAccumulator } from '@/lib/assistant_section_stream';
 import { CitationBar } from '@/components/CitationBar';
 import { addThought } from '@/lib/reader_thoughts';
 import {
@@ -20,6 +23,7 @@ import { localizeCitations, citationsUsedInText, uniqueCitationsForRail } from '
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
+import { buildHalfSheetTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
 import { mergeAssistantStreamError, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import {
   buildHalfSheetQuestion,
@@ -64,6 +68,7 @@ type TurnView = HalfSheetTurn & {
   kbName?: string;
   responseProfile?: string;
   sections?: AnswerSection[];
+  outputPlan?: OutputPlan;
   structureAssets?: StructureAsset[];
 };
 
@@ -143,6 +148,7 @@ export default function XiaoAiSheet({
   const accRef = useRef('');
   const rafRef = useRef<number | null>(null);
   const runIdRef = useRef(0);
+  const conversationIdRef = useRef<string | null>(null);
   const streamCleanupRef = useRef<(() => void) | null>(null);
   const lockedRef = useRef({
     refParam,
@@ -285,8 +291,15 @@ export default function XiaoAiSheet({
       let serverFollowups: string[] = [];
       let responseProfile: string | undefined;
       let answerSections: AnswerSection[] | undefined;
+      let outputPlan: OutputPlan | undefined;
       let structureAssets: StructureAsset[] | undefined;
       let settled = false;
+      const sectionStream = new SectionStreamAccumulator();
+      const syncSectionStream = () => {
+        if (!sectionStream.active) return;
+        accRef.current = sectionStream.toMarkdown();
+        answerSections = sectionStream.getSections();
+      };
 
       const flushPendingAnswer = () => {
         if (rafRef.current != null) {
@@ -305,20 +318,24 @@ export default function XiaoAiSheet({
       const sessionKb = getSessionKnowledgeBaseId();
 
       void chatStream(
-        {
-          ref,
-          question: apiQuestion,
-          mode: SCENES[scene].mode,
-          scene,
-          reader_context: buildAssistantReaderContext(),
-          knowledge_base_id: sessionKb !== DEFAULT_KB_ID ? sessionKb : undefined,
-          surface: 'half_sheet',
-          history: opts?.history,
-        },
+        toChatStreamBody(
+          buildHalfSheetTurnRequest({
+            ref,
+            question: apiQuestion,
+            scene,
+            history: opts?.history,
+            readerContext: buildAssistantReaderContext(),
+            knowledgeBaseId: sessionKb !== DEFAULT_KB_ID ? sessionKb : undefined,
+            conversationId: conversationIdRef.current,
+          }),
+        ),
         {
           onMeta: (meta) => {
             if (cancelled || runId !== runIdRef.current) return;
             if (meta.citations_pending) return;
+            if (meta.conversation_id) {
+              conversationIdRef.current = meta.conversation_id;
+            }
             window.clearTimeout(connectTimer);
             armGenTimeout();
             const book = label.replace(/\s*\d+.*$/, '').trim();
@@ -327,6 +344,10 @@ export default function XiaoAiSheet({
             if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
             if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
             if (meta.response_profile) responseProfile = meta.response_profile;
+            if (meta.output_plan?.sections?.length) {
+              outputPlan = meta.output_plan as OutputPlan;
+              sectionStream.seedFromPlan(outputPlan.sections);
+            }
             if (meta.structure_assets?.length) {
               structureAssets = meta.structure_assets as StructureAsset[];
             }
@@ -342,13 +363,81 @@ export default function XiaoAiSheet({
                       kbName,
                       responseProfile,
                       structureAssets,
+                      outputPlan,
                     }
                   : t,
               ),
             );
           },
+          onSectionStart: (payload) => {
+            if (cancelled || runId !== runIdRef.current) return;
+            sectionStream.onStart(payload);
+            syncSectionStream();
+            window.clearTimeout(connectTimer);
+            armGenTimeout();
+            streamPhase = 'writing';
+            if (!gotDelta) {
+              gotDelta = true;
+              setTurns((prev) =>
+                prev.map((turn) =>
+                  turn.id === turnId
+                    ? {
+                        ...turn,
+                        answer: accRef.current,
+                        sections: answerSections,
+                        outputPlan,
+                      }
+                    : turn,
+                ),
+              );
+            }
+          },
+          onSectionDelta: (payload) => {
+            if (cancelled || runId !== runIdRef.current) return;
+            sectionStream.onDelta(payload);
+            syncSectionStream();
+            window.clearTimeout(connectTimer);
+            armGenTimeout();
+            streamPhase = 'writing';
+            const pending = accRef.current;
+            if (!gotDelta) {
+              gotDelta = true;
+              setTurns((prev) =>
+                prev.map((turn) =>
+                  turn.id === turnId ? { ...turn, answer: pending, sections: answerSections } : turn,
+                ),
+              );
+              return;
+            }
+            if (rafRef.current == null) {
+              rafRef.current = window.setTimeout(() => {
+                rafRef.current = null;
+                const batched = accRef.current;
+                setTurns((prev) =>
+                  prev.map((turn) =>
+                    turn.id === turnId && turn.busy
+                      ? { ...turn, answer: batched, sections: answerSections }
+                      : turn,
+                  ),
+                );
+              }, 48) as unknown as number;
+            }
+          },
+          onSectionDone: (payload) => {
+            if (cancelled || runId !== runIdRef.current) return;
+            sectionStream.onDone(payload);
+            syncSectionStream();
+            setTurns((prev) =>
+              prev.map((turn) =>
+                turn.id === turnId && turn.busy
+                  ? { ...turn, answer: accRef.current, sections: answerSections }
+                  : turn,
+              ),
+            );
+          },
           onDelta: (t) => {
             if (cancelled || runId !== runIdRef.current) return;
+            if (sectionStream.active) return;
             window.clearTimeout(connectTimer);
             armGenTimeout();
             streamPhase = 'writing';
@@ -412,13 +501,17 @@ export default function XiaoAiSheet({
           onDone: (payload) => {
             if (cancelled || runId !== runIdRef.current) return;
             if (settled) return;
+            if (payload?.conversation_id) {
+              conversationIdRef.current = payload.conversation_id;
+            }
             flushPendingAnswer();
             if (rafRef.current != null) {
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
             }
-            const text = (payload?.text?.trim() || accRef.current.trim());
-            if (payload?.text?.trim()) {
+            const resolved = resolveDoneAnswer(accRef.current, payload, sectionStream);
+            const text = resolved.text.trim();
+            if (text) {
               accRef.current = text;
             }
             settled = true;
@@ -439,14 +532,14 @@ export default function XiaoAiSheet({
                 ? isHalfSheetAnswerComplete(text, scene, verseSpan)
                 : true;
             const followups = normalizeFollowupItems(
-              payload?.followups?.length
-                ? payload.followups
+              resolved.followups?.length
+                ? resolved.followups
                 : serverFollowups.length
                   ? serverFollowups
                   : defaultHalfSheetFollowups(label),
             );
-            if (payload?.sections?.length) {
-              answerSections = payload.sections;
+            if (resolved.sections?.length) {
+              answerSections = resolved.sections;
             }
             setTurns((prev) => {
               const next = prev.map((t) =>
@@ -464,6 +557,7 @@ export default function XiaoAiSheet({
                       responseProfile,
                       sections: answerSections,
                       structureAssets,
+                      outputPlan,
                     }
                   : t,
               );
@@ -573,6 +667,7 @@ export default function XiaoAiSheet({
     const seedTurns = turns.filter((t) => t.answer.trim() && !t.answer.startsWith('⚠️'));
     if (seedTurns.length) {
       navigateToAssistant(refParam, {
+        conversationId: conversationIdRef.current ?? undefined,
         seedMessages: seedTurns.flatMap((t) => {
           const clean = stripAnswer(t.answer);
           const used = citationsUsedInText(clean, t.citations);
@@ -622,7 +717,8 @@ export default function XiaoAiSheet({
             const isLast = index === turns.length - 1;
             const clean = stripAnswer(turn.answer);
             const rawAnswer = turn.answer.trim();
-            const waitingFirstToken = turn.busy && !rawAnswer;
+            const hasPlanSkeleton = (turn.outputPlan?.sections?.length ?? 0) >= 2;
+            const waitingFirstToken = turn.busy && !rawAnswer && !hasPlanSkeleton;
             const hasError = clean.startsWith('⚠️');
             const usedCitations = citationsUsedInText(clean, turn.citations);
             const evidenceCites = usedCitations.length > 0 ? usedCitations : turn.citations;
@@ -660,7 +756,7 @@ export default function XiaoAiSheet({
                           <p className="muted half-sheet-slow-hint">仍在准备，请稍候…</p>
                         ) : null}
                       </>
-                    ) : rawAnswer || !turn.busy ? (
+                    ) : rawAnswer || hasPlanSkeleton || !turn.busy ? (
                       <>
                         {!hasError && !turn.busy ? (
                           <RagSourceStatus
@@ -678,10 +774,14 @@ export default function XiaoAiSheet({
                             }
                           />
                         ) : null}
-                        <AnswerText
+                        <AnswerView
                           text={clean || rawAnswer}
                           streaming={turn.busy}
                           dense={turn.scene === 'verse_quick'}
+                          responseProfile={turn.responseProfile}
+                          sections={turn.sections}
+                          outputPlan={turn.outputPlan}
+                          structureAssets={turn.structureAssets}
                           onCitationClick={(n) => {
                             recordCitationClick();
                             setCitationTurnId(turn.id);

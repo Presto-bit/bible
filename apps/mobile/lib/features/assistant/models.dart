@@ -1,7 +1,9 @@
 /// 小爱（AI 释经）模型。
 library;
 
+import 'assistant_answer_document.dart';
 import 'assistant_blocks.dart';
+import 'assistant_output_plan.dart';
 import 'assistant_sections.dart';
 
 /// 六种模式（与后端 ai/prompts MODES 对齐）。
@@ -66,6 +68,8 @@ class ChatMeta {
     this.citationsPending = false,
     this.responseProfile,
     this.structureAssets = const [],
+    this.outputPlan,
+    this.conversationId,
   });
 
   final String mode;
@@ -82,6 +86,8 @@ class ChatMeta {
   final bool citationsPending;
   final String? responseProfile;
   final List<StructureAsset> structureAssets;
+  final OutputPlan? outputPlan;
+  final String? conversationId;
 
   factory ChatMeta.fromJson(Map<String, dynamic> j) {
     final q = (j['quota'] ?? const {}) as Map<String, dynamic>;
@@ -104,6 +110,10 @@ class ChatMeta {
       structureAssets: ((j['structure_assets'] ?? []) as List)
           .map((e) => StructureAsset.fromJson(e as Map<String, dynamic>))
           .toList(),
+      outputPlan: j['output_plan'] is Map<String, dynamic>
+          ? OutputPlan.fromJson(j['output_plan'] as Map<String, dynamic>)
+          : null,
+      conversationId: j['conversation_id'] as String?,
     );
   }
 }
@@ -128,18 +138,45 @@ class FollowupsEvent extends ChatEvent {
   final List<String> items;
 }
 
+class SectionStartEvent extends ChatEvent {
+  const SectionStartEvent({required this.id, required this.title});
+  final String id;
+  final String title;
+}
+
+class SectionDeltaEvent extends ChatEvent {
+  const SectionDeltaEvent({required this.id, required this.text});
+  final String id;
+  final String text;
+}
+
+class SectionDoneEvent extends ChatEvent {
+  const SectionDoneEvent({
+    required this.id,
+    required this.title,
+    required this.text,
+  });
+  final String id;
+  final String title;
+  final String text;
+}
+
 class DoneEvent extends ChatEvent {
   const DoneEvent({
     this.length = 0,
     this.text = '',
     this.followups = const [],
     this.sections = const [],
+    this.document,
+    this.conversationId,
     this.streamComplete = true,
   });
   final int length;
   final String text;
   final List<String> followups;
   final List<AnswerSection> sections;
+  final AnswerDocument? document;
+  final String? conversationId;
   final bool streamComplete;
 }
 

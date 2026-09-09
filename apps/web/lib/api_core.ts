@@ -1074,6 +1074,11 @@ export interface ChatStreamBody {
   surface?: string;
   reader_context?: ChatReaderContext;
   knowledge_base_id?: string | null;
+  conversation_id?: string | null;
+  client_capabilities?: {
+    schema_version?: number;
+    supports_section_stream?: boolean;
+  };
 }
 
 export interface ChatMetaPayload {
@@ -1099,6 +1104,15 @@ export interface ChatMetaPayload {
   response_profile?: string;
   /** P3 静态结构参考（年表/谱系/示意图） */
   structure_assets?: StructureAssetPayload[];
+  /** P1：预期输出结构，用于流式骨架 */
+  output_plan?: {
+    lead?: boolean;
+    sections?: string[];
+    budget_chars?: number;
+    max_followups?: number;
+  };
+  /** P3：服务端会话 id（半屏 → Tab 接力） */
+  conversation_id?: string;
 }
 
 export interface StructureAssetPayload {
@@ -1113,13 +1127,25 @@ export interface StructureAssetPayload {
 export interface ChatDonePayload {
   length?: number;
   word_count?: number;
-  /** 服务端归一化后的完整 Markdown（流结束后替换展示） */
+  /** 服务端归一化后的完整 Markdown（流结束后 merge 展示） */
   text?: string;
   followups?: string[];
   sections?: { id: string; title: string }[];
   lead?: string;
   blocks?: Array<Record<string, unknown>>;
   timeline?: { year: string; label: string; note?: string }[];
+  /** P0：结构化终稿（优先于 text 解析） */
+  document?: {
+    schema_version?: number;
+    markdown: string;
+    sections?: { id: string; title: string }[];
+    followups?: string[];
+    lead?: string;
+    blocks?: Array<Record<string, unknown>>;
+    timeline?: { year: string; label: string; note?: string }[];
+    meta?: { incomplete?: boolean; scene?: string };
+  };
+  conversation_id?: string;
   cache_hit?: boolean;
   cache_source?: 'cache' | 'prewarm' | string;
   instant?: boolean;
@@ -1130,6 +1156,9 @@ export interface ChatDonePayload {
 export interface ChatCallbacks {
   onMeta?: (meta: ChatMetaPayload) => void;
   onDelta?: (text: string) => void;
+  onSectionStart?: (payload: { id: string; title: string }) => void;
+  onSectionDelta?: (payload: { id: string; text: string }) => void;
+  onSectionDone?: (payload: { id: string; title: string; text: string }) => void;
   onFollowups?: (items: string[]) => void;
   onError?: (msg: string) => void;
   onDone?: (payload?: ChatDonePayload) => void;
@@ -1233,6 +1262,12 @@ export async function chatStream(
         } else if (ev === 'followups') {
           const items = Array.isArray(d.items) ? (d.items as string[]) : [];
           if (items.length) cb.onFollowups?.(items);
+        } else if (ev === 'section_start') {
+          cb.onSectionStart?.(d as { id: string; title: string });
+        } else if (ev === 'section_delta') {
+          cb.onSectionDelta?.(d as { id: string; text: string });
+        } else if (ev === 'section_done') {
+          cb.onSectionDone?.(d as { id: string; title: string; text: string });
         } else if (ev === 'error') {
           terminalError = true;
           cb.onError?.(d.message ?? '出错了');

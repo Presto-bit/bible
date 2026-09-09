@@ -9,7 +9,10 @@ import 'answer_text.dart' show AssistantMarkdownBody, kAssistantAnswerFontSize;
 import 'assistant_blocks.dart';
 import 'assistant_format.dart';
 import 'assistant_markdown.dart';
+import 'assistant_output_plan.dart';
 import 'assistant_sections.dart';
+import 'answer_section_skeleton.dart';
+import 'section_toc.dart';
 import 'structure_asset_card.dart';
 import 'timeline_rail.dart';
 
@@ -22,6 +25,7 @@ class AnswerProfileBody extends StatefulWidget {
     this.dense = false,
     this.responseProfile,
     this.sections,
+    this.outputPlan,
     this.structureAssets = const [],
     this.defaultCollapsed = false,
     this.collapseMinBodyLen = 80,
@@ -36,6 +40,7 @@ class AnswerProfileBody extends StatefulWidget {
   final bool dense;
   final String? responseProfile;
   final List<AnswerSection>? sections;
+  final OutputPlan? outputPlan;
   final List<StructureAsset> structureAssets;
   final bool defaultCollapsed;
   final int collapseMinBodyLen;
@@ -53,7 +58,16 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
   @override
   Widget build(BuildContext context) {
     final clean = bodyText(widget.text);
-    final merged = mergeAnswerSections(widget.sections, clean);
+    final merged = mergePlannedSections(
+      outputPlan: widget.outputPlan,
+      fromDone: widget.sections,
+      text: clean,
+    );
+    final writtenIds = widget.streaming
+        ? streamingWrittenSections(clean, merged.map((s) => (id: s.id, title: s.title)).toList())
+        : <String>{};
+    final showSectionToc =
+        merged.length >= 2 && (widget.streaming || (widget.sections?.isNotEmpty ?? false));
     final timelineNodes = parseTimelineNodes(clean);
     final profile = widget.responseProfile ?? '';
     final showPreset = !widget.streaming &&
@@ -76,6 +90,15 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (showSectionToc) ...[
+            SectionToc(
+              sections: merged,
+              writtenSectionIds: writtenIds,
+              streaming: widget.streaming,
+              onSelect: (_) {},
+            ),
+            const SizedBox(height: 8),
+          ],
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -103,13 +126,29 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
               onCitationTap: widget.onCitationTap,
             ),
           ],
+          if (widget.streaming)
+            AnswerSectionSkeleton(
+              sections: merged,
+              writtenSectionIds: writtenIds,
+            ),
         ],
       );
     }
 
+    final hasBody = clean.trim().isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (showSectionToc) ...[
+          SectionToc(
+            sections: merged,
+            writtenSectionIds: writtenIds,
+            streaming: widget.streaming,
+            onSelect: (_) {},
+          ),
+          const SizedBox(height: 8),
+        ],
         if (showPreset) StructureAssetCard(asset: widget.structureAssets.first),
         if (showParsedTimeline) TimelineRail(nodes: timelineNodes),
         if (studyCopy.isNotEmpty)
@@ -131,13 +170,19 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
               child: Text(_copiedStudy ? '已复制讨论题' : '复制讨论题'),
             ),
           ),
-        AssistantMarkdownBody(
-          text: widget.text,
-          fontSize: widget.fontSize,
-          streaming: widget.streaming,
-          dense: widget.dense,
-          onCitationTap: widget.onCitationTap,
-        ),
+        if (hasBody)
+          AssistantMarkdownBody(
+            text: widget.text,
+            fontSize: widget.fontSize,
+            streaming: widget.streaming,
+            dense: widget.dense,
+            onCitationTap: widget.onCitationTap,
+          ),
+        if (widget.streaming)
+          AnswerSectionSkeleton(
+            sections: merged,
+            writtenSectionIds: writtenIds,
+          ),
       ],
     );
   }

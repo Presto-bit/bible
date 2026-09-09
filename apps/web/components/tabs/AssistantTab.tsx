@@ -8,8 +8,11 @@ import { chatStream, currentUserId, type Citation } from '@/lib/api';
 import { fetchAiQuota, type AiQuota } from '@/lib/api/ai';
 import Link from 'next/link';
 import { useOnline } from '@/lib/use_online';
-import AnswerProfileBody from '@/components/assistant/AnswerProfileBody';
+import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
+import type { OutputPlan } from '@/lib/assistant_output_plan';
+import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
+import { SectionStreamAccumulator } from '@/lib/assistant_section_stream';
 import type { StructureAsset } from '@/lib/assistant_blocks';
 import { useToast } from '@/components/ui/ToastProvider';
 import { CitationBar } from '@/components/CitationBar';
@@ -25,6 +28,7 @@ import {
 } from '@/lib/badge_events';
 import { bodyText, followupsForMessage, followupsOf, normalizeFollowupItems, stripFollowups } from '@/lib/assistant_format';
 import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
+import { buildAssistantTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
 import { mergeAssistantStreamError, appendStreamIncompleteNotice, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
@@ -95,6 +99,7 @@ interface Msg {
   knowledgeBaseName?: string;
   responseProfile?: string;
   sections?: AnswerSection[];
+  outputPlan?: OutputPlan;
   structureAssets?: StructureAsset[];
 }
 
@@ -176,6 +181,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const streamFollowLockedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const sendGenRef = useRef(0);
+  const conversationIdRef = useRef<string | null>(null);
   const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
   const [streamCiteCount, setStreamCiteCount] = useState(0);
   const [aiQuota, setAiQuota] = useState<AiQuota | null>(null);
@@ -703,6 +709,12 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       requestAnimationFrame(() => scrollThreadToLatest());
     });
     let acc = '';
+    const sectionStream = new SectionStreamAccumulator();
+    const syncSectionStream = () => {
+      if (!sectionStream.active) return;
+      acc = sectionStream.toMarkdown();
+      answerSections = sectionStream.getSections();
+    };
     let cites: Citation[] = [];
     let useRag: boolean | undefined;
     let kbId = knowledgeBaseId;
@@ -711,6 +723,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let sceneLabel = SCENES[scene].label;
     let responseProfile: string | undefined;
     let answerSections: AnswerSection[] | undefined;
+    let outputPlan: OutputPlan | undefined;
     let structureAssets: StructureAsset[] | undefined;
     let gotDelta = false;
     const applyAcc = () => {
@@ -732,6 +745,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           knowledgeBaseName: kbName,
           responseProfile,
           sections: answerSections,
+          outputPlan,
           structureAssets,
         };
         return copy;
@@ -745,19 +759,24 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     };
     try {
       await chatStream(
-        {
-          ref: refForApi,
-          question: q,
-          mode: m,
-          scene,
-          history,
-          surface,
-          reader_context: buildAssistantReaderContext(),
-          knowledge_base_id:
-            knowledgeBaseId !== DEFAULT_KB_ID ? knowledgeBaseId : undefined,
-        },
+        toChatStreamBody(
+          buildAssistantTurnRequest({
+            question: q,
+            anchorRef: refForApi,
+            scene,
+            mode: m,
+            history,
+            readerContext: buildAssistantReaderContext(),
+            knowledgeBaseId:
+              knowledgeBaseId !== DEFAULT_KB_ID ? knowledgeBaseId : undefined,
+            conversationId: conversationIdRef.current,
+          }),
+        ),
         {
           onMeta: (meta) => {
+            if (meta.conversation_id) {
+              conversationIdRef.current = meta.conversation_id;
+            }
             if (meta.quota && meta.quota.limit > 0) {
               setAiQuota({
                 used: meta.quota.used,
@@ -780,13 +799,46 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
             if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
             if (meta.response_profile) responseProfile = meta.response_profile;
+            if (meta.output_plan?.sections?.length) {
+              outputPlan = meta.output_plan as OutputPlan;
+              sectionStream.seedFromPlan(outputPlan.sections);
+              if (!gotDelta) scheduleApply();
+            }
             if (meta.structure_assets?.length) {
               structureAssets = meta.structure_assets as StructureAsset[];
             }
             setStreamCiteCount(cites.length);
             setStreamPhase('refs');
           },
+          onSectionStart: (payload) => {
+            sectionStream.onStart(payload);
+            syncSectionStream();
+            if (!gotDelta && sectionStream.active) {
+              gotDelta = true;
+              setStreamPhase('writing');
+              window.clearTimeout(connectTimer);
+              armGenTimeout();
+              scheduleApply();
+            }
+          },
+          onSectionDelta: (payload) => {
+            sectionStream.onDelta(payload);
+            syncSectionStream();
+            if (!gotDelta) {
+              gotDelta = true;
+              setStreamPhase('writing');
+              window.clearTimeout(connectTimer);
+              armGenTimeout();
+            }
+            scheduleApply();
+          },
+          onSectionDone: (payload) => {
+            sectionStream.onDone(payload);
+            syncSectionStream();
+            scheduleApply();
+          },
           onDelta: (t) => {
+            if (sectionStream.active) return;
             if (!gotDelta) {
               gotDelta = true;
               setStreamPhase('writing');
@@ -804,14 +856,18 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             applyAcc();
           },
           onDone: (payload) => {
-            if (payload?.followups?.length) {
-              serverFollowups = normalizeFollowupItems(payload.followups);
+            if (payload?.conversation_id) {
+              conversationIdRef.current = payload.conversation_id;
             }
-            if (payload?.sections?.length) {
-              answerSections = payload.sections;
+            const resolved = resolveDoneAnswer(acc, payload, sectionStream);
+            if (resolved.followups?.length) {
+              serverFollowups = normalizeFollowupItems(resolved.followups);
             }
-            if (payload?.text?.trim()) {
-              acc = payload.text.trim();
+            if (resolved.sections?.length) {
+              answerSections = resolved.sections;
+            }
+            if (resolved.text.trim()) {
+              acc = resolved.text.trim();
             }
             if (payload?.streamComplete === false && acc.trim()) {
               acc = appendStreamIncompleteNotice(acc);
@@ -947,6 +1003,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           } else {
             const resumed = refVal ? resumeIfMatch(refVal) : false;
             if (!resumed && payload.seedMessages?.length) {
+              if (payload.conversationId) {
+                conversationIdRef.current = payload.conversationId;
+              }
               setMsgs(
                 payload.seedMessages.map((m) => ({
                   role: m.role,
@@ -1040,6 +1099,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     setShowJumpToBottom(false);
     setActiveId('current');
     setMsgs([]);
+    conversationIdRef.current = null;
     replaceComposerValue('');
     setRef('');
     setKnowledgeBaseId(DEFAULT_KB_ID);
@@ -1310,6 +1370,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               const showActions =
                 m.role === 'assistant' && m.text && !busy && !canRegen;
               const isStreaming = isLastAssistant && busy;
+              const hasPlanSkeleton =
+                isStreaming && (m.outputPlan?.sections?.length ?? 0) >= 2;
+              const showAssistantBody = Boolean(m.text) || hasPlanSkeleton;
               const usedCitations =
                 m.role === 'assistant' && m.citations?.length
                   ? citationsUsedInText(m.text, m.citations)
@@ -1358,9 +1421,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                   </div>
                 )}
                 {m.role === 'assistant' ? (
-                  m.text ? (
+                  showAssistantBody ? (
                     <div className="assistant-answer">
-                      {!m.text.startsWith('⚠️') && (
+                      {!m.text.startsWith('⚠️') && m.text ? (
                         <RagSourceStatus
                           count={
                             usedCitations.length > 0
@@ -1383,14 +1446,15 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                               : undefined
                           }
                         />
-                      )}
+                      ) : null}
                       <div className="allow-text-select">
-                        <AnswerProfileBody
+                        <AnswerView
                           text={m.text}
                           streaming={isStreaming}
                           dense={Boolean(m.scene?.startsWith('summary_'))}
                           responseProfile={m.responseProfile}
                           sections={m.sections}
+                          outputPlan={m.outputPlan}
                           structureAssets={m.structureAssets}
                           defaultCollapsed={
                             m.scene === 'verse_full'

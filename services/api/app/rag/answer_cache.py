@@ -9,6 +9,8 @@ from typing import Any
 
 from ..config import get_settings
 
+from ..ai.answer_schema import SCHEMA_VERSION
+
 _lock = Lock()
 _cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _MAX_ENTRIES = 256
@@ -68,7 +70,12 @@ def get_answer(key: str) -> dict[str, Any] | None:
             _cache.pop(key, None)
             return None
         meta = payload.get("meta") or {}
-        if meta.get("schema_version") != 2:
+        schema = int(meta.get("schema_version") or 0)
+        if schema < SCHEMA_VERSION:
+            _cache.pop(key, None)
+            return None
+        document = payload.get("document") or {}
+        if schema >= 3 and not str(document.get("markdown") or "").strip():
             _cache.pop(key, None)
             return None
         scene = str(meta.get("scene") or "")

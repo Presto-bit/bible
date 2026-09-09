@@ -1713,6 +1713,23 @@ body.assistant-active .assistant-page {
   margin-top: 8px;
   font-size: 13px;
 }
+.answer-section-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+}
+.answer-section-skeleton-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.answer-section-skeleton-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  opacity: 0.72;
+}
 .section-toc-chip.is-pending {
   opacity: 0.55;
   border-style: dashed;

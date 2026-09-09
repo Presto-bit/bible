@@ -10,6 +10,7 @@ from ..rag.retrieve import retrieve_for_passage
 from .citations import display_citation_title
 from .answer_schema import SCHEMA_VERSION, max_tokens_for_scene
 from .prompts import DEFAULT_MODE, MODES, build_messages
+from .output_plan import build_output_plan
 from .response_profile import resolve_response_profile
 from .structure_assets import resolve_structure_assets
 from .scenes import NO_RAG_SURFACES, resolve_scene
@@ -242,6 +243,13 @@ def prepare(
         "verse_span": verse_span,
         "schema_version": SCHEMA_VERSION,
         "narrow": narrow,
+        "output_plan": build_output_plan(
+            spec.id,
+            narrow=narrow,
+            verse_span=verse_span,
+            surface=surface or "",
+            wants_followups=spec.wants_followups,
+        ),
         "knowledge_base_id": kb["id"],
         "knowledge_base_name": kb["name"],
         "citations": [

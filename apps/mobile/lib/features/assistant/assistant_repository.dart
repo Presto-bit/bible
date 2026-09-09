@@ -10,8 +10,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import 'assistant_answer_document.dart';
 import 'assistant_format.dart';
-import 'assistant_scenes.dart';
+import 'assistant_turn_request.dart';
 import 'models.dart';
 
 class AiQuota {
@@ -62,51 +63,15 @@ class AssistantRepository {
     }
   }
 
-  Stream<ChatEvent> chat({
-    String? ref,
-    String? question,
-    required AssistantMode mode,
-    List<ChatTurn> history = const [],
-    String? conversationId,
-    AssistantScene? scene,
-    String? knowledgeBaseId,
-    Map<String, dynamic>? readerContext,
-    String surface = 'mobile',
-  }) async* {
-    final hasRef = ref != null && ref.isNotEmpty;
-    final resolved =
-        scene ?? resolveScene(mode: mode.id, hasRef: hasRef);
-    final body = <String, dynamic>{
-      'mode': mode.id,
-      'scene': resolved.id,
-      'surface': surface,
-    };
-    if (hasRef) body['ref'] = ref;
-    if (question != null && question.isNotEmpty) body['question'] = question;
-    if (conversationId != null) body['conversation_id'] = conversationId;
-    if (knowledgeBaseId != null &&
-        knowledgeBaseId.isNotEmpty &&
-        knowledgeBaseId != 'platform') {
-      body['knowledge_base_id'] = knowledgeBaseId;
+  Stream<ChatEvent> chatFromTurn(ResolvedTurnRequest turn) async* {
+    final body = Map<String, dynamic>.from(toChatStreamBody(turn));
+    if (turn.history.isNotEmpty) {
+      body['history'] = turn.history.map((h) => h.toJson()).toList();
     }
-    if (readerContext != null && readerContext.isNotEmpty) {
-      body['reader_context'] = readerContext;
-    }
-    if (history.isNotEmpty) {
-      body['history'] = history
-          .map(
-            (t) => {
-              'role': t.role,
-              'content': t.role == 'assistant' ? bodyText(t.content) : t.content,
-            },
-          )
-          .toList();
-    }
-
     var gotDelta = false;
     var sawDone = false;
     var terminalError = false;
-    await for (final evt in _chatAttempt(body, resolved)) {
+    await for (final evt in _chatAttempt(body, turn.scene)) {
       if (evt is DeltaEvent && evt.text.trim().isNotEmpty) gotDelta = true;
       if (evt is DoneEvent) sawDone = true;
       if (evt is ErrorEvent) terminalError = true;
@@ -118,6 +83,44 @@ class AssistantRepository {
       return;
     }
     yield const ErrorEvent('未收到回答内容，请重试');
+  }
+
+  Stream<ChatEvent> chat({
+    String? ref,
+    String? question,
+    required AssistantMode mode,
+    List<ChatTurn> history = const [],
+    String? conversationId,
+    AssistantScene? scene,
+    String? knowledgeBaseId,
+    Map<String, dynamic>? readerContext,
+    String surface = 'mobile',
+  }) async* {
+    final turn = resolveTurnRequest(
+      TurnRequest(
+        anchorRef: ref,
+        question: question ?? '',
+        scene: scene,
+        mode: mode.id,
+        surface: surface,
+        history: history
+            .map(
+              (t) => TurnHistoryMessage(
+                role: t.role,
+                content: t.role == 'assistant' ? bodyText(t.content) : t.content,
+              ),
+            )
+            .toList(),
+        readerContext: readerContext,
+        knowledgeBaseId: knowledgeBaseId,
+        conversationId: conversationId,
+        clientCapabilities: const {
+          'schema_version': 3,
+          'supports_section_stream': true,
+        },
+      ),
+    );
+    yield* chatFromTurn(turn);
   }
 
   /// 单次 POST /ai/chat 并解析 SSE；网络/HTTP 错误在此 yield ErrorEvent。
@@ -203,6 +206,22 @@ class AssistantRepository {
                 .toList() ??
             const <String>[];
         return FollowupsEvent(items);
+      case 'section_start':
+        return SectionStartEvent(
+          id: (data['id'] ?? '') as String,
+          title: (data['title'] ?? '') as String,
+        );
+      case 'section_delta':
+        return SectionDeltaEvent(
+          id: (data['id'] ?? '') as String,
+          text: (data['text'] ?? '') as String,
+        );
+      case 'section_done':
+        return SectionDoneEvent(
+          id: (data['id'] ?? '') as String,
+          title: (data['title'] ?? '') as String,
+          text: (data['text'] ?? '') as String,
+        );
       case 'done':
         final followups =
             (data['followups'] as List?)
@@ -215,11 +234,17 @@ class AssistantRepository {
                 ?.map((e) => AnswerSection.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             const <AnswerSection>[];
+        final documentRaw = data['document'];
+        final document = documentRaw is Map<String, dynamic>
+            ? AnswerDocument.fromJson(documentRaw)
+            : null;
         return DoneEvent(
           length: (data['length'] ?? 0) as int,
           text: (data['text'] ?? '') as String,
           followups: followups,
           sections: sections,
+          document: document,
+          conversationId: data['conversation_id'] as String?,
           streamComplete: data['streamComplete'] != false,
         );
       case 'error':

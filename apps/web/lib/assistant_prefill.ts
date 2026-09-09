@@ -27,6 +27,8 @@ export interface AssistantPrefill {
   scene?: string;
   /** 传给 /ai/chat 的 surface；如 home_prefill 禁用 RAG */
   surface?: string;
+  /** 半屏 → Tab 接力：服务端 conversation_id */
+  conversationId?: string;
   seedMessages?: AssistantSeedMessage[];
 }
 
@@ -91,6 +93,7 @@ export function consumeAssistantPrefill(sid: string): AssistantPrefill | null {
       autoSend: row.autoSend,
       scene: row.scene,
       surface: row.surface,
+      conversationId: row.conversationId,
       seedMessages: (row.seedMessages ?? []).map((m) => ({
         role: m.role,
         text: m.text,
@@ -116,6 +119,7 @@ export function assistantHref(
     autoSend?: boolean;
     scene?: string;
     surface?: string;
+    conversationId?: string;
     seedMessages?: AssistantSeedMessage[];
   },
 ): string {
@@ -129,6 +133,7 @@ export function assistantHref(
       autoSend: opts?.autoSend,
       scene: opts?.scene,
       surface: opts?.surface,
+      conversationId: opts?.conversationId,
       seedMessages: opts?.seedMessages,
     });
     params.set('sid', sid);
@@ -146,6 +151,7 @@ export function navigateToAssistant(
     autoSend?: boolean;
     scene?: string;
     surface?: string;
+    conversationId?: string;
     seedMessages?: AssistantSeedMessage[];
   },
 ) {

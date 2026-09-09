@@ -2,16 +2,20 @@
 
 import { useMemo, useRef, useState } from 'react';
 import AnswerText from '@/components/AnswerText';
+import AnswerSectionSkeleton from '@/components/assistant/AnswerSectionSkeleton';
+import SectionToc from '@/components/assistant/SectionToc';
 import StructureAssetCard from '@/components/assistant/StructureAssetCard';
 import TimelineRail from '@/components/assistant/TimelineRail';
 import { bodyText } from '@/lib/assistant_format';
 import { extractSummaryLead } from '@/lib/assistant_markdown';
-import { mergeAnswerSections, type AnswerSection } from '@/lib/assistant_sections';
+import { type AnswerSection } from '@/lib/assistant_sections';
 import {
   extractStudySheetCopyText,
   parseTimelineNodes,
+  streamingWrittenSections,
   type StructureAsset,
 } from '@/lib/assistant_blocks';
+import { mergePlannedSections, type OutputPlan } from '@/lib/assistant_output_plan';
 
 export type ResponseProfile =
   | 'side_compare'
@@ -31,6 +35,7 @@ type Props = {
   dense?: boolean;
   responseProfile?: ResponseProfile;
   sections?: AnswerSection[];
+  outputPlan?: OutputPlan;
   structureAssets?: StructureAsset[];
   defaultCollapsed?: boolean;
   collapseMinBodyLen?: number;
@@ -45,6 +50,7 @@ export default function AnswerProfileBody({
   dense = false,
   responseProfile,
   sections,
+  outputPlan,
   structureAssets,
   defaultCollapsed = false,
   collapseMinBodyLen = 80,
@@ -57,9 +63,14 @@ export default function AnswerProfileBody({
 
   const clean = useMemo(() => bodyText(text), [text]);
   const mergedSections = useMemo(
-    () => mergeAnswerSections(sections, clean),
-    [sections, clean],
+    () => mergePlannedSections(outputPlan, sections, clean),
+    [outputPlan, sections, clean],
   );
+  const writtenSectionIds = useMemo(
+    () => (streaming ? streamingWrittenSections(clean, mergedSections) : new Set<string>()),
+    [streaming, clean, mergedSections],
+  );
+  const showSectionToc = mergedSections.length >= 2 && (streaming || Boolean(sections?.length));
   const timelineNodes = useMemo(() => parseTimelineNodes(clean), [clean]);
   const profileClass = responseProfile ? `answer-profile-${responseProfile}` : '';
   const showPresetStructure =
@@ -97,6 +108,14 @@ export default function AnswerProfileBody({
     const tail = bodyWithoutSummary.trim() ? bodyWithoutSummary : clean;
     return (
       <div ref={bodyRef} className={`answer-profile-body ${profileClass}`.trim()}>
+        {showSectionToc ? (
+          <SectionToc
+            sections={mergedSections}
+            writtenSectionIds={writtenSectionIds}
+            streaming={streaming}
+            onSelect={() => {}}
+          />
+        ) : null}
         <p className="xiaoai-summary-lead">{summary}</p>
         {tail.trim() ? (
           <AnswerText
@@ -106,12 +125,28 @@ export default function AnswerProfileBody({
             onCitationClick={onCitationClick}
           />
         ) : null}
+        {streaming ? (
+          <AnswerSectionSkeleton
+            sections={mergedSections}
+            writtenSectionIds={writtenSectionIds}
+          />
+        ) : null}
       </div>
     );
   }
 
+  const hasBody = clean.trim().length > 0;
+
   return (
     <div ref={bodyRef} className={`answer-profile-body ${profileClass}`.trim()}>
+      {showSectionToc ? (
+        <SectionToc
+          sections={mergedSections}
+          writtenSectionIds={writtenSectionIds}
+          streaming={streaming}
+          onSelect={() => {}}
+        />
+      ) : null}
       {showPresetStructure && structureAssets?.[0] ? (
         <StructureAssetCard asset={structureAssets[0]} />
       ) : null}
@@ -123,12 +158,20 @@ export default function AnswerProfileBody({
           </button>
         </div>
       ) : null}
-      <AnswerText
-        text={text}
-        streaming={streaming}
-        dense={dense}
-        onCitationClick={onCitationClick}
-      />
+      {hasBody ? (
+        <AnswerText
+          text={text}
+          streaming={streaming}
+          dense={dense}
+          onCitationClick={onCitationClick}
+        />
+      ) : null}
+      {streaming ? (
+        <AnswerSectionSkeleton
+          sections={mergedSections}
+          writtenSectionIds={writtenSectionIds}
+        />
+      ) : null}
     </div>
   );
 }

@@ -12,6 +12,9 @@ import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/badge_stats.dart';
 import '../../core/config.dart';
 import '../../core/theme.dart';
+import '../assistant/assistant_answer_document.dart';
+import '../assistant/assistant_section_stream.dart';
+import '../assistant/assistant_turn_request.dart';
 import '../assistant/answer_profile_body.dart';
 import '../assistant/assistant_blocks.dart';
 import '../assistant/assistant_sections.dart';
@@ -63,6 +66,7 @@ class HalfSheetTurnView {
     this.kbName,
     this.responseProfile,
     this.sections = const [],
+    this.outputPlan,
     this.structureAssets = const [],
   });
 
@@ -79,6 +83,7 @@ class HalfSheetTurnView {
   String? kbName;
   String? responseProfile;
   List<AnswerSection> sections;
+  OutputPlan? outputPlan;
   List<StructureAsset> structureAssets;
 }
 
@@ -115,6 +120,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
   String? _copiedTurnId;
   StreamSubscription<am.ChatEvent>? _sub;
   bool _chipTapLocked = false;
+
+  String? _conversationId;
 
   @override
   void initState() {
@@ -239,16 +246,27 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     var chatSettled = false;
     var cites = <Citation>[];
     var serverFollowups = <String>[];
+    final sectionStream = SectionStreamAccumulator();
     bool? useRag;
     String? kbId;
     String? kbName;
+
+    void syncSectionStream() {
+      if (!sectionStream.active) return;
+      pending = sectionStream.toMarkdown();
+    }
 
     void flush() {
       scheduled = false;
       if (!mounted || runId != _runId) return;
       setState(() {
         final t = _turnFor(turnId);
-        if (t != null && t.busy) t.answer = pending;
+        if (t != null && t.busy) {
+          t.answer = pending;
+          if (sectionStream.active) {
+            t.sections = sectionStream.getSections();
+          }
+        }
       });
     }
 
@@ -309,15 +327,24 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
       }
     }
 
-    final mode = am.AssistantMode.fromId(scene.mode) ?? am.AssistantMode.explain;
-    final stream = ref.read(assistantRepoProvider).chat(
-          ref: widget.refStr,
-          question: apiQuestion,
-          mode: mode,
-          scene: scene,
-          history: history,
-          readerContext: buildAssistantReaderContext(ref),
-          surface: 'half_sheet',
+    final stream = ref.read(assistantRepoProvider).chatFromTurn(
+          buildHalfSheetTurnRequest(
+            ref: widget.refStr,
+            question: apiQuestion,
+            scene: scene,
+            history: history
+                .map(
+                  (t) => TurnHistoryMessage(
+                    role: t.role,
+                    content: t.role == 'assistant'
+                        ? bodyText(t.content)
+                        : t.content,
+                  ),
+                )
+                .toList(),
+            readerContext: buildAssistantReaderContext(ref),
+            conversationId: _conversationId,
+          ),
         );
 
     _sub = stream.listen(
@@ -326,6 +353,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         switch (evt) {
           case am.MetaEvent(:final meta):
             if (meta.citationsPending) break;
+            if (meta.conversationId != null && meta.conversationId!.isNotEmpty) {
+              _conversationId = meta.conversationId;
+            }
             cites = meta.citations;
             useRag = meta.useRag;
             kbId = meta.knowledgeBaseId;
@@ -339,10 +369,35 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..kbId = kbId
                   ..kbName = kbName
                   ..responseProfile = meta.responseProfile
+                  ..outputPlan = meta.outputPlan
                   ..structureAssets = meta.structureAssets;
               }
+              sectionStream.seedFromPlan(meta.outputPlan?.sections);
             });
+          case am.SectionStartEvent(:final id, :final title):
+            sectionStream.onStart(id: id, title: title);
+            syncSectionStream();
+            if (!gotDelta) {
+              gotDelta = true;
+              flush();
+            } else {
+              scheduleFlush();
+            }
+          case am.SectionDeltaEvent(:final id, :final text):
+            sectionStream.onDelta(id: id, text: text);
+            syncSectionStream();
+            if (!gotDelta) {
+              gotDelta = true;
+              flush();
+            } else {
+              scheduleFlush();
+            }
+          case am.SectionDoneEvent(:final id, :final title, :final text):
+            sectionStream.onDone(id: id, title: title, text: text);
+            syncSectionStream();
+            scheduleFlush();
           case am.DeltaEvent(:final text):
+            if (sectionStream.active) break;
             pending += text;
             if (!gotDelta) {
               gotDelta = true;
@@ -376,10 +431,26 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..busy = false;
               }
             });
-          case am.DoneEvent(:final followups, :final sections, :final streamComplete, :final text):
+          case am.DoneEvent(
+              :final followups,
+              :final sections,
+              :final streamComplete,
+              :final text,
+              :final document,
+            ):
             if (chatSettled) break;
             flush();
-            var answerText = text.trim().isNotEmpty ? text.trim() : pending.trim();
+            final resolved = resolveDoneAnswer(
+              pending,
+              doneText: text,
+              doneSections: sections,
+              doneFollowups: followups,
+              document: document,
+              sectionStream: sectionStream,
+            );
+            var answerText = resolved.text.trim().isNotEmpty
+                ? resolved.text.trim()
+                : pending.trim();
             if (answerText.isEmpty) {
               setState(() {
                 final t = _turnFor(turnId);
@@ -404,8 +475,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   )
                 : true;
             final followupItems = normalizeFollowupItems(
-              followups.isNotEmpty
-                  ? followups
+              resolved.followups.isNotEmpty
+                  ? resolved.followups
                   : serverFollowups.isNotEmpty
                       ? serverFollowups
                       : defaultHalfSheetFollowups(widget.refLabel),
@@ -422,7 +493,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..useRag = useRag
                   ..kbId = kbId
                   ..kbName = kbName
-                  ..sections = sections;
+                  ..sections = resolved.sections.isNotEmpty
+                      ? resolved.sections
+                      : sections;
               }
             });
             if (streamOk && structOk) {
@@ -536,6 +609,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     ref.read(assistantSeedProvider.notifier).open(
           ref: widget.refStr,
           question: seeds.isEmpty ? _userQuestion : null,
+          conversationId: _conversationId,
           seedMessages: seeds,
         );
     ref.read(navIndexProvider.notifier).set(2);
@@ -736,7 +810,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
 
   Widget _buildTurn(HalfSheetTurnView turn, int index, {required bool isLast}) {
     final rawAnswer = turn.answer.trim();
-    final waitingFirstToken = turn.busy && rawAnswer.isEmpty;
+    final waitingFirstToken =
+        turn.busy && rawAnswer.isEmpty && (turn.outputPlan?.sections.length ?? 0) < 2;
     final clean = bodyText(turn.answer);
     final hasError = clean.startsWith('⚠️');
     final usedCitations = citationsUsedInText(clean, turn.citations);
@@ -805,6 +880,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             dense: turn.scene == AssistantScene.verseQuick,
             responseProfile: turn.responseProfile,
             sections: turn.sections,
+            outputPlan: turn.outputPlan,
             structureAssets: turn.structureAssets,
             onCitationTap: (n) {
               final citation =

@@ -22,12 +22,16 @@ class AssistantSeed {
     this.ref,
     this.question,
     this.knowledgeBaseId,
+    this.conversationId,
     this.seedMessages = const [],
   });
 
   final String? ref;
   final String? question;
   final String? knowledgeBaseId;
+
+  /// 半屏 → Tab 接力：服务端会话 id
+  final String? conversationId;
 
   /// 半屏接力：已有问答对，进入小爱时直接灌入，避免再问一遍。
   final List<AssistantSeedMessage> seedMessages;
@@ -41,12 +45,14 @@ class AssistantSeedNotifier extends Notifier<AssistantSeed?> {
     String? ref,
     String? question,
     String? knowledgeBaseId,
+    String? conversationId,
     List<AssistantSeedMessage> seedMessages = const [],
   }) {
     state = AssistantSeed(
       ref: ref,
       question: question,
       knowledgeBaseId: knowledgeBaseId,
+      conversationId: conversationId,
       seedMessages: seedMessages,
     );
   }
