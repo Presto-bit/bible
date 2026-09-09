@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../app/app_shell.dart';
+import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../core/database/app_database.dart';
 import '../../core/badge_stats.dart';
@@ -22,6 +23,7 @@ import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../bible/reading_repository.dart';
 import '../bible/thoughts_repository.dart';
 import 'assistant_perf.dart';
+import 'verse_faq.dart';
 import 'instant_answer_status.dart';
 import 'assistant_instant.dart';
 import 'assistant_answer_document.dart';
@@ -87,6 +89,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   void initState() {
     super.initState();
     _anchorRef = widget.seedRef;
+    preloadVerseFaq();
   }
 
   Future<void> _prefetchQuota() async {
@@ -464,6 +467,40 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     });
     _autoScroll();
 
+    if (refForApi != null &&
+        isDefaultTabExplain(
+          question: text,
+          historyLength: history.length,
+          scene: activeScene,
+          hasRef: true,
+        )) {
+      final faq = await readVerseFaqExplain(refForApi);
+      if (!mounted) return;
+      if (faq != null) {
+        setState(() {
+          reply.content = faq;
+          reply.meta = ChatMeta(
+            mode: modeFromScene.id,
+            modeLabel: modeFromScene.label,
+            display: refForApi,
+            citations: const [],
+            quotaUsed: 0,
+            quotaLimit: 0,
+            scene: activeScene.id,
+            instant: true,
+            cacheSource: 'faq',
+          );
+        });
+        await repo.addMessage(sid, 'assistant', bodyText(faq));
+        setState(() {
+          _streaming = false;
+          _streamSlow = false;
+        });
+        _autoScroll();
+        return;
+      }
+    }
+
     var gotDelta = false;
     var pendingDelta = '';
     final sectionStream = SectionStreamAccumulator();
@@ -588,6 +625,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               :final conversationId,
             ):
               streamPerf.onDone();
+              unawaited(
+                flushAssistantPerf(ref.read(dioProvider), streamPerf),
+              );
               flushDelta(force: true);
               if (conversationId != null && conversationId.isNotEmpty) {
                 _conversationId = conversationId;
@@ -622,6 +662,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               }
             case ErrorEvent(:final message):
               streamPerf.onError();
+              unawaited(
+                flushAssistantPerf(ref.read(dioProvider), streamPerf),
+              );
               terminalError = true;
               flushDelta(force: true);
               setState(

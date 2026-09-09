@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/badge_stats.dart';
+import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../core/theme.dart';
 import '../assistant/assistant_answer_document.dart';
@@ -477,6 +478,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             if (items.isNotEmpty) serverFollowups = items;
           case am.ErrorEvent(:final message):
             streamPerf.onError();
+            unawaited(flushAssistantPerf(ref.read(dioProvider), streamPerf));
             chatSettled = true;
             flush();
             if (pending.trim().isNotEmpty) {
@@ -509,6 +511,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             ):
             if (chatSettled) break;
             streamPerf.onDone();
+            unawaited(flushAssistantPerf(ref.read(dioProvider), streamPerf));
             flush();
             final resolved = resolveDoneAnswer(
               pending,
@@ -606,6 +609,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
       onError: (_) {
         if (!mounted || runId != _runId) return;
         streamPerf.onError();
+        unawaited(flushAssistantPerf(ref.read(dioProvider), streamPerf));
         setState(() {
           final t = _turnFor(turnId);
           if (t == null) return;

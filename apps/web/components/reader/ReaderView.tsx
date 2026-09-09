@@ -1788,6 +1788,11 @@ export default function ReaderView({
     return () => window.clearTimeout(timer);
   }, [bookCelebrate]);
 
+  // 预拉经包 FAQ（弱网半屏/Tab 默认解读秒回）
+  useEffect(() => {
+    void import('@/lib/verse_faq').then((m) => m.preloadVerseFaq());
+  }, []);
+
   // 进入章节时静默预热（FAB 无选区 → verse_quick）
   useEffect(() => {
     if (!verses.length) return;

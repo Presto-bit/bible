@@ -1,4 +1,6 @@
 import { hasVisibleAnswerContent } from '@/lib/assistant_visible';
+import { API_BASE, authHeaders } from '@/lib/api';
+import { getDeviceId } from '@/lib/device_id';
 import { recordPerf } from '@/lib/perf_rum';
 
 export type AssistantPerfDetail = {
@@ -6,6 +8,12 @@ export type AssistantPerfDetail = {
   scene?: string;
   cacheHit?: boolean;
   cacheSource?: string;
+};
+
+type SessionMark = {
+  name: string;
+  ms: number;
+  detail?: Record<string, string | number | boolean | null | undefined>;
 };
 
 /** 小爱单次 SSE 流式关键路径耗时（客户端 RUM）。 */
@@ -18,6 +26,7 @@ export class AssistantStreamPerf {
   private tFirstToken?: number;
   private tVisible?: number;
   private finished = false;
+  private readonly sessionMarks: SessionMark[] = [];
 
   constructor(private readonly detail: AssistantPerfDetail = {}) {}
 
@@ -37,23 +46,20 @@ export class AssistantStreamPerf {
     }
     const serverPrepare = meta?.timings?.prepare_ms;
     if (typeof serverPrepare === 'number' && serverPrepare >= 0) {
-      recordPerf('assistant.prepare', serverPrepare, {
-        ...this.detail,
+      this.recordSession('assistant.prepare', serverPrepare, {
         cacheHit: meta?.cache_hit,
         cacheSource: meta?.cache_source,
         source: 'server',
       });
     } else if (this.tPlaceholderMeta != null && this.tFullMeta != null) {
-      recordPerf('assistant.prepare', this.tFullMeta - this.tPlaceholderMeta, {
-        ...this.detail,
+      this.recordSession('assistant.prepare', this.tFullMeta - this.tPlaceholderMeta, {
         cacheHit: meta?.cache_hit,
         cacheSource: meta?.cache_source,
         source: 'client',
       });
     }
     if (meta?.cache_hit) {
-      recordPerf('assistant.cache_hit', this.now() - this.t0, {
-        ...this.detail,
+      this.recordSession('assistant.cache_hit', this.now() - this.t0, {
         cacheSource: meta.cache_source,
       });
     }
@@ -62,32 +68,70 @@ export class AssistantStreamPerf {
   onFirstToken(): void {
     if (this.tFirstToken != null) return;
     this.tFirstToken = this.now();
-    recordPerf('assistant.first_token', this.tFirstToken - this.t0, this.detail);
+    this.recordSession('assistant.first_token', this.tFirstToken - this.t0);
   }
 
   onTextUpdate(text: string): void {
     if (this.tVisible != null) return;
     if (!hasVisibleAnswerContent(text)) return;
     this.tVisible = this.now();
-    recordPerf('assistant.visible', this.tVisible - this.t0, this.detail);
+    this.recordSession('assistant.visible', this.tVisible - this.t0);
   }
 
   onDone(): void {
     if (this.finished) return;
     this.finished = true;
     const doneAt = this.now();
-    recordPerf('assistant.done', doneAt - this.t0, this.detail);
+    this.recordSession('assistant.done', doneAt - this.t0);
     if (this.tFirstToken != null) {
-      recordPerf('assistant.stream_body', doneAt - this.tFirstToken, this.detail);
+      this.recordSession('assistant.stream_body', doneAt - this.tFirstToken);
     }
+    void flushAssistantPerf(this.sessionMarks);
   }
 
   onError(): void {
+    if (this.finished) return;
     this.finished = true;
-    recordPerf('assistant.error', this.now() - this.t0, this.detail);
+    this.recordSession('assistant.error', this.now() - this.t0);
+    void flushAssistantPerf(this.sessionMarks);
+  }
+
+  private recordSession(
+    name: string,
+    ms: number,
+    extra?: SessionMark['detail'],
+  ): void {
+    recordPerf(name, ms, { ...this.detail, ...extra });
+    if (!Number.isFinite(ms) || ms < 0) return;
+    this.sessionMarks.push({
+      name,
+      ms: Math.round(ms),
+      detail: { ...this.detail, ...extra },
+    });
   }
 
   private now(): number {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
+  }
+}
+
+/** 将本轮小爱 RUM 打点 batch 上报服务端（fail-open）。 */
+export async function flushAssistantPerf(marks: SessionMark[]): Promise<void> {
+  if (typeof window === 'undefined' || !marks.length) return;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...authHeaders(),
+  };
+  const deviceId = getDeviceId();
+  if (deviceId) headers['X-Guest-Id'] = deviceId;
+  try {
+    await fetch(`${API_BASE}/ai/perf`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ marks: marks.slice(-12) }),
+      keepalive: true,
+    });
+  } catch {
+    /* fail-open */
   }
 }

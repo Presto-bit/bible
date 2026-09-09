@@ -19,6 +19,7 @@ import '../../core/gamification.dart' show maybeNotifyBookComplete;
 import '../../core/theme.dart';
 import '../assistant/assistant_repository.dart';
 import '../assistant/assistant_scenes.dart';
+import '../assistant/verse_faq.dart';
 import '../search/search_screen.dart';
 import '../plans/plan_navigation.dart';
 import '../plans/plan_reading.dart';
@@ -250,6 +251,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   @override
   void initState() {
     super.initState();
+    preloadVerseFaq();
     _planMeta = widget.planMeta;
     if (widget.initialChapter != null) _chapter = widget.initialChapter!;
     WidgetsBinding.instance.addObserver(this);

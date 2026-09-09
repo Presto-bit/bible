@@ -33,6 +33,11 @@ import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScen
 import { buildAssistantTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
 import { mergeAssistantStreamError, appendStreamIncompleteNotice, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { AssistantStreamPerf } from '@/lib/assistant_perf';
+import {
+  isDefaultTabExplain,
+  preloadVerseFaq,
+  readVerseFaqExplain,
+} from '@/lib/verse_faq';
 import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
@@ -197,6 +202,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     setKnowledgeBaseIdState(id);
     setSessionKnowledgeBaseId(id);
   };
+
+  useEffect(() => {
+    preloadVerseFaq();
+  }, []);
 
   useEffect(() => {
     if (!paneActive || currentUserId()) return;
@@ -773,6 +782,42 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       if (rafRef.current != null) return;
       rafRef.current = window.setTimeout(applyAcc, 72) as unknown as number;
     };
+    if (
+      refForApi &&
+      isDefaultTabExplain({
+        question: q,
+        historyLength: history.length,
+        scene,
+        hasRef: true,
+      })
+    ) {
+      const faq = await readVerseFaqExplain(refForApi);
+      if (faq && myGen === sendGenRef.current) {
+        window.clearTimeout(connectTimer);
+        clearGenTimer();
+        window.clearTimeout(slowTimer);
+        setMsgs((prev) => {
+          if (!prev.length || prev[prev.length - 1]?.role !== 'assistant') return prev;
+          const copy = prev.slice();
+          copy[copy.length - 1] = {
+            ...copy[copy.length - 1]!,
+            role: 'assistant',
+            text: faq,
+            citations: [],
+            scene,
+            instant: true,
+            cacheSource: 'faq',
+          };
+          persist(copy, anchor ?? ref);
+          return copy;
+        });
+        setBusy(false);
+        setAssistantStreamBusy(false);
+        setSlowHint(false);
+        setStreamPhase('writing');
+        return;
+      }
+    }
     try {
       await chatStream(
         toChatStreamBody(

@@ -39,9 +39,20 @@ from .parse_output import (
 )
 from .usage import consume_quota, peek_quota, record_ai_request
 from .request_log import log_ai_request
+from .perf_log import record_ai_perf_marks
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+
+class PerfMarkBody(BaseModel):
+    name: str
+    ms: int
+    detail: dict | None = None
+
+
+class PerfBatchBody(BaseModel):
+    marks: list[PerfMarkBody]
 
 # 单次 /ai/chat 内所有 LLM 调用的总 wall-clock 上限（秒）；与客户端 sceneTimeout 上限对齐
 _LLM_WALL_BUDGET_SEC = 120.0
@@ -465,6 +476,25 @@ def citations_explain(body: CitationExplainRequest):
         title=body.title or "",
         snippet=body.snippet,
         force=body.force,
+    )
+
+
+@router.post("/perf")
+def record_assistant_perf(
+    body: PerfBatchBody,
+    x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+    authorization: str | None = Header(default=None),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+):
+    """客户端 RUM：小爱流式关键路径耗时 batch 入库。"""
+    logged_in = try_get_current_user(authorization, x_user_id, x_user_code, cookie)
+    user_id_str = str(logged_in) if logged_in else None
+    return record_ai_perf_marks(
+        marks=[m.model_dump() for m in body.marks],
+        device_id=x_guest_id,
+        user_id=user_id_str,
     )
 
 
