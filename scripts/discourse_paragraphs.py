@@ -136,6 +136,25 @@ def _manual_entries() -> list[dict[str, Any]]:
         {"ref": "JAS.3", "ranges": [[17, 18]], "mode": "verse_per_line", "kind": "wisdom"},
         {"ref": "MAT.1", "ranges": [[1, 17]], "mode": "semicolon_break", "kind": "genealogy"},
         {"ref": "LUK.3", "ranges": [[23, 38]], "mode": "semicolon_break", "kind": "genealogy"},
+        {"ref": "GEN.5", "ranges": [[1, 32]], "mode": "semicolon_break", "kind": "genealogy"},
+        {"ref": "GEN.10", "ranges": [[1, 32]], "mode": "semicolon_break", "kind": "genealogy"},
+        {"ref": "GEN.11", "ranges": [[10, 32]], "mode": "semicolon_break", "kind": "genealogy"},
+        {"ref": "1CH.1", "ranges": [[1, 54]], "mode": "semicolon_break", "kind": "genealogy"},
+        {"ref": "NEH.7", "ranges": [[6, 73]], "mode": "semicolon_break", "kind": "genealogy"},
+        {"ref": "NEH.12", "ranges": [[10, 26]], "mode": "semicolon_break", "kind": "genealogy"},
+        {"ref": "MAT.5", "ranges": [[21, 48]], "mode": "verse_per_line", "kind": "antithesis"},
+        {
+            "ref": "REV.2",
+            "ranges": [[2, 6], [9, 10], [13, 16], [19, 28]],
+            "mode": "verse_per_line",
+            "kind": "rev_letter",
+        },
+        {
+            "ref": "REV.3",
+            "ranges": [[2, 5], [8, 12], [15, 21]],
+            "mode": "verse_per_line",
+            "kind": "rev_letter",
+        },
     ]
 
 

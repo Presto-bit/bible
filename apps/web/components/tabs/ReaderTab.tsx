@@ -33,12 +33,19 @@ import { formatGroupRefLabel } from '@/lib/ref_label';
 import { preloadSectionTitles } from '@/lib/section_titles';
 import { preloadParagraphRanges } from '@/lib/paragraph_ranges';
 import { preloadDiscourseRanges } from '@/lib/discourse_ranges';
+import { preloadPoetryLines } from '@/lib/poetry_lines';
 import { OfflineBibleCard } from '@/components/OfflineBibleCard';
 import { OfflineInlineNotice } from '@/components/OfflineInlineNotice';
 import { bookAbbr } from '@/lib/book_abbr';
 import { useOnline } from '@/lib/use_online';
 import { shellTapProps } from '@/lib/shell_tap';
 import { unlockReaderSurface } from '@/lib/reader_chrome';
+import {
+  formatQuotesForDisplay,
+  getQuoteDisplayMode,
+  setQuoteDisplayMode,
+  type QuoteDisplayMode,
+} from '@/lib/quote_display';
 import CatalogView from '@/components/reader/CatalogView';
 import ReaderView from '@/components/reader/ReaderView';
 import { EntityKnowledgeSheet } from '@/components/knowledge/EntityKnowledgeSheet';
@@ -148,10 +155,22 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     [book, chapter, dictIndex, openEntity],
   );
 
+  const [quoteDisplayMode, setQuoteDisplayModeState] = useState<QuoteDisplayMode>('source');
+
+  useEffect(() => {
+    setQuoteDisplayModeState(getQuoteDisplayMode());
+  }, []);
+
+  const handleQuoteDisplayModeChange = useCallback((mode: QuoteDisplayMode) => {
+    setQuoteDisplayMode(mode);
+    setQuoteDisplayModeState(mode);
+  }, []);
+
   const renderVerseText = useCallback(
     (text: string, keyBase: string, verse: number) => {
-      if (!properNounRe) return text;
-      const parts = text.split(properNounRe);
+      const displayText = formatQuotesForDisplay(text, quoteDisplayMode);
+      if (!properNounRe) return displayText;
+      const parts = displayText.split(properNounRe);
       const ctx: DictContext = { bookId: book!.id, chapter, verse };
       return parts.map((part, i) => {
         const candidates = dictIndex.get(part);
@@ -187,7 +206,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         return <span key={`${keyBase}-t${i}`}>{part}</span>;
       });
     },
-    [properNounRe, dictIndex, handleNameClick],
+    [properNounRe, dictIndex, handleNameClick, book, chapter, quoteDisplayMode],
   );
 
   const handlePlanJump = useCallback(
@@ -312,6 +331,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
       preloadSectionTitles();
       preloadParagraphRanges();
       preloadDiscourseRanges();
+      preloadPoetryLines();
       if (dict.length === 0) {
         void api.dictionary().then((d) => {
           startTransition(() => setDict(d.entities || []));
@@ -551,6 +571,8 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         onNavigate={handleNavigate}
         bookAbbr={bookAbbr}
         renderVerseText={renderVerseText}
+        quoteDisplayMode={quoteDisplayMode}
+        onQuoteDisplayModeChange={handleQuoteDisplayModeChange}
         planMeta={planMeta}
         onPlanMetaChange={setPlanMeta}
         onPlanJump={handlePlanJump}

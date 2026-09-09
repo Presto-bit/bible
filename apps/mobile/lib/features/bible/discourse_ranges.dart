@@ -81,6 +81,32 @@ List<String> splitSemicolonListLines(String text) {
   return out.where((line) => line.isNotEmpty).toList();
 }
 
+bool isDiscourseVersePerLine(
+  List<DiscourseEntry> catalog,
+  String book,
+  int chapter,
+  int verse,
+) {
+  final entries = discourseEntriesForChapter(catalog, book, chapter);
+  return entries.any(
+    (e) =>
+        e.mode == DiscourseMode.versePerLine &&
+        e.ranges.any((r) => _inRange(verse, r.$1, r.$2)),
+  );
+}
+
+String formatVerseTextForReader(
+  List<DiscourseEntry> catalog,
+  String book,
+  int chapter,
+  int verse,
+  String text,
+) {
+  if (!isSemicolonBreakVerse(catalog, book, chapter, verse)) return text;
+  final lines = splitSemicolonListLines(text);
+  return lines.length > 1 ? lines.join('\n') : text;
+}
+
 List<DiscourseEntry> parseDiscourseCatalogJson(List<dynamic> raw) {
   return raw
       .whereType<Map>()

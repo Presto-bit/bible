@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api_client.dart';
+import 'quote_display.dart';
 
 enum ReaderFontFamily { serif, sans }
 
@@ -79,6 +80,7 @@ const _thoughtsOffKey = 'reader_thoughts_off';
 const _readingModeKey = 'reader_reading_mode';
 const _layoutKey = 'reader_layout';
 const _parallelDiffOffKey = 'reader_parallel_diff_off';
+const _quoteDisplayKey = 'reader_quote_display';
 
 class ReaderPreferences {
   ReaderPreferences(this._prefs);
@@ -136,6 +138,12 @@ class ReaderPreferences {
 
   Future<void> setParallelDiffOn(bool v) =>
       _prefs.setBool(_parallelDiffOffKey, !v);
+
+  QuoteDisplayMode get quoteDisplay =>
+      parseQuoteDisplayMode(_prefs.getString(_quoteDisplayKey));
+
+  Future<void> setQuoteDisplay(QuoteDisplayMode v) =>
+      _prefs.setString(_quoteDisplayKey, v.name);
 }
 
 final readerPreferencesProvider = Provider<ReaderPreferences>(
@@ -240,3 +248,17 @@ final parallelDiffOnProvider =
     NotifierProvider<ParallelDiffToggleNotifier, bool>(
       ParallelDiffToggleNotifier.new,
     );
+
+class QuoteDisplayNotifier extends Notifier<QuoteDisplayMode> {
+  @override
+  QuoteDisplayMode build() => ref.read(readerPreferencesProvider).quoteDisplay;
+
+  Future<void> set(QuoteDisplayMode v) async {
+    state = v;
+    await ref.read(readerPreferencesProvider).setQuoteDisplay(v);
+  }
+}
+
+final quoteDisplayProvider = NotifierProvider<QuoteDisplayNotifier, QuoteDisplayMode>(
+  QuoteDisplayNotifier.new,
+);

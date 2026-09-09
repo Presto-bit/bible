@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'reader_experience.dart';
+import 'quote_display.dart';
 import 'reader_preferences.dart';
 
 Future<void> showReaderSettingsSheet(
@@ -211,6 +212,24 @@ Future<void> showReaderSettingsSheet(
                 onChanged: (v) =>
                     ref.read(parallelDiffOnProvider.notifier).set(v),
               ),
+              _section('引号样式'),
+              ...QuoteDisplayMode.values.map((mode) {
+                final selected = ref.watch(quoteDisplayProvider) == mode;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: Text(mode.label),
+                  subtitle: Text(
+                    mode.hint,
+                    style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                  ),
+                  trailing: selected
+                      ? const Icon(Icons.check, color: AppColors.accentDeep, size: 20)
+                      : null,
+                  onTap: () =>
+                      ref.read(quoteDisplayProvider.notifier).set(mode),
+                );
+              }),
             ],
           );
         },

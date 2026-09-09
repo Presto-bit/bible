@@ -119,3 +119,25 @@ export function splitSemicolonListLines(text: string): string[] {
   }
   return out.filter((line) => line.length > 0);
 }
+
+/** 复制/选区：家谱等分号段内保留换行。 */
+export function formatVerseTextForReader(
+  bookId: string,
+  chapter: number,
+  verse: number,
+  text: string,
+  entries?: DiscourseEntry[] | null,
+): string {
+  if (!isSemicolonBreakVerse(bookId, chapter, verse, entries)) return text;
+  const lines = splitSemicolonListLines(text);
+  return lines.length > 1 ? lines.join('\n') : text;
+}
+
+export function chapterHasDiscourseVersePerLine(
+  bookId: string,
+  chapter: number,
+  entries?: DiscourseEntry[] | null,
+): boolean {
+  const list = entries ?? discourseEntriesForChapter(bookId, chapter) ?? [];
+  return list.some((e) => e.mode === 'verse_per_line');
+}

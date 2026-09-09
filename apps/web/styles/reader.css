@@ -876,12 +876,28 @@ a.license-row-name:hover {
 .reader-discourse .verse-paragraph .verse-inline {
   display: block;
 }
+/* 八福等逐节段：取消首行缩进（对齐精读版悬挂） */
+.reader-discourse .verse-paragraph .verse-discourse-line::before {
+  content: none;
+}
+.reader-discourse .verse-paragraph .verse-discourse-line {
+  display: block;
+}
 /* 家谱等：分号清单换行（§7.4） */
 .reader-list-line {
   display: inline-block;
   width: 100%;
   text-indent: 2em;
   margin-top: 0.15em;
+}
+/* 诗体阶梯体：第二行起 2em 缩进（§7.3） */
+.reader-poetry-line {
+  display: block;
+}
+.reader-poetry-line-indented {
+  display: block;
+  text-indent: 2em;
+  margin-top: 0.12em;
 }
 .reader-poetry .verse-paragraph {
   line-height: 2.1;

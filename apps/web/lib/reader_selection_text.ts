@@ -3,12 +3,16 @@ import { textFromWordRange, normalizeWordRange, type WordRange } from '@/lib/sel
 
 type VerseSlice = { verse: number; text: string };
 
-function joinVerseTexts(verses: VerseSlice[], verseNums: number[]): string {
+function joinVerseTexts(
+  verses: VerseSlice[],
+  verseNums: number[],
+  formatVerse?: (verse: number, text: string) => string,
+): string {
   const set = new Set(verseNums);
   return verses
     .filter((v) => set.has(v.verse))
     .sort((a, b) => a.verse - b.verse)
-    .map((v) => v.text)
+    .map((v) => (formatVerse ? formatVerse(v.verse, v.text) : v.text))
     .join('');
 }
 
@@ -44,15 +48,16 @@ export function resolveSelectionTextForAi(opts: {
   wordRange: WordRange | null;
   nativeTouchSelect: boolean;
   nativeSelection: NativeVerseSelection | null;
+  formatVerse?: (verse: number, text: string) => string;
 }): string {
-  const { verses, wholeVerseSel, wordRange, nativeTouchSelect, nativeSelection } = opts;
+  const { verses, wholeVerseSel, wordRange, nativeTouchSelect, nativeSelection, formatVerse } = opts;
 
   if (wholeVerseSel.length > 0) {
-    return joinVerseTexts(verses, wholeVerseSel);
+    return joinVerseTexts(verses, wholeVerseSel, formatVerse);
   }
 
   if (nativeTouchSelect && nativeSelection) {
-    const full = joinVerseTexts(verses, nativeSelection.verses);
+    const full = joinVerseTexts(verses, nativeSelection.verses, formatVerse);
     const picked = nativeSelection.text.trim();
     if (!picked) return full;
     if (nativeSelectionCoversVerses(verses, nativeSelection)) return full;
@@ -65,7 +70,7 @@ export function resolveSelectionTextForAi(opts: {
       (v) => verses.find((x) => x.verse === v)?.text ?? '',
     );
     const { verses: nums, anchor } = normalizeWordRange(wordRange);
-    const full = joinVerseTexts(verses, nums);
+    const full = joinVerseTexts(verses, nums, formatVerse);
     if (full && rangeText.length < full.length * 0.85) {
       const oneVerse = verses.find((x) => x.verse === anchor.verse)?.text ?? '';
       if (rangeText.length <= 4 && oneVerse.length > rangeText.length * 2) {

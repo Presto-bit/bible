@@ -527,6 +527,11 @@ def discourse_ranges() -> dict:
     return loader.discourse_ranges_index()
 
 
+@router.get("/poetry-lines")
+def poetry_lines() -> dict:
+    return loader.poetry_lines_index()
+
+
 # ── 插画 ──
 @router.get("/illustrations")
 def illustrations() -> dict:

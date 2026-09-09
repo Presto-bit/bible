@@ -889,6 +889,8 @@ export const api = {
     getJson<{ entries?: { ref: string; ranges: [number, number][]; mode: string; kind?: string }[] }>(
       '/content/discourse-ranges',
     ),
+  poetryLines: () =>
+    getJson<{ verses?: Record<string, string[]> }>('/content/poetry-lines'),
   // 社交
   myGroups: () => authed<{ groups: Group[] }>('/social/groups'),
   discoverSummary: () => authed<DiscoverSummary>('/social/discover/summary'),

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api_client.dart';
 import 'discourse_ranges.dart';
 import 'paragraphs.dart';
+import 'poetry_lines.dart';
 
 class RelatedVerse {
   RelatedVerse({required this.ref, required this.text});
@@ -130,6 +131,8 @@ class ContentRepository {
   Future<void>? _paragraphIndexLoad;
   List<DiscourseEntry> _discourseCatalog = const [];
   Future<void>? _discourseCatalogLoad;
+  PoetryLinesIndex _poetryLines = PoetryLinesIndex(const {});
+  Future<void>? _poetryLinesLoad;
 
   String _paragraphChapterKey(String book, int chapter) =>
       '${book.toUpperCase()}.$chapter';
@@ -159,6 +162,24 @@ class ContentRepository {
       _discourseCatalog = parseDiscourseCatalogJson(raw);
     } catch (_) {
       _discourseCatalog = const [];
+    }
+  }
+
+  PoetryLinesIndex get poetryLines => _poetryLines;
+
+  Future<void> preloadPoetryLinesIndex() {
+    _poetryLinesLoad ??= _loadPoetryLinesIndex();
+    return _poetryLinesLoad!;
+  }
+
+  Future<void> _loadPoetryLinesIndex() async {
+    try {
+      final res = await _dio.get('/content/poetry-lines');
+      _poetryLines = PoetryLinesIndex.fromJson(
+        (res.data as Map?)?.cast<String, dynamic>() ?? {},
+      );
+    } catch (_) {
+      _poetryLines = PoetryLinesIndex(const {});
     }
   }
 
@@ -432,6 +453,14 @@ final discourseCatalogProvider = FutureProvider<List<DiscourseEntry>>(
     final repo = ref.watch(contentRepoProvider);
     await repo.preloadDiscourseCatalog();
     return repo.discourseCatalog;
+  },
+);
+
+final poetryLinesProvider = FutureProvider<PoetryLinesIndex>(
+  (ref) async {
+    final repo = ref.watch(contentRepoProvider);
+    await repo.preloadPoetryLinesIndex();
+    return repo.poetryLines;
   },
 );
 

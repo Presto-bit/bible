@@ -30,6 +30,8 @@ import 'chapter_cache.dart';
 import 'chapter_guide_tip.dart';
 import 'content_repository.dart' hide SectionMark;
 import 'discourse_ranges.dart';
+import 'poetry_lines.dart';
+import 'quote_display.dart';
 import 'dictionary_match.dart';
 import 'entity_knowledge_sheet.dart';
 import 'inline_ref.dart';
@@ -735,6 +737,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       if (mounted) {
         unawaited(ref.read(contentRepoProvider).preloadParagraphRangesIndex());
         unawaited(ref.read(contentRepoProvider).preloadDiscourseCatalog());
+        unawaited(ref.read(contentRepoProvider).preloadPoetryLinesIndex());
         _prefetchAdjacentChapters();
       }
     });
@@ -1479,21 +1482,28 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   String _selectionText(Chapter? ch) {
     if (ch == null) return '';
+    final discourse =
+        ref.read(discourseCatalogProvider).valueOrNull ?? const [];
+    String fmt(Verse v) => formatVerseTextForReader(
+      discourse,
+      widget.book.id,
+      widget.chapter,
+      v.verse,
+      v.text,
+    );
     final wr = _wordRange;
     if (wr != null) {
       return textFromWordRange(
         wr,
-        (v) =>
-            ch.verses
-                .where((x) => x.verse == v)
-                .map((x) => x.text)
-                .firstOrNull ??
-            '',
+        (v) {
+          final verse = ch.verses.where((x) => x.verse == v).firstOrNull;
+          return verse == null ? '' : fmt(verse);
+        },
       );
     }
     return ch.verses
         .where((v) => _selected.contains(v.verse))
-        .map((v) => v.text)
+        .map(fmt)
         .join();
   }
 
@@ -3906,6 +3916,7 @@ class _AdjacentChapterPeekPanelState
         selectionActive: widget.selectionActive,
         theme: widget.theme,
         topPad: widget.topPad,
+        quoteDisplay: ref.watch(quoteDisplayProvider),
         paragraphRanges: peekParagraphRanges,
       );
     }
@@ -4027,6 +4038,7 @@ class _ChapterPeekContent extends StatelessWidget {
     required this.selectionActive,
     required this.theme,
     required this.topPad,
+    required this.quoteDisplay,
     this.paragraphRanges,
   });
 
@@ -4056,6 +4068,7 @@ class _ChapterPeekContent extends StatelessWidget {
   final bool selectionActive;
   final ReaderExperienceTheme theme;
   final double topPad;
+  final QuoteDisplayMode quoteDisplay;
   final List<(int, int)>? paragraphRanges;
 
   bool get _poetry => const {
@@ -4141,7 +4154,7 @@ class _ChapterPeekContent extends StatelessWidget {
     final hasThought =
         thoughtsEnabled && (thoughtsByVerse[verse.verse] ?? 0) > 0;
     final hasMyThought = (myThoughtsByVerse[verse.verse] ?? 0) > 0;
-    final text = verse.text;
+    final text = formatQuotesForDisplay(verse.text, quoteDisplay);
     final dictSpans = !selectionActive && dictKeys.isNotEmpty
         ? cachedDictSpansForText(
             text,
@@ -4376,7 +4389,8 @@ class _ChapterPeekContent extends StatelessWidget {
           textAlign: TextAlign.justify,
           text: TextSpan(
             style: _parallelStyle,
-            text: '${_textFor(parallel!, layoutVerse.verse)} ',
+            text:
+                '${formatQuotesForDisplay(_textFor(parallel!, layoutVerse.verse), quoteDisplay)} ',
           ),
         ),
       );
@@ -4624,6 +4638,11 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     );
     const selBg = Color(0x333390FF);
     final marginMode = widget.verseNo == ReaderVerseNumberMode.margin;
+    final discourseCatalog =
+        ref.watch(discourseCatalogProvider).valueOrNull ?? const [];
+    final poetryLinesIndex =
+        ref.watch(poetryLinesProvider).valueOrNull ?? PoetryLinesIndex(const {});
+    final quoteMode = ref.watch(quoteDisplayProvider);
 
     if (marginMode) {
       return RepaintBoundary(
@@ -4640,7 +4659,15 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                 chapter: widget.chapter,
                 baseStyle: baseStyle,
                 fontPx: fontPx,
-                proseIndent: !widget.poetry && i == 0,
+                proseIndent:
+                    !widget.poetry &&
+                    i == 0 &&
+                    !isDiscourseVersePerLine(
+                      discourseCatalog,
+                      widget.book.id,
+                      widget.chapter,
+                      v.verse,
+                    ),
                 selectionActive: selectionActive,
                 selBg: selBg,
                 wordRange: widget.wordRange,
@@ -4700,7 +4727,15 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         );
         index.placeholder();
       }
-      final indentHere = !widget.poetry && firstVerse;
+      final indentHere =
+          !widget.poetry &&
+          firstVerse &&
+          !isDiscourseVersePerLine(
+            discourseCatalog,
+            widget.book.id,
+            widget.chapter,
+            v.verse,
+          );
       firstVerse = false;
       final markInfo = widget.underlinesEnabled
           ? markForVerse(
@@ -4775,8 +4810,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         index.placeholder();
       }
 
-      final discourseCatalog =
-          ref.watch(discourseCatalogProvider).valueOrNull ?? const [];
+      final displayText = formatQuotesForDisplay(v.text, quoteMode);
       final semicolonLines =
           isSemicolonBreakVerse(
             discourseCatalog,
@@ -4784,7 +4818,10 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             widget.chapter,
             v.verse,
           )
-          ? splitSemicolonListLines(v.text)
+          ? splitSemicolonListLines(displayText)
+          : null;
+      final poetrySubLines = widget.poetry
+          ? poetryLinesIndex.linesFor(widget.book.id, widget.chapter, v.verse)
           : null;
 
       if (verseKey != null) {
@@ -4798,8 +4835,16 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         index.placeholder();
       }
 
-      if (semicolonLines != null && semicolonLines.length > 1) {
-        for (var li = 0; li < semicolonLines.length; li++) {
+      List<String>? stackedLines;
+      if (poetrySubLines != null && poetrySubLines.length > 1) {
+        stackedLines = poetrySubLines
+            .map((line) => formatQuotesForDisplay(line, quoteMode))
+            .toList(growable: false);
+      } else if (semicolonLines != null && semicolonLines.length > 1) {
+        stackedLines = semicolonLines;
+      }
+      if (stackedLines != null) {
+        for (var li = 0; li < stackedLines.length; li++) {
           if (li > 0) {
             spans.add(TextSpan(text: '\n', style: baseStyle));
             index.text(
@@ -4810,7 +4855,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             );
             spans.add(readerProseIndentSpan(fontPx: fontPx, index: index));
           }
-          final line = semicolonLines[li];
+          final line = stackedLines[li];
           final rec = selectionActive
               ? _tap(
                   'sc-tap-${v.verse}-$li',
@@ -4831,7 +4876,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
       } else {
         final dictSpans = !selectionActive && widget.dictKeys.isNotEmpty
             ? cachedDictSpansForText(
-                v.text,
+                displayText,
                 widget.dictIndex,
                 widget.dictKeys,
                 bookId: widget.book.id,
@@ -4841,7 +4886,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               )
             : const <DictSpanHit>[];
         final words = sliceVerseWords(
-          v.text,
+          displayText,
           splitOffsets: dictSpans.expand((span) => [span.start, span.end]),
         );
         if (words.isEmpty) {
@@ -4860,7 +4905,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           appendReaderWordSpans(
             spans: spans,
             index: index,
-            verseText: v.text,
+            verseText: displayText,
             verse: v.verse,
             baseStyle: baseStyle,
             fontPx: fontPx,
@@ -4941,7 +4986,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
 }
 
 /// 行首节号（margin 模式）：[段首1em] + 1.8em 节号 + 0.35em 间距 + 正文（对齐 PWA）。
-class _MarginVerseRow extends StatefulWidget {
+class _MarginVerseRow extends ConsumerStatefulWidget {
   const _MarginVerseRow({
     required this.verse,
     required this.book,
@@ -5008,10 +5053,10 @@ class _MarginVerseRow extends StatefulWidget {
   final void Function(int verse, String text) onOpenThoughts;
 
   @override
-  State<_MarginVerseRow> createState() => _MarginVerseRowState();
+  ConsumerState<_MarginVerseRow> createState() => _MarginVerseRowState();
 }
 
-class _MarginVerseRowState extends State<_MarginVerseRow> {
+class _MarginVerseRowState extends ConsumerState<_MarginVerseRow> {
   @override
   Widget build(BuildContext context) {
     final v = widget.verse;
@@ -5037,9 +5082,45 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
     final notes = widget.notes;
     final markInfo = widget.markInfo;
     final anchorKey = widget.anchorKey;
+    final discourseCatalog =
+        ref.watch(discourseCatalogProvider).valueOrNull ?? const [];
+    final poetryLinesIndex =
+        ref.watch(poetryLinesProvider).valueOrNull ?? PoetryLinesIndex(const {});
+    final quoteMode = ref.watch(quoteDisplayProvider);
+    final displayText = formatQuotesForDisplay(v.text, quoteMode);
+    final semicolonLines = isSemicolonBreakVerse(
+      discourseCatalog,
+      book.id,
+      chapter,
+      v.verse,
+    )
+        ? splitSemicolonListLines(displayText)
+        : null;
+    final poetrySubLines =
+        poetryLinesIndex.linesFor(book.id, chapter, v.verse);
+    List<String>? stackedLines;
+    if (poetrySubLines != null && poetrySubLines.length > 1) {
+      stackedLines = poetrySubLines
+          .map((line) => formatQuotesForDisplay(line, quoteMode))
+          .toList(growable: false);
+    } else if (semicolonLines != null && semicolonLines.length > 1) {
+      stackedLines = semicolonLines;
+    }
+
+    final bodyChildren = <InlineSpan>[];
+    final index = SpanIndexBuilder();
+    if (stackedLines != null) {
+      for (var li = 0; li < stackedLines.length; li++) {
+        if (li > 0) {
+          bodyChildren.add(TextSpan(text: '\n', style: baseStyle));
+          bodyChildren.add(readerProseIndentSpan(fontPx: fontPx));
+        }
+        bodyChildren.add(TextSpan(text: stackedLines[li], style: baseStyle));
+      }
+    } else {
     final dictSpans = !selectionActive && dictKeys.isNotEmpty
         ? cachedDictSpansForText(
-            v.text,
+            displayText,
             dictIndex,
             dictKeys,
             bookId: book.id,
@@ -5049,15 +5130,13 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
           )
         : const <DictSpanHit>[];
     final words = sliceVerseWords(
-      v.text,
+      displayText,
       splitOffsets: dictSpans.expand((span) => [span.start, span.end]),
     );
-    final bodyChildren = <InlineSpan>[];
-    final index = SpanIndexBuilder();
     appendReaderWordSpans(
       spans: bodyChildren,
       index: index,
-      verseText: v.text,
+      verseText: displayText,
       verse: v.verse,
       baseStyle: baseStyle,
       fontPx: fontPx,
@@ -5076,6 +5155,7 @@ class _MarginVerseRowState extends State<_MarginVerseRow> {
       onStart: onStart,
       onOpenDict: onOpenDict,
     );
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 3, 0, 3),
       child: Row(

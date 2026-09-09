@@ -141,8 +141,17 @@ import {
   paragraphRangesForChapter,
   preloadParagraphRanges,
 } from '@/lib/paragraph_ranges';
-import { preloadDiscourseRanges } from '@/lib/discourse_ranges';
+import {
+  chapterHasDiscourseVersePerLine,
+  discourseEntriesForChapterAsync,
+  formatVerseTextForReader,
+  isDiscourseVerse,
+  preloadDiscourseRanges,
+  type DiscourseEntry,
+} from '@/lib/discourse_ranges';
 import { renderDiscourseAwareBody } from '@/lib/discourse_verse_body';
+import { poetryLinesForVerse, preloadPoetryLines } from '@/lib/poetry_lines';
+import { renderPoetryLineBody } from '@/lib/poetry_verse_body';
 import { resolveSelectionTextForAi, versesForNativeLineHighlight, nativeSelectionCoversVerses } from '@/lib/reader_selection_text';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import { sectionMarkAt } from '@/lib/reader_section_marks';
@@ -208,6 +217,11 @@ import {
   type ReadingMode,
 } from '@/lib/reader_preferences';
 import {
+  formatQuotesForDisplay,
+  QUOTE_DISPLAY_MODES,
+  type QuoteDisplayMode,
+} from '@/lib/quote_display';
+import {
   cachedVerseDiff,
   renderTextWithDiffSpans,
   sameScriptRoughly,
@@ -265,6 +279,8 @@ export default function ReaderView({
   onNavigate,
   bookAbbr,
   renderVerseText,
+  quoteDisplayMode = 'source',
+  onQuoteDisplayModeChange,
   planMeta,
   onPlanMetaChange,
   onPlanJump,
@@ -282,6 +298,8 @@ export default function ReaderView({
   onNavigate: (book: BibleBook, chapter: number) => void;
   bookAbbr: (name: string) => string;
   renderVerseText: (text: string, keyBase: string, verse: number) => React.ReactNode;
+  quoteDisplayMode?: QuoteDisplayMode;
+  onQuoteDisplayModeChange?: (mode: QuoteDisplayMode) => void;
   planMeta?: PlanReadingMeta | null;
   onPlanMetaChange?: (m: PlanReadingMeta) => void;
   onPlanJump?: (bookId: string, chapter: number) => void;
@@ -554,6 +572,7 @@ export default function ReaderView({
   const poetry = isPoetryBook(book.id);
   const [outline, setOutline] = useState<SectionMark[]>([]);
   const [paragraphRanges, setParagraphRanges] = useState<[number, number][] | null>(null);
+  const [discourseEntries, setDiscourseEntries] = useState<DiscourseEntry[] | null>(null);
 
   useLayoutEffect(() => {
     if (skipChapterHydrateRef.current) return;
@@ -610,10 +629,29 @@ export default function ReaderView({
     },
     [book.id, chapter, structureVerses, outline, paragraphRanges],
   );
+  const formatVerseForReader = useCallback(
+    (verseNum: number, text: string) =>
+      formatVerseTextForReader(book.id, chapter, verseNum, text, discourseEntries),
+    [book.id, chapter, discourseEntries],
+  );
+
   const verseDisplayText = useCallback(
-    (verseNum: number, fallback: string) =>
-      verses.find((x) => x.verse === verseNum)?.text ?? fallback,
-    [verses],
+    (verseNum: number, fallback: string) => {
+      const raw = verses.find((x) => x.verse === verseNum)?.text ?? fallback;
+      return formatVerseForReader(verseNum, raw);
+    },
+    [verses, formatVerseForReader],
+  );
+
+  const verseParaStartClass = useCallback(
+    (vi: number, verseNum: number) => {
+      if (vi !== 0) return '';
+      if (isDiscourseVerse(book.id, chapter, verseNum, discourseEntries)) {
+        return ' verse-discourse-line';
+      }
+      return ' verse-para-start';
+    },
+    [book.id, chapter, discourseEntries],
   );
 
   const activeNativeSelection =
@@ -768,8 +806,9 @@ export default function ReaderView({
         wordRange,
         nativeTouchSelect,
         nativeSelection: activeNativeSelection,
+        formatVerse: formatVerseForReader,
       }),
-    [verses, wholeVerseSel, wordRange, nativeTouchSelect, activeNativeSelection],
+    [verses, wholeVerseSel, wordRange, nativeTouchSelect, activeNativeSelection, formatVerseForReader],
   );
   const refParam = hasSel
     ? selectionRef(book.id, chapter, sortedSel)
@@ -925,6 +964,10 @@ export default function ReaderView({
       }
 
       if (!span && !nativeTouchSelect) {
+        const poetrySubLines = poetry ? poetryLinesForVerse(book.id, chapter, verseNum) : null;
+        if (poetrySubLines && poetrySubLines.length > 1) {
+          return renderPoetryLineBody(poetrySubLines, keyBase, renderText);
+        }
         return renderDiscourseAwareBody(
           text,
           keyBase,
@@ -982,7 +1025,7 @@ export default function ReaderView({
         </>
       );
     },
-    [renderVerseText, wordRange, nativeTouchSelect, book.id, chapter],
+    [renderVerseText, wordRange, nativeTouchSelect, book.id, chapter, poetry],
   );
 
   const updateFocusBarPosition = useCallback(() => {
@@ -1524,7 +1567,18 @@ export default function ReaderView({
     preloadSectionTitles();
     preloadParagraphRanges();
     preloadDiscourseRanges();
+    preloadPoetryLines();
   }, [swipeTurn]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void discourseEntriesForChapterAsync(book.id, chapter).then((entries) => {
+      if (!cancelled) setDiscourseEntries(entries.length ? entries : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [book.id, chapter]);
 
   useEffect(() => {
     if (!swipeTurn) return;
@@ -3011,7 +3065,8 @@ export default function ReaderView({
                   style={verseBlockStyle}
                 >
                   {para.verses.map((v, vi) => {
-                    const text = verseDisplayText(v.verse, v.text);
+                    const text = v.text;
+                    const displayText = verseDisplayText(v.verse, v.text);
                     const markInfo = underlinesOn
                       ? markForVerse(highlightMap, book.id, chapter, v.verse)
                       : null;
@@ -3031,8 +3086,8 @@ export default function ReaderView({
                         <div className="reader-parallel-primary">
                           <span
                             id={`verse-anchor-${v.verse}`}
-                            className={`verse-inline verse-token${vi === 0 ? ' verse-para-start' : ''} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${audioVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
-                            onClick={(e) => handleVerseClick(e, v.verse, text)}
+                            className={`verse-inline verse-token${verseParaStartClass(vi, v.verse)} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${audioVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
+                            onClick={(e) => handleVerseClick(e, v.verse, displayText)}
                             onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                           >
                             {verseNo !== 'hidden' && (
@@ -3063,8 +3118,9 @@ export default function ReaderView({
                             const diff = showParallelDiff && readingMode === 'study'
                               ? parallelDiffMap[v.verse]
                               : undefined;
+                            const secDisplay = formatQuotesForDisplay(sec, quoteDisplayMode);
                             if (!diff || (!diff.heavy && !diff.parallel.length)) {
-                              return <span className="verse-inline">{sec}</span>;
+                              return <span className="verse-inline">{secDisplay}</span>;
                             }
                             if (diff.heavy) {
                               return (
@@ -3082,7 +3138,7 @@ export default function ReaderView({
                                     setAiSheet(true);
                                   }}
                                 >
-                                  {sec}
+                                  {secDisplay}
                                 </span>
                               );
                             }
@@ -3104,10 +3160,10 @@ export default function ReaderView({
                                         setAiSheet(true);
                                       }}
                                     >
-                                      {part.text}
+                                      {formatQuotesForDisplay(part.text, quoteDisplayMode)}
                                     </mark>
                                   ) : (
-                                    <span key={part.key}>{part.text}</span>
+                                    <span key={part.key}>{formatQuotesForDisplay(part.text, quoteDisplayMode)}</span>
                                   ),
                                 )}
                               </span>
@@ -3146,7 +3202,7 @@ export default function ReaderView({
                       {renderFeedHint(v.verse)}
                       <span
                         id={`verse-anchor-${v.verse}`}
-                        className={`verse-inline verse-token${vi === 0 ? ' verse-para-start' : ''} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${audioVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
+                        className={`verse-inline verse-token${verseParaStartClass(vi, v.verse)} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${audioVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
                         onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
                         onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                       >
@@ -3155,7 +3211,7 @@ export default function ReaderView({
                         )}
                         <span className="verse-text-body">
                           {renderVerseBody(
-                            verseDisplayText(v.verse, v.text),
+                            v.text,
                             `v${v.verse}`,
                             v.verse,
                             resumeFlashVerse === v.verse,
@@ -3175,7 +3231,7 @@ export default function ReaderView({
 
   return (
     <main
-      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}${audioMinimized ? ' reader-audio-minimized' : ''}${audioFocusOpen ? ' reader-audio-focus-open' : ''}${aiSheet ? ' reader-ai-sheet-open' : ''}`}
+      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chapterHasDiscourseVersePerLine(book.id, chapter, discourseEntries) ? ' reader-discourse' : ''}${chromeHidden ? ' reader-chrome-hidden' : ''}${audioMinimized ? ' reader-audio-minimized' : ''}${audioFocusOpen ? ' reader-audio-focus-open' : ''}${aiSheet ? ' reader-ai-sheet-open' : ''}`}
       onClick={(e) => {
         if (focusBarRef.current?.contains(e.target as Node)) return;
         const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
@@ -3823,6 +3879,20 @@ export default function ReaderView({
               <span>显示想法</span>
               <input type="checkbox" checked={thoughtsOn} onChange={(e) => { setThoughtsOn(e.target.checked); persistThoughtsOn(e.target.checked); }} />
             </label>
+            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>引号样式</p>
+            <div className="font-pills">
+              {QUOTE_DISPLAY_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={`font-pill ${quoteDisplayMode === m.id ? 'font-pill-active' : ''}`}
+                  title={m.hint}
+                  onClick={() => onQuoteDisplayModeChange?.(m.id)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
         </ReaderSheetPortal>
       )}
 

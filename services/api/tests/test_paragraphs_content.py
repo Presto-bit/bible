@@ -57,3 +57,19 @@ def test_discourse_ranges_index():
     refs = {e["ref"] for e in entries}
     assert "MAT.5" in refs
     assert "MAT.1" in refs
+    assert "GEN.5" in refs
+    assert "REV.2" in refs
+
+
+def test_paragraph_ranges_mat5_antithesis():
+    ranges = loader.paragraph_ranges("MAT", 5)
+    assert [21, 21] in ranges
+    assert [48, 48] in ranges
+
+
+def test_poetry_lines_index():
+    data = loader.poetry_lines_index()
+    assert data.get("schema") == "poetry_lines@1"
+    verses = data.get("verses") or {}
+    assert "PSA.23.1" in verses
+    assert len(verses["PSA.23.1"]) >= 2

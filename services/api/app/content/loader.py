@@ -318,6 +318,14 @@ def discourse_ranges_index() -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+@lru_cache(maxsize=1)
+def poetry_lines_index() -> dict:
+    path = _data_dir() / "bible/cnv/poetry_lines.json"
+    if not path.exists():
+        return {"schema": "poetry_lines@1", "verses": {}}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 # ── 插画 ──
 def illustrations_index() -> dict:
     return _load_json("illustrations/index.json")
