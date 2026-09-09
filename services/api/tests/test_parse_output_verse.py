@@ -1,5 +1,6 @@
 from app.ai.parse_output import (
     answer_ends_abruptly,
+    merge_continuation_sections,
     mid_bullet_truncated,
     missing_verse_sections,
     verse_explain_incomplete,
@@ -85,7 +86,8 @@ def test_verse_full_passage_span_complete_with_outline():
 def test_answer_ends_abruptly_detects_cut():
     body = "### 摘要\n说到一半就被"
     assert answer_ends_abruptly(body)
-    assert verse_needs_length_continuation("verse_full", body, finish_reason="stop")
+    assert not verse_needs_length_continuation("verse_full", body, finish_reason="stop")
+    assert verse_needs_length_continuation("verse_full", body, finish_reason="length")
 
 
 def test_length_not_continued_when_sections_complete():
@@ -156,3 +158,20 @@ def test_mid_bullet_truncated_detects_ellipsis():
     body = "### 经文解释\n- 说到一半就被…"
     assert mid_bullet_truncated(body)
     assert verse_explain_incomplete("verse_full", body, depth="deep")
+
+
+def test_merge_continuation_sections_merges_explain():
+    body = (
+        "### 摘要\n神爱世人。\n\n"
+        "### 经文解释\n"
+        "- 在尼哥底母夜访的语境下，这句话指向救恩出于神的主动。\n"
+        "- 「独生子」强调基督独特的位格。\n\n"
+        "### 经文解释（续）\n"
+        "- 在同样语境下，「赐下」表明救恩是礼物而非酬劳。\n"
+        "- 信者得永生是整节要旨的收束。"
+    )
+    merged = merge_continuation_sections(body)
+    assert "（续）" not in merged
+    assert merged.count("### 经文解释") == 1
+    assert "礼物而非酬劳" in merged
+    assert "救恩出于神的主动" in merged

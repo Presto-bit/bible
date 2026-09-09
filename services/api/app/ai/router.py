@@ -33,6 +33,7 @@ from .parse_output import (
     answer_ends_abruptly,
     answer_marked_incomplete,
     extract_sections,
+    mid_bullet_truncated,
     split_body_and_followups,
     verse_explain_incomplete,
     verse_needs_length_continuation,
@@ -1014,8 +1015,9 @@ def chat(
                 {
                     "role": "user",
                     "content": (
-                        "请从上文中断处继续写完剩余内容，不要重复已写部分，"
-                        "保持相同 Markdown 结构，自然收束。"
+                        "请从中断处续写，只补完最后一个未写完的句子或最后一条列表要点；"
+                        "不要新增 ### 小节标题，不要写「（续）」类标题，"
+                        "不要重复已有要点，自然收束即可。"
                     ),
                 },
             ]
@@ -1074,7 +1076,14 @@ def chat(
                         min_complete=_dk.get("min_complete"),
                     )
                 if need_length:
-                    yield from _run_length_continuation(meta, force=True)
+                    yield from _run_length_continuation(
+                        meta,
+                        force=(
+                            meta.finish_reason == "length"
+                            or answer_ends_abruptly(body_probe)
+                            or mid_bullet_truncated(body_probe)
+                        ),
+                    )
             yield from _run_citation_repair()
         except Exception as exc:  # 上游/网络异常 → 友好错误事件
             logger.exception("ai chat stream failed")

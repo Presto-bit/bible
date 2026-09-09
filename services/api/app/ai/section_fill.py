@@ -169,22 +169,23 @@ def _fill_user_message(hints: list[str], *, mode: str, restructure: bool) -> str
             + joined
             + "。不要重复已说信息，不要明显加长，只输出 Markdown 正文。"
         )
+    _no_cont = "不要新增「（续）」类小节标题，"
     if mode == "intent":
         return (
             "请补全上一条 assistant 回答中缺失或中断的部分。"
             + joined
-            + "。不要重复已写内容，保持 ### 中文标题，篇幅与原文相当，自然收束。"
+            + f"。{_no_cont}不要重复已写内容，保持 ### 中文标题，篇幅与原文相当，自然收束。"
         )
     if mode == "structure":
         return (
             "请补全上一条 assistant 回答。"
             + joined
-            + "。不要重复已写内容，保持 ### 中文标题与 - 列表格式，自然收束。"
+            + f"。{_no_cont}不要重复已写内容，保持 ### 中文标题与 - 列表格式，自然收束。"
         )
     return (
         "请补全上一条 assistant 回答。"
         + joined
-        + "。不要重复已写内容，保持 ### 中文标题格式，自然收束。"
+        + f"。{_no_cont}不要重复已写内容，保持 ### 中文标题格式，自然收束。"
     )
 
 

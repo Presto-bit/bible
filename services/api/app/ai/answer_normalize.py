@@ -9,7 +9,12 @@ from .answer_schema import (
     budget_for_scene,
     effective_budget_for_scene,
 )
-from .parse_output import FOLLOWUP_SECTION_RE, SECTION_MD_RE, split_body_and_followups
+from .parse_output import (
+    FOLLOWUP_SECTION_RE,
+    SECTION_MD_RE,
+    merge_continuation_sections,
+    split_body_and_followups,
+)
 
 _BULLET_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)、])\s+\S")
 # LLM 偶发复述系统 prompt 内部标签，展示前剥离
@@ -212,6 +217,7 @@ def normalize_answer_markdown(
     format_only=True（R3）：fill 后只整理标题/列表形态，不做字数裁剪。
     """
     text = strip_prompt_leakage(text)
+    text = merge_continuation_sections(text)
     body, followups = split_body_and_followups(text)
     bud = effective_budget_for_scene(scene, narrow=narrow, verse_span=verse_span)
     if not bud or not body.strip():

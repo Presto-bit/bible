@@ -316,13 +316,73 @@ def verse_needs_length_continuation(
     )
     if not incomplete:
         return False
-    if expected_sections:
-        titles = {s["title"] for s in extract_sections(body_text)}
-        if _planned_sections_missing(titles, expected_sections):
-            return True
+    titles = {s["title"] for s in extract_sections(body_text)}
+    if expected_sections and _planned_sections_missing(titles, expected_sections):
+        return True
+    if expected_sections and not _planned_sections_missing(titles, expected_sections):
+        return mid_bullet_truncated(body_text) or (
+            finish_reason == "length" and answer_ends_abruptly(body_text)
+        )
     if finish_reason == "length":
-        return answer_ends_abruptly(body_text)
-    return answer_ends_abruptly(body_text)
+        return answer_ends_abruptly(body_text) or mid_bullet_truncated(body_text)
+    return mid_bullet_truncated(body_text)
+
+
+_CONTINUATION_SECTION_SUFFIX = re.compile(
+    r"（续）$|（续写）$|\(续\)$|\(续写\)$",
+)
+
+
+def _canonical_merge_section_title(title: str) -> str:
+    t = _CONTINUATION_SECTION_SUFFIX.sub("", title.strip()).strip()
+    return "经文背景" if t == "背景" else t
+
+
+def merge_continuation_sections(body_text: str) -> str:
+    """合并「经文解释（续）」等续写小节，避免重复展示。"""
+    text = body_text.strip()
+    if not text or "续" not in text:
+        return text
+    matches = list(SECTION_MD_RE.finditer(text))
+    if not matches:
+        return text
+    merged: dict[str, list[str]] = {}
+    order: list[str] = []
+    for i, m in enumerate(matches):
+        title = m.group(1).strip()
+        if title == "相关追问":
+            break
+        canon = _canonical_merge_section_title(title)
+        if _CONTINUATION_SECTION_SUFFIX.search(title.strip()) and canon in merged:
+            pass
+        elif canon not in merged:
+            order.append(canon)
+            merged[canon] = []
+        elif canon not in order:
+            order.append(canon)
+            merged[canon] = []
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        chunk = text[start:end].strip()
+        if chunk:
+            merged.setdefault(canon, []).append(chunk)
+    if not any(len(v) > 1 for v in merged.values()) and not any(
+        _CONTINUATION_SECTION_SUFFIX.search(m.group(1).strip()) for m in matches
+    ):
+        return text
+    parts: list[str] = []
+    for canon in order:
+        chunks = merged.get(canon) or []
+        if not chunks:
+            continue
+        parts.append(f"### {canon}")
+        parts.append("\n\n".join(chunks))
+        parts.append("")
+    tail = text[matches[-1].end() :].strip()
+    if "相关追问" in tail:
+        parts.append("### 相关追问")
+        parts.append(tail.split("相关追问", 1)[-1].strip())
+    return "\n".join(parts).strip()
 
 
 def answer_marked_incomplete(

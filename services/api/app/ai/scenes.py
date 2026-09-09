@@ -19,6 +19,14 @@ _BULLETS_RICH = (
     "每条 1–2 句完整判断（约 50–80 字），须点出经节范围或关键词；"
     "禁止只写名词短语或标题式短句。"
 )
+_BG_CONTEXT = (
+    "写清**上下文**：本段在书卷/章节中的位置、与前文后文的衔接、当时读者处境；"
+    "为背景铺垫，不在此节展开经句详解。"
+)
+_EXPLAIN_CONTEXT = (
+    "承接上文「经文背景」与（若有）「段落脉络」，解释关键字句；"
+    "用「在……语境下，这句话……」写法，不要重复背景已说的信息。"
+)
 
 
 @dataclass(frozen=True)
@@ -60,9 +68,9 @@ SCENES: dict[str, SceneSpec] = {
             "### 摘要\n"
             "1 句（≤40 字）。\n"
             "### 经文背景\n"
-            f"2–3 条要点，{_BULLETS}交代历史与上下文。\n"
+            f"2–3 条要点，{_BULLETS}{_BG_CONTEXT}\n"
             "### 经文解释\n"
-            f"3–4 条要点，{_BULLETS}说清原意与关键词。\n"
+            f"3–4 条要点，{_BULLETS}{_EXPLAIN_CONTEXT}\n"
             f"建议篇幅约 260–360 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
         ),
     ),
@@ -77,9 +85,9 @@ SCENES: dict[str, SceneSpec] = {
             "### 摘要\n"
             "1 句（≤40 字）。\n"
             "### 背景\n"
-            f"2–3 条，{_BULLETS}\n"
+            f"2–3 条，{_BULLETS}{_BG_CONTEXT}\n"
             "### 经文解释\n"
-            f"3–4 条，{_BULLETS}\n"
+            f"3–4 条，{_BULLETS}{_EXPLAIN_CONTEXT}\n"
             f"建议篇幅约 300–420 字。{_LEN_HINT}"
         ),
     ),
@@ -357,9 +365,9 @@ def verse_scene_format_guide(
                 "### 摘要\n"
                 "1 句（≤42 字）。\n"
                 "### 经文背景\n"
-                f"2–3 条，{_BULLETS_RICH}\n"
+                f"2–3 条，{_BULLETS_RICH}{_BG_CONTEXT}\n"
                 "### 经文解释\n"
-                f"3–5 条，{_BULLETS_RICH}\n"
+                f"3–5 条，{_BULLETS_RICH}{_EXPLAIN_CONTEXT}\n"
                 f"建议篇幅约 {depth.target_chars}–{depth.soft_max} 字。{_LEN_HINT}"
             )
     if depth and depth.depth == "standard" and depth.section_policy == "soft":
@@ -394,9 +402,9 @@ def verse_scene_format_guide(
             "### 摘要\n"
             "1 句（≤42 字）。\n"
             "### 经文背景\n"
-            f"2–3 条，{_BULLETS_RICH}\n"
+            f"2–3 条，{_BULLETS_RICH}{_BG_CONTEXT}\n"
             "### 经文解释\n"
-            f"3–5 条，{_BULLETS_RICH}\n"
+            f"3–5 条，{_BULLETS_RICH}{_EXPLAIN_CONTEXT}\n"
             f"建议篇幅约 320–520 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
         )
     return (
@@ -407,11 +415,11 @@ def verse_scene_format_guide(
         "### 摘要\n"
         "1 句（≤50 字），概括整段要旨。\n"
         "### 经文背景\n"
-        f"2 条，{_BULLETS_RICH}交代历史、作者与教会处境（紧接摘要之下）。\n"
+        f"2 条，{_BULLETS_RICH}{_BG_CONTEXT}\n"
         "### 段落脉络\n"
         f"3–4 条，{_BULLETS_RICH}交代论述推进（如：诉讼 → 警告 → 福音转折）。\n"
         "### 经文解释\n"
-        f"4–5 条，{_BULLETS_RICH}抓核心论点、伦理提醒与关键转折句。\n"
+        f"4–5 条，{_BULLETS_RICH}{_EXPLAIN_CONTEXT}\n"
         f"建议篇幅约 450–920 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
     )
 
