@@ -8,11 +8,9 @@ import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
 import type { StructureAsset } from '@/lib/assistant_blocks';
 import { streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
-import AnswerSectionSkeleton from '@/components/assistant/AnswerSectionSkeleton';
 import {
   currentWritingSectionTitle,
   hasVisibleAssistantAnswer,
-  writtenSectionIdsFromStream,
 } from '@/lib/assistant_visible';
 import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
 import { SectionStreamAccumulator, type StreamSection } from '@/lib/assistant_section_stream';
@@ -820,9 +818,6 @@ export default function XiaoAiSheet({
             const sectionTitle = turn.busy
               ? currentWritingSectionTitle(turn.streamSections)
               : undefined;
-            const showSectionSkeleton = Boolean(
-              turn.busy && turn.streamSections?.length && waitingFirstToken,
-            );
             const hasError = clean.startsWith('⚠️');
             const usedCitations = citationsUsedInText(clean, turn.citations);
             const evidenceCites = usedCitations.length > 0 ? usedCitations : turn.citations;
@@ -846,30 +841,19 @@ export default function XiaoAiSheet({
                 >
                   <div className="half-sheet-answer-body reader-ai-answer assistant-answer allow-text-select">
                     {waitingFirstToken ? (
-                      <>
-                        <AssistantThinkingState
-                          variant="halfsheet"
-                          phase={
-                            turn.id === activeTurnId
-                              ? streamPhase
-                              : turn.citations.length
-                                ? 'refs'
-                                : 'understanding'
-                          }
-                          citeCount={turn.citations.length}
-                          slow={streamSlowHint && turn.id === activeTurnId}
-                          currentSectionTitle={sectionTitle}
-                        />
-                        {showSectionSkeleton && turn.streamSections ? (
-                          <AnswerSectionSkeleton
-                            sections={turn.streamSections.map((s) => ({
-                              id: s.id,
-                              title: s.title,
-                            }))}
-                            writtenSectionIds={writtenSectionIdsFromStream(turn.streamSections)}
-                          />
-                        ) : null}
-                      </>
+                      <AssistantThinkingState
+                        variant="halfsheet"
+                        phase={
+                          turn.id === activeTurnId
+                            ? streamPhase
+                            : turn.citations.length
+                              ? 'refs'
+                              : 'understanding'
+                        }
+                        citeCount={turn.citations.length}
+                        slow={streamSlowHint && turn.id === activeTurnId}
+                        currentSectionTitle={sectionTitle}
+                      />
                     ) : hasVisible || !turn.busy ? (
                       <>
                         {!hasError && !turn.busy ? (

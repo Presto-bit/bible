@@ -15,7 +15,6 @@ export default function AnswerSectionSkeleton({ sections, writtenSectionIds }: P
     <div className="answer-section-skeleton" aria-hidden>
       {pending.map((sec) => (
         <div key={sec.id} className="answer-section-skeleton-block">
-          <span className="answer-section-skeleton-title">{sec.title}</span>
           <span className="assistant-thinking-line" />
           <span className="assistant-thinking-line assistant-thinking-line-short" />
         </div>

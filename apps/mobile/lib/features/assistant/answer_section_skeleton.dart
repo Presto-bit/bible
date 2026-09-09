@@ -24,16 +24,7 @@ class AnswerSectionSkeleton extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final sec in pending) ...[
-          Text(
-            sec.title,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkFaint,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const _ShimmerLine(widthFactor: 1),
+          _ShimmerLine(widthFactor: 1),
           const SizedBox(height: 8),
           const _ShimmerLine(widthFactor: 0.72),
           const SizedBox(height: 14),

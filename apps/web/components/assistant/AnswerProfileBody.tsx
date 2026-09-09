@@ -58,7 +58,9 @@ export default function AnswerProfileBody({
   );
   const hasWritten = hasVisibleAssistantAnswer(text, streaming ? streamSections : null);
   const showSkeleton = Boolean(
-    streaming && streamSections?.some((s) => !s.text.trim()),
+    streaming
+    && hasWritten
+    && streamSections?.some((s) => !s.text.trim()),
   );
 
   const timelineNodes = useMemo(() => parseTimelineNodes(clean), [clean]);
@@ -87,7 +89,7 @@ export default function AnswerProfileBody({
     }
   };
 
-  if (!hasWritten && !showSkeleton) return null;
+  if (!hasWritten) return null;
 
   return (
     <div className={`answer-profile-body ${profileClass}`.trim()}>

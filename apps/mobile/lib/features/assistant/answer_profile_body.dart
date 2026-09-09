@@ -56,10 +56,11 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
       streamSections: widget.streaming ? streamSections : null,
     );
     final showSkeleton = widget.streaming &&
+        hasWritten &&
         streamSections != null &&
         streamSections.any((s) => s.text.trim().isEmpty);
 
-    if (!hasWritten && !showSkeleton) return const SizedBox.shrink();
+    if (!hasWritten) return const SizedBox.shrink();
 
     final timelineNodes = parseTimelineNodes(clean);
     final profile = widget.responseProfile ?? '';

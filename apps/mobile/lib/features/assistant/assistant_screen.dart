@@ -41,8 +41,6 @@ import 'assistant_reader_context.dart';
 import 'assistant_scenes.dart';
 import 'assistant_seed.dart';
 import 'assistant_repository.dart';
-import 'answer_section_skeleton.dart';
-import 'assistant_sections.dart';
 import 'assistant_thinking.dart';
 import 'citation_sources_toggle.dart';
 import 'history_session_swipe_row.dart';
@@ -1893,9 +1891,6 @@ class _Bubble extends ConsumerWidget {
     final sectionTitle = streaming
         ? currentWritingSectionTitle(turn.streamSections)
         : null;
-    final showSectionSkeleton = streaming &&
-        turn.streamSections.isNotEmpty &&
-        !hasVisible;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
@@ -1920,31 +1915,12 @@ class _Bubble extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: !showAssistantBody
                   ? (streaming
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AssistantThinkingState(
-                              phase:
-                                  thinkingPhase ?? ThinkingPhase.understanding,
-                              citeCount: cites.length,
-                              slow: streamSlow,
-                              currentSectionTitle: sectionTitle,
-                            ),
-                            if (showSectionSkeleton)
-                              AnswerSectionSkeleton(
-                                sections: turn.streamSections
-                                    .map(
-                                      (s) => AnswerSection(
-                                        id: s.id,
-                                        title: s.title,
-                                      ),
-                                    )
-                                    .toList(),
-                                writtenSectionIds: writtenSectionIdsFromStream(
-                                  turn.streamSections,
-                                ),
-                              ),
-                          ],
+                      ? AssistantThinkingState(
+                          phase:
+                              thinkingPhase ?? ThinkingPhase.understanding,
+                          citeCount: cites.length,
+                          slow: streamSlow,
+                          currentSectionTitle: sectionTitle,
                         )
                       : const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
