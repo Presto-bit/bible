@@ -942,7 +942,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               answerSections = resolved.sections;
             }
             if (resolved.text.trim()) {
-              acc = resolved.text.trim();
+              const next = resolved.text.trim();
+              if (next.length >= acc.trim().length) acc = next;
             }
             if (payload?.cache_hit || payload?.instant) {
               instant = true;

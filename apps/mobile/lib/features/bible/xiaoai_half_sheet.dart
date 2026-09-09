@@ -566,9 +566,13 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               document: document,
               sectionStream: sectionStream,
             );
-            var answerText = resolved.text.trim().isNotEmpty
-                ? resolved.text.trim()
-                : pending.trim();
+            final resolvedText = resolved.text.trim();
+            final pendingTrim = pending.trim();
+            var answerText = resolvedText.isNotEmpty
+                ? (resolvedText.length >= pendingTrim.length
+                    ? resolvedText
+                    : pendingTrim)
+                : pendingTrim;
             if (resolved.incomplete && answerText.isNotEmpty) {
               answerText = appendStreamIncompleteNotice(answerText);
             }

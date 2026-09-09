@@ -87,7 +87,12 @@ class SectionStreamAccumulator {
       _order.add(sid);
     }
     entry.title = stitle;
-    entry.text = text.isNotEmpty ? text : entry.text;
+    final incoming = text.trim();
+    if (incoming.isNotEmpty &&
+        (entry.text.trim().isEmpty ||
+            incoming.length >= entry.text.trim().length)) {
+      entry.text = incoming;
+    }
     entry.finalized = true;
   }
 

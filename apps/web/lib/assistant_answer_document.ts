@@ -28,6 +28,13 @@ export type ResolvedDoneAnswer = {
   incomplete?: boolean;
 };
 
+function preferLongerText(...candidates: string[]): string {
+  return candidates.reduce((best, cur) => {
+    const t = cur.trim();
+    return t.length > best.length ? t : best;
+  }, '');
+}
+
 /** done 事件：优先 document，智能 merge 流式正文，避免整段跳变。 */
 export function resolveDoneAnswer(
   streamedText: string,
@@ -35,43 +42,22 @@ export function resolveDoneAnswer(
   sectionStream?: SectionStreamAccumulator | null,
 ): ResolvedDoneAnswer {
   const streamBuilt = sectionStream?.active ? sectionStream.toMarkdown().trim() : '';
-  const effectiveStream = streamBuilt || streamedText.trim();
+  const streamed = streamedText.trim();
+  const effectiveStream = streamBuilt || streamed;
   const base = resolveDoneAnswerCore(effectiveStream, payload);
+  const bestText = preferLongerText(streamBuilt, base.text, streamed);
 
-  if (!sectionStream?.active || !streamBuilt) {
-    return base;
-  }
+  const streamSections = sectionStream?.getSections() ?? [];
+  const useStreamSections =
+    Boolean(streamBuilt)
+    && streamBuilt.length >= base.text.trim().length
+    && streamSections.length > 0;
 
-  const doneMd = base.text.trim();
-  if (!doneMd || doneMd === streamBuilt) {
-    return {
-      ...base,
-      text: streamBuilt,
-      sections: sectionStream.getSections().length
-        ? sectionStream.getSections()
-        : base.sections,
-    };
-  }
-
-  const streamLen = streamBuilt.length;
-  const doneLen = doneMd.length;
-  const streamSectionCount = sectionStream.getSections().length;
-  const doneSectionCount = base.sections?.length
-    ?? parseAnswerSections(doneMd).length;
-  const doneRicher =
-    doneLen > streamLen + 40 || doneSectionCount > streamSectionCount;
-
-  if (!doneRicher) {
-    return {
-      ...base,
-      text: streamBuilt,
-      sections: sectionStream.getSections().length
-        ? sectionStream.getSections()
-        : base.sections,
-    };
-  }
-
-  return base;
+  return {
+    ...base,
+    text: bestText || base.text,
+    sections: useStreamSections ? streamSections : base.sections,
+  };
 }
 
 function resolveDoneAnswerCore(
@@ -99,18 +85,9 @@ function resolveDoneAnswerCore(
   const doneRaw = payload?.text?.trim() ?? '';
   const doneBody = doneRaw ? bodyText(doneRaw) : '';
 
-  let text = streamedBody || doneBody;
-  if (doneBody) {
-    const streamedSectionCount = parseAnswerSections(streamedBody).length;
-    const doneSectionCount = payload?.sections?.length
-      ?? parseAnswerSections(doneBody).length;
-    const doneRicher =
-      !streamedBody
-      || doneBody.length > streamedBody.length + 8
-      || doneSectionCount > streamedSectionCount;
-    if (doneRicher) {
-      text = doneBody;
-    }
+  let text = preferLongerText(streamedBody, doneBody);
+  if (doneBody && streamedBody && doneBody.length > streamedBody.length + 8) {
+    text = doneBody;
   }
 
   return {

@@ -594,7 +594,7 @@ export default function XiaoAiSheet({
             }
             const resolved = resolveDoneAnswer(accRef.current, payload, sectionStream);
             const text = resolved.text.trim();
-            if (text) {
+            if (text && text.length >= accRef.current.trim().length) {
               accRef.current = text;
             }
             settled = true;

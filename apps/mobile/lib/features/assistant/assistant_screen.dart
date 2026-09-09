@@ -730,7 +730,11 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 sectionStream: sectionStream,
               );
               if (resolved.text.trim().isNotEmpty) {
-                setState(() => reply.content = resolved.text.trim());
+                final next = resolved.text.trim();
+                final prev = reply.content.trim();
+                setState(
+                  () => reply.content = next.length >= prev.length ? next : prev,
+                );
               }
               if (resolved.followups.isNotEmpty) {
                 setState(

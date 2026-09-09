@@ -75,7 +75,13 @@ export class SectionStreamAccumulator {
       this.order.push(id);
     }
     entry.title = title;
-    entry.text = payload.text ?? entry.text;
+    const incoming = (payload.text ?? '').trim();
+    if (
+      incoming
+      && (!entry.text.trim() || incoming.length >= entry.text.trim().length)
+    ) {
+      entry.text = incoming;
+    }
     entry.finalized = true;
   }
 

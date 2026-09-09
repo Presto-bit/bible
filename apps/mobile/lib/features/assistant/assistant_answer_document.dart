@@ -60,6 +60,15 @@ class ResolvedDoneAnswer {
   final bool incomplete;
 }
 
+String _preferLongerText(Iterable<String> candidates) {
+  var best = '';
+  for (final raw in candidates) {
+    final t = raw.trim();
+    if (t.length > best.length) best = t;
+  }
+  return best;
+}
+
 ResolvedDoneAnswer resolveDoneAnswer(
   String streamedText, {
   String? doneText,
@@ -70,8 +79,9 @@ ResolvedDoneAnswer resolveDoneAnswer(
 }) {
   final streamBuilt =
       (sectionStream?.active ?? false) ? sectionStream!.toMarkdown().trim() : '';
+  final streamed = streamedText.trim();
   final effectiveStream =
-      streamBuilt.isNotEmpty ? streamBuilt : streamedText.trim();
+      streamBuilt.isNotEmpty ? streamBuilt : streamed;
   final base = _resolveDoneAnswerCore(
     effectiveStream,
     doneText: doneText,
@@ -79,44 +89,19 @@ ResolvedDoneAnswer resolveDoneAnswer(
     doneFollowups: doneFollowups,
     document: document,
   );
+  final bestText = _preferLongerText([streamBuilt, base.text, streamed]);
+  final streamSections = sectionStream?.getSections() ?? const [];
+  final useStreamSections = streamBuilt.isNotEmpty &&
+      streamBuilt.length >= base.text.trim().length &&
+      streamSections.isNotEmpty;
 
-  if (sectionStream == null || !sectionStream.active || streamBuilt.isEmpty) {
-    return base;
-  }
-
-  final doneMd = base.text.trim();
-  if (doneMd.isEmpty || doneMd == streamBuilt) {
-    final sections = sectionStream.getSections();
-    return ResolvedDoneAnswer(
-      text: streamBuilt,
-      sections: sections.isNotEmpty ? sections : base.sections,
-      followups: base.followups,
-      lead: base.lead,
-      incomplete: base.incomplete,
-    );
-  }
-
-  final doneLen = doneMd.length;
-  final streamLen = streamBuilt.length;
-  final doneSectionCount = base.sections.isNotEmpty
-      ? base.sections.length
-      : parseAnswerSections(doneMd).length;
-  final streamSectionCount = sectionStream.getSections().length;
-  final doneRicher =
-      doneLen > streamLen + 40 || doneSectionCount > streamSectionCount;
-
-  if (!doneRicher) {
-    final sections = sectionStream.getSections();
-    return ResolvedDoneAnswer(
-      text: streamBuilt,
-      sections: sections.isNotEmpty ? sections : base.sections,
-      followups: base.followups,
-      lead: base.lead,
-      incomplete: base.incomplete,
-    );
-  }
-
-  return base;
+  return ResolvedDoneAnswer(
+    text: bestText.isNotEmpty ? bestText : base.text,
+    sections: useStreamSections ? streamSections : base.sections,
+    followups: base.followups,
+    lead: base.lead,
+    incomplete: base.incomplete,
+  );
 }
 
 ResolvedDoneAnswer _resolveDoneAnswerCore(
@@ -146,18 +131,11 @@ ResolvedDoneAnswer _resolveDoneAnswerCore(
   final doneRaw = (doneText ?? '').trim();
   final doneBody = doneRaw.isNotEmpty ? bodyText(doneRaw) : '';
 
-  var text = streamedBody.isNotEmpty ? streamedBody : doneBody;
-  if (doneBody.isNotEmpty) {
-    final streamedCount = parseAnswerSections(streamedBody).length;
-    final doneCount = doneSections.isNotEmpty
-        ? doneSections.length
-        : parseAnswerSections(doneBody).length;
-    final doneRicher = streamedBody.isEmpty ||
-        doneBody.length > streamedBody.length + 8 ||
-        doneCount > streamedCount;
-    if (doneRicher) {
-      text = doneBody;
-    }
+  var text = _preferLongerText([streamedBody, doneBody]);
+  if (doneBody.isNotEmpty &&
+      streamedBody.isNotEmpty &&
+      doneBody.length > streamedBody.length + 8) {
+    text = doneBody;
   }
 
   return ResolvedDoneAnswer(
