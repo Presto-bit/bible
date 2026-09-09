@@ -27,12 +27,17 @@ from .conversation_store import (
 )
 from .section_fill import section_fill_once
 from .section_stream import SectionStreamTracker, iter_replay_stream
-from .answer_structured import recover_empty_response, try_structured_verse_answer
+from .answer_structured import (
+    recover_empty_response,
+    recover_incomplete_verse_answer,
+    try_structured_verse_answer,
+)
 from .llm import StreamMeta, complete_chat, stream_chat
 from .parse_output import (
     answer_ends_abruptly,
     answer_marked_incomplete,
     extract_sections,
+    merge_continuation_sections,
     mid_bullet_truncated,
     split_body_and_followups,
     verse_explain_incomplete,
@@ -992,11 +997,13 @@ def chat(
                 full.append(piece)
                 yield _sse("delta", {"text": piece})
                 if section_tracker:
-                    starts, s_deltas = section_tracker.on_delta(piece)
+                    starts, s_deltas, corrections = section_tracker.on_delta(piece)
                     for start in starts:
                         yield _sse("section_start", start)
                     for sd in s_deltas:
                         yield _sse("section_delta", sd)
+                    for corr in corrections:
+                        yield _sse("section_done", corr)
 
         def _run_length_continuation(meta: StreamMeta, *, force: bool = False) -> None:
             nonlocal length_cont_used
@@ -1194,7 +1201,7 @@ def chat(
             )
             return
         text = normalize_answer_markdown(
-            "".join(full),
+            merge_continuation_sections("".join(full)),
             scene or "",
             narrow=narrow,
             verse_span=verse_span,
@@ -1211,12 +1218,13 @@ def chat(
             expected_sections=_dk.get("expected_sections"),
             min_complete=_dk.get("min_complete"),
         )
+        _fill_depth = "standard" if _depth == "flash" else _depth
         _should_fill = _depth in ("deep", "study") or (
-            _depth == "standard"
-            and scene in ("verse_full", "verse_quick")
-            and _body_incomplete
+            scene in ("verse_full", "verse_quick") and _body_incomplete
         )
+        _fill_attempted = False
         if _budget_left() > 3 and _should_fill:
+            _fill_attempted = True
             filled = section_fill_once(
                 messages,
                 body_probe,
@@ -1224,7 +1232,7 @@ def chat(
                 narrow=narrow,
                 max_tokens=min(max_tokens // 2, 700),
                 verse_span=verse_span,
-                depth=_depth,
+                depth=_fill_depth,
                 planned_sections=_dk.get("expected_sections"),
                 min_complete=_dk.get("min_complete"),
             )
@@ -1253,12 +1261,144 @@ def chat(
             expected_sections=_dk.get("expected_sections"),
             min_complete=_dk.get("min_complete"),
         )
-        document = document_from_cache_entry(body_text, followups=followups)
+        if incomplete and scene in ("verse_full", "verse_quick") and _budget_left() > 5:
+            try:
+                structured = try_structured_verse_answer(
+                    messages,
+                    scene or "",
+                    max_tokens=min(max_tokens, 900),
+                    verse_span=verse_span,
+                )
+            except Exception:
+                logger.exception("structured recover on incomplete scene=%s", scene)
+                structured = None
+            if structured and structured.strip():
+                text = normalize_answer_markdown(
+                    merge_continuation_sections(structured.strip()),
+                    scene or "",
+                    narrow=narrow,
+                    verse_span=verse_span,
+                    depth=_depth,
+                    soft_max=_dk.get("soft_max"),
+                    prefer_prose=bool(_dk.get("prefer_prose")),
+                )
+                body_text, followups = split_body_and_followups(text)
+                incomplete = answer_marked_incomplete(
+                    scene or "",
+                    body_text,
+                    verse_span=verse_span,
+                    depth=_depth,
+                    expected_sections=_dk.get("expected_sections"),
+                    min_complete=_dk.get("min_complete"),
+                )
+        if (
+            incomplete
+            and scene in ("verse_full", "verse_quick")
+            and _budget_left() > 3
+            and _fill_attempted
+            and _fill_depth != "structure"
+        ):
+            filled = section_fill_once(
+                messages,
+                body_text,
+                scene or "",
+                narrow=narrow,
+                max_tokens=min(max_tokens // 2, 700),
+                verse_span=verse_span,
+                depth="structure",
+                planned_sections=_dk.get("expected_sections"),
+                min_complete=_dk.get("min_complete"),
+            )
+            if filled and filled.strip():
+                text = normalize_answer_markdown(
+                    filled,
+                    scene or "",
+                    narrow=narrow,
+                    verse_span=verse_span,
+                    depth=_depth,
+                    soft_max=_dk.get("soft_max"),
+                    prefer_prose=bool(_dk.get("prefer_prose")),
+                    format_only=True,
+                )
+                body_text, followups = split_body_and_followups(text)
+                if section_tracker:
+                    for item in section_tracker.finalize(body_text):
+                        yield _sse("section_done", item)
+                incomplete = answer_marked_incomplete(
+                    scene or "",
+                    body_text,
+                    verse_span=verse_span,
+                    depth=_depth,
+                    expected_sections=_dk.get("expected_sections"),
+                    min_complete=_dk.get("min_complete"),
+                )
+        if incomplete and scene in ("verse_full", "verse_quick") and _budget_left() > 6:
+            logger.warning(
+                "ai answer incomplete silent retry scene=%s span=%s depth=%s len=%s",
+                scene,
+                verse_span,
+                _depth,
+                len(body_text),
+            )
+            try:
+                recovered = recover_incomplete_verse_answer(
+                    messages,
+                    scene or "",
+                    max_tokens=max_tokens,
+                    verse_span=verse_span,
+                )
+            except Exception:
+                logger.exception("recover_incomplete_verse_answer failed scene=%s", scene)
+                recovered = None
+            if recovered and recovered.strip():
+                text = normalize_answer_markdown(
+                    merge_continuation_sections(recovered.strip()),
+                    scene or "",
+                    narrow=narrow,
+                    verse_span=verse_span,
+                    depth=_depth,
+                    soft_max=_dk.get("soft_max"),
+                    prefer_prose=bool(_dk.get("prefer_prose")),
+                )
+                body_text, followups = split_body_and_followups(text)
+                if section_tracker:
+                    for item in section_tracker.finalize(body_text):
+                        yield _sse("section_done", item)
+                incomplete = answer_marked_incomplete(
+                    scene or "",
+                    body_text,
+                    verse_span=verse_span,
+                    depth=_depth,
+                    expected_sections=_dk.get("expected_sections"),
+                    min_complete=_dk.get("min_complete"),
+                )
         if incomplete:
-            document = {
-                **document,
-                "meta": {**(document.get("meta") or {}), "incomplete": True},
-            }
+            logger.warning(
+                "ai answer incomplete final scene=%s span=%s depth=%s len=%s surface=%s",
+                scene,
+                verse_span,
+                _depth,
+                len(body_text),
+                body.surface,
+            )
+            log_ai_request(
+                device_id=x_guest_id,
+                user_id=logged_in,
+                scene=scene,
+                mode=body.mode,
+                surface=body.surface,
+                status="error",
+            )
+            yield _sse(
+                "error",
+                {
+                    "message": "回答未能完整生成，请重新生成",
+                    "retryable": True,
+                    "code": "incomplete_answer",
+                },
+            )
+            return
+        document = document_from_cache_entry(body_text, followups=followups)
         done_timings: dict[str, int] = {"prepare_ms": prepare_ms}
         if first_token_ms is not None:
             done_timings["first_token_ms"] = first_token_ms

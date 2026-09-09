@@ -33,7 +33,7 @@ def test_normalize_prose_to_bullets():
 def test_max_tokens_verse_full_capped():
     assert max_tokens_for_scene("verse_full", verse_span=1) == 900
     assert max_tokens_for_scene("verse_full", verse_span=5) <= 1020
-    assert max_tokens_for_scene("verse_full", verse_span=11) == 1180
+    assert max_tokens_for_scene("verse_full", verse_span=11) == 1260
 
 
 def test_effective_budget_scales_with_span():
@@ -114,6 +114,21 @@ def test_normalize_drops_incomplete_tail_bullet():
     out = normalize_answer_markdown(raw, "verse_full", verse_span=11)
     assert "说到一半就被" not in out
     assert "完整背景句" in out
+
+
+def test_explain_drops_bullets_similar_to_background():
+    raw = (
+        "### 摘要\n摘要。\n\n"
+        "### 经文背景\n"
+        "- 马太15章，耶稣与法利赛人论传统与内心洁净。\n\n"
+        "### 经文解释\n"
+        "- 马太15章背景是耶稣与法利赛人论传统与内心洁净。\n"
+        "- 在同样语境下，真正污秽来自人心而非入口。"
+    )
+    out = normalize_answer_markdown(raw, "verse_full", verse_span=11)
+    explain = out.split("### 经文解释")[-1]
+    assert explain.count("- ") == 1
+    assert "真正污秽" in explain
 
 
 def test_summary_renders_as_bullet():

@@ -254,7 +254,17 @@ def verse_explain_incomplete(
         if depth == "standard":
             floor = max(60, floor - 30)
     if len(text) < floor:
-        return True
+        explain_bullets = _section_bullet_count(text, "经文解释")
+        min_bullets = max(2, verse_min_explain_bullets(span) - 1)
+        soft_floor = max(60, int(floor * 0.72))
+        if (
+            depth in ("standard", None)
+            and explain_bullets >= min_bullets
+            and len(text) >= soft_floor
+        ):
+            pass
+        else:
+            return True
 
     if depth in ("standard", None) and not expected_sections:
         explain_bullets = _section_bullet_count(text, "经文解释")
@@ -325,6 +335,9 @@ def verse_needs_length_continuation(
 _CONTINUATION_SECTION_SUFFIX = re.compile(
     r"（续）$|（续写）$|\(续\)$|\(续写\)$",
 )
+_BULLET_ITEM_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)、])\s+(.+?)\s*$")
+_SUMMARY_TITLES = frozenset({"摘要", "本章概览", "卷概览"})
+_CONTEXT_PREFIX_RE = re.compile(r"^在.{0,12}语境下[，,]?")
 
 
 def _canonical_merge_section_title(title: str) -> str:
@@ -332,50 +345,163 @@ def _canonical_merge_section_title(title: str) -> str:
     return "经文背景" if t == "背景" else t
 
 
+def _normalize_bullet_key(text: str) -> str:
+    s = re.sub(r"[\s\*\_`\"\"'''\[\]（）()【】<>《》,，。！？；：:;!?\-—]", "", text.strip())
+    s = _CONTEXT_PREFIX_RE.sub("", s)
+    s = re.sub(r"^这句话", "", s)
+    return s
+
+
+def _shared_substring_ratio(a: str, b: str, *, min_len: int = 8) -> float:
+    if not a or not b:
+        return 0.0
+    best = 0
+    short, long = (a, b) if len(a) <= len(b) else (b, a)
+    for i in range(len(short)):
+        for j in range(i + min_len, len(short) + 1):
+            sub = short[i:j]
+            if sub in long:
+                best = max(best, len(sub))
+    return best / len(short) if short else 0.0
+
+
+def bullets_similar(a: str, b: str) -> bool:
+    """判断两条要点是否语义重复（续写/补形常见）。"""
+    ka, kb = _normalize_bullet_key(a), _normalize_bullet_key(b)
+    if not ka or not kb:
+        return False
+    if ka == kb:
+        return True
+    short, long = (ka, kb) if len(ka) <= len(kb) else (kb, ka)
+    if len(short) >= 10 and short in long:
+        return True
+    if _shared_substring_ratio(ka, kb) >= 0.42:
+        return True
+    prefix = 0
+    for x, y in zip(ka, kb):
+        if x != y:
+            break
+        prefix += 1
+    if prefix >= min(len(ka), len(kb)) * 0.72:
+        return True
+    sa, sb = set(ka), set(kb)
+    union = sa | sb
+    if union and len(sa & sb) / len(union) > 0.82:
+        return True
+    return False
+
+
+def _extract_bullet_items(chunk: str) -> list[str]:
+    items: list[str] = []
+    for line in chunk.split("\n"):
+        m = _BULLET_ITEM_RE.match(line.strip())
+        if m:
+            item = m.group(1).strip()
+            if item:
+                items.append(item)
+    return items
+
+
+def dedupe_similar_bullets(
+    bullets: list[str],
+    *,
+    against: list[str] | None = None,
+) -> list[str]:
+    """去掉重复或高度相似的列表要点。"""
+    prior = list(against or [])
+    out: list[str] = []
+    for b in bullets:
+        item = b.strip()
+        if not item:
+            continue
+        if any(bullets_similar(item, p) for p in prior):
+            continue
+        if any(bullets_similar(item, kept) for kept in out):
+            continue
+        out.append(item)
+        prior.append(item)
+    return out
+
+
 def merge_continuation_sections(body_text: str) -> str:
-    """合并「经文解释（续）」等续写小节，避免重复展示。"""
+    """合并重复小节（含「经文解释（续）」），并对列表要点去重。"""
     text = body_text.strip()
-    if not text or "续" not in text:
+    if not text:
         return text
     matches = list(SECTION_MD_RE.finditer(text))
     if not matches:
         return text
+
     merged: dict[str, list[str]] = {}
     order: list[str] = []
+    followup_tail = ""
+
     for i, m in enumerate(matches):
         title = m.group(1).strip()
         if title == "相关追问":
+            followup_tail = text[m.end() :].strip()
             break
         canon = _canonical_merge_section_title(title)
-        if _CONTINUATION_SECTION_SUFFIX.search(title.strip()) and canon in merged:
-            pass
-        elif canon not in merged:
-            order.append(canon)
-            merged[canon] = []
-        elif canon not in order:
+        if canon not in merged:
             order.append(canon)
             merged[canon] = []
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         chunk = text[start:end].strip()
         if chunk:
-            merged.setdefault(canon, []).append(chunk)
-    if not any(len(v) > 1 for v in merged.values()) and not any(
-        _CONTINUATION_SECTION_SUFFIX.search(m.group(1).strip()) for m in matches
-    ):
-        return text
+            merged[canon].append(chunk)
+
     parts: list[str] = []
+    changed = any(len(v) > 1 for v in merged.values()) or any(
+        _CONTINUATION_SECTION_SUFFIX.search(m.group(1).strip()) for m in matches
+    )
+
     for canon in order:
         chunks = merged.get(canon) or []
         if not chunks:
             continue
+        if canon in _SUMMARY_TITLES:
+            content = chunks[0].strip()
+            if len(chunks) > 1:
+                changed = True
+            parts.append(f"### {canon}")
+            parts.append(content)
+            parts.append("")
+            continue
+
+        bullets: list[str] = []
+        for chunk in chunks:
+            bullets.extend(_extract_bullet_items(chunk))
+        if not bullets:
+            parts.append(f"### {canon}")
+            parts.append("\n\n".join(chunks))
+            parts.append("")
+            continue
+
+        deduped = dedupe_similar_bullets(bullets)
+        if len(deduped) != len(bullets):
+            changed = True
         parts.append(f"### {canon}")
-        parts.append("\n\n".join(chunks))
+        for b in deduped:
+            parts.append(f"- {b}")
         parts.append("")
-    tail = text[matches[-1].end() :].strip()
-    if "相关追问" in tail:
+
+    if followup_tail:
         parts.append("### 相关追问")
-        parts.append(tail.split("相关追问", 1)[-1].strip())
+        parts.append(followup_tail)
+
+    if not changed:
+        for canon in order:
+            if canon in _SUMMARY_TITLES:
+                continue
+            bullets: list[str] = []
+            for chunk in merged.get(canon) or []:
+                bullets.extend(_extract_bullet_items(chunk))
+            if bullets and len(dedupe_similar_bullets(bullets)) < len(bullets):
+                changed = True
+                break
+    if not changed:
+        return text
     return "\n".join(parts).strip()
 
 

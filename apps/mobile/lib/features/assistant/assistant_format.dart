@@ -59,6 +59,11 @@ String mergeAssistantStreamError(String acc, String msg) {
   return '$trimmed\n\n$cleanMsg';
 }
 
+/// 服务端判定 incomplete：丢弃半成品，仅保留可重试提示。
+String replaceAssistantStreamError(String msg) {
+  return msg.startsWith('⚠️') ? msg : '⚠️ $msg';
+}
+
 /// 过滤已与用户问过、或历史追问出现过的建议。
 List<String> followupsForMessage(
   String text, {

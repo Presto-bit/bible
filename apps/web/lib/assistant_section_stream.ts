@@ -24,6 +24,12 @@ export class SectionStreamAccumulator {
     return this._active;
   }
 
+  reset(): void {
+    this.entries.clear();
+    this.order = [];
+    this._active = false;
+  }
+
   seedFromPlan(titles: string[] | undefined): void {
     if (!titles?.length) return;
     for (const title of titles) {
@@ -76,10 +82,7 @@ export class SectionStreamAccumulator {
     }
     entry.title = title;
     const incoming = (payload.text ?? '').trim();
-    if (
-      incoming
-      && (!entry.text.trim() || incoming.length >= entry.text.trim().length)
-    ) {
+    if (incoming) {
       entry.text = incoming;
     }
     entry.finalized = true;
@@ -130,4 +133,28 @@ export class SectionStreamAccumulator {
         finalized: e.finalized,
       }));
   }
+}
+
+/** 终稿 Markdown → 按节渲染块（done 后保持与流式相同的分节展示）。 */
+export function streamSectionsFromMarkdown(body: string): StreamSection[] {
+  const text = body.trim();
+  if (!text) return [];
+  const matches = [...text.matchAll(/^###\s+(.+)$/gm)];
+  if (!matches.length) return [];
+  const sections: StreamSection[] = [];
+  for (let i = 0; i < matches.length; i += 1) {
+    const title = matches[i][1]?.trim() ?? '';
+    if (!title || title === '相关追问') break;
+    const start = (matches[i].index ?? 0) + matches[i][0].length;
+    const end = i + 1 < matches.length ? (matches[i + 1].index ?? text.length) : text.length;
+    const chunk = text.slice(start, end).trim();
+    if (!chunk) continue;
+    sections.push({
+      id: sectionSlug(title),
+      title,
+      text: chunk,
+      finalized: true,
+    });
+  }
+  return sections;
 }

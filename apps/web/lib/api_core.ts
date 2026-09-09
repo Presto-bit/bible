@@ -1171,7 +1171,9 @@ export interface ChatCallbacks {
   onSectionDelta?: (payload: { id: string; text: string }) => void;
   onSectionDone?: (payload: { id: string; title: string; text: string }) => void;
   onFollowups?: (items: string[]) => void;
-  onError?: (msg: string) => void;
+  /** incomplete_answer 静默重试前重置流式累积 */
+  onRetry?: () => void;
+  onError?: (msg: string, meta?: { code?: string; retryable?: boolean }) => void;
   onDone?: (payload?: ChatDonePayload) => void;
 }
 
@@ -1187,7 +1189,11 @@ function isUserCancelAbort(signal?: AbortSignal): boolean {
 export async function chatStream(
   body: ChatStreamBody,
   cb: ChatCallbacks,
-  opts?: { signal?: AbortSignal; retryOnZeroDelta?: boolean },
+  opts?: {
+    signal?: AbortSignal;
+    retryOnZeroDelta?: boolean;
+    autoRetryIncomplete?: boolean;
+  },
 ): Promise<void> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -1200,7 +1206,9 @@ export async function chatStream(
   headers['X-Client-Request-Id'] = clientRequestId;
   headers['Idempotency-Key'] = clientRequestId;
 
-  const runOnce = async (signal?: AbortSignal): Promise<'ok' | 'retry' | 'fail'> => {
+  const runOnce = async (
+    signal?: AbortSignal,
+  ): Promise<'ok' | 'retry' | 'fail' | 'incomplete_retry'> => {
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/ai/chat`, {
@@ -1251,6 +1259,7 @@ export async function chatStream(
     let gotDelta = false;
     let sawDone = false;
     let terminalError = false;
+    let incompleteRetryable = false;
 
     const flushFrame = () => {
       if (!event) {
@@ -1280,8 +1289,19 @@ export async function chatStream(
         } else if (ev === 'section_done') {
           cb.onSectionDone?.(d as { id: string; title: string; text: string });
         } else if (ev === 'error') {
+          if (
+            d.code === 'incomplete_answer' &&
+            d.retryable === true &&
+            opts?.autoRetryIncomplete !== false
+          ) {
+            incompleteRetryable = true;
+            return;
+          }
           terminalError = true;
-          cb.onError?.(d.message ?? '出错了');
+          cb.onError?.(d.message ?? '出错了', {
+            code: typeof d.code === 'string' ? d.code : undefined,
+            retryable: d.retryable === true,
+          });
         } else if (ev === 'done') {
           sawDone = true;
           cb.onDone?.(d as ChatDonePayload);
@@ -1332,22 +1352,41 @@ export async function chatStream(
       cb.onError?.('生成中断，请重试');
       return 'fail';
     }
+    if (incompleteRetryable) return 'incomplete_retry';
     if (terminalError) return 'fail';
     if (!sawDone) cb.onDone?.({ streamComplete: false });
     if (!gotDelta && !sawDone) return 'retry';
     return 'ok';
   };
 
-  const allowRetry = opts?.retryOnZeroDelta !== false;
-  const first = await runOnce(opts?.signal);
-  if (first === 'retry' && allowRetry && !opts?.signal?.aborted) {
-    await new Promise((r) => setTimeout(r, 500));
+  const allowZeroRetry = opts?.retryOnZeroDelta !== false;
+  const allowIncompleteRetry = opts?.autoRetryIncomplete !== false;
+  let zeroDeltaRetried = false;
+  let incompleteRetried = false;
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
     if (opts?.signal?.aborted) return;
-    const second = await runOnce(opts?.signal);
-    if (second === 'retry') cb.onError?.('未收到回答内容，请重试');
+    const result = await runOnce(opts?.signal);
+    if (result === 'ok') return;
+    if (
+      result === 'incomplete_retry' &&
+      allowIncompleteRetry &&
+      !incompleteRetried
+    ) {
+      incompleteRetried = true;
+      cb.onRetry?.();
+      await new Promise((r) => setTimeout(r, 450));
+      continue;
+    }
+    if (result === 'retry' && allowZeroRetry && !zeroDeltaRetried) {
+      zeroDeltaRetried = true;
+      await new Promise((r) => setTimeout(r, 500));
+      continue;
+    }
+    if (result === 'retry') cb.onError?.('未收到回答内容，请重试');
     return;
   }
-  if (first === 'retry') cb.onError?.('未收到回答内容，请重试');
 }
 
 // ── 带认证头的请求（会话令牌 + 设备头；用户码头仅作兼容展示） ──

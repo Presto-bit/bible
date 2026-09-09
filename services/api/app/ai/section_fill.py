@@ -7,7 +7,9 @@ from .answer_normalize import is_prose_wall
 from .answer_schema import missing_required_sections
 from .llm import complete_chat
 from .parse_output import (
+    SECTION_MD_RE,
     answer_ends_abruptly,
+    merge_continuation_sections,
     mid_bullet_truncated,
     missing_summary_sections,
     missing_verse_sections,
@@ -234,6 +236,8 @@ def section_fill_once(
         return None
     if not extra or not extra.strip():
         return None
-    if restructure:
-        return extra.strip()
-    return body_text.rstrip() + "\n\n" + extra.strip()
+    extra = extra.strip()
+    if restructure or SECTION_MD_RE.search(extra):
+        return merge_continuation_sections(extra)
+    combined = body_text.rstrip() + "\n\n" + extra
+    return merge_continuation_sections(combined)

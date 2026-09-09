@@ -285,6 +285,46 @@ def _normalize_recovered(
     return stripped if stripped else None
 
 
+def recover_incomplete_verse_answer(
+    messages: list[dict[str, str]],
+    scene: str,
+    *,
+    max_tokens: int,
+    verse_span: int = 1,
+) -> str | None:
+    """终稿仍 incomplete 时的静默重试：非流式一次成稿（structured 已试过则跳过）。"""
+    scene = (scene or "").strip()
+    if scene not in ("verse_full", "verse_quick"):
+        return None
+    recovery_tokens = max(int(max_tokens), 900)
+    nudge = (
+        "\n\n【重要】请一次性输出完整 Markdown 成稿："
+        "须含全部规定 ### 小节与足够 - 列表要点；"
+        "写完后自然停笔，不要思考过程，不要留半成品，不要写「（续）」类标题。"
+    )
+    for variant in _message_variants(messages):
+        base_msgs = [dict(m) for m in variant]
+        if base_msgs and base_msgs[-1].get("role") == "user":
+            base_msgs[-1] = {
+                "role": "user",
+                "content": str(base_msgs[-1].get("content") or "") + nudge,
+            }
+        for budget in (min(recovery_tokens, 900), min(recovery_tokens, 700)):
+            try:
+                raw = complete_chat(base_msgs, max_tokens=budget, temperature=0.4)
+            except Exception:
+                logger.exception(
+                    "recover_incomplete_verse_answer failed scene=%s", scene
+                )
+                continue
+            if not raw.strip():
+                continue
+            text = _normalize_recovered(raw, scene, verse_span=verse_span)
+            if text:
+                return text
+    return None
+
+
 def recover_empty_response(
     messages: list[dict[str, str]],
     scene: str,

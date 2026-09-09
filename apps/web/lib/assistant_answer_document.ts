@@ -35,11 +35,42 @@ function preferLongerText(...candidates: string[]): string {
   }, '');
 }
 
+export function sectionTitlesInMarkdown(text: string): string[] {
+  const titles: string[] = [];
+  for (const m of text.matchAll(/^###\s+(.+)$/gm)) {
+    const title = m[1]?.trim();
+    if (title && title !== '相关追问') titles.push(title);
+  }
+  return titles;
+}
+
+/** done 终稿：归一化 document 与流式正文取更完整者，避免终态只剩摘要。 */
+export function pickStreamDoneText(opts: {
+  documentText: string;
+  streamBuilt?: string;
+  streamed?: string;
+  sectionPolicy?: string;
+}): string {
+  const doc = opts.documentText.trim();
+  const stream = (opts.streamBuilt ?? '').trim() || (opts.streamed ?? '').trim();
+  if (!doc) return stream;
+  if (!stream) return doc;
+  if (opts.sectionPolicy === 'lead_only') return doc;
+
+  const docSections = sectionTitlesInMarkdown(doc).length;
+  const streamSections = sectionTitlesInMarkdown(stream).length;
+  if (streamSections > docSections) return stream;
+  if (doc.length >= stream.length - 24) return doc;
+  if (stream.length > doc.length + 40) return stream;
+  return doc;
+}
+
 /** done 事件：优先 document，智能 merge 流式正文，避免整段跳变。 */
 export function resolveDoneAnswer(
   streamedText: string,
   payload?: ChatDonePayload,
   sectionStream?: SectionStreamAccumulator | null,
+  opts?: { sectionPolicy?: string },
 ): ResolvedDoneAnswer {
   const streamBuilt = sectionStream?.active ? sectionStream.toMarkdown().trim() : '';
   const streamed = streamedText.trim();
@@ -47,20 +78,25 @@ export function resolveDoneAnswer(
   const base = resolveDoneAnswerCore(effectiveStream, payload);
   const hasDocument = Boolean(payload?.document?.markdown?.trim());
   const bestText = hasDocument
-    ? base.text
+    ? pickStreamDoneText({
+      documentText: base.text,
+      streamBuilt,
+      streamed,
+      sectionPolicy: opts?.sectionPolicy,
+    })
     : preferLongerText(streamBuilt, base.text, streamed);
 
-  const streamSections = sectionStream?.getSections() ?? [];
+  const streamSectionList = sectionStream?.getSections() ?? [];
   const useStreamSections =
     !hasDocument
     && Boolean(streamBuilt)
     && streamBuilt.length >= base.text.trim().length
-    && streamSections.length > 0;
+    && streamSectionList.length > 0;
 
   return {
     ...base,
     text: bestText || base.text,
-    sections: useStreamSections ? streamSections : base.sections,
+    sections: useStreamSections ? streamSectionList : base.sections,
   };
 }
 

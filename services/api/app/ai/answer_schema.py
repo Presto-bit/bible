@@ -239,19 +239,26 @@ def effective_budget_for_scene(
 
 
 def verse_min_chars(scene: str, verse_span: int = 1) -> int:
+    """与 effective_budget / depth min_complete 对齐，避免归一化后仍判 incomplete。"""
     span = max(1, int(verse_span or 1))
     if scene == "verse_full":
         if span <= 2:
             return 70
         if span <= 5:
             return 90 + max(0, span - 2) * 15
-        return 140 + span * 22
+        bud = effective_budget_for_scene(scene, verse_span=span)
+        if bud:
+            return min(max(280, int(bud.total_chars * 0.42)), 420)
+        return 320
     if scene == "verse_quick":
         if span <= 2:
             return 45
         if span <= 5:
             return 55 + max(0, span - 2) * 12
-        return 55 + (span - 1) * 18
+        bud = effective_budget_for_scene(scene, verse_span=span)
+        if bud:
+            return min(max(220, int(bud.total_chars * 0.42)), 360)
+        return 280
     return 80
 
 
@@ -355,9 +362,12 @@ def max_tokens_for_scene(
         cap = min(cap, HISTORY_CHAT_MAX_TOKENS)
     if scene in ("verse_full", "verse_quick"):
         span = max(1, int(verse_span or 1))
-        if span >= 3:
-            bonus = min((span - 2) * 40, 280 if span >= 9 else (200 if span >= 6 else 120))
-            cap = cap + bonus
+        if span >= 9:
+            cap = cap + min((span - 2) * 45, 360)
+        elif span >= 6:
+            cap = cap + min((span - 2) * 44, 300)
+        elif span >= 3:
+            cap = cap + min((span - 2) * 40, 120)
     if scene in ("summary_chapter", "summary_chapter_outline") and verse_span > 20:
         cap = max(cap, 1400)
     return cap

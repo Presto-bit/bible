@@ -83,21 +83,37 @@ class AssistantRepository {
     if (turn.history.isNotEmpty) {
       body['history'] = turn.history.map((h) => h.toJson()).toList();
     }
-    var gotContent = false;
-    var sawDone = false;
-    var terminalError = false;
-    await for (final evt in _chatAttempt(body, turn.scene, cancelToken: cancelToken)) {
-      if (_eventHasContent(evt)) gotContent = true;
-      if (evt is DoneEvent) sawDone = true;
-      if (evt is ErrorEvent) terminalError = true;
-      yield evt;
-    }
-    if (terminalError || sawDone) return;
-    if (gotContent) {
-      yield const DoneEvent(streamComplete: false);
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var gotContent = false;
+      var sawDone = false;
+      var terminalError = false;
+      var incompleteRetry = false;
+      await for (final evt in _chatAttempt(body, turn.scene, cancelToken: cancelToken)) {
+        if (_eventHasContent(evt)) gotContent = true;
+        if (evt is DoneEvent) sawDone = true;
+        if (evt is ErrorEvent) {
+          if (evt.code == 'incomplete_answer' && attempt == 0) {
+            incompleteRetry = true;
+            terminalError = true;
+            break;
+          }
+          terminalError = true;
+        }
+        yield evt;
+      }
+      if (incompleteRetry) {
+        yield const StreamRetryEvent();
+        await Future<void>.delayed(const Duration(milliseconds: 450));
+        continue;
+      }
+      if (terminalError || sawDone) return;
+      if (gotContent) {
+        yield const DoneEvent(streamComplete: false);
+        return;
+      }
+      yield const ErrorEvent('未收到回答内容，请重试');
       return;
     }
-    yield const ErrorEvent('未收到回答内容，请重试');
   }
 
   static bool _eventHasContent(ChatEvent evt) {
@@ -286,7 +302,10 @@ class AssistantRepository {
           streamComplete: data['streamComplete'] != false,
         );
       case 'error':
-        return ErrorEvent((data['message'] ?? '小爱暂时无法回应') as String);
+        return ErrorEvent(
+          (data['message'] ?? '小爱暂时无法回应') as String,
+          code: data['code'] as String?,
+        );
       default:
         return null;
     }

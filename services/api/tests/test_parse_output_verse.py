@@ -160,6 +160,34 @@ def test_mid_bullet_truncated_detects_ellipsis():
     assert verse_explain_incomplete("verse_full", body, depth="deep")
 
 
+def test_merge_duplicate_explain_sections_without_xu():
+    body = (
+        "### 摘要\n神爱世人。\n\n"
+        "### 经文解释\n"
+        "- 在尼哥底母夜访的语境下，这句话指向救恩出于神的主动。\n"
+        "- 「独生子」强调基督独特的位格。\n\n"
+        "### 经文解释\n"
+        "- 在同样语境下，救恩出于神的主动赐予。\n"
+        "- 信者得永生是整节要旨的收束。"
+    )
+    merged = merge_continuation_sections(body)
+    assert merged.count("### 经文解释") == 1
+    assert merged.count("- ") == 3
+    assert "信者得永生" in merged
+
+
+def test_dedupe_similar_bullets():
+    from app.ai.parse_output import bullets_similar, dedupe_similar_bullets
+
+    bullets = [
+        "在尼哥底母夜访的语境下，这句话指向救恩出于神的主动。",
+        "在同样语境下，救恩出于神的主动赐予。",
+        "「独生子」强调基督独特的位格。",
+    ]
+    assert bullets_similar(bullets[0], bullets[1])
+    assert len(dedupe_similar_bullets(bullets)) == 2
+
+
 def test_merge_continuation_sections_merges_explain():
     body = (
         "### 摘要\n神爱世人。\n\n"

@@ -78,13 +78,13 @@ export function isHalfSheetAnswerComplete(
         ? 70
         : span <= 5
           ? 90 + Math.max(0, span - 2) * 15
-          : 140 + span * 22
+          : Math.min(420, 140 + span * 8)
       : scene === 'verse_quick'
         ? span <= 2
           ? 45
           : span <= 5
             ? 55 + Math.max(0, span - 2) * 12
-            : 55 + (span - 1) * 18
+            : Math.min(360, 55 + span * 6)
         : 80;
 
   if (text.length < minLen) return false;

@@ -85,21 +85,21 @@ def resolve_depth(
         if span >= 6:
             if wants_deep:
                 return _deep_profile(scene_id, span, half=half)
-            return _standard_verse_profile(span, deep=False)
+            return _standard_verse_profile(span, deep=True)
         if half or not wants_deep:
             return _flash_profile(span)
         return _standard_verse_profile(span, deep=False)
 
     if scene_id == "verse_full":
         if half:
-            if span <= 2 and (not wants_deep or _is_default_explain(q) or not q):
+            if span <= 1 and (
+                _is_default_explain(q) or (not q and not wants_deep)
+            ):
                 return _flash_profile(span)
+            if span >= 6:
+                return _deep_profile(scene_id, span, half=True)
             if span <= 5 and not wants_deep:
                 return _standard_verse_profile(span, deep=False, compact=True)
-            if span >= 6 and wants_deep:
-                return _deep_profile(scene_id, span, half=True)
-            if span >= 6:
-                return _standard_verse_profile(span, deep=False)
             if wants_deep:
                 return _deep_profile(scene_id, span, half=True)
             return _standard_verse_profile(span, deep=False, compact=True)

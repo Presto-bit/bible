@@ -20,12 +20,13 @@ def test_section_tracker_delta_and_finalize():
     tracker = SectionStreamTracker(["摘要", "经文解释"])
     starts = tracker.bootstrap_starts()
     assert len(starts) == 2
-    new_starts, deltas = tracker.on_delta("### 摘要\n神爱世人。\n\n")
+    new_starts, deltas, corrections = tracker.on_delta("### 摘要\n神爱世人。\n\n")
+    assert not corrections
     assert not new_starts or new_starts[0]["title"] == "摘要"
     assert deltas and deltas[0]["id"].startswith("sec-")
     assert "###" not in deltas[0]["text"]
     assert "神爱世人" in deltas[0]["text"]
-    _, d2 = tracker.on_delta("### 经文解释\n- 要点一。\n")
+    _, d2, _ = tracker.on_delta("### 经文解释\n- 要点一。\n")
     assert d2
     assert "###" not in d2[0]["text"]
     body = "### 摘要\n神爱世人。\n\n### 经文解释\n- 要点一。\n"

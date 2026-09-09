@@ -51,7 +51,7 @@ export function isDefaultHalfSheetExplain(
   scene: AssistantScene,
 ): boolean {
   if (explicitSelection) return false;
-  if (scene !== 'verse_quick') return false;
+  if (scene !== 'verse_quick' && scene !== 'verse_full') return false;
   return isDefaultExplainQuestion(question);
 }
 

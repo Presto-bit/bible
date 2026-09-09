@@ -19,6 +19,12 @@ export function mergeAssistantStreamError(acc: string, msg: string): string {
   return `${trimmed}\n\n${cleanMsg}`;
 }
 
+/** 服务端判定 incomplete：丢弃半成品，仅保留可重试提示。 */
+export function replaceAssistantStreamError(msg: string): string {
+  const cleanMsg = msg.startsWith('⚠️') ? msg : `⚠️ ${msg}`;
+  return cleanMsg;
+}
+
 /** 流未正常结束时追加轻提示（不覆盖正文）。 */
 export function appendStreamIncompleteNotice(acc: string): string {
   const trimmed = acc.trim();

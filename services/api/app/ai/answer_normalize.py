@@ -13,6 +13,7 @@ from .answer_schema import (
 from .parse_output import (
     FOLLOWUP_SECTION_RE,
     SECTION_MD_RE,
+    dedupe_similar_bullets,
     merge_continuation_sections,
     split_body_and_followups,
 )
@@ -79,6 +80,7 @@ def _chunk_to_bullets(
     max_items: int,
     *,
     format_only: bool = False,
+    against: list[str] | None = None,
 ) -> list[str]:
     lines = [ln.strip() for ln in chunk.split("\n") if ln.strip()]
     bullets: list[str] = []
@@ -96,6 +98,7 @@ def _chunk_to_bullets(
             item_max=item_max,
             max_items=max_items,
             format_only=format_only,
+            against=against,
         )
     if format_only:
         return lines[:max_items]
@@ -109,6 +112,7 @@ def _chunk_to_bullets(
         item_max=item_max,
         max_items=max_items,
         format_only=format_only,
+        against=against,
     )
 
 
@@ -222,8 +226,10 @@ def _finalize_bullets(
     item_max: int,
     max_items: int,
     format_only: bool,
+    against: list[str] | None = None,
 ) -> list[str]:
     cleaned = _trim_incomplete_bullets(bullets)
+    cleaned = dedupe_similar_bullets(cleaned, against=against)
     cleaned = _consolidate_short_bullets(cleaned, max_items)
     if len(cleaned) > max_items:
         kept = cleaned[: max_items - 1]
@@ -294,6 +300,7 @@ def normalize_answer_markdown(
         prefer_prose = True
 
     max_bullets = bud.max_bullets
+    prior_section_bullets: list[str] = []
 
     parts: list[str] = []
     for title, chunk in _section_chunks(body):
@@ -319,15 +326,23 @@ def normalize_answer_markdown(
             parts.append(prose)
             parts.append("")
             continue
+        against = (
+            prior_section_bullets
+            if title in ("经文解释",) and prior_section_bullets
+            else None
+        )
         bullets = _chunk_to_bullets(
             chunk,
             bud.item_max,
             _section_max_bullets(title, max_bullets, scene, verse_span),
             format_only=format_only,
+            against=against,
         )
         if not bullets and chunk.strip():
             raw = chunk.replace("\n", " ").strip()
             bullets = [raw if format_only else _trim_chars(raw, bud.item_max)]
+        if title in ("经文背景", "背景", "段落脉络"):
+            prior_section_bullets.extend(bullets)
         for b in bullets:
             parts.append(f"- {b}")
         parts.append("")

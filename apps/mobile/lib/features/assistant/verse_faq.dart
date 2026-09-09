@@ -57,7 +57,9 @@ bool isDefaultHalfSheetExplain(
   AssistantScene scene,
 ) {
   if (explicitSelection) return false;
-  if (scene != AssistantScene.verseQuick) return false;
+  if (scene != AssistantScene.verseQuick && scene != AssistantScene.verseFull) {
+    return false;
+  }
   return isDefaultExplainQuestion(question);
 }
 

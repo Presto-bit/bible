@@ -38,6 +38,12 @@ class SectionStreamAccumulator {
 
   bool get active => _active;
 
+  void reset() {
+    _entries.clear();
+    _order.clear();
+    _active = false;
+  }
+
   void seedFromPlan(List<String>? titles) {
     if (titles == null || titles.isEmpty) return;
     for (final title in titles) {
@@ -88,9 +94,7 @@ class SectionStreamAccumulator {
     }
     entry.title = stitle;
     final incoming = text.trim();
-    if (incoming.isNotEmpty &&
-        (entry.text.trim().isEmpty ||
-            incoming.length >= entry.text.trim().length)) {
+    if (incoming.isNotEmpty) {
       entry.text = incoming;
     }
     entry.finalized = true;
@@ -141,4 +145,31 @@ class SectionStreamAccumulator {
         )
         .toList();
   }
+}
+
+/// 终稿 Markdown → 按节渲染块（done 后保持与流式相同的分节展示）。
+List<StreamSection> streamSectionsFromMarkdown(String body) {
+  final text = body.trim();
+  if (text.isEmpty) return const [];
+  final re = RegExp(r'^###\s+(.+)$', multiLine: true);
+  final matches = re.allMatches(text).toList();
+  if (matches.isEmpty) return const [];
+  final sections = <StreamSection>[];
+  for (var i = 0; i < matches.length; i++) {
+    final title = matches[i].group(1)?.trim() ?? '';
+    if (title.isEmpty || title == '相关追问') break;
+    final start = matches[i].end;
+    final end = i + 1 < matches.length ? matches[i + 1].start : text.length;
+    final chunk = text.substring(start, end).trim();
+    if (chunk.isEmpty) continue;
+    sections.add(
+      StreamSection(
+        id: sectionSlug(title),
+        title: title,
+        text: chunk,
+        finalized: true,
+      ),
+    );
+  }
+  return sections;
 }

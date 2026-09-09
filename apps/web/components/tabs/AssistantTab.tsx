@@ -34,12 +34,13 @@ import {
 import { bodyText, followupsForMessage, followupsOf, normalizeFollowupItems, stripFollowups } from '@/lib/assistant_format';
 import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { buildAssistantTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
-import { mergeAssistantStreamError, appendStreamIncompleteNotice, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
+import { mergeAssistantStreamError, replaceAssistantStreamError, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { AssistantStreamPerf } from '@/lib/assistant_perf';
 import {
   isDefaultTabExplain,
   preloadVerseFaq,
   readVerseFaqExplain,
+  readVerseFaqExplainSync,
 } from '@/lib/verse_faq';
 import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
@@ -794,7 +795,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         hasRef: true,
       })
     ) {
-      const faq = await readVerseFaqExplain(refForApi);
+      const faqSync = readVerseFaqExplainSync(refForApi);
+      const faq = faqSync ?? (await readVerseFaqExplain(refForApi));
       if (faq && myGen === sendGenRef.current) {
         window.clearTimeout(connectTimer);
         clearGenTimer();
@@ -924,9 +926,21 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           onFollowups: (items) => {
             serverFollowups = normalizeFollowupItems(items);
           },
-          onError: (msg) => {
+          onRetry: () => {
+            acc = '';
+            sectionStream.reset();
+            streamSections = [];
+            answerSections = undefined;
+            serverFollowups = [];
+            gotDelta = false;
+            setStreamPhase('understanding');
+            scheduleApply();
+          },
+          onError: (msg, meta) => {
             streamPerf.onError();
-            acc = mergeAssistantStreamError(acc, msg);
+            acc = meta?.code === 'incomplete_answer'
+              ? replaceAssistantStreamError(msg)
+              : mergeAssistantStreamError(acc, msg);
             applyAcc();
           },
           onDone: (payload) => {
@@ -948,10 +962,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             if (payload?.cache_hit || payload?.instant) {
               instant = true;
               cacheSource = payload.cache_source ?? cacheSource;
-            }
-            if ((resolved.incomplete || payload?.streamComplete === false) && acc.trim()) {
-              acc = appendStreamIncompleteNotice(acc);
-              applyAcc();
             }
           },
         },

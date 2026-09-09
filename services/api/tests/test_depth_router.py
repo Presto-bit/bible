@@ -32,15 +32,25 @@ def test_half_sheet_single_verse_flash():
     assert plan["max_followups"] == 0
 
 
-def test_half_sheet_passage_without_deep_question_soft():
+def test_half_sheet_passage_without_deep_question_deep():
     prof = resolve_depth(
         "verse_full",
         None,
         verse_span=11,
         surface="half_sheet",
     )
-    assert prof.depth == "standard"
-    assert "段落脉络" not in prof.sections
+    assert prof.depth == "deep"
+    assert "段落脉络" in prof.sections
+
+
+def test_half_sheet_two_verse_not_flash():
+    prof = resolve_depth(
+        "verse_full",
+        "请解读：约 3:16-17",
+        verse_span=2,
+        surface="half_sheet",
+    )
+    assert prof.depth != "flash"
 
 
 def test_deep_question_expands_sections():

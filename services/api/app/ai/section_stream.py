@@ -5,7 +5,7 @@ import re
 from typing import Iterator
 
 from .answer_document import section_slug
-from .parse_output import SECTION_MD_RE
+from .parse_output import SECTION_MD_RE, merge_continuation_sections
 
 _FOLLOWUP_TITLE = "相关追问"
 
@@ -53,11 +53,31 @@ class SectionStreamTracker:
             events.append({"id": sec["id"], "title": sec["title"]})
         return events
 
-    def on_delta(self, piece: str) -> tuple[list[dict], list[dict]]:
-        """返回 (new_starts, section_deltas)。delta 仅含小节正文增量，不含 ### 标题。"""
+    def on_delta(self, piece: str) -> tuple[list[dict], list[dict], list[dict]]:
+        """返回 (new_starts, section_deltas, section_corrections)。
+
+        section_corrections：检测到重复小节合并时，用 section_done 整节替换客户端累积。
+        """
         if not piece:
-            return [], []
+            return [], [], []
         self._accum += piece
+        merged = merge_continuation_sections(self._accum)
+        if merged != self._accum.strip() and (
+            merged.count("### ") < self._accum.count("### ")
+            or len(merged) < len(self._accum.strip()) - 12
+        ):
+            self._accum = merged
+            bodies = extract_section_bodies(self._accum)
+            self._section_emitted = {sid: len(body) for sid, body in bodies.items()}
+            corrections = [
+                {
+                    "id": sid,
+                    "title": self._title_for_id(sid, self._accum),
+                    "text": body,
+                }
+                for sid, body in bodies.items()
+            ]
+            return [], [], corrections
         new_starts: list[dict] = []
         for m in SECTION_MD_RE.finditer(self._accum):
             title = m.group(1).strip()
@@ -96,7 +116,7 @@ class SectionStreamTracker:
                 if len(full_text) > prev:
                     deltas.append({"id": sid, "text": full_text[prev:]})
                     self._section_emitted[sid] = len(full_text)
-        return new_starts, deltas
+        return new_starts, deltas, []
 
     def finalize(self, body_text: str) -> list[dict]:
         """终稿 section_done（id/title/text）。"""
@@ -153,11 +173,13 @@ def iter_replay_stream(
             yield "delta", {"text": piece}
         if not emit_sections:
             continue
-        starts, deltas = tracker.on_delta(piece)
+        starts, deltas, corrections = tracker.on_delta(piece)
         for start in starts:
             yield "section_start", start
         for delta in deltas:
             yield "section_delta", delta
+        for corr in corrections:
+            yield "section_done", corr
     if emit_sections:
         for item in tracker.finalize(answer):
             yield "section_done", item

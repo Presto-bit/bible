@@ -69,6 +69,38 @@ String _preferLongerText(Iterable<String> candidates) {
   return best;
 }
 
+List<String> sectionTitlesInMarkdown(String text) {
+  final titles = <String>[];
+  final re = RegExp(r'^###\s+(.+)$', multiLine: true);
+  for (final m in re.allMatches(text)) {
+    final title = m.group(1)?.trim() ?? '';
+    if (title.isNotEmpty && title != '相关追问') titles.add(title);
+  }
+  return titles;
+}
+
+/// done 终稿：归一化 document 与流式正文取更完整者，避免终态只剩摘要。
+String pickStreamDoneText({
+  required String documentText,
+  String streamBuilt = '',
+  String streamed = '',
+  String? sectionPolicy,
+}) {
+  final doc = documentText.trim();
+  final stream =
+      streamBuilt.trim().isNotEmpty ? streamBuilt.trim() : streamed.trim();
+  if (doc.isEmpty) return stream;
+  if (stream.isEmpty) return doc;
+  if (sectionPolicy == 'lead_only') return doc;
+
+  final docSections = sectionTitlesInMarkdown(doc).length;
+  final streamSections = sectionTitlesInMarkdown(stream).length;
+  if (streamSections > docSections) return stream;
+  if (doc.length >= stream.length - 24) return doc;
+  if (stream.length > doc.length + 40) return stream;
+  return doc;
+}
+
 ResolvedDoneAnswer resolveDoneAnswer(
   String streamedText, {
   String? doneText,
@@ -76,6 +108,7 @@ ResolvedDoneAnswer resolveDoneAnswer(
   List<String> doneFollowups = const [],
   AnswerDocument? document,
   SectionStreamAccumulator? sectionStream,
+  String? sectionPolicy,
 }) {
   final streamBuilt =
       (sectionStream?.active ?? false) ? sectionStream!.toMarkdown().trim() : '';
@@ -92,7 +125,12 @@ ResolvedDoneAnswer resolveDoneAnswer(
   final hasDocument =
       document != null && document.markdown.trim().isNotEmpty;
   final bestText = hasDocument
-      ? base.text
+      ? pickStreamDoneText(
+          documentText: base.text,
+          streamBuilt: streamBuilt,
+          streamed: streamed,
+          sectionPolicy: sectionPolicy,
+        )
       : _preferLongerText([streamBuilt, base.text, streamed]);
   final streamSections = sectionStream?.getSections() ?? const [];
   final useStreamSections = !hasDocument &&

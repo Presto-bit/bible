@@ -13,7 +13,11 @@ import {
   hasVisibleAssistantAnswer,
 } from '@/lib/assistant_visible';
 import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
-import { SectionStreamAccumulator, type StreamSection } from '@/lib/assistant_section_stream';
+import {
+  SectionStreamAccumulator,
+  streamSectionsFromMarkdown,
+  type StreamSection,
+} from '@/lib/assistant_section_stream';
 import { CitationBar } from '@/components/CitationBar';
 import { addThought } from '@/lib/reader_thoughts';
 import {
@@ -28,9 +32,13 @@ import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { buildHalfSheetTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
-import { mergeAssistantStreamError, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
+import { mergeAssistantStreamError, replaceAssistantStreamError, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { AssistantStreamPerf } from '@/lib/assistant_perf';
-import { isDefaultHalfSheetExplain, readVerseFaqExplain } from '@/lib/verse_faq';
+import {
+  isDefaultHalfSheetExplain,
+  readVerseFaqExplain,
+  readVerseFaqExplainSync,
+} from '@/lib/verse_faq';
 import {
   buildHalfSheetQuestion,
   halfSheetCacheSelection,
@@ -290,7 +298,8 @@ export default function XiaoAiSheet({
           !opts?.history?.length &&
           isDefaultHalfSheetExplain(apiQuestion, explicitSel, scene)
         ) {
-          const faq = await readVerseFaqExplain(ref);
+          const faqSync = readVerseFaqExplainSync(ref);
+          const faq = faqSync ?? (await readVerseFaqExplain(ref));
           if (faq && runId === runIdRef.current && !cancelled) {
             const followups = defaultHalfSheetFollowups(label);
             setTurns((prev) => {
@@ -551,7 +560,22 @@ export default function XiaoAiSheet({
           onFollowups: (items) => {
             if (items.length) serverFollowups = items;
           },
-          onError: (msg) => {
+          onRetry: () => {
+            if (cancelled || runId !== runIdRef.current) return;
+            settled = false;
+            gotDelta = false;
+            accRef.current = '';
+            sectionStream.reset();
+            streamSections = [];
+            answerSections = undefined;
+            serverFollowups = [];
+            setTurns((prev) =>
+              prev.map((t) =>
+                t.id === turnId ? { ...t, answer: '', busy: true } : t,
+              ),
+            );
+          },
+          onError: (msg, meta) => {
             if (cancelled || runId !== runIdRef.current) return;
             streamPerf.onError();
             settled = true;
@@ -559,6 +583,20 @@ export default function XiaoAiSheet({
             if (rafRef.current != null) {
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
+            }
+            if (meta?.code === 'incomplete_answer') {
+              const err = replaceAssistantStreamError(msg);
+              accRef.current = err;
+              setTurns((prev) => {
+                const next = prev.map((t) =>
+                  t.id === turnId
+                    ? { ...t, answer: err, busy: false, streamIncomplete: true }
+                    : t,
+                );
+                persistThread(next);
+                return next;
+              });
+              return;
             }
             const partial = accRef.current.trim();
             if (partial) {
@@ -593,11 +631,15 @@ export default function XiaoAiSheet({
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
             }
-            const resolved = resolveDoneAnswer(accRef.current, payload, sectionStream);
+            const resolved = resolveDoneAnswer(
+              accRef.current,
+              payload,
+              sectionStream,
+              { sectionPolicy: outputPlan?.section_policy },
+            );
             const text = resolved.text.trim();
-            if (text && text.length >= accRef.current.trim().length) {
-              accRef.current = text;
-            }
+            const finalStreamSections = streamSectionsFromMarkdown(text);
+            if (text) accRef.current = text;
             settled = true;
             if (!text) {
               setTurns((prev) =>
@@ -643,6 +685,9 @@ export default function XiaoAiSheet({
                       sections: answerSections,
                       structureAssets,
                       outputPlan,
+                      streamSections: finalStreamSections.length
+                        ? finalStreamSections
+                        : t.streamSections,
                       instant: instant || Boolean(payload?.cache_hit || payload?.instant),
                       cacheSource: cacheSource ?? payload?.cache_source,
                     }
@@ -888,9 +933,7 @@ export default function XiaoAiSheet({
                           responseProfile={turn.responseProfile}
                           structureAssets={turn.structureAssets}
                           streamSections={
-                            turn.busy && turn.streamSections?.length
-                              ? turn.streamSections
-                              : undefined
+                            turn.streamSections?.length ? turn.streamSections : undefined
                           }
                           onCitationClick={(n) => {
                             recordCitationClick();

@@ -537,7 +537,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           scene: activeScene,
           hasRef: true,
         )) {
-      final faq = await readVerseFaqExplain(refForApi);
+      final faq =
+          readVerseFaqExplainSync(refForApi) ?? await readVerseFaqExplain(refForApi);
       if (!mounted) return;
       if (faq != null) {
         setState(() {
@@ -645,6 +646,16 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         await for (final evt in openStream()) {
           if (!mounted) return;
           switch (evt) {
+            case StreamRetryEvent():
+              sectionStream.reset();
+              pendingDelta = '';
+              receivedDelta = false;
+              streamSettled = false;
+              setState(() {
+                reply.content = '';
+                reply.streamSections = [];
+                _streamPhase = ThinkingPhase.understanding;
+              });
             case MetaEvent(:final meta):
               if (meta.citationsPending) {
                 streamPerf.onPlaceholderMeta();
@@ -744,16 +755,19 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               if (resolved.sections.isNotEmpty) {
                 setState(() => reply.sections = resolved.sections);
               }
-              if (!streamComplete && reply.content.trim().isNotEmpty) {
-                setState(
-                  () => reply.content = appendStreamIncompleteNotice(reply.content),
+            case ErrorEvent(:final message, :final code):
+              if (code == 'incomplete_answer') {
+                streamPerf.onError();
+                unawaited(
+                  flushAssistantPerf(ref.read(dioProvider), streamPerf),
                 );
-              } else if (resolved.incomplete && reply.content.trim().isNotEmpty) {
+                terminalError = true;
+                flushDelta(force: true);
                 setState(
-                  () => reply.content = appendStreamIncompleteNotice(reply.content),
+                  () => reply.content = replaceAssistantStreamError(message),
                 );
+                break;
               }
-            case ErrorEvent(:final message):
               if (streamSettled ||
                   (reply.content.trim().isNotEmpty && receivedDelta)) {
                 break;
