@@ -27,6 +27,7 @@ import { SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scene
 import { buildHalfSheetTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
 import { mergeAssistantStreamError, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { AssistantStreamPerf } from '@/lib/assistant_perf';
+import { isDefaultHalfSheetExplain, readVerseFaqExplain } from '@/lib/verse_faq';
 import {
   buildHalfSheetQuestion,
   halfSheetCacheSelection,
@@ -275,6 +276,42 @@ export default function XiaoAiSheet({
         }
       }
 
+      let cancelled = false;
+      const cleanupRef: { fn: (() => void) | null } = { fn: null };
+      void (async () => {
+        if (
+          !opts?.isRetry &&
+          !opts?.history?.length &&
+          isDefaultHalfSheetExplain(apiQuestion, explicitSel, scene)
+        ) {
+          const faq = await readVerseFaqExplain(ref);
+          if (faq && runId === runIdRef.current && !cancelled) {
+            const followups = defaultHalfSheetFollowups(label);
+            setTurns((prev) => {
+              const next = prev.map((t) =>
+                t.id === turnId
+                  ? {
+                      ...t,
+                      answer: faq,
+                      citations: [],
+                      followups,
+                      busy: false,
+                      streamIncomplete: false,
+                      localInstant: true,
+                      cacheSource: 'faq',
+                    }
+                  : t,
+              );
+              persistThread(next);
+              return next;
+            });
+            setActiveTurnId(turnId);
+            scrollToBottom();
+            return;
+          }
+        }
+        if (runId !== runIdRef.current || cancelled) return;
+
       const controller = new AbortController();
       let genTimer: number | null = null;
       const clearGenTimer = () => {
@@ -289,7 +326,6 @@ export default function XiaoAiSheet({
       };
       const connectTimer = window.setTimeout(() => controller.abort(), 50_000);
       const slowTimer = window.setTimeout(() => setStreamSlowHint(true), 12_000);
-      let cancelled = false;
       let cites: Citation[] = [];
       let gotDelta = false;
       const streamPerf = new AssistantStreamPerf({ surface: 'half_sheet', scene });
@@ -625,8 +661,15 @@ export default function XiaoAiSheet({
         setStreamSlowHint(false);
         if (rafRef.current != null) window.clearTimeout(rafRef.current);
       };
+      cleanupRef.fn = cleanup;
       streamCleanupRef.current = cleanup;
-      return cleanup;
+      })();
+
+      return () => {
+        cancelled = true;
+        cleanupRef.fn?.();
+        streamCleanupRef.current = null;
+      };
     },
     [persistThread, scrollToBottom],
   );

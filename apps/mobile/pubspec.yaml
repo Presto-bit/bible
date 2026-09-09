@@ -92,6 +92,7 @@ flutter:
   assets:
     - assets/badges.json
     - assets/question_bank.json
+    - assets/verse_faq/explain.json
     - assets/app_icon_shelf.png
     - assets/illustrations/home/
 

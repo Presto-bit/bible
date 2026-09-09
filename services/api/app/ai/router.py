@@ -1133,6 +1133,13 @@ def chat(
                 **document,
                 "meta": {**(document.get("meta") or {}), "incomplete": True},
             }
+        done_timings: dict[str, int] = {"prepare_ms": prepare_ms}
+        if first_token_ms is not None:
+            done_timings["first_token_ms"] = first_token_ms
+        if meta.prompt_cache_hit_tokens:
+            done_timings["prompt_cache_hit_tokens"] = meta.prompt_cache_hit_tokens
+        if meta.prompt_cache_miss_tokens:
+            done_timings["prompt_cache_miss_tokens"] = meta.prompt_cache_miss_tokens
         yield _sse(
             "done",
             build_done_sse_payload(
@@ -1142,6 +1149,7 @@ def chat(
                 incomplete=incomplete,
                 scene=scene or "",
                 conversation_id=conversation_id,
+                timings=done_timings,
             ),
         )
         append_turns(

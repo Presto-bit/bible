@@ -18,7 +18,9 @@ import '../assistant/assistant_thinking.dart';
 import '../assistant/assistant_section_stream.dart';
 import '../assistant/assistant_turn_request.dart';
 import '../assistant/answer_profile_body.dart';
+import '../assistant/assistant_perf.dart';
 import '../assistant/instant_answer_status.dart';
+import '../assistant/verse_faq.dart';
 import '../assistant/assistant_blocks.dart';
 import '../assistant/assistant_sections.dart';
 import '../assistant/assistant_format.dart';
@@ -270,6 +272,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     void flush() {
       scheduled = false;
       if (!mounted || runId != _runId) return;
+      streamPerf.onTextUpdate(pending);
       setState(() {
         final t = _turnFor(turnId);
         if (t != null && t.busy) {
@@ -340,7 +343,43 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
       }
     }
 
-    final stream = ref.read(assistantRepoProvider).chatFromTurn(
+    final streamPerf = AssistantStreamPerf(
+      AssistantPerfDetail(surface: 'half_sheet', scene: scene.id),
+    );
+
+    Future<void> startNetwork() async {
+      if (!isRetry &&
+          history.isEmpty &&
+          isDefaultHalfSheetExplain(
+            apiQuestion,
+            widget.explicitSelection,
+            scene,
+          )) {
+        final faq = await readVerseFaqExplain(widget.refStr);
+        if (!mounted || runId != _runId) return;
+        if (faq != null) {
+          setState(() {
+            final t = _turnFor(turnId);
+            if (t != null) {
+              t
+                ..answer = faq
+                ..citations = const []
+                ..followups = defaultHalfSheetFollowups(widget.refLabel)
+                ..busy = false
+                ..streamIncomplete = false
+                ..localInstant = true
+                ..cacheSource = 'faq';
+            }
+          });
+          _activeTurnId = turnId;
+          _persistThread();
+          _scrollToBottom();
+          return;
+        }
+      }
+      if (!mounted || runId != _runId) return;
+
+      final stream = ref.read(assistantRepoProvider).chatFromTurn(
           buildHalfSheetTurnRequest(
             ref: widget.refStr,
             question: apiQuestion,
@@ -360,12 +399,20 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           ),
         );
 
-    _sub = stream.listen(
+      _sub = stream.listen(
       (evt) {
         if (!mounted || runId != _runId) return;
         switch (evt) {
           case am.MetaEvent(:final meta):
-            if (meta.citationsPending) break;
+            if (meta.citationsPending) {
+              streamPerf.onPlaceholderMeta();
+              break;
+            }
+            streamPerf.onFullMeta(
+              cacheHit: meta.cacheHit,
+              cacheSource: meta.cacheSource,
+              prepareMs: meta.timings?['prepare_ms'],
+            );
             if (meta.conversationId != null && meta.conversationId!.isNotEmpty) {
               _conversationId = meta.conversationId;
             }
@@ -397,6 +444,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             syncSectionStream();
             if (!gotDelta) {
               gotDelta = true;
+              streamPerf.onFirstToken();
               flush();
             } else {
               scheduleFlush();
@@ -406,6 +454,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             syncSectionStream();
             if (!gotDelta) {
               gotDelta = true;
+              streamPerf.onFirstToken();
               flush();
             } else {
               scheduleFlush();
@@ -419,6 +468,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             pending += text;
             if (!gotDelta) {
               gotDelta = true;
+              streamPerf.onFirstToken();
               flush();
             } else {
               scheduleFlush();
@@ -426,6 +476,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           case am.FollowupsEvent(:final items):
             if (items.isNotEmpty) serverFollowups = items;
           case am.ErrorEvent(:final message):
+            streamPerf.onError();
             chatSettled = true;
             flush();
             if (pending.trim().isNotEmpty) {
@@ -457,6 +508,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               :final document,
             ):
             if (chatSettled) break;
+            streamPerf.onDone();
             flush();
             final resolved = resolveDoneAnswer(
               pending,
@@ -553,6 +605,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
       },
       onError: (_) {
         if (!mounted || runId != _runId) return;
+        streamPerf.onError();
         setState(() {
           final t = _turnFor(turnId);
           if (t == null) return;
@@ -566,6 +619,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         });
       },
     );
+    }
+
+    unawaited(startNetwork());
   }
 
   HalfSheetTurnView? _turnFor(String id) {

@@ -11,7 +11,9 @@ export function instantAnswerLabel(opts?: {
   cacheSource?: string;
   local?: boolean;
 }): string {
+  if (opts?.local && opts?.cacheSource === 'faq') return '经包 · 秒回';
   if (opts?.local) return '本机缓存 · 秒回';
+  if (opts?.cacheSource === 'faq') return '经包 · 秒回';
   if (opts?.cacheSource === 'prewarm') return '已预读这节 · 秒回';
   if (opts?.cacheSource === 'cache') return '已缓存 · 秒回';
   return '秒回';

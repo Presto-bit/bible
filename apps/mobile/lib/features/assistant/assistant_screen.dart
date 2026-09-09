@@ -21,6 +21,7 @@ import '../../core/theme.dart';
 import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../bible/reading_repository.dart';
 import '../bible/thoughts_repository.dart';
+import 'assistant_perf.dart';
 import 'instant_answer_status.dart';
 import 'assistant_instant.dart';
 import 'assistant_answer_document.dart';
@@ -466,6 +467,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     var gotDelta = false;
     var pendingDelta = '';
     final sectionStream = SectionStreamAccumulator();
+    final streamPerf = AssistantStreamPerf(
+      AssistantPerfDetail(surface: 'tab', scene: activeScene.id),
+    );
     Timer? deltaFlush;
 
     void applySectionStream() {
@@ -474,11 +478,13 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       if (md.isEmpty) return;
       setState(() {
         gotDelta = true;
+        streamPerf.onFirstToken();
         _streamPhase = ThinkingPhase.writing;
         reply.content = md;
         reply.sections = sectionStream.getSections();
         reply.streamSections = sectionStream.getRenderableSections();
       });
+      streamPerf.onTextUpdate(md);
       _autoScroll();
     }
 
@@ -490,10 +496,12 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       setState(() {
         if (!gotDelta && chunk.isNotEmpty) {
           gotDelta = true;
+          streamPerf.onFirstToken();
           _streamPhase = ThinkingPhase.writing;
         }
         if (chunk.isNotEmpty) reply.content += chunk;
       });
+      streamPerf.onTextUpdate(reply.content);
       _autoScroll();
     }
 
@@ -519,9 +527,15 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           switch (evt) {
             case MetaEvent(:final meta):
               if (meta.citationsPending) {
+                streamPerf.onPlaceholderMeta();
                 setState(() => _streamPhase = ThinkingPhase.refs);
                 break;
               }
+              streamPerf.onFullMeta(
+                cacheHit: meta.cacheHit,
+                cacheSource: meta.cacheSource,
+                prepareMs: meta.timings?['prepare_ms'],
+              );
               setState(() {
                 reply.meta = meta;
                 if (meta.conversationId != null && meta.conversationId!.isNotEmpty) {
@@ -573,6 +587,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               :final document,
               :final conversationId,
             ):
+              streamPerf.onDone();
               flushDelta(force: true);
               if (conversationId != null && conversationId.isNotEmpty) {
                 _conversationId = conversationId;
@@ -606,6 +621,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 );
               }
             case ErrorEvent(:final message):
+              streamPerf.onError();
               terminalError = true;
               flushDelta(force: true);
               setState(

@@ -22,6 +22,8 @@ class StreamMeta:
 
     finish_reason: str | None = None
     usage: dict[str, Any] = field(default_factory=dict)
+    prompt_cache_hit_tokens: int = 0
+    prompt_cache_miss_tokens: int = 0
 
 
 def _content_piece(delta: dict[str, Any]) -> str:
@@ -84,7 +86,14 @@ def stream_chat(
                 if isinstance(err, dict) and err.get("message"):
                     raise RuntimeError(str(err["message"]))
                 if meta is not None and isinstance(data.get("usage"), dict):
-                    meta.usage = data["usage"]
+                    usage = data["usage"]
+                    meta.usage = usage
+                    meta.prompt_cache_hit_tokens = int(
+                        usage.get("prompt_cache_hit_tokens") or 0,
+                    )
+                    meta.prompt_cache_miss_tokens = int(
+                        usage.get("prompt_cache_miss_tokens") or 0,
+                    )
                 choices = data.get("choices") or []
                 if not choices or not isinstance(choices[0], dict):
                     continue

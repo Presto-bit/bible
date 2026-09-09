@@ -74,6 +74,7 @@ class ChatMeta {
     this.cacheHit,
     this.cacheSource,
     this.instant,
+    this.timings,
   });
 
   final String mode;
@@ -95,6 +96,7 @@ class ChatMeta {
   final bool? cacheHit;
   final String? cacheSource;
   final bool? instant;
+  final Map<String, int>? timings;
 
   factory ChatMeta.fromJson(Map<String, dynamic> j) {
     final q = (j['quota'] ?? const {}) as Map<String, dynamic>;
@@ -124,8 +126,19 @@ class ChatMeta {
       cacheHit: j['cache_hit'] is bool ? j['cache_hit'] as bool : null,
       cacheSource: j['cache_source'] as String?,
       instant: j['instant'] is bool ? j['instant'] as bool : null,
+      timings: _parseTimings(j['timings']),
     );
   }
+}
+
+Map<String, int>? _parseTimings(dynamic raw) {
+  if (raw is! Map) return null;
+  final out = <String, int>{};
+  for (final entry in raw.entries) {
+    final v = entry.value;
+    if (v is num) out[entry.key.toString()] = v.toInt();
+  }
+  return out.isEmpty ? null : out;
 }
 
 /// 流式事件（meta / delta / followups / done / error）。
