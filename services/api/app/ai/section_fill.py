@@ -76,6 +76,10 @@ def collect_section_fill_hints(
         ):
             if title not in missing:
                 missing.append(title)
+        if mode == "intent" and missing:
+            structure_secs = {"经文背景", "段落脉络", "经文解释", "背景"}
+            if any(title in structure_secs for title in missing):
+                mode = "structure"
     elif mode == "full":
         for title in missing_required_sections(
             text,

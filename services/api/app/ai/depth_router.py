@@ -82,6 +82,10 @@ def resolve_depth(
         )
 
     if scene_id == "verse_quick":
+        if span >= 6:
+            if wants_deep:
+                return _deep_profile(scene_id, span, half=half)
+            return _standard_verse_profile(span, deep=False)
         if half or not wants_deep:
             return _flash_profile(span)
         return _standard_verse_profile(span, deep=False)

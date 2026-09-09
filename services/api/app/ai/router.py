@@ -536,7 +536,13 @@ def prewarm_answer(
     mode = (body.mode or "explain").strip() or "explain"
     scene = (body.scene or "verse_quick").strip() or "verse_quick"
     question = f"请解读：{parsed.display}"
-    key = cache_key(ref=ref_raw, mode=mode, question=question, scene=scene)
+    key = cache_key(
+        ref=ref_raw,
+        mode=mode,
+        question=question,
+        scene=scene,
+        verse_span=1,
+    )
 
     def _warm_retrieval() -> None:
         from ..rag.retrieval_warm import warm_retrieval_for_ref
@@ -641,7 +647,13 @@ def chat(
     cookie: str | None = Header(default=None),
     x_client_kind: str | None = Header(default=None, alias="X-Client-Kind"),
 ):
-    from ..rag.answer_cache import cache_key, get_answer, put_answer
+    from ..rag.answer_cache import (
+        cache_key,
+        cache_suitable_for_request,
+        get_answer,
+        put_answer,
+        verse_span_from_ref,
+    )
 
     settings = get_settings()
     logged_in = try_get_current_user(authorization, x_user_id, x_user_code, cookie)
@@ -682,6 +694,7 @@ def chat(
         and bool((body.ref or "").strip())
         and bool((body.question or "").strip())
     )
+    request_verse_span = verse_span_from_ref(body.ref)
     key = (
         cache_key(
             ref=body.ref,
@@ -689,11 +702,17 @@ def chat(
             question=body.question,
             scene=body.scene,
             knowledge_base_id=body.knowledge_base_id,
+            verse_span=request_verse_span,
         )
         if cacheable
         else ""
     )
     cached = get_answer(key) if key else None
+    if cached and not cache_suitable_for_request(
+        cached,
+        request_verse_span=request_verse_span,
+    ):
+        cached = None
 
     android_native = _is_android_native_client(
         x_client_kind=x_client_kind, surface=body.surface

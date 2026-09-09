@@ -60,6 +60,17 @@ def test_study_scene():
     assert "讨论问题" in prof.sections or "结构大纲" in prof.sections
 
 
+def test_verse_quick_large_span_not_flash():
+    prof = resolve_depth(
+        "verse_quick",
+        "请解读：太 4:1–25",
+        verse_span=25,
+        surface="half_sheet",
+    )
+    assert prof.depth != "flash"
+    assert "经文解释" in prof.sections
+
+
 def test_background_followup_not_flash():
     from app.ai.depth_router import wants_expanded_answer  # noqa: WPS433
 

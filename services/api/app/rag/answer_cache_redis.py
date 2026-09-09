@@ -114,7 +114,13 @@ def redis_clear_for_ref_prefix(ref_prefix: str, *, max_verse: int = 176) -> int:
                 refs.append(f"{base}.{v}")
             for scene in ("verse_full", "verse_quick"):
                 for ref in refs:
-                    hk = cache_key(ref=ref, mode="explain", question=None, scene=scene)
+                    hk = cache_key(
+                        ref=ref,
+                        mode="explain",
+                        question=None,
+                        scene=scene,
+                        verse_span=1,
+                    )
                     rk = f"{_PREFIX}{hk}"
                     if client.delete(rk):
                         removed += 1

@@ -10,6 +10,7 @@ from app.ai.answer_document import build_answer_document  # noqa: E402
 from app.ai.answer_schema import SCHEMA_VERSION  # noqa: E402
 from app.rag.answer_cache import (  # noqa: E402
     cache_key,
+    cache_suitable_for_request,
     clear_answer_cache,
     clear_answer_cache_for_ref_prefix,
     get_answer,
@@ -28,9 +29,69 @@ def _sample_payload(*, ref: str, answer: str) -> dict:
 
 
 def test_verse_scene_cache_key_unified():
-    k_full = cache_key(ref="JHN.3.16", mode="explain", question=None, scene="verse_full")
-    k_quick = cache_key(ref="JHN.3.16", mode="explain", question=None, scene="verse_quick")
+    k_full = cache_key(
+        ref="JHN.3.16",
+        mode="explain",
+        question=None,
+        scene="verse_full",
+        verse_span=1,
+    )
+    k_quick = cache_key(
+        ref="JHN.3.16",
+        mode="explain",
+        question=None,
+        scene="verse_quick",
+        verse_span=1,
+    )
     assert k_full == k_quick
+
+
+def test_verse_cache_key_differs_by_ref_range():
+    k_single = cache_key(
+        ref="MAT.4.1",
+        mode="explain",
+        question=None,
+        scene="verse_full",
+        verse_span=1,
+    )
+    k_range = cache_key(
+        ref="MAT.4.1@MAT.4.25",
+        mode="explain",
+        question=None,
+        scene="verse_full",
+        verse_span=25,
+    )
+    assert k_single != k_range
+
+
+def test_verse_cache_key_differs_by_span():
+    k1 = cache_key(
+        ref="MAT.4.1@MAT.4.25",
+        mode="explain",
+        question=None,
+        scene="verse_full",
+        verse_span=1,
+    )
+    k25 = cache_key(
+        ref="MAT.4.1@MAT.4.25",
+        mode="explain",
+        question=None,
+        scene="verse_full",
+        verse_span=25,
+    )
+    assert k1 != k25
+
+
+def test_cache_suitable_rejects_flash_for_large_span():
+    payload = {
+        "meta": {
+            "verse_span": 1,
+            "depth": "flash",
+            "output_plan": {"depth": "flash"},
+        }
+    }
+    assert cache_suitable_for_request(payload, request_verse_span=25) is False
+    assert cache_suitable_for_request(payload, request_verse_span=1) is True
 
 
 def test_cache_key_includes_knowledge_base():

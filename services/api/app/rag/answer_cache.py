@@ -34,7 +34,17 @@ def normalize_question(question: str | None) -> str:
 
 
 def normalize_ref(ref: str | None) -> str:
-    return (ref or "").strip().upper().split("@")[0]
+    """保留完整 ref（含 @ 区间），避免 MAT.4.1 与 MAT.4.1@MAT.4.25 共用缓存。"""
+    return (ref or "").strip().upper()
+
+
+def verse_span_from_ref(ref_raw: str | None) -> int:
+    from ..bible.refs import parse_ref
+
+    ref = parse_ref(ref_raw) if ref_raw else None
+    if not ref or ref.verse_start is None:
+        return 1
+    return (ref.verse_end or ref.verse_start) - ref.verse_start + 1
 
 
 def cache_key(
@@ -44,14 +54,17 @@ def cache_key(
     question: str | None,
     scene: str | None = None,
     knowledge_base_id: str | None = None,
+    verse_span: int | None = None,
 ) -> str:
     mode_l = (mode or "explain").strip().lower()
     scene_l = (scene or "").strip().lower()
     kb_l = (knowledge_base_id or "platform").strip().lower() or "platform"
-    # 半屏释经首答：按节缓存；verse_quick / verse_full 共享（prewarm 与半屏对齐）
+    span_part = ""
+    # 半屏释经首答：按 ref + span 缓存；verse_quick / verse_full 共享（prewarm 与半屏对齐）
     if mode_l == "explain" and scene_l in {"verse_full", "verse_quick"}:
         q_norm = "__verse_explain__"
         scene_l = "verse_explain"
+        span_part = str(max(1, int(verse_span or verse_span_from_ref(ref))))
     else:
         q_norm = normalize_question(question)
     raw = "|".join(
@@ -61,9 +74,36 @@ def cache_key(
             scene_l,
             q_norm,
             kb_l,
+            span_part,
         ]
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _cached_depth(meta: dict[str, Any]) -> str | None:
+    from ..ai.output_plan import depth_kwargs_from_plan
+
+    plan = meta.get("output_plan") or {}
+    dk = depth_kwargs_from_plan(plan if isinstance(plan, dict) else None)
+    depth = meta.get("depth") or dk.get("depth")
+    return str(depth) if depth else None
+
+
+def cache_suitable_for_request(
+    payload: dict[str, Any],
+    *,
+    request_verse_span: int = 1,
+) -> bool:
+    """请求跨度大于缓存或 flash 不足覆盖大段时，拒绝命中。"""
+    meta = payload.get("meta") or {}
+    cached_span = int(meta.get("verse_span") or 1)
+    req_span = max(1, int(request_verse_span or 1))
+    if req_span > cached_span:
+        return False
+    depth = _cached_depth(meta)
+    if depth == "flash" and req_span >= 6:
+        return False
+    return True
 
 
 def _validate_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -77,11 +117,16 @@ def _validate_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
     scene = str(meta.get("scene") or "")
     answer = str(payload.get("answer") or "")
     verse_span = int(meta.get("verse_span") or 1)
+    depth = _cached_depth(meta)
+    if depth == "flash" and verse_span >= 6:
+        return None
     if scene and answer:
         from ..ai.answer_structured import needs_structure_repair
         from ..ai.output_plan import depth_kwargs_from_plan
         from ..ai.parse_output import verse_explain_incomplete
 
+        plan = meta.get("output_plan") or {}
+        dk = depth_kwargs_from_plan(plan if isinstance(plan, dict) else None)
         if needs_structure_repair(
             answer,
             scene,
@@ -89,13 +134,11 @@ def _validate_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
             verse_span=verse_span,
         ):
             return None
-        plan = meta.get("output_plan") or {}
-        dk = depth_kwargs_from_plan(plan if isinstance(plan, dict) else None)
         if scene in ("verse_full", "verse_quick") and verse_explain_incomplete(
             scene,
             answer,
             verse_span=verse_span,
-            depth=dk.get("depth"),
+            depth=depth or dk.get("depth"),
             expected_sections=dk.get("expected_sections"),
             min_complete=dk.get("min_complete"),
         ):
@@ -184,7 +227,15 @@ def clear_answer_cache_for_ref_prefix(ref_prefix: str, *, max_verse: int = 176) 
                 refs.append(f"{base}.{v}")
             for scene in ("verse_full", "verse_quick"):
                 for ref in refs:
-                    to_del.add(cache_key(ref=ref, mode="explain", question=None, scene=scene))
+                    to_del.add(
+                        cache_key(
+                            ref=ref,
+                            mode="explain",
+                            question=None,
+                            scene=scene,
+                            verse_span=1,
+                        )
+                    )
 
         for k in to_del:
             _cache.pop(k, None)
