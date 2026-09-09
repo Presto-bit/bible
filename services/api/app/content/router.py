@@ -522,6 +522,11 @@ def paragraphs(
     return {"chapters": loader.paragraph_ranges_index()}
 
 
+@router.get("/discourse-ranges")
+def discourse_ranges() -> dict:
+    return loader.discourse_ranges_index()
+
+
 # ── 插画 ──
 @router.get("/illustrations")
 def illustrations() -> dict:

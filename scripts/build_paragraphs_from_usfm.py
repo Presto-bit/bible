@@ -5,6 +5,7 @@ L0：USFM \\p 外框（绝不跨 \\p 合并）
 L1：诗体 \\p 块输出一行一节；福音/历史等大段不切；书信 7–12 节 \\p 块段内再切
 L2：硬上限 6 节/320 字 + 话语标记软切 + 孤节合并
 L3：paragraphs.overrides.json 人工覆盖（纸书标杆章）
+L4：discourse_line_ranges.json 列表/宣告体逐节拆分（八福、祸哉、十诫等）
 
 用法：
   python scripts/build_paragraphs_from_usfm.py
@@ -19,6 +20,12 @@ import urllib.request
 import zipfile
 from collections import defaultdict
 from pathlib import Path
+
+from discourse_paragraphs import (
+    apply_discourse_entries,
+    discourse_entries_for_chapter,
+    load_discourse_catalog,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSES_PATH = ROOT / "data/bible/cnv/verses.json"
@@ -250,6 +257,7 @@ def main() -> None:
 
     expected = load_expected_chapters()
     overrides = load_overrides()
+    discourse_catalog = load_discourse_catalog()
     chapters: dict[str, list[list[int]]] = {}
 
     with zipfile.ZipFile(zip_path) as zf:
@@ -273,11 +281,17 @@ def main() -> None:
 
                 override = overrides.get(chapter_key)
                 if override:
-                    chapters[chapter_key] = override
-                    continue
+                    ranges = override
+                else:
+                    blocks = parse_p_blocks(match.group(2), exp_set)
+                    ranges = chapter_paragraphs(book_id, verse_rows, blocks)
 
-                blocks = parse_p_blocks(match.group(2), exp_set)
-                chapters[chapter_key] = chapter_paragraphs(book_id, verse_rows, blocks)
+                discourse = discourse_entries_for_chapter(
+                    discourse_catalog, chapter_key
+                )
+                if discourse:
+                    ranges = apply_discourse_entries(ranges, discourse)
+                chapters[chapter_key] = ranges
 
     validate_coverage(chapters, expected)
 

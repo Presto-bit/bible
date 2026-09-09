@@ -310,6 +310,14 @@ def paragraph_ranges(book: str, chapter: int) -> list[list[int]]:
     return _normalize_paragraph_ranges(book, raw)
 
 
+@lru_cache(maxsize=1)
+def discourse_ranges_index() -> dict:
+    path = _data_dir() / "bible/cnv/discourse_line_ranges.json"
+    if not path.exists():
+        return {"schema": "discourse_line@1", "entries": []}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 # ── 插画 ──
 def illustrations_index() -> dict:
     return _load_json("illustrations/index.json")

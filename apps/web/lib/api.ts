@@ -885,6 +885,10 @@ export const api = {
     ),
   paragraphRanges: () =>
     getJson<{ chapters?: Record<string, [number, number][]> }>('/content/paragraphs'),
+  discourseRanges: () =>
+    getJson<{ entries?: { ref: string; ranges: [number, number][]; mode: string; kind?: string }[] }>(
+      '/content/discourse-ranges',
+    ),
   // 社交
   myGroups: () => authed<{ groups: Group[] }>('/social/groups'),
   discoverSummary: () => authed<DiscoverSummary>('/social/discover/summary'),

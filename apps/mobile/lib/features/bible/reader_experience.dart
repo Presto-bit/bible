@@ -29,6 +29,7 @@ import 'bible_repository.dart';
 import 'chapter_cache.dart';
 import 'chapter_guide_tip.dart';
 import 'content_repository.dart' hide SectionMark;
+import 'discourse_ranges.dart';
 import 'dictionary_match.dart';
 import 'entity_knowledge_sheet.dart';
 import 'inline_ref.dart';
@@ -733,6 +734,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         unawaited(ref.read(contentRepoProvider).preloadParagraphRangesIndex());
+        unawaited(ref.read(contentRepoProvider).preloadDiscourseCatalog());
         _prefetchAdjacentChapters();
       }
     });
@@ -4773,21 +4775,18 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         index.placeholder();
       }
 
-      final dictSpans = !selectionActive && widget.dictKeys.isNotEmpty
-          ? cachedDictSpansForText(
-              v.text,
-              widget.dictIndex,
-              widget.dictKeys,
-              bookId: widget.book.id,
-              chapter: widget.chapter,
-              verse: v.verse,
-              dictRev: widget.dictRev,
-            )
-          : const <DictSpanHit>[];
-      final words = sliceVerseWords(
-        v.text,
-        splitOffsets: dictSpans.expand((span) => [span.start, span.end]),
-      );
+      final discourseCatalog =
+          ref.watch(discourseCatalogProvider).valueOrNull ?? const [];
+      final semicolonLines =
+          isSemicolonBreakVerse(
+            discourseCatalog,
+            widget.book.id,
+            widget.chapter,
+            v.verse,
+          )
+          ? splitSemicolonListLines(v.text)
+          : null;
+
       if (verseKey != null) {
         spans.add(
           WidgetSpan(
@@ -4798,49 +4797,97 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
         );
         index.placeholder();
       }
-      if (words.isEmpty) {
-        final emptyRec = selectionActive
-            ? _tap(
-                'empty-tap-${v.verse}',
-                () => widget.onToggle(v.verse, v.text),
-              )
-            : _longPress(
-                'empty-lp-${v.verse}',
-                () => widget.onStart(v.verse, v.text),
-              );
-        spans.add(TextSpan(text: ' ', style: baseStyle, recognizer: emptyRec));
-        index.text(value: ' ', verse: v.verse, verseStart: 0, words: const []);
+
+      if (semicolonLines != null && semicolonLines.length > 1) {
+        for (var li = 0; li < semicolonLines.length; li++) {
+          if (li > 0) {
+            spans.add(TextSpan(text: '\n', style: baseStyle));
+            index.text(
+              value: '\n',
+              verse: v.verse,
+              verseStart: 0,
+              words: const [],
+            );
+            spans.add(readerProseIndentSpan(fontPx: fontPx, index: index));
+          }
+          final line = semicolonLines[li];
+          final rec = selectionActive
+              ? _tap(
+                  'sc-tap-${v.verse}-$li',
+                  () => widget.onToggle(v.verse, v.text),
+                )
+              : _longPress(
+                  'sc-lp-${v.verse}-$li',
+                  () => widget.onStart(v.verse, v.text),
+                );
+          spans.add(TextSpan(text: line, style: baseStyle, recognizer: rec));
+          index.text(
+            value: line,
+            verse: v.verse,
+            verseStart: 0,
+            words: const [],
+          );
+        }
       } else {
-        appendReaderWordSpans(
-          spans: spans,
-          index: index,
-          verseText: v.text,
-          verse: v.verse,
-          baseStyle: baseStyle,
-          fontPx: fontPx,
-          words: words,
-          dictSpans: dictSpans,
-          wordRange: widget.wordRange,
-          interactive: true,
-          selectionActive: selectionActive,
-          markInfo: markInfo,
-          resumeFlash: resumeFlash,
-          audioCurrent: audioCurrent,
-          hasThought: hasThought,
-          hasMyThought: hasMyThought,
-          dictIndex: widget.dictIndex,
-          onWordExtend: widget.onWordExtend,
-          onStart: widget.onStart,
-          onOpenDict: widget.onOpenDict,
+        final dictSpans = !selectionActive && widget.dictKeys.isNotEmpty
+            ? cachedDictSpansForText(
+                v.text,
+                widget.dictIndex,
+                widget.dictKeys,
+                bookId: widget.book.id,
+                chapter: widget.chapter,
+                verse: v.verse,
+                dictRev: widget.dictRev,
+              )
+            : const <DictSpanHit>[];
+        final words = sliceVerseWords(
+          v.text,
+          splitOffsets: dictSpans.expand((span) => [span.start, span.end]),
         );
-        final gap = readerGapSpans(
-          ' ',
-          baseStyle: baseStyle,
-          fontPx: fontPx,
-          highlight: null,
-        );
-        spans.addAll(gap);
-        index.absorbSpans(gap);
+        if (words.isEmpty) {
+          final emptyRec = selectionActive
+              ? _tap(
+                  'empty-tap-${v.verse}',
+                  () => widget.onToggle(v.verse, v.text),
+                )
+              : _longPress(
+                  'empty-lp-${v.verse}',
+                  () => widget.onStart(v.verse, v.text),
+                );
+          spans.add(TextSpan(text: ' ', style: baseStyle, recognizer: emptyRec));
+          index.text(value: ' ', verse: v.verse, verseStart: 0, words: const []);
+        } else {
+          appendReaderWordSpans(
+            spans: spans,
+            index: index,
+            verseText: v.text,
+            verse: v.verse,
+            baseStyle: baseStyle,
+            fontPx: fontPx,
+            words: words,
+            dictSpans: dictSpans,
+            wordRange: widget.wordRange,
+            interactive: true,
+            selectionActive: selectionActive,
+            markInfo: markInfo,
+            resumeFlash: resumeFlash,
+            audioCurrent: audioCurrent,
+            hasThought: hasThought,
+            hasMyThought: hasMyThought,
+            dictIndex: widget.dictIndex,
+            onWordExtend: widget.onWordExtend,
+            onStart: widget.onStart,
+            onOpenDict: widget.onOpenDict,
+          );
+          final gap = readerGapSpans(
+            ' ',
+            baseStyle: baseStyle,
+            fontPx: fontPx,
+            highlight: null,
+          );
+          spans.addAll(gap);
+          index.absorbSpans(gap);
+        }
       }
 
       final note = widget.notesByVerse[v.verse]?.firstOrNull;

@@ -141,6 +141,8 @@ import {
   paragraphRangesForChapter,
   preloadParagraphRanges,
 } from '@/lib/paragraph_ranges';
+import { preloadDiscourseRanges } from '@/lib/discourse_ranges';
+import { renderDiscourseAwareBody } from '@/lib/discourse_verse_body';
 import { resolveSelectionTextForAi, versesForNativeLineHighlight, nativeSelectionCoversVerses } from '@/lib/reader_selection_text';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import { sectionMarkAt } from '@/lib/reader_section_marks';
@@ -922,6 +924,17 @@ export default function ReaderView({
         );
       }
 
+      if (!span && !nativeTouchSelect) {
+        return renderDiscourseAwareBody(
+          text,
+          keyBase,
+          book.id,
+          chapter,
+          verseNum,
+          renderText,
+        );
+      }
+
       if (nativeTouchSelect) {
         return renderText(text, 'body');
       }
@@ -969,7 +982,7 @@ export default function ReaderView({
         </>
       );
     },
-    [renderVerseText, wordRange, nativeTouchSelect],
+    [renderVerseText, wordRange, nativeTouchSelect, book.id, chapter],
   );
 
   const updateFocusBarPosition = useCallback(() => {
@@ -1510,6 +1523,7 @@ export default function ReaderView({
     if (!swipeTurn) return;
     preloadSectionTitles();
     preloadParagraphRanges();
+    preloadDiscourseRanges();
   }, [swipeTurn]);
 
   useEffect(() => {

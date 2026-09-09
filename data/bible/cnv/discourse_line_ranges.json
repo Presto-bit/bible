@@ -1,0 +1,211 @@
+{
+  "schema": "discourse_line@1",
+  "entries": [
+    {
+      "ref": "MAT.5",
+      "ranges": [
+        [
+          3,
+          12
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "beatitude"
+    },
+    {
+      "ref": "MAT.6",
+      "ranges": [
+        [
+          9,
+          13
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "lord_prayer"
+    },
+    {
+      "ref": "MAT.23",
+      "ranges": [
+        [
+          13,
+          29
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "woe_pharisee"
+    },
+    {
+      "ref": "LUK.6",
+      "ranges": [
+        [
+          20,
+          26
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "beatitude_woe"
+    },
+    {
+      "ref": "LUK.11",
+      "ranges": [
+        [
+          2,
+          4
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "lord_prayer"
+    },
+    {
+      "ref": "LUK.11",
+      "ranges": [
+        [
+          42,
+          44
+        ],
+        [
+          46,
+          47
+        ],
+        [
+          52,
+          52
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "woe_pharisee"
+    },
+    {
+      "ref": "EXO.20",
+      "ranges": [
+        [
+          3,
+          17
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "commandments"
+    },
+    {
+      "ref": "DEU.5",
+      "ranges": [
+        [
+          7,
+          21
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "commandments"
+    },
+    {
+      "ref": "ROM.12",
+      "ranges": [
+        [
+          9,
+          21
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "virtue_list"
+    },
+    {
+      "ref": "1CO.13",
+      "ranges": [
+        [
+          4,
+          8
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "love_is"
+    },
+    {
+      "ref": "GAL.5",
+      "ranges": [
+        [
+          22,
+          23
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "fruit_spirit"
+    },
+    {
+      "ref": "EPH.6",
+      "ranges": [
+        [
+          14,
+          17
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "armor"
+    },
+    {
+      "ref": "JAS.3",
+      "ranges": [
+        [
+          17,
+          18
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "wisdom"
+    },
+    {
+      "ref": "MAT.1",
+      "ranges": [
+        [
+          1,
+          17
+        ]
+      ],
+      "mode": "semicolon_break",
+      "kind": "genealogy"
+    },
+    {
+      "ref": "LUK.3",
+      "ranges": [
+        [
+          23,
+          38
+        ]
+      ],
+      "mode": "semicolon_break",
+      "kind": "genealogy"
+    },
+    {
+      "ref": "ISA.5",
+      "ranges": [
+        [
+          8,
+          25
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "woe_prophet"
+    },
+    {
+      "ref": "EZK.24",
+      "ranges": [
+        [
+          6,
+          9
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "woe_prophet"
+    },
+    {
+      "ref": "ISA.45",
+      "ranges": [
+        [
+          9,
+          10
+        ]
+      ],
+      "mode": "verse_per_line",
+      "kind": "woe_prophet"
+    }
+  ]
+}

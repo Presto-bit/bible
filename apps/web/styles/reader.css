@@ -872,6 +872,17 @@ a.license-row-name:hover {
 .reader-poetry .verse-paragraph .verse-inline {
   display: block;
 }
+/* 列表/宣告体段内兜底（paragraphs 未拆时仍逐节换行） */
+.reader-discourse .verse-paragraph .verse-inline {
+  display: block;
+}
+/* 家谱等：分号清单换行（§7.4） */
+.reader-list-line {
+  display: inline-block;
+  width: 100%;
+  text-indent: 2em;
+  margin-top: 0.15em;
+}
 .reader-poetry .verse-paragraph {
   line-height: 2.1;
   margin-bottom: 10px;

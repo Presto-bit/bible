@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import 'discourse_ranges.dart';
 import 'paragraphs.dart';
 
 class RelatedVerse {
@@ -127,6 +128,8 @@ class ContentRepository {
   final Dio _dio;
   final Map<String, List<(int, int)>> _paragraphRangesByChapter = {};
   Future<void>? _paragraphIndexLoad;
+  List<DiscourseEntry> _discourseCatalog = const [];
+  Future<void>? _discourseCatalogLoad;
 
   String _paragraphChapterKey(String book, int chapter) =>
       '${book.toUpperCase()}.$chapter';
@@ -140,6 +143,23 @@ class ContentRepository {
   Future<void> preloadParagraphRangesIndex() {
     _paragraphIndexLoad ??= _loadParagraphRangesIndex();
     return _paragraphIndexLoad!;
+  }
+
+  List<DiscourseEntry> get discourseCatalog => _discourseCatalog;
+
+  Future<void> preloadDiscourseCatalog() {
+    _discourseCatalogLoad ??= _loadDiscourseCatalog();
+    return _discourseCatalogLoad!;
+  }
+
+  Future<void> _loadDiscourseCatalog() async {
+    try {
+      final res = await _dio.get('/content/discourse-ranges');
+      final raw = (res.data['entries'] ?? []) as List;
+      _discourseCatalog = parseDiscourseCatalogJson(raw);
+    } catch (_) {
+      _discourseCatalog = const [];
+    }
   }
 
   Future<void> _loadParagraphRangesIndex() async {
@@ -406,6 +426,14 @@ final paragraphRangesProvider =
           .watch(contentRepoProvider)
           .paragraphRanges(args.book, args.chapter),
     );
+
+final discourseCatalogProvider = FutureProvider<List<DiscourseEntry>>(
+  (ref) async {
+    final repo = ref.watch(contentRepoProvider);
+    await repo.preloadDiscourseCatalog();
+    return repo.discourseCatalog;
+  },
+);
 
 final topicsProvider = FutureProvider<List<TopicEntry>>(
   (ref) => ref.watch(contentRepoProvider).topics(),
