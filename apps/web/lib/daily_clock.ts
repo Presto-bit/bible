@@ -10,6 +10,21 @@ export function chinaTodayYmd(at: Date = new Date()): string {
   ).padStart(2, '0')}`;
 }
 
+/** 与后端 `verse_day_for_date` 一致：按北京时间年积日映射 1…poolSize。 */
+export function verseDayForDate(
+  at: Date = new Date(),
+  poolSize = 31,
+): number {
+  if (poolSize < 1) return 1;
+  const cn = new Date(at.getTime() + CN_OFFSET_MS);
+  const year = cn.getUTCFullYear();
+  const month = cn.getUTCMonth();
+  const day = cn.getUTCDate();
+  const yday =
+    Math.floor((Date.UTC(year, month, day) - Date.UTC(year, 0, 1)) / 86_400_000) + 1;
+  return ((yday - 1) % poolSize) + 1;
+}
+
 /** 距下一次北京时间 0:00 的毫秒数。 */
 export function msUntilChinaMidnight(at: Date = new Date()): number {
   const cn = new Date(at.getTime() + CN_OFFSET_MS);

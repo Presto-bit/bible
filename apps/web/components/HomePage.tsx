@@ -16,8 +16,12 @@ import {
   type DailyVerseReactTopPreset,
 } from '@/lib/api/home';
 import { getAdminToken } from '@/lib/admin_rag';
-import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
-import { homeHeroIllustrationUrl } from '@/lib/home_today_tile_image';
+import {
+  dailyVerseWallpaperUrl,
+  dailyVerseWallpaperWarmUrl,
+  preloadWallpaperObjectUrl,
+} from '@/lib/daily_verse_wallpaper';
+import { verseDayForDate } from '@/lib/daily_clock';
 import WallpaperBg from '@/components/home/WallpaperBg';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
@@ -165,7 +169,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const [verseFull, setVerseFull] = useState(false);
   const [heroIllustration, setHeroIllustration] = useState<string | null>(() => {
     const cached = readCachedDailyVerse();
-    return cached?.day ? homeHeroIllustrationUrl(cached.day) : null;
+    return cached?.day ? dailyVerseWallpaperUrl(cached.day) : null;
   });
   /** 风景图真正解码成功后才亮 has-art（否则暖灰渐变垫底，绝不露 .card 白底） */
   const [heroArtReady, setHeroArtReady] = useState(false);
@@ -179,7 +183,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     setHeroArtReady(false);
   }, [heroIllustration]);
 
-  /** 开屏 2s 窗口内预解码 hero 风景，减少撤遮罩后换肤跳变 */
+  /** 开屏 2s 窗口内预解码 hero 壁纸（blob 预取 + 解码），减少撤遮罩后换肤跳变 */
   useEffect(() => {
     if (!heroIllustration) return;
     let cancelled = false;
@@ -399,8 +403,26 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   );
 
   useEffect(() => {
-    // 每日经文 Hero：与今日推荐同源本地插图（按 day 轮换，SW 可预缓存）
-    setHeroIllustration(homeHeroIllustrationUrl(dv?.day ?? 1));
+    const url = dailyVerseWallpaperWarmUrl(dv?.day ?? verseDayForDate());
+    let cancelled = false;
+    let blobUrl: string | null = null;
+    setHeroArtReady(false);
+    setHeroIllustration(url);
+    void preloadWallpaperObjectUrl(url).then((display) => {
+      if (cancelled) {
+        if (display.startsWith('blob:')) URL.revokeObjectURL(display);
+        return;
+      }
+      if (display.startsWith('blob:')) blobUrl = display;
+      setHeroIllustration(display);
+    });
+    void import('@/lib/home_tile_image_cache').then(({ ensureHomeTileImages }) => {
+      void ensureHomeTileImages([url]);
+    });
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
   }, [dv?.day]);
 
   const lastRailNetAtRef = useRef(0);

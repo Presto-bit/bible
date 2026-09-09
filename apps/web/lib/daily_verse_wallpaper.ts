@@ -1,6 +1,7 @@
-/** 每日经文壁纸：本地风景图按 day 轮换（public/daily-wallpapers；SW 不预拉，首次使用再 runtime cache）。 */
+/** 每日经文壁纸：31 张风景图按 verse day 轮换（public/daily-wallpapers；SW 仅预缓存当天一张）。 */
 
 import { clientAssetUrl, clientWithBasePath, withBasePath } from './basePath';
+import { verseDayForDate } from './daily_clock';
 
 /** 与 public/daily-wallpapers/ 文件名一致（源自 Unsplash，已打包离线使用） */
 export const DAILY_WALLPAPER_FILES = [
@@ -50,6 +51,17 @@ export function dailyVerseWallpaperUrl(
   _variant: DailyVerseWallpaperVariant = 'card',
 ): string {
   return clientAssetUrl(`/daily-wallpapers/${wallpaperFile(day)}`);
+}
+
+/** 首页 Hero / SW 预热用：优先 API day，否则按北京时间推算当天 verse day。 */
+export function dailyVerseWallpaperWarmUrl(day?: number): string {
+  const d = day ?? verseDayForDate(undefined, DAILY_WALLPAPER_FILES.length);
+  return dailyVerseWallpaperUrl(d);
+}
+
+/** 相对路径（含 basePath），供 SW 比对是否为「今日」壁纸。 */
+export function dailyVerseWallpaperRelPath(day?: number): string {
+  return clientWithBasePath(`/daily-wallpapers/${wallpaperFile(day)}`);
 }
 
 /** SSR / OG 用相对站点路径（含 basePath） */

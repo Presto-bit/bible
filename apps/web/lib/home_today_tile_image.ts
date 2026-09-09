@@ -26,35 +26,9 @@ const HOME_GROWTH_PATHS = [
   '/illustrations/home/growth_prayer.jpg',
 ] as const;
 
-/** 每日经文 Hero 按 day 轮换（与今日推荐/成长区同源本地插图，SW 可预缓存） */
-const HERO_ILLUSTRATION_FILES = [
-  'tile_read.jpg',
-  'tile_fellowship.jpg',
-  'tile_prayer.jpg',
-  'tile_activity.jpg',
-  'tile_shelf.jpg',
-  'growth_summary.jpg',
-  'growth_plan.jpg',
-  'growth_theme.jpg',
-  'growth_prayer.jpg',
-] as const;
-
-export function homeHeroIllustrationFile(day?: number): string {
-  const d = Math.max(1, Math.floor(day ?? 1) || 1);
-  return HERO_ILLUSTRATION_FILES[(d - 1) % HERO_ILLUSTRATION_FILES.length];
-}
-
-export function homeHeroIllustrationUrl(day?: number): string {
-  return clientAssetUrl(`/illustrations/home/${homeHeroIllustrationFile(day)}`);
-}
-
-/** 预取用：今日推荐 + 成长区 + Hero 插图绝对 URL */
+/** 预取用：今日推荐 + 成长区固定插图绝对 URL（Hero 壁纸见 dailyVerseWallpaperWarmUrl） */
 export function homeTodayTileWarmUrls(): string[] {
-  const paths = [
-    ...Object.values(HOME_TILES),
-    ...HOME_GROWTH_PATHS,
-    ...HERO_ILLUSTRATION_FILES.map((f) => `/illustrations/home/${f}`),
-  ];
+  const paths = [...Object.values(HOME_TILES), ...HOME_GROWTH_PATHS];
   return [...new Set(paths.map((p) => clientAssetUrl(p)))];
 }
 

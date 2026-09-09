@@ -1,7 +1,7 @@
 // CACHE 名须在每次 web 发版时变化，否则 activate 不会清空旧 Cache Storage。
 // 生产镜像在 Dockerfile 内按 NEXT_PUBLIC_APP_VERSION 重写；本地可 scripts/bump_sw_cache.sh。
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v47';
+const CACHE = 'presto-bible-v48';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -151,8 +151,82 @@ function isAndroidPackageAsset(url) {
     || p === '/downloads/peiai-android.apk';
 }
 
+const DAILY_WALLPAPER_POOL = 31;
+const CN_OFFSET_MS = 8 * 60 * 60 * 1000;
+
 function isDailyWallpaper(url) {
   return relPath(url.pathname).startsWith('/daily-wallpapers/');
+}
+
+/** 与 services/api/app/content/daily_clock.py · verse_day_for_date 对齐 */
+function verseDayForNow(poolSize) {
+  const size = poolSize || DAILY_WALLPAPER_POOL;
+  const cn = new Date(Date.now() + CN_OFFSET_MS);
+  const year = cn.getUTCFullYear();
+  const month = cn.getUTCMonth();
+  const day = cn.getUTCDate();
+  const yday =
+    Math.floor((Date.UTC(year, month, day) - Date.UTC(year, 0, 1)) / 86400000) + 1;
+  return ((yday - 1) % size) + 1;
+}
+
+function dailyWallpaperRelPath(day) {
+  const d = Math.max(1, Math.floor(day || 1) || 1);
+  const idx = (d - 1) % DAILY_WALLPAPER_POOL;
+  const file = `scenery-${String(idx + 1).padStart(2, '0')}.jpg`;
+  return `/daily-wallpapers/${file}`;
+}
+
+function todayDailyWallpaperRelPath() {
+  return dailyWallpaperRelPath(verseDayForNow(DAILY_WALLPAPER_POOL));
+}
+
+function isTodayDailyWallpaper(url) {
+  return relPath(url.pathname) === todayDailyWallpaperRelPath();
+}
+
+async function isLikelyImageResponse(res) {
+  if (!res?.ok) return false;
+  const ct = (res.headers.get('content-type') || '').toLowerCase();
+  if (ct.includes('image')) return true;
+  try {
+    return (await res.clone().blob()).size >= 800;
+  } catch {
+    return false;
+  }
+}
+
+async function pruneStaleDailyWallpapers(cache) {
+  const keep = todayDailyWallpaperRelPath();
+  const keys = await cache.keys();
+  await Promise.allSettled(
+    keys.map(async (req) => {
+      const u = new URL(req.url);
+      if (!isDailyWallpaper(u)) return;
+      if (relPath(u.pathname) === keep) return;
+      await cache.delete(req);
+    }),
+  );
+}
+
+async function dailyWallpaperResponse(request) {
+  const cached = await caches.match(request);
+  if (cached?.ok && (await isLikelyImageResponse(cached))) return cached;
+  try {
+    const res = await fetch(request);
+    if (await isLikelyImageResponse(res)) {
+      if (isTodayDailyWallpaper(new URL(request.url))) {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(request, copy));
+      }
+      return res;
+    }
+    if (cached?.ok) return cached;
+    return res;
+  } catch {
+    if (cached?.ok) return cached;
+    return new Response('', { status: 504, statusText: 'Offline' });
+  }
 }
 
 function isStaticAsset(url) {
@@ -285,6 +359,11 @@ self.addEventListener('activate', (e) => {
           ),
         );
         await Promise.allSettled(SHELL_WARM.map((url) => c.add(url)));
+        await pruneStaleDailyWallpapers(c);
+        const todayWp = bp(todayDailyWallpaperRelPath());
+        await fetch(todayWp, { credentials: 'same-origin' }).then(async (res) => {
+          if (await isLikelyImageResponse(res)) return c.put(todayWp, res);
+        });
       } catch {
         /* ignore warm failures */
       }
@@ -388,9 +467,9 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 每日经文 / 书卷封面风景图：不拦截，由浏览器默认网络/缓存处理
-  // （曾用 SW 包一层导致坏响应/空 body 挡主卡背景图）
+  // 每日经文壁纸：仅缓存「今日」一张，cache-first；历史 day 走网络不写入 SW
   if (isDailyWallpaper(url)) {
+    e.respondWith(dailyWallpaperResponse(e.request));
     return;
   }
 
