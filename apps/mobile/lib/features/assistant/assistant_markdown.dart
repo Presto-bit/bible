@@ -4,6 +4,17 @@ library;
 import 'assistant_format.dart';
 
 final _sectionLabelRe = RegExp(r'^【([^】]+)】\s*(.*)$');
+
+/// 系统 prompt 内部标签，不应提升为 ### 标题展示给用户。
+bool _isInternalPromptLabel(String label) {
+  if (label.contains('快懂模式') ||
+      label.contains('教案模式') ||
+      label.startsWith('标准模式') ||
+      label.startsWith('Markdown 规范')) {
+    return true;
+  }
+  return false;
+}
 final _followupHeadRe = RegExp(
   r'^[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])\s*$',
 );
@@ -53,6 +64,10 @@ String promoteSectionLabels(String text) {
         final m = _sectionLabelRe.firstMatch(trimmed);
         if (m == null) return line;
         final label = m.group(1)!;
+        if (_isInternalPromptLabel(label)) {
+          final rest = m.group(2)?.trim() ?? '';
+          return rest.isNotEmpty ? rest : '';
+        }
         final rest = m.group(2) ?? '';
         return rest.isNotEmpty ? '### $label\n\n$rest' : '### $label';
       })

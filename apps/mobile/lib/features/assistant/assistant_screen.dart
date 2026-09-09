@@ -635,6 +635,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
     var receivedDelta = false;
     var terminalError = false;
+    var streamSettled = false;
     try {
       try {
         await for (final evt in openStream()) {
@@ -702,6 +703,11 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               :final document,
               :final conversationId,
             ):
+              streamSettled = true;
+              deltaFlush?.cancel();
+              deltaFlush = null;
+              sectionFlush?.cancel();
+              sectionFlush = null;
               streamPerf.onDone();
               unawaited(
                 flushAssistantPerf(ref.read(dioProvider), streamPerf),
@@ -739,6 +745,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 );
               }
             case ErrorEvent(:final message):
+              if (streamSettled ||
+                  (reply.content.trim().isNotEmpty && receivedDelta)) {
+                break;
+              }
               streamPerf.onError();
               unawaited(
                 flushAssistantPerf(ref.read(dioProvider), streamPerf),
@@ -759,23 +769,14 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
       deltaFlush?.cancel();
       deltaFlush = null;
+      sectionFlush?.cancel();
+      sectionFlush = null;
       flushDelta(force: true);
 
       if (reply.content.isEmpty && !terminalError && !receivedDelta && mounted) {
         setState(() {
           reply.content = '⚠️ 未收到回答内容，请稍后再试。';
         });
-      }
-      if (reply.content.isNotEmpty && !isAssistantHistoryExcluded(reply.content)) {
-        await repo.addMessage(
-          sid,
-          'assistant',
-          bodyText(reply.content),
-          citations: reply.meta?.citations ?? const [],
-          followups: reply.followups,
-          scene: reply.scene ?? activeScene.id,
-          instant: reply.meta?.instant == true,
-        );
       }
     } finally {
       deltaFlush?.cancel();
@@ -791,6 +792,19 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         });
       }
       _autoScroll();
+    }
+    if (reply.content.isNotEmpty && !isAssistantHistoryExcluded(reply.content)) {
+      unawaited(
+        repo.addMessage(
+          sid,
+          'assistant',
+          bodyText(reply.content),
+          citations: reply.meta?.citations ?? const [],
+          followups: reply.followups,
+          scene: reply.scene ?? activeScene.id,
+          instant: reply.meta?.instant == true,
+        ),
+      );
     }
   }
 

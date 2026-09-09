@@ -12,6 +12,20 @@ from .answer_schema import (
 from .parse_output import FOLLOWUP_SECTION_RE, SECTION_MD_RE, split_body_and_followups
 
 _BULLET_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)、])\s+\S")
+# LLM 偶发复述系统 prompt 内部标签，展示前剥离
+_PROMPT_LEAK_RE = re.compile(
+    r"^[ \t]*(?:【(?:快懂模式|教案模式|标准模式[^】]*)】|【Markdown 规范[^】]*】)\s*\n?",
+    re.MULTILINE,
+)
+_PROMPT_LEAK_MD_RE = re.compile(
+    r"^[ \t]*###\s*(?:快懂模式|教案模式|标准模式[^\n]*)\s*\n?",
+    re.MULTILINE,
+)
+
+
+def strip_prompt_leakage(text: str) -> str:
+    s = _PROMPT_LEAK_RE.sub("", text)
+    return _PROMPT_LEAK_MD_RE.sub("", s).strip()
 _SENTENCE_SPLIT = re.compile(r"(?<=[。！？])")
 _SENTENCE_END = "。！？）」』》】"
 
@@ -195,6 +209,7 @@ def normalize_answer_markdown(
 
     format_only=True（R3）：fill 后只整理标题/列表形态，不做字数裁剪。
     """
+    text = strip_prompt_leakage(text)
     body, followups = split_body_and_followups(text)
     bud = effective_budget_for_scene(scene, narrow=narrow, verse_span=verse_span)
     if not bud or not body.strip():

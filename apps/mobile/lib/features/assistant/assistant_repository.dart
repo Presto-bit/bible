@@ -71,21 +71,34 @@ class AssistantRepository {
     if (turn.history.isNotEmpty) {
       body['history'] = turn.history.map((h) => h.toJson()).toList();
     }
-    var gotDelta = false;
+    var gotContent = false;
     var sawDone = false;
     var terminalError = false;
     await for (final evt in _chatAttempt(body, turn.scene, cancelToken: cancelToken)) {
-      if (evt is DeltaEvent && evt.text.trim().isNotEmpty) gotDelta = true;
+      if (_eventHasContent(evt)) gotContent = true;
       if (evt is DoneEvent) sawDone = true;
       if (evt is ErrorEvent) terminalError = true;
       yield evt;
     }
     if (terminalError || sawDone) return;
-    if (gotDelta) {
+    if (gotContent) {
       yield const DoneEvent(streamComplete: false);
       return;
     }
     yield const ErrorEvent('未收到回答内容，请重试');
+  }
+
+  static bool _eventHasContent(ChatEvent evt) {
+    switch (evt) {
+      case DeltaEvent(:final text):
+        return text.trim().isNotEmpty;
+      case SectionDeltaEvent(:final text):
+        return text.trim().isNotEmpty;
+      case SectionDoneEvent(:final text):
+        return text.trim().isNotEmpty;
+      default:
+        return false;
+    }
   }
 
   Stream<ChatEvent> chat({
@@ -163,16 +176,22 @@ class AssistantRepository {
     }
 
     var buffer = '';
-    await for (final chunk in res.data!.stream) {
-      buffer += utf8.decode(chunk, allowMalformed: true);
-      while (true) {
-        final sep = buffer.indexOf('\n\n');
-        if (sep < 0) break;
-        final raw = buffer.substring(0, sep);
-        buffer = buffer.substring(sep + 2);
-        final evt = _parseFrame(raw);
-        if (evt != null) yield evt;
+    try {
+      await for (final chunk in res.data!.stream) {
+        buffer += utf8.decode(chunk, allowMalformed: true);
+        while (true) {
+          final sep = buffer.indexOf('\n\n');
+          if (sep < 0) break;
+          final raw = buffer.substring(0, sep);
+          buffer = buffer.substring(sep + 2);
+          final evt = _parseFrame(raw);
+          if (evt != null) yield evt;
+        }
       }
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) return;
+      // SSE 正常结束后连接关闭可能抛错；已有正文则 fail-open
+      return;
     }
     if (buffer.trim().isNotEmpty) {
       final evt = _parseFrame(buffer.trim());

@@ -8,6 +8,16 @@ import {
 } from '@/lib/assistant_format';
 
 const SECTION_LABEL_RE = /^【([^】]+)】\s*(.*)$/;
+
+/** 系统 prompt 内部标签，不应提升为 ### 标题展示给用户。 */
+function isInternalPromptLabel(label: string): boolean {
+  return (
+    label.includes('快懂模式')
+    || label.includes('教案模式')
+    || label.startsWith('标准模式')
+    || label.startsWith('Markdown 规范')
+  );
+}
 const FOLLOWUP_HEAD_RE =
   /^[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])\s*$/;
 const CITE_LINK_RE = /^#cite-(\d{1,2})$/;
@@ -67,6 +77,10 @@ function promoteSectionLabels(text: string): string {
       const m = trimmed.match(SECTION_LABEL_RE);
       if (!m) return line;
       const [, label, rest] = m;
+      if (isInternalPromptLabel(label)) {
+        const body = (rest ?? '').trim();
+        return body || '';
+      }
       return rest ? `### ${label}\n\n${rest}` : `### ${label}`;
     })
     .join('\n');

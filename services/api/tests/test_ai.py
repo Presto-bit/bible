@@ -243,7 +243,7 @@ def test_build_messages_flash_first_turn_compact():
     )
     assert prof.depth == "flash"
     sys = msgs[0]["content"]
-    assert "快懂模式" in sys
+    assert "短答" in sys or "摘要" in sys
     assert "Chip 追问" not in sys
     assert "第一个问题" not in sys
     assert "总之" not in sys or "禁用空泛套话" not in sys

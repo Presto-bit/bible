@@ -508,6 +508,18 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           case am.FollowupsEvent(:final items):
             if (items.isNotEmpty) serverFollowups = items;
           case am.ErrorEvent(:final message):
+            if (chatSettled ||
+                pending.trim().isNotEmpty ||
+                (sectionStream.active &&
+                    sectionStream.toMarkdown().trim().isNotEmpty)) {
+              _slowTimer?.cancel();
+              setState(() {
+                _streamSlow = false;
+                final t = _turnFor(turnId);
+                if (t != null) t.busy = false;
+              });
+              break;
+            }
             streamPerf.onError();
             unawaited(flushAssistantPerf(ref.read(dioProvider), streamPerf));
             chatSettled = true;

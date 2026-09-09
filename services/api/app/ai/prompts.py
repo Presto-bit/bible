@@ -207,7 +207,7 @@ def depth_format_guide(profile: DepthProfile, scene_id: str, verse_span: int = 1
     if profile.depth == "flash":
         lo, hi = profile.target_chars - 40, profile.soft_max
         return (
-            "【快懂模式】\n"
+            "（输出形态：短答，勿复述本说明）\n"
             f"先 ### 摘要（1–2 句，≤50 字），再用 1–2 段短白话说明「是什么意思、今天怎么理解」。"
             f"总篇幅约 {lo}–{hi} 字。\n"
             "不要展开历史考据；不要多个 ### 小节；不要列表堆砌；不要「相关追问」。"
