@@ -178,6 +178,10 @@ export default function AnswerText({
   onCitationClick,
 }: Props) {
   const components = useMarkdownComponents(onCitationClick);
+  const markdown = useMemo(
+    () => prepareAssistantMarkdown(text, streaming),
+    [text, streaming],
+  );
 
   const sectioned =
     streaming
@@ -205,11 +209,6 @@ export default function AnswerText({
       </div>
     );
   }
-
-  const markdown = useMemo(
-    () => prepareAssistantMarkdown(text, streaming),
-    [text, streaming],
-  );
 
   if (!markdown.trim()) {
     return null;
