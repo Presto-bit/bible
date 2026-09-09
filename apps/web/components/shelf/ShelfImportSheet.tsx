@@ -8,7 +8,8 @@ import { invalidateShelfListCache } from '@/lib/shelf_cache';
 import { SHELF_IMPORT_MAX_BYTES } from '@/lib/shelf_library';
 import { shellTapProps } from '@/lib/shell_tap';
 
-const ACCEPT = '.docx,.txt,.md,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const ACCEPT =
+  '.docx,.txt,.md,.pdf,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
   const flashToast = useToast();
@@ -45,7 +46,7 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
           <button type="button" className="icon-btn" aria-label="关闭" {...shellTapProps({ onTap: onClose })}>✕</button>
         </div>
         <p className="shelf-import-hint muted">
-          支持 docx、txt、md，单本不超过 20MB。导入后将出现在「上架时间」。
+          支持 docx、txt、md、pdf，单本不超过 20MB。导入后将出现在「上架时间」。
         </p>
         <input
           id="shelf-import-file"

@@ -141,13 +141,13 @@ async def shelf_platform_import(
     file: UploadFile = File(...),
     _user: str = Depends(get_current_user),
 ) -> dict:
-    """用户导入书架书目（docx / md / txt）。"""
+    """用户导入书架书目（docx / md / txt / pdf）。"""
     from .ingest import import_platform_file
 
     suffix = Path(file.filename or "").suffix.lower()
-    allowed = {".docx", ".md", ".markdown", ".txt"}
+    allowed = {".docx", ".md", ".markdown", ".txt", ".pdf"}
     if suffix not in allowed:
-        raise HTTPException(400, "仅支持 .docx .md .txt")
+        raise HTTPException(400, "仅支持 .docx .md .txt .pdf")
     data = await file.read()
     if len(data) > 20 * 1024 * 1024:
         raise HTTPException(400, "文件过大（上限 20MB）")

@@ -13,11 +13,12 @@ from .convert_cache import write_meta_cache
 from .docx_parse import file_sha256, parse_docx_bytes
 from .epub_parse import EpubError, parse_epub_bytes, try_convert_mobi_to_epub
 from .md_parse import parse_markdown_bytes
+from .pdf_parse import parse_pdf_bytes
 from .schema import ensure_shelf_schema
 from .store import save_shelf_bytes
 from .txt_parse import parse_txt_bytes
 
-_FLOW_SUFFIXES = {".docx", ".md", ".markdown", ".txt", ".epub", ".mobi", ".azw", ".azw3"}
+_FLOW_SUFFIXES = {".docx", ".md", ".markdown", ".txt", ".epub", ".mobi", ".azw", ".azw3", ".pdf"}
 
 
 def sniff_suffix(filename: str) -> str:
@@ -36,7 +37,7 @@ def import_platform_file(
     if suffix not in _FLOW_SUFFIXES:
         raise HTTPException(
             status_code=400,
-            detail=f"暂不支持 {suffix or '该格式'}（支持 .docx .md .txt .epub；.mobi 需可转 EPUB）",
+            detail=f"暂不支持 {suffix or '该格式'}（支持 .docx .md .txt .pdf .epub；.mobi 需可转 EPUB）",
         )
 
     # MOBI → EPUB
@@ -80,6 +81,7 @@ def import_platform_file(
         ".markdown": "text/markdown",
         ".txt": "text/plain",
         ".epub": "application/epub+zip",
+        ".pdf": "application/pdf",
     }.get(suffix, "application/octet-stream")
 
     try:
@@ -94,6 +96,10 @@ def import_platform_file(
         elif suffix == ".epub":
             parsed = parse_epub_bytes(
                 data, book_id=book_id, storage_key=storage_key, title_hint=title
+            )
+        elif suffix == ".pdf":
+            parsed = parse_pdf_bytes(
+                data, storage_key=storage_key, title_hint=title
             )
         else:
             raise HTTPException(400, "不支持的格式")

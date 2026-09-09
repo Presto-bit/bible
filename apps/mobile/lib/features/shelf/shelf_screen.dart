@@ -80,7 +80,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   Future<void> _openImport() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: const ['docx', 'txt', 'md'],
+      allowedExtensions: const ['docx', 'txt', 'md', 'pdf'],
       withReadStream: false,
     );
     if (result == null || result.files.isEmpty) return;

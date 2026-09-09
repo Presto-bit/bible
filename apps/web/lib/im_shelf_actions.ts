@@ -11,7 +11,7 @@ import {
 } from '@/lib/shelf_checkin';
 import { pinShelfBookToLibrary, SHELF_IMPORT_MAX_BYTES } from '@/lib/shelf_library';
 
-export const SHELF_IMPORTABLE_EXTS = new Set(['.docx', '.md', '.markdown', '.txt']);
+export const SHELF_IMPORTABLE_EXTS = new Set(['.docx', '.md', '.markdown', '.txt', '.pdf']);
 
 type ImAttachment = {
   file_name?: string | null;

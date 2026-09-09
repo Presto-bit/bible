@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.shelf.docx_parse import _wrap_trailing_gallery  # noqa: E402
 from app.shelf.epub_parse import EpubError, parse_epub_bytes  # noqa: E402
 from app.shelf.md_parse import parse_markdown_bytes  # noqa: E402
+from app.shelf.pdf_parse import parse_pdf_bytes  # noqa: E402
 from app.shelf.txt_parse import parse_txt_bytes  # noqa: E402
 
 
@@ -43,6 +44,18 @@ def test_trailing_gallery_wrap():
     out = _wrap_trailing_gallery(html)
     assert 'class="shelf-docx-gallery"' in out
     assert out.count("<img") == 2
+
+
+def test_pdf_single_section_page_mode():
+    data = b"%PDF-1.4\n% fake minimal pdf for shelf import"
+    parsed = parse_pdf_bytes(data, storage_key="shelf-my-book.pdf", title_hint="教案")
+    assert parsed["section_count"] == 1
+    assert parsed["title"] == "教案"
+    sec = parsed["sections"][0]
+    assert sec["kind"] == "lesson"
+    assert sec["html"] == ""
+    assert sec["primary"]["mime"] == "application/pdf"
+    assert sec["primary"]["storage_key"] == "shelf-my-book.pdf"
 
 
 def test_epub_drm_rejected():
