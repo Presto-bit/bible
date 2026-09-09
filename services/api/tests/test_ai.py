@@ -224,6 +224,54 @@ def test_build_messages_no_rag_omits_commentary():
 
 
 @pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")
+def test_prepare_half_sheet_skips_rag():
+    from app.ai.chat import prepare
+
+    prep = prepare(
+        ref_raw="JHN.3.16",
+        question="请解读：约翰福音 3:16",
+        mode="explain",
+        scene="verse_quick",
+        surface="half_sheet",
+    )
+    assert prep["meta"]["use_rag"] is False
+    assert prep["meta"]["citations"] == []
+
+
+@pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")
+def test_prepare_assistant_default_explain_skips_rag():
+    from app.ai.chat import prepare
+
+    prep = prepare(
+        ref_raw="JHN.3.16",
+        question="请解读：约翰福音 3:16",
+        mode="explain",
+        scene="verse_quick",
+        surface="assistant",
+    )
+    assert prep["meta"]["use_rag"] is False
+    assert prep["meta"]["citations"] == []
+
+
+@pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")
+def test_prepare_assistant_followup_keeps_rag():
+    from app.ai.chat import prepare
+
+    prep = prepare(
+        ref_raw="JHN.3.16",
+        question="请解读：约翰福音 3:16",
+        mode="explain",
+        scene="verse_quick",
+        surface="assistant",
+        history=[
+            {"role": "user", "content": "请解读：约翰福音 3:16"},
+            {"role": "assistant", "content": "### 摘要\n神爱世人。"},
+        ],
+    )
+    assert prep["meta"]["use_rag"] is True
+
+
+@pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")
 def test_prepare_summary_skips_rag():
     from app.ai.chat import prepare
 

@@ -12,6 +12,7 @@ from .answer_schema import SCHEMA_VERSION, max_tokens_for_scene
 from .prompts import DEFAULT_MODE, MODES, build_messages
 from .output_plan import build_output_plan
 from .depth_router import resolve_depth
+from .rag_policy import skip_rag_for_passage
 from .response_profile import resolve_response_profile
 from .structure_assets import resolve_structure_assets
 from .scenes import NO_RAG_SURFACES, resolve_scene
@@ -148,9 +149,22 @@ def prepare(
     kb = resolve_knowledge_base(knowledge_base_id)
     source_types = source_types_for_kb(kb["id"])
 
+    prior = _sanitize_history(history)
+    verse_span = 1
+    if ref and ref.verse_start is not None:
+        verse_span = (ref.verse_end or ref.verse_start) - ref.verse_start + 1
+    has_prior_turns = bool(prior)
+
     use_rag = spec.use_rag and (surface or "") not in NO_RAG_SURFACES
-    # 半屏 L0：跳过 RAG 检索，缩短首 token 等待（正文已含 passage）
-    if (surface or "") == "half_sheet" and spec.id in ("verse_full", "verse_quick"):
+    if skip_rag_for_passage(
+        surface=surface,
+        scene_id=spec.id,
+        question=question,
+        ref=ref,
+        passage_text=passage_text,
+        verse_span=verse_span,
+        has_prior_turns=has_prior_turns,
+    ):
         use_rag = False
 
     citations: list[dict] = []
@@ -176,11 +190,6 @@ def prepare(
             }
         )
 
-    prior = _sanitize_history(history)
-    verse_span = 1
-    if ref and ref.verse_start is not None:
-        verse_span = (ref.verse_end or ref.verse_start) - ref.verse_start + 1
-    has_prior_turns = bool(prior)
     narrow = _is_narrow_followup(
         question,
         has_prior_turns=has_prior_turns,

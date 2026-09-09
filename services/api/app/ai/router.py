@@ -1076,7 +1076,7 @@ def chat(
             prefer_prose=bool(_dk.get("prefer_prose")),
         )
         body_probe, _ = split_body_and_followups(text)
-        if _budget_left() > 3:
+        if _budget_left() > 3 and _depth in ("deep", "study"):
             filled = section_fill_once(
                 messages,
                 body_probe,

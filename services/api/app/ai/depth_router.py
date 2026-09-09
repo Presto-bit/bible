@@ -31,6 +31,11 @@ def _is_default_explain(question: str | None) -> bool:
     return bool(q and _DEFAULT_EXPLAIN.match(q))
 
 
+def is_default_explain(question: str | None) -> bool:
+    """公开：是否为默认「请解读/请解释：…」问句。"""
+    return _is_default_explain(question)
+
+
 def resolve_depth(
     scene_id: str,
     question: str | None,
