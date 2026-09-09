@@ -319,5 +319,6 @@ def prepare(
             timings["rag_ms"] = rag_ms
         if rag_timed_out:
             timings["rag_timed_out"] = True
+            meta["rag_degraded"] = True
         meta["timings"] = timings
     return {"meta": meta, "messages": messages, "max_tokens": max_tokens}

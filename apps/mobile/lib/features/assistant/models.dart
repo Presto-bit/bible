@@ -75,6 +75,7 @@ class ChatMeta {
     this.cacheSource,
     this.instant,
     this.timings,
+    this.ragDegraded = false,
   });
 
   final String mode;
@@ -97,6 +98,7 @@ class ChatMeta {
   final String? cacheSource;
   final bool? instant;
   final Map<String, int>? timings;
+  final bool ragDegraded;
 
   factory ChatMeta.fromJson(Map<String, dynamic> j) {
     final q = (j['quota'] ?? const {}) as Map<String, dynamic>;
@@ -127,6 +129,7 @@ class ChatMeta {
       cacheSource: j['cache_source'] as String?,
       instant: j['instant'] is bool ? j['instant'] as bool : null,
       timings: _parseTimings(j['timings']),
+      ragDegraded: j['rag_degraded'] == true,
     );
   }
 }
@@ -207,11 +210,6 @@ class ErrorEvent extends ChatEvent {
   const ErrorEvent(this.message, {this.code});
   final String message;
   final String? code;
-}
-
-/// incomplete_answer 静默重试前通知 UI 清空累积。
-class StreamRetryEvent extends ChatEvent {
-  const StreamRetryEvent();
 }
 
 /// 一轮对话（本地持有，用于多轮 history 与 UI 渲染）。

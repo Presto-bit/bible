@@ -35,9 +35,10 @@ String _buildKey(
   AssistantScene scene,
   String ref,
   String selection,
-  String question,
-) =>
-    '${scene.id}\u001e${ref.trim().toUpperCase()}\u001e${selection.trim()}\u001e${question.trim()}';
+  String question, [
+  String? knowledgeBaseId,
+]) =>
+    '${scene.id}\u001e${ref.trim().toUpperCase()}\u001e${selection.trim()}\u001e${question.trim()}\u001e${(knowledgeBaseId ?? '').trim()}';
 
 Future<void> initHalfSheetCache() async {
   if (_prefsLoaded) return;
@@ -114,10 +115,11 @@ Future<void> _persistHalfSheetCache() async {
   AssistantScene scene,
   String ref,
   String selection,
-  String question,
-) {
+  String question, {
+  String? knowledgeBaseId,
+}) {
   final verseSpan = verseSpanFromRef(ref);
-  final key = _buildKey(scene, ref, selection, question);
+  final key = _buildKey(scene, ref, selection, question, knowledgeBaseId);
   final entry = _cache[key];
   if (entry == null || entry.answer.trim().isEmpty) return null;
   if (entry.day != chinaTodayYmd()) {
@@ -139,12 +141,13 @@ void writeHalfSheetCache(
   String selection,
   String question,
   String answer,
-  List<Citation> citations,
-) {
+  List<Citation> citations, {
+  String? knowledgeBaseId,
+}) {
   final text = answer.trim();
   if (text.isEmpty || text.startsWith('⚠️')) return;
   if (!isHalfSheetAnswerComplete(text, scene, verseSpanFromRef(ref))) return;
-  final key = _buildKey(scene, ref, selection, question);
+  final key = _buildKey(scene, ref, selection, question, knowledgeBaseId);
   _cache[key] = HalfSheetCacheEntry(
     answer: text,
     citations: citations,

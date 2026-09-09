@@ -32,12 +32,13 @@ import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { buildHalfSheetTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
-import { mergeAssistantStreamError, replaceAssistantStreamError, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
+import { mergeAssistantStreamError, replaceAssistantStreamError, CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { AssistantStreamPerf } from '@/lib/assistant_perf';
 import {
   isDefaultHalfSheetExplain,
   readVerseFaqExplain,
   readVerseFaqExplainSync,
+  wantsExpandedAnswer,
 } from '@/lib/verse_faq';
 import {
   buildHalfSheetQuestion,
@@ -89,6 +90,7 @@ type TurnView = HalfSheetTurn & {
   instant?: boolean;
   cacheSource?: string;
   localInstant?: boolean;
+  ragDegraded?: boolean;
 };
 
 function resolveInitialScene(explicitSelection: boolean, selectionText: string): AssistantScene {
@@ -263,8 +265,16 @@ export default function XiaoAiSheet({
           ? buildHalfSheetQuestion(question, sel, explicitSel)
           : question;
 
+      const sessionKbForCache = getSessionKnowledgeBaseId();
       if (!opts?.isRetry && !opts?.history?.length) {
-        const cached = readHalfSheetCache(scene, ref, cacheSel, apiQuestion);
+        const cached = readHalfSheetCache(
+          scene,
+          ref,
+          cacheSel,
+          apiQuestion,
+          undefined,
+          sessionKbForCache,
+        );
         if (cached) {
           const followups = defaultHalfSheetFollowups(label);
           setTurns((prev) => {
@@ -296,6 +306,7 @@ export default function XiaoAiSheet({
         if (
           !opts?.isRetry &&
           !opts?.history?.length &&
+          !wantsExpandedAnswer(apiQuestion) &&
           isDefaultHalfSheetExplain(apiQuestion, explicitSel, scene)
         ) {
           const faqSync = readVerseFaqExplainSync(ref);
@@ -337,9 +348,15 @@ export default function XiaoAiSheet({
       };
       const armGenTimeout = () => {
         clearGenTimer();
-        genTimer = window.setTimeout(() => controller.abort(), sceneTimeout(scene));
+        genTimer = window.setTimeout(
+          () => controller.abort(CHAT_ABORT_TIMEOUT),
+          sceneTimeout(scene),
+        );
       };
-      const connectTimer = window.setTimeout(() => controller.abort(), 50_000);
+      const connectTimer = window.setTimeout(
+        () => controller.abort(CHAT_ABORT_TIMEOUT),
+        50_000,
+      );
       const slowTimer = window.setTimeout(() => setStreamSlowHint(true), 8_000);
       let cites: Citation[] = [];
       let gotDelta = false;
@@ -354,6 +371,7 @@ export default function XiaoAiSheet({
       let structureAssets: StructureAsset[] | undefined;
       let instant = false;
       let cacheSource: string | undefined;
+      let ragDegraded = false;
       let streamSections: StreamSection[] = [];
       let settled = false;
       const sectionStream = new SectionStreamAccumulator();
@@ -413,6 +431,7 @@ export default function XiaoAiSheet({
             const book = label.replace(/\s*\d+.*$/, '').trim();
             cites = localizeCitations(meta.citations || [], book || undefined);
             if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
+            if (meta.rag_degraded === true) ragDegraded = true;
             if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
             if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
             if (meta.response_profile) responseProfile = meta.response_profile;
@@ -436,6 +455,7 @@ export default function XiaoAiSheet({
                       ...t,
                       citations: cites,
                       useRag,
+                      ragDegraded,
                       kbId,
                       kbName,
                       responseProfile,
@@ -679,6 +699,7 @@ export default function XiaoAiSheet({
                       busy: false,
                       streamIncomplete: !streamOk || !structOk,
                       useRag,
+                      ragDegraded,
                       kbId,
                       kbName,
                       responseProfile,
@@ -694,7 +715,16 @@ export default function XiaoAiSheet({
                   : t,
               );
               if (streamOk && structOk && !text.startsWith('⚠️')) {
-                writeHalfSheetCache(scene, ref, cacheSel, apiQuestion, text, cites);
+                writeHalfSheetCache(
+                  scene,
+                  ref,
+                  cacheSel,
+                  apiQuestion,
+                  text,
+                  cites,
+                  undefined,
+                  kbId,
+                );
               }
               persistThread(next);
               return next;
@@ -713,7 +743,7 @@ export default function XiaoAiSheet({
 
       const cleanup = () => {
         cancelled = true;
-        controller.abort();
+        controller.abort(CHAT_ABORT_USER_CANCEL);
         window.clearTimeout(connectTimer);
         clearGenTimer();
         window.clearTimeout(slowTimer);
@@ -913,6 +943,7 @@ export default function XiaoAiSheet({
                             <RagSourceStatus
                             count={evidenceCites.length}
                             useRag={turn.useRag}
+                            ragDegraded={turn.ragDegraded}
                             knowledgeBaseId={turn.kbId}
                             knowledgeBaseName={turn.kbName}
                             onReview={

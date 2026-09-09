@@ -121,8 +121,15 @@ function buildKey(
   ref: string,
   selection: string,
   question: string,
+  knowledgeBaseId?: string,
 ): string {
-  return [scene, ref.trim().toUpperCase(), selection.trim(), question.trim()].join('\x1e');
+  return [
+    scene,
+    ref.trim().toUpperCase(),
+    selection.trim(),
+    question.trim(),
+    (knowledgeBaseId ?? '').trim(),
+  ].join('\x1e');
 }
 
 function readMap(): CacheMap {
@@ -149,8 +156,9 @@ export function readHalfSheetCache(
   selection: string,
   question: string,
   verseSpan = verseSpanFromRef(ref),
+  knowledgeBaseId?: string,
 ): { answer: string; citations: Citation[] } | null {
-  const key = buildKey(scene, ref, selection, question);
+  const key = buildKey(scene, ref, selection, question, knowledgeBaseId);
   const entry = readMap()[key];
   if (!entry?.answer?.trim()) return null;
   const today = chinaTodayYmd();
@@ -172,11 +180,12 @@ export function writeHalfSheetCache(
   answer: string,
   citations: Citation[],
   verseSpan = verseSpanFromRef(ref),
+  knowledgeBaseId?: string,
 ) {
   const text = answer.trim();
   if (!text || text.startsWith('⚠️')) return;
   if (!isHalfSheetAnswerComplete(text, scene, verseSpan)) return;
-  const key = buildKey(scene, ref, selection, question);
+  const key = buildKey(scene, ref, selection, question, knowledgeBaseId);
   const map = readMap();
   map[key] = {
     answer: text,

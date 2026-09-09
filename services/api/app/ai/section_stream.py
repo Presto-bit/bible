@@ -61,22 +61,23 @@ class SectionStreamTracker:
         if not piece:
             return [], [], []
         self._accum += piece
+        prior_bodies = extract_section_bodies(self._accum)
         merged = merge_continuation_sections(self._accum)
-        if merged != self._accum.strip() and (
-            merged.count("### ") < self._accum.count("### ")
-            or len(merged) < len(self._accum.strip()) - 12
-        ):
+        header_merged = merged.count("### ") < self._accum.count("### ")
+        if merged != self._accum.strip() and header_merged:
             self._accum = merged
             bodies = extract_section_bodies(self._accum)
-            self._section_emitted = {sid: len(body) for sid, body in bodies.items()}
-            corrections = [
-                {
-                    "id": sid,
-                    "title": self._title_for_id(sid, self._accum),
-                    "text": body,
-                }
-                for sid, body in bodies.items()
-            ]
+            corrections: list[dict] = []
+            for sid, body in bodies.items():
+                self._section_emitted[sid] = len(body)
+                if body != prior_bodies.get(sid, ""):
+                    corrections.append(
+                        {
+                            "id": sid,
+                            "title": self._title_for_id(sid, self._accum),
+                            "text": body,
+                        }
+                    )
             return [], [], corrections
         new_starts: list[dict] = []
         for m in SECTION_MD_RE.finditer(self._accum):
@@ -173,13 +174,11 @@ def iter_replay_stream(
             yield "delta", {"text": piece}
         if not emit_sections:
             continue
-        starts, deltas, corrections = tracker.on_delta(piece)
+        starts, deltas, _corrections = tracker.on_delta(piece)
         for start in starts:
             yield "section_start", start
         for delta in deltas:
             yield "section_delta", delta
-        for corr in corrections:
-            yield "section_done", corr
     if emit_sections:
         for item in tracker.finalize(answer):
             yield "section_done", item

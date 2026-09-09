@@ -409,6 +409,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         final last = _turns.last;
         if (last.content.trim().isEmpty) {
           last.content = '（已停止生成）';
+        } else if (!last.content.contains('已停止生成')) {
+          last.content = '${last.content.trim()}\n\n（已停止生成）';
         }
       }
     });
@@ -531,6 +533,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     );
 
     if (refForApi != null &&
+        !wantsExpandedAnswer(text) &&
         isDefaultTabExplain(
           question: text,
           historyLength: history.length,
@@ -573,6 +576,24 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         return;
       }
     }
+
+    Timer? connectTimer;
+    Timer? genTimer;
+    void clearGenTimer() {
+      genTimer?.cancel();
+      genTimer = null;
+    }
+
+    void armGenTimeout() {
+      clearGenTimer();
+      genTimer = Timer(Duration(milliseconds: activeScene.timeoutMs), () {
+        _chatCancel?.cancel(chatAbortTimeout);
+      });
+    }
+
+    connectTimer = Timer(const Duration(seconds: 50), () {
+      _chatCancel?.cancel(chatAbortTimeout);
+    });
 
     var gotDelta = false;
     var pendingDelta = '';
@@ -646,22 +667,15 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         await for (final evt in openStream()) {
           if (!mounted) return;
           switch (evt) {
-            case StreamRetryEvent():
-              sectionStream.reset();
-              pendingDelta = '';
-              receivedDelta = false;
-              streamSettled = false;
-              setState(() {
-                reply.content = '';
-                reply.streamSections = [];
-                _streamPhase = ThinkingPhase.understanding;
-              });
             case MetaEvent(:final meta):
               if (meta.citationsPending) {
                 streamPerf.onPlaceholderMeta();
                 setState(() => _streamPhase = ThinkingPhase.refs);
                 break;
               }
+              connectTimer?.cancel();
+              connectTimer = null;
+              armGenTimeout();
               streamPerf.onFullMeta(
                 cacheHit: meta.cacheHit,
                 cacheSource: meta.cacheSource,
@@ -685,10 +699,16 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               sectionStream.seedFromPlan(streamSeedTitles(meta.outputPlan));
               applySectionStream();
             case SectionStartEvent(:final id, :final title):
+              connectTimer?.cancel();
+              connectTimer = null;
+              armGenTimeout();
               sectionStream.onStart(id: id, title: title);
               applySectionStream();
             case SectionDeltaEvent(:final id, :final text):
               if (text.trim().isNotEmpty) receivedDelta = true;
+              connectTimer?.cancel();
+              connectTimer = null;
+              armGenTimeout();
               sectionStream.onDelta(id: id, text: text);
               applySectionStream();
             case SectionDoneEvent(:final id, :final title, :final text):
@@ -697,6 +717,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             case DeltaEvent(:final text):
               if (sectionStream.active) break;
               if (text.trim().isNotEmpty) receivedDelta = true;
+              connectTimer?.cancel();
+              connectTimer = null;
+              armGenTimeout();
               pendingDelta += text;
               deltaFlush ??= Timer.periodic(
                 const Duration(milliseconds: 72),
@@ -755,6 +778,13 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               if (resolved.sections.isNotEmpty) {
                 setState(() => reply.sections = resolved.sections);
               }
+              if (!streamComplete &&
+                  reply.content.trim().isNotEmpty &&
+                  !reply.content.trim().startsWith('⚠️')) {
+                setState(
+                  () => reply.content = replaceAssistantStreamError('生成中断，请重试'),
+                );
+              }
             case ErrorEvent(:final message, :final code):
               if (code == 'incomplete_answer') {
                 streamPerf.onError();
@@ -802,6 +832,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         });
       }
     } finally {
+      connectTimer?.cancel();
+      clearGenTimer();
       deltaFlush?.cancel();
       sectionFlush?.cancel();
       flushDelta(force: true);
@@ -1968,6 +2000,7 @@ class _Bubble extends ConsumerWidget {
                             useRag:
                                 turn.meta?.useRag ??
                                 !(turn.scene?.startsWith('summary_') ?? false),
+                            ragDegraded: turn.meta?.ragDegraded ?? false,
                             knowledgeBaseId: turn.meta?.knowledgeBaseId,
                             knowledgeBaseName: turn.meta?.knowledgeBaseName,
                             onSwitchToPlatform: onSwitchToPlatform,
@@ -2130,12 +2163,14 @@ class _RagSourceStatus extends StatelessWidget {
   const _RagSourceStatus({
     required this.count,
     required this.useRag,
+    this.ragDegraded = false,
     this.knowledgeBaseId,
     this.knowledgeBaseName,
     this.onSwitchToPlatform,
   });
   final int count;
   final bool useRag;
+  final bool ragDegraded;
   final String? knowledgeBaseId;
   final String? knowledgeBaseName;
   final VoidCallback? onSwitchToPlatform;
@@ -2147,9 +2182,10 @@ class _RagSourceStatus extends StatelessWidget {
     final kbSuffix = isTopic && (knowledgeBaseName?.isNotEmpty ?? false)
         ? ' · $knowledgeBaseName'
         : '';
+    final degradedHint = ragDegraded ? ' · 资料检索超时，主要依据经文' : '';
     final text = count > 0
-        ? '已参考 $count 条释经资料$kbSuffix'
-        : '本次以圣经与通识作答 · 资料库暂无直接对应注释$kbSuffix';
+        ? '已参考 $count 条释经资料$kbSuffix$degradedHint'
+        : '本次以圣经与通识作答 · 资料库暂无直接对应注释$kbSuffix$degradedHint';
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Column(

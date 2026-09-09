@@ -76,10 +76,12 @@ def find_resumable_conversation(
     user_id: str | None,
     ref: str,
     mode: str,
+    scene: str | None = None,
 ) -> str | None:
-    """登录用户同 ref+mode 72h 内最近会话（跨设备接续）。"""
+    """登录用户同 ref+mode(+scene) 72h 内最近会话（跨设备接续）。"""
     ref_norm = (ref or "").strip()
     mode_norm = (mode or "").strip() or "explain"
+    scene_norm = (scene or "").strip()
     if not user_id or not ref_norm:
         return None
     if ensure_conversation_schema():
@@ -88,10 +90,16 @@ def find_resumable_conversation(
                 user_id=user_id,
                 ref=ref_norm,
                 mode=mode_norm,
+                scene=scene_norm,
             )
         except Exception as exc:
             logger.warning("find_resumable_conversation DB 失败，回退内存：%s", exc)
-    return _find_resumable_memory(user_id=user_id, ref=ref_norm, mode=mode_norm)
+    return _find_resumable_memory(
+        user_id=user_id,
+        ref=ref_norm,
+        mode=mode_norm,
+        scene=scene_norm,
+    )
 
 
 def _find_resumable_memory(
@@ -99,6 +107,7 @@ def _find_resumable_memory(
     user_id: str,
     ref: str,
     mode: str,
+    scene: str = "",
 ) -> str | None:
     now = time.time()
     best: tuple[float, str] | None = None
@@ -107,6 +116,8 @@ def _find_resumable_memory(
             if conv.user_id != user_id:
                 continue
             if conv.ref != ref or conv.mode != mode:
+                continue
+            if scene and conv.scene != scene:
                 continue
             if now - conv.updated_at > _RESUME_TTL_SEC:
                 continue
@@ -122,28 +133,49 @@ def _find_resumable_db(
     user_id: str,
     ref: str,
     mode: str,
+    scene: str = "",
 ) -> str | None:
     from ..db import get_pool
 
     pool = get_pool()
     with pool.connection() as conn:
-        row = conn.execute(
-            """
-            SELECT c.id::text
-            FROM ai_conversations c
-            WHERE c.user_id = %s
-              AND c.scripture_ref = %s
-              AND c.mode = %s
-              AND c.updated_at > now() - make_interval(secs => %s)
-              AND EXISTS (
-                SELECT 1 FROM ai_conversation_messages m
-                WHERE m.conversation_id = c.id
-              )
-            ORDER BY c.updated_at DESC
-            LIMIT 1
-            """,
-            (user_id, ref, mode, _RESUME_TTL_SEC),
-        ).fetchone()
+        if scene:
+            row = conn.execute(
+                """
+                SELECT c.id::text
+                FROM ai_conversations c
+                WHERE c.user_id = %s
+                  AND c.scripture_ref = %s
+                  AND c.mode = %s
+                  AND c.scene = %s
+                  AND c.updated_at > now() - make_interval(secs => %s)
+                  AND EXISTS (
+                    SELECT 1 FROM ai_conversation_messages m
+                    WHERE m.conversation_id = c.id
+                  )
+                ORDER BY c.updated_at DESC
+                LIMIT 1
+                """,
+                (user_id, ref, mode, scene, _RESUME_TTL_SEC),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT c.id::text
+                FROM ai_conversations c
+                WHERE c.user_id = %s
+                  AND c.scripture_ref = %s
+                  AND c.mode = %s
+                  AND c.updated_at > now() - make_interval(secs => %s)
+                  AND EXISTS (
+                    SELECT 1 FROM ai_conversation_messages m
+                    WHERE m.conversation_id = c.id
+                  )
+                ORDER BY c.updated_at DESC
+                LIMIT 1
+                """,
+                (user_id, ref, mode, _RESUME_TTL_SEC),
+            ).fetchone()
     return row[0] if row else None
 
 
@@ -449,6 +481,28 @@ def append_turns(
         user_content=user_content,
         assistant_content=assistant_content,
     )
+
+
+def _history_tail_aligned(
+    server_history: list[dict[str, str]],
+    client_history: list[dict[str, str]],
+    *,
+    tail: int = 4,
+) -> bool:
+    """客户端 local-first history 是否与服务端会话尾部一致。"""
+    if not server_history:
+        return True
+    if not client_history:
+        return True
+    if len(client_history) + 2 < len(server_history):
+        return False
+    n = min(tail, len(client_history), len(server_history))
+    for i in range(n):
+        sc = (server_history[-(i + 1)].get("content") or "").strip()
+        cc = (client_history[-(i + 1)].get("content") or "").strip()
+        if sc != cc:
+            return False
+    return True
 
 
 def merge_client_history(

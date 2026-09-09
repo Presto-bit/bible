@@ -3,24 +3,37 @@
 import type { AssistantScene } from '@/lib/assistant_scenes';
 import { withBasePath } from '@/lib/basePath';
 
+/** 与 `data/verse_faq/explain.json` 的 schema 字段对齐，发版时递增。 */
+export const VERSE_FAQ_BUNDLE_VERSION = 'verse_faq_explain@1';
+
 type VerseFaqBundle = {
   schema?: string;
   verses?: Record<string, { answer?: string }>;
 };
 
+const DEEP_Q =
+  /分别|详细|深入|全面|完整|整段|脉络|逐节|每一节|背景.*应用|应用.*背景|从背景|历史背景|上下文|结构/;
+
 let bundlePromise: Promise<VerseFaqBundle | null> | null = null;
 let cachedBundle: VerseFaqBundle | null = null;
 
+/** 追问是否要展开背景/结构（对齐服务端 `wants_expanded_answer`）。 */
+export function wantsExpandedAnswer(question: string): boolean {
+  const q = question.trim();
+  return Boolean(q && DEEP_Q.test(q));
+}
+
 async function loadBundle(): Promise<VerseFaqBundle | null> {
   if (typeof window === 'undefined') return null;
-  if (cachedBundle) return cachedBundle;
+  if (cachedBundle?.schema === VERSE_FAQ_BUNDLE_VERSION) return cachedBundle;
   if (!bundlePromise) {
-    bundlePromise = fetch(withBasePath('/content/verse_faq/explain.json'), {
-      cache: 'force-cache',
-    })
+    bundlePromise = fetch(
+      withBasePath(`/content/verse_faq/explain.json?v=${VERSE_FAQ_BUNDLE_VERSION}`),
+      { cache: 'force-cache' },
+    )
       .then((res) => (res.ok ? (res.json() as Promise<VerseFaqBundle>) : null))
       .then((b) => {
-        if (b) cachedBundle = b;
+        if (b?.schema === VERSE_FAQ_BUNDLE_VERSION) cachedBundle = b;
         return b;
       })
       .catch(() => null);

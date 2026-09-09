@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/api_client.dart';
 import 'assistant_answer_document.dart';
@@ -35,6 +36,7 @@ class AiQuota {
 class AssistantRepository {
   AssistantRepository(this._dio);
   final Dio _dio;
+  static const _uuid = Uuid();
 
   /// GET /ai/quota → { used, limit, unlimited? }
   Future<AiQuota?> fetchAiQuota() async {
@@ -83,37 +85,21 @@ class AssistantRepository {
     if (turn.history.isNotEmpty) {
       body['history'] = turn.history.map((h) => h.toJson()).toList();
     }
-    for (var attempt = 0; attempt < 2; attempt++) {
-      var gotContent = false;
-      var sawDone = false;
-      var terminalError = false;
-      var incompleteRetry = false;
-      await for (final evt in _chatAttempt(body, turn.scene, cancelToken: cancelToken)) {
-        if (_eventHasContent(evt)) gotContent = true;
-        if (evt is DoneEvent) sawDone = true;
-        if (evt is ErrorEvent) {
-          if (evt.code == 'incomplete_answer' && attempt == 0) {
-            incompleteRetry = true;
-            terminalError = true;
-            break;
-          }
-          terminalError = true;
-        }
-        yield evt;
-      }
-      if (incompleteRetry) {
-        yield const StreamRetryEvent();
-        await Future<void>.delayed(const Duration(milliseconds: 450));
-        continue;
-      }
-      if (terminalError || sawDone) return;
-      if (gotContent) {
-        yield const DoneEvent(streamComplete: false);
-        return;
-      }
-      yield const ErrorEvent('未收到回答内容，请重试');
+    var gotContent = false;
+    var sawDone = false;
+    var terminalError = false;
+    await for (final evt in _chatAttempt(body, turn.scene, cancelToken: cancelToken)) {
+      if (_eventHasContent(evt)) gotContent = true;
+      if (evt is DoneEvent) sawDone = true;
+      if (evt is ErrorEvent) terminalError = true;
+      yield evt;
+    }
+    if (terminalError || sawDone) return;
+    if (gotContent) {
+      yield const DoneEvent(streamComplete: false);
       return;
     }
+    yield const ErrorEvent('未收到回答内容，请重试');
   }
 
   static bool _eventHasContent(ChatEvent evt) {
@@ -174,6 +160,7 @@ class AssistantRepository {
     AssistantScene resolved, {
     CancelToken? cancelToken,
   }) async* {
+    final requestId = _uuid.v4();
     final Response<ResponseBody> res;
     try {
       res = await _dio.post<ResponseBody>(
@@ -182,7 +169,11 @@ class AssistantRepository {
         cancelToken: cancelToken,
         options: Options(
           responseType: ResponseType.stream,
-          headers: {'Accept': 'text/event-stream'},
+          headers: {
+            'Accept': 'text/event-stream',
+            'X-Client-Request-Id': requestId,
+            'Idempotency-Key': requestId,
+          },
           receiveTimeout: Duration(milliseconds: resolved.timeoutMs + 35000),
           sendTimeout: const Duration(seconds: 30),
           validateStatus: (s) => s != null && s < 500,

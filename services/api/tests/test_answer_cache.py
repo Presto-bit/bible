@@ -135,6 +135,73 @@ def test_get_answer_rejects_old_schema():
     clear_answer_cache()
 
 
+def test_put_answer_skips_prewarm_over_live():
+    clear_answer_cache()
+    k = cache_key(ref="JHN.3.16", mode="explain", question=None, scene="verse_full")
+    put_answer(
+        k,
+        {
+            **_sample_payload(ref="JHN.3.16", answer="live answer"),
+            "source": "live",
+            "meta": {
+                "ref": "JHN.3.16",
+                "schema_version": SCHEMA_VERSION,
+                "depth": "standard",
+            },
+        },
+    )
+    put_answer(
+        k,
+        {
+            **_sample_payload(ref="JHN.3.16", answer="prewarm answer"),
+            "source": "prewarm",
+            "meta": {
+                "ref": "JHN.3.16",
+                "schema_version": SCHEMA_VERSION,
+                "depth": "flash",
+            },
+        },
+    )
+    hit = get_answer(k)
+    assert hit is not None
+    assert hit["answer"] == "live answer"
+    assert hit["source"] == "live"
+    clear_answer_cache()
+
+
+def test_put_answer_skips_shallower_depth():
+    clear_answer_cache()
+    k = cache_key(ref="JHN.3.16", mode="explain", question=None, scene="verse_full")
+    put_answer(
+        k,
+        {
+            **_sample_payload(ref="JHN.3.16", answer="deep answer"),
+            "source": "live",
+            "meta": {
+                "ref": "JHN.3.16",
+                "schema_version": SCHEMA_VERSION,
+                "depth": "deep",
+            },
+        },
+    )
+    put_answer(
+        k,
+        {
+            **_sample_payload(ref="JHN.3.16", answer="flash answer"),
+            "source": "live",
+            "meta": {
+                "ref": "JHN.3.16",
+                "schema_version": SCHEMA_VERSION,
+                "depth": "flash",
+            },
+        },
+    )
+    hit = get_answer(k)
+    assert hit is not None
+    assert hit["answer"] == "deep answer"
+    clear_answer_cache()
+
+
 def test_get_answer_requires_document_v3():
     clear_answer_cache()
     k = cache_key(ref="JHN.3.16", mode="explain", question=None, scene="verse_full")

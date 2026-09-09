@@ -5,6 +5,8 @@ type Props = {
   count: number;
   /** 本次是否走过 RAG；false 时不展示「暂无注释」 */
   useRag?: boolean;
+  /** RAG 检索超时降级：仍生成，但可能缺少专题注释 */
+  ragDegraded?: boolean;
   /** 当前选用知识库名（非平台库时展示） */
   knowledgeBaseName?: string | null;
   knowledgeBaseId?: string | null;
@@ -22,6 +24,7 @@ type Props = {
 export function RagSourceStatus({
   count,
   useRag = true,
+  ragDegraded = false,
   knowledgeBaseName,
   knowledgeBaseId,
   onSwitchToPlatform,
@@ -32,6 +35,7 @@ export function RagSourceStatus({
   const isTopic = Boolean(knowledgeBaseId && knowledgeBaseId !== 'platform');
   const kbSuffix =
     isTopic && knowledgeBaseName ? ` · ${knowledgeBaseName}` : '';
+  const degradedHint = ragDegraded ? ' · 资料检索超时，主要依据经文' : '';
   if (count > 0) {
     return (
       <div
@@ -41,7 +45,7 @@ export function RagSourceStatus({
         role="status"
       >
         <p className="muted assistant-rag-status-text">
-          已参考 {count} 条来源{kbSuffix}
+          已参考 {count} 条来源{kbSuffix}{degradedHint}
           {onReview ? (
             <>
               {' · '}
@@ -64,7 +68,7 @@ export function RagSourceStatus({
       role="status"
     >
       <p className="muted assistant-rag-status-text">
-        本次主要依据经文与通识 · 未检索到专题资料{kbSuffix}
+        本次主要依据经文与通识 · 未检索到专题资料{kbSuffix}{degradedHint}
         {isTopic && onSwitchToPlatform ? (
           <>
             {' · '}

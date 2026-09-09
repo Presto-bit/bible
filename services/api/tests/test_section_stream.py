@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.ai.conversation_store import (  # noqa: E402
+    _history_tail_aligned,
     append_turns,
     find_resumable_conversation,
     history_for_prompt,
@@ -54,6 +55,34 @@ def test_section_tracker_preserves_prior_section_on_new_header():
     assert done[0]["title"] == "摘要"
     assert "神爱世人" in done[0]["text"]
     assert "要点一" in done[1]["text"]
+
+
+def test_history_tail_aligned_detects_mismatch():
+    server = [
+        {"role": "user", "content": "问题 A"},
+        {"role": "assistant", "content": "回答 A"},
+        {"role": "user", "content": "问题 B"},
+        {"role": "assistant", "content": "回答 B"},
+    ]
+    client = [
+        {"role": "user", "content": "问题 X"},
+        {"role": "assistant", "content": "回答 X"},
+    ]
+    assert not _history_tail_aligned(server, client)
+
+
+def test_section_tracker_correction_only_on_duplicate_headers():
+    tracker = SectionStreamTracker(["摘要", "经文解释"])
+    tracker.bootstrap_starts()
+    tracker.on_delta("### 摘要\n神爱世人。\n\n")
+    tracker.on_delta("### 经文解释\n- 要点一。\n")
+    _, _, corrections = tracker.on_delta(
+        "### 经文解释\n- 要点一。\n\n### 经文解释\n- 要点二。\n"
+    )
+    assert corrections
+    assert all(c["id"] != "sec-摘要" or "神爱世人" in c["text"] for c in corrections)
+    _, _, no_corr = tracker.on_delta("- 与要点一语义高度相近的重复句。\n")
+    assert not no_corr
 
 
 def test_iter_replay_stream_emits_sections_and_delta():

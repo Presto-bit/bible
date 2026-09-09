@@ -18,6 +18,8 @@ export interface AssistantSessionRecord {
   preview: string;
   updated: string;
   updatedAt?: number;
+  /** 服务端多轮 conversation_id，与 msgs 同会话绑定 */
+  conversationId?: string;
   msgs: AssistantSessionMsg[];
 }
 

@@ -1,6 +1,9 @@
 /** AbortSignal.reason：用户点「停止」，api_core 不合成超时 onError。 */
 export const CHAT_ABORT_USER_CANCEL = 'user_cancel';
 
+/** AbortSignal.reason：连接/生成超时（与 user_cancel 区分）。 */
+export const CHAT_ABORT_TIMEOUT = 'timeout';
+
 /** 失败 / 中断 / 空答 — 不应进入多轮 history（Tab / 半屏 / 服务端共用规则）。 */
 export function isAssistantHistoryExcluded(text: string): boolean {
   const t = text.trim();

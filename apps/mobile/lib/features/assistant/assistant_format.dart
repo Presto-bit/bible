@@ -93,6 +93,12 @@ List<String> followupsForMessage(
 /// 失败 / 中断等待用户重试的回复。
 bool isAssistantRegenCandidate(String text) => isAssistantHistoryExcluded(text);
 
+/// Abort 原因：用户点「停止」。
+const chatAbortUserCancel = 'user_cancel';
+
+/// Abort 原因：连接/生成超时。
+const chatAbortTimeout = 'timeout';
+
 /// 失败 / 中断 / 空答 — 不应进入多轮 history。
 bool isAssistantHistoryExcluded(String text) {
   final t = text.trim();

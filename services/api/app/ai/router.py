@@ -23,8 +23,10 @@ from .conversation_store import (
     find_resumable_conversation,
     history_for_prompt,
     merge_client_history,
+    _history_tail_aligned,
     open_conversation,
 )
+from .idempotency import claim_idempotency
 from .section_fill import section_fill_once
 from .section_stream import SectionStreamTracker, iter_replay_stream
 from .answer_structured import (
@@ -685,6 +687,7 @@ def chat(
     x_user_code: str | None = Header(default=None, alias="X-User-Code"),
     cookie: str | None = Header(default=None),
     x_client_kind: str | None = Header(default=None, alias="X-Client-Kind"),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
     from ..rag.answer_cache import (
         cache_key,
@@ -709,9 +712,21 @@ def chat(
             user_id=user_id_str,
             ref=(body.ref or ""),
             mode=body.mode or "explain",
+            scene=body.scene or "",
         )
+    conv_seed = body.conversation_id or resume_id
+    if conv_seed and client_history:
+        server_hist = history_for_prompt(conv_seed)
+        if server_hist and not _history_tail_aligned(server_hist, client_history):
+            logger.warning(
+                "ai chat conversation history mismatch conv=%s client_turns=%s server_turns=%s",
+                conv_seed,
+                len(client_history),
+                len(server_hist),
+            )
+            conv_seed = None
     conversation_id = open_conversation(
-        body.conversation_id or resume_id,
+        conv_seed,
         guest_id=x_guest_id,
         user_id=user_id_str,
         ref=(body.ref or ""),
@@ -862,6 +877,18 @@ def chat(
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
+    if idempotency_key and not claim_idempotency(
+        idempotency_key,
+        guest_id=x_guest_id,
+    ):
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": "重复请求，请稍候",
+                "code": "duplicate_request",
+            },
+        )
+
     if unlimited:
         allowed, used, limit = True, 0, 0
         if logged_in:
@@ -964,9 +991,25 @@ def chat(
         llm_t0 = time.monotonic()
         length_cont_used = False
         citation_cont_used = False
+        budget_exhausted = False
 
         def _budget_left() -> float:
             return _LLM_WALL_BUDGET_SEC - (time.monotonic() - llm_t0)
+
+        def _yield_replay_text(text: str) -> None:
+            """空答/structured 恢复：走 section_* 协议，避免 section 模式丢 delta。"""
+            plan_titles = (
+                _plan.get("sections") if isinstance(_plan, dict) else None
+            )
+            for ev, payload in iter_replay_stream(
+                text,
+                plan_titles,
+                emit_delta=True,
+                emit_sections=bool(section_tracker),
+            ):
+                if ev == "delta":
+                    full.append(payload.get("text") or "")
+                yield _sse(ev, payload)
 
         def _mark_first_content(piece: str) -> None:
             nonlocal first_token_ms, first_content_ms
@@ -984,7 +1027,14 @@ def chat(
             budget: int,
             meta: StreamMeta | None = None,
         ):
+            nonlocal budget_exhausted
             if _budget_left() <= 0:
+                budget_exhausted = True
+                logger.warning(
+                    "ai chat llm wall budget exhausted scene=%s span=%s",
+                    scene,
+                    verse_span,
+                )
                 return
             timeout_sec = min(120.0, max(5.0, _budget_left()))
             for piece in stream_chat(
@@ -997,13 +1047,13 @@ def chat(
                 full.append(piece)
                 yield _sse("delta", {"text": piece})
                 if section_tracker:
-                    starts, s_deltas, corrections = section_tracker.on_delta(piece)
+                    starts, s_deltas, _corrections = section_tracker.on_delta(piece)
                     for start in starts:
                         yield _sse("section_start", start)
                     for sd in s_deltas:
                         yield _sse("section_delta", sd)
-                    for corr in corrections:
-                        yield _sse("section_done", corr)
+                    # 流中不发 section_done 修正：终稿 normalize 已 merge，
+                    # 中途整节替换会导致 UI 反复刷新/重写。
 
         def _run_length_continuation(meta: StreamMeta, *, force: bool = False) -> None:
             nonlocal length_cont_used
@@ -1130,11 +1180,7 @@ def chat(
                     logger.exception("structured verse recover failed scene=%s", scene)
                     structured = None
                 if structured and structured.strip():
-                    step = 48
-                    for i in range(0, len(structured), step):
-                        piece = structured[i : i + step]
-                        full.append(piece)
-                        yield _sse("delta", {"text": piece})
+                    yield from _yield_replay_text(structured.strip())
             for nudge, strip_history in retry_modes:
                 if full:
                     break
@@ -1178,11 +1224,7 @@ def chat(
                     logger.exception("ai chat recover_empty_response failed")
                     recovered = None
                 if recovered:
-                    step = 48
-                    for i in range(0, len(recovered), step):
-                        piece = recovered[i : i + step]
-                        full.append(piece)
-                        yield _sse("delta", {"text": piece})
+                    yield from _yield_replay_text(recovered.strip())
         if not full:
             log_ai_request(
                 device_id=x_guest_id,
@@ -1248,9 +1290,6 @@ def chat(
                     format_only=True,
                 )
         body_text, followups = split_body_and_followups(text)
-        if section_tracker:
-            for item in section_tracker.finalize(body_text):
-                yield _sse("section_done", item)
         if followups:
             yield _sse("followups", {"items": followups})
         incomplete = answer_marked_incomplete(
@@ -1321,9 +1360,6 @@ def chat(
                     format_only=True,
                 )
                 body_text, followups = split_body_and_followups(text)
-                if section_tracker:
-                    for item in section_tracker.finalize(body_text):
-                        yield _sse("section_done", item)
                 incomplete = answer_marked_incomplete(
                     scene or "",
                     body_text,
@@ -1361,9 +1397,6 @@ def chat(
                     prefer_prose=bool(_dk.get("prefer_prose")),
                 )
                 body_text, followups = split_body_and_followups(text)
-                if section_tracker:
-                    for item in section_tracker.finalize(body_text):
-                        yield _sse("section_done", item)
                 incomplete = answer_marked_incomplete(
                     scene or "",
                     body_text,
@@ -1448,10 +1481,20 @@ def chat(
                     "sections": document["sections"],
                     "document": document,
                     "meta": {**prep["meta"], "schema_version": SCHEMA_VERSION},
-                    "source": "cache",
+                    "source": "live",
                 },
             )
         done_latency = done_timings.get("first_token_ms") or prepare_ms
+        logger.info(
+            "ai chat metrics scene=%s span=%s depth=%s chars=%s ttft_ms=%s incomplete=%s budget_exhausted=%s",
+            scene,
+            verse_span,
+            _depth,
+            len(body_text),
+            done_timings.get("first_content_ms") or done_timings.get("first_token_ms"),
+            incomplete,
+            budget_exhausted,
+        )
         log_ai_request(
             device_id=x_guest_id,
             user_id=logged_in,

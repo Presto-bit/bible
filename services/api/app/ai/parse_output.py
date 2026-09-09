@@ -103,7 +103,9 @@ def mid_bullet_truncated(body_text: str) -> bool:
                 continue
             if item.endswith("…") or item.endswith("..."):
                 return True
-            if len(item) >= 12 and item[-1] not in _SENTENCE_END_CHARS:
+            if item[-1] in "」』\"'\"'":
+                continue
+            if len(item) >= 20 and item[-1] not in _SENTENCE_END_CHARS:
                 return True
     return False
 

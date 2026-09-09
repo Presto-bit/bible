@@ -34,13 +34,14 @@ import {
 import { bodyText, followupsForMessage, followupsOf, normalizeFollowupItems, stripFollowups } from '@/lib/assistant_format';
 import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { buildAssistantTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
-import { mergeAssistantStreamError, replaceAssistantStreamError, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
+import { mergeAssistantStreamError, replaceAssistantStreamError, CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { AssistantStreamPerf } from '@/lib/assistant_perf';
 import {
   isDefaultTabExplain,
   preloadVerseFaq,
   readVerseFaqExplain,
   readVerseFaqExplainSync,
+  wantsExpandedAnswer,
 } from '@/lib/verse_faq';
 import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
@@ -117,6 +118,7 @@ interface Msg {
   structureAssets?: StructureAsset[];
   instant?: boolean;
   cacheSource?: string;
+  ragDegraded?: boolean;
 }
 
 interface Session {
@@ -126,6 +128,7 @@ interface Session {
   preview: string;
   updated: string;
   updatedAt?: number;
+  conversationId?: string;
   msgs: Msg[];
 }
 
@@ -606,6 +609,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         preview,
         updated: updatedLabel,
         updatedAt: now,
+        conversationId: conversationIdRef.current ?? undefined,
         msgs: nextMsgs,
       };
       const list = [next, ...rest];
@@ -630,9 +634,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     setMsgs((prev) => {
       if (!prev.length || prev[prev.length - 1].role !== 'assistant') return prev;
       const last = prev[prev.length - 1];
-      if (last.text.trim()) return prev;
       const copy = [...prev];
-      copy[copy.length - 1] = { ...last, text: '（已停止生成）' };
+      copy[copy.length - 1] = {
+        ...last,
+        text: last.text.trim()
+          ? `${last.text.trim()}\n\n（已停止生成）`
+          : '（已停止生成）',
+      };
       return copy;
     });
   };
@@ -720,11 +728,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     const armGenTimeout = () => {
       clearGenTimer();
       genTimer = window.setTimeout(
-        () => abortRef.current?.abort(),
+        () => abortRef.current?.abort(CHAT_ABORT_TIMEOUT),
         sceneTimeout(scene),
       );
     };
-    const connectTimer = window.setTimeout(() => abortRef.current?.abort(), 50_000);
+    const connectTimer = window.setTimeout(
+      () => abortRef.current?.abort(CHAT_ABORT_TIMEOUT),
+      50_000,
+    );
     requestAnimationFrame(() => {
       requestAnimationFrame(() => scrollThreadToLatest());
     });
@@ -750,13 +761,28 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let cacheSource: string | undefined;
     let streamSections: StreamSection[] = [];
     let gotDelta = false;
+    let ragDegraded = false;
     const streamPerf = new AssistantStreamPerf({ surface: 'tab', scene });
     const applyAcc = () => {
       rafRef.current = null;
       setMsgs((prev) => {
         if (!prev.length || prev[prev.length - 1]?.role !== 'assistant') return prev;
-        const copy = prev.slice();
         const last = prev[prev.length - 1]!;
+        if (
+          last.text === acc
+          && last.ragDegraded === ragDegraded
+          && last.useRag === useRag
+          && last.knowledgeBaseId === kbId
+          && last.knowledgeBaseName === kbName
+          && last.responseProfile === responseProfile
+          && last.instant === instant
+          && last.cacheSource === cacheSource
+          && (last.streamSections?.length ?? 0) === streamSections.length
+          && last.followups === serverFollowups
+        ) {
+          return prev;
+        }
+        const copy = prev.slice();
         copy[copy.length - 1] = {
           ...last,
           role: 'assistant',
@@ -775,6 +801,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           structureAssets,
           instant,
           cacheSource,
+          ragDegraded,
         };
         return copy;
       });
@@ -787,8 +814,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       rafRef.current = window.setTimeout(applyAcc, 72) as unknown as number;
     };
     if (
-      refForApi &&
-      isDefaultTabExplain({
+      refForApi
+      && !wantsExpandedAnswer(q)
+      && isDefaultTabExplain({
         question: q,
         historyLength: history.length,
         scene,
@@ -863,6 +891,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
             cites = localizeCitations(meta.citations || [], book || undefined);
             if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
+            if (meta.rag_degraded === true) ragDegraded = true;
             if (meta.scene_label) sceneLabel = meta.scene_label;
             if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
             if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
@@ -962,6 +991,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             if (payload?.cache_hit || payload?.instant) {
               instant = true;
               cacheSource = payload.cache_source ?? cacheSource;
+            }
+            if (
+              payload?.streamComplete === false
+              && acc.trim()
+              && !acc.startsWith('⚠️')
+            ) {
+              acc = replaceAssistantStreamError('生成中断，请重试');
+              applyAcc();
             }
           },
         },
@@ -1065,6 +1102,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       setActiveId(existing.id);
       setMsgs(existing.msgs);
       setRef(existing.ref);
+      conversationIdRef.current = existing.conversationId ?? null;
       handled = true;
       skipInputPrefill = true;
       return true;
@@ -1209,6 +1247,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     setActiveId(s.id);
     setMsgs(s.msgs);
     setRef(s.ref);
+    conversationIdRef.current = s.conversationId ?? null;
     setHistoryOpen(false);
   };
 
@@ -1537,6 +1576,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                             m.useRag
                             ?? (m.scene?.startsWith('summary_') ? false : undefined)
                           }
+                          ragDegraded={m.ragDegraded}
                           knowledgeBaseId={m.knowledgeBaseId}
                           knowledgeBaseName={m.knowledgeBaseName}
                           onSwitchToPlatform={() => setKnowledgeBaseId(DEFAULT_KB_ID)}

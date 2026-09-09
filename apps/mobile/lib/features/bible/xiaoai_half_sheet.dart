@@ -78,6 +78,7 @@ class HalfSheetTurnView {
     this.instant = false,
     this.cacheSource,
     this.localInstant = false,
+    this.ragDegraded = false,
   });
 
   final String id;
@@ -99,6 +100,7 @@ class HalfSheetTurnView {
   bool instant;
   String? cacheSource;
   bool localInstant;
+  bool ragDegraded;
 }
 
 class XiaoAiHalfSheet extends ConsumerStatefulWidget {
@@ -359,6 +361,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         widget.refStr,
         cacheSel,
         apiQuestion,
+        knowledgeBaseId: 'platform',
       );
       if (cached != null) {
         setState(() {
@@ -387,6 +390,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     Future<void> startNetwork() async {
       if (!isRetry &&
           history.isEmpty &&
+          !wantsExpandedAnswer(apiQuestion) &&
           isDefaultHalfSheetExplain(
             apiQuestion,
             widget.explicitSelection,
@@ -441,20 +445,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
       (evt) {
         if (!mounted || runId != _runId) return;
         switch (evt) {
-          case am.StreamRetryEvent():
-            sectionStream.reset();
-            pending = '';
-            chatSettled = false;
-            setState(() {
-              final t = _turnFor(turnId);
-              if (t != null) {
-                t
-                  ..answer = ''
-                  ..streamSections = []
-                  ..busy = true;
-              }
-              _streamPhase = ThinkingPhase.understanding;
-            });
           case am.MetaEvent(:final meta):
             if (meta.citationsPending) {
               streamPerf.onPlaceholderMeta();
@@ -479,6 +469,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                 t
                   ..citations = cites
                   ..useRag = useRag
+                  ..ragDegraded = meta.ragDegraded
                   ..kbId = kbId
                   ..kbName = kbName
                   ..responseProfile = meta.responseProfile
@@ -680,6 +671,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                 apiQuestion,
                 answerText,
                 cites,
+                knowledgeBaseId: kbId,
               );
             }
             _activeTurnId = turnId;
@@ -1066,6 +1058,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             _RagSourceStatusHalfSheet(
               count: evidenceCites.length,
               useRag: turn.useRag ?? false,
+              ragDegraded: turn.ragDegraded,
               knowledgeBaseId: turn.kbId,
               knowledgeBaseName: turn.kbName,
             ),
@@ -1157,12 +1150,14 @@ class _RagSourceStatusHalfSheet extends StatelessWidget {
   const _RagSourceStatusHalfSheet({
     required this.count,
     required this.useRag,
+    this.ragDegraded = false,
     this.knowledgeBaseId,
     this.knowledgeBaseName,
   });
 
   final int count;
   final bool useRag;
+  final bool ragDegraded;
   final String? knowledgeBaseId;
   final String? knowledgeBaseName;
 
@@ -1174,9 +1169,11 @@ class _RagSourceStatusHalfSheet extends StatelessWidget {
     final kbSuffix = isTopic && (knowledgeBaseName?.isNotEmpty ?? false)
         ? ' · $knowledgeBaseName'
         : '';
+    final degradedHint =
+        ragDegraded ? ' · 资料检索超时，主要依据经文' : '';
     final text = count > 0
-        ? '已参考 $count 条释经资料$kbSuffix'
-        : '本次以圣经与通识作答 · 资料库暂无直接对应注释$kbSuffix';
+        ? '已参考 $count 条释经资料$kbSuffix$degradedHint'
+        : '本次以圣经与通识作答 · 资料库暂无直接对应注释$kbSuffix$degradedHint';
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Column(

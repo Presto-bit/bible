@@ -1092,6 +1092,8 @@ export interface ChatMetaPayload {
   display?: string;
   wants_followups?: boolean;
   use_rag?: boolean;
+  /** RAG 检索超时降级 */
+  rag_degraded?: boolean;
   has_commentary?: boolean;
   knowledge_base_id?: string;
   knowledge_base_name?: string;
@@ -1177,9 +1179,9 @@ export interface ChatCallbacks {
   onDone?: (payload?: ChatDonePayload) => void;
 }
 
-import { CHAT_ABORT_USER_CANCEL } from './assistant_stream_error';
+import { CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL } from './assistant_stream_error';
 
-export { CHAT_ABORT_USER_CANCEL };
+export { CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL };
 
 function isUserCancelAbort(signal?: AbortSignal): boolean {
   return Boolean(signal?.aborted && signal.reason === CHAT_ABORT_USER_CANCEL);
@@ -1192,23 +1194,29 @@ export async function chatStream(
   opts?: {
     signal?: AbortSignal;
     retryOnZeroDelta?: boolean;
+    /** 默认关：服务端已有静默重试，客户端再重试会清空已流式正文。 */
     autoRetryIncomplete?: boolean;
   },
 ): Promise<void> {
-  const headers: Record<string, string> = {
+  const baseHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     ...authHeaders(),
   };
-  const clientRequestId =
+
+  const makeRequestId = () =>
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  headers['X-Client-Request-Id'] = clientRequestId;
-  headers['Idempotency-Key'] = clientRequestId;
 
   const runOnce = async (
     signal?: AbortSignal,
   ): Promise<'ok' | 'retry' | 'fail' | 'incomplete_retry'> => {
+    const clientRequestId = makeRequestId();
+    const headers = {
+      ...baseHeaders,
+      'X-Client-Request-Id': clientRequestId,
+      'Idempotency-Key': clientRequestId,
+    };
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/ai/chat`, {
@@ -1236,6 +1244,10 @@ export async function chatStream(
           ? '今日 AI 使用已达上限，请明日再试'
           : '今日免费次数已用完，明日继续',
       );
+      return 'fail';
+    }
+    if (res.status === 409) {
+      cb.onError?.('重复请求，请稍候');
       return 'fail';
     }
     if (!res.ok || !res.body) {
@@ -1292,7 +1304,7 @@ export async function chatStream(
           if (
             d.code === 'incomplete_answer' &&
             d.retryable === true &&
-            opts?.autoRetryIncomplete !== false
+            opts?.autoRetryIncomplete === true
           ) {
             incompleteRetryable = true;
             return;
@@ -1360,7 +1372,7 @@ export async function chatStream(
   };
 
   const allowZeroRetry = opts?.retryOnZeroDelta !== false;
-  const allowIncompleteRetry = opts?.autoRetryIncomplete !== false;
+  const allowIncompleteRetry = opts?.autoRetryIncomplete === true;
   let zeroDeltaRetried = false;
   let incompleteRetried = false;
 

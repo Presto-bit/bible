@@ -173,13 +173,34 @@ def get_answer(key: str) -> dict[str, Any] | None:
     return validated
 
 
+_DEPTH_RANK = {"flash": 0, "standard": 1, "deep": 2, "study": 3}
+
+
+def _depth_rank(meta: dict[str, Any]) -> int:
+    depth = _cached_depth(meta) or "standard"
+    return _DEPTH_RANK.get(str(depth), 1)
+
+
 def put_answer(key: str, payload: dict[str, Any]) -> None:
     ttl = max(0, int(get_settings().rag_answer_cache_ttl))
     if ttl <= 0 or not key:
         return
     now = time.monotonic()
     body = dict(payload)
+    new_meta = body.get("meta") or {}
+    new_rank = _depth_rank(new_meta if isinstance(new_meta, dict) else {})
+    new_source = str(body.get("source") or "")
     with _lock:
+        existing = _cache.get(key)
+        if existing:
+            _, old_payload = existing
+            old_meta = old_payload.get("meta") or {}
+            old_rank = _depth_rank(old_meta if isinstance(old_meta, dict) else {})
+            old_source = str(old_payload.get("source") or "")
+            if old_rank > new_rank:
+                return
+            if old_source not in ("prewarm", "") and new_source == "prewarm":
+                return
         _cache[key] = (now, body)
         if len(_cache) > _MAX_ENTRIES:
             oldest_key = min(_cache.items(), key=lambda x: x[1][0])[0]
