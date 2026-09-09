@@ -6,12 +6,15 @@ import AnswerProfileBody, {
 
 export type { ResponseProfile };
 
+import type { StreamSection } from '@/lib/assistant_section_stream';
+
 export type AnswerViewProps = {
   text: string;
   streaming?: boolean;
   dense?: boolean;
   responseProfile?: ResponseProfile;
   structureAssets?: import('@/lib/assistant_blocks').StructureAsset[];
+  streamSections?: StreamSection[];
   onCitationClick?: (n: number) => void;
 };
 

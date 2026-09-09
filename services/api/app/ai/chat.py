@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 from ..bible import reader
 from ..bible.refs import parse_ref
@@ -144,7 +145,6 @@ def prepare(
     spec = resolve_scene(scene, mode, has_ref=ref is not None)
 
     passage_display = ref.display if ref else "（未指定经文）"
-    passage_text = _passage_text(ref) if ref else ""
     effective_mode = spec.mode if spec.mode in MODES else DEFAULT_MODE
     kb = resolve_knowledge_base(knowledge_base_id)
     source_types = source_types_for_kb(kb["id"])
@@ -161,24 +161,32 @@ def prepare(
         scene_id=spec.id,
         question=question,
         ref=ref,
-        passage_text=passage_text,
         verse_span=verse_span,
         has_prior_turns=has_prior_turns,
     ):
         use_rag = False
 
-    citations: list[dict] = []
-    if use_rag:
-        query = f"{passage_display if ref else ''} {passage_text} {question or ''}".strip()
-        hits = _retrieve_hits(
-            query,
-            ref.book_name if ref else None,
-            ref.book_id if ref else None,
-            ref.chapter if ref else None,
-            source_types=source_types,
-        )
+    hits: list[dict] = []
+    if use_rag and ref:
+        query = f"{passage_display} {question or ''}".strip()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f_passage = pool.submit(_passage_text, ref)
+            f_hits = pool.submit(
+                _retrieve_hits,
+                query,
+                ref.book_name,
+                ref.book_id,
+                ref.chapter,
+                source_types,
+            )
+            passage_text = f_passage.result()
+            hits = f_hits.result()
+    elif ref:
+        passage_text = _passage_text(ref)
     else:
-        hits = []
+        passage_text = ""
+
+    citations: list[dict] = []
     for i, h in enumerate(hits, start=1):
         citations.append(
             {

@@ -7,6 +7,13 @@ type SectionEntry = {
   finalized: boolean;
 };
 
+export type StreamSection = {
+  id: string;
+  title: string;
+  text: string;
+  finalized: boolean;
+};
+
 /** P4：消费 section_* SSE，按节累积 Markdown，避免流式结构跳变。 */
 export class SectionStreamAccumulator {
   private entries = new Map<string, SectionEntry>();
@@ -96,5 +103,24 @@ export class SectionStreamAccumulator {
       if (entry?.text.trim()) out.add(id);
     }
     return out;
+  }
+
+  /** 流式增量渲染：按 section 返回正文，已 finalize 的节不再重算。 */
+  getRenderableSections(): Array<{
+    id: string;
+    title: string;
+    text: string;
+    finalized: boolean;
+  }> {
+    return this.order
+      .map((id) => this.entries.get(id))
+      .filter((e): e is SectionEntry => Boolean(e))
+      .filter((e) => e.text.trim() || !e.finalized)
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        text: e.text,
+        finalized: e.finalized,
+      }));
   }
 }

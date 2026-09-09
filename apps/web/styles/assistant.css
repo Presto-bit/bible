@@ -309,6 +309,9 @@ body.assistant-keyboard.assistant-active .tabbar {
   font-size: 12px;
   line-height: 1.4;
 }
+.answer-rich-sectioned .answer-rich-md + .answer-rich-md {
+  margin-top: 0;
+}
 .citation-evidence-rail {
   margin-top: 10px;
 }

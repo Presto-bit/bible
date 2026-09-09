@@ -57,6 +57,43 @@ def cache_key(*, ref: str | None, mode: str | None, question: str | None, scene:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def _validate_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    meta = payload.get("meta") or {}
+    schema = int(meta.get("schema_version") or 0)
+    if schema < SCHEMA_VERSION:
+        return None
+    document = payload.get("document") or {}
+    if schema >= 3 and not str(document.get("markdown") or "").strip():
+        return None
+    scene = str(meta.get("scene") or "")
+    answer = str(payload.get("answer") or "")
+    verse_span = int(meta.get("verse_span") or 1)
+    if scene and answer:
+        from ..ai.answer_structured import needs_structure_repair
+        from ..ai.output_plan import depth_kwargs_from_plan
+        from ..ai.parse_output import verse_explain_incomplete
+
+        if needs_structure_repair(
+            answer,
+            scene,
+            narrow=bool(meta.get("narrow")),
+            verse_span=verse_span,
+        ):
+            return None
+        plan = meta.get("output_plan") or {}
+        dk = depth_kwargs_from_plan(plan if isinstance(plan, dict) else None)
+        if scene in ("verse_full", "verse_quick") and verse_explain_incomplete(
+            scene,
+            answer,
+            verse_span=verse_span,
+            depth=dk.get("depth"),
+            expected_sections=dk.get("expected_sections"),
+            min_complete=dk.get("min_complete"),
+        ):
+            return None
+    return dict(payload)
+
+
 def get_answer(key: str) -> dict[str, Any] | None:
     ttl = max(0, int(get_settings().rag_answer_cache_ttl))
     if ttl <= 0 or not key:
@@ -64,50 +101,24 @@ def get_answer(key: str) -> dict[str, Any] | None:
     now = time.monotonic()
     with _lock:
         hit = _cache.get(key)
-        if not hit:
-            return None
-        ts, payload = hit
-        if now - ts >= ttl:
+        if hit:
+            ts, payload = hit
+            if now - ts < ttl:
+                validated = _validate_payload(payload)
+                if validated:
+                    return validated
             _cache.pop(key, None)
-            return None
-        meta = payload.get("meta") or {}
-        schema = int(meta.get("schema_version") or 0)
-        if schema < SCHEMA_VERSION:
-            _cache.pop(key, None)
-            return None
-        document = payload.get("document") or {}
-        if schema >= 3 and not str(document.get("markdown") or "").strip():
-            _cache.pop(key, None)
-            return None
-        scene = str(meta.get("scene") or "")
-        answer = str(payload.get("answer") or "")
-        verse_span = int(meta.get("verse_span") or 1)
-        if scene and answer:
-            from ..ai.answer_structured import needs_structure_repair
-            from ..ai.output_plan import depth_kwargs_from_plan
-            from ..ai.parse_output import verse_explain_incomplete
+    from .answer_cache_redis import redis_get
 
-            if needs_structure_repair(
-                answer,
-                scene,
-                narrow=bool(meta.get("narrow")),
-                verse_span=verse_span,
-            ):
-                _cache.pop(key, None)
-                return None
-            plan = meta.get("output_plan") or {}
-            dk = depth_kwargs_from_plan(plan if isinstance(plan, dict) else None)
-            if scene in ("verse_full", "verse_quick") and verse_explain_incomplete(
-                scene,
-                answer,
-                verse_span=verse_span,
-                depth=dk.get("depth"),
-                expected_sections=dk.get("expected_sections"),
-                min_complete=dk.get("min_complete"),
-            ):
-                _cache.pop(key, None)
-                return None
-        return dict(payload)
+    remote = redis_get(key)
+    if not remote:
+        return None
+    validated = _validate_payload(remote)
+    if not validated:
+        return None
+    with _lock:
+        _cache[key] = (time.monotonic(), validated)
+    return validated
 
 
 def put_answer(key: str, payload: dict[str, Any]) -> None:
@@ -115,11 +126,15 @@ def put_answer(key: str, payload: dict[str, Any]) -> None:
     if ttl <= 0 or not key:
         return
     now = time.monotonic()
+    body = dict(payload)
     with _lock:
-        _cache[key] = (now, dict(payload))
+        _cache[key] = (now, body)
         if len(_cache) > _MAX_ENTRIES:
             oldest_key = min(_cache.items(), key=lambda x: x[1][0])[0]
             _cache.pop(oldest_key, None)
+    from .answer_cache_redis import redis_put
+
+    redis_put(key, body)
 
 
 def _ref_matches_prefix(ref: str, prefix: str) -> bool:
@@ -128,6 +143,14 @@ def _ref_matches_prefix(ref: str, prefix: str) -> bool:
     if ref == prefix:
         return True
     return ref.startswith(prefix + ".")
+
+
+def clear_answer_cache() -> None:
+    with _lock:
+        _cache.clear()
+    from .answer_cache_redis import redis_clear_all
+
+    redis_clear_all()
 
 
 def clear_answer_cache_for_ref_prefix(ref_prefix: str, *, max_verse: int = 176) -> int:
@@ -156,9 +179,6 @@ def clear_answer_cache_for_ref_prefix(ref_prefix: str, *, max_verse: int = 176) 
 
         for k in to_del:
             _cache.pop(k, None)
-    return len(to_del)
+    from .answer_cache_redis import redis_clear_for_ref_prefix
 
-
-def clear_answer_cache() -> None:
-    with _lock:
-        _cache.clear()
+    return len(to_del) + redis_clear_for_ref_prefix(ref_prefix, max_verse=max_verse)

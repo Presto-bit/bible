@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     rag_candidate_limit_fallback: int = 280
     rag_query_embed_cache_ttl: int = 300
     rag_answer_cache_ttl: int = 86400
+    rag_answer_cache_redis_url: str = ""
     rag_retrieval_cache_ttl: int = 3600
     rag_prewarm_on_read: int = 1
     note_rag_per_chapter_min_chunks: int = 2

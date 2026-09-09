@@ -10,7 +10,7 @@ import type { StructureAsset } from '@/lib/assistant_blocks';
 import { streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
 import { hasVisibleAnswerContent } from '@/lib/assistant_visible';
 import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
-import { SectionStreamAccumulator } from '@/lib/assistant_section_stream';
+import { SectionStreamAccumulator, type StreamSection } from '@/lib/assistant_section_stream';
 import { CitationBar } from '@/components/CitationBar';
 import { addThought } from '@/lib/reader_thoughts';
 import {
@@ -70,6 +70,7 @@ type TurnView = HalfSheetTurn & {
   kbName?: string;
   responseProfile?: string;
   sections?: AnswerSection[];
+  streamSections?: StreamSection[];
   outputPlan?: OutputPlan;
   structureAssets?: StructureAsset[];
   instant?: boolean;
@@ -301,13 +302,20 @@ export default function XiaoAiSheet({
       let structureAssets: StructureAsset[] | undefined;
       let instant = false;
       let cacheSource: string | undefined;
+      let streamSections: StreamSection[] = [];
       let settled = false;
       const sectionStream = new SectionStreamAccumulator();
       const syncSectionStream = () => {
         if (!sectionStream.active) return;
         accRef.current = sectionStream.toMarkdown();
         answerSections = sectionStream.getSections();
+        streamSections = sectionStream.getRenderableSections();
       };
+      const streamTurnPatch = () => ({
+        answer: accRef.current,
+        sections: answerSections,
+        streamSections: streamSections.length ? streamSections : undefined,
+      });
 
       const flushPendingAnswer = () => {
         if (rafRef.current != null) {
@@ -397,9 +405,7 @@ export default function XiaoAiSheet({
                   turn.id === turnId
                     ? {
                         ...turn,
-                        answer: accRef.current,
-                        sections: answerSections,
-                        outputPlan,
+                        ...streamTurnPatch(),
                       }
                     : turn,
                 ),
@@ -418,7 +424,7 @@ export default function XiaoAiSheet({
               gotDelta = true;
               setTurns((prev) =>
                 prev.map((turn) =>
-                  turn.id === turnId ? { ...turn, answer: pending, sections: answerSections } : turn,
+                  turn.id === turnId ? { ...turn, ...streamTurnPatch() } : turn,
                 ),
               );
               return;
@@ -430,7 +436,7 @@ export default function XiaoAiSheet({
                 setTurns((prev) =>
                   prev.map((turn) =>
                     turn.id === turnId && turn.busy
-                      ? { ...turn, answer: batched, sections: answerSections }
+                      ? { ...turn, ...streamTurnPatch() }
                       : turn,
                   ),
                 );
@@ -444,7 +450,7 @@ export default function XiaoAiSheet({
             setTurns((prev) =>
               prev.map((turn) =>
                 turn.id === turnId && turn.busy
-                  ? { ...turn, answer: accRef.current, sections: answerSections }
+                  ? { ...turn, ...streamTurnPatch() }
                   : turn,
               ),
             );
@@ -804,6 +810,11 @@ export default function XiaoAiSheet({
                           dense={turn.scene === 'verse_quick'}
                           responseProfile={turn.responseProfile}
                           structureAssets={turn.structureAssets}
+                          streamSections={
+                            turn.busy && turn.streamSections?.length
+                              ? turn.streamSections
+                              : undefined
+                          }
                           onCitationClick={(n) => {
                             recordCitationClick();
                             setCitationTurnId(turn.id);

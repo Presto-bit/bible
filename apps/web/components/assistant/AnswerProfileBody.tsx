@@ -11,6 +11,8 @@ import {
   type StructureAsset,
 } from '@/lib/assistant_blocks';
 
+import type { StreamSection } from '@/lib/assistant_section_stream';
+
 export type ResponseProfile =
   | 'side_compare'
   | 'viewpoint_stack'
@@ -29,6 +31,7 @@ type Props = {
   dense?: boolean;
   responseProfile?: ResponseProfile;
   structureAssets?: StructureAsset[];
+  streamSections?: StreamSection[];
   onCitationClick?: (n: number) => void;
 };
 
@@ -39,6 +42,7 @@ export default function AnswerProfileBody({
   dense = false,
   responseProfile,
   structureAssets,
+  streamSections,
   onCitationClick,
 }: Props) {
   const [copiedStudy, setCopiedStudy] = useState(false);
@@ -89,6 +93,7 @@ export default function AnswerProfileBody({
         text={text}
         streaming={streaming}
         dense={dense}
+        streamSections={streamSections}
         onCitationClick={onCitationClick}
       />
     </div>

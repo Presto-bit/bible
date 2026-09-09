@@ -1,11 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import type { StreamSection } from '@/lib/assistant_section_stream';
 
 type Props = {
   text: string;
   streaming?: boolean;
   dense?: boolean;
+  streamSections?: StreamSection[];
   onCitationClick?: (n: number) => void;
 };
 

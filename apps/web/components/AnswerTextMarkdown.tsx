@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
 import { prepareAssistantMarkdown, parseCitationHref } from '@/lib/assistant_markdown';
 import { sectionSlug } from '@/lib/assistant_sections';
+import type { StreamSection } from '@/lib/assistant_section_stream';
 
 type Props = {
   text: string;
   streaming?: boolean;
   dense?: boolean;
+  streamSections?: StreamSection[];
   onCitationClick?: (n: number) => void;
 };
 
@@ -42,18 +44,8 @@ function childrenToPlain(children: React.ReactNode): string {
   return '';
 }
 
-export default function AnswerText({
-  text,
-  streaming = false,
-  dense = false,
-  onCitationClick,
-}: Props) {
-  const markdown = useMemo(
-    () => prepareAssistantMarkdown(text, streaming),
-    [text, streaming],
-  );
-
-  const components = useMemo<Components>(() => ({
+function useMarkdownComponents(onCitationClick?: (n: number) => void): Components {
+  return useMemo<Components>(() => ({
     h1: ({ children }) => <h3 className="ans-md-h">{children}</h3>,
     h2: ({ children }) => <h3 className="ans-md-h">{children}</h3>,
     h3: ({ children }) => {
@@ -125,11 +117,20 @@ export default function AnswerText({
     th: ({ children }) => <th className="ans-md-th">{children}</th>,
     td: ({ children }) => <td className="ans-md-td">{children}</td>,
   }), [onCitationClick]);
+}
 
-  if (!markdown.trim()) {
-    return null;
-  }
-
+const MarkdownBlock = memo(function MarkdownBlock({
+  markdown,
+  streaming,
+  dense,
+  components,
+}: {
+  markdown: string;
+  streaming: boolean;
+  dense: boolean;
+  components: Components;
+}) {
+  if (!markdown.trim()) return null;
   return (
     <div
       className={`answer-rich answer-rich-md${dense ? ' answer-rich-dense' : ''}${streaming ? ' answer-rich-streaming' : ''}`}
@@ -138,6 +139,87 @@ export default function AnswerText({
         {markdown}
       </ReactMarkdown>
     </div>
+  );
+});
+
+const SectionMarkdownBlock = memo(function SectionMarkdownBlock({
+  section,
+  streaming,
+  dense,
+  components,
+}: {
+  section: StreamSection;
+  streaming: boolean;
+  dense: boolean;
+  components: Components;
+}) {
+  const chunk = section.text.trim()
+    ? `### ${section.title}\n${section.text}`.trimEnd()
+    : `### ${section.title}`;
+  const markdown = useMemo(
+    () => prepareAssistantMarkdown(chunk, streaming),
+    [chunk, streaming],
+  );
+  return (
+    <MarkdownBlock
+      markdown={markdown}
+      streaming={streaming}
+      dense={dense}
+      components={components}
+    />
+  );
+});
+
+export default function AnswerText({
+  text,
+  streaming = false,
+  dense = false,
+  streamSections,
+  onCitationClick,
+}: Props) {
+  const components = useMarkdownComponents(onCitationClick);
+
+  const sectioned =
+    streaming
+    && streamSections
+    && streamSections.length > 0
+    && streamSections.some((s) => s.text.trim());
+
+  if (sectioned) {
+    return (
+      <div className="answer-rich-sectioned">
+        {streamSections!.map((sec, index) => {
+          const isActive = !sec.finalized && index === streamSections!.length - 1;
+          return (
+            <SectionMarkdownBlock
+              key={sec.id}
+              section={sec}
+              streaming={isActive}
+              dense={dense}
+              components={components}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  const markdown = useMemo(
+    () => prepareAssistantMarkdown(text, streaming),
+    [text, streaming],
+  );
+
+  if (!markdown.trim()) {
+    return null;
+  }
+
+  return (
+    <MarkdownBlock
+      markdown={markdown}
+      streaming={streaming}
+      dense={dense}
+      components={components}
+    />
   );
 }
 

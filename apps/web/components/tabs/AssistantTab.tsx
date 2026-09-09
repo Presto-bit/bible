@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useOnline } from '@/lib/use_online';
 import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
+import type { StreamSection } from '@/lib/assistant_section_stream';
 import { streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
 import { hasVisibleAnswerContent } from '@/lib/assistant_visible';
 import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
@@ -101,6 +102,7 @@ interface Msg {
   knowledgeBaseName?: string;
   responseProfile?: string;
   sections?: AnswerSection[];
+  streamSections?: StreamSection[];
   outputPlan?: OutputPlan;
   structureAssets?: StructureAsset[];
   instant?: boolean;
@@ -718,6 +720,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       if (!sectionStream.active) return;
       acc = sectionStream.toMarkdown();
       answerSections = sectionStream.getSections();
+      streamSections = sectionStream.getRenderableSections();
     };
     let cites: Citation[] = [];
     let useRag: boolean | undefined;
@@ -731,6 +734,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let structureAssets: StructureAsset[] | undefined;
     let instant = false;
     let cacheSource: string | undefined;
+    let streamSections: StreamSection[] = [];
     let gotDelta = false;
     const applyAcc = () => {
       rafRef.current = null;
@@ -751,6 +755,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           knowledgeBaseName: kbName,
           responseProfile,
           sections: answerSections,
+          streamSections: streamSections.length ? streamSections : undefined,
           outputPlan,
           structureAssets,
           instant,
@@ -1477,6 +1482,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           dense={Boolean(m.scene?.startsWith('summary_'))}
                           responseProfile={m.responseProfile}
                           structureAssets={m.structureAssets}
+                          streamSections={
+                            isStreaming && m.streamSections?.length
+                              ? m.streamSections
+                              : undefined
+                          }
                           onCitationClick={(n) => {
                             recordCitationClick();
                             setCitationMsgIdx(i);
