@@ -230,6 +230,7 @@ def prepare(
         narrow=narrow,
         verse_span=verse_span,
         depth=depth,
+        surface=surface,
     )
     messages = [base[0], *prior, base[1]]
     max_tokens = max_tokens_for_scene(

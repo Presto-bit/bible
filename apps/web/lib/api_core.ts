@@ -1122,6 +1122,7 @@ export interface ChatMetaPayload {
   timings?: {
     prepare_ms?: number;
     first_token_ms?: number;
+    first_content_ms?: number;
   };
 }
 

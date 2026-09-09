@@ -90,6 +90,20 @@ _BASE = (
     f"8. {_NARROW}"
 )
 
+_BASE_COMPACT_HALF = (
+    _PERSONA
+    + "请用简体中文，紧扣所给经文作答；不确定则坦诚说明，不杜撰。\n"
+    + "语气温暖平和；句子完整自然。\n"
+    f"{_ANTI_TEMPLATE}{_ANTI_REASONING}"
+)
+
+_MARKDOWN_OUTPUT_COMPACT = (
+    "【Markdown · 半屏快读】\n"
+    "- **必须先写 ### 摘要**（1–2 句，≤50 字），再写其它小节。\n"
+    "- 其余小节用 ### 标题 + - 列表要点；关键术语 **加粗**。\n"
+    "- 不要 HTML；半屏不要「相关追问」。\n"
+)
+
 _BASE_NO_RAG = (
     _PERSONA
     + "请用简体中文回答。原则：\n"
@@ -244,6 +258,7 @@ def build_messages(
     narrow: bool = False,
     verse_span: int = 1,
     depth: DepthProfile | None = None,
+    surface: str | None = None,
 ) -> list[dict[str, str]]:
     mode = scene.mode if scene.mode in _MODE_GUIDE else DEFAULT_MODE
     has_passage = passage_display != "（未指定经文）" and bool(passage_text or passage_display)
@@ -252,6 +267,13 @@ def build_messages(
     ) or "（暂无可用背景注释）"
 
     flash_first = bool(depth and depth.depth == "flash" and not has_prior_turns)
+    surf = (surface or "").strip().lower()
+    compact_half = (
+        surf in {"half_sheet", "prewarm"}
+        and scene.id in ("verse_full", "verse_quick")
+        and not use_rag
+        and not has_prior_turns
+    )
     if scene.id == "chat_general":
         base = _BASE_GENERAL
         mode_guide = "本次为未绑定经文的主题问答，请直接回答读者问题，并用 ### 相关经节 推荐延伸阅读。"
@@ -264,6 +286,9 @@ def build_messages(
     elif flash_first:
         base = _BASE_FLASH
         mode_guide = _MODE_GUIDE[mode]
+    elif compact_half:
+        base = _BASE_COMPACT_HALF
+        mode_guide = _MODE_GUIDE[mode]
     else:
         base = _BASE if use_rag else _BASE_NO_RAG
         mode_guide = _MODE_GUIDE[mode]
@@ -273,7 +298,9 @@ def build_messages(
         mode_guide,
         "\n",
     ]
-    if depth and depth.prefer_prose:
+    if compact_half:
+        system_parts.append(_MARKDOWN_OUTPUT_COMPACT)
+    elif depth and depth.prefer_prose:
         system_parts.append(_MARKDOWN_OUTPUT_SOFT)
     else:
         system_parts.append(_MARKDOWN_OUTPUT)

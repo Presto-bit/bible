@@ -175,7 +175,12 @@ def _standard_verse_profile(
         sections = ("摘要", "经文背景", "经文解释")
         target = 420
     bud = effective_budget_for_scene("verse_full", verse_span=verse_span)
-    soft = min(bud.total_chars if bud else target + 80, target + 120)
+    bud_total = bud.total_chars if bud else target + 80
+    if verse_span >= 6 and not compact:
+        soft = bud_total
+        target = max(target, min(bud_total - 80, 720 if deep else 620))
+    else:
+        soft = min(bud_total, target + 120)
     return DepthProfile(
         depth="deep" if deep and verse_span >= 6 else "standard",
         sections=sections,
@@ -183,8 +188,8 @@ def _standard_verse_profile(
         prefer_prose=compact,
         target_chars=target,
         soft_max=soft,
-        hard_max=soft + 120,
-        min_complete=120 if verse_span <= 2 else 160,
+        hard_max=soft + (140 if verse_span >= 6 else 120),
+        min_complete=120 if verse_span <= 2 else (180 if verse_span >= 6 else 160),
     )
 
 

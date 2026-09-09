@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     deepseek_text_model: str = "deepseek-v4-flash"
+    # V4 默认 thinking 会先流 reasoning_content，首字延迟 20s+；释经场景必须关
+    deepseek_disable_thinking: bool = True
 
     # ── Embedding（DashScope，OpenAI 兼容）──
     rag_embedding_provider: str = "api"

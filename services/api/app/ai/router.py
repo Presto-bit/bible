@@ -504,6 +504,18 @@ class PrewarmRequest(BaseModel):
     scene: str | None = "verse_quick"
 
 
+@router.post("/warm")
+def warm_llm_connection(
+    x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+):
+    """半屏打开时预热 LLM 连接（非答案缓存，不消耗问答额度）。"""
+    from .llm import warm_connection
+
+    _ = x_guest_id
+    ok = warm_connection()
+    return {"status": "ok" if ok else "skipped"}
+
+
 @router.post("/prewarm")
 def prewarm_answer(
     body: PrewarmRequest,
@@ -842,6 +854,7 @@ def chat(
     def gen():
         t_gen = time.monotonic()
         first_token_ms: int | None = None
+        first_content_ms: int | None = None
         # 尽早推送 meta，避免 prepare/RAG 阻塞首包导致客户端超时
         yield _sse(
             "meta",
@@ -928,13 +941,22 @@ def chat(
         def _budget_left() -> float:
             return _LLM_WALL_BUDGET_SEC - (time.monotonic() - llm_t0)
 
+        def _mark_first_content(piece: str) -> None:
+            nonlocal first_token_ms, first_content_ms
+            if not piece:
+                return
+            now_ms = int((time.monotonic() - t_gen) * 1000)
+            if first_token_ms is None:
+                first_token_ms = now_ms
+            if first_content_ms is None and piece.strip():
+                first_content_ms = now_ms
+
         def _stream_budgeted(
             msgs: list[dict[str, str]],
             *,
             budget: int,
             meta: StreamMeta | None = None,
         ):
-            nonlocal first_token_ms
             if _budget_left() <= 0:
                 return
             timeout_sec = min(120.0, max(5.0, _budget_left()))
@@ -944,8 +966,7 @@ def chat(
                 meta=meta,
                 timeout_sec=timeout_sec,
             ):
-                if first_token_ms is None:
-                    first_token_ms = int((time.monotonic() - t_gen) * 1000)
+                _mark_first_content(piece)
                 full.append(piece)
                 yield _sse("delta", {"text": piece})
                 if section_tracker:
@@ -1211,6 +1232,22 @@ def chat(
         done_timings: dict[str, int] = {"prepare_ms": prepare_ms}
         if first_token_ms is not None:
             done_timings["first_token_ms"] = first_token_ms
+        if first_content_ms is not None:
+            done_timings["first_content_ms"] = first_content_ms
+        if meta.reasoning_seen:
+            logger.warning(
+                "ai chat reasoning_content seen while thinking disabled scene=%s",
+                scene,
+            )
+        ttft = first_content_ms or first_token_ms
+        if ttft is not None and ttft > 5000:
+            logger.warning(
+                "ai chat slow first content ms=%s prepare_ms=%s scene=%s span=%s",
+                ttft,
+                prepare_ms,
+                scene,
+                verse_span,
+            )
         if meta.prompt_cache_hit_tokens:
             done_timings["prompt_cache_hit_tokens"] = meta.prompt_cache_hit_tokens
         if meta.prompt_cache_miss_tokens:

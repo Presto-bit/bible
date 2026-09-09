@@ -26,17 +26,23 @@ bool hasVisibleAnswerContent(String text, {int minChars = 8}) {
   return false;
 }
 
-bool hasVisibleStreamSections(List<StreamSection>? sections) {
+bool hasVisibleStreamSections(
+  List<StreamSection>? sections, {
+  int minChars = kMinSectionBodyChars,
+}) {
   if (sections == null || sections.isEmpty) return false;
-  return sections.any((s) => s.text.trim().length >= kMinSectionBodyChars);
+  return sections.any((s) => s.text.trim().length >= minChars);
 }
 
 bool hasVisibleAssistantAnswer(
   String text, {
   List<StreamSection>? streamSections,
+  bool streaming = false,
 }) {
-  return hasVisibleAnswerContent(text) ||
-      hasVisibleStreamSections(streamSections);
+  final streamMin = streaming ? 6 : kMinSectionBodyChars;
+  final textMin = streaming ? 6 : 8;
+  return hasVisibleAnswerContent(text, minChars: textMin) ||
+      hasVisibleStreamSections(streamSections, minChars: streamMin);
 }
 
 String? currentWritingSectionTitle(List<StreamSection>? sections) {

@@ -144,6 +144,10 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(ref.read(assistantRepoProvider).warmAi());
+    });
     unawaited(initHalfSheetCache());
     _scrollCtrl.addListener(_onHalfSheetScroll);
     _initialScene = resolveHalfSheetInitialScene(
@@ -325,7 +329,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           ..scene = scene;
       }
     });
-    _slowTimer = Timer(const Duration(seconds: 12), () {
+    _slowTimer = Timer(const Duration(seconds: 8), () {
       if (mounted && (_turnFor(turnId)?.busy ?? false)) {
         setState(() => _streamSlow = true);
       }
@@ -941,6 +945,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         !hasVisibleAssistantAnswer(
           turn.answer,
           streamSections: turn.streamSections,
+          streaming: true,
         );
     final sectionTitle = turn.busy
         ? currentWritingSectionTitle(turn.streamSections)

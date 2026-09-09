@@ -153,11 +153,13 @@ def _section_max_bullets(
     verse_span: int,
 ) -> int:
     span = max(1, int(verse_span or 1))
-    if scene == "verse_full" and span >= 6:
+    if scene in ("verse_full", "verse_quick") and span >= 6:
         if title == "经文解释":
-            return min(default_max, 5)
+            from .answer_schema import verse_explain_max_bullets
+
+            return max(default_max, verse_explain_max_bullets(span))
         if title in ("段落脉络", "经文背景", "背景"):
-            return min(default_max, 4)
+            return max(default_max, min(4 + span // 8, 6))
     return default_max
 
 

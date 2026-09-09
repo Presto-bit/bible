@@ -3,7 +3,7 @@
 import { SheetCloseButton } from '@/components/PageBackBar';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { chatStream, type Citation } from '@/lib/api';
+import { api, chatStream, type Citation } from '@/lib/api';
 import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
 import type { StructureAsset } from '@/lib/assistant_blocks';
@@ -186,6 +186,7 @@ export default function XiaoAiSheet({
   useEffect(() => {
     recordHalfSheetXiaoAi();
     recordXiaoAiQuestion({ scene: initialScene, ref: refParam });
+    void api.warmAi();
   }, [initialScene, refParam]);
 
   useEffect(() => () => {
@@ -330,7 +331,7 @@ export default function XiaoAiSheet({
         genTimer = window.setTimeout(() => controller.abort(), sceneTimeout(scene));
       };
       const connectTimer = window.setTimeout(() => controller.abort(), 50_000);
-      const slowTimer = window.setTimeout(() => setStreamSlowHint(true), 12_000);
+      const slowTimer = window.setTimeout(() => setStreamSlowHint(true), 8_000);
       let cites: Citation[] = [];
       let gotDelta = false;
       const streamPerf = new AssistantStreamPerf({ surface: 'half_sheet', scene });
@@ -813,6 +814,7 @@ export default function XiaoAiSheet({
             const hasVisible = hasVisibleAssistantAnswer(
               clean || rawAnswer,
               turn.busy ? turn.streamSections : null,
+              { streaming: turn.busy },
             );
             const waitingFirstToken = turn.busy && !hasVisible;
             const sectionTitle = turn.busy

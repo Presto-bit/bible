@@ -519,7 +519,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       _streamPhase = ThinkingPhase.understanding;
       _streamSlow = false;
     });
-    _slowTimer = Timer(const Duration(seconds: 12), () {
+    _slowTimer = Timer(const Duration(seconds: 8), () {
       if (mounted && _streaming && reply.content.isEmpty) {
         setState(() => _streamSlow = true);
       }
@@ -1890,6 +1890,7 @@ class _Bubble extends ConsumerWidget {
     final hasVisible = hasVisibleAssistantAnswer(
       turn.content,
       streamSections: streaming ? turn.streamSections : null,
+      streaming: streaming,
     );
     final showAssistantBody = hasVisible;
     final sectionTitle = streaming

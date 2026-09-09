@@ -19,16 +19,24 @@ export function hasVisibleAnswerContent(text: string, minChars = 8): boolean {
   return false;
 }
 
-export function hasVisibleStreamSections(sections?: StreamSection[] | null): boolean {
+export function hasVisibleStreamSections(
+  sections?: StreamSection[] | null,
+  minChars = MIN_SECTION_BODY_CHARS,
+): boolean {
   if (!sections?.length) return false;
-  return sections.some((s) => s.text.trim().length >= MIN_SECTION_BODY_CHARS);
+  return sections.some((s) => s.text.trim().length >= minChars);
 }
 
 export function hasVisibleAssistantAnswer(
   text: string,
   streamSections?: StreamSection[] | null,
+  opts?: { streaming?: boolean },
 ): boolean {
-  return hasVisibleAnswerContent(text) || hasVisibleStreamSections(streamSections);
+  const streamMin = opts?.streaming ? 6 : MIN_SECTION_BODY_CHARS;
+  return (
+    hasVisibleAnswerContent(text, opts?.streaming ? 6 : 8)
+    || hasVisibleStreamSections(streamSections, streamMin)
+  );
 }
 
 export function currentWritingSectionTitle(

@@ -48,6 +48,15 @@ class AssistantRepository {
     }
   }
 
+  /// 半屏打开时预热 LLM 连接（非答案缓存）。
+  Future<void> warmAi() async {
+    try {
+      await _dio.post<void>('/ai/warm', data: const {});
+    } catch (_) {
+      /* fail-open */
+    }
+  }
+
   /// 静默预热半屏 verse_full 答案（对齐 PWA prewarmAnswer）。
   Future<void> prewarmAnswer(
     String ref, {

@@ -1453,6 +1453,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               const hasVisible = hasVisibleAssistantAnswer(
                 m.text,
                 isStreaming ? m.streamSections : null,
+                { streaming: isStreaming },
               );
               const showAssistantBody = hasVisible;
               const sectionTitle = isStreaming

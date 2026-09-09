@@ -66,11 +66,22 @@ def test_assistant_custom_question_keeps_rag():
     )
 
 
-def test_long_span_keeps_rag_on_assistant():
-    assert not skip_rag_for_passage(
+def test_long_span_default_explain_skips_rag():
+    assert skip_rag_for_passage(
         surface="assistant",
         scene_id="verse_full",
         question="请解读：约翰福音 3:16",
+        ref=_ref(),
+        verse_span=8,
+        has_prior_turns=False,
+    )
+
+
+def test_long_span_custom_question_keeps_rag():
+    assert not skip_rag_for_passage(
+        surface="assistant",
+        scene_id="verse_full",
+        question="「永生」在这里具体指什么？",
         ref=_ref(),
         verse_span=8,
         has_prior_turns=False,
