@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS shelf_platform_book (
   sections_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   status TEXT NOT NULL DEFAULT 'published',
   sort_order INT NOT NULL DEFAULT 0,
+  book_type TEXT NOT NULL DEFAULT 'document',
+  uploaded_by UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -30,5 +32,13 @@ CREATE INDEX IF NOT EXISTS idx_shelf_platform_status_sort
 def ensure_shelf_schema(pool) -> None:
     with pool.connection() as conn:
         conn.execute(_DDL)
+        conn.execute(
+            "ALTER TABLE shelf_platform_book "
+            "ADD COLUMN IF NOT EXISTS uploaded_by UUID"
+        )
+        conn.execute(
+            "ALTER TABLE shelf_platform_book "
+            "ADD COLUMN IF NOT EXISTS book_type TEXT NOT NULL DEFAULT 'document'"
+        )
         conn.commit()
     logger.info("shelf schema ready")

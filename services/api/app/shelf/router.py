@@ -4,17 +4,29 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, Response
 
-from ..admin.auth import require_shelf_admin
-from ..auth.session import get_current_user
+from ..admin.auth import require_shelf_admin, resolve_shelf_admin_actor
+from ..auth.session import get_current_user, resolve_user_id
 from .service import (
+    _book_can_delete,
+    _book_can_edit,
+    append_collection_lesson,
+    collection_units,
+    create_user_collection,
+    delete_platform_book,
     get_platform_asset_path,
     get_platform_book,
     get_platform_file_bytes,
     get_platform_section,
     list_platform_shelf,
 )
+
+
+class CreateCollectionBody(BaseModel):
+    title: str = Field(min_length=1, max_length=80)
+    subtitle: str | None = Field(default=None, max_length=160)
 
 router = APIRouter(prefix="/shelf", tags=["shelf"])
 
@@ -37,24 +49,88 @@ def shelf_platform_capabilities(
         x_user_code=x_user_code,
         cookie=cookie,
     )
+    actor_id = resolve_user_id(
+        authorization=authorization,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
     ok = bool(actor)
-    return {"shelf_admin": ok, "can_append_collection": ok}
+    return {
+        "shelf_admin": ok,
+        "can_append_collection": ok,
+        "can_create_collection": bool(actor_id),
+    }
+
+
+def _shelf_actor_context(
+    *,
+    authorization: str | None,
+    x_admin_token: str | None,
+    x_user_id: str | None,
+    x_user_code: str | None,
+    cookie: str | None,
+) -> tuple[str | None, bool]:
+    actor_id = resolve_user_id(
+        authorization=authorization,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    is_admin = bool(
+        resolve_shelf_admin_actor(
+            authorization=authorization,
+            x_admin_token=x_admin_token,
+            x_user_id=x_user_id,
+            x_user_code=x_user_code,
+            cookie=cookie,
+        )
+    )
+    return actor_id, is_admin
+
+
+@router.post("/platform/collections")
+def shelf_platform_create_collection(
+    body: CreateCollectionBody,
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """创建空合集（用户自建，可后续追加资料）。"""
+    return create_user_collection(
+        title=body.title,
+        subtitle=body.subtitle,
+        uploaded_by=user_id,
+    )
 
 
 @router.get("/platform/collections/{book_id}/units")
 def shelf_platform_collection_units(
     book_id: str,
-    _admin: str = Depends(require_shelf_admin),
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
 ) -> dict:
-    """书柜管理员：合集已有单元列表（走 /shelf/platform，避开部分网关对 /admin/shelf 的拦截）。"""
-    from .file_catalog import get_file_book
-    from .service import collection_units
+    """合集已有单元列表（所有者或书柜管理员）。"""
+    from .service import _collection_book_record, _assert_collection_edit
 
-    book = get_file_book(book_id)
-    if not book:
+    rec = _collection_book_record(book_id)
+    if not rec:
         raise HTTPException(404, "书目不存在")
-    if (book.get("book_type") or "") != "collection":
-        raise HTTPException(400, "仅合集书")
+    book, source, _ = rec
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    _assert_collection_edit(
+        book,
+        source,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
+    )
     return {"units": collection_units(book_id)}
 
 
@@ -66,11 +142,20 @@ async def shelf_platform_append_lesson(
     unit: str | None = Form(default=None),
     zone: str = Form(default="body"),
     after_section_id: str | None = Form(default=None),
-    _admin: str = Depends(require_shelf_admin),
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
 ) -> dict:
-    """书柜管理员：向合集追加一课（主路径；与 /admin/shelf/... 同实现）。"""
-    from .service import append_collection_lesson
-
+    """向合集追加一份资料（所有者或书柜管理员）。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
     data = await file.read()
     return append_collection_lesson(
         book_id,
@@ -82,17 +167,61 @@ async def shelf_platform_append_lesson(
         after_section_id=after_section_id,
         attachments=None,
         content_type=file.content_type,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
     )
 
 
 @router.get("/platform")
-def shelf_platform_list() -> dict:
-    return list_platform_shelf()
+def shelf_platform_list(
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+) -> dict:
+    actor_id = resolve_user_id(
+        authorization=authorization,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    is_admin = bool(
+        resolve_shelf_admin_actor(
+            authorization=authorization,
+            x_admin_token=x_admin_token,
+            x_user_id=x_user_id,
+            x_user_code=x_user_code,
+            cookie=cookie,
+        )
+    )
+    return list_platform_shelf(actor_user_id=actor_id, is_shelf_admin=is_admin)
 
 
 @router.get("/platform/{book_id}")
-def shelf_platform_detail(book_id: str) -> dict:
-    return get_platform_book(book_id, include_sections=True)
+def shelf_platform_detail(
+    book_id: str,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+) -> dict:
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    book = get_platform_book(book_id, include_sections=True)
+    book["can_delete"] = _book_can_delete(
+        book, actor_user_id=actor_id, is_shelf_admin=is_admin
+    )
+    book["can_edit"] = _book_can_edit(
+        book, actor_user_id=actor_id, is_shelf_admin=is_admin
+    )
+    return book
 
 
 @router.get("/platform/{book_id}/sections/{section_id}")
@@ -136,10 +265,33 @@ def shelf_platform_file(book_id: str) -> Response:
     )
 
 
+@router.delete("/platform/books/{book_id}")
+def shelf_platform_delete_book(
+    book_id: str,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """下架并删除书目：书柜管理员可删全部；普通用户仅可删自己导入的书。"""
+    is_admin = bool(
+        resolve_shelf_admin_actor(
+            authorization=authorization,
+            x_admin_token=x_admin_token,
+            x_user_id=x_user_id,
+            x_user_code=x_user_code,
+            cookie=cookie,
+        )
+    )
+    return delete_platform_book(book_id, actor_user_id=user_id, is_shelf_admin=is_admin)
+
+
 @router.post("/platform/import")
 async def shelf_platform_import(
     file: UploadFile = File(...),
-    _user: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user),
 ) -> dict:
     """用户导入书架书目（docx / md / txt / pdf）。"""
     from .ingest import import_platform_file
@@ -157,4 +309,5 @@ async def shelf_platform_import(
         data,
         filename=file.filename or f"book{suffix}",
         sort_order=9999,
+        uploaded_by=user_id,
     )

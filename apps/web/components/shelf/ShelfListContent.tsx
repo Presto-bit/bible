@@ -6,10 +6,13 @@ import ShelfBookCard from '@/components/shelf/ShelfBookCard';
 import ShelfLibraryHeader from '@/components/shelf/ShelfLibraryHeader';
 import ShelfLibraryTabs from '@/components/shelf/ShelfLibraryTabs';
 import ShelfManageSheet from '@/components/shelf/ShelfManageSheet';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useToast } from '@/components/ui/ToastProvider';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { adminCheck } from '@/lib/admin_rag';
 import { canManageShelf, fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
 import {
+  deletePlatformShelfBook,
   invalidateShelfListCache,
   listPlatformShelfFull,
   type ShelfBookSummary,
@@ -40,6 +43,8 @@ const ShelfAppendLessonSheet = dynamic(
 
 export function ShelfListContent() {
   useEdgeSwipeBack({ href: '/profile' });
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const cached = peekShelfListCache(true);
   const [groups, setGroups] = useState<ShelfGroup[]>(() => cached?.groups ?? []);
@@ -82,6 +87,27 @@ export function ShelfListContent() {
     setUserGroups(listShelfUserGroups());
     setLibraryTick((n) => n + 1);
   }, []);
+
+  const handleRemoveBook = useCallback(
+    async (book: ShelfBookSummary) => {
+      const ok = await confirm({
+        title: '下架此书？',
+        message: `「${book.title}」将从书架移除，并删除服务器上的书籍文件。`,
+        confirmLabel: '下架删除',
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        await deletePlatformShelfBook(book.id);
+        invalidateShelfListCache();
+        toast('已下架');
+        await reload(true);
+      } catch (e) {
+        toast(e instanceof Error ? e.message : '下架失败');
+      }
+    },
+    [confirm, reload, toast],
+  );
 
   useEffect(() => {
     void reload(false);
@@ -172,7 +198,9 @@ export function ShelfListContent() {
           book={bookActionMenu.book}
           anchorEl={bookActionMenu.anchorEl}
           canManage={canManage}
+          canDelete={Boolean(bookActionMenu.book.can_delete)}
           canAppendLesson={canAppendLesson}
+          canEdit={Boolean(bookActionMenu.book.can_edit)}
           onClose={() => setBookActionMenu(null)}
           onMoveGroup={(book) => {
             setBookActionMenu(null);
@@ -189,6 +217,10 @@ export function ShelfListContent() {
           onManage={(book) => {
             setBookActionMenu(null);
             setManageBook(book);
+          }}
+          onRemove={(book) => {
+            setBookActionMenu(null);
+            void handleRemoveBook(book);
           }}
         />
       ) : null}

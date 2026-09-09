@@ -487,7 +487,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final book = _book;
     if (book == null) return;
     final groups = buildShelfTocGroups(book.toc, bookType: book.bookType);
-    final showAppend = _canAppendLesson &&
+    final showAppend = (book.canEdit || _canAppendLesson) &&
         (book.bookType == 'collection' ||
             shelfIsChildrenLessonBook(id: book.id, title: book.title));
     await _withOverlay(

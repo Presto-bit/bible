@@ -32,6 +32,7 @@ def import_platform_file(
     title: str | None = None,
     sort_order: int = 0,
     replace_sha256: str | None = None,
+    uploaded_by: str | None = None,
 ) -> dict[str, Any]:
     suffix = sniff_suffix(filename)
     if suffix not in _FLOW_SUFFIXES:
@@ -129,8 +130,8 @@ def import_platform_file(
             """
             INSERT INTO shelf_platform_book (
               id, title, subtitle, author, mime, storage_key, file_size, file_sha256,
-              toc_json, sections_json, status, sort_order
-            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,'published',%s)
+              toc_json, sections_json, status, sort_order, uploaded_by
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,'published',%s,%s)
             """,
             (
                 book_id,
@@ -144,6 +145,7 @@ def import_platform_file(
                 json.dumps(toc, ensure_ascii=False),
                 json.dumps(sections, ensure_ascii=False),
                 sort_order,
+                uploaded_by,
             ),
         )
         conn.commit()

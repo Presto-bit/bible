@@ -573,7 +573,7 @@ export default function ShelfReader({
   );
 
   const canShowAppendInToc = Boolean(
-    canAppendLesson &&
+    (book?.can_edit || canAppendLesson) &&
       (book?.book_type === 'collection' || shelfIsChildrenLessonBook(book)),
   );
 

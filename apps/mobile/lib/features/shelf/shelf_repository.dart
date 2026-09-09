@@ -42,6 +42,8 @@ class ShelfBookSummary {
     this.groupId = 'default',
     this.sortOrder = 0,
     this.bookType = 'document',
+    this.canDelete = false,
+    this.canEdit = false,
   });
 
   final String id;
@@ -52,6 +54,8 @@ class ShelfBookSummary {
   final String groupId;
   final int sortOrder;
   final String bookType;
+  final bool canDelete;
+  final bool canEdit;
 
   factory ShelfBookSummary.fromJson(Map<String, dynamic> j) => ShelfBookSummary(
         id: '${j['id'] ?? ''}',
@@ -62,6 +66,8 @@ class ShelfBookSummary {
         groupId: '${j['group_id'] ?? 'default'}',
         sortOrder: (j['sort_order'] as num?)?.toInt() ?? 0,
         bookType: '${j['book_type'] ?? 'document'}',
+        canDelete: j['can_delete'] == true,
+        canEdit: j['can_edit'] == true,
       );
 }
 
@@ -210,6 +216,8 @@ class ShelfBookDetail extends ShelfBookSummary {
     super.groupId,
     super.sortOrder,
     super.bookType,
+    super.canDelete,
+    super.canEdit,
     required this.toc,
     this.sections = const [],
   });
@@ -226,6 +234,8 @@ class ShelfBookDetail extends ShelfBookSummary {
         groupId: '${j['group_id'] ?? 'default'}',
         sortOrder: (j['sort_order'] as num?)?.toInt() ?? 0,
         bookType: '${j['book_type'] ?? 'document'}',
+        canDelete: j['can_delete'] == true,
+        canEdit: j['can_edit'] == true,
         toc: ShelfBookToc.fromJson(j['toc'] as Map<String, dynamic>?),
         sections: (j['sections'] as List<dynamic>? ?? const [])
             .whereType<Map>()
@@ -407,6 +417,21 @@ class ShelfRepository {
     return res.data ?? const {};
   }
 
+  Future<Map<String, dynamic>> createCollection({
+    required String title,
+    String? subtitle,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/shelf/platform/collections',
+      data: {
+        'title': title.trim(),
+        if (subtitle != null && subtitle.trim().isNotEmpty) 'subtitle': subtitle.trim(),
+      },
+    );
+    await _fetchListFresh(force: true);
+    return res.data ?? const {};
+  }
+
   Future<({bool shelfAdmin, bool canAppend})> platformCapabilities() async {
     try {
       final res = await _dio.get<Map<String, dynamic>>('/shelf/platform/capabilities');
@@ -444,7 +469,11 @@ class ShelfRepository {
   }
 
   Future<void> adminArchiveBook(String bookId) async {
-    await _dio.delete('/admin/shelf/books/${Uri.encodeComponent(bookId)}');
+    await deletePlatformBook(bookId);
+  }
+
+  Future<void> deletePlatformBook(String bookId) async {
+    await _dio.delete('/shelf/platform/books/${Uri.encodeComponent(bookId)}');
     await _fetchListFresh(force: true);
   }
 

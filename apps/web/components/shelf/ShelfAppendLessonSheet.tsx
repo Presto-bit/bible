@@ -3,10 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useToast } from '@/components/ui/ToastProvider';
-import {
-  adminAppendCollectionLesson,
-  adminListCollectionUnits,
-} from '@/lib/shelf_admin';
+import { appendCollectionLesson, listCollectionUnits } from '@/lib/shelf_api';
 import { invalidateShelfListCache } from '@/lib/shelf_cache';
 import { shellTapProps } from '@/lib/shell_tap';
 
@@ -32,7 +29,7 @@ export default function ShelfAppendLessonSheet({ bookId, bookTitle, onClose, onA
   const [fileName, setFileName] = useState('');
 
   useEffect(() => {
-    void adminListCollectionUnits(bookId)
+    void listCollectionUnits(bookId)
       .then(setUnits)
       .catch(() => setUnits([]));
   }, [bookId]);
@@ -50,7 +47,7 @@ export default function ShelfAppendLessonSheet({ bookId, bookTitle, onClose, onA
     }
     setBusy(true);
     try {
-      const res = await adminAppendCollectionLesson(bookId, file, {
+      const res = await appendCollectionLesson(bookId, file, {
         title: title.trim() || undefined,
         unit: unit.trim() || undefined,
         zone: 'body',

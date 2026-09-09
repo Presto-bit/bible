@@ -77,6 +77,95 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
     _reloadGroups();
   }
 
+  Future<void> _openImportMenu() async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.upload_file_outlined),
+              title: const Text('上传书籍'),
+              subtitle: const Text('docx、txt、md、pdf，单本不超过 20MB'),
+              onTap: () => Navigator.pop(ctx, 'book'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder_outlined),
+              title: const Text('创建合集'),
+              subtitle: const Text('先建空合集，再逐份添加资料'),
+              onTap: () => Navigator.pop(ctx, 'collection'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == 'book') {
+      await _openImport();
+    } else if (action == 'collection') {
+      await _createCollection();
+    }
+  }
+
+  Future<void> _createCollection() async {
+    final titleCtrl = TextEditingController();
+    final subtitleCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('创建合集'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              maxLength: 80,
+              decoration: const InputDecoration(hintText: '合集名称'),
+            ),
+            TextField(
+              controller: subtitleCtrl,
+              maxLength: 160,
+              decoration: const InputDecoration(hintText: '副标题（可选）'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('创建')),
+        ],
+      ),
+    );
+    final title = titleCtrl.text.trim();
+    final subtitle = subtitleCtrl.text.trim();
+    titleCtrl.dispose();
+    subtitleCtrl.dispose();
+    if (ok != true || title.isEmpty) return;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('正在创建…')),
+    );
+    try {
+      final res = await ref.read(shelfRepoProvider).createCollection(
+            title: title,
+            subtitle: subtitle.isEmpty ? null : subtitle,
+          );
+      ref.invalidate(shelfListProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已创建合集「${res['title'] ?? title}」')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+
   Future<void> _openImport() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -191,12 +280,12 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
               title: const Text('书籍详情'),
               onTap: () => Navigator.pop(ctx, 'detail'),
             ),
-            if (_canAppendLesson &&
+            if ((book.canEdit || _canAppendLesson) &&
                 (book.bookType == 'collection' ||
                     shelfIsChildrenLessonBook(id: book.id, title: book.title)))
               ListTile(
                 leading: const Icon(Icons.note_add_outlined),
-                title: const Text('添加课节'),
+                title: const Text('添加资料'),
                 onTap: () => Navigator.pop(ctx, 'append'),
               ),
             ListTile(
@@ -209,6 +298,12 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
               title: const Text('移到分组'),
               onTap: () => Navigator.pop(ctx, 'move'),
             ),
+            if (book.canDelete)
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
+                title: Text('下架删除', style: TextStyle(color: Colors.red.shade700)),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
             if (_canManage)
               ListTile(
                 leading: const Icon(Icons.settings_outlined),
@@ -241,6 +336,8 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
       );
     } else if (action == 'move') {
       await _moveBook(book);
+    } else if (action == 'remove') {
+      await _removeBook(book);
     } else if (action == 'manage') {
       final groups =
           ref.read(shelfListProvider).asData?.value.groups ?? const <ShelfGroup>[];
@@ -251,6 +348,40 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
         groups: groups,
       );
       if (changed) await _refresh(ref);
+    }
+  }
+
+  Future<void> _removeBook(ShelfBookSummary book) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('下架此书？'),
+        content: Text(
+          '「${book.title}」将从书架移除，并删除服务器上的书籍文件。',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            child: const Text('下架删除'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await ref.read(shelfRepoProvider).deletePlatformBook(book.id);
+      ref.invalidate(shelfListProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已下架')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
     }
   }
 
@@ -393,7 +524,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.add, size: 24, color: AppColors.accentDeep),
-              onPressed: _openImport,
+              onPressed: _openImportMenu,
             ),
           ],
         ],

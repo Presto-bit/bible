@@ -84,7 +84,7 @@ class _ShelfManageBodyState extends ConsumerState<_ShelfManageBody> {
       builder: (ctx) => AlertDialog(
         title: const Text('下架此书？'),
         content: Text(
-          '「${widget.book.title}」将从书架移除，全员不可见。文件仍保留在服务器，可重新上传入库。',
+          '「${widget.book.title}」将从书架移除，并删除服务器上的书籍文件。',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),

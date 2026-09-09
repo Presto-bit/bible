@@ -63,7 +63,7 @@ export default function ShelfManageSheet({ book, groups, onClose, onChanged }: P
   const handleArchive = async () => {
     const ok = await confirm({
       title: '下架此书？',
-      message: `「${book.title}」将从书架移除，全员不可见。文件仍保留在服务器，可重新上传入库。`,
+      message: `「${book.title}」将从书架移除，并删除服务器上的书籍文件。`,
       confirmLabel: '下架删除',
       danger: true,
     });

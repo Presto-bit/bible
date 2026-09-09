@@ -22,7 +22,7 @@ from .file_catalog import (
     save_catalog_document,
 )
 from .schema import ensure_shelf_schema
-from .store import read_shelf_bytes, shelf_dir, shelf_file_path
+from .store import delete_shelf_file, read_shelf_bytes, shelf_dir, shelf_file_path
 
 # 书目章节内存索引，避免每次按 id 线性扫描全书 sections
 _sections_by_book: dict[str, dict[str, dict[str, Any]]] = {}
@@ -84,6 +84,92 @@ def _db_available() -> bool:
         return False
 
 
+_MAX_COLLECTION_LESSONS = 200
+
+
+def _book_can_delete(
+    book: dict[str, Any],
+    *,
+    actor_user_id: str | None,
+    is_shelf_admin: bool,
+) -> bool:
+    if is_shelf_admin:
+        return True
+    uploaded_by = book.get("uploaded_by")
+    return bool(
+        uploaded_by
+        and actor_user_id
+        and str(uploaded_by) == str(actor_user_id)
+    )
+
+
+def _book_can_edit(
+    book: dict[str, Any],
+    *,
+    actor_user_id: str | None,
+    is_shelf_admin: bool,
+) -> bool:
+    if (book.get("book_type") or "document") != "collection":
+        return False
+    if is_shelf_admin:
+        return True
+    uploaded_by = book.get("uploaded_by")
+    return bool(
+        uploaded_by
+        and actor_user_id
+        and str(uploaded_by) == str(actor_user_id)
+    )
+
+
+def _annotate_books_permissions(
+    items: list[dict[str, Any]],
+    *,
+    actor_user_id: str | None,
+    is_shelf_admin: bool,
+) -> list[dict[str, Any]]:
+    for item in items:
+        item["can_delete"] = _book_can_delete(
+            item,
+            actor_user_id=actor_user_id,
+            is_shelf_admin=is_shelf_admin,
+        )
+        item["can_edit"] = _book_can_edit(
+            item,
+            actor_user_id=actor_user_id,
+            is_shelf_admin=is_shelf_admin,
+        )
+    return items
+
+
+def _storage_keys_from_book(
+    *,
+    storage_key: str | None,
+    sections: list[Any] | None,
+) -> set[str]:
+    keys: set[str] = set()
+    if storage_key:
+        keys.add(Path(str(storage_key)).name)
+    for sec in sections or []:
+        if not isinstance(sec, dict):
+            continue
+        primary = sec.get("primary") or {}
+        sk = primary.get("storage_key")
+        if sk:
+            keys.add(Path(str(sk)).name)
+        for att in sec.get("attachments") or []:
+            if isinstance(att, dict) and att.get("storage_key"):
+                keys.add(Path(str(att["storage_key"])).name)
+    return {k for k in keys if k}
+
+
+def _delete_book_files(keys: set[str]) -> int:
+    removed = 0
+    for key in keys:
+        if delete_shelf_file(key):
+            removed += 1
+    return removed
+
+
 def _list_from_file() -> list[dict[str, Any]]:
     return [
         {
@@ -115,12 +201,26 @@ def _row_to_summary(row: tuple) -> dict[str, Any]:
         mime,
         file_size,
         toc_json,
+        sections_json,
         status,
         sort_order,
+        book_type,
+        uploaded_by,
         created_at,
     ) = row
     toc = toc_json if isinstance(toc_json, dict) else json.loads(toc_json or "{}")
-    section_count = len(toc.get("body") or []) + len(toc.get("appendix") or [])
+    sections = (
+        sections_json
+        if isinstance(sections_json, list)
+        else json.loads(sections_json or "[]")
+    )
+    bt = book_type or "document"
+    if bt == "collection":
+        section_count = len(sections)
+    else:
+        section_count = len(sections) if sections else (
+            len(toc.get("body") or []) + len(toc.get("appendix") or [])
+        )
     return {
         "id": str(bid),
         "title": title,
@@ -131,6 +231,8 @@ def _row_to_summary(row: tuple) -> dict[str, Any]:
         "status": status,
         "sort_order": sort_order,
         "section_count": section_count,
+        "book_type": bt,
+        "uploaded_by": str(uploaded_by) if uploaded_by else None,
         "created_at": created_at.isoformat() if created_at else None,
         "source": "platform",
     }
@@ -148,17 +250,26 @@ def _merge_file_catalog(db_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return merged
 
 
-def list_platform_books() -> list[dict[str, Any]]:
+def list_platform_books(
+    *,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
+) -> list[dict[str, Any]]:
     file_items = _list_from_file()
     if not _db_available():
-        return file_items
+        return _annotate_books_permissions(
+            file_items,
+            actor_user_id=actor_user_id,
+            is_shelf_admin=is_shelf_admin,
+        )
     pool = get_pool()
     ensure_shelf_schema(pool)
     try:
         with pool.connection() as conn:
             cur = conn.execute(
                 """
-                SELECT id, title, subtitle, author, mime, file_size, toc_json, status, sort_order, created_at
+                SELECT id, title, subtitle, author, mime, file_size, toc_json, sections_json,
+                       status, sort_order, book_type, uploaded_by, created_at
                 FROM shelf_platform_book
                 WHERE status = 'published'
                 ORDER BY sort_order DESC, created_at DESC
@@ -166,18 +277,34 @@ def list_platform_books() -> list[dict[str, Any]]:
             )
             rows = cur.fetchall()
         if rows:
-            return _merge_file_catalog([_row_to_summary(r) for r in rows])
+            merged = _merge_file_catalog([_row_to_summary(r) for r in rows])
+            return _annotate_books_permissions(
+                merged,
+                actor_user_id=actor_user_id,
+                is_shelf_admin=is_shelf_admin,
+            )
     except Exception:
         pass
-    return file_items
+    return _annotate_books_permissions(
+        file_items,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+    )
 
 
 def list_platform_groups() -> list[dict[str, Any]]:
     return load_file_groups()
 
 
-def list_platform_shelf() -> dict[str, Any]:
-    items = list_platform_books()
+def list_platform_shelf(
+    *,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
+) -> dict[str, Any]:
+    items = list_platform_books(
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+    )
     items.sort(key=lambda b: int(b.get("sort_order") or 0), reverse=True)
     return {"groups": list_platform_groups(), "items": items}
 
@@ -283,7 +410,7 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                 cur = conn.execute(
                     """
                     SELECT id, title, subtitle, author, mime, storage_key, file_size, file_sha256,
-                           toc_json, sections_json, status, sort_order, created_at
+                           toc_json, sections_json, status, sort_order, book_type, uploaded_by, created_at
                     FROM shelf_platform_book
                     WHERE id = %s AND status = 'published'
                     """,
@@ -293,6 +420,7 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
             if row:
                 toc = row[8] if isinstance(row[8], dict) else json.loads(row[8] or "{}")
                 sections = row[9] if isinstance(row[9], list) else json.loads(row[9] or "[]")
+                db_book_type = row[12] or "document"
                 out = {
                     "id": str(row[0]),
                     "title": row[1],
@@ -303,11 +431,11 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                     "file_sha256": row[7],
                     "toc": toc,
                     "status": row[10],
-                    "book_type": "document",
+                    "book_type": db_book_type,
                     "source": "platform",
-                    "created_at": row[12].isoformat() if row[12] else None,
+                    "created_at": row[14].isoformat() if row[14] else None,
                 }
-                if fb and fb.get("book_type") == "collection":
+                if fb and fb.get("book_type") == "collection" and db_book_type != "collection":
                     return _book_detail_from_file(fb, include_sections=include_sections)
                 if include_sections:
                     out["sections"] = [
@@ -321,9 +449,12 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                         }
                         for s in sections
                     ]
+                if row[13]:
+                    out["uploaded_by"] = str(row[13])
                 if fb:
                     out["group_id"] = fb.get("group_id")
-                    out["book_type"] = fb.get("book_type") or out["book_type"]
+                    if db_book_type != "collection":
+                        out["book_type"] = fb.get("book_type") or out["book_type"]
                 return out
         except Exception:
             pass
@@ -404,12 +535,40 @@ def get_platform_section(book_id: str, section_id: str) -> dict[str, Any]:
     }
 
 
-def get_platform_asset_path(book_id: str, storage_key: str):
+def _book_asset_context(book_id: str) -> dict[str, Any]:
     fb = get_file_book(book_id)
-    if not fb:
+    if fb and (fb.get("book_type") or "") == "collection":
+        return fb
+    indexed = _load_book_sections(book_id)
+    if indexed is None and not fb:
         raise HTTPException(status_code=404, detail="书目不存在")
+    sections = list(indexed.values()) if indexed else (fb.get("sections") or [])
+    book_type = (fb or {}).get("book_type") or "document"
+    storage_key = (fb or {}).get("storage_key")
+    if _db_available():
+        try:
+            pool = get_pool()
+            with pool.connection() as conn:
+                row = conn.execute(
+                    "SELECT book_type, storage_key FROM shelf_platform_book WHERE id = %s AND status = 'published'",
+                    (book_id,),
+                ).fetchone()
+            if row:
+                book_type = row[0] or book_type
+                storage_key = row[1] or storage_key
+        except Exception:
+            pass
+    return {
+        "book_type": book_type,
+        "storage_key": storage_key,
+        "sections": sections,
+    }
+
+
+def get_platform_asset_path(book_id: str, storage_key: str):
+    book_ctx = _book_asset_context(book_id)
     name = storage_key.split("/")[-1]
-    if not asset_allowed(fb, name):
+    if not asset_allowed(book_ctx, name):
         raise HTTPException(status_code=404, detail="文件不存在")
     path = shelf_file_path(name)
     if not path.is_file():
@@ -493,15 +652,95 @@ def update_platform_book_meta(
     return {"ok": True, "id": book_id, "title": book.get("title"), "group_id": book.get("group_id")}
 
 
-def archive_platform_book(book_id: str) -> dict[str, Any]:
+def delete_platform_book(
+    book_id: str,
+    *,
+    actor_user_id: str | None,
+    is_shelf_admin: bool,
+) -> dict[str, Any]:
+    """下架并删除文件：管理员可删全部；普通用户仅可删自己导入的书。"""
+    if _db_available():
+        pool = get_pool()
+        ensure_shelf_schema(pool)
+        try:
+            with pool.connection() as conn:
+                cur = conn.execute(
+                    """
+                    SELECT id, storage_key, sections_json, uploaded_by
+                    FROM shelf_platform_book
+                    WHERE id = %s AND status = 'published'
+                    """,
+                    (book_id,),
+                )
+                row = cur.fetchone()
+            if row:
+                uploaded_by = row[3]
+                if not is_shelf_admin and (
+                    not uploaded_by
+                    or not actor_user_id
+                    or str(uploaded_by) != str(actor_user_id)
+                ):
+                    raise HTTPException(status_code=403, detail="无权下架此书")
+                sections = (
+                    row[2]
+                    if isinstance(row[2], list)
+                    else json.loads(row[2] or "[]")
+                )
+                keys = _storage_keys_from_book(storage_key=row[1], sections=sections)
+                removed = _delete_book_files(keys)
+                with pool.connection() as conn:
+                    conn.execute(
+                        "DELETE FROM shelf_platform_book WHERE id = %s",
+                        (book_id,),
+                    )
+                    conn.commit()
+                invalidate_shelf_section_cache(book_id)
+                return {
+                    "ok": True,
+                    "id": book_id,
+                    "deleted": True,
+                    "files_removed": removed,
+                }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"下架失败：{exc}") from exc
+
     doc = load_catalog_document()
     book = _find_catalog_book(doc, book_id)
     if not book:
         raise HTTPException(status_code=404, detail="书目不存在")
-    book["status"] = "archived"
+    if not is_shelf_admin:
+        raise HTTPException(status_code=403, detail="无权下架此书")
+    keys = _storage_keys_from_book(
+        storage_key=book.get("storage_key"),
+        sections=book.get("sections"),
+    )
+    removed = _delete_book_files(keys)
+    doc["items"] = [
+        item
+        for item in (doc.get("items") or [])
+        if not (isinstance(item, dict) and str(item.get("id")) == book_id)
+    ]
     save_catalog_document(doc)
+    if _db_available():
+        try:
+            pool = get_pool()
+            with pool.connection() as conn:
+                conn.execute(
+                    "DELETE FROM shelf_platform_book WHERE id = %s",
+                    (book_id,),
+                )
+                conn.commit()
+        except Exception:
+            pass
     invalidate_shelf_section_cache(book_id)
-    return {"ok": True, "id": book_id, "status": "archived"}
+    return {"ok": True, "id": book_id, "deleted": True, "files_removed": removed}
+
+
+def archive_platform_book(book_id: str) -> dict[str, Any]:
+    """兼容旧调用：等同管理员硬删除。"""
+    return delete_platform_book(book_id, actor_user_id=None, is_shelf_admin=True)
 
 
 def create_shelf_group(title: str, *, sort_order: int = 50) -> dict[str, Any]:
@@ -626,10 +865,123 @@ def _resolve_lesson_suffix(
     )
 
 
+def _collection_book_record(book_id: str) -> tuple[dict[str, Any], str, Any] | None:
+    """返回 (book 可变 dict, source, persist_handle)。source=catalog|db。"""
+    fb = get_file_book(book_id)
+    if fb and (fb.get("book_type") or fb.get("kind") or "") == "collection":
+        doc = load_catalog_document()
+        book = _find_catalog_book(doc, book_id)
+        if book:
+            return book, "catalog", doc
+    if _db_available():
+        pool = get_pool()
+        ensure_shelf_schema(pool)
+        try:
+            with pool.connection() as conn:
+                row = conn.execute(
+                    """
+                    SELECT title, subtitle, book_type, uploaded_by, toc_json, sections_json, file_size
+                    FROM shelf_platform_book
+                    WHERE id = %s AND status = 'published'
+                    """,
+                    (book_id,),
+                ).fetchone()
+            if row and (row[2] or "") == "collection":
+                toc = row[4] if isinstance(row[4], dict) else json.loads(row[4] or "{}")
+                sections = row[5] if isinstance(row[5], list) else json.loads(row[5] or "[]")
+                book = {
+                    "id": book_id,
+                    "title": row[0],
+                    "subtitle": row[1],
+                    "book_type": "collection",
+                    "uploaded_by": str(row[3]) if row[3] else None,
+                    "toc": toc,
+                    "sections": sections,
+                    "file_size": int(row[6] or 0),
+                }
+                return book, "db", book_id
+        except Exception:
+            pass
+    return None
+
+
+def _assert_collection_edit(
+    book: dict[str, Any],
+    source: str,
+    *,
+    actor_user_id: str | None,
+    is_shelf_admin: bool,
+) -> None:
+    if is_shelf_admin:
+        return
+    if source == "catalog":
+        raise HTTPException(status_code=403, detail="需要书柜管理员权限")
+    uploaded_by = book.get("uploaded_by")
+    if not uploaded_by or not actor_user_id or str(uploaded_by) != str(actor_user_id):
+        raise HTTPException(status_code=403, detail="无权编辑此合集")
+
+
+def create_user_collection(
+    *,
+    title: str,
+    subtitle: str | None = None,
+    uploaded_by: str,
+    sort_order: int = 9999,
+) -> dict[str, Any]:
+    t = (title or "").strip()
+    if not t:
+        raise HTTPException(status_code=400, detail="合集名称不能为空")
+    if len(t) > 80:
+        raise HTTPException(status_code=400, detail="合集名称过长（上限 80 字）")
+    sub = (subtitle or "").strip() or None
+    if sub and len(sub) > 160:
+        raise HTTPException(status_code=400, detail="副标题过长（上限 160 字）")
+
+    pool = get_pool()
+    ensure_shelf_schema(pool)
+    book_id = str(uuid.uuid4())
+    storage_key = f"collection-{book_id}.meta"
+    toc: dict[str, Any] = {"front": [], "body": [], "outline": [], "appendix": []}
+    sections: list[dict[str, Any]] = []
+
+    with pool.connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO shelf_platform_book (
+              id, title, subtitle, author, mime, storage_key, file_size,
+              toc_json, sections_json, status, sort_order, book_type, uploaded_by
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,'published',%s,'collection',%s)
+            """,
+            (
+                book_id,
+                t,
+                sub,
+                "",
+                "application/collection+json",
+                storage_key,
+                0,
+                json.dumps(toc, ensure_ascii=False),
+                json.dumps(sections, ensure_ascii=False),
+                sort_order,
+                uploaded_by,
+            ),
+        )
+        conn.commit()
+
+    return {
+        "id": book_id,
+        "title": t,
+        "subtitle": sub or "",
+        "book_type": "collection",
+        "section_count": 0,
+    }
+
+
 def collection_units(book_id: str) -> list[str]:
-    book = get_file_book(book_id)
-    if not book:
+    rec = _collection_book_record(book_id)
+    if not rec:
         return []
+    book, _, _ = rec
     units: list[str] = []
     seen: set[str] = set()
     for sec in book.get("sections") or []:
@@ -644,7 +996,6 @@ def collection_units(book_id: str) -> list[str]:
             continue
         if item.get("source") == "unit":
             title = str(item.get("title") or "")
-            # "第一单元 · …" → "第一单元"
             u = title.split("·", 1)[0].strip() or title.strip()
             if u and u not in seen:
                 seen.add(u)
@@ -663,8 +1014,10 @@ def append_collection_lesson(
     after_section_id: str | None = None,
     attachments: list[tuple[bytes, str]] | None = None,
     content_type: str | None = None,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
 ) -> dict[str, Any]:
-    """向合集书追加一课（写 uploads + platform_catalog.json）。"""
+    """向合集追加一份资料（平台 catalog 或用户 DB 合集）。"""
     if len(data) > 50 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="文件过大（上限 50MB）")
     if len(data) < 16:
@@ -676,12 +1029,19 @@ def append_collection_lesson(
     if z not in {"front", "body", "appendix"}:
         raise HTTPException(status_code=400, detail="zone 无效")
 
-    doc = load_catalog_document()
-    book = _find_catalog_book(doc, book_id)
-    if not book:
+    rec = _collection_book_record(book_id)
+    if not rec:
         raise HTTPException(status_code=404, detail="书目不存在")
-    if (book.get("book_type") or book.get("kind") or "") != "collection":
-        raise HTTPException(status_code=400, detail="仅合集书可追加课节")
+    book, source, persist_handle = rec
+    _assert_collection_edit(
+        book,
+        source,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+    )
+    sections = book.setdefault("sections", [])
+    if len(sections) >= _MAX_COLLECTION_LESSONS:
+        raise HTTPException(status_code=400, detail="合集资料过多，建议拆成多个合集")
 
     display_title = (title or "").strip() or _title_from_filename(filename)
     unit_name = (unit or "").strip() or None
@@ -699,7 +1059,6 @@ def append_collection_lesson(
         raise HTTPException(status_code=500, detail=f"写入文件失败：{e}") from e
 
     sec_id = f"sec-{stem}"
-    sections = book.setdefault("sections", [])
     if any(isinstance(s, dict) and str(s.get("id")) == sec_id for s in sections):
         sec_id = f"sec-{stem}-{uuid.uuid4().hex[:4]}"
 
@@ -816,13 +1175,40 @@ def append_collection_lesson(
 
     book["file_size"] = int(book.get("file_size") or 0) + len(data) + sum(len(a[0]) for a in (attachments or []))
     try:
-        save_catalog_document(doc)
+        if source == "catalog":
+            save_catalog_document(persist_handle)
+        else:
+            pool = get_pool()
+            with pool.connection() as conn:
+                conn.execute(
+                    """
+                    UPDATE shelf_platform_book
+                    SET sections_json = %s::jsonb,
+                        toc_json = %s::jsonb,
+                        file_size = %s,
+                        updated_at = now()
+                    WHERE id = %s
+                    """,
+                    (
+                        json.dumps(book.get("sections") or [], ensure_ascii=False),
+                        json.dumps(book.get("toc") or {}, ensure_ascii=False),
+                        int(book.get("file_size") or 0),
+                        book_id,
+                    ),
+                )
+                conn.commit()
     except OSError as e:
         try:
             dest.unlink(missing_ok=True)
         except OSError:
             pass
-        raise HTTPException(status_code=500, detail=f"写入目录失败：{e}") from e
+        raise HTTPException(status_code=500, detail=f"写入失败：{e}") from e
+    except Exception as e:
+        try:
+            dest.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise HTTPException(status_code=500, detail=f"保存合集失败：{e}") from e
     invalidate_shelf_section_cache(book_id)
     return {
         "ok": True,

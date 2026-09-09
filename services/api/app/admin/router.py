@@ -958,9 +958,9 @@ def admin_shelf_patch_book(
 
 @router.delete("/shelf/books/{book_id}")
 def admin_shelf_delete_book(book_id: str, _admin: str = Depends(require_shelf_admin)) -> dict:
-    from ..shelf.service import archive_platform_book
+    from ..shelf.service import delete_platform_book
 
-    return archive_platform_book(book_id)
+    return delete_platform_book(book_id, actor_user_id=None, is_shelf_admin=True)
 
 
 @router.get("/shelf/groups")
@@ -1033,5 +1033,6 @@ async def admin_shelf_append_lesson(
         after_section_id=after_section_id,
         attachments=None,
         content_type=file.content_type,
+        is_shelf_admin=True,
     )
 

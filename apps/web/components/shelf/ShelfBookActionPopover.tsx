@@ -21,11 +21,14 @@ type Props = {
   book: ShelfBookSummary;
   anchorEl: HTMLElement | null;
   canManage?: boolean;
+  canDelete?: boolean;
   canAppendLesson?: boolean;
+  canEdit?: boolean;
   onClose: () => void;
   onMoveGroup: (book: ShelfBookSummary) => void;
   onShare?: (book: ShelfBookSummary) => void;
   onManage?: (book: ShelfBookSummary) => void;
+  onRemove?: (book: ShelfBookSummary) => void;
   onAppendLesson?: (book: ShelfBookSummary) => void;
 };
 
@@ -39,11 +42,14 @@ export default function ShelfBookActionPopover({
   book,
   anchorEl,
   canManage,
+  canDelete,
   canAppendLesson,
+  canEdit,
   onClose,
   onMoveGroup,
   onShare,
   onManage,
+  onRemove,
   onAppendLesson,
 }: Props) {
   const router = useRouter();
@@ -63,12 +69,12 @@ export default function ShelfBookActionPopover({
       label: '书籍详情',
       onClick: () => navigateAppHref(shelfBookDetailHref(book.id), router),
     },
-    ...(canAppendLesson &&
+    ...((canEdit || canAppendLesson) &&
     (book.book_type === 'collection' || shelfIsChildrenLessonBook(book)) &&
     onAppendLesson
       ? [{
           id: 'append',
-          label: '添加课节',
+          label: '添加资料',
           onClick: () => onAppendLesson(book),
         }]
       : []),
@@ -85,6 +91,15 @@ export default function ShelfBookActionPopover({
       onClick: () => onMoveGroup(book),
     },
   ];
+
+  if (canDelete && onRemove) {
+    actions.push({
+      id: 'remove',
+      label: '下架删除',
+      onClick: () => onRemove(book),
+      danger: true,
+    });
+  }
 
   if (canManage && onManage) {
     actions.push({

@@ -131,6 +131,9 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
         </button>
       </div>
       <p className="shelf-book-card-title">{book.title}</p>
+      {book.book_type === 'collection' ? (
+        <p className="shelf-book-card-meta muted">合集 · {book.section_count} 份</p>
+      ) : null}
     </div>
   );
 }

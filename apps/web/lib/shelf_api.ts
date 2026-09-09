@@ -31,6 +31,9 @@ export type ShelfBookSummary = {
   book_type?: 'document' | 'collection' | string;
   group_id?: string;
   sort_order?: number;
+  uploaded_by?: string | null;
+  can_delete?: boolean;
+  can_edit?: boolean;
   source: 'platform' | 'local';
 };
 
@@ -274,6 +277,26 @@ export function clearShelfBookFinished(bookId: string) {
   writeProgressStore(store);
 }
 
+export async function deletePlatformShelfBook(bookId: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw new Error('未登录');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '下架失败');
+  }
+  return res.json();
+}
+
 export async function importPlatformShelfBook(
   file: File,
 ): Promise<{ id: string; title: string; section_count: number }> {
@@ -295,6 +318,69 @@ export async function importPlatformShelfBook(
       /* ignore */
     }
     throw new Error(typeof detail === 'string' ? detail : '导入失败');
+  }
+  return res.json();
+}
+
+export async function createPlatformCollection(input: {
+  title: string;
+  subtitle?: string;
+}): Promise<{ id: string; title: string; book_type: string; section_count: number }> {
+  const res = await fetch(`${API_BASE}/shelf/platform/collections`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw new Error('未登录');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '创建失败');
+  }
+  return res.json();
+}
+
+export async function listCollectionUnits(bookId: string): Promise<string[]> {
+  const res = await fetch(
+    `${API_BASE}/shelf/platform/collections/${encodeURIComponent(bookId)}/units`,
+    { headers: authHeaders(), cache: 'no-store' },
+  );
+  if (!res.ok) return [];
+  const data = (await res.json()) as { units?: string[] };
+  return data.units ?? [];
+}
+
+export async function appendCollectionLesson(
+  bookId: string,
+  file: File,
+  opts?: { title?: string; unit?: string; zone?: string },
+): Promise<{ section?: { id: string; title: string } }> {
+  const form = new FormData();
+  form.append('file', file);
+  if (opts?.title?.trim()) form.append('title', opts.title.trim());
+  if (opts?.unit?.trim()) form.append('unit', opts.unit.trim());
+  form.append('zone', opts?.zone?.trim() || 'body');
+  const res = await fetch(
+    `${API_BASE}/shelf/platform/collections/${encodeURIComponent(bookId)}/lessons`,
+    { method: 'POST', headers: authHeaders(), body: form, cache: 'no-store' },
+  );
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权编辑此合集');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '上传失败');
   }
   return res.json();
 }

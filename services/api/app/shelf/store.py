@@ -30,3 +30,15 @@ def read_shelf_bytes(storage_key: str) -> bytes:
 
 def shelf_file_path(storage_key: str) -> Path:
     return shelf_dir() / Path(storage_key).name
+
+
+def delete_shelf_file(storage_key: str) -> bool:
+    """删除 uploads 中的文件；不存在则跳过。返回是否删除了文件。"""
+    name = Path(storage_key or "").name
+    if not name:
+        return False
+    path = shelf_dir() / name
+    if not path.is_file():
+        return False
+    path.unlink()
+    return True

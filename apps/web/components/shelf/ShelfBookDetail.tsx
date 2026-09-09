@@ -34,6 +34,10 @@ const ShelfNoteHubSheet = dynamic(
   () => import('@/components/shelf/ShelfNoteHubSheet'),
   { ssr: false },
 );
+const ShelfAppendLessonSheet = dynamic(
+  () => import('@/components/shelf/ShelfAppendLessonSheet'),
+  { ssr: false },
+);
 
 type Tab = 'reviews' | 'notes' | 'mine';
 
@@ -65,6 +69,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   const [writeReview, setWriteReview] = useState(false);
   const [hubPostId, setHubPostId] = useState<string | null>(null);
   const [hubAbstract, setHubAbstract] = useState<string | undefined>();
+  const [appendOpen, setAppendOpen] = useState(false);
 
   const progress = useMemo(() => loadShelfBookProgress(bookId), [bookId]);
   const finishedCelebration = search.get('finished') === '1' || Boolean(progress?.finished);
@@ -203,6 +208,11 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
             <p className="shelf-detail-sub muted">{book.subtitle}</p>
           </div>
         ) : null}
+        {book?.book_type === 'collection' && (book.section_count ?? 0) === 0 ? (
+          <p className="shelf-detail-empty-collection muted">
+            合集还是空的，先添加第一份资料吧。
+          </p>
+        ) : null}
         <button
           type="button"
           className="btn primary shelf-detail-continue"
@@ -213,6 +223,15 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
         >
           {finishedCelebration ? '重新阅读' : progress?.sectionId ? '继续阅读' : '开始阅读'}
         </button>
+        {book?.book_type === 'collection' && book.can_edit && (book.section_count ?? 0) === 0 ? (
+          <button
+            type="button"
+            className="btn ghost shelf-detail-add-material"
+            onClick={() => setAppendOpen(true)}
+          >
+            添加资料
+          </button>
+        ) : null}
         <p className="shelf-detail-stats muted">
           {stats.reviews} 篇书评 · {stats.notes} 条公开笔记
         </p>
@@ -294,6 +313,17 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
           abstract={hubAbstract}
           onClose={() => setHubPostId(null)}
           onChanged={reloadPosts}
+        />
+      ) : null}
+
+      {appendOpen && book ? (
+        <ShelfAppendLessonSheet
+          bookId={bookId}
+          bookTitle={book.title}
+          onClose={() => setAppendOpen(false)}
+          onAdded={() => {
+            void getPlatformShelfBook(bookId).then(setBook);
+          }}
         />
       ) : null}
     </main>

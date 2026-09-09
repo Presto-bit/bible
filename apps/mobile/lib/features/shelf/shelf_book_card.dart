@@ -113,17 +113,33 @@ class ShelfBookCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               SizedBox(
-                height: 34,
-                child: Text(
-                  book.title.isEmpty ? '未命名' : book.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.35,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.ink,
-                  ),
+                height: book.bookType == 'collection' ? 48 : 34,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      book.title.isEmpty ? '未命名' : book.title,
+                      maxLines: book.bookType == 'collection' ? 1 : 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    if (book.bookType == 'collection')
+                      Text(
+                        '合集 · ${book.sectionCount} 份',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.3,
+                          color: AppColors.ink.withValues(alpha: 0.55),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
