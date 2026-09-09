@@ -186,8 +186,8 @@ export default function XiaoAiSheet({
   useEffect(() => {
     recordHalfSheetXiaoAi();
     recordXiaoAiQuestion({ scene: initialScene, ref: refParam });
-    void api.warmAi();
-  }, [initialScene, refParam]);
+    void api.warmAi({ ref: refParam, question: userQuestion });
+  }, [initialScene, refParam, userQuestion]);
 
   useEffect(() => () => {
     streamCleanupRef.current?.();

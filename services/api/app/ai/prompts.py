@@ -271,7 +271,6 @@ def build_messages(
     compact_half = (
         surf in {"half_sheet", "prewarm"}
         and scene.id in ("verse_full", "verse_quick")
-        and not use_rag
         and not has_prior_turns
     )
     if scene.id == "chat_general":

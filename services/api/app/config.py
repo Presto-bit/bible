@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     rag_answer_cache_redis_url: str = ""
     rag_retrieval_cache_ttl: int = 3600
     rag_retrieval_prewarm_on_read: int = 1
+    # prepare 等 RAG 的上限（秒）；超时则先出答，避免 embedding 拖死首字
+    rag_retrieve_deadline_sec: float = 2.5
     rag_prewarm_on_read: int = 1
     note_rag_per_chapter_min_chunks: int = 2
     note_rag_max_chunks_abs: int = 512

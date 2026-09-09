@@ -22,8 +22,8 @@ def _ref():
     )
 
 
-def test_half_sheet_skips_rag():
-    assert skip_rag_for_passage(
+def test_half_sheet_keeps_rag():
+    assert not skip_rag_for_passage(
         surface="half_sheet",
         scene_id="verse_quick",
         question="请解读：约翰福音 3:16",
@@ -33,8 +33,8 @@ def test_half_sheet_skips_rag():
     )
 
 
-def test_assistant_default_explain_skips_rag():
-    assert skip_rag_for_passage(
+def test_assistant_default_explain_keeps_rag():
+    assert not skip_rag_for_passage(
         surface="assistant",
         scene_id="verse_quick",
         question="请解读：约翰福音 3:16",
@@ -66,8 +66,8 @@ def test_assistant_custom_question_keeps_rag():
     )
 
 
-def test_long_span_default_explain_skips_rag():
-    assert skip_rag_for_passage(
+def test_long_span_default_explain_keeps_rag():
+    assert not skip_rag_for_passage(
         surface="assistant",
         scene_id="verse_full",
         question="请解读：约翰福音 3:16",
@@ -77,12 +77,12 @@ def test_long_span_default_explain_skips_rag():
     )
 
 
-def test_long_span_custom_question_keeps_rag():
-    assert not skip_rag_for_passage(
-        surface="assistant",
-        scene_id="verse_full",
-        question="「永生」在这里具体指什么？",
+def test_prewarm_skips_rag():
+    assert skip_rag_for_passage(
+        surface="prewarm",
+        scene_id="verse_quick",
+        question="请解读：约翰福音 3:16",
         ref=_ref(),
-        verse_span=8,
+        verse_span=1,
         has_prior_turns=False,
     )

@@ -793,9 +793,12 @@ export const api = {
     getJson<CrossrefResult>(`/content/crossrefs?ref=${encodeURIComponent(ref)}`),
   strongs: (ref: string) =>
     getJson<StrongsResult>(`/content/strongs?ref=${encodeURIComponent(ref)}`),
-  /** 半屏打开时预热 LLM 连接（非答案缓存） */
-  warmAi: () =>
-    authed<{ status: string }>('/ai/warm', { method: 'POST', body: {} }).catch(() => ({
+  /** 半屏打开时预热 LLM 连接 + RAG 检索（非答案缓存） */
+  warmAi: (opts?: { ref?: string; question?: string }) =>
+    authed<{ status: string; retrieval?: string }>('/ai/warm', {
+      method: 'POST',
+      body: opts ?? {},
+    }).catch(() => ({
       status: 'skipped' as const,
     })),
   /** 读经静默预热「解释这节」首答 */

@@ -146,7 +146,12 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(ref.read(assistantRepoProvider).warmAi());
+      unawaited(
+        ref.read(assistantRepoProvider).warmAi(
+          ref: widget.refStr,
+          question: _userQuestion,
+        ),
+      );
     });
     unawaited(initHalfSheetCache());
     _scrollCtrl.addListener(_onHalfSheetScroll);

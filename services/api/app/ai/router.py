@@ -504,16 +504,37 @@ class PrewarmRequest(BaseModel):
     scene: str | None = "verse_quick"
 
 
+class WarmRequest(BaseModel):
+    ref: str | None = None
+    question: str | None = None
+
+
 @router.post("/warm")
 def warm_llm_connection(
+    body: WarmRequest | None = None,
     x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
 ):
-    """半屏打开时预热 LLM 连接（非答案缓存，不消耗问答额度）。"""
+    """半屏打开时预热 LLM 连接 + RAG 检索缓存（非答案缓存）。"""
+    from ..bible.refs import parse_ref
+    from ..rag.retrieval_warm import warm_retrieval_for_chat
     from .llm import warm_connection
 
     _ = x_guest_id
+    req = body or WarmRequest()
     ok = warm_connection()
-    return {"status": "ok" if ok else "skipped"}
+    ref_raw = (req.ref or "").strip()
+    if ref_raw:
+        parsed = parse_ref(ref_raw)
+        if parsed:
+
+            def _warm_rag() -> None:
+                warm_retrieval_for_chat(parsed, question=req.question)
+
+            _prewarm_pool().submit(_warm_rag)
+    return {
+        "status": "ok" if ok else "skipped",
+        "retrieval": "warming" if ref_raw else "skipped",
+    }
 
 
 @router.post("/prewarm")

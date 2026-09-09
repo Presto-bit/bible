@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import logging
 import re
-from concurrent.futures import ThreadPoolExecutor
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
 from ..bible import reader
 from ..bible.refs import parse_ref
+from ..config import get_settings
 from ..rag.retrieve import retrieve_for_passage
 from .citations import display_citation_title
 from .answer_schema import SCHEMA_VERSION, max_tokens_for_scene
@@ -169,8 +171,11 @@ def prepare(
         use_rag = False
 
     hits: list[dict] = []
+    rag_ms: int | None = None
+    rag_timed_out = False
     if use_rag and ref:
         query = f"{passage_display} {question or ''}".strip()
+        rag_t0 = time.monotonic()
         with ThreadPoolExecutor(max_workers=2) as pool:
             f_passage = pool.submit(_passage_text, ref)
             f_hits = pool.submit(
@@ -182,7 +187,18 @@ def prepare(
                 source_types,
             )
             passage_text = f_passage.result()
-            hits = f_hits.result()
+            deadline = max(0.5, float(get_settings().rag_retrieve_deadline_sec))
+            try:
+                hits = f_hits.result(timeout=deadline)
+            except FuturesTimeoutError:
+                rag_timed_out = True
+                hits = []
+                logger.warning(
+                    "rag retrieve deadline exceeded ref=%s query=%r",
+                    ref.osis,
+                    query[:120],
+                )
+        rag_ms = int((time.monotonic() - rag_t0) * 1000)
     elif ref:
         passage_text = _passage_text(ref)
     else:
@@ -297,4 +313,11 @@ def prepare(
             for c in citations
         ],
     }
+    if rag_ms is not None or rag_timed_out:
+        timings: dict[str, int | bool] = {}
+        if rag_ms is not None:
+            timings["rag_ms"] = rag_ms
+        if rag_timed_out:
+            timings["rag_timed_out"] = True
+        meta["timings"] = timings
     return {"meta": meta, "messages": messages, "max_tokens": max_tokens}

@@ -12,13 +12,21 @@ def warm_retrieval_for_ref(ref) -> None:
     """进入经节时预热章级检索缓存，加速 Tab 追问 RAG。"""
     if ref is None or getattr(ref, "chapter", None) is None:
         return
+    warm_retrieval_for_chat(ref, question=None)
+
+
+def warm_retrieval_for_chat(ref, *, question: str | None = None) -> None:
+    """与 /ai/chat prepare 同 query 预热 retrieval_cache（半屏打开 /warm）。"""
+    if ref is None or getattr(ref, "chapter", None) is None:
+        return
     s = get_settings()
     if not int(getattr(s, "rag_retrieval_prewarm_on_read", 1)):
         return
     book_name = getattr(ref, "book_name", None)
     book_id = getattr(ref, "book_id", None)
     chapter = ref.chapter
-    query = f"{book_name or book_id or ''} {chapter}章".strip()
+    passage_display = getattr(ref, "display", None) or f"{book_name or book_id or ''} {chapter}"
+    query = f"{passage_display} {question or ''}".strip()
     if not query:
         return
     try:
@@ -29,7 +37,7 @@ def warm_retrieval_for_ref(ref) -> None:
             book_name=book_name,
             book_id=book_id,
             chapter=chapter,
-            top_k=4,
+            top_k=3,
         )
     except Exception as exc:
         logger.warning(

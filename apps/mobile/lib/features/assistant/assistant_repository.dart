@@ -48,10 +48,13 @@ class AssistantRepository {
     }
   }
 
-  /// 半屏打开时预热 LLM 连接（非答案缓存）。
-  Future<void> warmAi() async {
+  /// 半屏打开时预热 LLM 连接 + RAG 检索（非答案缓存）。
+  Future<void> warmAi({String? ref, String? question}) async {
     try {
-      await _dio.post<void>('/ai/warm', data: const {});
+      final data = <String, dynamic>{};
+      if (ref != null && ref.isNotEmpty) data['ref'] = ref;
+      if (question != null && question.isNotEmpty) data['question'] = question;
+      await _dio.post<void>('/ai/warm', data: data);
     } catch (_) {
       /* fail-open */
     }
