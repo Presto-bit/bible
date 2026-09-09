@@ -15,18 +15,31 @@ from .service import (
     append_collection_lesson,
     collection_units,
     create_user_collection,
+    delete_collection_section,
     delete_platform_book,
     get_platform_asset_path,
     get_platform_book,
     get_platform_file_bytes,
     get_platform_section,
     list_platform_shelf,
+    update_collection_section,
+    update_platform_book,
 )
 
 
 class CreateCollectionBody(BaseModel):
     title: str = Field(min_length=1, max_length=80)
     subtitle: str | None = Field(default=None, max_length=160)
+
+
+class UpdateBookBody(BaseModel):
+    title: str | None = Field(default=None, max_length=80)
+    subtitle: str | None = Field(default=None, max_length=160)
+
+
+class UpdateSectionBody(BaseModel):
+    title: str | None = Field(default=None, max_length=120)
+    unit: str | None = Field(default=None, max_length=40)
 
 router = APIRouter(prefix="/shelf", tags=["shelf"])
 
@@ -262,6 +275,93 @@ def shelf_platform_file(book_id: str) -> Response:
         content=data,
         media_type=mime,
         headers={"Content-Disposition": f'inline; filename="{fname}"'},
+    )
+
+
+@router.patch("/platform/books/{book_id}")
+def shelf_platform_update_book(
+    book_id: str,
+    body: UpdateBookBody,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """更新书名/副标题（上传者或书柜管理员）。"""
+    is_admin = bool(
+        resolve_shelf_admin_actor(
+            authorization=authorization,
+            x_admin_token=x_admin_token,
+            x_user_id=x_user_id,
+            x_user_code=x_user_code,
+            cookie=cookie,
+        )
+    )
+    return update_platform_book(
+        book_id,
+        title=body.title,
+        subtitle=body.subtitle,
+        actor_user_id=user_id,
+        is_shelf_admin=is_admin,
+    )
+
+
+@router.patch("/platform/collections/{book_id}/sections/{section_id}")
+def shelf_platform_update_section(
+    book_id: str,
+    section_id: str,
+    body: UpdateSectionBody,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """更新合集内资料标题或单元。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    return update_collection_section(
+        book_id,
+        section_id,
+        title=body.title,
+        unit=body.unit,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
+    )
+
+
+@router.delete("/platform/collections/{book_id}/sections/{section_id}")
+def shelf_platform_delete_section(
+    book_id: str,
+    section_id: str,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """从合集移除一份资料。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    return delete_collection_section(
+        book_id,
+        section_id,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
     )
 
 

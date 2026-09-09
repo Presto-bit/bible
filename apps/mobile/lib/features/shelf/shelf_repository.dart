@@ -477,6 +477,44 @@ class ShelfRepository {
     await _fetchListFresh(force: true);
   }
 
+  Future<void> updatePlatformBook(
+    String bookId, {
+    required String title,
+    String? subtitle,
+  }) async {
+    await _dio.patch<Map<String, dynamic>>(
+      '/shelf/platform/books/${Uri.encodeComponent(bookId)}',
+      data: {
+        'title': title.trim(),
+        if (subtitle != null && subtitle.trim().isNotEmpty) 'subtitle': subtitle.trim(),
+      },
+    );
+    await _fetchListFresh(force: true);
+  }
+
+  Future<void> updateCollectionSection(
+    String bookId,
+    String sectionId, {
+    String? title,
+    String? unit,
+  }) async {
+    await _dio.patch<Map<String, dynamic>>(
+      '/shelf/platform/collections/${Uri.encodeComponent(bookId)}/sections/${Uri.encodeComponent(sectionId)}',
+      data: {
+        if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+        if (unit != null) 'unit': unit.trim(),
+      },
+    );
+    await _fetchListFresh(force: true);
+  }
+
+  Future<void> deleteCollectionSection(String bookId, String sectionId) async {
+    await _dio.delete<Map<String, dynamic>>(
+      '/shelf/platform/collections/${Uri.encodeComponent(bookId)}/sections/${Uri.encodeComponent(sectionId)}',
+    );
+    await _fetchListFresh(force: true);
+  }
+
   Future<List<ShelfGroup>> adminListGroups() async {
     final res = await _dio.get<Map<String, dynamic>>('/admin/shelf/groups');
     final groups = res.data?['groups'];

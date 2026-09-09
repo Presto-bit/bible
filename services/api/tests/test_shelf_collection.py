@@ -24,6 +24,23 @@ def test_book_can_edit_not_for_single_document():
     assert not _book_can_edit(book, actor_user_id="user-a", is_shelf_admin=False)
 
 
+def test_sync_toc_section_title():
+    from app.shelf.service import _sync_toc_section_title
+
+    toc = {
+        "body": [
+            {"id": "toc-1", "section_id": "sec-a", "title": "旧名"},
+        ],
+    }
+    _sync_toc_section_title(toc, "sec-a", "新名")
+    assert toc["body"][0]["title"] == "新名"
+
+
+def test_book_can_edit_document_owner():
+    book = {"book_type": "document", "uploaded_by": "user-a"}
+    assert _book_can_edit(book, actor_user_id="user-a", is_shelf_admin=False)
+
+
 def test_row_to_summary_collection_section_count():
     row = (
         "id-1",

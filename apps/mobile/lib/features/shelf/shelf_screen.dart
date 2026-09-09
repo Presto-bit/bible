@@ -20,6 +20,7 @@ import 'shelf_progress.dart';
 import 'shelf_repository.dart';
 import 'shelf_append_lesson_sheet.dart';
 import 'shelf_reader_contract.dart';
+import 'shelf_user_manage_sheet.dart';
 
 final shelfListProvider = FutureProvider<ShelfListData>((ref) async {
   ref.keepAlive();
@@ -280,6 +281,12 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
               title: const Text('书籍详情'),
               onTap: () => Navigator.pop(ctx, 'detail'),
             ),
+            if (book.canEdit)
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(book.bookType == 'collection' ? '管理合集' : '管理书籍'),
+                onTap: () => Navigator.pop(ctx, 'user_manage'),
+              ),
             if ((book.canEdit || _canAppendLesson) &&
                 (book.bookType == 'collection' ||
                     shelfIsChildrenLessonBook(id: book.id, title: book.title)))
@@ -319,6 +326,9 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
       await ShelfNavigator.openRead(context, book.id);
     } else if (action == 'detail') {
       await ShelfNavigator.openDetail(context, book.id);
+    } else if (action == 'user_manage') {
+      final changed = await showShelfUserManageSheet(context, ref, book: book);
+      if (changed) await _refresh(ref);
     } else if (action == 'append') {
       final ok = await showShelfAppendLessonSheet(
         context,

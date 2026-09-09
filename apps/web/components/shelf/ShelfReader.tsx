@@ -16,6 +16,7 @@ import {
   type ShelfSection,
   type ShelfAttachment,
 } from '@/lib/shelf_api';
+import { invalidateShelfBookCache } from '@/lib/shelf_cache';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
 import ShelfMediaSheet from '@/components/shelf/ShelfMediaSheet';
@@ -58,6 +59,9 @@ const ShelfReaderMoreSheet = dynamic(() => import('@/components/shelf/ShelfReade
 const ShelfAppendLessonSheet = dynamic(() => import('@/components/shelf/ShelfAppendLessonSheet'), {
   ssr: false,
 });
+const ShelfTocSectionMenu = dynamic(() => import('@/components/shelf/ShelfTocSectionMenu'), {
+  ssr: false,
+});
 
 type Props = {
   bookId: string;
@@ -87,6 +91,12 @@ export default function ShelfReader({
   const [tocOpen, setTocOpen] = useState(false);
   const [appendOpen, setAppendOpen] = useState(false);
   const [canAppendLesson, setCanAppendLesson] = useState(false);
+  const [tocSectionMenu, setTocSectionMenu] = useState<{
+    sectionId: string;
+    title: string;
+    anchorEl: HTMLElement;
+  } | null>(null);
+  const tocLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [fontOpen, setFontOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
@@ -576,6 +586,45 @@ export default function ShelfReader({
     (book?.can_edit || canAppendLesson) &&
       (book?.book_type === 'collection' || shelfIsChildrenLessonBook(book)),
   );
+  const canEditTocSections = Boolean(book?.can_edit && book?.book_type === 'collection');
+
+  const reloadBook = useCallback(() => {
+    invalidateShelfBookCache(bookId);
+    void getPlatformShelfBook(bookId, true).then((detail) => {
+      setBook(detail);
+      const ids = detail.sections?.map((s) => s.id) ?? [];
+      if (sectionId && !ids.includes(sectionId)) {
+        const next = ids[0] ?? null;
+        setSectionId(next);
+        if (next) goSection(next);
+      }
+    });
+  }, [bookId, sectionId, goSection]);
+
+  const openTocSectionMenu = useCallback(
+    (sid: string, title: string, anchorEl: HTMLElement) => {
+      if (!canEditTocSections) return;
+      setTocSectionMenu({ sectionId: sid, title, anchorEl });
+    },
+    [canEditTocSections],
+  );
+
+  const startTocLongPress = useCallback(
+    (sid: string, title: string, el: HTMLElement) => {
+      if (!canEditTocSections) return;
+      if (tocLongPressTimer.current) clearTimeout(tocLongPressTimer.current);
+      tocLongPressTimer.current = setTimeout(() => {
+        tocLongPressTimer.current = null;
+        try {
+          navigator.vibrate?.(10);
+        } catch {
+          /* ignore */
+        }
+        openTocSectionMenu(sid, title, el);
+      }, 520);
+    },
+    [canEditTocSections, openTocSectionMenu],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -907,6 +956,7 @@ export default function ShelfReader({
                     }
                     const sid = resolveSectionId(item, sections);
                     const active = sid === sectionId;
+                    const displayTitle = shelfTocDisplayTitle(item);
                     return (
                       <button
                         key={item.id}
@@ -914,13 +964,35 @@ export default function ShelfReader({
                         className={`shelf-toc-item level-${item.level}${active ? ' is-active' : ''}`}
                         disabled={!sid}
                         onClick={() => {
+                          if (tocLongPressTimer.current) return;
                           const targetId = resolveSectionId(item, sections);
                           if (!targetId) return;
                           goSection(targetId);
                           setTocOpen(false);
                         }}
+                        onPointerDown={(e) => {
+                          if (!sid || e.pointerType === 'mouse' && e.button !== 0) return;
+                          startTocLongPress(sid, displayTitle, e.currentTarget);
+                        }}
+                        onPointerUp={() => {
+                          if (tocLongPressTimer.current) {
+                            clearTimeout(tocLongPressTimer.current);
+                            tocLongPressTimer.current = null;
+                          }
+                        }}
+                        onPointerLeave={() => {
+                          if (tocLongPressTimer.current) {
+                            clearTimeout(tocLongPressTimer.current);
+                            tocLongPressTimer.current = null;
+                          }
+                        }}
+                        onContextMenu={(e) => {
+                          if (!sid || !canEditTocSections) return;
+                          e.preventDefault();
+                          openTocSectionMenu(sid, displayTitle, e.currentTarget);
+                        }}
                       >
-                        {shelfTocDisplayTitle(item)}
+                        {displayTitle}
                         {!sid ? <span className="shelf-toc-tag">无正文</span> : null}
                       </button>
                     );
@@ -940,12 +1012,27 @@ export default function ShelfReader({
                     },
                   })}
                 >
-                  添加课节
+                  添加资料
                 </button>
               </div>
             ) : null}
+            {canEditTocSections ? (
+              <p className="shelf-toc-edit-hint muted">长按目录项可改名或删除</p>
+            ) : null}
           </div>
         </div>
+      ) : null}
+
+      {tocSectionMenu ? (
+        <ShelfTocSectionMenu
+          open
+          bookId={bookId}
+          sectionId={tocSectionMenu.sectionId}
+          sectionTitle={tocSectionMenu.title}
+          anchorEl={tocSectionMenu.anchorEl}
+          onClose={() => setTocSectionMenu(null)}
+          onChanged={reloadBook}
+        />
       ) : null}
 
       {appendOpen ? (

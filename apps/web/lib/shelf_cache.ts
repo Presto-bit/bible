@@ -186,3 +186,15 @@ export function invalidateShelfListCache() {
     }
   }
 }
+
+export function invalidateShelfBookCache(bookId: string) {
+  bookMem.delete(bookId);
+  listInflight = null;
+  for (const key of sectionMem.keys()) {
+    if (key.startsWith(`${bookId}:`)) sectionMem.delete(key);
+  }
+  for (const key of sectionInflight.keys()) {
+    if (key.startsWith(`${bookId}:`)) sectionInflight.delete(key);
+  }
+  invalidateShelfListCache();
+}

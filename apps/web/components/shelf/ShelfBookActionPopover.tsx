@@ -30,6 +30,7 @@ type Props = {
   onManage?: (book: ShelfBookSummary) => void;
   onRemove?: (book: ShelfBookSummary) => void;
   onAppendLesson?: (book: ShelfBookSummary) => void;
+  onUserManage?: (book: ShelfBookSummary) => void;
 };
 
 const PAD = 12;
@@ -51,6 +52,7 @@ export default function ShelfBookActionPopover({
   onManage,
   onRemove,
   onAppendLesson,
+  onUserManage,
 }: Props) {
   const router = useRouter();
   const barRef = useRef<HTMLDivElement | null>(null);
@@ -69,6 +71,13 @@ export default function ShelfBookActionPopover({
       label: '书籍详情',
       onClick: () => navigateAppHref(shelfBookDetailHref(book.id), router),
     },
+    ...(canEdit && onUserManage
+      ? [{
+          id: 'user-manage',
+          label: book.book_type === 'collection' ? '管理合集' : '管理书籍',
+          onClick: () => onUserManage(book),
+        }]
+      : []),
     ...((canEdit || canAppendLesson) &&
     (book.book_type === 'collection' || shelfIsChildrenLessonBook(book)) &&
     onAppendLesson

@@ -40,6 +40,10 @@ const ShelfAppendLessonSheet = dynamic(
   () => import('@/components/shelf/ShelfAppendLessonSheet'),
   { ssr: false },
 );
+const ShelfBookManageSheet = dynamic(
+  () => import('@/components/shelf/ShelfBookManageSheet'),
+  { ssr: false },
+);
 
 export function ShelfListContent() {
   useEdgeSwipeBack({ href: '/profile' });
@@ -55,6 +59,7 @@ export function ShelfListContent() {
   const [canAppendLesson, setCanAppendLesson] = useState(false);
   const [appendBook, setAppendBook] = useState<ShelfBookSummary | null>(null);
   const [manageBook, setManageBook] = useState<ShelfBookSummary | null>(null);
+  const [userManageBook, setUserManageBook] = useState<ShelfBookSummary | null>(null);
   const [userGroups, setUserGroups] = useState<ShelfUserGroup[]>(() => listShelfUserGroups());
   const [activeTab, setActiveTab] = useState<ShelfLibraryTab>({ kind: 'last_read' });
   const [searchOpen, setSearchOpen] = useState(false);
@@ -222,6 +227,18 @@ export function ShelfListContent() {
             setBookActionMenu(null);
             void handleRemoveBook(book);
           }}
+          onUserManage={(book) => {
+            setBookActionMenu(null);
+            setUserManageBook(book);
+          }}
+        />
+      ) : null}
+
+      {userManageBook ? (
+        <ShelfBookManageSheet
+          book={userManageBook}
+          onClose={() => setUserManageBook(null)}
+          onChanged={() => void reload(true)}
         />
       ) : null}
 

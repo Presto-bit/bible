@@ -425,6 +425,83 @@
   font-size: 14px;
 }
 
+.shelf-manage-user-sheet {
+  max-height: min(88vh, 720px);
+  overflow: auto;
+}
+
+.shelf-manage-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0 8px;
+}
+
+.shelf-manage-add-btn {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.shelf-manage-section-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.shelf-manage-section-item {
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.shelf-manage-section-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.shelf-manage-section-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.shelf-manage-section-unit {
+  font-size: 12px;
+}
+
+.shelf-manage-section-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.shelf-manage-section-actions .btn.ghost.is-danger {
+  color: #b42318;
+}
+
+.shelf-manage-section-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.shelf-manage-delete-book {
+  width: 100%;
+  margin-top: 8px;
+  color: #b42318;
+}
+
+.shelf-toc-edit-hint {
+  margin: 8px 16px 12px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.shelf-toc-section-menu {
+  min-width: 180px;
+}
+
 .shelf-import-file {
   /* 勿用 display:none：iOS/部分 WebView 上选文件会静默失败 */
   position: absolute;

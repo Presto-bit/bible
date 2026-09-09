@@ -483,6 +483,101 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
 
   void _toggleChrome() => setState(() => _chromeHidden = !_chromeHidden);
 
+  Future<void> _showTocSectionActions(
+    BuildContext anchorCtx, {
+    required String bookId,
+    required String sectionId,
+    required String title,
+  }) async {
+    final action = await showModalBottomSheet<String>(
+      context: anchorCtx,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(title: Text(title, style: AppTypography.meta)),
+            ListTile(
+              leading: const Icon(Icons.drive_file_rename_outline),
+              title: const Text('改名'),
+              onTap: () => Navigator.pop(ctx, 'rename'),
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
+              title: Text('删除此份', style: TextStyle(color: Colors.red.shade700)),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    final repo = ref.read(shelfRepoProvider);
+    if (action == 'rename') {
+      final ctrl = TextEditingController(text: title);
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('改名'),
+          content: TextField(controller: ctrl, maxLength: 120),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('保存')),
+          ],
+        ),
+      );
+      final next = ctrl.text.trim();
+      ctrl.dispose();
+      if (ok != true || next.isEmpty) return;
+      try {
+        await repo.updateCollectionSection(bookId, sectionId, title: next);
+        await _loadBook();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已更新')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        }
+      }
+    } else if (action == 'delete') {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('删除「$title」？'),
+          content: const Text('将从合集中移除，并删除对应文件。此操作不可恢复。'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+              child: const Text('删除'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      try {
+        await repo.deleteCollectionSection(bookId, sectionId);
+        await _loadBook();
+        if (mounted && _sectionId == sectionId) {
+          final secs = _book?.sections ?? const [];
+          if (secs.isNotEmpty) _goSection(secs.first.id);
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已删除')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        }
+      }
+    }
+  }
+
   Future<void> _openToc() async {
     final book = _book;
     if (book == null) return;
@@ -549,25 +644,47 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                             ),
                           )
                         else
-                          ListTile(
-                            dense: true,
-                            title: Text(shelfTocDisplayTitle(item)),
-                            subtitle: resolveSectionId(item, _sections) == null
-                                ? const Text('无正文', style: TextStyle(fontSize: 12, color: AppColors.inkSoft))
-                                : null,
-                            selected: resolveSectionId(item, _sections) == _sectionId,
-                            enabled: resolveSectionId(item, _sections) != null,
-                            onTap: () {
+                          Builder(
+                            builder: (itemCtx) {
                               final sid = resolveSectionId(item, _sections);
-                              if (sid == null) return;
-                              Navigator.pop(ctx);
-                              _goSection(sid);
+                              final canEditToc = book.canEdit && book.bookType == 'collection';
+                              return ListTile(
+                                dense: true,
+                                title: Text(shelfTocDisplayTitle(item)),
+                                subtitle: sid == null
+                                    ? const Text('无正文', style: TextStyle(fontSize: 12, color: AppColors.inkSoft))
+                                    : null,
+                                selected: sid == _sectionId,
+                                enabled: sid != null,
+                                onTap: () {
+                                  if (sid == null) return;
+                                  Navigator.pop(ctx);
+                                  _goSection(sid);
+                                },
+                                onLongPress: sid != null && canEditToc
+                                    ? () => _showTocSectionActions(
+                                          itemCtx,
+                                          bookId: widget.bookId,
+                                          sectionId: sid,
+                                          title: shelfTocDisplayTitle(item),
+                                        )
+                                    : null,
+                              );
                             },
                           ),
                     ],
                   ],
                 ),
               ),
+              if (book.canEdit && book.bookType == 'collection')
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  child: Text(
+                    '长按目录项可改名或删除',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.meta.copyWith(color: AppColors.inkSoft),
+                  ),
+                ),
               if (showAppend)
                 SafeArea(
                   top: false,
@@ -588,7 +705,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                             await _loadBook();
                           }
                         },
-                        child: const Text('添加课节'),
+                        child: const Text('添加资料'),
                       ),
                     ),
                   ),
