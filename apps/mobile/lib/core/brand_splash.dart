@@ -10,7 +10,7 @@ const brandSplashBg = Color(0xFFFFFCFA);
 const brandSplashTitleInk = Color(0xFF2C2825);
 const brandSplashSubInk = Color(0xFF6B6358);
 const brandSplashTitle = '彼爱';
-const brandSplashSubtitle = 'Love Each Other';
+const brandSplashSubtitle = 'Love One Other';
 const brandSplashIconAsset = 'assets/app_icon_shelf.png';
 
 /// 进程内冷启动标记：杀进程后重置；同进程热恢复不再出开屏。
@@ -38,7 +38,7 @@ class BrandSplashState {
   }
 }
 
-/// 全屏品牌开屏：纸底 + App icon + 彼爱 / Love Each Other。
+/// 全屏品牌开屏：纸底 + App icon + 彼爱 / Love One Other。
 class BrandSplashHost extends StatefulWidget {
   const BrandSplashHost({required this.child, super.key});
 

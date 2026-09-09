@@ -1,4 +1,4 @@
-/** PWA 冷启动品牌开屏：纸底 + App icon + 彼爱 / Love Each Other */
+/** PWA 冷启动品牌开屏：纸底 + App icon + 彼爱 / Love One Other */
 
 import { isStandalonePwa } from './platform';
 import { isFlutterH5Host } from './flutter_h5_bridge';
@@ -11,7 +11,7 @@ export const BRAND_SPLASH_FADE_MS = 250;
 export const BRAND_SPLASH_MAX_MS = 3500;
 export const BRAND_SPLASH_BG = '#FFFCFA';
 export const BRAND_SPLASH_TITLE = '彼爱';
-export const BRAND_SPLASH_SUBTITLE = 'Love Each Other';
+export const BRAND_SPLASH_SUBTITLE = 'Love One Other';
 
 export const BRAND_SPLASH_DONE_EVENT = 'peiai-brand-splash-done';
 export const BRAND_SPLASH_SHELL_READY_EVENT = 'peiai-shell-ready';

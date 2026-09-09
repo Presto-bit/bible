@@ -4,5 +4,5 @@ export const BRAND_TAGLINE = '安静读经，在话语中相遇';
 /** PWA 主屏副标题（比 TAGLINE 更短） */
 export const BRAND_PWA_SUBTITLE = '安静读经';
 /** 冷启动开屏英文副标 */
-export const BRAND_SPLASH_SUBTITLE = 'Love Each Other';
+export const BRAND_SPLASH_SUBTITLE = 'Love One Other';
 export const BRAND_FULL = `${BRAND_NAME} · 圣经`;

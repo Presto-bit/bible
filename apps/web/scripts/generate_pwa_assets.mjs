@@ -20,7 +20,7 @@ const SPLASH_BG = '#FFFCFA';
 const SPLASH_TITLE_INK = '#2C2825';
 const SPLASH_SUB_INK = '#6B6358';
 const HOME_NAME = '彼爱';
-const HOME_SUBTITLE = 'Love Each Other';
+const HOME_SUBTITLE = 'Love One Other';
 
 const ICON_SIZES = [
   { name: 'icon-192.png', size: 192 },
