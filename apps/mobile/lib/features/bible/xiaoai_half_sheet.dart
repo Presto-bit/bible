@@ -71,6 +71,7 @@ class HalfSheetTurnView {
     this.sections = const [],
     this.outputPlan,
     this.structureAssets = const [],
+    this.streamSections = const [],
     this.instant = false,
     this.cacheSource,
     this.localInstant = false,
@@ -91,6 +92,7 @@ class HalfSheetTurnView {
   List<AnswerSection> sections;
   OutputPlan? outputPlan;
   List<StructureAsset> structureAssets;
+  List<StreamSection> streamSections;
   bool instant;
   String? cacheSource;
   bool localInstant;
@@ -274,6 +276,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           t.answer = pending;
           if (sectionStream.active) {
             t.sections = sectionStream.getSections();
+            t.streamSections = sectionStream.getRenderableSections();
           }
         }
       });
@@ -904,6 +907,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             dense: turn.scene == AssistantScene.verseQuick,
             responseProfile: turn.responseProfile,
             structureAssets: turn.structureAssets,
+            streamSections: turn.busy && turn.streamSections.isNotEmpty
+                ? turn.streamSections
+                : null,
             onCitationTap: (n) {
               final citation =
                   turn.citations.where((c) => c.n == n).firstOrNull;

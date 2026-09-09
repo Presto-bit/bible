@@ -477,6 +477,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         _streamPhase = ThinkingPhase.writing;
         reply.content = md;
         reply.sections = sectionStream.getSections();
+        reply.streamSections = sectionStream.getRenderableSections();
       });
       _autoScroll();
     }
@@ -1735,6 +1736,9 @@ class _Bubble extends ConsumerWidget {
                           streaming: streaming,
                           responseProfile: turn.meta?.responseProfile,
                           structureAssets: turn.structureAssets,
+                          streamSections: streaming && turn.streamSections.isNotEmpty
+                              ? turn.streamSections
+                              : null,
                           onCitationTap: cites.isEmpty
                               ? null
                               : (n) {

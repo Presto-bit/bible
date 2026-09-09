@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import 'assistant_markdown.dart';
+import 'assistant_section_stream.dart' show StreamSection;
 import 'assistant_sections.dart' show leadSectionTitles;
 
 /// PWA `--assistant-answer-font-size: 16px`（Tab 内 17px；半屏/导读统一 16）。
@@ -19,6 +20,7 @@ class AssistantMarkdownBody extends StatelessWidget {
     this.fontSize = kAssistantAnswerFontSize,
     this.streaming = false,
     this.dense = false,
+    this.streamSections,
     this.onCitationTap,
   });
 
@@ -26,6 +28,7 @@ class AssistantMarkdownBody extends StatelessWidget {
   final double fontSize;
   final bool streaming;
   final bool dense;
+  final List<StreamSection>? streamSections;
   final void Function(int n)? onCitationTap;
 
   @override
@@ -35,6 +38,7 @@ class AssistantMarkdownBody extends StatelessWidget {
       fontSize: fontSize,
       streaming: streaming,
       dense: dense,
+      streamSections: streamSections,
       onCitationTap: onCitationTap,
     );
   }
@@ -47,6 +51,7 @@ class AnswerText extends StatelessWidget {
     this.fontSize = kAssistantAnswerFontSize,
     this.streaming = false,
     this.dense = false,
+    this.streamSections,
     this.onCitationTap,
   });
 
@@ -54,6 +59,7 @@ class AnswerText extends StatelessWidget {
   final double fontSize;
   final bool streaming;
   final bool dense;
+  final List<StreamSection>? streamSections;
   final void Function(int n)? onCitationTap;
 
   static final _labelRe = RegExp(r'^【([^】]+)】\s*(.*)$');
@@ -189,6 +195,29 @@ class AnswerText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sections = streamSections;
+    if (streaming &&
+        sections != null &&
+        sections.isNotEmpty &&
+        sections.any((s) => s.text.trim().isNotEmpty)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < sections.length; i++)
+            AnswerText(
+              key: ValueKey(sections[i].id),
+              text: sections[i].text.trim().isNotEmpty
+                  ? '### ${sections[i].title}\n${sections[i].text}'
+                  : '### ${sections[i].title}',
+              fontSize: fontSize,
+              streaming: !sections[i].finalized && i == sections.length - 1,
+              dense: dense,
+              onCitationTap: onCitationTap,
+            ),
+        ],
+      );
+    }
+
     final base = _baseStyle();
     final prepared = text.trim().isEmpty ? '' : text;
     if (prepared.trim().isEmpty) {

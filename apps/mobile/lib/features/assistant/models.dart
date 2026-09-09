@@ -4,6 +4,7 @@ library;
 import 'assistant_answer_document.dart';
 import 'assistant_blocks.dart';
 import 'assistant_output_plan.dart';
+import 'assistant_section_stream.dart';
 import 'assistant_sections.dart';
 
 /// 六种模式（与后端 ai/prompts MODES 对齐）。
@@ -204,6 +205,7 @@ class ChatTurn {
     this.scene,
     this.sceneLabel,
     this.sections = const [],
+    this.streamSections = const [],
     this.structureAssets = const [],
   });
   final String role; // user / assistant
@@ -213,5 +215,6 @@ class ChatTurn {
   String? scene;
   String? sceneLabel;
   List<AnswerSection> sections;
+  List<StreamSection> streamSections;
   List<StructureAsset> structureAssets;
 }

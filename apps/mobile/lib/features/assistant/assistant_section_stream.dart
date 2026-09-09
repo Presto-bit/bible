@@ -3,6 +3,20 @@ library;
 
 import 'assistant_sections.dart';
 
+class StreamSection {
+  const StreamSection({
+    required this.id,
+    required this.title,
+    required this.text,
+    this.finalized = false,
+  });
+
+  final String id;
+  final String title;
+  final String text;
+  final bool finalized;
+}
+
 class _SectionEntry {
   _SectionEntry({
     required this.id,
@@ -104,5 +118,21 @@ class SectionStreamAccumulator {
       }
     }
     return out;
+  }
+
+  List<StreamSection> getRenderableSections() {
+    return _order
+        .map((sid) => _entries[sid])
+        .whereType<_SectionEntry>()
+        .where((e) => e.text.trim().isNotEmpty || !e.finalized)
+        .map(
+          (e) => StreamSection(
+            id: e.id,
+            title: e.title,
+            text: e.text,
+            finalized: e.finalized,
+          ),
+        )
+        .toList();
   }
 }

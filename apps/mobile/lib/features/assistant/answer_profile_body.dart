@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import 'answer_text.dart' show AssistantMarkdownBody, kAssistantAnswerFontSize;
 import 'assistant_blocks.dart';
 import 'assistant_format.dart';
+import 'assistant_section_stream.dart' show StreamSection;
 import 'structure_asset_card.dart';
 import 'timeline_rail.dart';
 
@@ -20,6 +21,7 @@ class AnswerProfileBody extends StatefulWidget {
     this.dense = false,
     this.responseProfile,
     this.structureAssets = const [],
+    this.streamSections,
     this.onCitationTap,
   });
 
@@ -29,6 +31,7 @@ class AnswerProfileBody extends StatefulWidget {
   final bool dense;
   final String? responseProfile;
   final List<StructureAsset> structureAssets;
+  final List<StreamSection>? streamSections;
   final void Function(int n)? onCitationTap;
 
   @override
@@ -84,6 +87,7 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
           fontSize: widget.fontSize,
           streaming: widget.streaming,
           dense: widget.dense,
+          streamSections: widget.streamSections,
           onCitationTap: widget.onCitationTap,
         ),
       ],

@@ -497,6 +497,13 @@ def prewarm_answer(body: PrewarmRequest):
     scene = (body.scene or "verse_full").strip() or "verse_full"
     question = f"请解读：{parsed.display}"
     key = cache_key(ref=ref_raw, mode=mode, question=question, scene=scene)
+
+    def _warm_retrieval() -> None:
+        from ..rag.retrieval_warm import warm_retrieval_for_ref
+
+        warm_retrieval_for_ref(parsed)
+
+    _prewarm_pool().submit(_warm_retrieval)
     if get_answer(key):
         return {"status": "hit", "cache_source": "cache"}
 
