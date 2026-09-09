@@ -316,6 +316,10 @@ def verse_needs_length_continuation(
     )
     if not incomplete:
         return False
+    if expected_sections:
+        titles = {s["title"] for s in extract_sections(body_text)}
+        if _planned_sections_missing(titles, expected_sections):
+            return True
     if finish_reason == "length":
         return answer_ends_abruptly(body_text)
     return answer_ends_abruptly(body_text)

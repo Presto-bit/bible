@@ -58,3 +58,17 @@ def test_study_scene():
     prof = resolve_depth("chat_study", "帮我预备查经", surface="assistant")
     assert prof.depth == "study"
     assert "讨论问题" in prof.sections or "结构大纲" in prof.sections
+
+
+def test_background_followup_not_flash():
+    from app.ai.depth_router import wants_expanded_answer  # noqa: WPS433
+
+    assert wants_expanded_answer("补充历史背景")
+    prof = resolve_depth(
+        "chat_explain",
+        "补充历史背景",
+        narrow=True,
+        has_prior_turns=True,
+    )
+    assert prof.depth == "standard"
+    assert "背景" in prof.sections

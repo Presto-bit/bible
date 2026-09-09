@@ -12,7 +12,7 @@ from .citations import display_citation_title
 from .answer_schema import SCHEMA_VERSION, max_tokens_for_scene
 from .prompts import DEFAULT_MODE, MODES, build_messages
 from .output_plan import build_output_plan
-from .depth_router import resolve_depth
+from .depth_router import resolve_depth, wants_expanded_answer
 from .rag_policy import skip_rag_for_passage
 from .response_profile import resolve_response_profile
 from .structure_assets import resolve_structure_assets
@@ -120,6 +120,8 @@ def _is_narrow_followup(
         return False
     q = (question or "").strip()
     if not q:
+        return False
+    if wants_expanded_answer(q):
         return False
     if len(q) <= 72:
         return True

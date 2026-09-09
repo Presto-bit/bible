@@ -36,6 +36,12 @@ def is_default_explain(question: str | None) -> bool:
     return _is_default_explain(question)
 
 
+def wants_expanded_answer(question: str | None) -> bool:
+    """追问是否要展开背景/结构/解释（不应走 narrow flash）。"""
+    q = (question or "").strip()
+    return bool(q and _DEEP_Q.search(q))
+
+
 def resolve_depth(
     scene_id: str,
     question: str | None,
@@ -63,7 +69,7 @@ def resolve_depth(
 
     wants_deep = bool(_DEEP_Q.search(q))
 
-    if narrow and has_prior_turns:
+    if narrow and has_prior_turns and not wants_expanded_answer(q):
         return DepthProfile(
             depth="flash",
             sections=("摘要",),
@@ -103,7 +109,9 @@ def resolve_depth(
     if scene_id.startswith("chat_"):
         if scene_id in ("chat_study", "chat_preach"):
             return _study_profile(scene_id, span)
-        if narrow or (len(q) <= 24 and has_prior_turns):
+        if not wants_expanded_answer(q) and (
+            narrow or (len(q) <= 24 and has_prior_turns)
+        ):
             return DepthProfile(
                 depth="flash",
                 sections=("摘要",),

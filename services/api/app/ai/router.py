@@ -1133,7 +1133,20 @@ def chat(
             prefer_prose=bool(_dk.get("prefer_prose")),
         )
         body_probe, _ = split_body_and_followups(text)
-        if _budget_left() > 3 and _depth in ("deep", "study"):
+        _body_incomplete = answer_marked_incomplete(
+            scene or "",
+            body_probe,
+            verse_span=verse_span,
+            depth=_depth,
+            expected_sections=_dk.get("expected_sections"),
+            min_complete=_dk.get("min_complete"),
+        )
+        _should_fill = _depth in ("deep", "study") or (
+            _depth == "standard"
+            and scene in ("verse_full", "verse_quick")
+            and _body_incomplete
+        )
+        if _budget_left() > 3 and _should_fill:
             filled = section_fill_once(
                 messages,
                 body_probe,

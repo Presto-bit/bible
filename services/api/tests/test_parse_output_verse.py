@@ -99,6 +99,20 @@ def test_length_not_continued_when_sections_complete():
     assert not verse_needs_length_continuation("verse_full", body, finish_reason="length")
 
 
+def test_missing_sections_triggers_continuation():
+    body = (
+        "### 摘要\n"
+        "耶稣在旷野受试探，显明他顺服父的旨意，也为我们胜过试探的软弱。"
+    )
+    assert verse_needs_length_continuation(
+        "verse_full",
+        body,
+        verse_span=25,
+        depth="standard",
+        expected_sections=("摘要", "经文背景", "经文解释"),
+    )
+
+
 def test_flash_complete_with_summary_only():
     body = (
         "### 摘要\n"
