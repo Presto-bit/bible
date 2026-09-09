@@ -33,6 +33,24 @@ def test_verse_scene_cache_key_unified():
     assert k_full == k_quick
 
 
+def test_cache_key_includes_knowledge_base():
+    k_platform = cache_key(
+        ref="JHN.3.16",
+        mode="explain",
+        question="这里的爱是什么意思？",
+        scene="chat_explain",
+        knowledge_base_id="platform",
+    )
+    k_custom = cache_key(
+        ref="JHN.3.16",
+        mode="explain",
+        question="这里的爱是什么意思？",
+        scene="chat_explain",
+        knowledge_base_id="user_kb_1",
+    )
+    assert k_platform != k_custom
+
+
 def test_clear_answer_cache_for_ref_prefix():
     clear_answer_cache()
     k13 = cache_key(ref="JHN.13.1", mode="explain", question=None, scene="verse_full")

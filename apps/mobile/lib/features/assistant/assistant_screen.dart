@@ -3,6 +3,7 @@ library;
 
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,6 +33,7 @@ import 'assistant_visible.dart';
 import 'assistant_section_stream.dart';
 import 'answer_text.dart' show kAssistantTabAnswerFontSize;
 import 'assistant_chip_prompts.dart';
+import 'assistant_composer.dart';
 import 'assistant_draft.dart';
 import 'assistant_format.dart';
 import 'assistant_personalize.dart';
@@ -77,6 +79,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   String _knowledgeBaseName = '平台知识库';
   List<KnowledgeBaseSummary> _kbs = const [];
   bool _bootstrapped = false;
+  CancelToken? _chatCancel;
+  bool _followScroll = true;
+  int _streamGen = 0;
 
   void _maybeBootstrap() {
     if (_bootstrapped) return;
@@ -90,6 +95,15 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     super.initState();
     _anchorRef = widget.seedRef;
     preloadVerseFaq();
+    _scroll.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients || !_streaming) return;
+    final max = _scroll.position.maxScrollExtent;
+    if (max - _scroll.offset > 120) {
+      if (_followScroll) setState(() => _followScroll = false);
+    }
   }
 
   Future<void> _prefetchQuota() async {
@@ -242,16 +256,22 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         ..clear()
         ..addAll(
           msgs.map((m) {
-            final t = ChatTurn(role: m.role, content: m.content);
-            final cites = citationsFromJson(m.citationsJson);
-            if (cites.isNotEmpty) {
+            final extras = decodeAssistantMessageJson(m.citationsJson);
+            final t = ChatTurn(
+              role: m.role,
+              content: m.content,
+              followups: extras.followups,
+              scene: extras.scene,
+            );
+            if (extras.citations.isNotEmpty || extras.instant) {
               t.meta = ChatMeta(
                 mode: '',
                 modeLabel: '',
                 display: '',
-                citations: cites,
+                citations: extras.citations,
                 quotaUsed: 0,
                 quotaLimit: 0,
+                instant: extras.instant,
               );
             }
             return t;
@@ -355,16 +375,19 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
   @override
   void dispose() {
+    _chatCancel?.cancel();
     _slowTimer?.cancel();
     // 不在异步间隙写已 dispose 的 controller；先取文字再 dispose。
     final draft = _input.text;
     unawaited(saveComposerDraft(draft));
+    _scroll.removeListener(_onScroll);
     _input.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
   void _autoScroll() {
+    if (!_followScroll) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
         // 流式输出会高频调用；jumpTo 避免叠加多个 animateTo 抢占滚动帧。
@@ -373,8 +396,31 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     });
   }
 
-  Future<void> _send({String? seedQuestion, AssistantScene? scene}) async {
+  void _stopStream() {
+    _chatCancel?.cancel();
+    _chatCancel = null;
+    _slowTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _streaming = false;
+      _streamSlow = false;
+      _streamPhase = ThinkingPhase.understanding;
+      if (_turns.isNotEmpty && _turns.last.role == 'assistant') {
+        final last = _turns.last;
+        if (last.content.trim().isEmpty) {
+          last.content = '（已停止生成）';
+        }
+      }
+    });
+  }
+
+  Future<void> _send({
+    String? seedQuestion,
+    AssistantScene? scene,
+    String? displayText,
+  }) async {
     final text = (seedQuestion ?? _input.text).trim();
+    final shown = (displayText ?? text).trim();
     final hasRef = (_anchorRef ?? '').isNotEmpty && _turns.isEmpty;
     if (text.isEmpty && !hasRef) {
       if (mounted) {
@@ -409,7 +455,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         .map(
           (t) => ChatTurn(
             role: t.role,
-            content: t.role == 'assistant' ? bodyText(t.content) : t.content,
+            content: t.role == 'assistant'
+                ? bodyText(t.content)
+                : (t.apiText ?? t.content),
           ),
         )
         .toList();
@@ -434,9 +482,20 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
     _input.clear();
     unawaited(clearComposerDraft());
+    _chatCancel?.cancel();
+    final myGen = ++_streamGen;
+    _chatCancel = CancelToken();
+    _followScroll = true;
+
     if (text.isNotEmpty) {
-      _turns.add(ChatTurn(role: 'user', content: text));
-      await repo.addMessage(sid, 'user', text);
+      _turns.add(
+        ChatTurn(
+          role: 'user',
+          content: shown.isNotEmpty ? shown : text,
+          apiText: shown != text ? text : null,
+        ),
+      );
+      await repo.addMessage(sid, 'user', shown.isNotEmpty ? shown : text);
       await repo.maybeTitleFromFirst(sid, text);
       ref
           .read(badgeStatsRecorderProvider)
@@ -460,12 +519,16 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       _streamPhase = ThinkingPhase.understanding;
       _streamSlow = false;
     });
-    _slowTimer = Timer(const Duration(seconds: 15), () {
+    _slowTimer = Timer(const Duration(seconds: 12), () {
       if (mounted && _streaming && reply.content.isEmpty) {
         setState(() => _streamSlow = true);
       }
     });
     _autoScroll();
+
+    final streamPerf = AssistantStreamPerf(
+      AssistantPerfDetail(surface: 'tab', scene: activeScene.id),
+    );
 
     if (refForApi != null &&
         isDefaultTabExplain(
@@ -491,7 +554,16 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             cacheSource: 'faq',
           );
         });
-        await repo.addMessage(sid, 'assistant', bodyText(faq));
+        await repo.addMessage(
+          sid,
+          'assistant',
+          bodyText(faq),
+          instant: true,
+          scene: activeScene.id,
+        );
+        unawaited(
+          flushAssistantPerf(ref.read(dioProvider), streamPerf..onDone()),
+        );
         setState(() {
           _streaming = false;
           _streamSlow = false;
@@ -504,25 +576,30 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     var gotDelta = false;
     var pendingDelta = '';
     final sectionStream = SectionStreamAccumulator();
-    final streamPerf = AssistantStreamPerf(
-      AssistantPerfDetail(surface: 'tab', scene: activeScene.id),
-    );
     Timer? deltaFlush;
+    Timer? sectionFlush;
+    var sectionDirty = false;
 
     void applySectionStream() {
       if (!sectionStream.active) return;
       final md = sectionStream.toMarkdown();
       if (md.isEmpty) return;
-      setState(() {
-        gotDelta = true;
-        streamPerf.onFirstToken();
-        _streamPhase = ThinkingPhase.writing;
-        reply.content = md;
-        reply.sections = sectionStream.getSections();
-        reply.streamSections = sectionStream.getRenderableSections();
+      sectionDirty = true;
+      sectionFlush ??= Timer.periodic(const Duration(milliseconds: 72), (_) {
+        if (!sectionDirty) return;
+        sectionDirty = false;
+        if (!mounted || myGen != _streamGen) return;
+        setState(() {
+          gotDelta = true;
+          streamPerf.onFirstToken();
+          _streamPhase = ThinkingPhase.writing;
+          reply.content = sectionStream.toMarkdown();
+          reply.sections = sectionStream.getSections();
+          reply.streamSections = sectionStream.getRenderableSections();
+        });
+        streamPerf.onTextUpdate(reply.content);
+        _autoScroll();
       });
-      streamPerf.onTextUpdate(md);
-      _autoScroll();
     }
 
     void flushDelta({bool force = false}) {
@@ -553,6 +630,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           conversationId: _conversationId,
           knowledgeBaseId: _knowledgeBaseId,
           readerContext: buildAssistantReaderContext(ref),
+          cancelToken: _chatCancel,
         );
 
     var receivedDelta = false;
@@ -668,9 +746,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               terminalError = true;
               flushDelta(force: true);
               setState(
-                () => reply.content = reply.content.isEmpty
-                    ? message
-                    : '${reply.content}\n\n⚠️ $message',
+                () => reply.content = mergeAssistantStreamError(
+                  reply.content,
+                  message,
+                ),
               );
           }
         }
@@ -684,7 +763,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
       if (reply.content.isEmpty && !terminalError && !receivedDelta && mounted) {
         setState(() {
-          reply.content = '未收到回答内容，请稍后再试。';
+          reply.content = '⚠️ 未收到回答内容，请稍后再试。';
         });
       }
       if (reply.content.isNotEmpty && !isAssistantHistoryExcluded(reply.content)) {
@@ -693,13 +772,18 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           'assistant',
           bodyText(reply.content),
           citations: reply.meta?.citations ?? const [],
+          followups: reply.followups,
+          scene: reply.scene ?? activeScene.id,
+          instant: reply.meta?.instant == true,
         );
       }
     } finally {
       deltaFlush?.cancel();
+      sectionFlush?.cancel();
       flushDelta(force: true);
       _slowTimer?.cancel();
-      if (mounted) {
+      _chatCancel = null;
+      if (mounted && myGen == _streamGen) {
         setState(() {
           _streaming = false;
           _streamSlow = false;
@@ -714,9 +798,26 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     String text, {
     AssistantMode? mode,
     AssistantScene? scene,
+    String? displayLabel,
   }) async {
     if (mode != null) setState(() => _mode = mode);
-    await _send(seedQuestion: text, scene: scene);
+    await _send(
+      seedQuestion: text,
+      scene: scene,
+      displayText: displayLabel,
+    );
+  }
+
+  Future<void> _regenerateAt(int assistantIdx) async {
+    if (_streaming || assistantIdx < 0 || assistantIdx >= _turns.length) {
+      return;
+    }
+    var userIdx = assistantIdx - 1;
+    while (userIdx >= 0 && _turns[userIdx].role != 'user') {
+      userIdx -= 1;
+    }
+    if (userIdx < 0) return;
+    await _resendUserAt(userIdx);
   }
 
   AssistantScene? _sceneFromId(String? id) {
@@ -900,7 +1001,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                           onChip: _quotaExhausted ? null : _sendChip,
                         ),
                         const SizedBox(height: 18),
-                        _Composer(
+                        AssistantComposer(
                           controller: _input,
                           streaming: _streaming,
                           disabled: _quotaExhausted,
@@ -909,6 +1010,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                           chips: const [],
                           onChip: null,
                           onSend: () => _send(),
+                          onStop: _stopStream,
                           knowledgeBaseLabel: _knowledgeBaseName,
                           onPickKnowledgeBase: _quotaExhausted
                               ? null
@@ -933,12 +1035,19 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                         isLast &&
                         turn.role == 'assistant' &&
                         turn.content.isEmpty;
+                    final isLastAssistant = isLast &&
+                        turn.role == 'assistant' &&
+                        !_streaming;
                     return _Bubble(
                       turn: turn,
+                      turnIndex: i,
                       streaming: _streaming && isLast,
                       thinkingPhase: thinking ? _streamPhase : null,
                       streamSlow: thinking && _streamSlow,
                       anchorRef: _anchorRef,
+                      allTurns: _turns,
+                      canRegenerate: isLastAssistant &&
+                          isAssistantRegenCandidate(turn.content),
                       userActionsDisabled: _streaming || _quotaExhausted,
                       onEditUserMessage: _quotaExhausted
                           ? null
@@ -951,6 +1060,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                       onResendUserMessage: (_streaming || _quotaExhausted)
                           ? null
                           : (_) => unawaited(_resendUserAt(i)),
+                      onRegenerate: (_streaming || _quotaExhausted)
+                          ? null
+                          : () => unawaited(_regenerateAt(i)),
                       onFollowup: _quotaExhausted
                           ? null
                           : (q) => _sendChip(
@@ -968,7 +1080,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                   },
                 ),
               ),
-              _Composer(
+              AssistantComposer(
                 controller: _input,
                 streaming: _streaming,
                 disabled: _quotaExhausted,
@@ -976,6 +1088,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 chips: intentChips,
                 onChip: _quotaExhausted ? null : _sendChip,
                 onSend: () => _send(),
+                onStop: _stopStream,
                 knowledgeBaseLabel: _knowledgeBaseName,
                 onPickKnowledgeBase: _quotaExhausted
                     ? null
@@ -1695,35 +1808,59 @@ class _UserQuestionAction extends StatelessWidget {
 class _Bubble extends ConsumerWidget {
   const _Bubble({
     required this.turn,
+    required this.turnIndex,
+    required this.allTurns,
     this.streaming = false,
     this.thinkingPhase,
     this.streamSlow = false,
     this.anchorRef,
+    this.canRegenerate = false,
     this.userActionsDisabled = false,
     this.onEditUserMessage,
     this.onResendUserMessage,
+    this.onRegenerate,
     this.onFollowup,
     this.onSwitchToPlatform,
   });
   final ChatTurn turn;
+  final int turnIndex;
+  final List<ChatTurn> allTurns;
   final bool streaming;
   final ThinkingPhase? thinkingPhase;
   final bool streamSlow;
   final String? anchorRef;
+  final bool canRegenerate;
   final bool userActionsDisabled;
   final void Function(String text)? onEditUserMessage;
   final void Function(String text)? onResendUserMessage;
+  final VoidCallback? onRegenerate;
   final void Function(String question)? onFollowup;
   final VoidCallback? onSwitchToPlatform;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isUser = turn.role == 'user';
+    final priorUserQuestions = <String>[];
+    final priorFollowups = <String>[];
+    for (var i = 0; i < turnIndex; i++) {
+      final m = allTurns[i];
+      if (m.role == 'user') {
+        priorUserQuestions.add(m.apiText ?? m.content);
+      }
+      if (m.role == 'assistant' && m.content.isNotEmpty) {
+        priorFollowups.addAll(followupsOf(m.content));
+        priorFollowups.addAll(m.followups);
+      }
+    }
     final followups = isUser
         ? const <String>[]
         : (turn.followups.isNotEmpty
               ? turn.followups
-              : followupsOf(turn.content));
+              : followupsForMessage(
+                  turn.content,
+                  priorUserQuestions: priorUserQuestions,
+                  priorFollowups: priorFollowups,
+                ));
     final displayText = turn.content;
     final showActions = !isUser && turn.content.isNotEmpty && !streaming;
     final cites = turn.meta?.citations ?? const <Citation>[];
@@ -1846,7 +1983,15 @@ class _Bubble extends ConsumerWidget {
                     .toList(),
               ),
             ),
-          if (showActions)
+          if (canRegenerate && onRegenerate != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _ActionText(
+                label: '重新生成',
+                onTap: onRegenerate!,
+              ),
+            ),
+          if (showActions && !canRegenerate)
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Wrap(

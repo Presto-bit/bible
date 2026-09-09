@@ -63,7 +63,10 @@ class AssistantRepository {
     }
   }
 
-  Stream<ChatEvent> chatFromTurn(ResolvedTurnRequest turn) async* {
+  Stream<ChatEvent> chatFromTurn(
+    ResolvedTurnRequest turn, {
+    CancelToken? cancelToken,
+  }) async* {
     final body = Map<String, dynamic>.from(toChatStreamBody(turn));
     if (turn.history.isNotEmpty) {
       body['history'] = turn.history.map((h) => h.toJson()).toList();
@@ -71,7 +74,7 @@ class AssistantRepository {
     var gotDelta = false;
     var sawDone = false;
     var terminalError = false;
-    await for (final evt in _chatAttempt(body, turn.scene)) {
+    await for (final evt in _chatAttempt(body, turn.scene, cancelToken: cancelToken)) {
       if (evt is DeltaEvent && evt.text.trim().isNotEmpty) gotDelta = true;
       if (evt is DoneEvent) sawDone = true;
       if (evt is ErrorEvent) terminalError = true;
@@ -95,6 +98,7 @@ class AssistantRepository {
     String? knowledgeBaseId,
     Map<String, dynamic>? readerContext,
     String surface = 'mobile',
+    CancelToken? cancelToken,
   }) async* {
     final turn = resolveTurnRequest(
       TurnRequest(
@@ -120,19 +124,21 @@ class AssistantRepository {
         },
       ),
     );
-    yield* chatFromTurn(turn);
+    yield* chatFromTurn(turn, cancelToken: cancelToken);
   }
 
   /// 单次 POST /ai/chat 并解析 SSE；网络/HTTP 错误在此 yield ErrorEvent。
   Stream<ChatEvent> _chatAttempt(
     Map<String, dynamic> body,
-    AssistantScene resolved,
-  ) async* {
+    AssistantScene resolved, {
+    CancelToken? cancelToken,
+  }) async* {
     final Response<ResponseBody> res;
     try {
       res = await _dio.post<ResponseBody>(
         '/ai/chat',
         data: body,
+        cancelToken: cancelToken,
         options: Options(
           responseType: ResponseType.stream,
           headers: {'Accept': 'text/event-stream'},
@@ -142,6 +148,7 @@ class AssistantRepository {
         ),
       );
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) return;
       yield ErrorEvent('网络异常：${e.message ?? e.type.name}');
       return;
     }

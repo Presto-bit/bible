@@ -213,6 +213,7 @@ class ChatTurn {
   ChatTurn({
     required this.role,
     required this.content,
+    this.apiText,
     this.meta,
     this.followups = const [],
     this.scene,
@@ -223,6 +224,8 @@ class ChatTurn {
   });
   final String role; // user / assistant
   String content;
+  /// 用户气泡展示文案与 API 问句分离（chip label vs 完整 prompt）。
+  String? apiText;
   ChatMeta? meta;
   List<String> followups;
   String? scene;

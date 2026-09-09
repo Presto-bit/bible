@@ -37,9 +37,17 @@ def normalize_ref(ref: str | None) -> str:
     return (ref or "").strip().upper().split("@")[0]
 
 
-def cache_key(*, ref: str | None, mode: str | None, question: str | None, scene: str | None = None) -> str:
+def cache_key(
+    *,
+    ref: str | None,
+    mode: str | None,
+    question: str | None,
+    scene: str | None = None,
+    knowledge_base_id: str | None = None,
+) -> str:
     mode_l = (mode or "explain").strip().lower()
     scene_l = (scene or "").strip().lower()
+    kb_l = (knowledge_base_id or "platform").strip().lower() or "platform"
     # 半屏释经首答：按节缓存；verse_quick / verse_full 共享（prewarm 与半屏对齐）
     if mode_l == "explain" and scene_l in {"verse_full", "verse_quick"}:
         q_norm = "__verse_explain__"
@@ -52,6 +60,7 @@ def cache_key(*, ref: str | None, mode: str | None, question: str | None, scene:
             mode_l,
             scene_l,
             q_norm,
+            kb_l,
         ]
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()

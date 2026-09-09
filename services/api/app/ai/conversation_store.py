@@ -232,8 +232,7 @@ def _conversation_owned(
         return True
     if user_id and row_user and row_user == user_id:
         return True
-    if not row_device and not row_user:
-        return True
+    # 匿名会话（device/user 均为空）不可被任意客户端认领
     return False
 
 

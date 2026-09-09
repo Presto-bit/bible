@@ -136,10 +136,16 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
   bool _chipTapLocked = false;
 
   String? _conversationId;
+  Timer? _slowTimer;
+  bool _streamSlow = false;
+  bool _followScroll = true;
+  ThinkingPhase _streamPhase = ThinkingPhase.understanding;
 
   @override
   void initState() {
     super.initState();
+    unawaited(initHalfSheetCache());
+    _scrollCtrl.addListener(_onHalfSheetScroll);
     _initialScene = resolveHalfSheetInitialScene(
       widget.explicitSelection,
       widget.selectionText,
@@ -182,9 +188,20 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     });
   }
 
+  void _onHalfSheetScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    final active = _turns.where((t) => t.busy).firstOrNull;
+    if (active == null) return;
+    if (_scrollCtrl.position.maxScrollExtent - _scrollCtrl.offset > 100) {
+      if (_followScroll) setState(() => _followScroll = false);
+    }
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
+    _slowTimer?.cancel();
+    _scrollCtrl.removeListener(_onHalfSheetScroll);
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -214,6 +231,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
   }
 
   void _scrollToBottom() {
+    if (!_followScroll) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollCtrl.hasClients) return;
       _scrollCtrl.animateTo(
@@ -292,7 +310,11 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
       WidgetsBinding.instance.addPostFrameCallback((_) => flush());
     }
 
+    _slowTimer?.cancel();
+    _followScroll = true;
     setState(() {
+      _streamSlow = false;
+      _streamPhase = ThinkingPhase.understanding;
       final t = _turnFor(turnId);
       if (t != null) {
         t
@@ -301,6 +323,11 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           ..streamIncomplete = false
           ..userQuestion = question
           ..scene = scene;
+      }
+    });
+    _slowTimer = Timer(const Duration(seconds: 12), () {
+      if (mounted && (_turnFor(turnId)?.busy ?? false)) {
+        setState(() => _streamSlow = true);
       }
     });
 
@@ -422,6 +449,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             kbId = meta.knowledgeBaseId;
             kbName = meta.knowledgeBaseName;
             setState(() {
+              _streamPhase = ThinkingPhase.refs;
               final t = _turnFor(turnId);
               if (t != null) {
                 t
@@ -446,6 +474,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             if (!gotDelta) {
               gotDelta = true;
               streamPerf.onFirstToken();
+              setState(() => _streamPhase = ThinkingPhase.writing);
               flush();
             } else {
               scheduleFlush();
@@ -456,6 +485,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             if (!gotDelta) {
               gotDelta = true;
               streamPerf.onFirstToken();
+              setState(() => _streamPhase = ThinkingPhase.writing);
               flush();
             } else {
               scheduleFlush();
@@ -470,6 +500,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             if (!gotDelta) {
               gotDelta = true;
               streamPerf.onFirstToken();
+              setState(() => _streamPhase = ThinkingPhase.writing);
               flush();
             } else {
               scheduleFlush();
@@ -595,7 +626,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
       },
       onDone: () {
         if (!mounted || runId != _runId || chatSettled) return;
+        _slowTimer?.cancel();
         setState(() {
+          _streamSlow = false;
           final t = _turnFor(turnId);
           if (t == null || !t.busy) return;
           if (pending.trim().isNotEmpty) {
@@ -608,6 +641,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
       },
       onError: (_) {
         if (!mounted || runId != _runId) return;
+        _slowTimer?.cancel();
         streamPerf.onError();
         unawaited(flushAssistantPerf(ref.read(dioProvider), streamPerf));
         setState(() {
@@ -943,8 +977,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           AssistantThinkingState(
             phase: turn.citations.isNotEmpty
                 ? ThinkingPhase.refs
-                : ThinkingPhase.understanding,
+                : _streamPhase,
             citeCount: turn.citations.length,
+            slow: _streamSlow,
             variant: ThinkingVariant.halfSheet,
           )
         else ...[

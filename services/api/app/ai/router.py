@@ -501,11 +501,14 @@ def record_assistant_perf(
 class PrewarmRequest(BaseModel):
     ref: str
     mode: str = "explain"
-    scene: str | None = "verse_full"
+    scene: str | None = "verse_quick"
 
 
 @router.post("/prewarm")
-def prewarm_answer(body: PrewarmRequest):
+def prewarm_answer(
+    body: PrewarmRequest,
+    x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+):
     """读经进入经节时静默预生成「解释这节」首答，写入答案缓存。"""
     from ..bible.refs import parse_ref
     from ..rag.answer_cache import cache_key, get_answer, put_answer
@@ -514,9 +517,16 @@ def prewarm_answer(body: PrewarmRequest):
     from .llm import complete_chat
     from .parse_output import extract_sections, split_body_and_followups
 
+    from .prewarm_limit import allow_prewarm
+
     settings = get_settings()
     if not settings.rag_prewarm_on_read:
         return {"status": "disabled"}
+    if not allow_prewarm(x_guest_id):
+        return JSONResponse(
+            status_code=429,
+            content={"error": "prewarm 过于频繁，请稍后再试"},
+        )
     ref_raw = (body.ref or "").strip()
     if not ref_raw:
         return JSONResponse(status_code=400, content={"error": "缺少经节"})
@@ -524,7 +534,7 @@ def prewarm_answer(body: PrewarmRequest):
     if not parsed or parsed.chapter is None or parsed.verse_start is None:
         return JSONResponse(status_code=400, content={"error": "经节无效"})
     mode = (body.mode or "explain").strip() or "explain"
-    scene = (body.scene or "verse_full").strip() or "verse_full"
+    scene = (body.scene or "verse_quick").strip() or "verse_quick"
     question = f"请解读：{parsed.display}"
     key = cache_key(ref=ref_raw, mode=mode, question=question, scene=scene)
 
@@ -678,6 +688,7 @@ def chat(
             mode=body.mode,
             question=body.question,
             scene=body.scene,
+            knowledge_base_id=body.knowledge_base_id,
         )
         if cacheable
         else ""
@@ -782,7 +793,9 @@ def chat(
                 scene=(cached.get("meta") or {}).get("scene"),
                 mode=body.mode,
                 surface=body.surface,
-                status="ok_cache",
+                status="ok",
+                cache_hit=True,
+                latency_ms=0,
             )
 
         return StreamingResponse(
@@ -1187,7 +1200,7 @@ def chat(
             user_content=body.question or "",
             assistant_content=body_text,
         )
-        if key and body_text and not body_text.startswith("⚠️"):
+        if key and body_text and not body_text.startswith("⚠️") and not incomplete:
             put_answer(
                 key,
                 {
@@ -1199,6 +1212,7 @@ def chat(
                     "source": "cache",
                 },
             )
+        done_latency = done_timings.get("first_token_ms") or prepare_ms
         log_ai_request(
             device_id=x_guest_id,
             user_id=logged_in,
@@ -1206,6 +1220,7 @@ def chat(
             mode=body.mode,
             surface=body.surface,
             status="ok",
+            latency_ms=int(done_latency) if done_latency else None,
         )
 
     return StreamingResponse(

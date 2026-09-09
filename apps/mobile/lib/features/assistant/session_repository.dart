@@ -141,6 +141,9 @@ class SessionRepository {
     String role,
     String content, {
     List<Citation> citations = const [],
+    List<String> followups = const [],
+    String? scene,
+    bool instant = false,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     await _db.into(_db.chatMessages).insert(ChatMessage(
@@ -148,13 +151,12 @@ class SessionRepository {
           sessionId: sid,
           role: role,
           content: content,
-          citationsJson: jsonEncode(citations
-              .map((c) => {
-                    'n': c.n,
-                    'title': c.title,
-                    if (c.snippet != null) 'snippet': c.snippet,
-                  })
-              .toList()),
+          citationsJson: encodeAssistantMessageJson(
+            citations: citations,
+            followups: followups,
+            scene: scene,
+            instant: instant,
+          ),
           createdAtMs: now,
         ));
     // 触达会话使其排序靠前
@@ -256,26 +258,101 @@ final sessionsStreamProvider = StreamProvider<List<AiSession>>((ref) async* {
   }
 });
 
-List<Citation> citationsFromJson(String json) {
+class AssistantMessageExtras {
+  const AssistantMessageExtras({
+    this.citations = const [],
+    this.followups = const [],
+    this.scene,
+    this.instant = false,
+  });
+
+  final List<Citation> citations;
+  final List<String> followups;
+  final String? scene;
+  final bool instant;
+}
+
+String encodeAssistantMessageJson({
+  List<Citation> citations = const [],
+  List<String> followups = const [],
+  String? scene,
+  bool instant = false,
+}) {
+  if (followups.isEmpty && scene == null && !instant) {
+    return jsonEncode(
+      citations
+          .map((c) => {
+                'n': c.n,
+                'title': c.title,
+                if (c.snippet != null) 'snippet': c.snippet,
+              })
+          .toList(),
+    );
+  }
+  return jsonEncode({
+    'v': 1,
+    'citations': citations
+        .map((c) => {
+              'n': c.n,
+              'title': c.title,
+              if (c.snippet != null) 'snippet': c.snippet,
+            })
+        .toList(),
+    if (followups.isNotEmpty) 'followups': followups,
+    if (scene != null && scene.isNotEmpty) 'scene': scene,
+    if (instant) 'instant': true,
+  });
+}
+
+AssistantMessageExtras decodeAssistantMessageJson(String json) {
   final raw = json.trim();
-  if (raw.isEmpty) return const [];
+  if (raw.isEmpty) return const AssistantMessageExtras();
   try {
     final decoded = jsonDecode(raw);
-    if (decoded is! List) return const [];
-    return decoded
-        .map((e) {
-          if (e is! Map) {
-            return Citation(n: 0, title: '', score: 0);
-          }
-          return Citation(
-            n: (e['n'] ?? 0) as int,
-            title: (e['title'] ?? '') as String,
-            score: 0,
-            snippet: e['snippet'] as String?,
-          );
-        })
-        .toList();
-  } catch (_) {
-    return const [];
-  }
+    if (decoded is Map && decoded['v'] == 1) {
+      final citesRaw = decoded['citations'];
+      final cites = citesRaw is List
+          ? citesRaw
+              .map((e) {
+                if (e is! Map) return Citation(n: 0, title: '', score: 0);
+                return Citation(
+                  n: (e['n'] ?? 0) as int,
+                  title: (e['title'] ?? '') as String,
+                  score: 0,
+                  snippet: e['snippet'] as String?,
+                );
+              })
+              .toList()
+          : const <Citation>[];
+      final fu = decoded['followups'];
+      final followups = fu is List
+          ? fu.map((e) => e.toString()).where((s) => s.isNotEmpty).toList()
+          : const <String>[];
+      return AssistantMessageExtras(
+        citations: cites,
+        followups: followups,
+        scene: decoded['scene'] as String?,
+        instant: decoded['instant'] == true,
+      );
+    }
+    if (decoded is List) {
+      return AssistantMessageExtras(
+        citations: decoded
+            .map((e) {
+              if (e is! Map) return Citation(n: 0, title: '', score: 0);
+              return Citation(
+                n: (e['n'] ?? 0) as int,
+                title: (e['title'] ?? '') as String,
+                score: 0,
+                snippet: e['snippet'] as String?,
+              );
+            })
+            .toList(),
+      );
+    }
+  } catch (_) {}
+  return const AssistantMessageExtras();
 }
+
+List<Citation> citationsFromJson(String json) =>
+    decodeAssistantMessageJson(json).citations;

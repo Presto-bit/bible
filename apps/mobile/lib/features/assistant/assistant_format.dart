@@ -51,6 +51,43 @@ String joinOrphanFootnotes(String text) {
 String bodyText(String text) =>
     joinOrphanFootnotes(stripTrailingReferences(stripFollowups(text)));
 
+/// 流式错误与已有正文合并（对齐 PWA `mergeAssistantStreamError`）。
+String mergeAssistantStreamError(String acc, String msg) {
+  final trimmed = acc.trim();
+  final cleanMsg = msg.startsWith('⚠️') ? msg : '⚠️ $msg';
+  if (trimmed.isEmpty || trimmed.startsWith('⚠️')) return cleanMsg;
+  return '$trimmed\n\n$cleanMsg';
+}
+
+/// 过滤已与用户问过、或历史追问出现过的建议。
+List<String> followupsForMessage(
+  String text, {
+  List<String> priorUserQuestions = const [],
+  List<String> priorFollowups = const [],
+}) {
+  final blocked = <String>{};
+  for (final q in priorUserQuestions) {
+    final key = normalizeQuestion(q);
+    if (key.isNotEmpty) blocked.add(key);
+  }
+  for (final q in priorFollowups) {
+    final key = normalizeQuestion(q);
+    if (key.isNotEmpty) blocked.add(key);
+  }
+  final seen = <String>{};
+  final out = <String>[];
+  for (final q in followupsOf(text)) {
+    final key = normalizeQuestion(q);
+    if (key.isEmpty || blocked.contains(key) || seen.contains(key)) continue;
+    seen.add(key);
+    out.add(q);
+  }
+  return out;
+}
+
+/// 失败 / 中断等待用户重试的回复。
+bool isAssistantRegenCandidate(String text) => isAssistantHistoryExcluded(text);
+
 /// 失败 / 中断 / 空答 — 不应进入多轮 history。
 bool isAssistantHistoryExcluded(String text) {
   final t = text.trim();
