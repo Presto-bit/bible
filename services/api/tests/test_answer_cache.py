@@ -27,6 +27,12 @@ def _sample_payload(*, ref: str, answer: str) -> dict:
     }
 
 
+def test_verse_scene_cache_key_unified():
+    k_full = cache_key(ref="JHN.3.16", mode="explain", question=None, scene="verse_full")
+    k_quick = cache_key(ref="JHN.3.16", mode="explain", question=None, scene="verse_quick")
+    assert k_full == k_quick
+
+
 def test_clear_answer_cache_for_ref_prefix():
     clear_answer_cache()
     k13 = cache_key(ref="JHN.13.1", mode="explain", question=None, scene="verse_full")

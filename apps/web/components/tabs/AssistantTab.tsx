@@ -73,6 +73,7 @@ import {
   type ThinkingPhase,
 } from '@/components/assistant/AssistantThinkingState';
 import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
+import { InstantAnswerStatus } from '@/components/assistant/InstantAnswerStatus';
 import {
   KnowledgeBasePicker,
   DEFAULT_KB_ID,
@@ -102,6 +103,8 @@ interface Msg {
   sections?: AnswerSection[];
   outputPlan?: OutputPlan;
   structureAssets?: StructureAsset[];
+  instant?: boolean;
+  cacheSource?: string;
 }
 
 interface Session {
@@ -726,6 +729,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let answerSections: AnswerSection[] | undefined;
     let outputPlan: OutputPlan | undefined;
     let structureAssets: StructureAsset[] | undefined;
+    let instant = false;
+    let cacheSource: string | undefined;
     let gotDelta = false;
     const applyAcc = () => {
       rafRef.current = null;
@@ -748,6 +753,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           sections: answerSections,
           outputPlan,
           structureAssets,
+          instant,
+          cacheSource,
         };
         return copy;
       });
@@ -807,6 +814,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             }
             if (meta.structure_assets?.length) {
               structureAssets = meta.structure_assets as StructureAsset[];
+            }
+            if (meta.cache_hit || meta.instant) {
+              instant = true;
+              cacheSource = meta.cache_source;
             }
             setStreamCiteCount(cites.length);
             setStreamPhase('refs');
@@ -869,6 +880,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             }
             if (resolved.text.trim()) {
               acc = resolved.text.trim();
+            }
+            if (payload?.cache_hit || payload?.instant) {
+              instant = true;
+              cacheSource = payload.cache_source ?? cacheSource;
             }
             if ((resolved.incomplete || payload?.streamComplete === false) && acc.trim()) {
               acc = appendStreamIncompleteNotice(acc);
@@ -1424,7 +1439,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                   showAssistantBody ? (
                     <div className="assistant-answer">
                       {!m.text.startsWith('⚠️') && m.text ? (
-                        <RagSourceStatus
+                        <>
+                          {!isStreaming ? (
+                            <InstantAnswerStatus
+                              instant={m.instant}
+                              cacheSource={m.cacheSource}
+                            />
+                          ) : null}
+                          <RagSourceStatus
                           count={
                             usedCitations.length > 0
                               ? usedCitations.length
@@ -1446,6 +1468,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                               : undefined
                           }
                         />
+                        </>
                       ) : null}
                       <div className="allow-text-select">
                         <AnswerView

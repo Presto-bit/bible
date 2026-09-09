@@ -51,6 +51,7 @@ import {
   type ThinkingPhase,
 } from '@/components/assistant/AssistantThinkingState';
 import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
+import { InstantAnswerStatus } from '@/components/assistant/InstantAnswerStatus';
 import { getSessionKnowledgeBaseId, DEFAULT_KB_ID } from '@/lib/assistant_knowledge_base';
 import { AnalysisShareSheet } from '@/components/AnalysisShareSheet';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -71,6 +72,9 @@ type TurnView = HalfSheetTurn & {
   sections?: AnswerSection[];
   outputPlan?: OutputPlan;
   structureAssets?: StructureAsset[];
+  instant?: boolean;
+  cacheSource?: string;
+  localInstant?: boolean;
 };
 
 function resolveInitialScene(explicitSelection: boolean, selectionText: string): AssistantScene {
@@ -256,6 +260,7 @@ export default function XiaoAiSheet({
                     followups,
                     busy: false,
                     streamIncomplete: false,
+                    localInstant: true,
                   }
                 : t,
             );
@@ -294,6 +299,8 @@ export default function XiaoAiSheet({
       let answerSections: AnswerSection[] | undefined;
       let outputPlan: OutputPlan | undefined;
       let structureAssets: StructureAsset[] | undefined;
+      let instant = false;
+      let cacheSource: string | undefined;
       let settled = false;
       const sectionStream = new SectionStreamAccumulator();
       const syncSectionStream = () => {
@@ -352,6 +359,10 @@ export default function XiaoAiSheet({
             if (meta.structure_assets?.length) {
               structureAssets = meta.structure_assets as StructureAsset[];
             }
+            if (meta.cache_hit || meta.instant) {
+              instant = true;
+              cacheSource = meta.cache_source;
+            }
             streamPhase = 'refs';
             setTurns((prev) =>
               prev.map((t) =>
@@ -365,6 +376,8 @@ export default function XiaoAiSheet({
                       responseProfile,
                       structureAssets,
                       outputPlan,
+                      instant,
+                      cacheSource,
                     }
                   : t,
               ),
@@ -560,6 +573,8 @@ export default function XiaoAiSheet({
                       sections: answerSections,
                       structureAssets,
                       outputPlan,
+                      instant: instant || Boolean(payload?.cache_hit || payload?.instant),
+                      cacheSource: cacheSource ?? payload?.cache_source,
                     }
                   : t,
               );
@@ -761,7 +776,13 @@ export default function XiaoAiSheet({
                     ) : hasVisible || !turn.busy ? (
                       <>
                         {!hasError && !turn.busy ? (
-                          <RagSourceStatus
+                          <>
+                            <InstantAnswerStatus
+                              instant={turn.instant}
+                              cacheSource={turn.cacheSource}
+                              local={turn.localInstant}
+                            />
+                            <RagSourceStatus
                             count={evidenceCites.length}
                             useRag={turn.useRag}
                             knowledgeBaseId={turn.kbId}
@@ -775,6 +796,7 @@ export default function XiaoAiSheet({
                                 : undefined
                             }
                           />
+                          </>
                         ) : null}
                         <AnswerView
                           text={clean || rawAnswer}

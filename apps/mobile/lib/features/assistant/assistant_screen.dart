@@ -21,7 +21,8 @@ import '../../core/theme.dart';
 import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../bible/reading_repository.dart';
 import '../bible/thoughts_repository.dart';
-import 'answer_profile_body.dart';
+import 'instant_answer_status.dart';
+import 'assistant_instant.dart';
 import 'assistant_answer_document.dart';
 import 'assistant_output_plan.dart';
 import 'assistant_visible.dart';
@@ -551,7 +552,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               if (text.trim().isNotEmpty) receivedDelta = true;
               pendingDelta += text;
               deltaFlush ??= Timer.periodic(
-                const Duration(milliseconds: 150),
+                const Duration(milliseconds: 72),
                 (_) {
                   flushDelta();
                   if (pendingDelta.isEmpty) {
@@ -1710,6 +1711,14 @@ class _Bubble extends ConsumerWidget {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (!displayText.startsWith('⚠️') && !streaming)
+                          InstantAnswerStatus(
+                            instant: isInstantAnswer(
+                              instant: turn.meta?.instant,
+                              cacheHit: turn.meta?.cacheHit,
+                            ),
+                            cacheSource: turn.meta?.cacheSource,
+                          ),
                         if (!displayText.startsWith('⚠️') && !streaming)
                           _RagSourceStatus(
                             count: cites.length,

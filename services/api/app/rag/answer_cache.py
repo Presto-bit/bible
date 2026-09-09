@@ -40,9 +40,10 @@ def normalize_ref(ref: str | None) -> str:
 def cache_key(*, ref: str | None, mode: str | None, question: str | None, scene: str | None = None) -> str:
     mode_l = (mode or "explain").strip().lower()
     scene_l = (scene or "").strip().lower()
-    # 半屏释经首答：按节缓存（问句含缩写/选区差异，不参与键）
+    # 半屏释经首答：按节缓存；verse_quick / verse_full 共享（prewarm 与半屏对齐）
     if mode_l == "explain" and scene_l in {"verse_full", "verse_quick"}:
         q_norm = "__verse_explain__"
+        scene_l = "verse_explain"
     else:
         q_norm = normalize_question(question)
     raw = "|".join(

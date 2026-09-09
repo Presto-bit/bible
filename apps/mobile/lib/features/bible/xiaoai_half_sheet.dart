@@ -18,6 +18,7 @@ import '../assistant/assistant_thinking.dart';
 import '../assistant/assistant_section_stream.dart';
 import '../assistant/assistant_turn_request.dart';
 import '../assistant/answer_profile_body.dart';
+import '../assistant/instant_answer_status.dart';
 import '../assistant/assistant_blocks.dart';
 import '../assistant/assistant_sections.dart';
 import '../assistant/assistant_format.dart';
@@ -70,6 +71,9 @@ class HalfSheetTurnView {
     this.sections = const [],
     this.outputPlan,
     this.structureAssets = const [],
+    this.instant = false,
+    this.cacheSource,
+    this.localInstant = false,
   });
 
   final String id;
@@ -87,6 +91,9 @@ class HalfSheetTurnView {
   List<AnswerSection> sections;
   OutputPlan? outputPlan;
   List<StructureAsset> structureAssets;
+  bool instant;
+  String? cacheSource;
+  bool localInstant;
 }
 
 class XiaoAiHalfSheet extends ConsumerStatefulWidget {
@@ -319,7 +326,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               ..citations = cached.citations
               ..followups = defaultHalfSheetFollowups(widget.refLabel)
               ..busy = false
-              ..streamIncomplete = false;
+              ..streamIncomplete = false
+              ..localInstant = true;
           }
         });
         _activeTurnId = turnId;
@@ -373,6 +381,11 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..responseProfile = meta.responseProfile
                   ..outputPlan = meta.outputPlan
                   ..structureAssets = meta.structureAssets;
+                if (meta.cacheHit == true || meta.instant == true) {
+                  t
+                    ..instant = true
+                    ..cacheSource = meta.cacheSource;
+                }
               }
               sectionStream.seedFromPlan(streamSeedTitles(meta.outputPlan));
             });
@@ -872,6 +885,12 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             variant: ThinkingVariant.halfSheet,
           )
         else ...[
+          if (!hasError && !turn.busy)
+            InstantAnswerStatus(
+              instant: turn.instant,
+              cacheSource: turn.cacheSource,
+              local: turn.localInstant,
+            ),
           if (!hasError && !turn.busy)
             _RagSourceStatusHalfSheet(
               count: evidenceCites.length,

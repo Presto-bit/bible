@@ -537,29 +537,6 @@ def prewarm_answer(body: PrewarmRequest):
                 soft_max=_dk.get("soft_max"),
                 prefer_prose=bool(_dk.get("prefer_prose")),
             )
-            body_probe, _ = split_body_and_followups(text)
-            filled = section_fill_once(
-                    prep["messages"],
-                    body_probe,
-                    scene_id,
-                    narrow=bool(_meta.get("narrow")),
-                    max_tokens=min(int(prep["max_tokens"]) // 2, 700),
-                    verse_span=verse_span,
-                    depth=_depth,
-                    planned_sections=_dk.get("expected_sections"),
-                    min_complete=_dk.get("min_complete"),
-            )
-            if filled and filled.strip():
-                text = normalize_answer_markdown(
-                    filled,
-                    scene_id,
-                    narrow=bool(_meta.get("narrow")),
-                    verse_span=verse_span,
-                    depth=_depth,
-                    soft_max=_dk.get("soft_max"),
-                    prefer_prose=bool(_dk.get("prefer_prose")),
-                    format_only=True,
-                )
             body_text, followups = split_body_and_followups(text)
             if (
                 scene_id in ("verse_full", "verse_quick")

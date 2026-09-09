@@ -304,6 +304,11 @@ body.assistant-keyboard.assistant-active .tabbar {
   line-height: 1.4;
   color: var(--ink-faint, #94a3b8);
 }
+.assistant-instant-status {
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
 .citation-evidence-rail {
   margin-top: 10px;
 }

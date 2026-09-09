@@ -70,6 +70,9 @@ class ChatMeta {
     this.structureAssets = const [],
     this.outputPlan,
     this.conversationId,
+    this.cacheHit,
+    this.cacheSource,
+    this.instant,
   });
 
   final String mode;
@@ -88,6 +91,9 @@ class ChatMeta {
   final List<StructureAsset> structureAssets;
   final OutputPlan? outputPlan;
   final String? conversationId;
+  final bool? cacheHit;
+  final String? cacheSource;
+  final bool? instant;
 
   factory ChatMeta.fromJson(Map<String, dynamic> j) {
     final q = (j['quota'] ?? const {}) as Map<String, dynamic>;
@@ -114,6 +120,9 @@ class ChatMeta {
           ? OutputPlan.fromJson(j['output_plan'] as Map<String, dynamic>)
           : null,
       conversationId: j['conversation_id'] as String?,
+      cacheHit: j['cache_hit'] is bool ? j['cache_hit'] as bool : null,
+      cacheSource: j['cache_source'] as String?,
+      instant: j['instant'] is bool ? j['instant'] as bool : null,
     );
   }
 }

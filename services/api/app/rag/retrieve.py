@@ -12,6 +12,7 @@ from ..db import get_pool
 from .core import balance_across_documents, hybrid_rank
 from .pgvector import ann_fetch, pgvector_ready
 from .query_cache import embed_query_cached
+from .retrieval_cache import get_retrieval, put_retrieval, retrieval_cache_key
 
 logger = logging.getLogger(__name__)
 
@@ -205,6 +206,18 @@ def retrieve_for_passage(
     types = source_types or [
         "commentary", "commentary-zh", "study-bible",
     ]
+    cache_key = retrieval_cache_key(
+        query,
+        book_name=book_name,
+        book_id=book_id,
+        chapter=chapter,
+        top_k=top_k,
+        source_types=types,
+    )
+    cached = get_retrieval(cache_key)
+    if cached is not None:
+        return cached
+
     s = get_settings()
     base = dict(
         query=query,
@@ -215,6 +228,7 @@ def retrieve_for_passage(
         balance_docs=True,
     )
 
+    hits: list[dict] = []
     if book_name or book_id:
         if chapter is not None:
             hits = retrieve(
@@ -222,21 +236,23 @@ def retrieve_for_passage(
                 chapter=chapter,
                 candidate_limit=s.rag_candidate_limit_chapter,
             )
-            if hits:
-                return hits
-        hits = retrieve(
-            **base,
-            chapter=None,
-            candidate_limit=s.rag_candidate_limit_book,
-        )
-        if hits:
-            return hits
+        if not hits:
+            hits = retrieve(
+                **base,
+                chapter=None,
+                candidate_limit=s.rag_candidate_limit_book,
+            )
 
-    return retrieve(
-        query,
-        top_k=top_k,
-        source_types=types,
-        keywords=_keywords(query),
-        candidate_limit=s.rag_candidate_limit_fallback,
-        balance_docs=True,
-    )
+    if not hits:
+        hits = retrieve(
+            query,
+            top_k=top_k,
+            source_types=types,
+            keywords=_keywords(query),
+            candidate_limit=s.rag_candidate_limit_fallback,
+            balance_docs=True,
+        )
+
+    if hits:
+        put_retrieval(cache_key, hits)
+    return hits
