@@ -415,8 +415,27 @@ def test_needs_citation_repair():
 def test_resolve_structure_assets():
     from app.ai.structure_assets import resolve_structure_assets
 
-    assets = resolve_structure_assets(scene_id="chat_general", ref_osis="MAT.5.3")
+    # 锚定四福音经节 ≠ 自动附耶稣生平年表
+    assets = resolve_structure_assets(
+        scene_id="chat_explain",
+        ref_osis="MAT.4.1",
+        question="这段在讲什么？",
+    )
+    assert not any(a.get("id") == "life-of-jesus" for a in assets)
+
+    assets = resolve_structure_assets(
+        scene_id="chat_explain",
+        ref_osis="MAT.4.1",
+        question="耶稣生平的时间线是怎样的？",
+    )
     assert any(a.get("id") == "life-of-jesus" for a in assets)
+
+    assets = resolve_structure_assets(
+        scene_id="chat_general",
+        question="圣经历史的时间线",
+    )
+    assert any(a.get("id") == "life-of-jesus" for a in assets)
+
     assets = resolve_structure_assets(scene_id="chat_general", ref_osis="EXO.25.1")
     assert any(a.get("id") == "tabernacle-layout" for a in assets)
 

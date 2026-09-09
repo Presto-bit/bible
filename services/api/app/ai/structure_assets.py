@@ -8,7 +8,11 @@ _HISTORY_Q_RE = re.compile(
 )
 _GENEALOGY_Q_RE = re.compile(r"谱系|族谱|家谱|世系")
 _KINGS_Q_RE = re.compile(r"诸王|君王|王朝|南国|北国|犹大|以色列王")
-_JESUS_Q_RE = re.compile(r"耶稣.*(生平|事工|受难|复活)|生平.*耶稣")
+_JESUS_Q_RE = re.compile(
+    r"耶稣.*(生平|事工|受难|复活|时间线|年表)|"
+    r"(?:生平|事工|时间线|年表).*(?:耶稣|基督)|"
+    r"生平纲要",
+)
 _TABERNACLE_Q_RE = re.compile(r"会幕|约柜|至圣所|圣所")
 
 _GOSPELS = frozenset({"MAT", "MRK", "LUK", "JHN"})
@@ -137,7 +141,8 @@ def resolve_structure_assets(
         if chapter == 14:
             add(_diagram_asset("red-sea-crossing"))
 
-    if book in _GOSPELS or _JESUS_Q_RE.search(q):
+    # 仅当用户明确问耶稣生平/时间线时附年表；不可因锚在四福音就默认弹出
+    if _JESUS_Q_RE.search(q):
         add(_timeline_asset("life-of-jesus"))
 
     if book in _KINGS_BOOKS or _KINGS_Q_RE.search(q):
