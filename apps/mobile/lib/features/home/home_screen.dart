@@ -1481,7 +1481,7 @@ class _VerseCardState extends ConsumerState<_VerseCard>
 
   @override
   Widget build(BuildContext context) {
-    final wall = dailyVerseWallpaperUrl(widget.day < 1 ? 1 : widget.day);
+    final heroFile = homeHeroIllustrationFile(widget.day < 1 ? 1 : widget.day);
     final displayText = widget.text.isEmpty
         ? '内容加载失败，下拉重试'
         : formatDailyVerseQuote(widget.text);
@@ -1513,23 +1513,15 @@ class _VerseCardState extends ConsumerState<_VerseCard>
                 AnimatedOpacity(
                   opacity: _artReady ? 1 : 0,
                   duration: const Duration(milliseconds: 220),
-                  child: HomeDayNetworkImage(
-                    url: wall,
-                    fit: BoxFit.cover,
-                    cacheWidth: 900,
-                    cacheHeight: 600,
+                  child: buildHomeIllustration(
+                    heroFile,
+                    width: double.infinity,
+                    height: h,
+                    fallback: const _DawnScene(),
                     onReady: () {
                       if (mounted && !_artReady) {
                         setState(() => _artReady = true);
                       }
-                    },
-                    errorBuilder: (_, __, ___) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted && !_artReady) {
-                          setState(() => _artReady = true);
-                        }
-                      });
-                      return const _DawnScene();
                     },
                   ),
                 ),

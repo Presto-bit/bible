@@ -15,6 +15,11 @@ export function homeGrowthTileImage(id: HomeGrowthTileId): string {
   return clientAssetUrl(GROWTH_TILES[id]);
 }
 
+/** 成长区四张插图预取 URL（与 SW SHELL_WARM 对齐） */
+export function homeGrowthTileWarmUrls(): string[] {
+  return Object.values(GROWTH_TILES).map((p) => clientAssetUrl(p));
+}
+
 /** 成长卡 id → 专属图 */
 export function homeGrowthCardImageUrl(cardId: string): string | null {
   if (cardId === 'summary') return homeGrowthTileImage('summary');

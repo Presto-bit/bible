@@ -1,7 +1,6 @@
-/** 今日推荐 2×2 上图区：坑位固定摄影 / 书封 / 运营图 */
+/** 今日推荐 2×2 上图区：坑位固定摄影（不随续读书卷换书封） */
 
 import { clientAssetUrl } from './basePath';
-import { bookCoverImageUrl, bookIdFromReaderHref } from './book_cover';
 import { resolveCampaignCoverUrl } from './daily_verse_wallpaper';
 import type { HomeTodayPanelSlot } from './home_today_panel';
 
@@ -20,9 +19,43 @@ const HOME_TILES: Record<HomeTodayTileKind, string> = {
   shelf: '/illustrations/home/tile_shelf.jpg',
 };
 
-/** 预取用：五张固定今日推荐插图绝对 URL */
+const HOME_GROWTH_PATHS = [
+  '/illustrations/home/growth_summary.jpg',
+  '/illustrations/home/growth_plan.jpg',
+  '/illustrations/home/growth_theme.jpg',
+  '/illustrations/home/growth_prayer.jpg',
+] as const;
+
+/** 每日经文 Hero 按 day 轮换（与今日推荐/成长区同源本地插图，SW 可预缓存） */
+const HERO_ILLUSTRATION_FILES = [
+  'tile_read.jpg',
+  'tile_fellowship.jpg',
+  'tile_prayer.jpg',
+  'tile_activity.jpg',
+  'tile_shelf.jpg',
+  'growth_summary.jpg',
+  'growth_plan.jpg',
+  'growth_theme.jpg',
+  'growth_prayer.jpg',
+] as const;
+
+export function homeHeroIllustrationFile(day?: number): string {
+  const d = Math.max(1, Math.floor(day ?? 1) || 1);
+  return HERO_ILLUSTRATION_FILES[(d - 1) % HERO_ILLUSTRATION_FILES.length];
+}
+
+export function homeHeroIllustrationUrl(day?: number): string {
+  return clientAssetUrl(`/illustrations/home/${homeHeroIllustrationFile(day)}`);
+}
+
+/** 预取用：今日推荐 + 成长区 + Hero 插图绝对 URL */
 export function homeTodayTileWarmUrls(): string[] {
-  return Object.values(HOME_TILES).map((p) => clientAssetUrl(p));
+  const paths = [
+    ...Object.values(HOME_TILES),
+    ...HOME_GROWTH_PATHS,
+    ...HERO_ILLUSTRATION_FILES.map((f) => `/illustrations/home/${f}`),
+  ];
+  return [...new Set(paths.map((p) => clientAssetUrl(p)))];
 }
 
 /** 64px 图区裁切锚点（摄影图主体居中偏下） */
@@ -43,21 +76,14 @@ export function resolveTodayTileKind(slot: HomeTodayPanelSlot): HomeTodayTileKin
 }
 
 export function resolveTodayTileImage(slot: HomeTodayPanelSlot): string {
-  if (slot.coverUrl) {
+  if (slot.id.startsWith('campaign-') && slot.coverUrl) {
     const custom = resolveCampaignCoverUrl(slot.coverUrl);
     if (custom) return custom;
   }
-
-  if (slot.bookId) return bookCoverImageUrl(slot.bookId);
-  const fromHref = bookIdFromReaderHref(slot.href)?.bookId;
-  if (fromHref) return bookCoverImageUrl(fromHref);
 
   return clientAssetUrl(HOME_TILES[resolveTodayTileKind(slot)]);
 }
 
 export function resolveTodayTileObjectPosition(slot: HomeTodayPanelSlot): string {
-  if (slot.coverUrl || slot.bookId || bookIdFromReaderHref(slot.href)?.bookId) {
-    return 'center 35%';
-  }
   return TILE_OBJECT_POSITION[resolveTodayTileKind(slot)];
 }

@@ -3,7 +3,6 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../core/book_cover.dart';
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/home_day_wallpaper_cache.dart';
 import '../../core/peiai_polish.dart';
@@ -117,11 +116,9 @@ String? _homeTileFile(HomeTodaySlot slot) {
 }
 
 String _homeTileImage(HomeTodaySlot slot) {
-  final resolved = resolveCampaignCoverUrl(slot.coverUrl);
-  if (resolved != null) return resolved;
-  final bookId = slot.bookId ?? bookIdFromReaderHref(slot.href);
-  if (bookId != null && bookId.isNotEmpty) {
-    return bookCoverImageUrl(bookId);
+  if (slot.id.startsWith('campaign-') && slot.coverUrl != null) {
+    final resolved = resolveCampaignCoverUrl(slot.coverUrl);
+    if (resolved != null) return resolved;
   }
   final file = _homeTileFile(slot);
   if (file != null) return homeIllustration(file).url;
@@ -187,8 +184,10 @@ class _TileCardState extends State<_TileCard> {
     const cardH = 156.0;
     final slot = widget.slot;
     final flash = widget.flash;
-    final src = _homeTileImage(slot);
     final tileFile = _homeTileFile(slot);
+    final campaignCover = slot.id.startsWith('campaign-')
+        ? resolveCampaignCoverUrl(slot.coverUrl)
+        : null;
     final borderColor = slot.pending
         ? AppColors.accentDeep.withValues(alpha: 0.55)
         : AppColors.ink.withValues(alpha: 0.07);
@@ -214,21 +213,31 @@ class _TileCardState extends State<_TileCard> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        tileFile != null && resolveCampaignCoverUrl(slot.coverUrl) == null
-                            ? buildHomeIllustration(
-                                tileFile,
-                                width: double.infinity,
-                                height: mediaH,
-                              )
-                            : HomeDayNetworkImage(
-                                url: src,
+                        campaignCover != null
+                            ? HomeDayNetworkImage(
+                                url: campaignCover,
                                 fit: BoxFit.cover,
                                 cacheWidth: 480,
                                 cacheHeight: 260,
                                 errorBuilder: (_, __, ___) => Container(
                                   color: const Color(0xFFE6E3DC),
                                 ),
-                              ),
+                              )
+                            : tileFile != null
+                                ? buildHomeIllustration(
+                                    tileFile,
+                                    width: double.infinity,
+                                    height: mediaH,
+                                  )
+                                : HomeDayNetworkImage(
+                                    url: _homeTileImage(slot),
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 480,
+                                    cacheHeight: 260,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: const Color(0xFFE6E3DC),
+                                    ),
+                                  ),
                         DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(

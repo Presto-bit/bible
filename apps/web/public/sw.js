@@ -1,7 +1,7 @@
 // CACHE 名须在每次 web 发版时变化，否则 activate 不会清空旧 Cache Storage。
 // 生产镜像在 Dockerfile 内按 NEXT_PUBLIC_APP_VERSION 重写；本地可 scripts/bump_sw_cache.sh。
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v46';
+const CACHE = 'presto-bible-v47';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -32,6 +32,10 @@ const HOME_ILLUSTRATION_FILES = [
   'home/tile_read.jpg',
   'home/tile_fellowship.jpg',
   'home/tile_prayer.jpg',
+  'home/growth_summary.jpg',
+  'home/growth_plan.jpg',
+  'home/growth_theme.jpg',
+  'home/growth_prayer.jpg',
 ];
 
 /**

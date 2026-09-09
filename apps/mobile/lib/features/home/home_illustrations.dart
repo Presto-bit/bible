@@ -5,6 +5,24 @@ import 'package:flutter/material.dart';
 
 import '../../core/config.dart';
 
+/// 每日经文 Hero 按 day 轮换（与今日推荐/成长区同源 bundle 插图）。
+const homeHeroIllustrationFiles = [
+  'tile_read.jpg',
+  'tile_fellowship.jpg',
+  'tile_prayer.jpg',
+  'tile_activity.jpg',
+  'tile_shelf.jpg',
+  'growth_summary.jpg',
+  'growth_plan.jpg',
+  'growth_theme.jpg',
+  'growth_prayer.jpg',
+];
+
+String homeHeroIllustrationFile(int day) {
+  final d = day < 1 ? 1 : day;
+  return homeHeroIllustrationFiles[(d - 1) % homeHeroIllustrationFiles.length];
+}
+
 /// 返回可展示 URL；[assetPath] 供 Image.asset 使用。
 ({String assetPath, String url}) homeIllustration(String file) {
   final assetPath = 'assets/illustrations/home/$file';
@@ -19,6 +37,7 @@ Widget buildHomeIllustration(
   required double height,
   BoxFit fit = BoxFit.cover,
   Widget? fallback,
+  VoidCallback? onReady,
 }) {
   final ill = homeIllustration(file);
   final fb = fallback ??
@@ -26,17 +45,34 @@ Widget buildHomeIllustration(
         color: const Color(0xFFE6E3DC),
         child: SizedBox(width: width, height: height),
       );
+  void notifyReady() {
+    if (onReady == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onReady());
+  }
+
+  ImageFrameBuilder frameBuilder() {
+    return (context, child, frame, wasSynchronouslyLoaded) {
+      if (wasSynchronouslyLoaded || frame != null) notifyReady();
+      return child;
+    };
+  }
+
   return Image.asset(
     ill.assetPath,
     width: width,
     height: height,
     fit: fit,
+    frameBuilder: frameBuilder(),
     errorBuilder: (_, __, ___) => Image.network(
       ill.url,
       width: width,
       height: height,
       fit: fit,
-      errorBuilder: (_, __, ___) => fb,
+      frameBuilder: frameBuilder(),
+      errorBuilder: (_, __, ___) {
+        notifyReady();
+        return fb;
+      },
     ),
   );
 }

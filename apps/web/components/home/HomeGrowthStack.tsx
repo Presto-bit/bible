@@ -1,8 +1,11 @@
 'use client';
 
-import type { RefObject, CSSProperties } from 'react';
+import { useEffect, type RefObject, CSSProperties } from 'react';
 import type { HomeGrowthModel } from '@/lib/home_growth_cards';
-import { homeGrowthObjectPositionForCard } from '@/lib/home_growth_tile_image';
+import {
+  homeGrowthObjectPositionForCard,
+  homeGrowthTileWarmUrls,
+} from '@/lib/home_growth_tile_image';
 import { HomeEndFooter } from '@/components/home/HomeEndFooter';
 import { HomeMediaRow } from '@/components/home/HomeMediaRow';
 
@@ -28,6 +31,12 @@ export function HomeGrowthStack({
   staggerEnter = false,
   growthStaggerStart = 3,
 }: Props) {
+  useEffect(() => {
+    void import('@/lib/home_tile_image_cache').then(({ ensureHomeTileImages }) => {
+      void ensureHomeTileImages(homeGrowthTileWarmUrls());
+    });
+  }, []);
+
   return (
     <section
       className={[

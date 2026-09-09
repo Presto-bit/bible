@@ -17,6 +17,7 @@ import {
 } from '@/lib/api/home';
 import { getAdminToken } from '@/lib/admin_rag';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
+import { homeHeroIllustrationUrl } from '@/lib/home_today_tile_image';
 import WallpaperBg from '@/components/home/WallpaperBg';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
@@ -164,7 +165,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const [verseFull, setVerseFull] = useState(false);
   const [heroIllustration, setHeroIllustration] = useState<string | null>(() => {
     const cached = readCachedDailyVerse();
-    return cached?.day ? dailyVerseWallpaperUrl(cached.day) : null;
+    return cached?.day ? homeHeroIllustrationUrl(cached.day) : null;
   });
   /** 风景图真正解码成功后才亮 has-art（否则暖灰渐变垫底，绝不露 .card 白底） */
   const [heroArtReady, setHeroArtReady] = useState(false);
@@ -398,8 +399,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   );
 
   useEffect(() => {
-    // 每日经文直接铺风景图（按 day 轮换）
-    setHeroIllustration(dailyVerseWallpaperUrl(dv?.day ?? 1));
+    // 每日经文 Hero：与今日推荐同源本地插图（按 day 轮换，SW 可预缓存）
+    setHeroIllustration(homeHeroIllustrationUrl(dv?.day ?? 1));
   }, [dv?.day]);
 
   const lastRailNetAtRef = useRef(0);
