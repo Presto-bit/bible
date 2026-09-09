@@ -10,7 +10,8 @@ import Link from 'next/link';
 import { useOnline } from '@/lib/use_online';
 import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
-import { shouldShowOutputPlanSkeleton, streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
+import { streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
+import { hasVisibleAnswerContent } from '@/lib/assistant_visible';
 import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
 import { SectionStreamAccumulator } from '@/lib/assistant_section_stream';
 import type { StructureAsset } from '@/lib/assistant_blocks';
@@ -1370,9 +1371,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               const showActions =
                 m.role === 'assistant' && m.text && !busy && !canRegen;
               const isStreaming = isLastAssistant && busy;
-              const hasPlanSkeleton =
-                isStreaming && shouldShowOutputPlanSkeleton(m.outputPlan);
-              const showAssistantBody = Boolean(m.text) || hasPlanSkeleton;
+              const hasVisible = hasVisibleAnswerContent(m.text);
+              const showAssistantBody = hasVisible;
               const usedCitations =
                 m.role === 'assistant' && m.citations?.length
                   ? citationsUsedInText(m.text, m.citations)
@@ -1453,19 +1453,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           streaming={isStreaming}
                           dense={Boolean(m.scene?.startsWith('summary_'))}
                           responseProfile={m.responseProfile}
-                          sections={m.sections}
-                          outputPlan={m.outputPlan}
                           structureAssets={m.structureAssets}
-                          defaultCollapsed={
-                            m.scene === 'verse_full'
-                            || (
-                              !m.scene?.startsWith('summary_')
-                              && m.text.length > 480
-                            )
-                          }
-                          expandLabel={
-                            m.scene?.startsWith('summary_') ? '展开导读' : '展开全文'
-                          }
                           onCitationClick={(n) => {
                             recordCitationClick();
                             setCitationMsgIdx(i);

@@ -4,7 +4,6 @@ import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
-import { streamingSafeBody } from '@/lib/assistant_format';
 import { prepareAssistantMarkdown, parseCitationHref } from '@/lib/assistant_markdown';
 import { sectionSlug } from '@/lib/assistant_sections';
 
@@ -49,10 +48,8 @@ export default function AnswerText({
   dense = false,
   onCitationClick,
 }: Props) {
-  // 流式阶段只用纯文本，避免每帧 ReactMarkdown + remarkGfm 全量重解析造成卡顿；
-  // 结束后再走完整 Markdown。
   const markdown = useMemo(
-    () => (streaming ? '' : prepareAssistantMarkdown(text, false)),
+    () => prepareAssistantMarkdown(text, streaming),
     [text, streaming],
   );
 
@@ -129,35 +126,13 @@ export default function AnswerText({
     td: ({ children }) => <td className="ans-md-td">{children}</td>,
   }), [onCitationClick]);
 
-  if (streaming) {
-    const safe = streamingSafeBody(text);
-    if (!safe.trim()) {
-      return (
-        <div className="answer-rich answer-rich-md answer-rich-streaming">
-          <p className="ans-md-p muted">小爱正在组织回答…</p>
-        </div>
-      );
-    }
-    return (
-      <div className="answer-rich answer-rich-md answer-rich-streaming">
-        <p className="ans-md-p" style={{ whiteSpace: 'pre-wrap' }}>
-          {safe}
-        </p>
-      </div>
-    );
-  }
-
   if (!markdown.trim()) {
-    return (
-      <div className="answer-rich answer-rich-md">
-        <p className="ans-md-p muted">…</p>
-      </div>
-    );
+    return null;
   }
 
   return (
     <div
-      className={`answer-rich answer-rich-md${dense ? ' answer-rich-dense' : ''}`}
+      className={`answer-rich answer-rich-md${dense ? ' answer-rich-dense' : ''}${streaming ? ' answer-rich-streaming' : ''}`}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {markdown}

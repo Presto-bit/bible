@@ -190,23 +190,13 @@ class AnswerText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = _baseStyle();
-    if (streaming) {
-      if (text.trim().isEmpty) {
-        return Text(
-          '小爱正在组织回答…',
-          style: base.copyWith(color: AppColors.inkFaint),
-        );
-      }
-      return Text.rich(
-        TextSpan(style: base, children: _inline(text, base)),
-      );
-    }
-    if (text.trim().isEmpty) {
-      return Text('…', style: base.copyWith(color: AppColors.inkFaint));
+    final prepared = text.trim().isEmpty ? '' : text;
+    if (prepared.trim().isEmpty) {
+      return const SizedBox.shrink();
     }
 
     final widgets = <Widget>[];
-    final lines = text.split('\n');
+    final lines = prepared.split('\n');
     var i = 0;
     String? pendingSectionTitle;
 

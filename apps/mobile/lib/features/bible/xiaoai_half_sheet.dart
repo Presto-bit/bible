@@ -13,7 +13,8 @@ import '../../core/badge_stats.dart';
 import '../../core/config.dart';
 import '../../core/theme.dart';
 import '../assistant/assistant_answer_document.dart';
-import '../assistant/assistant_output_plan.dart';
+import '../assistant/assistant_visible.dart';
+import '../assistant/assistant_thinking.dart';
 import '../assistant/assistant_section_stream.dart';
 import '../assistant/assistant_turn_request.dart';
 import '../assistant/answer_profile_body.dart';
@@ -807,17 +808,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     );
   }
 
-  String _thinkingLabel(HalfSheetTurnView turn) {
-    if (turn.citations.isNotEmpty) {
-      return '已找到 ${turn.citations.length} 条释经资料，正在组织回答…';
-    }
-    return '正在阅读这节经文…';
-  }
-
   Widget _buildTurn(HalfSheetTurnView turn, int index, {required bool isLast}) {
-    final rawAnswer = turn.answer.trim();
     final waitingFirstToken =
-        turn.busy && rawAnswer.isEmpty && !shouldShowOutputPlanSkeleton(turn.outputPlan);
+        turn.busy && !hasVisibleAnswerContent(turn.answer);
     final clean = bodyText(turn.answer);
     final hasError = clean.startsWith('⚠️');
     final usedCitations = citationsUsedInText(clean, turn.citations);
@@ -871,7 +864,13 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           ),
         ),
         if (waitingFirstToken)
-          _HalfSheetThinkingState(label: _thinkingLabel(turn))
+          AssistantThinkingState(
+            phase: turn.citations.isNotEmpty
+                ? ThinkingPhase.refs
+                : ThinkingPhase.understanding,
+            citeCount: turn.citations.length,
+            variant: ThinkingVariant.halfSheet,
+          )
         else ...[
           if (!hasError && !turn.busy)
             _RagSourceStatusHalfSheet(
@@ -885,8 +884,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             streaming: turn.busy,
             dense: turn.scene == AssistantScene.verseQuick,
             responseProfile: turn.responseProfile,
-            sections: turn.sections,
-            outputPlan: turn.outputPlan,
             structureAssets: turn.structureAssets,
             onCitationTap: (n) {
               final citation =
@@ -960,57 +957,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _HalfSheetThinkingState extends StatelessWidget {
-  const _HalfSheetThinkingState({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.inkFaint,
-              fontSize: 13,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const _HalfSheetThinkingLine(widthFactor: 1),
-          const SizedBox(height: 6),
-          const _HalfSheetThinkingLine(widthFactor: 0.72),
-        ],
-      ),
-    );
-  }
-}
-
-class _HalfSheetThinkingLine extends StatelessWidget {
-  const _HalfSheetThinkingLine({required this.widthFactor});
-
-  final double widthFactor;
-
-  @override
-  Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      widthFactor: widthFactor,
-      alignment: Alignment.centerLeft,
-      child: Container(
-        height: 8,
-        decoration: BoxDecoration(
-          color: AppColors.line.withValues(alpha: 0.55),
-          borderRadius: BorderRadius.circular(6),
-        ),
-      ),
     );
   }
 }

@@ -7,7 +7,8 @@ import { chatStream, type Citation } from '@/lib/api';
 import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
 import type { StructureAsset } from '@/lib/assistant_blocks';
-import { shouldShowOutputPlanSkeleton, streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
+import { streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
+import { hasVisibleAnswerContent } from '@/lib/assistant_visible';
 import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
 import { SectionStreamAccumulator } from '@/lib/assistant_section_stream';
 import { CitationBar } from '@/components/CitationBar';
@@ -718,8 +719,8 @@ export default function XiaoAiSheet({
             const isLast = index === turns.length - 1;
             const clean = stripAnswer(turn.answer);
             const rawAnswer = turn.answer.trim();
-            const hasPlanSkeleton = shouldShowOutputPlanSkeleton(turn.outputPlan);
-            const waitingFirstToken = turn.busy && !rawAnswer && !hasPlanSkeleton;
+            const hasVisible = hasVisibleAnswerContent(clean || rawAnswer);
+            const waitingFirstToken = turn.busy && !hasVisible;
             const hasError = clean.startsWith('⚠️');
             const usedCitations = citationsUsedInText(clean, turn.citations);
             const evidenceCites = usedCitations.length > 0 ? usedCitations : turn.citations;
@@ -757,7 +758,7 @@ export default function XiaoAiSheet({
                           <p className="muted half-sheet-slow-hint">仍在准备，请稍候…</p>
                         ) : null}
                       </>
-                    ) : rawAnswer || hasPlanSkeleton || !turn.busy ? (
+                    ) : hasVisible || !turn.busy ? (
                       <>
                         {!hasError && !turn.busy ? (
                           <RagSourceStatus
@@ -780,8 +781,6 @@ export default function XiaoAiSheet({
                           streaming={turn.busy}
                           dense={turn.scene === 'verse_quick'}
                           responseProfile={turn.responseProfile}
-                          sections={turn.sections}
-                          outputPlan={turn.outputPlan}
                           structureAssets={turn.structureAssets}
                           onCitationClick={(n) => {
                             recordCitationClick();

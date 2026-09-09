@@ -24,6 +24,7 @@ import '../bible/thoughts_repository.dart';
 import 'answer_profile_body.dart';
 import 'assistant_answer_document.dart';
 import 'assistant_output_plan.dart';
+import 'assistant_visible.dart';
 import 'assistant_section_stream.dart';
 import 'answer_text.dart' show kAssistantTabAnswerFontSize;
 import 'assistant_chip_prompts.dart';
@@ -1665,9 +1666,8 @@ class _Bubble extends ConsumerWidget {
     final displayText = turn.content;
     final showActions = !isUser && turn.content.isNotEmpty && !streaming;
     final cites = turn.meta?.citations ?? const <Citation>[];
-    final hasPlanSkeleton =
-        streaming && shouldShowOutputPlanSkeleton(turn.meta?.outputPlan);
-    final showAssistantBody = turn.content.isNotEmpty || hasPlanSkeleton;
+    final hasVisible = hasVisibleAnswerContent(turn.content);
+    final showAssistantBody = hasVisible;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
@@ -1725,16 +1725,7 @@ class _Bubble extends ConsumerWidget {
                           fontSize: kAssistantTabAnswerFontSize,
                           streaming: streaming,
                           responseProfile: turn.meta?.responseProfile,
-                          sections: turn.sections,
-                          outputPlan: turn.meta?.outputPlan,
                           structureAssets: turn.structureAssets,
-                          defaultCollapsed:
-                              turn.scene == AssistantScene.verseFull.id ||
-                              (turn.content.length > 480 &&
-                                  !(turn.scene?.startsWith('summary_') ?? false)),
-                          expandLabel: (turn.scene?.startsWith('summary_') ?? false)
-                              ? '展开导读'
-                              : '展开全文',
                           onCitationTap: cites.isEmpty
                               ? null
                               : (n) {

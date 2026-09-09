@@ -215,9 +215,6 @@ export default function SummarySheet({
                 text={activeBody}
                 dense
                 responseProfile="chapter_outline"
-                defaultCollapsed={activeBody.length > 220}
-                collapseMinBodyLen={100}
-                expandLabel="展开导读"
               />
             </div>
           )}

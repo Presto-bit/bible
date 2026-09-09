@@ -868,6 +868,14 @@ body.assistant-active .assistant-page {
   cursor: pointer;
   padding: 4px 6px;
 }
+.assistant-thinking-line-wrap {
+  padding: 2px 0 6px;
+}
+.assistant-thinking-line-text {
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+}
 .assistant-thinking {
   padding: 4px 0 8px;
 }

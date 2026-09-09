@@ -252,9 +252,6 @@ class _SummarySheetBodyState extends ConsumerState<_SummarySheetBody> {
                           text: body,
                           dense: true,
                           responseProfile: 'chapter_outline',
-                          defaultCollapsed: body.length > 220,
-                          collapseMinBodyLen: 100,
-                          expandLabel: '展开导读',
                         );
                       },
                     ),
