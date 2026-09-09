@@ -335,11 +335,44 @@ MODE_TO_SCENE: dict[str, str] = {
 }
 
 
-def verse_scene_format_guide(scene_id: str, verse_span: int = 1) -> str:
-    """半屏释经：按选区节数动态输出格式指引。"""
+def verse_scene_format_guide(
+    scene_id: str,
+    verse_span: int = 1,
+    *,
+    depth: "DepthProfile | None" = None,
+) -> str:
+    """半屏释经：按选区节数 / depth 动态输出格式指引。"""
+    from .depth_router import DepthProfile
+
     spec = SCENES.get(scene_id)
     if not spec or scene_id not in ("verse_full", "verse_quick"):
         return spec.format_guide if spec else ""
+    if depth and depth.depth == "deep":
+        span = max(1, int(verse_span or 1))
+        if span >= 6:
+            pass  # fall through to long guide below
+        else:
+            return (
+                f"{_MD}\n"
+                "### 摘要\n"
+                "1 句（≤42 字）。\n"
+                "### 经文背景\n"
+                f"2–3 条，{_BULLETS_RICH}\n"
+                "### 经文解释\n"
+                f"3–5 条，{_BULLETS_RICH}\n"
+                f"建议篇幅约 {depth.target_chars}–{depth.soft_max} 字。{_LEN_HINT}"
+            )
+    if depth and depth.depth == "standard" and depth.section_policy == "soft":
+        span = max(1, int(verse_span or 1))
+        titles = "、".join(depth.sections)
+        return (
+            f"{_MD}\n"
+            f"共 {span} 节：按主题归纳，不要逐节罗列。\n"
+            f"小节：{titles}。\n"
+            "摘要宜 1 句；解释部分可用短段落或 3–4 条要点，"
+            f"建议篇幅约 {depth.target_chars}–{depth.soft_max} 字。"
+            "不要「相关追问」。"
+        )
     span = max(1, int(verse_span or 1))
     if span <= 2:
         return spec.format_guide

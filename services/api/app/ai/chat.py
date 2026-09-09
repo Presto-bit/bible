@@ -11,6 +11,7 @@ from .citations import display_citation_title
 from .answer_schema import SCHEMA_VERSION, max_tokens_for_scene
 from .prompts import DEFAULT_MODE, MODES, build_messages
 from .output_plan import build_output_plan
+from .depth_router import resolve_depth
 from .response_profile import resolve_response_profile
 from .structure_assets import resolve_structure_assets
 from .scenes import NO_RAG_SURFACES, resolve_scene
@@ -185,6 +186,14 @@ def prepare(
         has_prior_turns=has_prior_turns,
         scene_id=spec.id,
     )
+    depth = resolve_depth(
+        spec.id,
+        question,
+        narrow=narrow,
+        verse_span=verse_span,
+        surface=surface or "",
+        has_prior_turns=has_prior_turns,
+    )
     if has_prior_turns:
         if passage_text and len(passage_text) > 900:
             passage_text = passage_text[:900].rstrip() + "…"
@@ -201,6 +210,7 @@ def prepare(
         has_prior_turns=has_prior_turns,
         narrow=narrow,
         verse_span=verse_span,
+        depth=depth,
     )
     messages = [base[0], *prior, base[1]]
     max_tokens = max_tokens_for_scene(
@@ -230,6 +240,7 @@ def prepare(
             has_rag=use_rag and bool(citations),
             question=question,
             structure_assets=structure_assets,
+            depth=depth.depth,
         ),
         "structure_assets": structure_assets,
         "mode": effective_mode,
@@ -243,12 +254,15 @@ def prepare(
         "verse_span": verse_span,
         "schema_version": SCHEMA_VERSION,
         "narrow": narrow,
+        "depth": depth.depth,
         "output_plan": build_output_plan(
             spec.id,
             narrow=narrow,
             verse_span=verse_span,
             surface=surface or "",
             wants_followups=spec.wants_followups,
+            question=question,
+            depth=depth,
         ),
         "knowledge_base_id": kb["id"],
         "knowledge_base_name": kb["name"],

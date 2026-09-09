@@ -23,6 +23,7 @@ import '../bible/reading_repository.dart';
 import '../bible/thoughts_repository.dart';
 import 'answer_profile_body.dart';
 import 'assistant_answer_document.dart';
+import 'assistant_output_plan.dart';
 import 'assistant_section_stream.dart';
 import 'answer_text.dart' show kAssistantTabAnswerFontSize;
 import 'assistant_chip_prompts.dart';
@@ -533,7 +534,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 }
                 _streamPhase = ThinkingPhase.refs;
               });
-              sectionStream.seedFromPlan(meta.outputPlan?.sections);
+              sectionStream.seedFromPlan(streamSeedTitles(meta.outputPlan));
             case SectionStartEvent(:final id, :final title):
               sectionStream.onStart(id: id, title: title);
               applySectionStream();
@@ -593,6 +594,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 setState(() => reply.sections = resolved.sections);
               }
               if (!streamComplete && reply.content.trim().isNotEmpty) {
+                setState(
+                  () => reply.content = appendStreamIncompleteNotice(reply.content),
+                );
+              } else if (resolved.incomplete && reply.content.trim().isNotEmpty) {
                 setState(
                   () => reply.content = appendStreamIncompleteNotice(reply.content),
                 );
@@ -1661,7 +1666,7 @@ class _Bubble extends ConsumerWidget {
     final showActions = !isUser && turn.content.isNotEmpty && !streaming;
     final cites = turn.meta?.citations ?? const <Citation>[];
     final hasPlanSkeleton =
-        streaming && (turn.meta?.outputPlan?.sections.length ?? 0) >= 2;
+        streaming && shouldShowOutputPlanSkeleton(turn.meta?.outputPlan);
     final showAssistantBody = turn.content.isNotEmpty || hasPlanSkeleton;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),

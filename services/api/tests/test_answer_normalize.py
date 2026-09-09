@@ -59,3 +59,37 @@ def test_length_continuation_skipped_when_complete():
         body,
         finish_reason="length",
     ) is False
+
+
+def test_soft_trim_keeps_moderately_long_bullet():
+    long_item = "这" * 70 + "。"
+    raw = f"### 摘要\n短。\n\n### 经文解释\n- {long_item}"
+    out = normalize_answer_markdown(raw, "verse_full", depth="standard", soft_max=900)
+    assert long_item in out
+
+
+def test_flash_keeps_prose_body():
+    raw = (
+        "### 摘要\n神爱世人。\n\n"
+        "### 经文解释\n"
+        "这是第一段自然叙述，说明神主动赐下儿子。\n"
+        "第二段补充信者得永生的含义。"
+    )
+    out = normalize_answer_markdown(
+        raw,
+        "verse_full",
+        depth="flash",
+        prefer_prose=True,
+        soft_max=400,
+    )
+    assert "- " not in out.split("### 经文解释")[-1]
+    assert "自然叙述" in out
+
+
+def test_format_only_preserves_long_bullet():
+    long_item = "这" * 130 + "。"
+    raw = f"### 摘要\n短。\n\n### 经文解释\n- {long_item}"
+    trimmed = normalize_answer_markdown(raw, "verse_full", depth="standard", soft_max=200)
+    preserved = normalize_answer_markdown(raw, "verse_full", format_only=True)
+    assert long_item in preserved
+    assert long_item not in trimmed

@@ -288,11 +288,17 @@ def verse_has_background(titles: set[str]) -> bool:
     return bool(titles & VERSE_BACKGROUND_TITLES)
 
 
-def verse_passage_structure_ok(titles: set[str], *, verse_span: int) -> bool:
+def verse_passage_structure_ok(
+    titles: set[str],
+    *,
+    verse_span: int,
+    require_outline: bool | None = None,
+) -> bool:
     span = max(1, int(verse_span or 1))
     if not verse_has_background(titles):
         return False
-    if span >= 6:
+    need_outline = require_outline if require_outline is not None else span >= 6
+    if need_outline:
         return "段落脉络" in titles
     return True
 

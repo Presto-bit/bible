@@ -20,11 +20,15 @@ def resolve_response_profile(
     has_rag: bool = False,
     question: str | None = None,
     structure_assets: list[dict] | None = None,
+    depth: str | None = None,
 ) -> str:
     ctx = reader_context or {}
     compare = ctx.get("compare_versions") or []
     has_dual_compare = isinstance(compare, list) and len(compare) >= 2
     assets = structure_assets or []
+
+    if depth == "study":
+        return "study_sheet"
 
     if assets and any(a.get("kind") in ("timeline", "graph", "diagram") for a in assets):
         if wants_timeline_profile(scene_id, question=question, structure_assets=assets):

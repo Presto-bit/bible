@@ -7,7 +7,7 @@ import { chatStream, type Citation } from '@/lib/api';
 import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
 import type { StructureAsset } from '@/lib/assistant_blocks';
-import type { OutputPlan } from '@/lib/assistant_output_plan';
+import { shouldShowOutputPlanSkeleton, streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
 import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
 import { SectionStreamAccumulator } from '@/lib/assistant_section_stream';
 import { CitationBar } from '@/components/CitationBar';
@@ -346,7 +346,7 @@ export default function XiaoAiSheet({
             if (meta.response_profile) responseProfile = meta.response_profile;
             if (meta.output_plan?.sections?.length) {
               outputPlan = meta.output_plan as OutputPlan;
-              sectionStream.seedFromPlan(outputPlan.sections);
+              sectionStream.seedFromPlan(streamSeedTitles(outputPlan));
             }
             if (meta.structure_assets?.length) {
               structureAssets = meta.structure_assets as StructureAsset[];
@@ -526,10 +526,11 @@ export default function XiaoAiSheet({
             const streamOk =
               payload?.streamComplete !== false &&
               Boolean(text) &&
-              !text.startsWith('⚠️');
+              !text.startsWith('⚠️') &&
+              !resolved.incomplete;
             const structOk =
               scene === 'verse_full' || scene === 'verse_quick'
-                ? isHalfSheetAnswerComplete(text, scene, verseSpan)
+                ? isHalfSheetAnswerComplete(text, scene, verseSpan, outputPlan)
                 : true;
             const followups = normalizeFollowupItems(
               resolved.followups?.length
@@ -717,7 +718,7 @@ export default function XiaoAiSheet({
             const isLast = index === turns.length - 1;
             const clean = stripAnswer(turn.answer);
             const rawAnswer = turn.answer.trim();
-            const hasPlanSkeleton = (turn.outputPlan?.sections?.length ?? 0) >= 2;
+            const hasPlanSkeleton = shouldShowOutputPlanSkeleton(turn.outputPlan);
             const waitingFirstToken = turn.busy && !rawAnswer && !hasPlanSkeleton;
             const hasError = clean.startsWith('⚠️');
             const usedCitations = citationsUsedInText(clean, turn.citations);

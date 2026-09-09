@@ -1,4 +1,4 @@
-"""小爱回答 Markdown 归一化：散文转 bullets、字段预算裁剪。"""
+"""小爱回答 Markdown 归一化：散文转 bullets、字段预算裁剪（R2 软收束）。"""
 from __future__ import annotations
 
 import re
@@ -6,7 +6,6 @@ import re
 from .answer_schema import (
     PROSE_SECTION_TITLES,
     SUMMARY_LEAD_TITLES,
-    SceneBudget,
     budget_for_scene,
     effective_budget_for_scene,
 )
@@ -14,11 +13,14 @@ from .parse_output import FOLLOWUP_SECTION_RE, SECTION_MD_RE, split_body_and_fol
 
 _BULLET_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)、])\s+\S")
 _SENTENCE_SPLIT = re.compile(r"(?<=[。！？])")
+_SENTENCE_END = "。！？）」』》】"
 
 
-def _trim_chars(text: str, limit: int) -> str:
+def _trim_chars(text: str, limit: int, *, hard: bool = False) -> str:
+    """R2：默认软裁剪——仅当超过 2×limit 才截断。"""
     s = text.strip()
-    if len(s) <= limit:
+    cap = limit if hard else max(limit * 2, limit + 40)
+    if len(s) <= cap:
         return s
     cut = s[:limit]
     for i in range(len(cut) - 1, max(8, len(cut) - 12), -1):
@@ -51,18 +53,27 @@ def _section_chunks(body: str) -> list[tuple[str, str]]:
     return out
 
 
-def _chunk_to_bullets(chunk: str, item_max: int, max_items: int) -> list[str]:
+def _chunk_to_bullets(
+    chunk: str,
+    item_max: int,
+    max_items: int,
+    *,
+    format_only: bool = False,
+) -> list[str]:
     lines = [ln.strip() for ln in chunk.split("\n") if ln.strip()]
     bullets: list[str] = []
     for ln in lines:
         if _BULLET_RE.match(ln):
             item = re.sub(r"^\s*(?:[-*•]|\d+[.)、])\s+", "", ln).strip()
             if item:
-                bullets.append(_trim_chars(item, item_max))
+                bullets.append(item if format_only else _trim_chars(item, item_max))
         elif bullets and not _BULLET_RE.match(ln):
-            bullets[-1] = _trim_chars(bullets[-1] + ln, item_max)
+            merged = bullets[-1] + ln
+            bullets[-1] = merged if format_only else _trim_chars(merged, item_max)
     if bullets:
         return bullets[:max_items]
+    if format_only:
+        return lines[:max_items]
     prose = " ".join(lines)
     for sent in _split_sentences(prose):
         bullets.append(_trim_chars(sent, item_max))
@@ -77,8 +88,25 @@ def _section_allows_prose(title: str) -> bool:
     return title.startswith("观点 ")
 
 
+def _keep_section_prose(
+    title: str,
+    *,
+    depth: str | None,
+    prefer_prose: bool,
+) -> bool:
+    if title in SUMMARY_LEAD_TITLES or title in {"一句话", "主题"}:
+        return False
+    if _section_allows_prose(title):
+        return True
+    if depth == "flash" or prefer_prose:
+        return True
+    if depth == "standard" and prefer_prose:
+        return True
+    return False
+
+
 def is_prose_wall(body_text: str, scene: str) -> bool:
-    """应 bullets 却写成散文墙。"""
+    """应 bullets 却写成散文墙（R2：study/deep 才强转）。"""
     bullet_scenes = {
         "verse_full",
         "verse_quick",
@@ -119,6 +147,32 @@ def _section_max_bullets(
     return default_max
 
 
+def _trim_incomplete_tail_bullet(parts: list[str]) -> bool:
+    """仅移除末尾未收束的 bullet（句中截断），保留完整要点。"""
+    for i in range(len(parts) - 1, -1, -1):
+        line = parts[i]
+        if not line.startswith("- "):
+            continue
+        item = line[2:].strip()
+        if not item:
+            parts.pop(i)
+            if i < len(parts) and parts[i] == "":
+                parts.pop(i)
+            return True
+        if item.endswith("…") or item.endswith("..."):
+            parts.pop(i)
+            if i < len(parts) and parts[i] == "":
+                parts.pop(i)
+            return True
+        if item and item[-1] not in _SENTENCE_END:
+            parts.pop(i)
+            if i < len(parts) and parts[i] == "":
+                parts.pop(i)
+            return True
+        return False
+    return False
+
+
 def answer_over_budget(body_text: str, scene: str, *, narrow: bool = False, verse_span: int = 1) -> bool:
     bud = effective_budget_for_scene(scene, narrow=narrow, verse_span=verse_span)
     if not bud:
@@ -132,12 +186,22 @@ def normalize_answer_markdown(
     *,
     narrow: bool = False,
     verse_span: int = 1,
+    depth: str | None = None,
+    soft_max: int | None = None,
+    prefer_prose: bool = False,
+    format_only: bool = False,
 ) -> str:
-    """归一化为 ### + bullets Markdown，并按 scene 预算裁剪。"""
+    """归一化为 ### + bullets/prose Markdown。
+
+    format_only=True（R3）：fill 后只整理标题/列表形态，不做字数裁剪。
+    """
     body, followups = split_body_and_followups(text)
     bud = effective_budget_for_scene(scene, narrow=narrow, verse_span=verse_span)
     if not bud or not body.strip():
         return text
+
+    if format_only:
+        prefer_prose = True
 
     max_bullets = bud.max_bullets
     if scene in ("verse_full", "verse_quick") and verse_span >= 3:
@@ -155,15 +219,15 @@ def normalize_answer_markdown(
         if scene in ("verse_full", "verse_quick") and title == "背景":
             title = "经文背景"
         parts.append(f"### {title}")
-        if title in SUMMARY_LEAD_TITLES:
+        if title in SUMMARY_LEAD_TITLES or title in {"一句话", "主题"}:
             lead = chunk.replace("\n", " ").strip()
-            parts.append(_trim_chars(lead, bud.summary_max))
+            parts.append(lead if format_only else _trim_chars(lead, bud.summary_max))
             parts.append("")
             continue
-        if _section_allows_prose(title):
+        if format_only or _keep_section_prose(title, depth=depth, prefer_prose=prefer_prose):
             prose = chunk.replace("\n\n", "\n").strip()
-            if len(prose) > bud.item_max * 3:
-                prose = _trim_chars(prose, bud.item_max * 3)
+            if not format_only and len(prose) > bud.item_max * (6 if depth == "flash" else 4):
+                prose = _trim_chars(prose, bud.item_max * (6 if depth == "flash" else 4))
             parts.append(prose)
             parts.append("")
             continue
@@ -171,27 +235,34 @@ def normalize_answer_markdown(
             chunk,
             bud.item_max,
             _section_max_bullets(title, max_bullets, scene, verse_span),
+            format_only=format_only,
         )
         if not bullets and chunk.strip():
-            bullets = [_trim_chars(chunk.replace("\n", " "), bud.item_max)]
+            raw = chunk.replace("\n", " ").strip()
+            bullets = [raw if format_only else _trim_chars(raw, bud.item_max)]
         for b in bullets:
             parts.append(f"- {b}")
         parts.append("")
 
     normalized_body = "\n".join(parts).strip()
-    trim_slack = 40 if scene in ("verse_full", "verse_quick") and verse_span >= 6 else 20
-    while len(normalized_body) > bud.total_chars + trim_slack and parts:
-        removed = False
-        for i in range(len(parts) - 1, -1, -1):
-            if parts[i].startswith("- "):
-                parts.pop(i)
-                if i < len(parts) and parts[i] == "":
-                    parts.pop(i)
-                removed = True
-                break
-        if not removed:
-            break
-        normalized_body = "\n".join(parts).strip()
+    if not format_only:
+        hard_cap: int | None = None
+        if depth == "flash":
+            hard_cap = soft_max or (bud.total_chars + 80)
+        elif depth in ("standard", "deep") and soft_max:
+            hard_cap = soft_max + (80 if depth == "deep" else 120)
+        elif depth == "study":
+            base = budget_for_scene(scene, narrow=narrow)
+            hard_cap = (soft_max or (base.total_chars if base else bud.total_chars)) + 160
+        elif soft_max:
+            hard_cap = soft_max + 80
+
+        if hard_cap and len(normalized_body) > hard_cap:
+            if depth in ("flash", "standard", None):
+                pass
+            else:
+                while len(normalized_body) > hard_cap and _trim_incomplete_tail_bullet(parts):
+                    normalized_body = "\n".join(parts).strip()
 
     if followups:
         normalized_body += "\n\n### 相关追问\n"

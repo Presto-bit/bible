@@ -2,6 +2,7 @@
 library;
 
 import 'assistant_scenes.dart';
+import 'assistant_output_plan.dart';
 import 'models.dart' show Citation;
 
 export 'assistant_markdown.dart'
@@ -104,14 +105,32 @@ int verseSpanFromRef(String ref) {
   return (end - start + 1).clamp(1, 999);
 }
 
-/// 半屏解读回答是否结构完整（对齐 PWA `isHalfSheetAnswerComplete`）。
+/// 半屏解读是否完整（对齐 PWA；有 outputPlan 时按 depth 计划小节判定）。
 bool isHalfSheetAnswerComplete(
   String answer,
   AssistantScene scene, [
   int verseSpan = 1,
+  OutputPlan? outputPlan,
 ]) {
   final text = answer.trim();
   if (text.isEmpty || text.startsWith('⚠️')) return false;
+
+  if (outputPlan != null && outputPlan.sections.isNotEmpty) {
+    final minLen = outputPlan.minComplete ?? 60;
+    if (text.length < minLen) return false;
+    final titles = _sectionTitles(text);
+    for (final sec in outputPlan.sections) {
+      if (sec == '经文背景' || sec == '背景') {
+        if (!titles.contains('经文背景') && !titles.contains('背景')) {
+          return false;
+        }
+      } else if (!titles.contains(sec)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   final titles = _sectionTitles(text);
   final span = verseSpan.clamp(1, 999);
   final minLen = switch (scene) {

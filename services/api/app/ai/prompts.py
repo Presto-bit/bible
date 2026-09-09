@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from .scenes import SceneSpec, verse_scene_format_guide
+from .depth_router import DepthProfile
 
 MODES = {
     "understand": "理解默想",
@@ -40,6 +41,14 @@ _NARROW = (
 _NARROW_FOLLOWUP = (
     "本次为短追问：请直接回应，结构为 ### 摘要（≤30 字）+ 2–3 条 - 要点；"
     "总篇幅约 120–180 字，不要背景铺垫，不要相关追问。\n"
+)
+
+_MARKDOWN_OUTPUT_SOFT = (
+    "【Markdown 规范 · 快懂】\n"
+    "- 先写 ### 摘要（1–2 句白话，≤50 字）。\n"
+    "- 其后可用 1–2 个自然段补充要点；**不强制**列表与小标题。\n"
+    "- 关键术语可加粗；引用经文可用 *斜体*。\n"
+    "- 不要输出【参考资料】或 HTML；半屏不要「相关追问」。\n"
 )
 
 _MARKDOWN_OUTPUT = (
@@ -187,6 +196,35 @@ def format_reader_context(ctx: dict | None) -> str:
     return "\n".join(lines)
 
 
+def depth_format_guide(profile: DepthProfile, scene_id: str, verse_span: int = 1) -> str:
+    """R1：按 depth 选输出形态，覆盖 scene 默认教案式指引。"""
+    if profile.depth == "flash":
+        lo, hi = profile.target_chars - 40, profile.soft_max
+        return (
+            "【快懂模式】\n"
+            f"先 ### 摘要（1–2 句，≤50 字），再用 1–2 段短白话说明「是什么意思、今天怎么理解」。"
+            f"总篇幅约 {lo}–{hi} 字。\n"
+            "不要展开历史考据；不要多个 ### 小节；不要列表堆砌；不要「相关追问」。"
+        )
+    if profile.depth == "study":
+        return (
+            "【教案模式】\n"
+            "按给定小节用 ### 标题 + - 列表输出，便于导出与讨论；"
+            "每条要点写完整句，避免标题式短语。"
+        )
+    if profile.section_policy == "soft" and profile.prefer_prose:
+        titles = "、".join(f"### {t}" for t in profile.sections if t)
+        return (
+            f"【标准模式 · 轻结构】\n"
+            f"小节：{titles or '摘要 + 正文'}。\n"
+            "摘要宜短；其余可用短段落或少量列表，按内容自然选择，"
+            "不要为凑结构而空泛分节。"
+        )
+    if scene_id in ("verse_full", "verse_quick"):
+        return verse_scene_format_guide(scene_id, verse_span, depth=profile)
+    return ""
+
+
 def build_messages(
     *,
     scene: SceneSpec,
@@ -199,6 +237,7 @@ def build_messages(
     has_prior_turns: bool = False,
     narrow: bool = False,
     verse_span: int = 1,
+    depth: DepthProfile | None = None,
 ) -> list[dict[str, str]]:
     mode = scene.mode if scene.mode in _MODE_GUIDE else DEFAULT_MODE
     has_passage = passage_display != "（未指定经文）" and bool(passage_text or passage_display)
@@ -223,14 +262,19 @@ def build_messages(
         base,
         mode_guide,
         "\n",
-        _MARKDOWN_OUTPUT,
-        "\n【输出格式】\n",
-        (
-            verse_scene_format_guide(scene.id, verse_span)
-            if scene.id in ("verse_full", "verse_quick")
-            else scene.format_guide
-        ),
     ]
+    if depth and depth.prefer_prose:
+        system_parts.append(_MARKDOWN_OUTPUT_SOFT)
+    else:
+        system_parts.append(_MARKDOWN_OUTPUT)
+    system_parts.append("\n【输出格式】\n")
+    depth_guide = depth_format_guide(depth, scene.id, verse_span) if depth else ""
+    if depth_guide:
+        system_parts.append(depth_guide)
+    elif scene.id in ("verse_full", "verse_quick"):
+        system_parts.append(verse_scene_format_guide(scene.id, verse_span))
+    else:
+        system_parts.append(scene.format_guide)
     if use_rag and citations:
         system_parts.append("\n")
         system_parts.append(_EVIDENCE_WITH_NOTES)

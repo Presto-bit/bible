@@ -1106,9 +1106,14 @@ export interface ChatMetaPayload {
   structure_assets?: StructureAssetPayload[];
   /** P1：预期输出结构，用于流式骨架 */
   output_plan?: {
+    depth?: string;
+    section_policy?: 'lead_only' | 'soft' | 'full';
+    prefer_prose?: boolean;
     lead?: boolean;
     sections?: string[];
     budget_chars?: number;
+    soft_max_chars?: number;
+    min_complete?: number;
     max_followups?: number;
   };
   /** P3：服务端会话 id（半屏 → Tab 接力） */

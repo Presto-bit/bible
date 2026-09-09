@@ -83,6 +83,7 @@ def get_answer(key: str) -> dict[str, Any] | None:
         verse_span = int(meta.get("verse_span") or 1)
         if scene and answer:
             from ..ai.answer_structured import needs_structure_repair
+            from ..ai.output_plan import depth_kwargs_from_plan
             from ..ai.parse_output import verse_explain_incomplete
 
             if needs_structure_repair(
@@ -93,10 +94,15 @@ def get_answer(key: str) -> dict[str, Any] | None:
             ):
                 _cache.pop(key, None)
                 return None
+            plan = meta.get("output_plan") or {}
+            dk = depth_kwargs_from_plan(plan if isinstance(plan, dict) else None)
             if scene in ("verse_full", "verse_quick") and verse_explain_incomplete(
                 scene,
                 answer,
                 verse_span=verse_span,
+                depth=dk.get("depth"),
+                expected_sections=dk.get("expected_sections"),
+                min_complete=dk.get("min_complete"),
             ):
                 _cache.pop(key, None)
                 return None

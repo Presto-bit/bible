@@ -15,7 +15,7 @@ import {
   streamingWrittenSections,
   type StructureAsset,
 } from '@/lib/assistant_blocks';
-import { mergePlannedSections, type OutputPlan } from '@/lib/assistant_output_plan';
+import { mergePlannedSections, shouldShowSectionToc, type OutputPlan } from '@/lib/assistant_output_plan';
 
 export type ResponseProfile =
   | 'side_compare'
@@ -63,14 +63,16 @@ export default function AnswerProfileBody({
 
   const clean = useMemo(() => bodyText(text), [text]);
   const mergedSections = useMemo(
-    () => mergePlannedSections(outputPlan, sections, clean),
-    [outputPlan, sections, clean],
+    () => mergePlannedSections(outputPlan, sections, clean, { streaming }),
+    [outputPlan, sections, clean, streaming],
   );
   const writtenSectionIds = useMemo(
     () => (streaming ? streamingWrittenSections(clean, mergedSections) : new Set<string>()),
     [streaming, clean, mergedSections],
   );
-  const showSectionToc = mergedSections.length >= 2 && (streaming || Boolean(sections?.length));
+  const showSectionToc =
+    shouldShowSectionToc(mergedSections, outputPlan, streaming, writtenSectionIds)
+    && (streaming || Boolean(sections?.length));
   const timelineNodes = useMemo(() => parseTimelineNodes(clean), [clean]);
   const profileClass = responseProfile ? `answer-profile-${responseProfile}` : '';
   const showPresetStructure =

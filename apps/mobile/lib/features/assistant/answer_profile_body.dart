@@ -62,12 +62,18 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
       outputPlan: widget.outputPlan,
       fromDone: widget.sections,
       text: clean,
+      streaming: widget.streaming,
     );
     final writtenIds = widget.streaming
         ? streamingWrittenSections(clean, merged.map((s) => (id: s.id, title: s.title)).toList())
         : <String>{};
-    final showSectionToc =
-        merged.length >= 2 && (widget.streaming || (widget.sections?.isNotEmpty ?? false));
+    final showSectionToc = shouldShowSectionToc(
+          sections: merged,
+          outputPlan: widget.outputPlan,
+          streaming: widget.streaming,
+          writtenSectionIds: writtenIds,
+        ) &&
+        (widget.streaming || (widget.sections?.isNotEmpty ?? false));
     final timelineNodes = parseTimelineNodes(clean);
     final profile = widget.responseProfile ?? '';
     final showPreset = !widget.streaming &&

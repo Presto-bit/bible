@@ -16,7 +16,7 @@ from ..db import get_pool
 from .chat import prepare
 from .answer_document import build_done_sse_payload, document_from_cache_entry
 from .answer_normalize import normalize_answer_markdown
-from .output_plan import build_output_plan
+from .output_plan import build_output_plan, depth_kwargs_from_plan
 from .answer_schema import SCHEMA_VERSION
 from .conversation_store import (
     append_turns,
@@ -31,6 +31,7 @@ from .answer_structured import recover_empty_response, try_structured_verse_answ
 from .llm import StreamMeta, complete_chat, stream_chat
 from .parse_output import (
     answer_ends_abruptly,
+    answer_marked_incomplete,
     extract_sections,
     split_body_and_followups,
     verse_explain_incomplete,
@@ -523,32 +524,53 @@ def prewarm_answer(body: PrewarmRequest):
                 text = structured
             else:
                 text = complete_chat(prep["messages"], max_tokens=int(prep["max_tokens"]))
+            _meta = prep["meta"]
+            _plan = _meta.get("output_plan") or {}
+            _dk = depth_kwargs_from_plan(_plan)
+            _depth = _meta.get("depth") or _dk.get("depth")
             text = normalize_answer_markdown(
                 text,
                 scene_id,
-                narrow=bool(prep["meta"].get("narrow")),
+                narrow=bool(_meta.get("narrow")),
                 verse_span=verse_span,
+                depth=_depth,
+                soft_max=_dk.get("soft_max"),
+                prefer_prose=bool(_dk.get("prefer_prose")),
             )
             body_probe, _ = split_body_and_followups(text)
             filled = section_fill_once(
                     prep["messages"],
                     body_probe,
                     scene_id,
-                    narrow=bool(prep["meta"].get("narrow")),
+                    narrow=bool(_meta.get("narrow")),
                     max_tokens=min(int(prep["max_tokens"]) // 2, 700),
                     verse_span=verse_span,
+                    depth=_depth,
+                    planned_sections=_dk.get("expected_sections"),
+                    min_complete=_dk.get("min_complete"),
             )
             if filled and filled.strip():
                 text = normalize_answer_markdown(
                     filled,
                     scene_id,
-                    narrow=bool(prep["meta"].get("narrow")),
+                    narrow=bool(_meta.get("narrow")),
                     verse_span=verse_span,
+                    depth=_depth,
+                    soft_max=_dk.get("soft_max"),
+                    prefer_prose=bool(_dk.get("prefer_prose")),
+                    format_only=True,
                 )
             body_text, followups = split_body_and_followups(text)
             if (
                 scene_id in ("verse_full", "verse_quick")
-                and verse_explain_incomplete(scene_id, body_text, verse_span=verse_span)
+                and verse_explain_incomplete(
+                    scene_id,
+                    body_text,
+                    verse_span=verse_span,
+                    depth=_depth,
+                    expected_sections=_dk.get("expected_sections"),
+                    min_complete=_dk.get("min_complete"),
+                )
             ):
                 return
             sections = extract_sections(body_text)
@@ -669,6 +691,7 @@ def chat(
                 verse_span=verse_span,
                 surface=body.surface or "",
                 wants_followups=bool(cached_meta.get("wants_followups")),
+                question=body.question,
             )
             meta = {
                 **cached_meta,
@@ -835,6 +858,9 @@ def chat(
         max_tokens = int(prep["max_tokens"])
         verse_span = int(prep["meta"].get("verse_span") or 1)
         narrow = bool(prep["meta"].get("narrow"))
+        _plan = prep["meta"].get("output_plan") or {}
+        _dk = depth_kwargs_from_plan(_plan)
+        _depth = prep["meta"].get("depth") or _dk.get("depth")
         section_tracker = (
             SectionStreamTracker(
                 (prep["meta"].get("output_plan") or {}).get("sections"),
@@ -948,6 +974,9 @@ def chat(
                         body_probe,
                         verse_span=verse_span,
                         finish_reason=meta.finish_reason,
+                        depth=_depth,
+                        expected_sections=_dk.get("expected_sections"),
+                        min_complete=_dk.get("min_complete"),
                     )
                 if need_length:
                     yield from _run_length_continuation(meta, force=True)
@@ -1065,6 +1094,9 @@ def chat(
             scene or "",
             narrow=narrow,
             verse_span=verse_span,
+            depth=_depth,
+            soft_max=_dk.get("soft_max"),
+            prefer_prose=bool(_dk.get("prefer_prose")),
         )
         body_probe, _ = split_body_and_followups(text)
         if _budget_left() > 3:
@@ -1075,6 +1107,9 @@ def chat(
                 narrow=narrow,
                 max_tokens=min(max_tokens // 2, 700),
                 verse_span=verse_span,
+                depth=_depth,
+                planned_sections=_dk.get("expected_sections"),
+                min_complete=_dk.get("min_complete"),
             )
             if filled and filled.strip():
                 text = normalize_answer_markdown(
@@ -1082,6 +1117,10 @@ def chat(
                     scene or "",
                     narrow=narrow,
                     verse_span=verse_span,
+                    depth=_depth,
+                    soft_max=_dk.get("soft_max"),
+                    prefer_prose=bool(_dk.get("prefer_prose")),
+                    format_only=True,
                 )
         body_text, followups = split_body_and_followups(text)
         if section_tracker:
@@ -1089,13 +1128,27 @@ def chat(
                 yield _sse("section_done", item)
         if followups:
             yield _sse("followups", {"items": followups})
+        incomplete = answer_marked_incomplete(
+            scene or "",
+            body_text,
+            verse_span=verse_span,
+            depth=_depth,
+            expected_sections=_dk.get("expected_sections"),
+            min_complete=_dk.get("min_complete"),
+        )
         document = document_from_cache_entry(body_text, followups=followups)
+        if incomplete:
+            document = {
+                **document,
+                "meta": {**(document.get("meta") or {}), "incomplete": True},
+            }
         yield _sse(
             "done",
             build_done_sse_payload(
                 text,
                 followups=followups,
                 document=document,
+                incomplete=incomplete,
                 scene=scene or "",
                 conversation_id=conversation_id,
             ),

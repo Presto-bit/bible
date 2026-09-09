@@ -13,6 +13,7 @@ import '../../core/badge_stats.dart';
 import '../../core/config.dart';
 import '../../core/theme.dart';
 import '../assistant/assistant_answer_document.dart';
+import '../assistant/assistant_output_plan.dart';
 import '../assistant/assistant_section_stream.dart';
 import '../assistant/assistant_turn_request.dart';
 import '../assistant/answer_profile_body.dart';
@@ -372,7 +373,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..outputPlan = meta.outputPlan
                   ..structureAssets = meta.structureAssets;
               }
-              sectionStream.seedFromPlan(meta.outputPlan?.sections);
+              sectionStream.seedFromPlan(streamSeedTitles(meta.outputPlan));
             });
           case am.SectionStartEvent(:final id, :final title):
             sectionStream.onStart(id: id, title: title);
@@ -451,6 +452,9 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             var answerText = resolved.text.trim().isNotEmpty
                 ? resolved.text.trim()
                 : pending.trim();
+            if (resolved.incomplete && answerText.isNotEmpty) {
+              answerText = appendStreamIncompleteNotice(answerText);
+            }
             if (answerText.isEmpty) {
               setState(() {
                 final t = _turnFor(turnId);
@@ -465,13 +469,15 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             chatSettled = true;
             final streamOk = streamComplete &&
                 !answerText.startsWith('⚠️') &&
-                answerText != _emptyAnswerMsg;
+                answerText != _emptyAnswerMsg &&
+                !resolved.incomplete;
             final structOk = scene == AssistantScene.verseFull ||
                     scene == AssistantScene.verseQuick
                 ? isHalfSheetAnswerComplete(
                     answerText,
                     scene,
                     verseSpanFromRef(widget.refStr),
+                    _turnFor(turnId)?.outputPlan,
                   )
                 : true;
             final followupItems = normalizeFollowupItems(
@@ -811,7 +817,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
   Widget _buildTurn(HalfSheetTurnView turn, int index, {required bool isLast}) {
     final rawAnswer = turn.answer.trim();
     final waitingFirstToken =
-        turn.busy && rawAnswer.isEmpty && (turn.outputPlan?.sections.length ?? 0) < 2;
+        turn.busy && rawAnswer.isEmpty && !shouldShowOutputPlanSkeleton(turn.outputPlan);
     final clean = bodyText(turn.answer);
     final hasError = clean.startsWith('⚠️');
     final usedCitations = citationsUsedInText(clean, turn.citations);

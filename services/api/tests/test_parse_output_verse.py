@@ -1,5 +1,6 @@
 from app.ai.parse_output import (
     answer_ends_abruptly,
+    mid_bullet_truncated,
     missing_verse_sections,
     verse_explain_incomplete,
     verse_needs_length_continuation,
@@ -96,3 +97,48 @@ def test_length_not_continued_when_sections_complete():
         "- 信者得永生。"
     )
     assert not verse_needs_length_continuation("verse_full", body, finish_reason="length")
+
+
+def test_flash_complete_with_summary_only():
+    body = (
+        "### 摘要\n"
+        "神爱世人，甚至将他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。"
+        "这是整节经文的核心信息，用白话概括即可。"
+    )
+    assert not verse_explain_incomplete(
+        "verse_full",
+        body,
+        depth="flash",
+        min_complete=60,
+    )
+
+
+def test_standard_span11_without_outline_not_incomplete_when_prose():
+    body = (
+        "### 摘要\n保罗劝哥林多教会不可互诉。\n\n"
+        "### 经文背景\n"
+        "哥林多是港口城，诉讼文化盛行，保罗在此纠正弟兄互诉的问题。\n\n"
+        "### 经文解释\n"
+        "诉讼暴露关系破裂与见证受损；保罗指向在教会内解决冲突的方式，"
+        "并提醒福音转变：我们也曾如此，如今却被洗净、称义、成圣。"
+    )
+    assert not verse_explain_incomplete(
+        "verse_full",
+        body,
+        verse_span=11,
+        depth="standard",
+        expected_sections=("摘要", "经文背景", "经文解释"),
+        min_complete=120,
+    )
+    assert set(missing_verse_sections(
+        "verse_full",
+        body,
+        verse_span=11,
+        expected_sections=("摘要", "经文背景", "经文解释"),
+    )) == set()
+
+
+def test_mid_bullet_truncated_detects_ellipsis():
+    body = "### 经文解释\n- 说到一半就被…"
+    assert mid_bullet_truncated(body)
+    assert verse_explain_incomplete("verse_full", body, depth="deep")

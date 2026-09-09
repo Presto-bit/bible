@@ -47,14 +47,29 @@ function verseHasBackground(titles: Set<string>): boolean {
   return titles.has('经文背景') || titles.has('背景');
 }
 
-/** 半屏解读回答是否结构完整，避免缓存/展示半截生成。 */
+/** 半屏解读回答是否结构完整，避免缓存/展示半截生成（R1 depth 感知）。 */
 export function isHalfSheetAnswerComplete(
   answer: string,
   scene: AssistantScene,
   verseSpan = 1,
+  outputPlan?: import('./assistant_output_plan').OutputPlan,
 ): boolean {
   const text = answer.trim();
   if (!text || text.startsWith('⚠️')) return false;
+
+  if (outputPlan?.sections?.length) {
+    const minLen = outputPlan.min_complete ?? 60;
+    if (text.length < minLen) return false;
+    const titles = sectionTitles(text);
+    for (const sec of outputPlan.sections) {
+      if (sec === '经文背景' || sec === '背景') {
+        if (!verseHasBackground(titles)) return false;
+      } else if (!titles.has(sec)) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   const span = Math.max(1, verseSpan);
   const minLen =

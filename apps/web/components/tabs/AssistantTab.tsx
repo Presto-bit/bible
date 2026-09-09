@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { useOnline } from '@/lib/use_online';
 import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
-import type { OutputPlan } from '@/lib/assistant_output_plan';
+import { shouldShowOutputPlanSkeleton, streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
 import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
 import { SectionStreamAccumulator } from '@/lib/assistant_section_stream';
 import type { StructureAsset } from '@/lib/assistant_blocks';
@@ -801,7 +801,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             if (meta.response_profile) responseProfile = meta.response_profile;
             if (meta.output_plan?.sections?.length) {
               outputPlan = meta.output_plan as OutputPlan;
-              sectionStream.seedFromPlan(outputPlan.sections);
+              sectionStream.seedFromPlan(streamSeedTitles(outputPlan));
               if (!gotDelta) scheduleApply();
             }
             if (meta.structure_assets?.length) {
@@ -869,7 +869,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             if (resolved.text.trim()) {
               acc = resolved.text.trim();
             }
-            if (payload?.streamComplete === false && acc.trim()) {
+            if ((resolved.incomplete || payload?.streamComplete === false) && acc.trim()) {
               acc = appendStreamIncompleteNotice(acc);
               applyAcc();
             }
@@ -1371,7 +1371,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                 m.role === 'assistant' && m.text && !busy && !canRegen;
               const isStreaming = isLastAssistant && busy;
               const hasPlanSkeleton =
-                isStreaming && (m.outputPlan?.sections?.length ?? 0) >= 2;
+                isStreaming && shouldShowOutputPlanSkeleton(m.outputPlan);
               const showAssistantBody = Boolean(m.text) || hasPlanSkeleton;
               const usedCitations =
                 m.role === 'assistant' && m.citations?.length
