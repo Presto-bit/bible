@@ -41,6 +41,7 @@ class SectionStreamTracker:
         ]
         self._started: set[str] = set()
         self._accum = ""
+        self._section_emitted: dict[str, int] = {}
 
     def bootstrap_starts(self) -> list[dict]:
         """按 output_plan 预发 section_start（弱网可先挂骨架）。"""
@@ -53,10 +54,9 @@ class SectionStreamTracker:
         return events
 
     def on_delta(self, piece: str) -> tuple[list[dict], list[dict]]:
-        """返回 (new_starts, section_deltas)。"""
+        """返回 (new_starts, section_deltas)。delta 仅含小节正文增量，不含 ### 标题。"""
         if not piece:
             return [], []
-        prev_len = len(self._accum)
         self._accum += piece
         new_starts: list[dict] = []
         for m in SECTION_MD_RE.finditer(self._accum):
@@ -68,18 +68,34 @@ class SectionStreamTracker:
                 continue
             self._started.add(sid)
             new_starts.append({"id": sid, "title": title})
-        sid = self._current_section_id()
         deltas: list[dict] = []
-        if sid:
-            deltas.append({"id": sid, "text": piece})
-        elif not self._planned and prev_len == 0 and piece.strip():
-            # 无 plan 的自由回答：落到 synthetic body 节
+        matches = [
+            m
+            for m in SECTION_MD_RE.finditer(self._accum)
+            if m.group(1).strip() != _FOLLOWUP_TITLE
+        ]
+        if not matches and self._planned:
+            sid = self._planned[0]["id"]
+            prev = self._section_emitted.get(sid, 0)
+            raw = self._accum
+            if len(raw) > prev:
+                deltas.append({"id": sid, "text": raw[prev:]})
+                self._section_emitted[sid] = len(raw)
+        elif not matches and not self._planned and self._accum.strip():
             body_id = section_slug("正文")
             if body_id not in self._started:
                 self._started.add(body_id)
                 new_starts.append({"id": body_id, "title": "正文"})
-            sid = body_id
-            deltas.append({"id": sid, "text": piece})
+            prev = self._section_emitted.get(body_id, 0)
+            if len(self._accum) > prev:
+                deltas.append({"id": body_id, "text": self._accum[prev:]})
+                self._section_emitted[body_id] = len(self._accum)
+        else:
+            for sid, full_text in extract_section_bodies(self._accum).items():
+                prev = self._section_emitted.get(sid, 0)
+                if len(full_text) > prev:
+                    deltas.append({"id": sid, "text": full_text[prev:]})
+                    self._section_emitted[sid] = len(full_text)
         return new_starts, deltas
 
     def finalize(self, body_text: str) -> list[dict]:

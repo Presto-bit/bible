@@ -89,9 +89,14 @@ ResolvedDoneAnswer resolveDoneAnswer(
     doneFollowups: doneFollowups,
     document: document,
   );
-  final bestText = _preferLongerText([streamBuilt, base.text, streamed]);
+  final hasDocument =
+      document != null && document.markdown.trim().isNotEmpty;
+  final bestText = hasDocument
+      ? base.text
+      : _preferLongerText([streamBuilt, base.text, streamed]);
   final streamSections = sectionStream?.getSections() ?? const [];
-  final useStreamSections = streamBuilt.isNotEmpty &&
+  final useStreamSections = !hasDocument &&
+      streamBuilt.isNotEmpty &&
       streamBuilt.length >= base.text.trim().length &&
       streamSections.isNotEmpty;
 

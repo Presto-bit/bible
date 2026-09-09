@@ -45,11 +45,15 @@ export function resolveDoneAnswer(
   const streamed = streamedText.trim();
   const effectiveStream = streamBuilt || streamed;
   const base = resolveDoneAnswerCore(effectiveStream, payload);
-  const bestText = preferLongerText(streamBuilt, base.text, streamed);
+  const hasDocument = Boolean(payload?.document?.markdown?.trim());
+  const bestText = hasDocument
+    ? base.text
+    : preferLongerText(streamBuilt, base.text, streamed);
 
   const streamSections = sectionStream?.getSections() ?? [];
   const useStreamSections =
-    Boolean(streamBuilt)
+    !hasDocument
+    && Boolean(streamBuilt)
     && streamBuilt.length >= base.text.trim().length
     && streamSections.length > 0;
 
