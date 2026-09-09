@@ -46,6 +46,7 @@ class SectionStreamAccumulator {
       _entries[id] = _SectionEntry(id: id, title: title);
       _order.add(id);
     }
+    if (_order.isNotEmpty) _active = true;
   }
 
   void onStart({required String id, required String title}) {
@@ -95,7 +96,7 @@ class SectionStreamAccumulator {
     for (final sid in _order) {
       final entry = _entries[sid];
       if (entry == null) continue;
-      if (entry.text.trim().isEmpty && entry.finalized) continue;
+      if (entry.text.trim().isEmpty) continue;
       parts.add('### ${entry.title}\n${entry.text}'.trimRight());
     }
     return parts.join('\n\n').trim();

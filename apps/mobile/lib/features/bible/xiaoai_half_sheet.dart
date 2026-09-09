@@ -19,6 +19,7 @@ import '../assistant/assistant_thinking.dart';
 import '../assistant/assistant_section_stream.dart';
 import '../assistant/assistant_turn_request.dart';
 import '../assistant/answer_profile_body.dart';
+import '../assistant/answer_section_skeleton.dart';
 import '../assistant/assistant_perf.dart';
 import '../assistant/instant_answer_status.dart';
 import '../assistant/verse_faq.dart';
@@ -468,6 +469,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               }
               sectionStream.seedFromPlan(streamSeedTitles(meta.outputPlan));
             });
+            syncSectionStream();
+            scheduleFlush();
           case am.SectionStartEvent(:final id, :final title):
             sectionStream.onStart(id: id, title: title);
             syncSectionStream();
@@ -931,8 +934,17 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
   }
 
   Widget _buildTurn(HalfSheetTurnView turn, int index, {required bool isLast}) {
-    final waitingFirstToken =
-        turn.busy && !hasVisibleAnswerContent(turn.answer);
+    final waitingFirstToken = turn.busy &&
+        !hasVisibleAssistantAnswer(
+          turn.answer,
+          streamSections: turn.streamSections,
+        );
+    final sectionTitle = turn.busy
+        ? currentWritingSectionTitle(turn.streamSections)
+        : null;
+    final showSectionSkeleton = turn.busy &&
+        turn.streamSections.isNotEmpty &&
+        waitingFirstToken;
     final clean = bodyText(turn.answer);
     final hasError = clean.startsWith('⚠️');
     final usedCitations = citationsUsedInText(clean, turn.citations);
@@ -986,13 +998,27 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           ),
         ),
         if (waitingFirstToken)
-          AssistantThinkingState(
-            phase: turn.citations.isNotEmpty
-                ? ThinkingPhase.refs
-                : _streamPhase,
-            citeCount: turn.citations.length,
-            slow: _streamSlow,
-            variant: ThinkingVariant.halfSheet,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AssistantThinkingState(
+                phase: turn.citations.isNotEmpty
+                    ? ThinkingPhase.refs
+                    : _streamPhase,
+                citeCount: turn.citations.length,
+                slow: _streamSlow,
+                variant: ThinkingVariant.halfSheet,
+                currentSectionTitle: sectionTitle,
+              ),
+              if (showSectionSkeleton)
+                AnswerSectionSkeleton(
+                  sections: turn.streamSections
+                      .map((s) => AnswerSection(id: s.id, title: s.title))
+                      .toList(),
+                  writtenSectionIds:
+                      writtenSectionIdsFromStream(turn.streamSections),
+                ),
+            ],
           )
         else ...[
           if (!hasError && !turn.busy)

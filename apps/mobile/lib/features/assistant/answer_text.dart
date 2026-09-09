@@ -200,17 +200,16 @@ class AnswerText extends StatelessWidget {
         sections != null &&
         sections.isNotEmpty &&
         sections.any((s) => s.text.trim().isNotEmpty)) {
+      final written = sections.where((s) => s.text.trim().isNotEmpty).toList();
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (var i = 0; i < sections.length; i++)
+          for (var i = 0; i < written.length; i++)
             AnswerText(
-              key: ValueKey(sections[i].id),
-              text: sections[i].text.trim().isNotEmpty
-                  ? '### ${sections[i].title}\n${sections[i].text}'
-                  : '### ${sections[i].title}',
+              key: ValueKey(written[i].id),
+              text: '### ${written[i].title}\n${written[i].text}',
               fontSize: fontSize,
-              streaming: !sections[i].finalized && i == sections.length - 1,
+              streaming: !written[i].finalized && i == written.length - 1,
               dense: dense,
               onCitationTap: onCitationTap,
             ),

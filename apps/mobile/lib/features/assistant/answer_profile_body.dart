@@ -1,14 +1,17 @@
-/// 回答渲染：无 TOC/骨架，流式与完成同一 Markdown 路径（对齐 PWA）。
+/// 回答渲染：无 TOC，流式 skeleton + 完成 Markdown（对齐 PWA）。
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme.dart';
+import 'answer_section_skeleton.dart';
 import 'answer_text.dart' show AssistantMarkdownBody, kAssistantAnswerFontSize;
 import 'assistant_blocks.dart';
 import 'assistant_format.dart';
 import 'assistant_section_stream.dart' show StreamSection;
+import 'assistant_sections.dart';
+import 'assistant_visible.dart';
 import 'structure_asset_card.dart';
 import 'timeline_rail.dart';
 
@@ -43,8 +46,20 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
 
   @override
   Widget build(BuildContext context) {
+    final streamSections = widget.streamSections;
+    final writtenSections = streamSections
+        ?.where((s) => s.text.trim().isNotEmpty)
+        .toList();
     final clean = bodyText(widget.text);
-    if (clean.trim().isEmpty) return const SizedBox.shrink();
+    final hasWritten = hasVisibleAssistantAnswer(
+      widget.text,
+      streamSections: widget.streaming ? streamSections : null,
+    );
+    final showSkeleton = widget.streaming &&
+        streamSections != null &&
+        streamSections.any((s) => s.text.trim().isEmpty);
+
+    if (!hasWritten && !showSkeleton) return const SizedBox.shrink();
 
     final timelineNodes = parseTimelineNodes(clean);
     final profile = widget.responseProfile ?? '';
@@ -82,14 +97,26 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
               child: Text(_copiedStudy ? '已复制讨论题' : '复制讨论题'),
             ),
           ),
-        AssistantMarkdownBody(
-          text: widget.text,
-          fontSize: widget.fontSize,
-          streaming: widget.streaming,
-          dense: widget.dense,
-          streamSections: widget.streamSections,
-          onCitationTap: widget.onCitationTap,
-        ),
+        if (hasWritten)
+          AssistantMarkdownBody(
+            text: widget.text,
+            fontSize: widget.fontSize,
+            streaming: widget.streaming,
+            dense: widget.dense,
+            streamSections: widget.streaming &&
+                    writtenSections != null &&
+                    writtenSections.isNotEmpty
+                ? writtenSections
+                : widget.streamSections,
+            onCitationTap: widget.onCitationTap,
+          ),
+        if (showSkeleton && streamSections != null)
+          AnswerSectionSkeleton(
+            sections: streamSections
+                .map((s) => AnswerSection(id: s.id, title: s.title))
+                .toList(),
+            writtenSectionIds: writtenSectionIdsFromStream(streamSections),
+          ),
       ],
     );
   }

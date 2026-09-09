@@ -12,7 +12,12 @@ import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
 import type { StreamSection } from '@/lib/assistant_section_stream';
 import { streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
-import { hasVisibleAnswerContent } from '@/lib/assistant_visible';
+import AnswerSectionSkeleton from '@/components/assistant/AnswerSectionSkeleton';
+import {
+  currentWritingSectionTitle,
+  hasVisibleAssistantAnswer,
+  writtenSectionIdsFromStream,
+} from '@/lib/assistant_visible';
 import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
 import { SectionStreamAccumulator } from '@/lib/assistant_section_stream';
 import type { StructureAsset } from '@/lib/assistant_blocks';
@@ -1446,8 +1451,17 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               const showActions =
                 m.role === 'assistant' && m.text && !busy && !canRegen;
               const isStreaming = isLastAssistant && busy;
-              const hasVisible = hasVisibleAnswerContent(m.text);
+              const hasVisible = hasVisibleAssistantAnswer(
+                m.text,
+                isStreaming ? m.streamSections : null,
+              );
               const showAssistantBody = hasVisible;
+              const sectionTitle = isStreaming
+                ? currentWritingSectionTitle(m.streamSections)
+                : undefined;
+              const showSectionSkeleton = Boolean(
+                isStreaming && m.streamSections?.length && !hasVisible,
+              );
               const usedCitations =
                 m.role === 'assistant' && m.citations?.length
                   ? citationsUsedInText(m.text, m.citations)
@@ -1552,11 +1566,23 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       {regenBtn}
                     </div>
                   ) : isStreaming ? (
-                    <AssistantThinkingState
-                      phase={streamPhase}
-                      citeCount={streamCiteCount}
-                      slow={slowHint}
-                    />
+                    <>
+                      <AssistantThinkingState
+                        phase={streamPhase}
+                        citeCount={streamCiteCount}
+                        slow={slowHint}
+                        currentSectionTitle={sectionTitle}
+                      />
+                      {showSectionSkeleton && m.streamSections ? (
+                        <AnswerSectionSkeleton
+                          sections={m.streamSections.map((s) => ({
+                            id: s.id,
+                            title: s.title,
+                          }))}
+                          writtenSectionIds={writtenSectionIdsFromStream(m.streamSections)}
+                        />
+                      ) : null}
+                    </>
                   ) : (
                     <div className="assistant-answer">
                       <p className="assistant-regen-empty muted">生成未完成</p>

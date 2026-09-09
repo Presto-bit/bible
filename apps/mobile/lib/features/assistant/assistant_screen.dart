@@ -41,6 +41,8 @@ import 'assistant_reader_context.dart';
 import 'assistant_scenes.dart';
 import 'assistant_seed.dart';
 import 'assistant_repository.dart';
+import 'answer_section_skeleton.dart';
+import 'assistant_sections.dart';
 import 'assistant_thinking.dart';
 import 'citation_sources_toggle.dart';
 import 'history_session_swipe_row.dart';
@@ -582,22 +584,26 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
     void applySectionStream() {
       if (!sectionStream.active) return;
-      final md = sectionStream.toMarkdown();
-      if (md.isEmpty) return;
+      if (sectionStream.getRenderableSections().isEmpty) return;
       sectionDirty = true;
       sectionFlush ??= Timer.periodic(const Duration(milliseconds: 72), (_) {
         if (!sectionDirty) return;
         sectionDirty = false;
         if (!mounted || myGen != _streamGen) return;
+        final md = sectionStream.toMarkdown();
         setState(() {
-          gotDelta = true;
-          streamPerf.onFirstToken();
-          _streamPhase = ThinkingPhase.writing;
-          reply.content = sectionStream.toMarkdown();
+          if (md.isNotEmpty) {
+            gotDelta = true;
+            streamPerf.onFirstToken();
+            _streamPhase = ThinkingPhase.writing;
+          }
+          reply.content = md;
           reply.sections = sectionStream.getSections();
           reply.streamSections = sectionStream.getRenderableSections();
         });
-        streamPerf.onTextUpdate(reply.content);
+        if (md.isNotEmpty) {
+          streamPerf.onTextUpdate(reply.content);
+        }
         _autoScroll();
       });
     }
@@ -668,6 +674,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 _streamPhase = ThinkingPhase.refs;
               });
               sectionStream.seedFromPlan(streamSeedTitles(meta.outputPlan));
+              applySectionStream();
             case SectionStartEvent(:final id, :final title):
               sectionStream.onStart(id: id, title: title);
               applySectionStream();
@@ -1878,8 +1885,17 @@ class _Bubble extends ConsumerWidget {
     final displayText = turn.content;
     final showActions = !isUser && turn.content.isNotEmpty && !streaming;
     final cites = turn.meta?.citations ?? const <Citation>[];
-    final hasVisible = hasVisibleAnswerContent(turn.content);
+    final hasVisible = hasVisibleAssistantAnswer(
+      turn.content,
+      streamSections: streaming ? turn.streamSections : null,
+    );
     final showAssistantBody = hasVisible;
+    final sectionTitle = streaming
+        ? currentWritingSectionTitle(turn.streamSections)
+        : null;
+    final showSectionSkeleton = streaming &&
+        turn.streamSections.isNotEmpty &&
+        !hasVisible;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
@@ -1904,10 +1920,31 @@ class _Bubble extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: !showAssistantBody
                   ? (streaming
-                      ? AssistantThinkingState(
-                          phase: thinkingPhase ?? ThinkingPhase.understanding,
-                          citeCount: cites.length,
-                          slow: streamSlow,
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AssistantThinkingState(
+                              phase:
+                                  thinkingPhase ?? ThinkingPhase.understanding,
+                              citeCount: cites.length,
+                              slow: streamSlow,
+                              currentSectionTitle: sectionTitle,
+                            ),
+                            if (showSectionSkeleton)
+                              AnswerSectionSkeleton(
+                                sections: turn.streamSections
+                                    .map(
+                                      (s) => AnswerSection(
+                                        id: s.id,
+                                        title: s.title,
+                                      ),
+                                    )
+                                    .toList(),
+                                writtenSectionIds: writtenSectionIdsFromStream(
+                                  turn.streamSections,
+                                ),
+                              ),
+                          ],
                         )
                       : const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),

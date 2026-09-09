@@ -884,6 +884,19 @@ body.assistant-active .assistant-page {
   line-height: 1.45;
   margin: 0;
 }
+.assistant-thinking-tick {
+  animation: assistant-thinking-swap 0.32s ease;
+}
+@keyframes assistant-thinking-swap {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .assistant-thinking {
   padding: 4px 0 8px;
 }

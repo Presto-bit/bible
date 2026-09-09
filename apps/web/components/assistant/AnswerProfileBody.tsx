@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import AnswerText from '@/components/AnswerText';
+import AnswerSectionSkeleton from '@/components/assistant/AnswerSectionSkeleton';
 import StructureAssetCard from '@/components/assistant/StructureAssetCard';
 import TimelineRail from '@/components/assistant/TimelineRail';
 import { bodyText } from '@/lib/assistant_format';
@@ -10,8 +11,11 @@ import {
   parseTimelineNodes,
   type StructureAsset,
 } from '@/lib/assistant_blocks';
-
 import type { StreamSection } from '@/lib/assistant_section_stream';
+import {
+  hasVisibleAssistantAnswer,
+  writtenSectionIdsFromStream,
+} from '@/lib/assistant_visible';
 
 export type ResponseProfile =
   | 'side_compare'
@@ -35,7 +39,7 @@ type Props = {
   onCitationClick?: (n: number) => void;
 };
 
-/** 半屏 / Tab 回答渲染：无 TOC、无骨架，流式与完成同一 Markdown 路径。 */
+/** 半屏 / Tab 回答渲染：流式 skeleton + 完成 Markdown。 */
 export default function AnswerProfileBody({
   text,
   streaming = false,
@@ -48,6 +52,15 @@ export default function AnswerProfileBody({
   const [copiedStudy, setCopiedStudy] = useState(false);
 
   const clean = useMemo(() => bodyText(text), [text]);
+  const writtenSections = useMemo(
+    () => streamSections?.filter((s) => s.text.trim()) ?? [],
+    [streamSections],
+  );
+  const hasWritten = hasVisibleAssistantAnswer(text, streaming ? streamSections : null);
+  const showSkeleton = Boolean(
+    streaming && streamSections?.some((s) => !s.text.trim()),
+  );
+
   const timelineNodes = useMemo(() => parseTimelineNodes(clean), [clean]);
   const profileClass = responseProfile ? `answer-profile-${responseProfile}` : '';
   const showPresetStructure =
@@ -74,7 +87,7 @@ export default function AnswerProfileBody({
     }
   };
 
-  if (!clean.trim()) return null;
+  if (!hasWritten && !showSkeleton) return null;
 
   return (
     <div className={`answer-profile-body ${profileClass}`.trim()}>
@@ -89,13 +102,25 @@ export default function AnswerProfileBody({
           </button>
         </div>
       ) : null}
-      <AnswerText
-        text={text}
-        streaming={streaming}
-        dense={dense}
-        streamSections={streamSections}
-        onCitationClick={onCitationClick}
-      />
+      {hasWritten ? (
+        <AnswerText
+          text={text}
+          streaming={streaming}
+          dense={dense}
+          streamSections={
+            streaming && writtenSections.length
+              ? writtenSections
+              : streamSections
+          }
+          onCitationClick={onCitationClick}
+        />
+      ) : null}
+      {showSkeleton && streamSections ? (
+        <AnswerSectionSkeleton
+          sections={streamSections.map((s) => ({ id: s.id, title: s.title }))}
+          writtenSectionIds={writtenSectionIdsFromStream(streamSections)}
+        />
+      ) : null}
     </div>
   );
 }

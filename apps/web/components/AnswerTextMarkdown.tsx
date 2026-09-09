@@ -153,13 +153,13 @@ const SectionMarkdownBlock = memo(function SectionMarkdownBlock({
   dense: boolean;
   components: Components;
 }) {
-  const chunk = section.text.trim()
-    ? `### ${section.title}\n${section.text}`.trimEnd()
-    : `### ${section.title}`;
+  const hasText = section.text.trim().length > 0;
+  const chunk = hasText ? `### ${section.title}\n${section.text}`.trimEnd() : '';
   const markdown = useMemo(
     () => prepareAssistantMarkdown(chunk, streaming),
     [chunk, streaming],
   );
+  if (!hasText) return null;
   return (
     <MarkdownBlock
       markdown={markdown}
@@ -188,8 +188,10 @@ export default function AnswerText({
   if (sectioned) {
     return (
       <div className="answer-rich-sectioned">
-        {streamSections!.map((sec, index) => {
-          const isActive = !sec.finalized && index === streamSections!.length - 1;
+        {streamSections!
+          .filter((sec) => sec.text.trim())
+          .map((sec, index, written) => {
+          const isActive = !sec.finalized && index === written.length - 1;
           return (
             <SectionMarkdownBlock
               key={sec.id}

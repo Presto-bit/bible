@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
+import { buildThinkingMessages } from '@/lib/thinking_ticker';
+
 export type ThinkingPhase = 'understanding' | 'refs' | 'writing';
 
 type Props = {
@@ -7,18 +10,7 @@ type Props = {
   citeCount?: number;
   slow?: boolean;
   variant?: 'default' | 'halfsheet';
-};
-
-const PHASE_LABEL: Record<ThinkingPhase, string> = {
-  understanding: '正在理解你的问题…',
-  refs: '正在检索释经资料…',
-  writing: '正在组织回答…',
-};
-
-const HALFSHEET_PHASE_LABEL: Record<ThinkingPhase, string> = {
-  understanding: '正在阅读这节经文…',
-  refs: '正在检索释经资料…',
-  writing: '正在整理解读…',
+  currentSectionTitle?: string;
 };
 
 /** 等待首包：单行灰色过程提示，出正文即消失。 */
@@ -27,15 +19,32 @@ export function ThinkingLine({
   citeCount = 0,
   slow = false,
   variant = 'default',
+  currentSectionTitle,
 }: Props) {
-  const labels = variant === 'halfsheet' ? HALFSHEET_PHASE_LABEL : PHASE_LABEL;
-  let label = labels[phase];
-  if (phase === 'refs') {
-    label =
-      citeCount > 0
-        ? `已找到 ${citeCount} 条释经资料，正在组织回答…`
-        : '资料库暂无直接对应注释，正在组织回答…';
-  }
+  const messages = useMemo(
+    () =>
+      buildThinkingMessages(phase, {
+        citeCount,
+        currentSectionTitle,
+        variant,
+      }),
+    [phase, citeCount, currentSectionTitle, variant],
+  );
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    setIndex(0);
+  }, [messages]);
+
+  useEffect(() => {
+    if (messages.length <= 1) return undefined;
+    const id = window.setInterval(() => {
+      setIndex((i) => (i + 1) % messages.length);
+    }, 2500);
+    return () => window.clearInterval(id);
+  }, [messages]);
+
+  const label = messages[index] ?? messages[0] ?? '正在组织回答…';
 
   return (
     <div
@@ -43,7 +52,9 @@ export function ThinkingLine({
       role="status"
       aria-live="polite"
     >
-      <p className="assistant-thinking-line-text muted">{label}</p>
+      <p key={label} className="assistant-thinking-line-text muted assistant-thinking-tick">
+        {label}
+      </p>
       {slow ? (
         <p className="assistant-thinking-slow muted">网络较慢，可稍候或点「停止」后重试</p>
       ) : null}

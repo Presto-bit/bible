@@ -32,6 +32,7 @@ export class SectionStreamAccumulator {
       this.entries.set(id, { id, title, text: '', finalized: false });
       this.order.push(id);
     }
+    if (this.order.length) this._active = true;
   }
 
   onStart(payload: { id: string; title: string }): void {
@@ -83,7 +84,7 @@ export class SectionStreamAccumulator {
     for (const id of this.order) {
       const entry = this.entries.get(id);
       if (!entry) continue;
-      if (!entry.text.trim() && entry.finalized) continue;
+      if (!entry.text.trim()) continue;
       parts.push(`### ${entry.title}\n${entry.text}`.trimEnd());
     }
     return parts.join('\n\n').trim();

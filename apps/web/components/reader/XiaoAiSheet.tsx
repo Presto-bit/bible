@@ -8,7 +8,12 @@ import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
 import type { StructureAsset } from '@/lib/assistant_blocks';
 import { streamSeedTitles, type OutputPlan } from '@/lib/assistant_output_plan';
-import { hasVisibleAnswerContent } from '@/lib/assistant_visible';
+import AnswerSectionSkeleton from '@/components/assistant/AnswerSectionSkeleton';
+import {
+  currentWritingSectionTitle,
+  hasVisibleAssistantAnswer,
+  writtenSectionIdsFromStream,
+} from '@/lib/assistant_visible';
 import { resolveDoneAnswer } from '@/lib/assistant_answer_document';
 import { SectionStreamAccumulator, type StreamSection } from '@/lib/assistant_section_stream';
 import { CitationBar } from '@/components/CitationBar';
@@ -145,6 +150,7 @@ export default function XiaoAiSheet({
   });
   const [retryKey, setRetryKey] = useState(0);
   const [streamSlowHint, setStreamSlowHint] = useState(false);
+  const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
   const [citationTurnId, setCitationTurnId] = useState<string | null>(null);
   const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
@@ -242,6 +248,7 @@ export default function XiaoAiSheet({
         ),
       );
       setStreamSlowHint(false);
+      setStreamPhase('understanding');
 
       const cacheSel = halfSheetCacheSelection(sel, explicitSel);
       const apiQuestion =
@@ -329,7 +336,6 @@ export default function XiaoAiSheet({
       let cites: Citation[] = [];
       let gotDelta = false;
       const streamPerf = new AssistantStreamPerf({ surface: 'half_sheet', scene });
-      let streamPhase: ThinkingPhase = 'understanding';
       let useRag: boolean | undefined;
       let kbId = DEFAULT_KB_ID;
       let kbName: string | undefined;
@@ -405,6 +411,7 @@ export default function XiaoAiSheet({
             if (meta.output_plan?.sections?.length) {
               outputPlan = meta.output_plan as OutputPlan;
               sectionStream.seedFromPlan(streamSeedTitles(outputPlan));
+              syncSectionStream();
             }
             if (meta.structure_assets?.length) {
               structureAssets = meta.structure_assets as StructureAsset[];
@@ -413,7 +420,7 @@ export default function XiaoAiSheet({
               instant = true;
               cacheSource = meta.cache_source;
             }
-            streamPhase = 'refs';
+            setStreamPhase('refs');
             setTurns((prev) =>
               prev.map((t) =>
                 t.id === turnId
@@ -428,6 +435,7 @@ export default function XiaoAiSheet({
                       outputPlan,
                       instant,
                       cacheSource,
+                      ...streamTurnPatch(),
                     }
                   : t,
               ),
@@ -439,7 +447,7 @@ export default function XiaoAiSheet({
             syncSectionStream();
             window.clearTimeout(connectTimer);
             armGenTimeout();
-            streamPhase = 'writing';
+            setStreamPhase('writing');
             if (!gotDelta) {
               gotDelta = true;
               streamPerf.onFirstToken();
@@ -453,6 +461,14 @@ export default function XiaoAiSheet({
                     : turn,
                 ),
               );
+            } else {
+              setTurns((prev) =>
+                prev.map((turn) =>
+                  turn.id === turnId && turn.busy
+                    ? { ...turn, ...streamTurnPatch() }
+                    : turn,
+                ),
+              );
             }
           },
           onSectionDelta: (payload) => {
@@ -461,7 +477,7 @@ export default function XiaoAiSheet({
             syncSectionStream();
             window.clearTimeout(connectTimer);
             armGenTimeout();
-            streamPhase = 'writing';
+            setStreamPhase('writing');
             const pending = accRef.current;
             if (!gotDelta) {
               gotDelta = true;
@@ -477,7 +493,6 @@ export default function XiaoAiSheet({
             if (rafRef.current == null) {
               rafRef.current = window.setTimeout(() => {
                 rafRef.current = null;
-                const batched = accRef.current;
                 setTurns((prev) =>
                   prev.map((turn) =>
                     turn.id === turnId && turn.busy
@@ -505,7 +520,7 @@ export default function XiaoAiSheet({
             if (sectionStream.active) return;
             window.clearTimeout(connectTimer);
             armGenTimeout();
-            streamPhase = 'writing';
+            setStreamPhase('writing');
             accRef.current += t;
             const pending = accRef.current;
             if (!gotDelta) {
@@ -797,8 +812,17 @@ export default function XiaoAiSheet({
             const isLast = index === turns.length - 1;
             const clean = stripAnswer(turn.answer);
             const rawAnswer = turn.answer.trim();
-            const hasVisible = hasVisibleAnswerContent(clean || rawAnswer);
+            const hasVisible = hasVisibleAssistantAnswer(
+              clean || rawAnswer,
+              turn.busy ? turn.streamSections : null,
+            );
             const waitingFirstToken = turn.busy && !hasVisible;
+            const sectionTitle = turn.busy
+              ? currentWritingSectionTitle(turn.streamSections)
+              : undefined;
+            const showSectionSkeleton = Boolean(
+              turn.busy && turn.streamSections?.length && waitingFirstToken,
+            );
             const hasError = clean.startsWith('⚠️');
             const usedCitations = citationsUsedInText(clean, turn.citations);
             const evidenceCites = usedCitations.length > 0 ? usedCitations : turn.citations;
@@ -826,14 +850,24 @@ export default function XiaoAiSheet({
                         <AssistantThinkingState
                           variant="halfsheet"
                           phase={
-                            turn.citations.length
-                              ? 'refs'
-                              : 'understanding'
+                            turn.id === activeTurnId
+                              ? streamPhase
+                              : turn.citations.length
+                                ? 'refs'
+                                : 'understanding'
                           }
                           citeCount={turn.citations.length}
+                          slow={streamSlowHint && turn.id === activeTurnId}
+                          currentSectionTitle={sectionTitle}
                         />
-                        {streamSlowHint && turn.id === activeTurnId ? (
-                          <p className="muted half-sheet-slow-hint">仍在准备，请稍候…</p>
+                        {showSectionSkeleton && turn.streamSections ? (
+                          <AnswerSectionSkeleton
+                            sections={turn.streamSections.map((s) => ({
+                              id: s.id,
+                              title: s.title,
+                            }))}
+                            writtenSectionIds={writtenSectionIdsFromStream(turn.streamSections)}
+                          />
                         ) : null}
                       </>
                     ) : hasVisible || !turn.busy ? (
