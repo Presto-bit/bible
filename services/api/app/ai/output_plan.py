@@ -62,7 +62,7 @@ def build_output_plan(
     if sections:
         lead = sections[0] in SUMMARY_LEAD_TITLES or sections[0] in {"一句话", "主题"}
     max_followups = 0
-    if wants_followups and prof.depth not in ("flash",):
+    if wants_followups and prof.depth not in ("flash", "oia_compact"):
         max_followups = 2 if surface == "half_sheet" else 3
     return {
         "depth": prof.depth,

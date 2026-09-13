@@ -1260,19 +1260,18 @@ def chat(
             expected_sections=_dk.get("expected_sections"),
             min_complete=_dk.get("min_complete"),
         )
-        _fill_depth = "standard" if _depth == "flash" else _depth
+        _fill_depth = _depth
         _surf = (body.surface or "").strip().lower()
-        _half = _surf in ("half_sheet", "prewarm")
-        if (
-            _body_incomplete
-            and not _half
-            and _surf in ("half_sheet", "prewarm", "assistant", "tab")
-        ):
-            if _fill_depth in ("flash", "standard", None):
+        if _body_incomplete and _surf in ("half_sheet", "prewarm", "assistant", "tab"):
+            if _fill_depth in ("standard", None):
                 _fill_depth = "structure"
-        _should_fill = _depth in ("deep", "study") or (
-            scene in ("verse_full", "verse_quick") and _body_incomplete
-        )
+        _should_fill = _depth in (
+            "deep",
+            "study",
+            "oia_compact",
+            "oia_standard",
+            "oia_deep",
+        ) or (scene in ("verse_full", "verse_quick") and _body_incomplete)
         _fill_attempted = False
         if _budget_left() > 3 and _should_fill:
             _fill_attempted = True
@@ -1301,13 +1300,6 @@ def chat(
         body_text, followups = split_body_and_followups(text)
         if followups:
             yield _sse("followups", {"items": followups})
-        _min_complete = int(_dk.get("min_complete") or 80)
-        _half_skip_heavy_recover = (
-            _half
-            and len(body_text) >= int(_min_complete * 0.85)
-            and not answer_ends_abruptly(body_text)
-            and not mid_bullet_truncated(body_text)
-        )
         incomplete = answer_marked_incomplete(
             scene or "",
             body_text,
@@ -1316,12 +1308,7 @@ def chat(
             expected_sections=_dk.get("expected_sections"),
             min_complete=_dk.get("min_complete"),
         )
-        if (
-            incomplete
-            and scene in ("verse_full", "verse_quick")
-            and _budget_left() > 5
-            and not _half_skip_heavy_recover
-        ):
+        if incomplete and scene in ("verse_full", "verse_quick") and _budget_left() > 5:
             try:
                 structured = try_structured_verse_answer(
                     messages,
@@ -1353,7 +1340,6 @@ def chat(
                 )
         if (
             incomplete
-            and not _half
             and scene in ("verse_full", "verse_quick")
             and _budget_left() > 3
             and _fill_attempted
@@ -1390,12 +1376,7 @@ def chat(
                     expected_sections=_dk.get("expected_sections"),
                     min_complete=_dk.get("min_complete"),
                 )
-        if (
-            incomplete
-            and scene in ("verse_full", "verse_quick")
-            and _budget_left() > 6
-            and not _half_skip_heavy_recover
-        ):
+        if incomplete and scene in ("verse_full", "verse_quick") and _budget_left() > 6:
             logger.warning(
                 "ai answer incomplete silent retry scene=%s span=%s depth=%s len=%s",
                 scene,
@@ -1432,12 +1413,7 @@ def chat(
                     expected_sections=_dk.get("expected_sections"),
                     min_complete=_dk.get("min_complete"),
                 )
-        if (
-            incomplete
-            and not _half
-            and scene in ("verse_full", "verse_quick")
-            and _budget_left() > 3
-        ):
+        if incomplete and scene in ("verse_full", "verse_quick") and _budget_left() > 3:
             for _extra_depth in ("structure", "full"):
                 if not incomplete or _budget_left() <= 3:
                     break

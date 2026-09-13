@@ -40,9 +40,9 @@ List<AssistantChip> personalizedAssistantChips({
   if (anchor.isNotEmpty) {
     chips.addAll([
       _chip(
-        '经文背景',
+        '完整解读',
         AssistantScene.chatExplain,
-        chipUserQuestion('解释经文', ref: refLabel),
+        chipUserQuestion('完整解读', ref: refLabel),
       ),
       _chip(
         '生活应用',
@@ -93,9 +93,9 @@ List<AssistantChip> personalizedAssistantChips({
     if (hasLastRead) {
       chips.add(
         _chip(
-          '解释经文',
+          '完整解读',
           AssistantScene.chatExplain,
-          chipUserQuestion('解释经文', ref: refLabel),
+          chipUserQuestion('完整解读', ref: refLabel),
         ),
       );
     }

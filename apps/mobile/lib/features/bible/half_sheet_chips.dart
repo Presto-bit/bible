@@ -1,4 +1,4 @@
-/// 读经半屏 L1 / 默认 L3 chip（对齐 v3.1 定稿）。
+/// 读经半屏 L1 / 默认 L3 chip（OIA 加深）。
 library;
 
 import 'dart:async';
@@ -26,30 +26,36 @@ List<HalfSheetChipDef> halfSheetL1Chips(String? refLabel) {
   final anchor = refLabel?.trim().isNotEmpty == true
       ? '「${refLabel!.trim()}」'
       : '这段经文';
-  const rows = <(String, AssistantScene, String)>[
-    ('经文背景', AssistantScene.chatExplain, ''),
-    ('生活应用', AssistantScene.chatApply, ''),
-    ('原文词义', AssistantScene.chatOriginal, ''),
-    ('和上下文连', AssistantScene.chatUnderstand, ''),
+  return [
+    HalfSheetChipDef(
+      label: '更多关联',
+      scene: AssistantScene.chatUnderstand,
+      mode: AssistantScene.chatUnderstand.mode,
+      q: '$anchor和前后文、整卷主题怎么连在一起？不要重复半屏已说的内容，150字内。',
+    ),
+    HalfSheetChipDef(
+      label: '更多应用',
+      scene: AssistantScene.chatApply,
+      mode: AssistantScene.chatApply.mode,
+      q: '基于$anchor的本意，今天可以怎么回应？给出2–3条具体行动，不要重复半屏已说的内容。',
+    ),
+    HalfSheetChipDef(
+      label: '展开解释',
+      scene: AssistantScene.chatExplain,
+      mode: AssistantScene.chatExplain.mode,
+      q: '补充$anchor的历史处境与关键词义，不要重复半屏已解释的字句，150字内。',
+    ),
+    HalfSheetChipDef(
+      label: '原文词义',
+      scene: AssistantScene.chatOriginal,
+      mode: AssistantScene.chatOriginal.mode,
+      q: '$anchor里最关键的词原文是什么意思？',
+    ),
   ];
-  return rows.map((row) {
-    final q = switch (row.$1) {
-      '经文背景' => '请补充$anchor的历史与上下文背景，150字内。',
-      '生活应用' => '请把$anchor应用到今日生活，给出2–3条具体行动。',
-      '原文词义' => '$anchor里最关键的词原文是什么意思？',
-      _ => '$anchor和前后文怎么连在一起读？',
-    };
-    return HalfSheetChipDef(
-      label: row.$1,
-      scene: row.$2,
-      mode: row.$2.mode,
-      q: q,
-    );
-  }).toList();
 }
 
 List<String> defaultHalfSheetFollowups(String refLabel) {
-  return const ['这段核心词什么意思？', '能补充历史背景吗？', '今天可以怎么用？'];
+  return const ['这段最关键的一个词？', '和前后文怎么连？', '可以怎么祷告回应？'];
 }
 
 String halfSheetSelectionKey(

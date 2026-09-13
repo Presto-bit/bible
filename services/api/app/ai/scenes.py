@@ -50,12 +50,17 @@ SCENES: dict[str, SceneSpec] = {
         wants_followups=False,
         format_guide=(
             f"{_MD}\n"
-            "仅两级结构，不要表格、不要四级以下标题：\n"
+            "OIA 四节顺序固定（半屏快懂）：\n"
             "### 摘要\n"
-            "1 句（≤40 字），概括本节要旨。\n"
+            "观察：1 句（≤40 字），文本说了什么。\n"
             "### 经文解释\n"
-            f"3–4 条要点，{_BULLETS}说清原意与关键词。\n"
-            f"建议篇幅约 180–260 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
+            "解释：1–2 句 prose，当时语境下的原意。\n"
+            "### 和全本关联\n"
+            "关联：1 句，与前后文/整卷/圣经主脉的一条线。\n"
+            "### 今日回应\n"
+            "应用：1 句，温柔贴近生活的回应。\n"
+            "建议篇幅约 240–320 字；每节 prose 为主，不要列表堆砌。"
+            "不要「相关追问」。"
         ),
     ),
     "verse_full": SceneSpec(
@@ -66,13 +71,16 @@ SCENES: dict[str, SceneSpec] = {
         wants_followups=False,
         format_guide=(
             f"{_MD}\n"
+            "OIA 四节（Tab 深读默认；半屏由 depth 压缩为每节 1 句）：\n"
             "### 摘要\n"
-            "1 句（≤40 字）。\n"
-            "### 经文背景\n"
-            f"2–3 条要点，{_BULLETS}{_BG_CONTEXT}\n"
+            "1–2 句。\n"
             "### 经文解释\n"
-            f"3–4 条要点，{_BULLETS}{_EXPLAIN_CONTEXT}\n"
-            f"建议篇幅约 260–360 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
+            f"2–3 条完整句，{_BULLETS}处境与原意合一，不单开「背景」小节。\n"
+            "### 和全本关联\n"
+            f"2–3 条，{_BULLETS}串珠/同卷脉络，勿重复解释。\n"
+            "### 今日回应\n"
+            f"1 条核心 + 2 条行动或默想，{_BULLETS}\n"
+            "建议篇幅约 450–650 字。不要「相关追问」。"
         ),
     ),
     "chat_explain": SceneSpec(
@@ -84,12 +92,14 @@ SCENES: dict[str, SceneSpec] = {
         format_guide=(
             f"{_MD}\n"
             "### 摘要\n"
-            "1 句（≤40 字）。\n"
-            "### 背景\n"
-            f"2–3 条，{_BULLETS}{_BG_CONTEXT}\n"
+            "1–2 句。\n"
             "### 经文解释\n"
-            f"3–4 条，{_BULLETS}{_EXPLAIN_CONTEXT}\n"
-            f"建议篇幅约 300–420 字。{_LEN_HINT}"
+            f"2–3 条，{_BULLETS}当时原意与处境。\n"
+            "### 和全本关联\n"
+            f"2–3 条，{_BULLETS}与全本/上下文关系。\n"
+            "### 今日回应\n"
+            f"1 条核心 + 2 条行动，{_BULLETS}\n"
+            f"建议篇幅约 450–550 字。{_LEN_HINT}"
         ),
     ),
     "chat_understand": SceneSpec(
@@ -350,91 +360,51 @@ def verse_scene_format_guide(
     *,
     depth: "DepthProfile | None" = None,
 ) -> str:
-    """半屏释经：按选区节数 / depth 动态输出格式指引。"""
+    """释经：按选区节数 / depth 动态输出 OIA 格式指引。"""
     from .depth_router import DepthProfile
 
     spec = SCENES.get(scene_id)
     if not spec or scene_id not in ("verse_full", "verse_quick"):
         return spec.format_guide if spec else ""
-    if depth and depth.depth == "deep":
-        span = max(1, int(verse_span or 1))
-        if span >= 6:
-            pass  # fall through to long guide below
-        else:
-            return (
-                f"{_MD}\n"
-                "### 摘要\n"
-                "1 句（≤42 字）。\n"
-                "### 经文背景\n"
-                f"2–3 条，{_BULLETS_RICH}{_BG_CONTEXT}\n"
-                "### 经文解释\n"
-                f"3–5 条，{_BULLETS_RICH}{_EXPLAIN_CONTEXT}\n"
-                f"建议篇幅约 {depth.target_chars}–{depth.soft_max} 字。{_LEN_HINT}"
-            )
-    if depth and depth.depth == "standard" and depth.section_policy == "soft":
-        span = max(1, int(verse_span or 1))
-        titles = "、".join(depth.sections)
-        if depth.target_chars <= 280:
-            explain_bullets = "2–3 条" if span <= 3 else "3 条"
-            return (
-                f"{_MD}\n"
-                f"共 {span} 节：按主题归纳，**不要逐节罗列**。\n"
-                f"小节：{titles}。\n"
-                "### 摘要\n"
-                "1 句（≤42 字）。\n"
-                "### 经文解释\n"
-                f"{explain_bullets}，每条一句完整观点，紧扣经文关键字句。\n"
-                f"建议篇幅约 {depth.target_chars}–{depth.soft_max} 字，**宁短勿水**。"
-                "不要「相关追问」。"
-            )
+    span = max(1, int(verse_span or 1))
+    if depth and depth.depth == "oia_compact":
+        lo, hi = depth.target_chars - 40, depth.soft_max
         return (
             f"{_MD}\n"
             f"共 {span} 节：按主题归纳，不要逐节罗列。\n"
-            f"小节：{titles}。\n"
-            "摘要宜 1 句；解释部分可用短段落或 3–4 条要点，"
-            f"建议篇幅约 {depth.target_chars}–{depth.soft_max} 字。"
-            "不要「相关追问」。"
+            "OIA 四节各 1–2 句 prose：### 摘要 → ### 经文解释 → ### 和全本关联 → ### 今日回应。\n"
+            f"建议篇幅约 {lo}–{hi} 字。不要「相关追问」。"
         )
-    span = max(1, int(verse_span or 1))
+    if depth and depth.depth in ("oia_standard", "oia_deep"):
+        titles = " → ".join(f"### {t}" for t in depth.sections)
+        return (
+            f"{_MD}\n"
+            f"共 {span} 节：按主题归纳，禁止逐节 OIA。\n"
+            f"顺序：{titles}。\n"
+            f"建议篇幅约 {depth.target_chars}–{depth.soft_max} 字。不要「相关追问」。"
+        )
+    if depth and depth.depth == "deep":
+        return (
+            f"{_MD}\n"
+            f"共 {span} 节连续经文：先抓整段主线，**禁止逐节解释**。\n"
+            "### 摘要\n"
+            "1 句（≤50 字）。\n"
+            "### 经文背景\n"
+            f"2 条，{_BULLETS_RICH}{_BG_CONTEXT}\n"
+            "### 段落脉络\n"
+            f"3–4 条，{_BULLETS_RICH}\n"
+            "### 经文解释\n"
+            f"4–5 条，{_BULLETS_RICH}{_EXPLAIN_CONTEXT}\n"
+            f"建议篇幅约 {depth.target_chars}–{depth.soft_max} 字。{_LEN_HINT}"
+        )
     if span <= 2:
         return spec.format_guide
-    if scene_id == "verse_quick":
-        lo, hi = (200, 320) if span <= 5 else (280, 420)
-        return (
-            f"{_MD}\n"
-            f"共 {span} 节经文：按主题归纳，不要逐节罗列。\n"
-            "### 摘要\n"
-            "1 句（≤40 字），概括整段要旨。\n"
-            "### 经文解释\n"
-            f"4–5 条要点，{_BULLETS}抓核心论点与转折。\n"
-            f"建议篇幅约 {lo}–{hi} 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
-        )
-    if span <= 5:
-        return (
-            f"{_MD}\n"
-            f"共 {span} 节经文：按主题归纳，不要逐节罗列。\n"
-            "### 摘要\n"
-            "1 句（≤42 字）。\n"
-            "### 经文背景\n"
-            f"2–3 条，{_BULLETS_RICH}{_BG_CONTEXT}\n"
-            "### 经文解释\n"
-            f"3–5 条，{_BULLETS_RICH}{_EXPLAIN_CONTEXT}\n"
-            f"建议篇幅约 320–520 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
-        )
+    lo, hi = (280, 360) if span <= 5 else (320, 440)
     return (
         f"{_MD}\n"
-        f"共 {span} 节连续经文：先抓整段主线，**禁止逐节解释**。\n"
-        "清单式经文（如恶行表）用 1–2 条概括，不要逐字展开。\n"
-        "小节顺序固定：摘要 → 经文背景 → 段落脉络 → 经文解释。\n"
-        "### 摘要\n"
-        "1 条（- 列表，≤50 字），概括整段要旨。\n"
-        "### 经文背景\n"
-        f"**严格 2 条**，{_BULLETS_RICH}{_BG_CONTEXT}\n"
-        "### 段落脉络\n"
-        f"3–4 条，{_BULLETS_RICH}交代论述推进（如：诉讼 → 警告 → 福音转折）。\n"
-        "### 经文解释\n"
-        f"**4–5 条**，{_BULLETS_RICH}{_EXPLAIN_CONTEXT}每条须抓一个核心论点，禁止逐节碎拆。\n"
-        f"建议篇幅约 450–920 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
+        f"共 {span} 节经文：按主题归纳，不要逐节罗列。\n"
+        "OIA 四节：### 摘要 → ### 经文解释 → ### 和全本关联 → ### 今日回应。\n"
+        f"建议篇幅约 {lo}–{hi} 字。不要「相关追问」。"
     )
 
 

@@ -223,7 +223,7 @@ def test_build_messages_no_rag_omits_commentary():
     assert SCENES["verse_full"].use_rag is True
 
 
-def test_build_messages_flash_first_turn_compact():
+def test_build_messages_oia_compact_half_sheet():
     from app.ai.depth_router import resolve_depth
 
     prof = resolve_depth(
@@ -241,9 +241,10 @@ def test_build_messages_flash_first_turn_compact():
         has_prior_turns=False,
         depth=prof,
     )
-    assert prof.depth == "flash"
+    assert prof.depth == "oia_compact"
     sys = msgs[0]["content"]
-    assert "短答" in sys or "摘要" in sys
+    assert "和全本关联" in sys
+    assert "今日回应" in sys
     assert "Chip 追问" not in sys
     assert "第一个问题" not in sys
     assert "总之" not in sys or "禁用空泛套话" not in sys

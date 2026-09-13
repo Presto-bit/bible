@@ -18,33 +18,31 @@ logger = logging.getLogger(__name__)
 
 _JSON_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
 
-_VERSE_JSON_GUIDE = (
-    "【JSON 输出】仅输出一个 JSON 对象，不要 Markdown，不要解释：\n"
-    '{"summary":"≤40字","sections":[{"title":"经文背景","items":["≤55字","..."]},'
-    '{"title":"经文解释","items":["...","..."]}]}\n'
-    "sections 顺序与必需小节一致；items 为字符串数组。"
-)
-
-_VERSE_PASSAGE_JSON_GUIDE = (
-    "【JSON 输出】仅输出一个 JSON 对象，不要 Markdown，不要解释：\n"
-    '{"summary":"≤50字","sections":['
-    '{"title":"经文背景","items":["≤78字","≤78字"]},'
-    '{"title":"段落脉络","items":["≤78字","≤78字","≤78字"]},'
-    '{"title":"经文解释","items":["≤78字","≤78字","≤78字","≤78字","≤78字"]}'
+_OIA_COMPACT_JSON = (
+    '{"summary":"≤40字","sections":['
+    '{"title":"经文解释","items":["≤80字"]},'
+    '{"title":"和全本关联","items":["≤60字"]},'
+    '{"title":"今日回应","items":["≤50字"]}'
     ']}\n'
-    "共多节经文：按整段主线归纳，禁止逐节罗列；sections 顺序固定。"
+    "summary=观察；每节 items 1 条完整句。"
 )
 
-_VERSE_MID_SPAN_JSON_GUIDE = (
-    "【JSON 输出】仅输出一个 JSON 对象，不要 Markdown，不要解释：\n"
-    '{"summary":"≤42字","sections":[{"title":"经文背景","items":["≤55字","..."]},'
-    '{"title":"经文解释","items":["...","...","..."]}]}\n'
-    "sections 顺序与必需小节一致；items 为字符串数组。"
+_OIA_STANDARD_JSON = (
+    '{"summary":"≤40字","sections":['
+    '{"title":"经文解释","items":["≤70字","≤70字"]},'
+    '{"title":"和全本关联","items":["≤60字","≤60字"]},'
+    '{"title":"今日回应","items":["≤50字","≤50字","≤50字"]}'
+    ']}\n'
+    "多节经按主题归纳，禁止逐节罗列。"
 )
 
-_VERSE_QUICK_JSON_GUIDE = (
-    "【JSON 输出】仅输出一个 JSON 对象：\n"
-    '{"summary":"≤40字","sections":[{"title":"经文解释","items":["≤55字","...","..."]}]}\n'
+_OIA_DEEP_JSON = (
+    '{"summary":"≤50字","sections":['
+    '{"title":"经文解释","items":["≤78字","≤78字","≤78字"]},'
+    '{"title":"段落脉络","items":["≤78字","≤78字","≤78字"]},'
+    '{"title":"和全本关联","items":["≤78字","≤78字"]},'
+    '{"title":"今日回应","items":["≤60字","≤60字","≤60字"]}'
+    ']}\n'
 )
 
 
@@ -68,14 +66,14 @@ def parse_answer_json(raw: str) -> dict | None:
 
 
 def _verse_json_guide(scene: str, verse_span: int = 1) -> str:
-    if scene == "verse_quick":
-        return _VERSE_QUICK_JSON_GUIDE
     span = max(1, int(verse_span or 1))
     if span >= 6:
-        return _VERSE_PASSAGE_JSON_GUIDE
-    if span >= 3:
-        return _VERSE_MID_SPAN_JSON_GUIDE
-    return _VERSE_JSON_GUIDE
+        body = _OIA_DEEP_JSON
+    elif span >= 3:
+        body = _OIA_STANDARD_JSON
+    else:
+        body = _OIA_COMPACT_JSON
+    return "【JSON 输出】仅输出一个 JSON 对象，不要 Markdown，不要解释：\n" + body
 
 
 def _chat_json_guide(scene: str) -> str | None:

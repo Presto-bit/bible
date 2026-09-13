@@ -132,7 +132,7 @@ def _keep_section_prose(
         return False
     if _section_allows_prose(title):
         return True
-    if depth == "flash" or prefer_prose:
+    if depth in ("flash", "oia_compact") or prefer_prose:
         return True
     if depth == "standard" and prefer_prose:
         return True

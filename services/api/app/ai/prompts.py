@@ -72,8 +72,9 @@ _EVIDENCE_WITH_NOTES = (
 )
 
 _CONTINUITY = (
-    "读者与你已有上文对话。请接续前文，避免重复已解释过的要点；"
-    "可用一两句简短回指前文，再回答本次新问题。\n"
+    "读者与你已有上文对话（可能含半屏 OIA 四步快懂：摘要/解释/关联/回应）。"
+    "请接续前文，**禁止重复**已写过的观察、解释、关联与应用要点；"
+    "只答本次新问题，可一句回指前文再展开。\n"
 )
 
 _BASE = (
@@ -94,22 +95,18 @@ _BASE = (
 _BASE_COMPACT_HALF = (
     _PERSONA
     + "请用简体中文，紧扣所给经文作答；不确定则坦诚说明，不杜撰。\n"
-    + "半屏快读：**少而准**——每条要点只讲一个清晰洞察，禁止套话、禁止重复已述信息。\n"
     + "语气温暖平和；句子完整自然。\n"
     f"{_ANTI_TEMPLATE}{_ANTI_REASONING}"
 )
 
 _MARKDOWN_OUTPUT_COMPACT = (
-    "【Markdown · 半屏快读】\n"
-    "- **须一次性写完全部规定 ### 小节后再停笔**，不要留半成品。\n"
-    "- **必须先写 ### 摘要**（1 句，≤42 字），再写其它小节。\n"
-    "- 其余小节用 ### 标题 + - 列表要点；关键术语 **加粗**。\n"
-    "- **经文解释**：承接摘要，用「在……语境下，这句话……」解释关键字句；"
-    "不要重复摘要或背景。\n"
-    "- 2–3 节：仅 ### 摘要 + ### 经文解释；解释 **2–3 条**，每条一句完整观点。\n"
-    "- 4–5 节：仍优先摘要 + 解释；解释 **3 条**，按主题归纳，不要逐节罗列。\n"
-    "- 禁止为凑字数拆碎句子、堆砌形容词或泛泛应用；质量优先于篇幅。\n"
-    "- 不要 HTML；半屏不要「相关追问」；不要写「（续）」类小节标题。\n"
+    "【Markdown · 半屏 OIA 快懂】\n"
+    "- **须一次性写全四节再停笔**，顺序固定，每节 1–2 句 prose（不要 - 列表堆砌）。\n"
+    "- ### 摘要 — 观察：文本说了什么（≤40 字）。\n"
+    "- ### 经文解释 — 解释：当时语境下的原意（≤80 字，可含处境，不写大段考据）。\n"
+    "- ### 和全本关联 — 关联：与前后文/整卷/圣经主脉的一条线（≤60 字，勿重复解释）。\n"
+    "- ### 今日回应 — 应用：温柔一句贴近生活的回应（≤50 字，非命令式清单）。\n"
+    "- 不要「经文背景」「段落脉络」独立小节；不要 HTML；不要「相关追问」。\n"
 )
 
 _BASE_NO_RAG = (
@@ -226,13 +223,32 @@ def format_reader_context(ctx: dict | None) -> str:
 
 def depth_format_guide(profile: DepthProfile, scene_id: str, verse_span: int = 1) -> str:
     """R1：按 depth 选输出形态，覆盖 scene 默认教案式指引。"""
+    if profile.depth == "oia_compact":
+        lo, hi = profile.target_chars - 40, profile.soft_max
+        return (
+            f"（半屏 OIA · 总篇幅约 {lo}–{hi} 字，勿复述本说明）\n"
+            "四节顺序：### 摘要 → ### 经文解释 → ### 和全本关联 → ### 今日回应。\n"
+            "每节 1–2 句完整 prose；职责不重复；不要列表堆砌；不要「相关追问」。"
+        )
+    if profile.depth in ("oia_standard", "oia_deep"):
+        lo, hi = profile.target_chars - 60, profile.soft_max
+        extra = ""
+        if profile.depth == "oia_deep" and "段落脉络" in profile.sections:
+            extra = "\n多节经：在 ### 经文解释 与 ### 和全本关联 之间插入 ### 段落脉络（3–4 条）。"
+        return (
+            f"（Tab OIA 深读 · 总篇幅约 {lo}–{hi} 字）\n"
+            "四节：### 摘要（1–2 句）→ ### 经文解释（2–3 条完整句，处境与原意合一，"
+            "不单开「背景」小节）→ ### 和全本关联（2–3 条，勿重复解释）→ "
+            "### 今日回应（1 条核心 + 2 条行动或默想）。"
+            f"{extra}\n"
+            "多节经按主题归纳，禁止逐节罗列；每节最多 3 条。"
+        )
     if profile.depth == "flash":
         lo, hi = profile.target_chars - 40, profile.soft_max
         return (
-            "（输出形态：短答，勿复述本说明）\n"
-            f"先 ### 摘要（1–2 句，≤50 字），再用 1–2 段短白话说明「是什么意思、今天怎么理解」。"
-            f"总篇幅约 {lo}–{hi} 字。\n"
-            "不要展开历史考据；不要多个 ### 小节；不要列表堆砌；不要「相关追问」。"
+            "（输出形态：Chip 短追问，勿复述本说明）\n"
+            f"### 摘要（≤30 字）+ 2–3 条 - 要点；总篇幅约 {lo}–{hi} 字。\n"
+            "不要重复上文 OIA 四步；不要「相关追问」。"
         )
     if profile.depth == "study":
         return (
@@ -276,9 +292,10 @@ def build_messages(
 
     flash_first = bool(depth and depth.depth == "flash" and not has_prior_turns)
     surf = (surface or "").strip().lower()
-    compact_half = (
-        surf in {"half_sheet", "prewarm"}
-        and scene.id in ("verse_full", "verse_quick")
+    compact_half = bool(
+        depth
+        and depth.depth == "oia_compact"
+        and surf in {"half_sheet", "prewarm"}
         and not has_prior_turns
     )
     if scene.id == "chat_general":
@@ -321,7 +338,12 @@ def build_messages(
         system_parts.append(scene.format_guide)
     if use_rag and citations:
         system_parts.append("\n")
-        system_parts.append(_EVIDENCE_WITH_NOTES)
+        if depth and depth.depth == "oia_compact":
+            system_parts.append(
+                "若引用【背景注释】，最多 1 处脚注 [1]，非必须；脚注序号须与注释列表一致。\n"
+            )
+        else:
+            system_parts.append(_EVIDENCE_WITH_NOTES)
     if scene.wants_followups and not narrow and not flash_first:
         system_parts.append("\n")
         system_parts.append(_FOLLOWUP_RULE)

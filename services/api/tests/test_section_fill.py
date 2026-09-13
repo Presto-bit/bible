@@ -1,4 +1,4 @@
-"""section_fill 单测（P2 单次补形）。"""
+"""section_fill 单测（P2 单次补形 · OIA）。"""
 from __future__ import annotations
 
 import sys
@@ -12,11 +12,17 @@ from app.ai.section_fill import (  # noqa: E402
 )
 
 
-def test_collect_hints_missing_verse_sections():
+def test_collect_hints_missing_oia_sections():
     body = "### 摘要\n只有摘要。"
-    hints = collect_section_fill_hints(body, "verse_full", verse_span=11)
-    assert any("经文背景" in h for h in hints)
-    assert any("段落脉络" in h for h in hints)
+    hints = collect_section_fill_hints(
+        body,
+        "verse_full",
+        verse_span=1,
+        depth="oia_compact",
+        planned_sections=("摘要", "经文解释", "和全本关联", "今日回应"),
+    )
+    joined = " ".join(hints)
+    assert "和全本关联" in joined or "经文解释" in joined
 
 
 def test_needs_section_fill_prose():
@@ -25,53 +31,45 @@ def test_needs_section_fill_prose():
         "### 经文解释\n"
         + ("这是一大段没有任何列表的散文解释。" * 6)
     )
-    assert needs_section_fill(body, "verse_full", depth="deep")
-    complete = (
-        "### 摘要\n这是足够长的摘要句，概括经文核心。\n\n"
-        "### 经文背景\n- 背景要点一，补充上下文。\n\n"
-        "### 经文解释\n"
-        "- 解释一，说明关键字含义。\n"
-        "- 解释二，联系上下文。\n"
-        "- 解释三，自然收束。"
-    )
-    assert not needs_section_fill(
-        complete,
-        "verse_full",
-        depth="standard",
-        planned_sections=("摘要", "经文背景", "经文解释"),
-        min_complete=60,
-    )
+    assert needs_section_fill(body, "verse_full", depth="oia_deep")
 
 
-def test_no_fill_when_complete():
+def test_no_fill_when_oia_complete():
     body = (
         "### 摘要\n摘要。\n\n"
-        "### 经文背景\n- 背景一。\n\n"
-        "### 经文解释\n- 解释一。\n- 解释二。\n- 解释三。\n"
+        "### 经文解释\n当时指重生。\n\n"
+        "### 和全本关联\n与整卷主题相连。\n\n"
+        "### 今日回应\n今天可以祷告回应。"
     )
-    hints = collect_section_fill_hints(body, "verse_quick", verse_span=1)
+    hints = collect_section_fill_hints(
+        body,
+        "verse_quick",
+        verse_span=1,
+        depth="oia_compact",
+        planned_sections=("摘要", "经文解释", "和全本关联", "今日回应"),
+    )
     assert hints == []
 
 
-def test_standard_skips_thickness_fill():
-    """standard 仅补缺失 intent，不因偏薄触发加厚。"""
+def test_oia_standard_skips_thickness_fill():
     body = (
         "### 摘要\n短摘要。\n\n"
-        "### 经文背景\n- 一句背景。\n\n"
-        "### 经文解释\n- 一句解释。"
+        "### 经文解释\n- 一句解释。\n\n"
+        "### 和全本关联\n- 一句关联。\n\n"
+        "### 今日回应\n- 一句回应。"
     )
     assert not needs_section_fill(
         body,
         "verse_full",
-        depth="standard",
-        planned_sections=("摘要", "经文背景", "经文解释"),
-        min_complete=60,
+        depth="oia_standard",
+        planned_sections=("摘要", "经文解释", "和全本关联", "今日回应"),
+        min_complete=180,
     )
 
 
-def test_standard_fills_truncation():
+def test_oia_compact_fills_truncation():
     body = "### 摘要\n说到一半就被"
-    hints = collect_section_fill_hints(body, "verse_full", depth="standard")
+    hints = collect_section_fill_hints(body, "verse_full", depth="oia_compact")
     assert any("截断" in h for h in hints)
 
 

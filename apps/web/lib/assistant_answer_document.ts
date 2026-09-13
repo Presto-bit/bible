@@ -63,14 +63,6 @@ export function pickStreamDoneText(opts: {
   if (stream.length > doc.length + 80) return stream;
   // 用户已见流式正文：终稿须明显更完整才替换，避免 normalize 造成整段重写
   if (stream.length >= 40) {
-    // 归一化终稿更短且小节不减少：采用终稿（去冗余、控篇幅）
-    if (
-      doc.length + 48 <= stream.length
-      && docSections >= streamSections
-      && doc.length >= 80
-    ) {
-      return doc;
-    }
     if (doc.length <= stream.length + 32 && streamSections >= docSections) return stream;
     if (doc.length < stream.length) return stream;
     if (docSections > streamSections && doc.length > stream.length + 48) return doc;

@@ -34,7 +34,7 @@ export function personalizedAssistantChips(opts: {
 
   if (anchor) {
     chips.push(
-      chip('经文背景', 'chat_explain', chipUserQuestion('解释经文', refLabel)),
+      chip('完整解读', 'chat_explain', chipUserQuestion('完整解读', refLabel)),
       chip('生活应用', 'chat_apply', chipUserQuestion('生活应用', refLabel)),
       chip('预备查经', 'chat_study', chipUserQuestion('预备查经', refLabel)),
       chip('译本对照', 'chat_compare', chipUserQuestion('译本对照', refLabel)),
@@ -53,7 +53,7 @@ export function personalizedAssistantChips(opts: {
     );
     // 有续读位置时仍给平行 pill，但不使用「续读导读」
     if (getLastRead()) {
-      chips.push(chip('解释经文', 'chat_explain', chipUserQuestion('解释经文', refLabel)));
+      chips.push(chip('完整解读', 'chat_explain', chipUserQuestion('完整解读', refLabel)));
     }
   }
 

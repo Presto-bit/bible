@@ -1,4 +1,4 @@
-"""depth_router 单测（R1）。"""
+"""depth_router 单测（R1 · OIA）。"""
 from __future__ import annotations
 
 import sys
@@ -10,16 +10,15 @@ from app.ai.depth_router import resolve_depth  # noqa: E402
 from app.ai.output_plan import build_output_plan  # noqa: E402
 
 
-def test_half_sheet_single_verse_flash():
+def test_half_sheet_single_verse_oia_compact():
     prof = resolve_depth(
         "verse_full",
         "请解读：约 3:16",
         verse_span=1,
         surface="half_sheet",
     )
-    assert prof.depth == "flash"
-    assert prof.sections == ("摘要",)
-    assert prof.section_policy == "lead_only"
+    assert prof.depth == "oia_compact"
+    assert prof.sections == ("摘要", "经文解释", "和全本关联", "今日回应")
     plan = build_output_plan(
         "verse_full",
         question="请解读：约 3:16",
@@ -27,55 +26,43 @@ def test_half_sheet_single_verse_flash():
         surface="half_sheet",
         depth=prof,
     )
-    assert plan["depth"] == "flash"
-    assert plan["sections"] == ["摘要"]
+    assert plan["depth"] == "oia_compact"
+    assert plan["sections"] == list(prof.sections)
     assert plan["max_followups"] == 0
 
 
-def test_half_sheet_passage_without_deep_question_deep():
-    prof = resolve_depth(
-        "verse_full",
-        None,
-        verse_span=11,
-        surface="half_sheet",
-    )
-    assert prof.depth == "deep"
-    assert "段落脉络" in prof.sections
-
-
-def test_half_sheet_two_verse_not_flash():
-    prof = resolve_depth(
-        "verse_full",
-        "请解读：约 3:16-17",
-        verse_span=2,
-        surface="half_sheet",
-    )
-    assert prof.depth != "flash"
-    assert prof.sections == ("摘要", "经文解释")
-    assert prof.target_chars <= 260
-
-
-def test_half_sheet_five_verse_compact():
+def test_half_sheet_multi_verse_still_oia_compact():
     prof = resolve_depth(
         "verse_full",
         "请解读：约 3:16-20",
         verse_span=5,
         surface="half_sheet",
     )
-    assert prof.depth == "standard"
-    assert prof.sections == ("摘要", "经文解释")
-    assert prof.target_chars <= 280
+    assert prof.depth == "oia_compact"
+    assert "和全本关联" in prof.sections
+    assert "今日回应" in prof.sections
 
 
-def test_deep_question_expands_sections():
+def test_tab_single_verse_oia_standard():
     prof = resolve_depth(
         "verse_full",
-        "请分别说说背景和经文解释",
-        verse_span=11,
-        surface="half_sheet",
+        "请解读：约 3:16",
+        verse_span=1,
+        surface="assistant",
     )
-    assert prof.depth == "deep"
-    assert prof.sections == ("摘要", "经文背景", "段落脉络", "经文解释")
+    assert prof.depth == "oia_standard"
+    assert prof.sections == ("摘要", "经文解释", "和全本关联", "今日回应")
+
+
+def test_tab_deep_passage_oia_deep():
+    prof = resolve_depth(
+        "verse_full",
+        "请分别说说背景和脉络",
+        verse_span=11,
+        surface="assistant",
+    )
+    assert prof.depth == "oia_deep"
+    assert "段落脉络" in prof.sections
 
 
 def test_study_scene():
@@ -84,26 +71,23 @@ def test_study_scene():
     assert "讨论问题" in prof.sections or "结构大纲" in prof.sections
 
 
-def test_verse_quick_large_span_not_flash():
-    prof = resolve_depth(
-        "verse_quick",
-        "请解读：太 4:1–25",
-        verse_span=25,
-        surface="half_sheet",
-    )
-    assert prof.depth != "flash"
-    assert "经文解释" in prof.sections
-
-
-def test_background_followup_not_flash():
-    from app.ai.depth_router import wants_expanded_answer  # noqa: WPS433
-
-    assert wants_expanded_answer("补充历史背景")
+def test_chat_explain_tab_oia_standard():
     prof = resolve_depth(
         "chat_explain",
-        "补充历史背景",
+        "请解释这段经文",
+        verse_span=1,
+        surface="assistant",
+    )
+    assert prof.depth == "oia_standard"
+
+
+def test_narrow_chip_flash():
+    prof = resolve_depth(
+        "chat_explain",
+        "更多关联",
         narrow=True,
         has_prior_turns=True,
+        verse_span=1,
+        surface="assistant",
     )
-    assert prof.depth == "standard"
-    assert "背景" in prof.sections
+    assert prof.depth == "flash"

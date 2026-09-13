@@ -4,6 +4,9 @@ from __future__ import annotations
 import re
 
 from .answer_schema import (
+    OIA_SECTIONS,
+    oia_has_section,
+    oia_sections_missing,
     verse_has_background,
     verse_min_background_bullets,
     verse_min_chars,
@@ -71,8 +74,7 @@ def extract_sections(text: str) -> list[dict[str, str]]:
     return sections
 
 
-_VERSE_FULL_SECTIONS = frozenset({"摘要", "背景", "经文解释"})
-_VERSE_QUICK_SECTIONS = frozenset({"摘要", "经文解释"})
+_VERSE_OIA_SECTIONS = frozenset(OIA_SECTIONS)
 _SENTENCE_END_CHARS = "。！？）」』》】"
 
 
@@ -185,15 +187,9 @@ def _verse_sections_satisfied(
     expected_sections: tuple[str, ...] | None = None,
 ) -> bool:
     if expected_sections:
-        for sec in expected_sections:
-            if sec in ("经文背景", "背景"):
-                if not verse_has_background(titles):
-                    return False
-            elif sec not in titles:
-                return False
-        return True
-    if scene == "verse_quick":
-        return _VERSE_QUICK_SECTIONS.issubset(titles)
+        return not _planned_sections_missing(titles, expected_sections)
+    if scene in ("verse_full", "verse_quick"):
+        return not oia_sections_missing(titles, OIA_SECTIONS)
     if "摘要" not in titles or "经文解释" not in titles:
         return False
     return verse_passage_structure_ok(
@@ -207,6 +203,8 @@ def _planned_sections_missing(
     titles: set[str],
     expected: tuple[str, ...],
 ) -> list[str]:
+    if "和全本关联" in expected or "今日回应" in expected:
+        return oia_sections_missing(titles, expected)
     missing: list[str] = []
     for sec in expected:
         if sec in ("经文背景", "背景"):
@@ -256,12 +254,12 @@ def verse_explain_displayable(
         return True
     titles = {s["title"] for s in extract_sections(text)}
     has_core = (
-        scene == "verse_quick"
-        and _VERSE_QUICK_SECTIONS.issubset(titles)
-    ) or (
-        scene == "verse_full"
-        and "摘要" in titles
+        "摘要" in titles
         and "经文解释" in titles
+        and oia_has_section(titles, "和全本关联")
+        and oia_has_section(titles, "今日回应")
+    ) or (
+        "摘要" in titles and "经文解释" in titles
     )
     if not has_core and answer_ends_abruptly(text) and len(text) < 100:
         return False
@@ -303,11 +301,29 @@ def verse_explain_incomplete(
     titles = {s["title"] for s in extract_sections(text)}
     span = max(1, int(verse_span or 1))
 
-    if depth == "flash":
+    if depth in ("flash",):
         if "摘要" not in titles and not text:
             return True
         floor = min_complete if min_complete is not None else (70 if span <= 1 else 90)
         return len(text) < floor
+
+    if depth == "oia_compact":
+        expected = expected_sections or OIA_SECTIONS
+        if oia_sections_missing(titles, expected):
+            return True
+        floor = min_complete if min_complete is not None else 180
+        return len(text) < floor
+
+    if depth in ("oia_standard", "oia_deep"):
+        expected = expected_sections or OIA_SECTIONS
+        if oia_sections_missing(titles, expected):
+            return True
+        floor = min_complete if min_complete is not None else 320
+        if len(text) < floor:
+            return True
+        if depth == "oia_deep" and "段落脉络" in expected and "段落脉络" not in titles:
+            return True
+        return False
 
     if not _verse_sections_satisfied(
         scene,
@@ -613,19 +629,11 @@ def missing_verse_sections(
     span = max(1, int(verse_span or 1))
     if expected_sections:
         return _planned_sections_missing(titles, expected_sections)
-    if scene == "verse_full":
-        missing: list[str] = []
-        if "摘要" not in titles:
-            missing.append("摘要")
-        if not verse_has_background(titles):
-            missing.append("经文背景")
-        if span >= 6 and "段落脉络" not in titles:
-            missing.append("段落脉络")
-        if "经文解释" not in titles:
-            missing.append("经文解释")
-        return missing
-    required = list(_VERSE_QUICK_SECTIONS)
-    return [s for s in required if s not in titles]
+    if scene in ("verse_full", "verse_quick"):
+        if expected_sections:
+            return oia_sections_missing(titles, expected_sections)
+        return oia_sections_missing(titles, OIA_SECTIONS)
+    return []
 
 
 _SUMMARY_CHAPTER_SECTIONS = frozenset({"本章概览", "核心内容"})

@@ -4,7 +4,7 @@ library;
 import 'assistant_personalize.dart';
 import 'assistant_scenes.dart';
 
-const _staticLabels = ['解释经文', '生活应用', '预备查经', '译本对照', '并列观点', '讲道大纲'];
+const _staticLabels = ['完整解读', '生活应用', '预备查经', '译本对照', '并列观点', '讲道大纲'];
 
 List<AssistantChip> staticAssistantChips([String? ref]) {
   return [

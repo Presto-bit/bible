@@ -16,7 +16,7 @@ export interface AssistantChipDef {
 
 export function staticAssistantChips(ref?: string): AssistantChipDef[] {
   const labels = [
-    '解释经文',
+    '完整解读',
     '生活应用',
     '预备查经',
     '译本对照',

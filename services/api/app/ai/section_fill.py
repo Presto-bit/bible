@@ -20,6 +20,7 @@ from .parse_output import (
 logger = logging.getLogger(__name__)
 
 _FILL_TOKENS = {
+    "oia": 280,
     "intent": 380,
     "structure": 620,
     "full": 900,
@@ -27,13 +28,17 @@ _FILL_TOKENS = {
 
 
 def _fill_mode(depth: str | None) -> str:
-    """R3：flash 不 fill；standard 只补 intent；deep 补结构；study 全量 repair。"""
-    if depth == "flash":
+    """R3：flash 不 fill；oia_compact 只补缺失节；oia_standard 轻补；deep 补结构。"""
+    if depth in ("flash",):
         return "none"
+    if depth == "oia_compact":
+        return "oia"
     if depth == "study":
         return "full"
-    if depth == "deep":
+    if depth in ("deep", "oia_deep"):
         return "structure"
+    if depth == "oia_standard":
+        return "intent"
     return "intent"
 
 
@@ -78,8 +83,10 @@ def collect_section_fill_hints(
         ):
             if title not in missing:
                 missing.append(title)
-        if mode == "intent" and missing:
-            structure_secs = {"经文背景", "段落脉络", "经文解释", "背景"}
+        if mode == "oia" and missing:
+            hints.append("每节 1–2 句 prose，勿重复已写内容，勿列表堆砌")
+        elif mode == "intent" and missing:
+            structure_secs = {"经文背景", "段落脉络", "经文解释", "背景", "和全本关联", "今日回应"}
             if any(title in structure_secs for title in missing):
                 mode = "structure"
     elif mode == "full":
@@ -115,7 +122,7 @@ def collect_section_fill_hints(
         hints.append("将散文段改为 ### 标题下 - 列表要点")
 
     if not missing and scene in ("verse_full", "verse_quick"):
-        if mode == "intent":
+        if mode in ("intent", "oia"):
             pass
         elif verse_explain_incomplete(
             scene,
@@ -125,14 +132,9 @@ def collect_section_fill_hints(
             expected_sections=planned_sections,
             min_complete=min_complete,
         ):
-            if min_complete is not None and min_complete <= 120:
-                hints.append(
-                    "只补缺失小节或截断处，不要加厚要点、不要明显加长，勿重复"
-                )
-            else:
-                hints.append(
-                    "已有小节但内容偏薄、要点不足或被截断，请加厚要点并自然收束，勿重复"
-                )
+            hints.append(
+                "已有小节但内容偏薄、要点不足或被截断，请加厚要点并自然收束，勿重复"
+            )
 
     if mode == "full" and not missing and scene in (
         "summary_chapter",
@@ -177,6 +179,12 @@ def _fill_user_message(hints: list[str], *, mode: str, restructure: bool) -> str
             + "。不要重复已说信息，不要明显加长，只输出 Markdown 正文。"
         )
     _no_cont = "不要新增「（续）」类小节标题，"
+    if mode == "oia":
+        return (
+            "请补全上一条 assistant 回答中缺失的 OIA 小节。"
+            + joined
+            + f"。{_no_cont}每节 1–2 句 prose，不要重复已写内容，不要加厚已有小节。"
+        )
     if mode == "intent":
         return (
             "请补全上一条 assistant 回答中缺失或中断的部分。"
