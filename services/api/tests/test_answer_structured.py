@@ -44,7 +44,7 @@ def test_missing_required_sections():
     body = "### 摘要\n只有摘要。"
     assert set(missing_required_sections(body, "verse_full")) == {
         "经文解释",
-        "和全本关联",
+        "和上下文连",
         "今日回应",
     }
 
@@ -53,7 +53,7 @@ def test_missing_required_sections_oia_complete():
     body = (
         "### 摘要\n摘要。\n\n"
         "### 经文解释\n解释一。\n\n"
-        "### 和全本关联\n关联一。\n\n"
+        "### 和上下文连\n关联一。\n\n"
         "### 今日回应\n回应一。"
     )
     assert missing_required_sections(body, "verse_full", verse_span=11) == []
@@ -81,7 +81,7 @@ def test_needs_structure_repair_prose():
 def test_chat_json_guide():
     guide = _chat_json_guide("chat_explain")
     assert guide is not None
-    assert "和全本关联" in guide
+    assert "和上下文连" in guide
     assert "经文解释" in guide
     assert _chat_json_guide("chat_general") is None
 

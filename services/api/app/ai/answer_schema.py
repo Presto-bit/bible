@@ -20,7 +20,7 @@ SCENE_BUDGETS: dict[str, SceneBudget] = {
     "verse_quick": SceneBudget(
         total_chars=300,
         max_tokens=650,
-        summary_max=40,
+        summary_max=55,
         item_max=80,
         min_bullets=1,
         max_bullets=3,
@@ -28,7 +28,7 @@ SCENE_BUDGETS: dict[str, SceneBudget] = {
     "verse_full": SceneBudget(
         total_chars=320,
         max_tokens=900,
-        summary_max=40,
+        summary_max=55,
         item_max=80,
         min_bullets=1,
         max_bullets=3,
@@ -158,7 +158,7 @@ PROSE_SECTION_TITLES = frozenset(
         "结论与回应",
         "主题句",
         "经文重述",
-        "和全本关联",
+        "和上下文连",
         "今日回应",
         "经文解释",
     }
@@ -166,9 +166,15 @@ PROSE_SECTION_TITLES = frozenset(
 
 SUMMARY_LEAD_TITLES = frozenset({"摘要", "本章概览", "卷概览", "主题句", "一句话"})
 
-OIA_SECTIONS: tuple[str, ...] = ("摘要", "经文解释", "和全本关联", "今日回应")
+OIA_SECTIONS: tuple[str, ...] = ("摘要", "经文解释", "和上下文连", "今日回应")
 OIA_CORRELATE_TITLES = frozenset(
-    {"和全本关联", "和上下文连", "经文关联", "与全本关联"},
+    {
+        "和上下文连",
+        "和全本关联",
+        "前后文呼应",
+        "经文关联",
+        "与全本关联",
+    },
 )
 OIA_APPLY_TITLES = frozenset({"今日回应", "生活应用", "今日应用"})
 
@@ -176,7 +182,7 @@ OIA_APPLY_TITLES = frozenset({"今日回应", "生活应用", "今日应用"})
 def oia_has_section(titles: set[str], canonical: str) -> bool:
     if canonical in titles:
         return True
-    if canonical == "和全本关联":
+    if canonical == "和上下文连":
         return bool(titles & OIA_CORRELATE_TITLES)
     if canonical == "今日回应":
         return bool(titles & OIA_APPLY_TITLES)

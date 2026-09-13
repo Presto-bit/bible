@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from .scenes import SceneSpec, verse_scene_format_guide
-from .depth_router import DepthProfile
+from .depth_router import DepthProfile, is_full_oia_request
 
 MODES = {
     "understand": "理解默想",
@@ -102,9 +102,9 @@ _BASE_COMPACT_HALF = (
 _MARKDOWN_OUTPUT_COMPACT = (
     "【Markdown · 半屏 OIA 快懂】\n"
     "- **须一次性写全四节再停笔**，顺序固定，每节 1–2 句 prose（不要 - 列表堆砌）。\n"
-    "- ### 摘要 — 观察：文本说了什么（≤40 字）。\n"
+    "- ### 摘要 — 观察：1 句完整话（约 35–55 字，须自然收束，勿硬截断）。\n"
     "- ### 经文解释 — 解释：当时语境下的原意（≤80 字，可含处境，不写大段考据）。\n"
-    "- ### 和全本关联 — 关联：与前后文/整卷/圣经主脉的一条线（≤60 字，勿重复解释）。\n"
+    "- ### 和上下文连 — 关联：与前后文/同卷主线的衔接（≤60 字，勿重复解释）。\n"
     "- ### 今日回应 — 应用：温柔一句贴近生活的回应（≤50 字，非命令式清单）。\n"
     "- 不要「经文背景」「段落脉络」独立小节；不要 HTML；不要「相关追问」。\n"
 )
@@ -227,18 +227,18 @@ def depth_format_guide(profile: DepthProfile, scene_id: str, verse_span: int = 1
         lo, hi = profile.target_chars - 40, profile.soft_max
         return (
             f"（半屏 OIA · 总篇幅约 {lo}–{hi} 字，勿复述本说明）\n"
-            "四节顺序：### 摘要 → ### 经文解释 → ### 和全本关联 → ### 今日回应。\n"
+            "四节顺序：### 摘要 → ### 经文解释 → ### 和上下文连 → ### 今日回应。\n"
             "每节 1–2 句完整 prose；职责不重复；不要列表堆砌；不要「相关追问」。"
         )
     if profile.depth in ("oia_standard", "oia_deep"):
         lo, hi = profile.target_chars - 60, profile.soft_max
         extra = ""
         if profile.depth == "oia_deep" and "段落脉络" in profile.sections:
-            extra = "\n多节经：在 ### 经文解释 与 ### 和全本关联 之间插入 ### 段落脉络（3–4 条）。"
+            extra = "\n多节经：在 ### 经文解释 与 ### 和上下文连 之间插入 ### 段落脉络（3–4 条）。"
         return (
             f"（Tab OIA 深读 · 总篇幅约 {lo}–{hi} 字）\n"
-            "四节：### 摘要（1–2 句）→ ### 经文解释（2–3 条完整句，处境与原意合一，"
-            "不单开「背景」小节）→ ### 和全本关联（2–3 条，勿重复解释）→ "
+            "四节：### 摘要（1–2 句完整话）→ ### 经文解释（2–3 条完整句，处境与原意合一，"
+            "不单开「背景」小节）→ ### 和上下文连（2–3 条，勿重复解释）→ "
             "### 今日回应（1 条核心 + 2 条行动或默想）。"
             f"{extra}\n"
             "多节经按主题归纳，禁止逐节罗列；每节最多 3 条。"
@@ -350,6 +350,12 @@ def build_messages(
     if has_prior_turns:
         system_parts.append("\n")
         system_parts.append(_CONTINUITY)
+        if question and is_full_oia_request(question):
+            system_parts.append(
+                "【接力续问】上文可能已有 OIA 四步快懂。"
+                "禁止再次输出四节完整结构；仅用 1 段 prose 或 ### 补充说明，"
+                "补充 1–2 个上文未展开的细节，勿重复摘要/解释/上下文/回应。\n"
+            )
     if narrow:
         system_parts.append("\n")
         system_parts.append(_NARROW_FOLLOWUP)

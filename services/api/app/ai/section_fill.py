@@ -86,7 +86,7 @@ def collect_section_fill_hints(
         if mode == "oia" and missing:
             hints.append("每节 1–2 句 prose，勿重复已写内容，勿列表堆砌")
         elif mode == "intent" and missing:
-            structure_secs = {"经文背景", "段落脉络", "经文解释", "背景", "和全本关联", "今日回应"}
+            structure_secs = {"经文背景", "段落脉络", "经文解释", "背景", "和上下文连", "今日回应"}
             if any(title in structure_secs for title in missing):
                 mode = "structure"
     elif mode == "full":

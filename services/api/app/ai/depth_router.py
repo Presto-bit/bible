@@ -13,6 +13,14 @@ _DEEP_Q = re.compile(
 _STUDY_Q = re.compile(r"查经预备|讲道|大纲|讨论题|教案|预备查经|预备讲道")
 _DEFAULT_EXPLAIN = re.compile(r"^请解读[：:].+$|^请解释[：:].+$")
 _OIA_DEEP_Q = re.compile(r"展开|更多|补充|串珠|关联|应用|背景|词义|原文")
+_FULL_OIA_Q = re.compile(
+    r"完整解读|OIA\s*四步|摘要.*(?:和上下文连|和上下文连|今日回应)"
+)
+
+
+def is_full_oia_request(question: str | None) -> bool:
+    q = (question or "").strip()
+    return bool(q and (_FULL_OIA_Q.search(q) or _is_default_explain(q)))
 
 
 @dataclass(frozen=True)
@@ -85,6 +93,8 @@ def resolve_depth(
     if scene_id in ("verse_quick", "verse_full"):
         if half:
             return _oia_compact_profile(span)
+        if has_prior_turns and is_full_oia_request(q) and not narrow:
+            return _oia_supplement_profile()
         if wants_deep and span >= 6:
             return _oia_standard_profile(span, with_outline=True)
         return _oia_standard_profile(span)
@@ -95,6 +105,8 @@ def resolve_depth(
         if scene_id == "chat_explain":
             if narrow and has_prior_turns and not wants_expanded_answer(q):
                 return _narrow_chip_profile()
+            if has_prior_turns and is_full_oia_request(q) and not narrow:
+                return _oia_supplement_profile()
             if half:
                 return _oia_compact_profile(span)
             if wants_deep and span >= 6:
@@ -119,6 +131,20 @@ def resolve_depth(
         soft_max=target + 80,
         hard_max=target + 160 if bud else None,
         min_complete=80,
+    )
+
+
+def _oia_supplement_profile() -> DepthProfile:
+    """Tab 接力后再次「完整解读」：只补细节，不重写四步结构。"""
+    return DepthProfile(
+        depth="flash",
+        sections=("补充说明",),
+        section_policy="lead_only",
+        prefer_prose=True,
+        target_chars=180,
+        soft_max=240,
+        hard_max=300,
+        min_complete=60,
     )
 
 
@@ -158,7 +184,7 @@ def _oia_compact_profile(verse_span: int) -> DepthProfile:
 def _oia_standard_profile(verse_span: int, *, with_outline: bool = False) -> DepthProfile:
     span = max(1, int(verse_span or 1))
     if with_outline:
-        sections = ("摘要", "经文解释", "段落脉络", "和全本关联", "今日回应")
+        sections = ("摘要", "经文解释", "段落脉络", "和上下文连", "今日回应")
         target = 680 if span >= 6 else 580
         soft = target + 80
         min_c = 380

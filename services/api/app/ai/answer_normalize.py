@@ -37,6 +37,28 @@ _SENTENCE_SPLIT = re.compile(r"(?<=[。！？])")
 _SENTENCE_END = "。！？）」』》】"
 
 
+def _trim_summary_sentence(text: str, limit: int) -> str:
+    """摘要须完整可读：优先保留整句，避免硬切到一半。"""
+    s = text.strip()
+    soft = limit + 24
+    if len(s) <= soft:
+        return s
+    sents = _split_sentences(s)
+    if sents:
+        out = ""
+        for sent in sents:
+            if not out:
+                out = sent
+                continue
+            if len(out) + len(sent) <= soft:
+                out += sent
+            else:
+                break
+        if out and len(out) >= min(limit // 2, 28):
+            return out
+    return _trim_chars(s, limit, hard=False)
+
+
 def _trim_chars(text: str, limit: int, *, hard: bool = False) -> str:
     """R2：默认软裁剪——仅当超过 2×limit 才截断。"""
     s = text.strip()
@@ -128,7 +150,9 @@ def _keep_section_prose(
     depth: str | None,
     prefer_prose: bool,
 ) -> bool:
-    if title in SUMMARY_LEAD_TITLES or title in {"一句话", "主题"}:
+    if title in SUMMARY_LEAD_TITLES or title in {"一句话", "主题", "补充说明"}:
+        if depth in ("oia_compact", "oia_standard", "oia_deep", "flash"):
+            return True
         return False
     if _section_allows_prose(title):
         return True
@@ -301,6 +325,8 @@ def normalize_answer_markdown(
 
     max_bullets = bud.max_bullets
     prior_section_bullets: list[str] = []
+    prior_section_texts: list[str] = []
+    oia_depth = depth in ("oia_compact", "oia_standard", "oia_deep")
 
     parts: list[str] = []
     for title, chunk in _section_chunks(body):
@@ -311,13 +337,23 @@ def normalize_answer_markdown(
         if scene in ("verse_full", "verse_quick") and title == "背景":
             title = "经文背景"
         parts.append(f"### {title}")
-        if title in SUMMARY_LEAD_TITLES or title in {"一句话", "主题"}:
+        if title in SUMMARY_LEAD_TITLES or title in {"一句话", "主题", "补充说明"}:
             lead = chunk.replace("\n", " ").strip()
             if lead.startswith("- "):
                 lead = lead[2:].strip()
-            lead = lead if format_only else _trim_chars(lead, bud.summary_max)
-            parts.append(f"- {lead}" if lead else "")
+            if format_only:
+                trimmed = lead
+            elif _keep_section_prose(title, depth=depth, prefer_prose=prefer_prose):
+                trimmed = _trim_summary_sentence(lead, bud.summary_max)
+            else:
+                trimmed = _trim_chars(lead, bud.summary_max)
+            if _keep_section_prose(title, depth=depth, prefer_prose=prefer_prose):
+                parts.append(trimmed if trimmed else "")
+            else:
+                parts.append(f"- {trimmed}" if trimmed else "")
             parts.append("")
+            if trimmed and oia_depth:
+                prior_section_texts.extend(_split_sentences(trimmed))
             continue
         if format_only or _keep_section_prose(title, depth=depth, prefer_prose=prefer_prose):
             prose = chunk.replace("\n\n", "\n").strip()
@@ -325,12 +361,14 @@ def normalize_answer_markdown(
                 prose = _trim_chars(prose, bud.item_max * (6 if depth == "flash" else 4))
             parts.append(prose)
             parts.append("")
+            if oia_depth and prose:
+                prior_section_texts.extend(_split_sentences(prose.replace("\n", " ")))
             continue
-        against = (
-            prior_section_bullets
-            if title in ("经文解释",) and prior_section_bullets
-            else None
-        )
+        against: list[str] | None = None
+        if oia_depth and title in ("经文解释", "和上下文连", "和全本关联", "今日回应"):
+            against = list(prior_section_texts)
+        elif title in ("经文解释",) and prior_section_bullets:
+            against = prior_section_bullets
         bullets = _chunk_to_bullets(
             chunk,
             bud.item_max,
@@ -346,6 +384,10 @@ def normalize_answer_markdown(
         for b in bullets:
             parts.append(f"- {b}")
         parts.append("")
+        if oia_depth:
+            prior_section_texts.extend(bullets)
+            if chunk.strip() and not bullets:
+                prior_section_texts.extend(_split_sentences(chunk.replace("\n", " ")))
 
     normalized_body = "\n".join(parts).strip()
     if not format_only:

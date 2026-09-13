@@ -21,7 +21,7 @@ _JSON_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
 _OIA_COMPACT_JSON = (
     '{"summary":"≤40字","sections":['
     '{"title":"经文解释","items":["≤80字"]},'
-    '{"title":"和全本关联","items":["≤60字"]},'
+    '{"title":"和上下文连","items":["≤60字"]},'
     '{"title":"今日回应","items":["≤50字"]}'
     ']}\n'
     "summary=观察；每节 items 1 条完整句。"
@@ -30,7 +30,7 @@ _OIA_COMPACT_JSON = (
 _OIA_STANDARD_JSON = (
     '{"summary":"≤40字","sections":['
     '{"title":"经文解释","items":["≤70字","≤70字"]},'
-    '{"title":"和全本关联","items":["≤60字","≤60字"]},'
+    '{"title":"和上下文连","items":["≤60字","≤60字"]},'
     '{"title":"今日回应","items":["≤50字","≤50字","≤50字"]}'
     ']}\n'
     "多节经按主题归纳，禁止逐节罗列。"
@@ -40,7 +40,7 @@ _OIA_DEEP_JSON = (
     '{"summary":"≤50字","sections":['
     '{"title":"经文解释","items":["≤78字","≤78字","≤78字"]},'
     '{"title":"段落脉络","items":["≤78字","≤78字","≤78字"]},'
-    '{"title":"和全本关联","items":["≤78字","≤78字"]},'
+    '{"title":"和上下文连","items":["≤78字","≤78字"]},'
     '{"title":"今日回应","items":["≤60字","≤60字","≤60字"]}'
     ']}\n'
 )

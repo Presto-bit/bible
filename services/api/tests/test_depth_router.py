@@ -18,7 +18,7 @@ def test_half_sheet_single_verse_oia_compact():
         surface="half_sheet",
     )
     assert prof.depth == "oia_compact"
-    assert prof.sections == ("摘要", "经文解释", "和全本关联", "今日回应")
+    assert prof.sections == ("摘要", "经文解释", "和上下文连", "今日回应")
     plan = build_output_plan(
         "verse_full",
         question="请解读：约 3:16",
@@ -39,7 +39,7 @@ def test_half_sheet_multi_verse_still_oia_compact():
         surface="half_sheet",
     )
     assert prof.depth == "oia_compact"
-    assert "和全本关联" in prof.sections
+    assert "和上下文连" in prof.sections
     assert "今日回应" in prof.sections
 
 
@@ -51,7 +51,7 @@ def test_tab_single_verse_oia_standard():
         surface="assistant",
     )
     assert prof.depth == "oia_standard"
-    assert prof.sections == ("摘要", "经文解释", "和全本关联", "今日回应")
+    assert prof.sections == ("摘要", "经文解释", "和上下文连", "今日回应")
 
 
 def test_tab_deep_passage_oia_deep():
@@ -79,6 +79,17 @@ def test_chat_explain_tab_oia_standard():
         surface="assistant",
     )
     assert prof.depth == "oia_standard"
+
+
+def test_tab_relay_full_oia_uses_supplement():
+    prof = resolve_depth(
+        "chat_explain",
+        "请按 OIA 四步完整解读「约 3:16」：摘要、经文解释、和上下文连、今日回应。",
+        has_prior_turns=True,
+        surface="assistant",
+    )
+    assert prof.depth == "flash"
+    assert prof.sections == ("补充说明",)
 
 
 def test_narrow_chip_flash():

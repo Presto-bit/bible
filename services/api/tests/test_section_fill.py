@@ -19,10 +19,10 @@ def test_collect_hints_missing_oia_sections():
         "verse_full",
         verse_span=1,
         depth="oia_compact",
-        planned_sections=("摘要", "经文解释", "和全本关联", "今日回应"),
+        planned_sections=("摘要", "经文解释", "和上下文连", "今日回应"),
     )
     joined = " ".join(hints)
-    assert "和全本关联" in joined or "经文解释" in joined
+    assert "和上下文连" in joined or "经文解释" in joined
 
 
 def test_needs_section_fill_prose():
@@ -38,7 +38,7 @@ def test_no_fill_when_oia_complete():
     body = (
         "### 摘要\n摘要。\n\n"
         "### 经文解释\n当时指重生。\n\n"
-        "### 和全本关联\n与整卷主题相连。\n\n"
+        "### 和上下文连\n与整卷主题相连。\n\n"
         "### 今日回应\n今天可以祷告回应。"
     )
     hints = collect_section_fill_hints(
@@ -46,7 +46,7 @@ def test_no_fill_when_oia_complete():
         "verse_quick",
         verse_span=1,
         depth="oia_compact",
-        planned_sections=("摘要", "经文解释", "和全本关联", "今日回应"),
+        planned_sections=("摘要", "经文解释", "和上下文连", "今日回应"),
     )
     assert hints == []
 
@@ -55,14 +55,14 @@ def test_oia_standard_skips_thickness_fill():
     body = (
         "### 摘要\n短摘要。\n\n"
         "### 经文解释\n- 一句解释。\n\n"
-        "### 和全本关联\n- 一句关联。\n\n"
+        "### 和上下文连\n- 一句关联。\n\n"
         "### 今日回应\n- 一句回应。"
     )
     assert not needs_section_fill(
         body,
         "verse_full",
         depth="oia_standard",
-        planned_sections=("摘要", "经文解释", "和全本关联", "今日回应"),
+        planned_sections=("摘要", "经文解释", "和上下文连", "今日回应"),
         min_complete=180,
     )
 

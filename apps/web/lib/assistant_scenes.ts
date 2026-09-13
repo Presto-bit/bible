@@ -190,8 +190,8 @@ export function sceneTimeout(scene: AssistantScene): number {
 export function chipUserQuestion(label: string, ref?: string): string {
   const anchor = ref ? `「${ref}」` : '这段经文';
   const map: Record<string, string> = {
-    完整解读: `请按 OIA 四步完整解读${anchor}：摘要、经文解释、和全本关联、今日回应。`,
-    解释经文: `请按 OIA 四步完整解读${anchor}：摘要、经文解释、和全本关联、今日回应。`,
+    完整解读: `请按 OIA 四步完整解读${anchor}：摘要、经文解释、和上下文连、今日回应。`,
+    解释经文: `请按 OIA 四步完整解读${anchor}：摘要、经文解释、和上下文连、今日回应。`,
     生活应用: `请把${anchor}应用到今日生活，给出具体可行的建议。`,
     预备查经: `请帮我预备关于${anchor}的小组查经提纲。`,
     译本对照: `请用白话帮助我理解${anchor}：先一句话说清意思，再对比译本差异，并用一两个原文关键词说明为什么这样译，最后给简短读经提示。`,
