@@ -609,15 +609,14 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             final resolvedText = resolved.text.trim();
             final pendingTrim = pending.trim();
             final streamBuilt = sectionStream.toMarkdown().trim();
-            var answerText = resolvedText.isNotEmpty
-                ? pickStreamDoneText(
-                    documentText: resolvedText,
-                    streamBuilt: streamBuilt,
-                    streamed: pendingTrim,
-                    sectionPolicy: _turnFor(turnId)?.outputPlan?.sectionPolicy,
-                  )
-                : pendingTrim;
-            final finalStreamSections = streamSectionsFromMarkdown(answerText);
+            var answerText = resolvedText.isNotEmpty ? resolvedText : pendingTrim;
+            if (answerText.isEmpty && streamBuilt.isNotEmpty) {
+              answerText = streamBuilt;
+            }
+            final liveSections = sectionStream.getRenderableSections();
+            final finalStreamSections = liveSections.isNotEmpty
+                ? liveSections
+                : streamSectionsFromMarkdown(answerText);
             if (answerText.isEmpty) {
               setState(() {
                 final t = _turnFor(turnId);

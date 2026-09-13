@@ -1000,12 +1000,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             }
           },
         },
-        {
-          signal: abortRef.current.signal,
-          retryOnZeroDelta: false,
-          autoRetryIncomplete: true,
-          maxIncompleteRetries: 2,
-        },
+        { signal: abortRef.current.signal, retryOnZeroDelta: false },
       );
     } finally {
       if (myGen !== sendGenRef.current) return;

@@ -653,6 +653,7 @@ export default function XiaoAiSheet({
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
             }
+            const streamedBeforeDone = accRef.current.trim();
             const resolved = resolveDoneAnswer(
               accRef.current,
               payload,
@@ -660,8 +661,11 @@ export default function XiaoAiSheet({
               { sectionPolicy: outputPlan?.section_policy },
             );
             const text = resolved.text.trim();
-            const finalStreamSections = streamSectionsFromMarkdown(text);
+            const finalStreamSections = streamSections.length
+              ? streamSections
+              : streamSectionsFromMarkdown(text);
             if (text) accRef.current = text;
+            else if (streamedBeforeDone) accRef.current = streamedBeforeDone;
             settled = true;
             if (!text) {
               setTurns((prev) =>
@@ -730,12 +734,7 @@ export default function XiaoAiSheet({
             scrollToBottom();
           },
         },
-        {
-          signal: controller.signal,
-          retryOnZeroDelta: false,
-          autoRetryIncomplete: true,
-          maxIncompleteRetries: 2,
-        },
+        { signal: controller.signal, retryOnZeroDelta: false },
       ).finally(() => {
         window.clearTimeout(connectTimer);
         clearGenTimer();

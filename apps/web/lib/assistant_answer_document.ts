@@ -60,6 +60,14 @@ export function pickStreamDoneText(opts: {
   const docSections = sectionTitlesInMarkdown(doc).length;
   const streamSections = sectionTitlesInMarkdown(stream).length;
   if (streamSections > docSections) return stream;
+  if (stream.length > doc.length + 80) return stream;
+  // 用户已见流式正文：终稿须明显更完整才替换，避免 normalize 造成整段重写
+  if (stream.length >= 40) {
+    if (doc.length <= stream.length + 32 && streamSections >= docSections) return stream;
+    if (doc.length < stream.length) return stream;
+    if (docSections > streamSections && doc.length > stream.length + 48) return doc;
+    return stream;
+  }
   if (doc.length >= stream.length - 24) return doc;
   if (stream.length > doc.length + 40) return stream;
   return doc;

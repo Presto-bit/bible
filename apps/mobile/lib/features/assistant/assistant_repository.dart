@@ -80,7 +80,7 @@ class AssistantRepository {
   Stream<ChatEvent> chatFromTurn(
     ResolvedTurnRequest turn, {
     CancelToken? cancelToken,
-    int maxIncompleteRetries = 2,
+    int maxIncompleteRetries = 0,
   }) async* {
     final body = Map<String, dynamic>.from(toChatStreamBody(turn));
     if (turn.history.isNotEmpty) {
