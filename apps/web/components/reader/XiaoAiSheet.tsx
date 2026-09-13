@@ -32,7 +32,7 @@ import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { buildHalfSheetTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
-import { mergeAssistantStreamError, replaceAssistantStreamError, CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
+import { appendStreamIncompleteNotice, mergeAssistantStreamError, CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { AssistantStreamPerf } from '@/lib/assistant_perf';
 import {
   isDefaultHalfSheetExplain,
@@ -605,12 +605,15 @@ export default function XiaoAiSheet({
               rafRef.current = null;
             }
             if (meta?.code === 'incomplete_answer') {
-              const err = replaceAssistantStreamError(msg);
-              accRef.current = err;
+              const partial = accRef.current.trim();
+              const answer = partial
+                ? appendStreamIncompleteNotice(partial)
+                : mergeAssistantStreamError('', msg);
+              accRef.current = answer;
               setTurns((prev) => {
                 const next = prev.map((t) =>
                   t.id === turnId
-                    ? { ...t, answer: err, busy: false, streamIncomplete: true }
+                    ? { ...t, answer, busy: false, streamIncomplete: true }
                     : t,
                 );
                 persistThread(next);
@@ -888,7 +891,7 @@ export default function XiaoAiSheet({
             const rawAnswer = turn.answer.trim();
             const hasVisible = hasVisibleAssistantAnswer(
               clean || rawAnswer,
-              turn.busy ? turn.streamSections : null,
+              turn.streamSections?.length ? turn.streamSections : null,
               { streaming: turn.busy },
             );
             const waitingFirstToken = turn.busy && !hasVisible;

@@ -56,7 +56,11 @@ export default function AnswerProfileBody({
     () => streamSections?.filter((s) => s.text.trim()) ?? [],
     [streamSections],
   );
-  const hasWritten = hasVisibleAssistantAnswer(text, streaming ? streamSections : null);
+  const hasWritten = hasVisibleAssistantAnswer(
+    text,
+    streamSections?.length ? streamSections : null,
+    { streaming },
+  );
   const showSkeleton = Boolean(
     streaming
     && hasWritten

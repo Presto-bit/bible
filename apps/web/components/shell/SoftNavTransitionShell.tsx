@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import PageBackBar from '@/components/PageBackBar';
+import ProfileSettingsPanel from '@/components/profile/ProfileSettingsPanel';
 import {
   getPendingSecondaryTarget,
   markRouteNavigation,
@@ -14,10 +15,6 @@ import {
   subscribeSoftNavProgress,
 } from '@/lib/soft_nav_progress';
 
-const ProfileSettingsPanel = dynamic(
-  () => import('@/components/profile/ProfileSettingsPanel'),
-  { ssr: false },
-);
 const NotesPageContent = dynamic(
   () => import('@/components/notes/NotesPageContent').then((m) => m.NotesPageContent),
   { ssr: false },

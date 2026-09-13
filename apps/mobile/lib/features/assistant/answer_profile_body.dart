@@ -53,7 +53,7 @@ class _AnswerProfileBodyState extends State<AnswerProfileBody> {
     final clean = bodyText(widget.text);
     final hasWritten = hasVisibleAssistantAnswer(
       widget.text,
-      streamSections: widget.streaming ? streamSections : null,
+      streamSections: streamSections?.isNotEmpty == true ? streamSections : null,
       streaming: widget.streaming,
     );
     final showSkeleton = widget.streaming &&

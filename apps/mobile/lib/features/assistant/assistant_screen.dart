@@ -1935,7 +1935,7 @@ class _Bubble extends ConsumerWidget {
     final cites = turn.meta?.citations ?? const <Citation>[];
     final hasVisible = hasVisibleAssistantAnswer(
       turn.content,
-      streamSections: streaming ? turn.streamSections : null,
+      streamSections: turn.streamSections.isNotEmpty ? turn.streamSections : null,
       streaming: streaming,
     );
     final showAssistantBody = hasVisible;
@@ -2011,7 +2011,7 @@ class _Bubble extends ConsumerWidget {
                           streaming: streaming,
                           responseProfile: turn.meta?.responseProfile,
                           structureAssets: turn.structureAssets,
-                          streamSections: streaming && turn.streamSections.isNotEmpty
+                          streamSections: turn.streamSections.isNotEmpty
                               ? turn.streamSections
                               : null,
                           onCitationTap: cites.isEmpty

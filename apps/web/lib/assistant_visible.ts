@@ -4,14 +4,18 @@ import type { StreamSection } from '@/lib/assistant_section_stream';
 export const MIN_SECTION_BODY_CHARS = 20;
 
 /** 流式是否已有可见正文（有内容即隐藏思考行）。 */
-export function hasVisibleAnswerContent(text: string, minChars = 8): boolean {
+export function hasVisibleAnswerContent(
+  text: string,
+  minChars = 8,
+  sectionMinChars = MIN_SECTION_BODY_CHARS,
+): boolean {
   const t = bodyText(text).trim();
   if (!t) return false;
 
   const sectionRe = /(?:^|\n)###\s+(.+?)\s*\n([\s\S]*?)(?=\n### |\z)/gm;
   for (const m of t.matchAll(sectionRe)) {
     const body = (m[2] ?? '').trim();
-    if (body.length >= MIN_SECTION_BODY_CHARS) return true;
+    if (body.length >= sectionMinChars) return true;
   }
 
   const withoutHeadings = t.replace(/(?:^|\n)###\s+.+\s*/gm, '').trim();
@@ -32,10 +36,14 @@ export function hasVisibleAssistantAnswer(
   streamSections?: StreamSection[] | null,
   opts?: { streaming?: boolean },
 ): boolean {
-  const streamMin = opts?.streaming ? 6 : MIN_SECTION_BODY_CHARS;
+  const streaming = Boolean(opts?.streaming);
+  const minChars = streaming ? 6 : 8;
+  const sectionMin = streaming ? 6 : 6;
+  const t = bodyText(text).trim();
+  if (t.length >= minChars && !t.startsWith('⚠️')) return true;
   return (
-    hasVisibleAnswerContent(text, opts?.streaming ? 6 : 8)
-    || hasVisibleStreamSections(streamSections, streamMin)
+    hasVisibleAnswerContent(text, minChars, sectionMin)
+    || hasVisibleStreamSections(streamSections, minChars)
   );
 }
 

@@ -6,7 +6,11 @@ import 'assistant_section_stream.dart';
 
 const kMinSectionBodyChars = 20;
 
-bool hasVisibleAnswerContent(String text, {int minChars = 8}) {
+bool hasVisibleAnswerContent(
+  String text, {
+  int minChars = 8,
+  int sectionMinChars = kMinSectionBodyChars,
+}) {
   final t = bodyText(text).trim();
   if (t.isEmpty) return false;
 
@@ -16,7 +20,7 @@ bool hasVisibleAnswerContent(String text, {int minChars = 8}) {
   );
   for (final m in sectionRe.allMatches(t)) {
     final body = (m.group(2) ?? '').trim();
-    if (body.length >= kMinSectionBodyChars) return true;
+    if (body.length >= sectionMinChars) return true;
   }
 
   final withoutHeadings = t
@@ -39,10 +43,16 @@ bool hasVisibleAssistantAnswer(
   List<StreamSection>? streamSections,
   bool streaming = false,
 }) {
-  final streamMin = streaming ? 6 : kMinSectionBodyChars;
-  final textMin = streaming ? 6 : 8;
-  return hasVisibleAnswerContent(text, minChars: textMin) ||
-      hasVisibleStreamSections(streamSections, minChars: streamMin);
+  const sectionMin = 6;
+  final minChars = streaming ? 6 : 8;
+  final t = bodyText(text).trim();
+  if (t.length >= minChars && !t.startsWith('⚠️')) return true;
+  return hasVisibleAnswerContent(
+        text,
+        minChars: minChars,
+        sectionMinChars: sectionMin,
+      ) ||
+      hasVisibleStreamSections(streamSections, minChars: minChars);
 }
 
 String? currentWritingSectionTitle(List<StreamSection>? sections) {

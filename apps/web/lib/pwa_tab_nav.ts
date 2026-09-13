@@ -89,9 +89,25 @@ function isDiscoverImThreadPath(pathname: string): boolean {
   return p.startsWith('/discover/dm/') || p.startsWith('/discover/group/');
 }
 
-/** 搜索主页：本地壳 + 轻路由，直接打开勿挡进度条 */
+/** 搜索主页：本地壳 + 轻路由，直接打开勿挡进度条与过渡壳 */
 function isInstantSecondaryPath(pathname: string): boolean {
   return normalizeAppPath(pathname) === '/search';
+}
+
+/** 常用二级页：保留 SoftNavTransitionShell 乐观壳，但跳过顶栏进度条 */
+const PROGRESS_EXEMPT_SECONDARY_PREFIXES = [
+  '/profile/settings',
+  '/profile/appearance',
+  '/profile/reminders',
+  '/notes',
+  '/shelf',
+] as const;
+
+function isProgressExemptSecondary(pathname: string): boolean {
+  const p = normalizeAppPath(pathname);
+  return PROGRESS_EXEMPT_SECONDARY_PREFIXES.some(
+    (prefix) => p === prefix || p.startsWith(`${prefix}/`),
+  );
 }
 
 function isDirectSecondaryNav(pathname: string): boolean {
@@ -158,7 +174,9 @@ export function navigateAppHref(
     }
     beginPendingSecondaryNav(pathOnly);
     markRouteNavigation();
-    beginSoftNavProgress(normalized);
+    if (!isProgressExemptSecondary(pathOnly)) {
+      beginSoftNavProgress(normalized);
+    }
     router.push(normalized);
     window.dispatchEvent(new Event('presto-tab-nav'));
     window.requestAnimationFrame(() => {
@@ -169,6 +187,7 @@ export function navigateAppHref(
   markRouteNavigation();
   if (
     !isDirectSecondaryNav(pathOnly)
+    && !isProgressExemptSecondary(pathOnly)
     && (isSecondaryAppPath(pathOnly) || keepAliveTabId(pathOnly) === null)
   ) {
     beginSoftNavProgress(normalized);

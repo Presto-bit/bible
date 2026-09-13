@@ -350,17 +350,30 @@ export default function ShelfPdfPager({
           'pdfjs-dist/build/pdf.worker.min.mjs',
           import.meta.url,
         ).toString();
-        const res = await fetch(url, { credentials: 'include' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.arrayBuffer();
-        const pdf = await pdfjs.getDocument({ data }).promise;
+        let pdf;
+        try {
+          pdf = await pdfjs.getDocument({
+            url,
+            withCredentials: true,
+            disableRange: false,
+            disableStream: false,
+          }).promise;
+        } catch {
+          const res = await fetch(url, { credentials: 'include' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.arrayBuffer();
+          pdf = await pdfjs.getDocument({ data }).promise;
+        }
         if (cancelled) return;
         pdfRef.current = pdf;
         setPdfDoc(pdf);
         setPageCount(pdf.numPages);
         onPageCount?.(pdf.numPages);
         setStatus('ready');
-      } catch {
+      } catch (err) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[ShelfPdfPager] preview engine failed', err);
+        }
         if (!cancelled) setStatus('fallback');
       }
     };

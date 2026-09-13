@@ -34,7 +34,7 @@ import {
 import { bodyText, followupsForMessage, followupsOf, normalizeFollowupItems, stripFollowups } from '@/lib/assistant_format';
 import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { buildAssistantTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
-import { mergeAssistantStreamError, replaceAssistantStreamError, CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
+import { appendStreamIncompleteNotice, mergeAssistantStreamError, CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { AssistantStreamPerf } from '@/lib/assistant_perf';
 import {
   isDefaultTabExplain,
@@ -966,13 +966,18 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             scheduleApply();
           },
           onError: (msg, meta) => {
+            if (myGen !== sendGenRef.current) return;
             streamPerf.onError();
-            acc = meta?.code === 'incomplete_answer'
-              ? replaceAssistantStreamError(msg)
-              : mergeAssistantStreamError(acc, msg);
+            acc = acc.trim()
+              ? mergeAssistantStreamError(acc, msg)
+              : mergeAssistantStreamError('', msg);
+            if (meta?.code === 'incomplete_answer' && acc.trim() && !acc.startsWith('⚠️')) {
+              acc = appendStreamIncompleteNotice(acc);
+            }
             applyAcc();
           },
           onDone: (payload) => {
+            if (myGen !== sendGenRef.current) return;
             streamPerf.onDone();
             if (payload?.conversation_id) {
               conversationIdRef.current = payload.conversation_id;
@@ -997,7 +1002,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               && acc.trim()
               && !acc.startsWith('⚠️')
             ) {
-              acc = replaceAssistantStreamError('生成中断，请重试');
+              acc = appendStreamIncompleteNotice(acc);
               applyAcc();
             }
           },
@@ -1501,7 +1506,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               const isStreaming = isLastAssistant && busy;
               const hasVisible = hasVisibleAssistantAnswer(
                 m.text,
-                isStreaming ? m.streamSections : null,
+                m.streamSections?.length ? m.streamSections : null,
                 { streaming: isStreaming },
               );
               const showAssistantBody = hasVisible;
@@ -1599,9 +1604,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           responseProfile={m.responseProfile}
                           structureAssets={m.structureAssets}
                           streamSections={
-                            isStreaming && m.streamSections?.length
-                              ? m.streamSections
-                              : undefined
+                            m.streamSections?.length ? m.streamSections : undefined
                           }
                           onCitationClick={(n) => {
                             recordCitationClick();
