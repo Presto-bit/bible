@@ -80,6 +80,7 @@ class AssistantRepository {
   Stream<ChatEvent> chatFromTurn(
     ResolvedTurnRequest turn, {
     CancelToken? cancelToken,
+    int maxIncompleteRetries = 2,
   }) async* {
     final body = Map<String, dynamic>.from(toChatStreamBody(turn));
     if (turn.history.isNotEmpty) {
@@ -87,14 +88,37 @@ class AssistantRepository {
     }
     var gotContent = false;
     var sawDone = false;
-    var terminalError = false;
-    await for (final evt in _chatAttempt(body, turn.scene, cancelToken: cancelToken)) {
-      if (_eventHasContent(evt)) gotContent = true;
-      if (evt is DoneEvent) sawDone = true;
-      if (evt is ErrorEvent) terminalError = true;
-      yield evt;
+    var incompleteRetries = 0;
+    while (true) {
+      var terminalError = false;
+      var incompleteRetry = false;
+      await for (final evt in _chatAttempt(body, turn.scene, cancelToken: cancelToken)) {
+        if (_eventHasContent(evt)) gotContent = true;
+        if (evt is DoneEvent) {
+          sawDone = true;
+          yield evt;
+          return;
+        }
+        if (evt is ErrorEvent) {
+          if (evt.code == 'incomplete_answer' &&
+              incompleteRetries < maxIncompleteRetries) {
+            incompleteRetry = true;
+            break;
+          }
+          terminalError = true;
+          yield evt;
+          return;
+        }
+        yield evt;
+      }
+      if (incompleteRetry) {
+        incompleteRetries += 1;
+        await Future<void>.delayed(const Duration(milliseconds: 450));
+        continue;
+      }
+      if (terminalError || sawDone) return;
+      break;
     }
-    if (terminalError || sawDone) return;
     if (gotContent) {
       yield const DoneEvent(streamComplete: false);
       return;

@@ -32,7 +32,7 @@ import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { buildHalfSheetTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
-import { appendStreamIncompleteNotice, mergeAssistantStreamError, CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
+import { mergeAssistantStreamError, CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { AssistantStreamPerf } from '@/lib/assistant_perf';
 import {
   isDefaultHalfSheetExplain,
@@ -46,6 +46,7 @@ import {
   readHalfSheetCache,
   writeHalfSheetCache,
   isHalfSheetAnswerComplete,
+  stripHalfSheetIncompleteNotice,
   verseSpanFromRef,
 } from '@/lib/xiaoai_halfsheet_cache';
 import {
@@ -589,9 +590,10 @@ export default function XiaoAiSheet({
             streamSections = [];
             answerSections = undefined;
             serverFollowups = [];
+            setStreamPhase('understanding');
             setTurns((prev) =>
               prev.map((t) =>
-                t.id === turnId ? { ...t, answer: '', busy: true } : t,
+                t.id === turnId ? { ...t, busy: true } : t,
               ),
             );
           },
@@ -604,31 +606,28 @@ export default function XiaoAiSheet({
               window.clearTimeout(rafRef.current);
               rafRef.current = null;
             }
-            if (meta?.code === 'incomplete_answer') {
-              const partial = accRef.current.trim();
-              const answer = partial
-                ? appendStreamIncompleteNotice(partial)
-                : mergeAssistantStreamError('', msg);
-              accRef.current = answer;
-              setTurns((prev) => {
-                const next = prev.map((t) =>
-                  t.id === turnId
-                    ? { ...t, answer, busy: false, streamIncomplete: true }
-                    : t,
-                );
-                persistThread(next);
-                return next;
-              });
-              return;
-            }
-            const partial = accRef.current.trim();
+            const partial = stripHalfSheetIncompleteNotice(accRef.current);
             if (partial) {
+              accRef.current = partial;
+              settled = true;
               setTurns((prev) => {
                 const next = prev.map((t) =>
                   t.id === turnId
-                    ? { ...t, answer: partial, busy: false, streamIncomplete: true }
+                    ? { ...t, answer: partial, busy: false, streamIncomplete: false }
                     : t,
                 );
+                if (isHalfSheetAnswerComplete(partial, scene, verseSpan, outputPlan)) {
+                  writeHalfSheetCache(
+                    scene,
+                    ref,
+                    cacheSel,
+                    apiQuestion,
+                    partial,
+                    cites,
+                    undefined,
+                    kbId,
+                  );
+                }
                 persistThread(next);
                 return next;
               });
@@ -672,11 +671,6 @@ export default function XiaoAiSheet({
               );
               return;
             }
-            const streamOk =
-              payload?.streamComplete !== false &&
-              Boolean(text) &&
-              !text.startsWith('⚠️') &&
-              !resolved.incomplete;
             const structOk =
               scene === 'verse_full' || scene === 'verse_quick'
                 ? isHalfSheetAnswerComplete(text, scene, verseSpan, outputPlan)
@@ -700,7 +694,7 @@ export default function XiaoAiSheet({
                       citations: cites.length ? cites : t.citations,
                       followups,
                       busy: false,
-                      streamIncomplete: !streamOk || !structOk,
+                      streamIncomplete: false,
                       useRag,
                       ragDegraded,
                       kbId,
@@ -717,7 +711,7 @@ export default function XiaoAiSheet({
                     }
                   : t,
               );
-              if (streamOk && structOk && !text.startsWith('⚠️')) {
+              if (structOk && !text.startsWith('⚠️')) {
                 writeHalfSheetCache(
                   scene,
                   ref,
@@ -736,7 +730,12 @@ export default function XiaoAiSheet({
             scrollToBottom();
           },
         },
-        { signal: controller.signal, retryOnZeroDelta: false },
+        {
+          signal: controller.signal,
+          retryOnZeroDelta: false,
+          autoRetryIncomplete: true,
+          maxIncompleteRetries: 2,
+        },
       ).finally(() => {
         window.clearTimeout(connectTimer);
         clearGenTimer();
@@ -887,8 +886,8 @@ export default function XiaoAiSheet({
         <div className="half-sheet-body reader-ai-half-body" ref={scrollRef}>
           {turns.map((turn, index) => {
             const isLast = index === turns.length - 1;
-            const clean = stripAnswer(turn.answer);
-            const rawAnswer = turn.answer.trim();
+            const rawAnswer = stripHalfSheetIncompleteNotice(turn.answer);
+            const clean = stripAnswer(rawAnswer);
             const hasVisible = hasVisibleAssistantAnswer(
               clean || rawAnswer,
               turn.streamSections?.length ? turn.streamSections : null,

@@ -153,6 +153,49 @@ int verseSpanFromRef(String ref) {
   return (end - start + 1).clamp(1, 999);
 }
 
+/// 有实质内容即可展示（较 complete 宽松，避免误标「生成未完成」）。
+bool isHalfSheetAnswerDisplayable(
+  String answer,
+  AssistantScene scene, [
+  int verseSpan = 1,
+  OutputPlan? outputPlan,
+]) {
+  final text = answer.trim();
+  if (text.isEmpty || text.startsWith('⚠️')) return false;
+  if (isHalfSheetAnswerComplete(answer, scene, verseSpan, outputPlan)) {
+    return true;
+  }
+  final span = verseSpan.clamp(1, 999);
+  final floor = outputPlan?.minComplete != null
+      ? (outputPlan!.minComplete! * 0.55).floor().clamp(40, 999)
+      : scene == AssistantScene.verseQuick
+          ? 40
+          : 48;
+  if (text.length < floor) return false;
+  final titles = _sectionTitles(text);
+  switch (scene) {
+    case AssistantScene.verseQuick:
+      return titles.contains('摘要') || titles.contains('经文解释');
+    case AssistantScene.verseFull:
+      if (titles.contains('摘要') &&
+          (titles.contains('经文解释') ||
+              titles.contains('经文背景') ||
+              titles.contains('背景'))) {
+        return true;
+      }
+      return titles.isNotEmpty && text.length >= 100;
+    default:
+      return text.length >= 32;
+  }
+}
+
+String stripHalfSheetIncompleteNotice(String text) {
+  return text.replaceAll(
+    RegExp(r'\n*（生成未完成[^）]*）\s*$'),
+    '',
+  ).trim();
+}
+
 /// 半屏解读是否完整（对齐 PWA；有 outputPlan 时按 depth 计划小节判定）。
 bool isHalfSheetAnswerComplete(
   String answer,

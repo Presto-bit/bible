@@ -28,7 +28,7 @@ export function replaceAssistantStreamError(msg: string): string {
   return cleanMsg;
 }
 
-/** 流未正常结束时追加轻提示（不覆盖正文）。 */
+/** @deprecated 半屏改用 UI 提示，勿再写入正文 */
 export function appendStreamIncompleteNotice(acc: string): string {
   const trimmed = acc.trim();
   if (!trimmed || trimmed.startsWith('⚠️')) return trimmed;

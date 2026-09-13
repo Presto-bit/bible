@@ -100,6 +100,46 @@ export function isHalfSheetAnswerComplete(
   return true;
 }
 
+/** 有实质内容即可展示（较 complete 宽松，避免误标「生成未完成」）。 */
+export function isHalfSheetAnswerDisplayable(
+  answer: string,
+  scene: AssistantScene,
+  verseSpan = 1,
+  outputPlan?: import('./assistant_output_plan').OutputPlan,
+): boolean {
+  const text = answer.trim();
+  if (!text || text.startsWith('⚠️')) return false;
+  if (isHalfSheetAnswerComplete(answer, scene, verseSpan, outputPlan)) return true;
+
+  const span = Math.max(1, verseSpan);
+  const floor = outputPlan?.min_complete
+    ? Math.max(40, Math.floor(outputPlan.min_complete * 0.55))
+    : scene === 'verse_quick'
+      ? 40
+      : 48;
+  if (text.length < floor) return false;
+
+  const titles = sectionTitles(text);
+  if (scene === 'verse_quick' && (titles.has('摘要') || titles.has('经文解释'))) {
+    return true;
+  }
+  if (scene === 'verse_full') {
+    if (titles.has('摘要') && (titles.has('经文解释') || verseHasBackground(titles))) {
+      return true;
+    }
+    if (titles.size > 0 && text.length >= 100) return true;
+  }
+  if (scene !== 'verse_full' && scene !== 'verse_quick' && text.length >= 32) {
+    return true;
+  }
+  return text.length >= 160;
+}
+
+/** 去掉历史误写入正文的「生成未完成」尾注。 */
+export function stripHalfSheetIncompleteNotice(text: string): string {
+  return text.replace(/\n*（生成未完成[^）]*）\s*$/u, '').trim();
+}
+
 /** FAB 无选区时选区不参与 cache key / 问句，仅 ref + scene。 */
 export function halfSheetCacheSelection(selection: string, explicitSelection: boolean): string {
   if (!explicitSelection) return '';

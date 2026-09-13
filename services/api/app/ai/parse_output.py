@@ -86,6 +86,16 @@ def answer_ends_abruptly(body_text: str) -> bool:
     tail = text.rstrip()
     if tail.endswith("###"):
         return True
+    last_line = ""
+    for line in reversed(text.split("\n")):
+        if line.strip():
+            last_line = line.strip()
+            break
+    bullet_m = re.match(r"^\s*(?:[-*•]|\d+[.)、])\s+(.+?)\s*$", last_line)
+    if bullet_m:
+        item = bullet_m.group(1).strip()
+        if len(item) >= 8 and not item.endswith("…") and not item.endswith("..."):
+            return False
     if tail and tail[-1] not in _SENTENCE_END_CHARS:
         return True
     return False
@@ -106,7 +116,10 @@ def mid_bullet_truncated(body_text: str) -> bool:
             if item[-1] in "」』\"'\"'":
                 continue
             if len(item) >= 20 and item[-1] not in _SENTENCE_END_CHARS:
-                return True
+                if item.endswith("，") or item.endswith(","):
+                    return True
+                if len(item) < 36:
+                    return True
     return False
 
 
@@ -213,6 +226,60 @@ def _section_text(body_text: str, section_title: str) -> str:
         end = matches[i + 1].start() if i + 1 < len(matches) else len(body_text)
         return body_text[start:end].strip()
     return ""
+
+
+def verse_explain_displayable(
+    scene: str,
+    body_text: str,
+    *,
+    verse_span: int = 1,
+    depth: str | None = None,
+    expected_sections: tuple[str, ...] | None = None,
+    min_complete: int | None = None,
+) -> bool:
+    """有实质内容即可展示（较 incomplete 宽松，避免误杀已流式输出的大部分正文）。"""
+    text = body_text.strip()
+    if not text or text.startswith("⚠️"):
+        return False
+    if scene not in ("verse_full", "verse_quick"):
+        return len(text) >= 24 and not (
+            answer_ends_abruptly(text) and len(text) < 80
+        )
+    if not verse_explain_incomplete(
+        scene,
+        text,
+        verse_span=verse_span,
+        depth=depth,
+        expected_sections=expected_sections,
+        min_complete=min_complete,
+    ):
+        return True
+    titles = {s["title"] for s in extract_sections(text)}
+    has_core = (
+        scene == "verse_quick"
+        and _VERSE_QUICK_SECTIONS.issubset(titles)
+    ) or (
+        scene == "verse_full"
+        and "摘要" in titles
+        and "经文解释" in titles
+    )
+    if not has_core and answer_ends_abruptly(text) and len(text) < 100:
+        return False
+    floor = min_complete
+    if floor is None:
+        floor = max(48, verse_min_chars(scene, max(1, int(verse_span or 1))) // 2)
+    if len(text) < floor:
+        return False
+    if scene == "verse_quick" and titles & {"摘要", "经文解释"}:
+        return True
+    if scene == "verse_full":
+        if "摘要" in titles and (
+            "经文解释" in titles or verse_has_background(titles)
+        ):
+            return True
+        if titles and len(text) >= 120:
+            return True
+    return len(text) >= 180
 
 
 def verse_explain_incomplete(

@@ -1261,6 +1261,10 @@ def chat(
             min_complete=_dk.get("min_complete"),
         )
         _fill_depth = "standard" if _depth == "flash" else _depth
+        _surf = (body.surface or "").strip().lower()
+        if _body_incomplete and _surf in ("half_sheet", "prewarm", "assistant", "tab"):
+            if _fill_depth in ("flash", "standard", None):
+                _fill_depth = "structure"
         _should_fill = _depth in ("deep", "study") or (
             scene in ("verse_full", "verse_quick") and _body_incomplete
         )
@@ -1405,6 +1409,41 @@ def chat(
                     expected_sections=_dk.get("expected_sections"),
                     min_complete=_dk.get("min_complete"),
                 )
+        if incomplete and scene in ("verse_full", "verse_quick") and _budget_left() > 3:
+            for _extra_depth in ("structure", "full"):
+                if not incomplete or _budget_left() <= 3:
+                    break
+                extra = section_fill_once(
+                    messages,
+                    body_text,
+                    scene or "",
+                    narrow=narrow,
+                    max_tokens=min(max_tokens, 900),
+                    verse_span=verse_span,
+                    depth=_extra_depth,
+                    planned_sections=_dk.get("expected_sections"),
+                    min_complete=_dk.get("min_complete"),
+                )
+                if extra and extra.strip():
+                    text = normalize_answer_markdown(
+                        extra,
+                        scene or "",
+                        narrow=narrow,
+                        verse_span=verse_span,
+                        depth=_depth,
+                        soft_max=_dk.get("soft_max"),
+                        prefer_prose=bool(_dk.get("prefer_prose")),
+                        format_only=True,
+                    )
+                    body_text, followups = split_body_and_followups(text)
+                    incomplete = answer_marked_incomplete(
+                        scene or "",
+                        body_text,
+                        verse_span=verse_span,
+                        depth=_depth,
+                        expected_sections=_dk.get("expected_sections"),
+                        min_complete=_dk.get("min_complete"),
+                    )
         if incomplete:
             logger.warning(
                 "ai answer incomplete final scene=%s span=%s depth=%s len=%s surface=%s",

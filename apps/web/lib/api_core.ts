@@ -1194,8 +1194,9 @@ export async function chatStream(
   opts?: {
     signal?: AbortSignal;
     retryOnZeroDelta?: boolean;
-    /** 默认关：服务端已有静默重试，客户端再重试会清空已流式正文。 */
+    /** 默认关；半屏/Tab 建议开：incomplete_answer 静默重试一轮，onRetry 勿清空 UI。 */
     autoRetryIncomplete?: boolean;
+    maxIncompleteRetries?: number;
   },
 ): Promise<void> {
   const baseHeaders: Record<string, string> = {
@@ -1374,7 +1375,11 @@ export async function chatStream(
   const allowZeroRetry = opts?.retryOnZeroDelta !== false;
   const allowIncompleteRetry = opts?.autoRetryIncomplete === true;
   let zeroDeltaRetried = false;
-  let incompleteRetried = false;
+  const maxIncompleteRetries = Math.max(
+    0,
+    opts?.maxIncompleteRetries ?? (allowIncompleteRetry ? 1 : 0),
+  );
+  let incompleteRetries = 0;
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -1384,9 +1389,9 @@ export async function chatStream(
     if (
       result === 'incomplete_retry' &&
       allowIncompleteRetry &&
-      !incompleteRetried
+      incompleteRetries < maxIncompleteRetries
     ) {
-      incompleteRetried = true;
+      incompleteRetries += 1;
       cb.onRetry?.();
       await new Promise((r) => setTimeout(r, 450));
       continue;

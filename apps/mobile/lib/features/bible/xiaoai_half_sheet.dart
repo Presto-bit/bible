@@ -525,20 +525,40 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
           case am.FollowupsEvent(:final items):
             if (items.isNotEmpty) serverFollowups = items;
           case am.ErrorEvent(:final message, :final code):
-            if (code == 'incomplete_answer') {
+            final partial = stripHalfSheetIncompleteNotice(
+              pending.trim().isNotEmpty
+                  ? pending
+                  : (sectionStream.active
+                      ? sectionStream.toMarkdown()
+                      : ''),
+            );
+            if (partial.isNotEmpty) {
               streamPerf.onError();
               unawaited(flushAssistantPerf(ref.read(dioProvider), streamPerf));
               chatSettled = true;
               flush();
+              final span = verseSpanFromRef(widget.refStr);
+              final plan = _turnFor(turnId)?.outputPlan;
               setState(() {
                 final t = _turnFor(turnId);
                 if (t != null) {
                   t
-                    ..answer = replaceAssistantStreamError(message)
+                    ..answer = partial
                     ..busy = false
-                    ..streamIncomplete = true;
+                    ..streamIncomplete = false;
                 }
               });
+              if (isHalfSheetAnswerComplete(partial, scene, span, plan)) {
+                writeHalfSheetCache(
+                  scene,
+                  widget.refStr,
+                  cacheSel,
+                  apiQuestion,
+                  partial,
+                  cites,
+                  knowledgeBaseId: kbId,
+                );
+              }
               _persistThread();
               return;
             }
@@ -558,19 +578,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             unawaited(flushAssistantPerf(ref.read(dioProvider), streamPerf));
             chatSettled = true;
             flush();
-            if (pending.trim().isNotEmpty) {
-              setState(() {
-                final t = _turnFor(turnId);
-                if (t != null) {
-                  t
-                    ..answer = pending
-                    ..busy = false
-                    ..streamIncomplete = true;
-                }
-              });
-              _persistThread();
-              return;
-            }
             setState(() {
               final t = _turnFor(turnId);
               if (t != null) {
@@ -623,17 +630,16 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               break;
             }
             chatSettled = true;
-            final streamOk = streamComplete &&
-                !answerText.startsWith('⚠️') &&
-                answerText != _emptyAnswerMsg &&
-                !resolved.incomplete;
+            answerText = stripHalfSheetIncompleteNotice(answerText);
+            final span = verseSpanFromRef(widget.refStr);
+            final plan = _turnFor(turnId)?.outputPlan;
             final structOk = scene == AssistantScene.verseFull ||
                     scene == AssistantScene.verseQuick
                 ? isHalfSheetAnswerComplete(
                     answerText,
                     scene,
-                    verseSpanFromRef(widget.refStr),
-                    _turnFor(turnId)?.outputPlan,
+                    span,
+                    plan,
                   )
                 : true;
             final followupItems = normalizeFollowupItems(
@@ -651,7 +657,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..citations = cites.isNotEmpty ? cites : t.citations
                   ..followups = followupItems
                   ..busy = false
-                  ..streamIncomplete = !streamOk || !structOk
+                  ..streamIncomplete = false
                   ..useRag = useRag
                   ..kbId = kbId
                   ..kbName = kbName
@@ -663,7 +669,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                       : t.streamSections;
               }
             });
-            if (streamOk && structOk) {
+            if (structOk) {
               writeHalfSheetCache(
                 scene,
                 widget.refStr,
@@ -708,7 +714,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             t.answer = '⚠️ 请求超时，请重试或前往小爱 Tab 继续对话';
           } else {
             t.answer = pending;
-            t.streamIncomplete = true;
+            t.streamIncomplete = false;
           }
           t.busy = false;
         });
@@ -985,13 +991,14 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     final sectionTitle = turn.busy
         ? currentWritingSectionTitle(turn.streamSections)
         : null;
-    final clean = bodyText(turn.answer);
+    final strippedAnswer = stripHalfSheetIncompleteNotice(turn.answer);
+    final clean = bodyText(strippedAnswer);
     final hasError = clean.startsWith('⚠️');
     final usedCitations = citationsUsedInText(clean, turn.citations);
     final evidenceCites =
         usedCitations.isNotEmpty ? usedCitations : turn.citations;
     final displayText = prepareAssistantDisplay(
-      turn.answer.isEmpty ? (turn.busy ? '' : _emptyAnswerMsg) : turn.answer,
+      strippedAnswer.isEmpty ? (turn.busy ? '' : _emptyAnswerMsg) : strippedAnswer,
       streaming: turn.busy,
     );
     final done = !turn.busy && clean.isNotEmpty && !hasError;

@@ -778,23 +778,22 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               if (resolved.sections.isNotEmpty) {
                 setState(() => reply.sections = resolved.sections);
               }
-              if (!streamComplete &&
-                  reply.content.trim().isNotEmpty &&
-                  !reply.content.trim().startsWith('⚠️')) {
-                setState(
-                  () => reply.content = replaceAssistantStreamError('生成中断，请重试'),
-                );
-              }
             case ErrorEvent(:final message, :final code):
               if (code == 'incomplete_answer') {
                 streamPerf.onError();
                 unawaited(
                   flushAssistantPerf(ref.read(dioProvider), streamPerf),
                 );
-                terminalError = true;
                 flushDelta(force: true);
+                if (reply.content.trim().isNotEmpty &&
+                    !reply.content.trim().startsWith('⚠️')) {
+                  streamSettled = true;
+                  setState(() => _streaming = false);
+                  break;
+                }
+                terminalError = true;
                 setState(
-                  () => reply.content = replaceAssistantStreamError(message),
+                  () => reply.content = mergeAssistantStreamError('', message),
                 );
                 break;
               }

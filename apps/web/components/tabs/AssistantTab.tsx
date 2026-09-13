@@ -34,7 +34,7 @@ import {
 import { bodyText, followupsForMessage, followupsOf, normalizeFollowupItems, stripFollowups } from '@/lib/assistant_format';
 import { resolveChatTurn, resolveScene, SCENES, sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 import { buildAssistantTurnRequest, toChatStreamBody } from '@/lib/assistant_turn_request';
-import { appendStreamIncompleteNotice, mergeAssistantStreamError, CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
+import { mergeAssistantStreamError, CHAT_ABORT_TIMEOUT, CHAT_ABORT_USER_CANCEL, isAssistantHistoryExcluded } from '@/lib/assistant_stream_error';
 import { AssistantStreamPerf } from '@/lib/assistant_perf';
 import {
   isDefaultTabExplain,
@@ -968,12 +968,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           onError: (msg, meta) => {
             if (myGen !== sendGenRef.current) return;
             streamPerf.onError();
+            if (meta?.code === 'incomplete_answer' && acc.trim() && !acc.startsWith('⚠️')) {
+              applyAcc();
+              return;
+            }
             acc = acc.trim()
               ? mergeAssistantStreamError(acc, msg)
               : mergeAssistantStreamError('', msg);
-            if (meta?.code === 'incomplete_answer' && acc.trim() && !acc.startsWith('⚠️')) {
-              acc = appendStreamIncompleteNotice(acc);
-            }
             applyAcc();
           },
           onDone: (payload) => {
@@ -997,17 +998,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               instant = true;
               cacheSource = payload.cache_source ?? cacheSource;
             }
-            if (
-              payload?.streamComplete === false
-              && acc.trim()
-              && !acc.startsWith('⚠️')
-            ) {
-              acc = appendStreamIncompleteNotice(acc);
-              applyAcc();
-            }
           },
         },
-        { signal: abortRef.current.signal, retryOnZeroDelta: false },
+        {
+          signal: abortRef.current.signal,
+          retryOnZeroDelta: false,
+          autoRetryIncomplete: true,
+          maxIncompleteRetries: 2,
+        },
       );
     } finally {
       if (myGen !== sendGenRef.current) return;
