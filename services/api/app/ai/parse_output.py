@@ -203,7 +203,7 @@ def _planned_sections_missing(
     titles: set[str],
     expected: tuple[str, ...],
 ) -> list[str]:
-    if "和上下文连" in expected or "今日回应" in expected:
+    if "今日回应" in expected or "经文背景" in expected or "和上下文连" in expected:
         return oia_sections_missing(titles, expected)
     missing: list[str] = []
     for sec in expected:
@@ -256,7 +256,7 @@ def verse_explain_displayable(
     has_core = (
         "摘要" in titles
         and "经文解释" in titles
-        and oia_has_section(titles, "和上下文连")
+        and oia_has_section(titles, "经文背景")
         and oia_has_section(titles, "今日回应")
     ) or (
         "摘要" in titles and "经文解释" in titles

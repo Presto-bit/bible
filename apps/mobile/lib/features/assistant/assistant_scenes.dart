@@ -159,7 +159,7 @@ AssistantScene resolveScene({
 String chipUserQuestion(String label, {String? ref}) {
   final anchor = ref != null && ref.isNotEmpty ? '「$ref」' : '这段经文';
   if (label == '完整解读' || label == '解释经文') {
-    return '请按 OIA 四步完整解读$anchor：摘要、经文解释、和上下文连、今日回应。';
+    return '请按 OIA 四步完整解读$anchor：摘要、经文背景、经文解释、今日回应。';
   }
   if (label == '生活应用') return '请把$anchor应用到今日生活，给出具体可行的建议。';
   if (label == '预备查经') return '请帮我预备关于$anchor的小组查经提纲。';

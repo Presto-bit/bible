@@ -14,7 +14,7 @@ _STUDY_Q = re.compile(r"查经预备|讲道|大纲|讨论题|教案|预备查经
 _DEFAULT_EXPLAIN = re.compile(r"^请解读[：:].+$|^请解释[：:].+$")
 _OIA_DEEP_Q = re.compile(r"展开|更多|补充|串珠|关联|应用|背景|词义|原文")
 _FULL_OIA_Q = re.compile(
-    r"完整解读|OIA\s*四步|摘要.*(?:和上下文连|和上下文连|今日回应)"
+    r"完整解读|OIA\s*四步|摘要.*(?:经文背景|和上下文连|今日回应)"
 )
 
 
@@ -184,7 +184,7 @@ def _oia_compact_profile(verse_span: int) -> DepthProfile:
 def _oia_standard_profile(verse_span: int, *, with_outline: bool = False) -> DepthProfile:
     span = max(1, int(verse_span or 1))
     if with_outline:
-        sections = ("摘要", "经文解释", "段落脉络", "和上下文连", "今日回应")
+        sections = ("摘要", "经文背景", "段落脉络", "经文解释", "今日回应")
         target = 680 if span >= 6 else 580
         soft = target + 80
         min_c = 380

@@ -137,6 +137,35 @@ def test_summary_renders_as_bullet():
     assert "### 摘要\n- 神爱世人" in out
 
 
+def test_oia_summary_repairs_broken_misunderstanding_lead():
+    raw = "### 摘要\n住一个误解，以为可以任意犯罪。"
+    out = normalize_answer_markdown(
+        raw,
+        "verse_full",
+        depth="oia_compact",
+        prefer_prose=True,
+    )
+    assert "住一个误解" not in out
+    assert "常见误解" in out
+
+
+def test_oia_reorders_sections_and_aliases():
+    raw = (
+        "### 摘要\n摘要句。\n\n"
+        "### 经文解释\n解释。\n\n"
+        "### 和上下文连\n背景线。\n\n"
+        "### 今日回应\n回应。"
+    )
+    out = normalize_answer_markdown(
+        raw,
+        "verse_full",
+        depth="oia_compact",
+        prefer_prose=True,
+    )
+    assert out.index("### 摘要") < out.index("### 经文背景") < out.index("### 经文解释")
+    assert "### 和上下文连" not in out
+
+
 def test_oia_compact_summary_keeps_full_sentence_prose():
     raw = (
         "### 摘要\n"

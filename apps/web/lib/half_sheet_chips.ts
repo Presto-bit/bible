@@ -13,9 +13,9 @@ export function halfSheetL1Chips(refLabel?: string): HalfSheetChipDef[] {
   const anchor = refLabel?.trim() ? `「${refLabel.trim()}」` : '这段经文';
   const rows: Array<[string, AssistantScene, string]> = [
     [
-      '更多关联',
+      '更多背景',
       'chat_understand',
-      `${anchor}和前后文、整卷主题怎么连在一起？不要重复半屏已说的内容，150字内。`,
+      `${anchor}的历史处境与前后文脉络？不要重复半屏已说的内容，150字内。`,
     ],
     [
       '更多应用',

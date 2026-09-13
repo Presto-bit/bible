@@ -243,7 +243,7 @@ def test_build_messages_oia_compact_half_sheet():
     )
     assert prof.depth == "oia_compact"
     sys = msgs[0]["content"]
-    assert "和上下文连" in sys
+    assert "经文背景" in sys
     assert "今日回应" in sys
     assert "Chip 追问" not in sys
     assert "第一个问题" not in sys

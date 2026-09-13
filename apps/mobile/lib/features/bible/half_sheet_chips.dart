@@ -28,10 +28,10 @@ List<HalfSheetChipDef> halfSheetL1Chips(String? refLabel) {
       : '这段经文';
   return [
     HalfSheetChipDef(
-      label: '更多关联',
+      label: '更多背景',
       scene: AssistantScene.chatUnderstand,
       mode: AssistantScene.chatUnderstand.mode,
-      q: '$anchor和前后文、整卷主题怎么连在一起？不要重复半屏已说的内容，150字内。',
+      q: '$anchor的历史处境与前后文脉络？不要重复半屏已说的内容，150字内。',
     ),
     HalfSheetChipDef(
       label: '更多应用',

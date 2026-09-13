@@ -158,6 +158,7 @@ PROSE_SECTION_TITLES = frozenset(
         "结论与回应",
         "主题句",
         "经文重述",
+        "经文背景",
         "和上下文连",
         "今日回应",
         "经文解释",
@@ -166,8 +167,8 @@ PROSE_SECTION_TITLES = frozenset(
 
 SUMMARY_LEAD_TITLES = frozenset({"摘要", "本章概览", "卷概览", "主题句", "一句话"})
 
-OIA_SECTIONS: tuple[str, ...] = ("摘要", "经文解释", "和上下文连", "今日回应")
-OIA_CORRELATE_TITLES = frozenset(
+OIA_SECTIONS: tuple[str, ...] = ("摘要", "经文背景", "经文解释", "今日回应")
+OIA_BACKGROUND_ALIASES = frozenset(
     {
         "和上下文连",
         "和全本关联",
@@ -176,14 +177,24 @@ OIA_CORRELATE_TITLES = frozenset(
         "与全本关联",
     },
 )
+OIA_BACKGROUND_TITLES = frozenset({"背景", "经文背景"}) | OIA_BACKGROUND_ALIASES
 OIA_APPLY_TITLES = frozenset({"今日回应", "生活应用", "今日应用"})
+
+
+def canonical_oia_title(title: str) -> str:
+    t = title.strip()
+    if t in OIA_BACKGROUND_TITLES:
+        return "经文背景"
+    if t in OIA_APPLY_TITLES and t != "今日回应":
+        return "今日回应"
+    return t
 
 
 def oia_has_section(titles: set[str], canonical: str) -> bool:
     if canonical in titles:
         return True
-    if canonical == "和上下文连":
-        return bool(titles & OIA_CORRELATE_TITLES)
+    if canonical == "经文背景":
+        return bool(titles & OIA_BACKGROUND_TITLES)
     if canonical == "今日回应":
         return bool(titles & OIA_APPLY_TITLES)
     return False

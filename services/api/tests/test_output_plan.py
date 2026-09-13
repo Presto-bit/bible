@@ -24,9 +24,9 @@ def test_tab_deep_passage_plan():
     )
     assert sections == [
         "摘要",
-        "经文解释",
+        "经文背景",
         "段落脉络",
-        "和上下文连",
+        "经文解释",
         "今日回应",
     ]
     plan = build_output_plan(
@@ -53,8 +53,8 @@ def test_verse_quick_half_sheet_oia_compact():
     assert plan["depth"] == "oia_compact"
     assert plan["sections"] == [
         "摘要",
+        "经文背景",
         "经文解释",
-        "和上下文连",
         "今日回应",
     ]
 
@@ -62,7 +62,7 @@ def test_verse_quick_half_sheet_oia_compact():
 def test_verse_quick_tab_oia_standard():
     plan = build_output_plan("verse_quick", verse_span=1, surface="assistant")
     assert plan["depth"] == "oia_standard"
-    assert "和上下文连" in plan["sections"]
+    assert "经文背景" in plan["sections"]
     assert plan["max_followups"] == 0
 
 
@@ -74,8 +74,8 @@ def test_assistant_followups_cap():
     )
     assert plan["sections"] == [
         "摘要",
+        "经文背景",
         "经文解释",
-        "和上下文连",
         "今日回应",
     ]
     assert plan["max_followups"] == 3
@@ -91,7 +91,7 @@ def test_half_sheet_oia_compact_plan_policy():
     assert plan["section_policy"] == "oia"
     assert plan["sections"] == [
         "摘要",
+        "经文背景",
         "经文解释",
-        "和上下文连",
         "今日回应",
     ]

@@ -4,9 +4,11 @@ from __future__ import annotations
 import re
 
 from .answer_schema import (
+    OIA_SECTIONS,
     PROSE_SECTION_TITLES,
     SUMMARY_LEAD_TITLES,
     budget_for_scene,
+    canonical_oia_title,
     effective_budget_for_scene,
     section_bullet_cap,
 )
@@ -37,9 +39,22 @@ _SENTENCE_SPLIT = re.compile(r"(?<=[。！？])")
 _SENTENCE_END = "。！？）」』》】"
 
 
+_SUMMARY_BROKEN_MISUNDERSTANDING = re.compile(r"^.{0,3}一个误解")
+
+
+def _sanitize_summary_lead(text: str) -> str:
+    """修正 LLM 偶发的残缺起笔（如「住一个误解」）。"""
+    s = text.strip().lstrip("-*• ")
+    if _SUMMARY_BROKEN_MISUNDERSTANDING.match(s):
+        rest = re.sub(r"^.{0,3}一个误解[，,、：:\s]*", "", s).strip()
+        if rest:
+            return f"这节经文回应一个常见误解：{rest.lstrip('，,、：: ')}"
+    return s
+
+
 def _trim_summary_sentence(text: str, limit: int) -> str:
     """摘要须完整可读：优先保留整句，避免硬切到一半。"""
-    s = text.strip()
+    s = _sanitize_summary_lead(text.strip())
     soft = limit + 24
     if len(s) <= soft:
         return s
@@ -78,6 +93,49 @@ def _split_sentences(chunk: str) -> list[str]:
         return parts
     line = chunk.strip()
     return [line] if line else []
+
+
+_OIA_EMIT_ORDER = (*OIA_SECTIONS[:2], "段落脉络", *OIA_SECTIONS[2:], "补充说明")
+
+
+def _reorder_oia_markdown(body: str) -> str:
+    """OIA 输出统一为：摘要 → 经文背景 → [段落脉络] → 经文解释 → 今日回应。"""
+    raw_chunks = _section_chunks(body)
+    if not raw_chunks:
+        return body
+    merged: dict[str, str] = {}
+    preamble = ""
+    for title, chunk in raw_chunks:
+        if not title:
+            if chunk.strip():
+                preamble = chunk.strip()
+            continue
+        canon = canonical_oia_title(title)
+        piece = chunk.strip()
+        if canon in merged and piece:
+            merged[canon] = f"{merged[canon]}\n\n{piece}".strip()
+        elif piece or canon not in merged:
+            merged[canon] = piece if piece else merged.get(canon, "")
+    out_parts: list[str] = []
+    if preamble:
+        out_parts.extend([preamble, ""])
+    seen: set[str] = set()
+    for title in _OIA_EMIT_ORDER:
+        if title not in merged:
+            continue
+        content = merged[title].strip()
+        if not content:
+            continue
+        seen.add(title)
+        out_parts.extend([f"### {title}", content, ""])
+    for title, content in merged.items():
+        if title in seen:
+            continue
+        content = content.strip()
+        if not content:
+            continue
+        out_parts.extend([f"### {title}", content, ""])
+    return "\n".join(out_parts).strip()
 
 
 def _section_chunks(body: str) -> list[tuple[str, str]]:
@@ -334,8 +392,7 @@ def normalize_answer_markdown(
             if chunk:
                 parts.append(chunk)
             continue
-        if scene in ("verse_full", "verse_quick") and title == "背景":
-            title = "经文背景"
+        title = canonical_oia_title(title)
         parts.append(f"### {title}")
         if title in SUMMARY_LEAD_TITLES or title in {"一句话", "主题", "补充说明"}:
             lead = chunk.replace("\n", " ").strip()
@@ -365,7 +422,7 @@ def normalize_answer_markdown(
                 prior_section_texts.extend(_split_sentences(prose.replace("\n", " ")))
             continue
         against: list[str] | None = None
-        if oia_depth and title in ("经文解释", "和上下文连", "和全本关联", "今日回应"):
+        if oia_depth and title in ("经文解释", "经文背景", "今日回应"):
             against = list(prior_section_texts)
         elif title in ("经文解释",) and prior_section_bullets:
             against = prior_section_bullets
@@ -390,6 +447,8 @@ def normalize_answer_markdown(
                 prior_section_texts.extend(_split_sentences(chunk.replace("\n", " ")))
 
     normalized_body = "\n".join(parts).strip()
+    if oia_depth:
+        normalized_body = _reorder_oia_markdown(normalized_body)
     if not format_only:
         hard_cap: int | None = None
         if depth == "flash":

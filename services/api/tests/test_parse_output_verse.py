@@ -11,12 +11,12 @@ from app.ai.parse_output import (
 def _oia_body() -> str:
     return (
         "### 摘要\n神爱世人，甚至将独生子赐给他们，叫一切信他的，不至灭亡，反得永生。\n\n"
+        "### 经文背景\n"
+        "这一节把旧约「新心新灵」的盼望，连到约翰整卷「信而得生命」的主题，"
+        "也与整本圣经救恩历史的线索相连。\n\n"
         "### 经文解释\n"
         "在尼哥底母夜访的语境下，「重生」指由圣灵起头的新生命，而非再次物理出生；"
         "信子才得永生，是整节要旨的收束。\n\n"
-        "### 和上下文连\n"
-        "这一节把旧约「新心新灵」的盼望，连到约翰整卷「信而得生命」的主题，"
-        "也与整本圣经救恩历史的线索相连。\n\n"
         "### 今日回应\n"
         "若你也在追问怎样才算够，可以先从承认需要被圣灵更新、信靠赐下的儿子开始。"
     )
@@ -38,7 +38,7 @@ def test_verse_full_missing_oia_sections():
     body = "### 摘要\n只有摘要。"
     assert verse_explain_incomplete("verse_full", body)
     missing = set(missing_verse_sections("verse_full", body))
-    assert missing == {"经文解释", "和上下文连", "今日回应"}
+    assert missing == {"经文解释", "经文背景", "今日回应"}
 
 
 def test_verse_quick_oia_complete():
@@ -68,12 +68,12 @@ def test_oia_compact_short_incomplete():
 def test_oia_standard_complete():
     body = (
         "### 摘要\n神爱世人，甚至将独生子赐给他们，叫一切信他的，不至灭亡，反得永生。\n\n"
+        "### 经文背景\n"
+        "- 与约翰整卷「信而得生命」主题相连，亦呼应旧约新心之约的盼望。\n"
+        "- 这一节把救恩历史的线索显明，指向神主动赐下的恩典。\n\n"
         "### 经文解释\n"
         "- 在尼哥底母夜访的语境下，「重生」指由圣灵起头的新生命，而非再次物理出生。\n"
         "- 「独生子」指向基督独特的位格；信子得永生，是整节要旨的收束。\n\n"
-        "### 和上下文连\n"
-        "- 与约翰整卷「信而得生命」主题相连，亦呼应旧约新心之约的盼望。\n"
-        "- 这一节把救恩历史的线索显明，指向神主动赐下的恩典。\n\n"
         "### 今日回应\n"
         "- 核心：救恩是礼物，始于信靠而非自我完善。\n"
         "- 今天可从诚实面对自己的需要、向神敞开开始。\n"
@@ -102,7 +102,7 @@ def test_missing_oia_sections_triggers_continuation():
         body,
         verse_span=3,
         depth="oia_compact",
-        expected_sections=("摘要", "经文解释", "和上下文连", "今日回应"),
+        expected_sections=("摘要", "经文背景", "经文解释", "今日回应"),
     )
 
 
@@ -124,8 +124,8 @@ def test_flash_chip_complete_with_summary_only():
 def test_oia_alias_titles():
     body = (
         "### 摘要\n神爱世人。\n\n"
-        "### 经文解释\n当时指重生。\n\n"
         "### 和上下文连\n与前后文连贯。\n\n"
+        "### 经文解释\n当时指重生。\n\n"
         "### 生活应用\n今天可以祷告回应。"
     )
     assert missing_verse_sections("verse_full", body) == []

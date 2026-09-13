@@ -126,7 +126,7 @@ bool assistantDisplayTrimmed(String raw) {
 }
 
 const _verseFullSections = ['摘要', '背景', '经文解释'];
-const _verseQuickSections = ['摘要', '经文解释'];
+const _verseQuickSections = ['摘要', '经文背景', '经文解释', '今日回应'];
 
 Set<String> _sectionTitles(String text) {
   final titles = <String>{};
@@ -175,7 +175,11 @@ bool isHalfSheetAnswerDisplayable(
   final titles = _sectionTitles(text);
   switch (scene) {
     case AssistantScene.verseQuick:
-      return titles.contains('摘要') || titles.contains('经文解释');
+      return titles.contains('摘要') ||
+          titles.contains('经文解释') ||
+          titles.contains('经文背景') ||
+          titles.contains('背景') ||
+          titles.contains('和上下文连');
     case AssistantScene.verseFull:
       if (titles.contains('摘要') &&
           (titles.contains('经文解释') ||
@@ -212,7 +216,10 @@ bool isHalfSheetAnswerComplete(
     final titles = _sectionTitles(text);
     for (final sec in outputPlan.sections) {
       if (sec == '经文背景' || sec == '背景') {
-        if (!titles.contains('经文背景') && !titles.contains('背景')) {
+        if (!titles.contains('经文背景') &&
+            !titles.contains('背景') &&
+            !titles.contains('和上下文连') &&
+            !titles.contains('和全本关联')) {
           return false;
         }
       } else if (!titles.contains(sec)) {
@@ -249,7 +256,17 @@ bool isHalfSheetAnswerComplete(
       if (span >= 6 && !titles.contains('段落脉络')) return false;
       return true;
     case AssistantScene.verseQuick:
-      return _verseQuickSections.every(titles.contains);
+      if (!titles.contains('摘要') || !titles.contains('经文解释')) {
+        return false;
+      }
+      if (!titles.contains('经文背景') &&
+          !titles.contains('背景') &&
+          !titles.contains('和上下文连')) {
+        return false;
+      }
+      return titles.contains('今日回应') ||
+          titles.contains('生活应用') ||
+          titles.contains('今日应用');
     default:
       return true;
   }
