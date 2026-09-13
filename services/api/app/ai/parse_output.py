@@ -311,12 +311,22 @@ def verse_explain_incomplete(
         expected = expected_sections or OIA_SECTIONS
         if oia_sections_missing(titles, expected):
             return True
+        if oia_thin_section_titles(text, depth=depth):
+            return True
+        summary = _section_text(text, "摘要")
+        if summary and summary_text_incomplete(summary.replace("\n", " ")):
+            return True
         floor = min_complete if min_complete is not None else 180
         return len(text) < floor
 
     if depth in ("oia_standard", "oia_deep"):
         expected = expected_sections or OIA_SECTIONS
         if oia_sections_missing(titles, expected):
+            return True
+        if oia_thin_section_titles(text, depth=depth):
+            return True
+        summary = _section_text(text, "摘要")
+        if summary and summary_text_incomplete(summary.replace("\n", " ")):
             return True
         floor = min_complete if min_complete is not None else 320
         if len(text) < floor:
@@ -487,6 +497,84 @@ def _extract_bullet_items(chunk: str) -> list[str]:
     return items
 
 
+def _dedupe_prose_chunks(chunks: list[str]) -> str:
+    kept: list[str] = []
+    for chunk in chunks:
+        piece = chunk.strip()
+        if not piece:
+            continue
+        norm = piece.replace("\n", " ")
+        if any(bullets_similar(norm, prior.replace("\n", " ")) for prior in kept):
+            continue
+        kept.append(piece)
+    return "\n\n".join(kept)
+
+
+def summary_text_incomplete(text: str) -> bool:
+    """摘要是否残缺起笔或未收束。"""
+    t = text.strip().lstrip("-*• ")
+    if not t:
+        return True
+    if t[-1] not in "。！？）」』》】":
+        return True
+    if re.match(r"^.{1,2}的(?:比喻|说明|意思|重点|主题|信息)", t):
+        return True
+    if re.match(r"^(?:比喻|说明|重点|主题|意思)", t):
+        return True
+    if re.match(r"^.{0,3}一个误解", t):
+        return True
+    return False
+
+
+def _section_plain_len(body_text: str, section_title: str) -> int:
+    raw = _section_text(body_text, section_title)
+    if not raw:
+        return 0
+    parts: list[str] = []
+    for line in raw.split("\n"):
+        m = _BULLET_ITEM_RE.match(line.strip())
+        if m:
+            parts.append(m.group(1).strip())
+        elif line.strip():
+            parts.append(line.strip())
+    return len("".join(parts))
+
+
+def oia_thin_section_titles(body_text: str, *, depth: str | None = None) -> list[str]:
+    """OIA 已有小节但内容偏薄。"""
+    thin: list[str] = []
+    min_explain = 42 if depth == "oia_compact" else 60
+    min_bg = 20 if depth == "oia_compact" else 32
+    min_apply = 16 if depth == "oia_compact" else 24
+
+    summary = _section_text(body_text, "摘要")
+    if summary and summary_text_incomplete(summary.replace("\n", " ")):
+        thin.append("摘要")
+
+    explain_len = _section_plain_len(body_text, "经文解释")
+    if explain_len and explain_len < min_explain:
+        thin.append("经文解释")
+
+    bg_len = _section_plain_len(body_text, "经文背景") or _section_plain_len(body_text, "背景")
+    if not bg_len:
+        for alias in ("和上下文连", "和全本关联"):
+            bg_len = _section_plain_len(body_text, alias)
+            if bg_len:
+                break
+    if bg_len and bg_len < min_bg:
+        thin.append("经文背景")
+
+    apply_len = _section_plain_len(body_text, "今日回应")
+    if not apply_len:
+        for alias in ("生活应用", "今日应用"):
+            apply_len = _section_plain_len(body_text, alias)
+            if apply_len:
+                break
+    if apply_len and apply_len < min_apply:
+        thin.append("今日回应")
+    return thin
+
+
 def dedupe_similar_bullets(
     bullets: list[str],
     *,
@@ -559,7 +647,7 @@ def merge_continuation_sections(body_text: str) -> str:
             bullets.extend(_extract_bullet_items(chunk))
         if not bullets:
             parts.append(f"### {canon}")
-            parts.append("\n\n".join(chunks))
+            parts.append(_dedupe_prose_chunks(chunks))
             parts.append("")
             continue
 

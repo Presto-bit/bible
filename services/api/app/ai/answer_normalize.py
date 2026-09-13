@@ -15,6 +15,7 @@ from .answer_schema import (
 from .parse_output import (
     FOLLOWUP_SECTION_RE,
     SECTION_MD_RE,
+    bullets_similar,
     dedupe_similar_bullets,
     merge_continuation_sections,
     split_body_and_followups,
@@ -40,15 +41,42 @@ _SENTENCE_END = "。！？）」』》】"
 
 
 _SUMMARY_BROKEN_MISUNDERSTANDING = re.compile(r"^.{0,3}一个误解")
+_SUMMARY_FRAGMENT_START = re.compile(
+    r"^(?:.{1,2}的(?:比喻|说明|意思|重点|主题|信息)|(?:比喻|说明|重点|主题|意思))"
+)
+
+
+def _summary_needs_repair(s: str) -> bool:
+    t = s.strip()
+    if not t:
+        return True
+    if t[-1] not in _SENTENCE_END:
+        return True
+    if _SUMMARY_BROKEN_MISUNDERSTANDING.match(t):
+        return True
+    if _SUMMARY_FRAGMENT_START.match(t):
+        return True
+    return False
 
 
 def _sanitize_summary_lead(text: str) -> str:
-    """修正 LLM 偶发的残缺起笔（如「住一个误解」）。"""
+    """修正 LLM 偶发的残缺起笔（如「住一个误解」「婚的比喻说明」）。"""
     s = text.strip().lstrip("-*• ")
     if _SUMMARY_BROKEN_MISUNDERSTANDING.match(s):
         rest = re.sub(r"^.{0,3}一个误解[，,、：:\s]*", "", s).strip()
         if rest:
-            return f"这节经文回应一个常见误解：{rest.lstrip('，,、：: ')}"
+            s = f"这节经文回应一个常见误解：{rest.lstrip('，,、：: ')}"
+    frag = re.match(r"^(.{1,2})的(比喻|说明|意思|重点|主题|信息)(.*)$", s)
+    if frag:
+        head, kind, rest = frag.group(1), frag.group(2), frag.group(3)
+        if head == "婚":
+            s = f"这节经文以婚姻的{kind}{rest}"
+        else:
+            s = f"这节经文以{head}的{kind}{rest}"
+    elif re.match(r"^(比喻|说明|重点|主题|意思)", s):
+        s = f"这节经文{s}"
+    if s and s[-1] not in _SENTENCE_END and len(s) >= 12:
+        s = s.rstrip("，,、；;：: ") + "。"
     return s
 
 
@@ -113,7 +141,13 @@ def _reorder_oia_markdown(body: str) -> str:
         canon = canonical_oia_title(title)
         piece = chunk.strip()
         if canon in merged and piece:
-            merged[canon] = f"{merged[canon]}\n\n{piece}".strip()
+            prior = merged[canon]
+            if bullets_similar(
+                piece.replace("\n", " "),
+                prior.replace("\n", " "),
+            ):
+                continue
+            merged[canon] = f"{prior}\n\n{piece}".strip()
         elif piece or canon not in merged:
             merged[canon] = piece if piece else merged.get(canon, "")
     out_parts: list[str] = []
@@ -449,6 +483,7 @@ def normalize_answer_markdown(
     normalized_body = "\n".join(parts).strip()
     if oia_depth:
         normalized_body = _reorder_oia_markdown(normalized_body)
+        normalized_body = merge_continuation_sections(normalized_body)
     if not format_only:
         hard_cap: int | None = None
         if depth == "flash":

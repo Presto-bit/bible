@@ -137,6 +137,19 @@ def test_summary_renders_as_bullet():
     assert "### 摘要\n- 神爱世人" in out
 
 
+def test_oia_summary_repairs_marriage_parable_fragment():
+    raw = "### 摘要\n婚的比喻说明我们怎样与旧生命断开。"
+    out = normalize_answer_markdown(
+        raw,
+        "verse_full",
+        depth="oia_compact",
+        prefer_prose=True,
+    )
+    assert "婚的比喻说明" not in out
+    assert "婚姻的比喻" in out
+    assert out.rstrip().endswith("。")
+
+
 def test_oia_summary_repairs_broken_misunderstanding_lead():
     raw = "### 摘要\n住一个误解，以为可以任意犯罪。"
     out = normalize_answer_markdown(
@@ -147,6 +160,21 @@ def test_oia_summary_repairs_broken_misunderstanding_lead():
     )
     assert "住一个误解" not in out
     assert "常见误解" in out
+
+
+def test_merge_dedupes_duplicate_prose_sections():
+    from app.ai.parse_output import merge_continuation_sections
+
+    raw = (
+        "### 摘要\n摘要句。\n\n"
+        "### 经文解释\n"
+        "保罗用婚姻的比喻说明我们与旧生命断开。\n\n"
+        "### 经文解释\n"
+        "保罗用婚姻的比喻说明我们与旧生命断开，好服事新的主人。"
+    )
+    out = merge_continuation_sections(raw)
+    assert out.count("### 经文解释") == 1
+    assert "婚姻的比喻" in out
 
 
 def test_oia_reorders_sections_and_aliases():

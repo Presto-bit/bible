@@ -13,7 +13,9 @@ from .parse_output import (
     mid_bullet_truncated,
     missing_summary_sections,
     missing_verse_sections,
+    oia_thin_section_titles,
     summary_incomplete,
+    summary_text_incomplete,
     verse_explain_incomplete,
 )
 
@@ -85,6 +87,25 @@ def collect_section_fill_hints(
                 missing.append(title)
         if mode == "oia" and missing:
             hints.append("每节 1–2 句 prose，勿重复已写内容，勿列表堆砌")
+        if mode == "oia":
+            summary = ""
+            for m in SECTION_MD_RE.finditer(text):
+                if m.group(1).strip() == "摘要":
+                    start = m.end()
+                    nxt = SECTION_MD_RE.search(text, start)
+                    end = nxt.start() if nxt else len(text)
+                    summary = text[start:end].replace("\n", " ").strip()
+                    break
+            if summary and summary_text_incomplete(summary):
+                hints.append(
+                    "摘要须 1 句完整话（35–55 字），主谓齐全、自然收束，勿残缺起笔"
+                )
+            thin = oia_thin_section_titles(text, depth=depth)
+            if thin:
+                hints.append(
+                    f"加厚偏薄小节（{'、'.join(thin)}）："
+                    "每节至少 2 句或 50 字，点明 1 个关键用语，勿重复其他节"
+                )
         elif mode == "intent" and missing:
             structure_secs = {"经文背景", "段落脉络", "经文解释", "背景", "和上下文连", "今日回应"}
             if any(title in structure_secs for title in missing):
@@ -180,6 +201,13 @@ def _fill_user_message(hints: list[str], *, mode: str, restructure: bool) -> str
         )
     _no_cont = "不要新增「（续）」类小节标题，"
     if mode == "oia":
+        thicken = any("加厚" in h or "摘要须" in h for h in hints)
+        if thicken:
+            return (
+                "请修正上一条 assistant 回答的 OIA 质量。"
+                + joined
+                + f"。{_no_cont}可重写标注的小节，但不要整段重复已写内容。"
+            )
         return (
             "请补全上一条 assistant 回答中缺失的 OIA 小节。"
             + joined

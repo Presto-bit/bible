@@ -613,10 +613,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
             if (answerText.isEmpty && streamBuilt.isNotEmpty) {
               answerText = streamBuilt;
             }
-            final liveSections = sectionStream.getRenderableSections();
-            final finalStreamSections = liveSections.isNotEmpty
-                ? liveSections
-                : streamSectionsFromMarkdown(answerText);
+            final finalStreamSections = streamSectionsFromMarkdown(answerText);
             if (answerText.isEmpty) {
               setState(() {
                 final t = _turnFor(turnId);

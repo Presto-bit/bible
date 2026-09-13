@@ -661,9 +661,7 @@ export default function XiaoAiSheet({
               { sectionPolicy: outputPlan?.section_policy },
             );
             const text = resolved.text.trim();
-            const finalStreamSections = streamSections.length
-              ? streamSections
-              : streamSectionsFromMarkdown(text);
+            const finalStreamSections = streamSectionsFromMarkdown(text);
             if (text) accRef.current = text;
             else if (streamedBeforeDone) accRef.current = streamedBeforeDone;
             settled = true;
