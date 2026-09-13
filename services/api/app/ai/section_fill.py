@@ -125,9 +125,14 @@ def collect_section_fill_hints(
             expected_sections=planned_sections,
             min_complete=min_complete,
         ):
-            hints.append(
-                "已有小节但内容偏薄、要点不足或被截断，请加厚要点并自然收束，勿重复"
-            )
+            if min_complete is not None and min_complete <= 120:
+                hints.append(
+                    "只补缺失小节或截断处，不要加厚要点、不要明显加长，勿重复"
+                )
+            else:
+                hints.append(
+                    "已有小节但内容偏薄、要点不足或被截断，请加厚要点并自然收束，勿重复"
+                )
 
     if mode == "full" and not missing and scene in (
         "summary_chapter",

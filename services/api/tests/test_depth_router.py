@@ -51,6 +51,20 @@ def test_half_sheet_two_verse_not_flash():
         surface="half_sheet",
     )
     assert prof.depth != "flash"
+    assert prof.sections == ("摘要", "经文解释")
+    assert prof.target_chars <= 260
+
+
+def test_half_sheet_five_verse_compact():
+    prof = resolve_depth(
+        "verse_full",
+        "请解读：约 3:16-20",
+        verse_span=5,
+        surface="half_sheet",
+    )
+    assert prof.depth == "standard"
+    assert prof.sections == ("摘要", "经文解释")
+    assert prof.target_chars <= 280
 
 
 def test_deep_question_expands_sections():

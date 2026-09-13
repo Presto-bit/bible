@@ -374,6 +374,19 @@ def verse_scene_format_guide(
     if depth and depth.depth == "standard" and depth.section_policy == "soft":
         span = max(1, int(verse_span or 1))
         titles = "、".join(depth.sections)
+        if depth.target_chars <= 280:
+            explain_bullets = "2–3 条" if span <= 3 else "3 条"
+            return (
+                f"{_MD}\n"
+                f"共 {span} 节：按主题归纳，**不要逐节罗列**。\n"
+                f"小节：{titles}。\n"
+                "### 摘要\n"
+                "1 句（≤42 字）。\n"
+                "### 经文解释\n"
+                f"{explain_bullets}，每条一句完整观点，紧扣经文关键字句。\n"
+                f"建议篇幅约 {depth.target_chars}–{depth.soft_max} 字，**宁短勿水**。"
+                "不要「相关追问」。"
+            )
         return (
             f"{_MD}\n"
             f"共 {span} 节：按主题归纳，不要逐节罗列。\n"

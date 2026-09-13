@@ -99,10 +99,10 @@ def resolve_depth(
             if span >= 6:
                 return _deep_profile(scene_id, span, half=True)
             if span <= 5 and not wants_deep:
-                return _standard_verse_profile(span, deep=False, compact=True)
+                return _half_sheet_compact_profile(span)
             if wants_deep:
                 return _deep_profile(scene_id, span, half=True)
-            return _standard_verse_profile(span, deep=False, compact=True)
+            return _half_sheet_compact_profile(span)
         # Tab / assistant
         if span >= 6 and wants_deep:
             return _deep_profile(scene_id, span, half=False)
@@ -139,6 +139,30 @@ def resolve_depth(
         soft_max=target + 80,
         hard_max=target + 160 if bud else None,
         min_complete=80,
+    )
+
+
+def _half_sheet_compact_profile(verse_span: int) -> DepthProfile:
+    """半屏默认：摘要 + 解释，控篇幅、少而准。"""
+    span = max(1, int(verse_span or 1))
+    if span <= 3:
+        sections = ("摘要", "经文解释")
+        target = 220 if span <= 2 else 260
+        min_complete = 80 if span <= 2 else 95
+    else:
+        sections = ("摘要", "经文解释")
+        target = 280
+        min_complete = 110
+    soft = target + 60
+    return DepthProfile(
+        depth="standard",
+        sections=sections,
+        section_policy="soft",
+        prefer_prose=False,
+        target_chars=target,
+        soft_max=soft,
+        hard_max=soft + 80,
+        min_complete=min_complete,
     )
 
 
