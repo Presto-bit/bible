@@ -411,13 +411,22 @@ class AnswerText extends StatelessWidget {
     required TextStyle base,
     required String sectionTitle,
   }) {
-    final bodyStyle = base.copyWith(height: 1.78);
+    final isLead = leadSectionTitles.contains(sectionTitle);
+    final bodyStyle = base.copyWith(
+      height: isLead ? 1.72 : 1.78,
+      fontWeight: isLead ? FontWeight.w600 : FontWeight.w400,
+    );
     return Container(
       width: double.infinity,
       margin: EdgeInsets.only(bottom: dense ? 8 : 10),
       padding: EdgeInsets.fromLTRB(12, dense ? 8 : 10, 12, dense ? 8 : 10),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: isLead
+            ? Color.alphaBlend(
+                AppColors.accentWash.withValues(alpha: 0.35),
+                AppColors.surface,
+              )
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text.rich(TextSpan(children: _inline(content, bodyStyle))),
