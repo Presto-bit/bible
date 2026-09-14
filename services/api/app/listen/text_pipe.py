@@ -14,8 +14,8 @@ VOICE_MAP: dict[str, str] = {
 
 DEFAULT_VOICE = "voice_calm_m"
 MODEL = "speech-2.8-turbo"
-# 合成策略变更（分块+字幕轴）时递增，避免与旧「按节多请求」缓存混用
-PROSODY_VER = "v2-chunk-sub"
+# 合成策略变更时递增，避免旧缓存混用
+PROSODY_VER = "v3-intro-solo"
 
 
 def normalize_verse_text(text: str) -> str:
@@ -30,9 +30,41 @@ def normalize_verse_text(text: str) -> str:
     return t
 
 
+def _chapter_spoken(n: int) -> str:
+    """章号口语：1→一，10→十，23→二十三（便于 TTS 读清「第几章」）。"""
+    n = int(n)
+    if n <= 0:
+        return str(n)
+    digits = "零一二三四五六七八九"
+    if n < 10:
+        return digits[n]
+    if n == 10:
+        return "十"
+    if n < 20:
+        return "十" + digits[n % 10]
+    if n < 100:
+        tens, ones = divmod(n, 10)
+        return digits[tens] + "十" + (digits[ones] if ones else "")
+    if n == 100:
+        return "一百"
+    if n < 110:
+        return "一百零" + digits[n % 10] if n % 10 else "一百"
+    if n < 120:
+        return "一百一十" + (digits[n % 10] if n % 10 else "")
+    # 120–150：一百二十…
+    hundreds, rest = divmod(n, 100)
+    head = digits[hundreds] + "百" if hundreds > 1 else "一百"
+    if rest == 0:
+        return head
+    if rest < 10:
+        return head + "零" + digits[rest]
+    return head + _chapter_spoken(rest)
+
+
 def chapter_intro(book_id: str, chapter: int) -> str:
+    """章头播报：卷名 + 第几章（独立成句，便于听清）。"""
     name = book_name(book_id) or book_id
-    return f"{name} 第{int(chapter)}章。"
+    return f"{name}。第{_chapter_spoken(chapter)}章。"
 
 
 def translation_label(translation: str) -> str:

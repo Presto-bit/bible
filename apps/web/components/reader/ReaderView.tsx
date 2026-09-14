@@ -695,13 +695,13 @@ export default function ReaderView({
     currentSec: listenCurrentSec,
     durationSec: listenDurationSec,
     currentVerse: listenCurrentVerse,
-    verseText: listenVerseText,
     settings: listenSettings,
     speeds: listenSpeeds,
     updateSettings: updateListenSettings,
     armSleep: armListenSleep,
     togglePlayPause: toggleListenPlayPause,
     seekMs: seekListenMs,
+    seekVerse: seekListenVerse,
     formatTime: listenFormatTime,
     canSeek: listenCanSeek,
   } = bibleListen;
@@ -710,7 +710,7 @@ export default function ReaderView({
   overlayOpenRef.current = overlayOpen;
   const listenVerseClass = useCallback(
     (verse: number) =>
-      listenCurrentVerse === verse && (listenUi === 'playing' || listenUi === 'paused')
+      listenCurrentVerse === verse && listenUi === 'playing'
         ? ' verse-listen-current'
         : '',
     [listenCurrentVerse, listenUi],
@@ -3370,7 +3370,7 @@ export default function ReaderView({
           })}
           aria-label="听读"
         >
-          听
+          <span className="reader-fab-listen-label">听</span>
         </button>
         <button
           type="button"
@@ -3927,7 +3927,8 @@ export default function ReaderView({
         translationLabel={versionLabel}
         ui={listenUi}
         error={listenError}
-        verseText={listenVerseText}
+        verses={verses}
+        currentVerse={listenCurrentVerse}
         currentSec={listenCurrentSec}
         durationSec={listenDurationSec}
         formatTime={listenFormatTime}
@@ -3943,6 +3944,7 @@ export default function ReaderView({
         onClose={closeListenSheet}
         onToggle={toggleListenPlayPause}
         onSeekMs={seekListenMs}
+        onSeekVerse={seekListenVerse}
         onPrevChapter={() => navChapter(-1)}
         onNextChapter={() => navChapter(1)}
         onPickChapter={(b, ch) => onNavigate(b, ch)}

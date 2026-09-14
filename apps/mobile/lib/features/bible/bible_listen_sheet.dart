@@ -74,6 +74,8 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
   bool _catalogOpen = false;
   String _locTab = 'chapters';
   late String _selectedBookId;
+  final Map<int, GlobalKey> _verseKeys = {};
+  int? _lastScrolledVerse;
 
   @override
   void initState() {
@@ -84,18 +86,45 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
   @override
   void didUpdateWidget(covariant _BibleListenSheetBody oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.book.id != widget.book.id) {
+    if (oldWidget.book.id != widget.book.id ||
+        oldWidget.chapter != widget.chapter) {
       _selectedBookId = widget.book.id;
+      _lastScrolledVerse = null;
+      _verseKeys.clear();
     }
+  }
+
+  GlobalKey _keyFor(int verse) =>
+      _verseKeys.putIfAbsent(verse, GlobalKey.new);
+
+  void _scrollToVerse(int? verse) {
+    if (verse == null || verse == _lastScrolledVerse) return;
+    _lastScrolledVerse = verse;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _verseKeys[verse]?.currentContext;
+      if (ctx == null || !mounted) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 280),
+        alignment: 0.28,
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(bibleListenProvider);
     final ctrl = ref.read(bibleListenProvider.notifier);
+    final verses = ctrl.verses;
     final preparing = session.ui == BibleListenUi.preparing;
     final playing = session.ui == BibleListenUi.playing;
     final errored = session.ui == BibleListenUi.error;
+    ref.listen<int?>(
+      bibleListenProvider.select((s) => s.currentVerse),
+      (prev, next) => _scrollToVerse(next),
+    );
+    _scrollToVerse(session.currentVerse);
     final maxMs = session.duration.inMilliseconds <= 0
         ? 1.0
         : session.duration.inMilliseconds.toDouble();
@@ -140,9 +169,9 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
             children: [
               Column(
                 children: [
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(22, 10, 22, 8),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 10, 22, 4),
+                    child: Column(
                       children: [
                         Center(
                           child: Container(
@@ -210,23 +239,76 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                             color: AppColors.inkSoft,
                           ),
                         ),
-                        const SizedBox(height: 18),
-                        Text(
-                          preparing && session.verseText.isEmpty
-                              ? '正在准备听读…'
-                              : (session.verseText.isEmpty
-                                  ? ' '
-                                  : session.verseText),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 19,
-                            height: 1.75,
-                            color: AppColors.ink,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
                       ],
                     ),
+                  ),
+                  Expanded(
+                    child: verses.isEmpty
+                        ? Center(
+                            child: Text(
+                              preparing ? '正在准备听读…' : '暂无经文',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: AppColors.inkSoft,
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                            itemCount: verses.length,
+                            itemBuilder: (context, i) {
+                              final v = verses[i];
+                              final isCurrent = session.currentVerse == v.verse;
+                              return Padding(
+                                key: _keyFor(v.verse),
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Material(
+                                  color: isCurrent
+                                      ? const Color(0xFF8EC8E8)
+                                          .withValues(alpha: 0.38)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: !session.canSeek || preparing
+                                        ? null
+                                        : () => ctrl.seekVerse(v.verse),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      child: Text.rich(
+                                        TextSpan(
+                                          children: [
+                                            TextSpan(
+                                              text: '${v.verse} ',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: isCurrent
+                                                    ? const Color(0xFF3D7EA8)
+                                                    : AppColors.inkSoft,
+                                              ),
+                                            ),
+                                            TextSpan(
+                                              text: v.text,
+                                              style: const TextStyle(
+                                                fontSize: 17,
+                                                height: 1.75,
+                                                color: AppColors.ink,
+                                                letterSpacing: 0.2,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                   ),
                   SizedBox(
                     height: MediaQuery.sizeOf(context).height * 0.95 * 0.20,

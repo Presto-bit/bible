@@ -229,7 +229,7 @@ void appendReaderWordSpans({
     }
     if (audioCurrent && !inWordSel) {
       wordStyle = wordStyle.copyWith(
-        backgroundColor: AppColors.accent.withValues(alpha: 0.18),
+        backgroundColor: const Color(0xFF8EC8E8).withValues(alpha: 0.42),
       );
     }
     if (hasThought && !inWordSel) {

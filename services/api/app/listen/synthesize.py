@@ -59,6 +59,18 @@ def _build_chunks(units: list[dict]) -> list[dict]:
         sent = _tts_sentence(str(unit.get("text") or ""))
         if not sent:
             continue
+        # 章引子单独一块，保证开场先读「卷名、第几章」再进正文
+        if unit.get("kind") == "intro":
+            flush()
+            start = 0
+            end = len(sent)
+            chunks.append(
+                {
+                    "text": sent,
+                    "ranges": [(unit, start, end)],
+                }
+            )
+            continue
         # 块大小按「有效字」估算（不含换行）
         if sentences and cursor + len(sent) > _CHUNK_CHARS:
             flush()

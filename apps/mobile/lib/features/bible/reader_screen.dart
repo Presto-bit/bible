@@ -852,32 +852,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           message: '听读',
           child: Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: Material(
-              color: listenSession.ui == BibleListenUi.playing
-                  ? AppColors.ink
-                  : AppColors.accentDeep,
-              elevation: 3,
-              shape: const StadiumBorder(),
-              child: InkWell(
-                customBorder: const StadiumBorder(),
-                onTap: () {
-                  peiaiHapticLight(context);
-                  unawaited(_openListenSheet(context));
-                },
-                child: const Padding(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Text(
-                    '听',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      height: 1,
-                    ),
-                  ),
-                ),
-              ),
+            child: _ListenFabButton(
+              playing: listenSession.ui == BibleListenUi.playing,
+              paused: listenSession.ui == BibleListenUi.paused,
+              onTap: () {
+                peiaiHapticLight(context);
+                unawaited(_openListenSheet(context));
+              },
             ),
           ),
         ),
@@ -1701,6 +1682,100 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
               },
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 听读 FAB：播放/暂停时淡蓝底；播放中「听」字呼吸动画（无右侧竖线）。
+class _ListenFabButton extends StatefulWidget {
+  const _ListenFabButton({
+    required this.playing,
+    required this.paused,
+    required this.onTap,
+  });
+
+  final bool playing;
+  final bool paused;
+  final VoidCallback onTap;
+
+  @override
+  State<_ListenFabButton> createState() => _ListenFabButtonState();
+}
+
+class _ListenFabButtonState extends State<_ListenFabButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    if (widget.playing) _pulse.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ListenFabButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.playing && !_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    } else if (!widget.playing && _pulse.isAnimating) {
+      _pulse.stop();
+      _pulse.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bg;
+    if (widget.playing) {
+      bg = const Color(0xFF8EC8E8);
+    } else if (widget.paused) {
+      bg = const Color(0xFF7EB6D9);
+    } else {
+      bg = AppColors.accentDeep;
+    }
+    return Material(
+      color: bg,
+      elevation: 3,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: widget.onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: AnimatedBuilder(
+            animation: _pulse,
+            builder: (context, child) {
+              final t = widget.playing ? _pulse.value : 0.0;
+              return Opacity(
+                opacity: widget.playing ? (0.72 + 0.28 * t) : 1,
+                child: Transform.scale(
+                  scale: widget.playing ? (1 + 0.08 * t) : 1,
+                  child: child,
+                ),
+              );
+            },
+            child: const Text(
+              '听',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1,
+              ),
+            ),
+          ),
         ),
       ),
     );

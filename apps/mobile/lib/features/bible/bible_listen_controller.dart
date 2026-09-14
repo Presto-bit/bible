@@ -381,6 +381,15 @@ class BibleListenController extends Notifier<BibleListenSession> {
     await player.seek(Duration(milliseconds: ms));
   }
 
+  Future<void> seekVerse(int verse) async {
+    final tl = state.meta?.timeline ?? const [];
+    final hit = tl.where((t) => t.verse == verse).toList();
+    if (hit.isEmpty) return;
+    await seekMs(hit.first.startMs);
+  }
+
+  List<({int verse, String text})> get verses => _verses;
+
   Future<void> stepVerse(int dir) async {
     final tl = state.meta?.timeline ?? const [];
     if (tl.isEmpty) return;

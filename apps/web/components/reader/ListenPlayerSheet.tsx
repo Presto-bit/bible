@@ -23,7 +23,8 @@ export function ListenPlayerSheet({
   translationLabel,
   ui,
   error,
-  verseText,
+  verses,
+  currentVerse,
   currentSec,
   durationSec,
   formatTime,
@@ -39,6 +40,7 @@ export function ListenPlayerSheet({
   onClose,
   onToggle,
   onSeekMs,
+  onSeekVerse,
   onPrevChapter,
   onNextChapter,
   onPickChapter,
@@ -50,7 +52,8 @@ export function ListenPlayerSheet({
   translationLabel: string;
   ui: BibleListenUiState;
   error: string | null;
-  verseText: string;
+  verses: { verse: number; text: string }[];
+  currentVerse: number | null;
   currentSec: number;
   durationSec: number;
   formatTime: (n: number) => string;
@@ -66,6 +69,7 @@ export function ListenPlayerSheet({
   onClose: () => void;
   onToggle: () => void;
   onSeekMs: (ms: number) => void;
+  onSeekVerse: (verse: number) => void;
   onPrevChapter: () => void;
   onNextChapter: () => void;
   onPickChapter: (book: BibleBook, chapter: number) => void;
@@ -74,6 +78,7 @@ export function ListenPlayerSheet({
 }) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
+  const currentRowRef = useRef<HTMLButtonElement | null>(null);
   const { guardedClose } = useSheetOpenGuard(SHEET_OPEN_GUARD_MS);
   const swipe = useVerticalSwipeDismiss({
     onDismiss: onClose,
@@ -98,6 +103,13 @@ export function ListenPlayerSheet({
     setLocTab('chapters');
     setSelectedBookId(book.id);
   }, [catalogOpen, book.id]);
+
+  useEffect(() => {
+    if (!open || currentVerse == null) return;
+    const el = currentRowRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [open, currentVerse, chapter, book.id]);
 
   if (!open) return null;
 
@@ -152,9 +164,33 @@ export function ListenPlayerSheet({
           </div>
 
           <div ref={bodyRef} className="listen-sheet-body">
-            <p className="listen-sheet-verse">
-              {preparing && !verseText ? '正在准备听读…' : verseText || ' '}
-            </p>
+            {preparing && verses.length === 0 ? (
+              <p className="listen-sheet-empty">正在准备听读…</p>
+            ) : verses.length === 0 ? (
+              <p className="listen-sheet-empty">暂无经文</p>
+            ) : (
+              <div className="listen-sheet-scripture">
+                {verses.map((v) => {
+                  const isCurrent = currentVerse === v.verse;
+                  return (
+                    <button
+                      key={v.verse}
+                      type="button"
+                      ref={isCurrent ? currentRowRef : undefined}
+                      className={`listen-sheet-verse-row${isCurrent ? ' is-current' : ''}`}
+                      disabled={!canSeek || preparing}
+                      onClick={() => {
+                        if (!canSeek || preparing) return;
+                        onSeekVerse(v.verse);
+                      }}
+                    >
+                      <span className="listen-vn">{v.verse}</span>
+                      <span>{v.text}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="listen-sheet-footer">

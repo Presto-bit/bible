@@ -44,6 +44,7 @@ import 'reader_typography.dart';
 import 'reader_focus_bar.dart';
 import 'reader_marking_models.dart';
 import 'reader_audio.dart';
+import 'bible_listen_controller.dart';
 import 'reader_preferences.dart';
 import 'reader_thoughts_sheet.dart';
 import 'feed_activity.dart';
@@ -2451,15 +2452,33 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final fontFamily = ref.watch(readerFontFamilyProvider);
     final readingMode = ref.watch(readingModeProvider);
     final audioSession = ref.watch(readerAudioProvider);
-    final audioCurrentVerse =
-        audioSession.state == ReaderAudioState.playing ||
-            audioSession.state == ReaderAudioState.paused
-        ? audioSession.currentVerse
+    final listenSession = ref.watch(bibleListenProvider);
+    final listenCurrentVerse = listenSession.ui == BibleListenUi.playing
+        ? listenSession.currentVerse
         : null;
+    final audioCurrentVerse =
+        listenCurrentVerse ??
+        (audioSession.state == ReaderAudioState.playing ||
+                audioSession.state == ReaderAudioState.paused
+            ? audioSession.currentVerse
+            : null);
+    ref.listen<int?>(
+      bibleListenProvider.select((s) => s.currentVerse),
+      (prev, next) {
+        if (next == null || next == _lastAudioScrollVerse) return;
+        final st = ref.read(bibleListenProvider).ui;
+        if (st != BibleListenUi.playing) return;
+        _lastAudioScrollVerse = next;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scrollToAudioVerse(next);
+        });
+      },
+    );
     ref.listen<int?>(
       readerAudioProvider.select((s) => s.currentVerse),
       (prev, next) {
         if (next == null || next == _lastAudioScrollVerse) return;
+        if (ref.read(bibleListenProvider).sessionActive) return;
         final st = ref.read(readerAudioProvider).state;
         if (st != ReaderAudioState.playing) return;
         _lastAudioScrollVerse = next;
