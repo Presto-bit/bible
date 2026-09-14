@@ -83,6 +83,7 @@ export function ListenPlayerSheet({
   voices,
   onSelectVoice,
   englishUI = false,
+  sleepClosing = false,
 }: {
   open: boolean;
   title: string;
@@ -115,6 +116,7 @@ export function ListenPlayerSheet({
   voices: readonly { id: string; label: string }[];
   onSelectVoice: (voiceId: string) => void;
   englishUI?: boolean;
+  sleepClosing?: boolean;
 }) {
   const copy = englishUI ? COPY_EN : COPY_ZH;
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -133,18 +135,39 @@ export function ListenPlayerSheet({
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [locTab, setLocTab] = useState<LocTab>('chapters');
   const [selectedBookId, setSelectedBookId] = useState(book.id);
+  const [chapterFlash, setChapterFlash] = useState<string | null>(null);
+  const [scriptureFading, setScriptureFading] = useState(false);
+  const locKeyRef = useRef(`${book.id}:${chapter}`);
 
   useEffect(() => {
     if (!open) {
       setPanel('none');
       setCatalogOpen(false);
       lastScrolledVerseRef.current = null;
+      setChapterFlash(null);
+      setScriptureFading(false);
+      locKeyRef.current = `${book.id}:${chapter}`;
     }
-  }, [open]);
+  }, [open, book.id, chapter]);
 
   useEffect(() => {
     lastScrolledVerseRef.current = null;
   }, [chapter, book.id]);
+
+  useEffect(() => {
+    if (!open) return;
+    const key = `${book.id}:${chapter}`;
+    if (locKeyRef.current === key) return;
+    locKeyRef.current = key;
+    setScriptureFading(true);
+    setChapterFlash(title);
+    const t1 = window.setTimeout(() => setScriptureFading(false), 320);
+    const t2 = window.setTimeout(() => setChapterFlash(null), 720);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [open, book.id, chapter, title]);
 
   useEffect(() => {
     if (!catalogOpen) return;
@@ -222,12 +245,23 @@ export function ListenPlayerSheet({
           </div>
 
           <div ref={bodyRef} className="listen-sheet-body">
+            {chapterFlash ? (
+              <div className="listen-sheet-chapter-flash" aria-hidden>
+                <span>{chapterFlash}</span>
+              </div>
+            ) : null}
             {preparing && verses.length === 0 ? (
-              <p className="listen-sheet-empty">正在准备听读…</p>
+              <p className="listen-sheet-empty">
+                {englishUI ? 'Preparing listen…' : '正在准备听读…'}
+              </p>
             ) : verses.length === 0 ? (
-              <p className="listen-sheet-empty">暂无经文</p>
+              <p className="listen-sheet-empty">
+                {englishUI ? 'No verses' : '暂无经文'}
+              </p>
             ) : (
-              <div className="listen-sheet-scripture">
+              <div
+                className={`listen-sheet-scripture${scriptureFading ? ' is-fading' : ''}`}
+              >
                 {verses.map((v) => {
                   const isCurrent = currentVerse === v.verse;
                   return (
@@ -327,11 +361,15 @@ export function ListenPlayerSheet({
 
           {preparing ? (
             <p className="listen-sheet-status" role="status">
-              正在准备
+              {englishUI ? 'Preparing' : '正在准备'}
+            </p>
+          ) : sleepClosing ? (
+            <p className="listen-sheet-status is-closing" role="status">
+              {englishUI ? 'Rest well — softly closing' : '安歇吧 · 轻轻收束'}
             </p>
           ) : errored ? (
             <p className="listen-sheet-status is-error" role="alert">
-              {error || '准备失败，点按重试'}
+              {error || (englishUI ? 'Failed — tap to retry' : '准备失败，点按重试')}
             </p>
           ) : (
             <p className="listen-sheet-status" aria-hidden>

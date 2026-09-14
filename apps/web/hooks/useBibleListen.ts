@@ -89,6 +89,8 @@ export function useBibleListen(opts: {
   const timelineRef = useRef<ListenTimelineItem[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const sleepTimerRef = useRef<number | null>(null);
+  const sleepFadeRafRef = useRef<number | null>(null);
+  const [sleepClosing, setSleepClosing] = useState(false);
   const continuousRef = useRef(settings.continuousChapter);
   const metaRef = useRef<ListenChapterReady | null>(null);
   const preparingRef = useRef(false);
@@ -193,22 +195,56 @@ export function useBibleListen(opts: {
     });
   }, []);
 
+  const restoreVolume = useCallback(() => {
+    const el = audioRef.current;
+    if (el) el.volume = 1;
+  }, []);
+
   const clearSleep = useCallback(() => {
     if (sleepTimerRef.current) {
       window.clearTimeout(sleepTimerRef.current);
       sleepTimerRef.current = null;
     }
-  }, []);
+    if (sleepFadeRafRef.current != null) {
+      window.cancelAnimationFrame(sleepFadeRafRef.current);
+      sleepFadeRafRef.current = null;
+    }
+    setSleepClosing(false);
+    restoreVolume();
+  }, [restoreVolume]);
 
   const armSleep = useCallback(
     (minutes: number | null) => {
       clearSleep();
       updateSettings({ sleepMinutes: minutes });
       if (!minutes || minutes <= 0) return;
+      const totalMs = minutes * 60_000;
+      const fadeMs = Math.min(30_000, totalMs);
+      const fadeStartMs = Math.max(0, totalMs - fadeMs);
       sleepTimerRef.current = window.setTimeout(() => {
-        audioRef.current?.pause();
-        setUi('paused');
-      }, minutes * 60_000);
+        setSleepClosing(true);
+        const el = audioRef.current;
+        const startVol = el && el.volume > 0 ? el.volume : 1;
+        const startedAt = performance.now();
+        const tick = (now: number) => {
+          const audio = audioRef.current;
+          const t = Math.min(1, (now - startedAt) / fadeMs);
+          if (audio) audio.volume = startVol * (1 - t);
+          if (t >= 1) {
+            sleepFadeRafRef.current = null;
+            if (audio) {
+              audio.pause();
+              audio.volume = startVol;
+            }
+            setUi('paused');
+            setSleepClosing(false);
+            updateSettings({ sleepMinutes: null });
+            return;
+          }
+          sleepFadeRafRef.current = window.requestAnimationFrame(tick);
+        };
+        sleepFadeRafRef.current = window.requestAnimationFrame(tick);
+      }, fadeStartMs);
     },
     [clearSleep, updateSettings],
   );
@@ -216,11 +252,13 @@ export function useBibleListen(opts: {
   const stopSession = useCallback(() => {
     abortRef.current?.abort();
     preparingRef.current = false;
+    clearSleep();
     const el = audioRef.current;
     if (el) {
       el.pause();
       el.removeAttribute('src');
       el.load();
+      el.volume = 1;
     }
     timelineRef.current = [];
     setHasTimeline(false);
@@ -230,7 +268,7 @@ export function useBibleListen(opts: {
     setCurrentVerse(null);
     setUi('idle');
     setError(null);
-  }, []);
+  }, [clearSleep]);
 
   const prepareAndPlay = useCallback(
     async (book: string, chapter: number, translation: string) => {
@@ -394,6 +432,15 @@ export function useBibleListen(opts: {
     [currentVerse, seekMs],
   );
 
+  useEffect(() => {
+    return () => {
+      if (sleepTimerRef.current) window.clearTimeout(sleepTimerRef.current);
+      if (sleepFadeRafRef.current != null) {
+        window.cancelAnimationFrame(sleepFadeRafRef.current);
+      }
+    };
+  }, []);
+
   // 换章：仅听读面内 / 章末续听跟听；首页·阅读自行换章则结束听读（避免每日经文误触发）
   useEffect(() => {
     if (!meta) return;
@@ -443,6 +490,7 @@ export function useBibleListen(opts: {
     selectVoice,
     voices: LISTEN_VOICES,
     armSleep,
+    sleepClosing,
     togglePlayPause,
     seekMs,
     seekVerse,

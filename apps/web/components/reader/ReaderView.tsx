@@ -714,6 +714,7 @@ export default function ReaderView({
     selectVoice: selectListenVoice,
     voices: listenVoices,
     armSleep: armListenSleep,
+    sleepClosing: listenSleepClosing,
     togglePlayPause: toggleListenPlayPause,
     seekMs: seekListenMs,
     seekVerse: seekListenVerse,
@@ -723,11 +724,19 @@ export default function ReaderView({
   listenSheetOpenRef.current = listenSheetOpen;
   const overlayOpen = heavyOverlayOpen || locPopoverOpen || listenSheetOpen;
   overlayOpenRef.current = overlayOpen;
+  useEffect(() => {
+    if (!listenSleepClosing || listenSheetOpen) return;
+    flashToast(
+      listenEnglishUI ? 'Rest well — softly closing' : '安歇吧 · 轻轻收束',
+    );
+  }, [listenSleepClosing, listenSheetOpen, listenEnglishUI]);
   const listenVerseClass = useCallback(
-    (verse: number) =>
-      listenCurrentVerse === verse && listenUi === 'playing'
-        ? ' verse-listen-current'
-        : '',
+    (verse: number) => {
+      if (listenCurrentVerse !== verse) return '';
+      if (listenUi === 'playing') return ' verse-listen-current';
+      if (listenUi === 'paused' || listenUi === 'preparing') return ' verse-listen-echo';
+      return '';
+    },
     [listenCurrentVerse, listenUi],
   );
   // 听读面关闭 / 切回圣经 Tab / 播中换节且面已关 → 阅读页滚到正在听的节（偏上）
@@ -3997,6 +4006,7 @@ export default function ReaderView({
         voices={listenVoices}
         onSelectVoice={selectListenVoice}
         englishUI={englishUI}
+        sleepClosing={listenSleepClosing}
       />
     </main>
   );

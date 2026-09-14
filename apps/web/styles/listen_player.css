@@ -8,6 +8,19 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  opacity: 0;
+  animation: listen-backdrop-in 0.55s ease forwards;
+}
+
+@keyframes listen-backdrop-in {
+  from {
+    opacity: 0;
+    background: rgba(28, 24, 20, 0.12);
+  }
+  to {
+    opacity: 1;
+    background: rgba(28, 24, 20, 0.48);
+  }
 }
 
 .app-body-portal-layer .listen-sheet-backdrop {
@@ -32,6 +45,20 @@
   transition: transform 0.22s ease;
   position: relative;
   overflow: hidden;
+  transform: translateY(18%);
+  opacity: 0.92;
+  animation: listen-sheet-rise 0.72s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes listen-sheet-rise {
+  from {
+    transform: translateY(18%);
+    opacity: 0.88;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .listen-sheet-head {
@@ -176,6 +203,7 @@
 }
 
 .listen-sheet-play {
+  position: relative;
   width: 68px;
   height: 68px;
   border: none;
@@ -187,6 +215,19 @@
   place-items: center;
   cursor: pointer;
   box-shadow: 0 6px 18px color-mix(in srgb, var(--accent-deep, #3d6b5a) 35%, transparent);
+  isolation: isolate;
+}
+
+.listen-sheet-play::before,
+.listen-sheet-play::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--accent-deep, #3d6b5a) 42%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  z-index: -1;
 }
 
 .listen-sheet-play:disabled {
@@ -194,7 +235,28 @@
 }
 
 .listen-sheet-play.is-preparing {
-  background: color-mix(in srgb, var(--accent-deep, #3d6b5a) 70%, #888);
+  background: color-mix(in srgb, var(--accent-deep, #3d6b5a) 78%, #6a7a72);
+}
+
+.listen-sheet-play.is-preparing::before {
+  opacity: 1;
+  inset: -5px;
+  border-color: transparent;
+  border-top-color: color-mix(in srgb, #fff 70%, var(--accent));
+  border-right-color: color-mix(in srgb, #fff 28%, transparent);
+  animation: listen-spin 0.9s linear infinite;
+}
+
+.listen-sheet-play.is-playing::before {
+  opacity: 0.9;
+  animation: listen-ring-breathe 2.6s ease-in-out infinite;
+}
+
+.listen-sheet-play.is-playing::after {
+  opacity: 0.45;
+  inset: -14px;
+  border-width: 1px;
+  animation: listen-ring-breathe 2.6s ease-in-out infinite 0.35s;
 }
 
 .listen-sheet-spinner {
@@ -209,6 +271,18 @@
 @keyframes listen-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes listen-ring-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.07);
+    opacity: 0.95;
   }
 }
 
@@ -346,11 +420,21 @@
   margin-top: 8px;
 }
 
-/* 阅读页：听读当前节高亮 */
+/* 阅读页：听读当前节高亮（播中）+ 关面余韵（暂停仍在会话） */
 .verse-listen-current {
-  background: color-mix(in srgb, #8ec8e8 42%, transparent) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #5aa0c8 35%, transparent);
+  background: color-mix(in srgb, #8ec8e8 36%, transparent) !important;
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, #5aa0c8 70%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, #5aa0c8 28%, transparent);
   border-radius: 6px;
+  transition: background 0.35s ease, box-shadow 0.35s ease;
+}
+
+.verse-listen-echo {
+  background: color-mix(in srgb, #8ec8e8 14%, transparent) !important;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, #5aa0c8 40%, transparent);
+  border-radius: 6px;
+  transition: background 0.35s ease, box-shadow 0.35s ease;
 }
 
 /* 听读面内滚动经文 */
@@ -360,6 +444,47 @@
   gap: 2px;
   padding: 2px 2px 8px;
   text-align: left;
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+
+.listen-sheet-scripture.is-fading {
+  opacity: 0.28;
+  filter: blur(0.4px);
+  pointer-events: none;
+}
+
+.listen-sheet-chapter-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--surface, #faf8f4) 55%, transparent);
+  animation: listen-chapter-flash 0.7s ease forwards;
+}
+
+.listen-sheet-chapter-flash span {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--ink, #2a2622);
+  text-shadow: 0 1px 0 color-mix(in srgb, #fff 60%, transparent);
+}
+
+@keyframes listen-chapter-flash {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .listen-sheet-verse-row {
@@ -375,7 +500,16 @@
   text-align: left;
   cursor: pointer;
   width: 100%;
-  transition: background 0.2s ease;
+  transition:
+    background 0.35s ease,
+    box-shadow 0.35s ease,
+    transform 0.35s ease,
+    opacity 0.35s ease,
+    font-weight 0.25s ease;
+}
+
+.listen-sheet-scripture:has(.is-current) .listen-sheet-verse-row:not(.is-current) {
+  opacity: 0.58;
 }
 
 .listen-sheet-verse-row .listen-vn {
@@ -388,12 +522,41 @@
 }
 
 .listen-sheet-verse-row.is-current {
-  background: color-mix(in srgb, #8ec8e8 38%, #fff);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #5aa0c8 40%, transparent);
+  background: color-mix(in srgb, #d4eaf6 72%, #fff);
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, #5aa0c8 75%, transparent),
+    0 0 0 1px color-mix(in srgb, #8ec8e8 45%, transparent),
+    0 0 18px color-mix(in srgb, #8ec8e8 28%, transparent);
+  font-weight: 550;
+  transform: scale(1.012);
+  transform-origin: left center;
+  animation: listen-verse-breathe 2.8s ease-in-out infinite;
+  opacity: 1;
 }
 
 .listen-sheet-verse-row.is-current .listen-vn {
   color: #3d7ea8;
+}
+
+@keyframes listen-verse-breathe {
+  0%,
+  100% {
+    box-shadow:
+      inset 3px 0 0 color-mix(in srgb, #5aa0c8 70%, transparent),
+      0 0 0 1px color-mix(in srgb, #8ec8e8 40%, transparent),
+      0 0 12px color-mix(in srgb, #8ec8e8 18%, transparent);
+  }
+  50% {
+    box-shadow:
+      inset 3px 0 0 color-mix(in srgb, #5aa0c8 85%, transparent),
+      0 0 0 1px color-mix(in srgb, #8ec8e8 55%, transparent),
+      0 0 22px color-mix(in srgb, #8ec8e8 36%, transparent);
+  }
+}
+
+.listen-sheet-status.is-closing {
+  color: var(--accent-deep, #3d6b5a);
+  letter-spacing: 0.02em;
 }
 
 .listen-sheet-empty {

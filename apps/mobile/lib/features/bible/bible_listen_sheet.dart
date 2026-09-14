@@ -76,22 +76,50 @@ class _BibleListenSheetBody extends ConsumerStatefulWidget {
       _BibleListenSheetBodyState();
 }
 
-class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
+class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
+    with TickerProviderStateMixin {
   String _panel = 'none';
   bool _catalogOpen = false;
   String _locTab = 'chapters';
   late String _selectedBookId;
   final Map<int, GlobalKey> _verseKeys = {};
   int? _lastScrolledVerse;
+  String? _chapterFlash;
+  bool _scriptureFading = false;
+  late final AnimationController _enterCtl;
+  late final AnimationController _breatheCtl;
+  late final AnimationController _ringCtl;
+  String _locKey = '';
 
   @override
   void initState() {
     super.initState();
     _selectedBookId = widget.book.id;
+    _locKey = '${widget.book.id}:${widget.chapter}';
+    _enterCtl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 720),
+    )..forward();
+    _breatheCtl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    )..repeat(reverse: true);
+    _ringCtl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    )..repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _scrollToVerse(ref.read(bibleListenProvider).currentVerse);
     });
+  }
+
+  @override
+  void dispose() {
+    _enterCtl.dispose();
+    _breatheCtl.dispose();
+    _ringCtl.dispose();
+    super.dispose();
   }
 
   @override
@@ -102,6 +130,21 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
       _selectedBookId = widget.book.id;
       _lastScrolledVerse = null;
       _verseKeys.clear();
+      final key = '${widget.book.id}:${widget.chapter}';
+      if (_locKey != key) {
+        _locKey = key;
+        setState(() {
+          _scriptureFading = true;
+          _chapterFlash =
+              '${ref.read(bibleListenProvider).bookName} ${widget.chapter}';
+        });
+        Future<void>.delayed(const Duration(milliseconds: 320), () {
+          if (mounted) setState(() => _scriptureFading = false);
+        });
+        Future<void>.delayed(const Duration(milliseconds: 720), () {
+          if (mounted) setState(() => _chapterFlash = null);
+        });
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _scrollToVerse(ref.read(bibleListenProvider).currentVerse);
@@ -160,7 +203,17 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
         .where((b) => !b.testament.toUpperCase().startsWith('O'))
         .toList();
 
-    return FractionallySizedBox(
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: _enterCtl, curve: Curves.easeOut),
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.06),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(
+          parent: _enterCtl,
+          curve: Curves.easeOutCubic,
+        )),
+        child: FractionallySizedBox(
       heightFactor: 0.95,
       child: Container(
         decoration: BoxDecoration(
@@ -264,7 +317,12 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                   ),
                   Expanded(
                     child: ClipRect(
-                      child: verses.isEmpty
+                      child: Stack(
+                        children: [
+                          AnimatedOpacity(
+                            opacity: _scriptureFading ? 0.28 : 1,
+                            duration: const Duration(milliseconds: 320),
+                            child: verses.isEmpty
                         ? Center(
                             child: Text(
                               preparing
@@ -291,13 +349,30 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                             itemBuilder: (context, i) {
                               final v = verses[i];
                               final isCurrent = session.currentVerse == v.verse;
-                              return Padding(
+                              return AnimatedBuilder(
                                 key: _keyFor(v.verse),
+                                animation: _breatheCtl,
+                                builder: (context, _) {
+                                  final breathe = isCurrent
+                                      ? 0.32 + _breatheCtl.value * 0.2
+                                      : 0.0;
+                                  return Padding(
                                 padding: const EdgeInsets.only(bottom: 2),
-                                child: Material(
+                                child: Opacity(
+                                  opacity: session.currentVerse != null &&
+                                          !isCurrent
+                                      ? 0.58
+                                      : 1,
+                                  child: Transform.scale(
+                                    scale: isCurrent ? 1.012 : 1,
+                                    alignment: Alignment.centerLeft,
+                                    child: Material(
                                   color: isCurrent
-                                      ? const Color(0xFF8EC8E8)
-                                          .withValues(alpha: 0.38)
+                                      ? Color.lerp(
+                                          const Color(0xFFD4EAF6),
+                                          Colors.white,
+                                          0.28 - breathe * 0.15,
+                                        )!
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(8),
                                   child: InkWell(
@@ -305,7 +380,32 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                     onTap: !session.canSeek || preparing
                                         ? null
                                         : () => ctrl.seekVerse(v.verse),
-                                    child: Padding(
+                                    child: Container(
+                                      decoration: isCurrent
+                                          ? BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border(
+                                                left: BorderSide(
+                                                  color: Color(0xFF5AA0C8)
+                                                      .withValues(
+                                                    alpha: 0.55 + breathe,
+                                                  ),
+                                                  width: 3,
+                                                ),
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: const Color(0xFF8EC8E8)
+                                                      .withValues(
+                                                    alpha: 0.18 + breathe * 0.35,
+                                                  ),
+                                                  blurRadius: 12 + breathe * 10,
+                                                ),
+                                              ],
+                                            )
+                                          : null,
+                                      child: Padding(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 10,
                                         vertical: 5,
@@ -325,9 +425,12 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                             ),
                                             TextSpan(
                                               text: v.text,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 16,
                                                 height: 1.55,
+                                                fontWeight: isCurrent
+                                                    ? FontWeight.w500
+                                                    : FontWeight.w400,
                                                 color: AppColors.ink,
                                                 letterSpacing: 0.15,
                                               ),
@@ -336,11 +439,44 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                         ),
                                       ),
                                     ),
+                                    ),
                                   ),
                                 ),
+                                  ),
+                                ),
+                                  );
+                                },
                               );
                             },
                           ),
+                          ),
+                          if (_chapterFlash != null)
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: AnimatedOpacity(
+                                  opacity: _chapterFlash != null ? 1 : 0,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: ColoredBox(
+                                    color: AppColors.surface
+                                        .withValues(alpha: 0.55),
+                                    child: Center(
+                                      child: Text(
+                                        _chapterFlash!,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.4,
+                                          color: AppColors.ink,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                   Material(
@@ -401,39 +537,58 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                 ),
                               ),
                               const SizedBox(width: 18),
-                              Material(
-                                color: AppColors.accentDeep,
-                                shape: const CircleBorder(),
-                                elevation: 3,
-                                child: InkWell(
-                                  customBorder: const CircleBorder(),
-                                  onTap: preparing
-                                      ? null
-                                      : () => ctrl.togglePlayPause(),
-                                  child: SizedBox(
-                                    width: 64,
-                                    height: 64,
-                                    child: Center(
-                                      child: preparing
-                                          ? const SizedBox(
-                                              width: 22,
-                                              height: 22,
-                                              child:
-                                                  CircularProgressIndicator(
-                                                strokeWidth: 2.2,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : Text(
-                                              playing ? '‖' : '▶',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 24,
+                              AnimatedBuilder(
+                                animation: _ringCtl,
+                                builder: (context, _) {
+                                  final pulse = playing ? _ringCtl.value : 0.0;
+                                  return SizedBox(
+                                    width: 92,
+                                    height: 92,
+                                    child: CustomPaint(
+                                      painter: _ListenPlayRingPainter(
+                                        playing: playing,
+                                        pulse: pulse,
+                                        color: AppColors.accentDeep,
+                                      ),
+                                      child: Center(
+                                        child: Material(
+                                          color: AppColors.accentDeep,
+                                          shape: const CircleBorder(),
+                                          elevation: 3,
+                                          child: InkWell(
+                                            customBorder: const CircleBorder(),
+                                            onTap: preparing
+                                                ? null
+                                                : () => ctrl.togglePlayPause(),
+                                            child: SizedBox(
+                                              width: 64,
+                                              height: 64,
+                                              child: Center(
+                                                child: preparing
+                                                    ? const SizedBox(
+                                                        width: 22,
+                                                        height: 22,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                          strokeWidth: 2.2,
+                                                          color: Colors.white,
+                                                        ),
+                                                      )
+                                                    : Text(
+                                                        playing ? '‖' : '▶',
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 24,
+                                                        ),
+                                                      ),
                                               ),
                                             ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                },
                               ),
                               const SizedBox(width: 18),
                               IconButton(
@@ -451,18 +606,24 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                           Text(
                             preparing
                                 ? (widget.englishUI ? 'Preparing' : '正在准备')
-                                : (errored
-                                    ? (session.error ??
-                                        (widget.englishUI
-                                            ? 'Failed — tap to retry'
-                                            : '准备失败，点按重试'))
-                                    : ' '),
+                                : session.sleepClosing
+                                    ? (widget.englishUI
+                                        ? 'Rest well — softly closing'
+                                        : '安歇吧 · 轻轻收束')
+                                    : (errored
+                                        ? (session.error ??
+                                            (widget.englishUI
+                                                ? 'Failed — tap to retry'
+                                                : '准备失败，点按重试'))
+                                        : ' '),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 12,
                               color: errored
                                   ? const Color(0xFFA0483A)
-                                  : AppColors.inkSoft,
+                                  : session.sleepClosing
+                                      ? AppColors.accentDeep
+                                      : AppColors.inkSoft,
                             ),
                           ),
                           Wrap(
@@ -701,6 +862,8 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
           ),
         ),
       ),
+        ),
+      ),
     );
   }
 
@@ -813,5 +976,40 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
         ),
       ),
     );
+  }
+}
+
+class _ListenPlayRingPainter extends CustomPainter {
+  _ListenPlayRingPainter({
+    required this.playing,
+    required this.pulse,
+    required this.color,
+  });
+
+  final bool playing;
+  final double pulse;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!playing) return;
+    final c = Offset(size.width / 2, size.height / 2);
+    final base = size.shortestSide * 0.36;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = color.withValues(alpha: 0.35 + pulse * 0.4);
+    canvas.drawCircle(c, base + 4 + pulse * 3, paint);
+    paint
+      ..strokeWidth = 1
+      ..color = color.withValues(alpha: 0.18 + pulse * 0.25);
+    canvas.drawCircle(c, base + 11 + pulse * 5, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ListenPlayRingPainter oldDelegate) {
+    return oldDelegate.playing != playing ||
+        oldDelegate.pulse != pulse ||
+        oldDelegate.color != color;
   }
 }

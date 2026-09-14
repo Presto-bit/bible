@@ -87,6 +87,7 @@ class BibleListenSession {
     this.chapter = 0,
     this.translation = '',
     this.translationLabel = '',
+    this.sleepClosing = false,
   });
 
   final BibleListenUi ui;
@@ -103,6 +104,7 @@ class BibleListenSession {
   final int chapter;
   final String translation;
   final String translationLabel;
+  final bool sleepClosing;
 
   bool get sessionActive =>
       ui == BibleListenUi.playing ||
@@ -129,6 +131,7 @@ class BibleListenSession {
     int? chapter,
     String? translation,
     String? translationLabel,
+    bool? sleepClosing,
   }) {
     return BibleListenSession(
       ui: ui ?? this.ui,
@@ -145,6 +148,7 @@ class BibleListenSession {
       chapter: chapter ?? this.chapter,
       translation: translation ?? this.translation,
       translationLabel: translationLabel ?? this.translationLabel,
+      sleepClosing: sleepClosing ?? this.sleepClosing,
     );
   }
 }
@@ -153,6 +157,7 @@ class BibleListenController extends Notifier<BibleListenSession> {
   StreamSubscription? _posSub;
   StreamSubscription? _playerStateSub;
   Timer? _sleepTimer;
+  Timer? _sleepFadeTick;
   int _gen = 0;
   List<({int verse, String text})> _verses = const [];
   void Function(String book, int chapter)? onContinuousNext;
@@ -163,7 +168,7 @@ class BibleListenController extends Notifier<BibleListenSession> {
     ref.onDispose(() {
       _posSub?.cancel();
       _playerStateSub?.cancel();
-      _sleepTimer?.cancel();
+      _clearSleepTimers(restoreVolume: true);
     });
     final settings = BibleListenSettings.loadSync(ref.read(prefsProvider));
     return BibleListenSession(settings: settings);
@@ -455,19 +460,61 @@ class BibleListenController extends Notifier<BibleListenSession> {
     );
   }
 
-  void _applySleepTimer() {
+  void _clearSleepTimers({bool restoreVolume = false}) {
     _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _sleepFadeTick?.cancel();
+    _sleepFadeTick = null;
+    if (restoreVolume) {
+      unawaited(ReaderAudioHandler.instance?.player.setVolume(1));
+    }
+    if (ref.mounted && state.sleepClosing) {
+      state = state.copyWith(sleepClosing: false);
+    }
+  }
+
+  void _applySleepTimer() {
+    _clearSleepTimers(restoreVolume: true);
     final m = state.settings.sleepMinutes;
     if (m == null || m <= 0) return;
-    _sleepTimer = Timer(Duration(minutes: m), () {
-      unawaited(ReaderAudioHandler.instance?.pause());
-      if (ref.mounted) state = state.copyWith(ui: BibleListenUi.paused);
+    final total = Duration(minutes: m);
+    final fadeCap = const Duration(seconds: 30);
+    final fadeDur = total < fadeCap ? total : fadeCap;
+    final fadeStart = total - fadeDur;
+    _sleepTimer = Timer(fadeStart, () {
+      if (!ref.mounted) return;
+      state = state.copyWith(sleepClosing: true);
+      final player = ReaderAudioHandler.instance?.player;
+      const steps = 30;
+      var step = 0;
+      final tickMs = (fadeDur.inMilliseconds / steps).round().clamp(50, 2000);
+      _sleepFadeTick = Timer.periodic(Duration(milliseconds: tickMs), (t) {
+        step++;
+        final vol = (1.0 - step / steps).clamp(0.0, 1.0);
+        unawaited(player?.setVolume(vol));
+        if (step >= steps) {
+          t.cancel();
+          _sleepFadeTick = null;
+          unawaited(() async {
+            await ReaderAudioHandler.instance?.pause();
+            await player?.setVolume(1);
+            if (!ref.mounted) return;
+            final nextSettings = state.settings.copyWith(clearSleep: true);
+            state = state.copyWith(
+              ui: BibleListenUi.paused,
+              sleepClosing: false,
+              settings: nextSettings,
+            );
+            await nextSettings.save(ref.read(prefsProvider));
+          }());
+        }
+      });
     });
   }
 
   Future<void> stopSession() async {
     _gen++;
-    _sleepTimer?.cancel();
+    _clearSleepTimers(restoreVolume: true);
     await ReaderAudioHandler.instance?.stop();
     state = state.copyWith(
       ui: BibleListenUi.idle,
@@ -478,6 +525,7 @@ class BibleListenController extends Notifier<BibleListenSession> {
       position: Duration.zero,
       duration: Duration.zero,
       verseText: '',
+      sleepClosing: false,
     );
   }
 

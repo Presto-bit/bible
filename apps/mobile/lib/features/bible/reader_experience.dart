@@ -2467,7 +2467,9 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final readingMode = ref.watch(readingModeProvider);
     final audioSession = ref.watch(readerAudioProvider);
     final listenSession = ref.watch(bibleListenProvider);
-    final listenCurrentVerse = listenSession.ui == BibleListenUi.playing
+    final listenCurrentVerse = (listenSession.ui == BibleListenUi.playing ||
+            listenSession.ui == BibleListenUi.paused ||
+            listenSession.ui == BibleListenUi.preparing)
         ? listenSession.currentVerse
         : null;
     final audioCurrentVerse =
