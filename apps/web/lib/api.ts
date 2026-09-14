@@ -877,7 +877,12 @@ export const api = {
         ...(ref ? { ref } : {}),
       }).toString()}` : ''}`,
     ),
-  sectionTitles: (book?: string, chapter?: number, lang?: 'zh' | 'en') =>
+  sectionTitles: (
+    book?: string,
+    chapter?: number,
+    lang?: 'zh' | 'en',
+    version?: string | null,
+  ) =>
     getJson<{ chapters?: Record<string, { verse: number; title: string }[]>; sections?: { verse: number; title: string }[] }>(
       (() => {
         const params = new URLSearchParams();
@@ -886,6 +891,8 @@ export const api = {
           params.set('chapter', String(chapter));
         }
         if (lang && lang !== 'zh') params.set('lang', lang);
+        const ver = (version || '').trim();
+        if (ver) params.set('version', ver);
         const qs = params.toString();
         return qs ? `/content/sections?${qs}` : '/content/sections';
       })(),

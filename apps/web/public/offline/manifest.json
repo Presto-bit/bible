@@ -1,7 +1,7 @@
 {
-  "version": "2026.07.29",
-  "zip": "bible_offline_2026.07.29.zip",
-  "zip_sha256": "582d6811cb92be8e30eba29d4298d250af9ae0a01c8e0e52e1046e0a800cd6f8",
+  "version": "2026.09.14",
+  "zip": "bible_offline_2026.09.14.zip",
+  "zip_sha256": "d45a6a445e5614a18f08b72d2ef48f2ac0f35734a276671d0deb7041d9b64869",
   "files": [
     {
       "path": "bible/bible_cuvs.sqlite",
@@ -16,12 +16,17 @@
     {
       "path": "bible/bible_contemporary.sqlite",
       "bytes": 11223040,
-      "sha256": "54190e3bd19a03b565028333b2ce31205a6ee0418302528851ee42e484e29010"
+      "sha256": "c902abf9c6de6576ab052a01c9e05929be407e84c9eab6b5b0f0d69314f59ee9"
     },
     {
       "path": "bible/bible_kjv.sqlite",
       "bytes": 13131776,
       "sha256": "7f9e19aacabaf1c82b6e0bb7540e93907c9522755acd85fddab7940c670601e5"
+    },
+    {
+      "path": "bible/bible_niv.sqlite",
+      "bytes": 12853248,
+      "sha256": "5b450eb0d0df106db9ee1bd8fd2b91bb7ac98ffc0f1107dc734a8b5a0da1d133"
     },
     {
       "path": "content/plans/bible_year_365.csv",
@@ -110,13 +115,13 @@
     },
     {
       "path": "content/daily-verses/classic_verse_pool.json",
-      "bytes": 8863,
-      "sha256": "ed85588e8f3444cce7312f7a9741f12476fb2f5afe4124fecbdd8a08de81f369"
+      "bytes": 35956,
+      "sha256": "168ef26f6ebb51842de54e733fc52d63d2736f228ad61a57ea6b1da00cc9de31"
     },
     {
       "path": "content/daily-verses/daily_verses.json",
-      "bytes": 72011,
-      "sha256": "b99b7e9d31b7406d3fa7185eec01d87b0aa521378270134d9acce022d8a917fb"
+      "bytes": 105381,
+      "sha256": "cdd8424c5bf40567f1fae1905b4c1bd78182e4320024c0d02cfdd7f1fb00d36a"
     },
     {
       "path": "content/crossrefs/cross_references.json",
@@ -135,13 +140,38 @@
     },
     {
       "path": "content/dictionary/entities.json",
-      "bytes": 196379,
-      "sha256": "fdb5fec0e14f3f4eabb9ce9f0851beac4e8e99c7648d8c642fb6736ff4009425"
+      "bytes": 198635,
+      "sha256": "57935aaf0c825436a1a80f37d69d5a4c447ff0741c7d02a2fae219bd55ba0bc5"
+    },
+    {
+      "path": "content/dictionary/id_aliases.json",
+      "bytes": 1195,
+      "sha256": "141ee2842027d68d14cb854e250cdc046d0dde5acfc9eaa2757269e7504f706c"
+    },
+    {
+      "path": "content/dictionary/relation_candidates.approved.json",
+      "bytes": 193,
+      "sha256": "8b1f28a3d2a5b1f0d207963a807a103121ea7f21ab4c3be2a200c5b6a174f7d6"
+    },
+    {
+      "path": "content/dictionary/relation_candidates.json",
+      "bytes": 11862,
+      "sha256": "82e3133e9ef6225811b3e1a8b9633fa5f50c3da6cb7fc2a55978bddb12dce0a7"
+    },
+    {
+      "path": "content/dictionary/relation_review.json",
+      "bytes": 115240,
+      "sha256": "3ef80a6246e669e4155533284c027648c014324d4b1cb5fd246d24360b73268b"
+    },
+    {
+      "path": "content/dictionary/relations.curated.json",
+      "bytes": 10978,
+      "sha256": "38662bbe5c30229177ae9ad17db73ea7a0b426f71227d77e1c540ed9bc6794c6"
     },
     {
       "path": "content/dictionary/relations.json",
-      "bytes": 2607,
-      "sha256": "15deeb37e1f4a5e5d02aabd9a355e28f32970c798a743e1290d1108208cb6826"
+      "bytes": 63715,
+      "sha256": "2e372bf0064ebe0361978dd93516fea76c47e873c8185fc13710300e351de8c1"
     },
     {
       "path": "content/topics/topics.json",
@@ -150,8 +180,8 @@
     },
     {
       "path": "content/geography/map_tours.json",
-      "bytes": 3604,
-      "sha256": "04499b31f1876b930426097410f80acd4268ab7771b2debeb1eeb61c3f856274"
+      "bytes": 7331,
+      "sha256": "83479109c5309de7605fbd79b161b3050ea81c300480a6e0a4fc654d7853576c"
     },
     {
       "path": "content/geography/places.json",
@@ -165,8 +195,8 @@
     },
     {
       "path": "content/geography/timeline_tours.json",
-      "bytes": 2920,
-      "sha256": "d54aa02902313a0ea5f36a6cc49ddddd70db547722d6a5aefc283b770f236e8a"
+      "bytes": 4443,
+      "sha256": "bc1ca64fc12318737711b5181638245d902dc65ffa9bbe3e05e24a72f59ce2ab"
     },
     {
       "path": "content/summaries/books.json",
@@ -180,8 +210,8 @@
     },
     {
       "path": "content/strongs/strongs.sqlite",
-      "bytes": 19193856,
-      "sha256": "e5363af43c9a0443eae1913224e857df75fce07e62508aa315967f19a511b374"
+      "bytes": 22872064,
+      "sha256": "31bc20325f6825baf00f26c4254f4ecfb911ca22cd63db00ec456ec56e9eaa3b"
     },
     {
       "path": "content/illustrations/index.json",
@@ -358,8 +388,11 @@
   "cuvs_sqlite_sha256": "371f108f698896fa369c9ebbd5bbba9c4130b0597caca24646bae60ed4e744b1",
   "cuvs_sqlite_bytes": 11423744,
   "contemporary_sqlite": "bible_contemporary.sqlite",
-  "contemporary_sqlite_sha256": "54190e3bd19a03b565028333b2ce31205a6ee0418302528851ee42e484e29010",
+  "contemporary_sqlite_sha256": "c902abf9c6de6576ab052a01c9e05929be407e84c9eab6b5b0f0d69314f59ee9",
   "contemporary_sqlite_bytes": 11223040,
+  "niv_sqlite": "bible_niv.sqlite",
+  "niv_sqlite_sha256": "5b450eb0d0df106db9ee1bd8fd2b91bb7ac98ffc0f1107dc734a8b5a0da1d133",
+  "niv_sqlite_bytes": 12853248,
   "schema": "offline_pack@1",
   "translation": "cnv"
 }

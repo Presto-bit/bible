@@ -78,6 +78,26 @@ class BibleRepository {
       );
       if (cached != null) return cached;
     }
+    final explicit =
+        version != null && version.trim().isNotEmpty;
+    // 显式译本（NIV 等）：在线优先 API，避免离线回落/脏缓存冒充
+    if (explicit) {
+      try {
+        final res = await _dio.get(
+          '/bible/chapter',
+          queryParameters: {
+            'book': book,
+            'chapter': chapter,
+            'version': version,
+          },
+        );
+        return Chapter.fromJson(res.data as Map<String, dynamic>);
+      } catch (_) {
+        final local = await _offline?.chapter(book, chapter, version: version);
+        if (local != null) return local;
+        rethrow;
+      }
+    }
     final local = await _offline?.chapter(book, chapter, version: version);
     if (local != null) return local;
     try {

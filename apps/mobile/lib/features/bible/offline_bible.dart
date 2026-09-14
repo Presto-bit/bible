@@ -391,11 +391,15 @@ class OfflineBibleService {
     final prefer = (version == null || version.isEmpty)
         ? kPrimaryOfflineTranslation
         : version.toLowerCase();
-    final tryOrder = <String>[
-      prefer,
-      if (prefer != 'cuvs') 'cuvs',
-      if (prefer != 'cnv') 'cnv',
-    ];
+    // 显式译本只查该库，禁止静默回落和合本/新译本（否则 NIV 会变成中文）
+    final explicit = version != null && version.trim().isNotEmpty;
+    final tryOrder = explicit
+        ? <String>[prefer]
+        : <String>[
+            prefer,
+            if (prefer != 'cuvs') 'cuvs',
+            if (prefer != 'cnv') 'cnv',
+          ];
     for (final tid in tryOrder) {
       if (!await checkInstalled(tid)) continue;
       final ch = await _chapterFromDb(tid, bookId, chapter);

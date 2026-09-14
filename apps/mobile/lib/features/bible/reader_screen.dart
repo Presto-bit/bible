@@ -1393,9 +1393,7 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
   }
 
   bool _needsDownload(BibleVersion v) =>
-      // 在线可用译本可立即选读（与 PWA 一致）；离线包仅用于断网。
-      // 之前这里无条件要求下载，导致「选版本」实际只触发下载而未切换。
-      _offlineable(v.id) && _offlineOk[v.id] != true && !v.available;
+      _offlineable(v.id) && _offlineOk[v.id] != true;
 
   String _trailing(BibleVersion v, OfflineBibleService svc) {
     if (_offlineable(v.id)) {
@@ -1408,8 +1406,7 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
       }
       if (_failedId == v.id) return '重试';
       if (_offlineOk[v.id] == true) return '已下载';
-      // 在线可读；离线包是可选能力，不应拦截版本切换。
-      if (v.available) return '可用';
+      // 目录内译本均可下离线包（含在线可读的 NIV）
       return '下载';
     }
     return v.available ? '可用' : '暂不可用';
@@ -1531,8 +1528,10 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                           _failedId == v.id ||
                           (needsDl && !downloading && _offlineable(v.id));
 
-                      void handle() {
-                        if (_needsDownload(v) || _failedId == v.id) {
+                      void handleRow() {
+                        // 不可在线选读时点行=下载；否则点行=切换译本
+                        if (_failedId == v.id ||
+                            (!selectable && _needsDownload(v))) {
                           unawaited(_downloadVersion(v, versions));
                           return;
                         }
@@ -1546,7 +1545,7 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                         borderRadius: BorderRadius.circular(10),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
-                          onTap: downloading ? null : handle,
+                          onTap: downloading ? null : handleRow,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 4,
@@ -1587,7 +1586,11 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                                 ),
                                 if (actionClickable)
                                   TextButton(
-                                    onPressed: downloading ? null : handle,
+                                    onPressed: downloading
+                                        ? null
+                                        : () => unawaited(
+                                              _downloadVersion(v, versions),
+                                            ),
                                     style: TextButton.styleFrom(
                                       minimumSize: Size.zero,
                                       tapTargetSize:

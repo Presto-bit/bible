@@ -105,6 +105,23 @@ def test_section_titles_en_fallback_to_zh():
         assert en["title"]
 
 
+def test_section_titles_niv_english_native():
+    marks = loader.section_titles("JHN", 3, version="niv")
+    assert marks
+    assert all(m.get("title") for m in marks)
+    # 不应回落中文 CNV 标题
+    assert not any("\u4e00" <= c <= "\u9fff" for m in marks for c in m["title"])
+    assert any("Nicodemus" in (m.get("title") or "") for m in marks)
+
+
+def test_section_titles_niv_index():
+    idx = loader.section_titles_index_localized(version="niv")
+    assert len(idx) > 100
+    sample = idx.get("MAT.5") or []
+    assert sample
+    assert any("Beatitudes" in (m.get("title") or "") for m in sample)
+
+
 def test_section_titles_index_localized_en():
     idx = loader.section_titles_index_localized(lang="en")
     assert len(idx) > 100

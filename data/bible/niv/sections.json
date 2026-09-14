@@ -1,0 +1,9159 @@
+{
+  "translation": "niv",
+  "schema": "sections@1",
+  "chapters": {
+    "1CH.1": [
+      {
+        "verse": 1,
+        "title": "Historical Records From Adam to Abraham"
+      },
+      {
+        "verse": 28,
+        "title": "The Family of Abraham"
+      },
+      {
+        "verse": 35,
+        "title": "Esau’s Sons"
+      }
+    ],
+    "1CH.10": [
+      {
+        "verse": 1,
+        "title": "Saul Takes His Life"
+      }
+    ],
+    "1CH.11": [
+      {
+        "verse": 1,
+        "title": "David Becomes King Over Israel"
+      },
+      {
+        "verse": 4,
+        "title": "David Conquers Jerusalem"
+      },
+      {
+        "verse": 10,
+        "title": "David’s Mighty Warriors"
+      }
+    ],
+    "1CH.12": [
+      {
+        "verse": 1,
+        "title": "Warriors Join David"
+      },
+      {
+        "verse": 23,
+        "title": "Others Join David at Hebron"
+      }
+    ],
+    "1CH.13": [
+      {
+        "verse": 1,
+        "title": "Bringing Back the Ark"
+      }
+    ],
+    "1CH.14": [
+      {
+        "verse": 1,
+        "title": "David’s House and Family"
+      },
+      {
+        "verse": 8,
+        "title": "David Defeats the Philistines"
+      }
+    ],
+    "1CH.15": [
+      {
+        "verse": 1,
+        "title": "The Ark Brought to Jerusalem"
+      }
+    ],
+    "1CH.16": [
+      {
+        "verse": 1,
+        "title": "Ministering Before the Ark"
+      }
+    ],
+    "1CH.17": [
+      {
+        "verse": 1,
+        "title": "God’s Promise to David"
+      },
+      {
+        "verse": 16,
+        "title": "David’s Prayer"
+      }
+    ],
+    "1CH.18": [
+      {
+        "verse": 1,
+        "title": "David’s Victories"
+      },
+      {
+        "verse": 14,
+        "title": "David’s Officials"
+      }
+    ],
+    "1CH.19": [
+      {
+        "verse": 1,
+        "title": "David Defeats the Ammonites"
+      }
+    ],
+    "1CH.2": [
+      {
+        "verse": 1,
+        "title": "Israel’s Sons"
+      },
+      {
+        "verse": 3,
+        "title": "Judah"
+      }
+    ],
+    "1CH.20": [
+      {
+        "verse": 1,
+        "title": "The Capture of Rabbah"
+      },
+      {
+        "verse": 4,
+        "title": "War With the Philistines"
+      }
+    ],
+    "1CH.21": [
+      {
+        "verse": 1,
+        "title": "David Counts the Fighting Men"
+      },
+      {
+        "verse": 18,
+        "title": "David Builds an Altar"
+      }
+    ],
+    "1CH.22": [
+      {
+        "verse": 2,
+        "title": "Preparations for the Temple"
+      }
+    ],
+    "1CH.23": [
+      {
+        "verse": 1,
+        "title": "The Levites"
+      },
+      {
+        "verse": 7,
+        "title": "Gershonites"
+      },
+      {
+        "verse": 12,
+        "title": "Kohathites"
+      },
+      {
+        "verse": 21,
+        "title": "Merarites"
+      }
+    ],
+    "1CH.24": [
+      {
+        "verse": 1,
+        "title": "The Divisions of Priests"
+      },
+      {
+        "verse": 20,
+        "title": "The Rest of the Levites"
+      }
+    ],
+    "1CH.25": [
+      {
+        "verse": 1,
+        "title": "The Musicians"
+      }
+    ],
+    "1CH.26": [
+      {
+        "verse": 1,
+        "title": "The Gatekeepers"
+      },
+      {
+        "verse": 20,
+        "title": "The Treasurers and Other Officials"
+      }
+    ],
+    "1CH.27": [
+      {
+        "verse": 1,
+        "title": "Army Divisions"
+      },
+      {
+        "verse": 16,
+        "title": "Leaders of the Tribes"
+      },
+      {
+        "verse": 25,
+        "title": "The King’s Overseers"
+      }
+    ],
+    "1CH.28": [
+      {
+        "verse": 1,
+        "title": "David’s Plans for the Temple"
+      }
+    ],
+    "1CH.29": [
+      {
+        "verse": 1,
+        "title": "Gifts for Building the Temple"
+      },
+      {
+        "verse": 10,
+        "title": "David’s Prayer"
+      },
+      {
+        "verse": 21,
+        "title": "Solomon Acknowledged as King"
+      },
+      {
+        "verse": 26,
+        "title": "The Death of David"
+      }
+    ],
+    "1CH.4": [
+      {
+        "verse": 24,
+        "title": "Simeon"
+      }
+    ],
+    "1CH.5": [
+      {
+        "verse": 1,
+        "title": "Reuben"
+      },
+      {
+        "verse": 11,
+        "title": "Gad"
+      },
+      {
+        "verse": 23,
+        "title": "The Half-Tribe of Manasseh"
+      }
+    ],
+    "1CH.7": [
+      {
+        "verse": 1,
+        "title": "Issachar"
+      },
+      {
+        "verse": 6,
+        "title": "Benjamin"
+      },
+      {
+        "verse": 13,
+        "title": "Naphtali"
+      },
+      {
+        "verse": 14,
+        "title": "Manasseh"
+      },
+      {
+        "verse": 20,
+        "title": "Ephraim"
+      },
+      {
+        "verse": 30,
+        "title": "Asher"
+      }
+    ],
+    "1CH.8": [
+      {
+        "verse": 1,
+        "title": "The Genealogy of Saul the Benjamite"
+      }
+    ],
+    "1CH.9": [
+      {
+        "verse": 2,
+        "title": "The People in Jerusalem"
+      },
+      {
+        "verse": 35,
+        "title": "The Genealogy of Saul"
+      }
+    ],
+    "1CO.1": [
+      {
+        "verse": 4,
+        "title": "Thanksgiving"
+      },
+      {
+        "verse": 10,
+        "title": "A Church Divided Over Leaders"
+      },
+      {
+        "verse": 18,
+        "title": "Christ Crucified Is God’s Power and Wisdom"
+      }
+    ],
+    "1CO.10": [
+      {
+        "verse": 1,
+        "title": "Warnings From Israel’s History"
+      },
+      {
+        "verse": 14,
+        "title": "Idol Feasts and the Lord’s Supper"
+      },
+      {
+        "verse": 23,
+        "title": "The Believer’s Freedom"
+      }
+    ],
+    "1CO.11": [
+      {
+        "verse": 2,
+        "title": "On Covering the Head in Worship"
+      },
+      {
+        "verse": 17,
+        "title": "Correcting an Abuse of the Lord’s Supper"
+      }
+    ],
+    "1CO.12": [
+      {
+        "verse": 1,
+        "title": "Concerning Spiritual Gifts"
+      },
+      {
+        "verse": 1,
+        "title": "Love Is Indispensable"
+      },
+      {
+        "verse": 12,
+        "title": "Unity and Diversity in the Body"
+      }
+    ],
+    "1CO.14": [
+      {
+        "verse": 1,
+        "title": "Intelligibility in Worship"
+      },
+      {
+        "verse": 26,
+        "title": "Good Order in Worship"
+      }
+    ],
+    "1CO.15": [
+      {
+        "verse": 1,
+        "title": "The Resurrection of Christ"
+      },
+      {
+        "verse": 12,
+        "title": "The Resurrection of the Dead"
+      },
+      {
+        "verse": 35,
+        "title": "The Resurrection Body"
+      }
+    ],
+    "1CO.16": [
+      {
+        "verse": 1,
+        "title": "The Collection for the Lord’s People"
+      },
+      {
+        "verse": 5,
+        "title": "Personal Requests"
+      },
+      {
+        "verse": 19,
+        "title": "Final Greetings"
+      }
+    ],
+    "1CO.2": [
+      {
+        "verse": 6,
+        "title": "God’s Wisdom Revealed by the Spirit"
+      }
+    ],
+    "1CO.3": [
+      {
+        "verse": 1,
+        "title": "The Church and Its Leaders"
+      }
+    ],
+    "1CO.4": [
+      {
+        "verse": 1,
+        "title": "The Nature of True Apostleship"
+      },
+      {
+        "verse": 14,
+        "title": "Paul’s Appeal and Warning"
+      }
+    ],
+    "1CO.5": [
+      {
+        "verse": 1,
+        "title": "Dealing With a Case of Incest"
+      }
+    ],
+    "1CO.6": [
+      {
+        "verse": 1,
+        "title": "Lawsuits Among Believers"
+      },
+      {
+        "verse": 12,
+        "title": "Sexual Immorality"
+      }
+    ],
+    "1CO.7": [
+      {
+        "verse": 1,
+        "title": "Concerning Married Life"
+      },
+      {
+        "verse": 17,
+        "title": "Concerning Change of Status"
+      },
+      {
+        "verse": 25,
+        "title": "Concerning the Unmarried"
+      }
+    ],
+    "1CO.8": [
+      {
+        "verse": 1,
+        "title": "Concerning Food Sacrificed to Idols"
+      }
+    ],
+    "1CO.9": [
+      {
+        "verse": 1,
+        "title": "Paul’s Rights as an Apostle"
+      },
+      {
+        "verse": 19,
+        "title": "Paul’s Use of His Freedom"
+      },
+      {
+        "verse": 24,
+        "title": "The Need for Self-Discipline"
+      }
+    ],
+    "1JN.1": [
+      {
+        "verse": 1,
+        "title": "The Incarnation of the Word of Life"
+      },
+      {
+        "verse": 5,
+        "title": "Light and Darkness, Sin and Forgiveness"
+      }
+    ],
+    "1JN.2": [
+      {
+        "verse": 3,
+        "title": "Love and Hatred for Fellow Believers"
+      },
+      {
+        "verse": 12,
+        "title": "Reasons for Writing"
+      },
+      {
+        "verse": 15,
+        "title": "On Not Loving the World"
+      },
+      {
+        "verse": 18,
+        "title": "Warnings Against Denying the Son"
+      },
+      {
+        "verse": 28,
+        "title": "God’s Children and Sin"
+      }
+    ],
+    "1JN.3": [
+      {
+        "verse": 11,
+        "title": "More on Love and Hatred"
+      }
+    ],
+    "1JN.4": [
+      {
+        "verse": 1,
+        "title": "On Denying the Incarnation"
+      },
+      {
+        "verse": 7,
+        "title": "God’s Love and Ours"
+      }
+    ],
+    "1JN.5": [
+      {
+        "verse": 1,
+        "title": "Faith in the Incarnate Son of God"
+      },
+      {
+        "verse": 13,
+        "title": "Concluding Affirmations"
+      }
+    ],
+    "1KI.1": [
+      {
+        "verse": 1,
+        "title": "Adonijah Sets Himself Up as King"
+      },
+      {
+        "verse": 28,
+        "title": "David Makes Solomon King"
+      }
+    ],
+    "1KI.10": [
+      {
+        "verse": 1,
+        "title": "The Queen of Sheba Visits Solomon"
+      },
+      {
+        "verse": 14,
+        "title": "Solomon’s Splendor"
+      }
+    ],
+    "1KI.11": [
+      {
+        "verse": 1,
+        "title": "Solomon’s Wives"
+      },
+      {
+        "verse": 14,
+        "title": "Solomon’s Adversaries"
+      },
+      {
+        "verse": 26,
+        "title": "Jeroboam Rebels Against Solomon"
+      },
+      {
+        "verse": 41,
+        "title": "Solomon’s Death"
+      }
+    ],
+    "1KI.12": [
+      {
+        "verse": 1,
+        "title": "Israel Rebels Against Rehoboam"
+      },
+      {
+        "verse": 25,
+        "title": "Golden Calves at Bethel and Dan"
+      }
+    ],
+    "1KI.13": [
+      {
+        "verse": 1,
+        "title": "The Man of God From Judah"
+      }
+    ],
+    "1KI.14": [
+      {
+        "verse": 1,
+        "title": "Ahijah’s Prophecy Against Jeroboam"
+      },
+      {
+        "verse": 21,
+        "title": "Rehoboam King of Judah"
+      }
+    ],
+    "1KI.15": [
+      {
+        "verse": 1,
+        "title": "Abijah King of Judah"
+      },
+      {
+        "verse": 9,
+        "title": "Asa King of Judah"
+      },
+      {
+        "verse": 25,
+        "title": "Nadab King of Israel"
+      },
+      {
+        "verse": 33,
+        "title": "Baasha King of Israel"
+      }
+    ],
+    "1KI.16": [
+      {
+        "verse": 8,
+        "title": "Elah King of Israel"
+      },
+      {
+        "verse": 15,
+        "title": "Zimri King of Israel"
+      },
+      {
+        "verse": 21,
+        "title": "Omri King of Israel"
+      },
+      {
+        "verse": 29,
+        "title": "Ahab Becomes King of Israel"
+      }
+    ],
+    "1KI.17": [
+      {
+        "verse": 1,
+        "title": "Elijah Announces a Great Drought"
+      },
+      {
+        "verse": 2,
+        "title": "Elijah Fed by Ravens"
+      },
+      {
+        "verse": 7,
+        "title": "Elijah and the Widow at Zarephath"
+      }
+    ],
+    "1KI.18": [
+      {
+        "verse": 1,
+        "title": "Elijah and Obadiah"
+      },
+      {
+        "verse": 16,
+        "title": "Elijah on Mount Carmel"
+      }
+    ],
+    "1KI.19": [
+      {
+        "verse": 1,
+        "title": "Elijah Flees to Horeb"
+      },
+      {
+        "verse": 10,
+        "title": "The LORD Appears to Elijah"
+      },
+      {
+        "verse": 19,
+        "title": "The Call of Elisha"
+      }
+    ],
+    "1KI.2": [
+      {
+        "verse": 1,
+        "title": "David’s Charge to Solomon"
+      },
+      {
+        "verse": 13,
+        "title": "Solomon’s Throne Established"
+      }
+    ],
+    "1KI.20": [
+      {
+        "verse": 1,
+        "title": "Ben-Hadad Attacks Samaria"
+      },
+      {
+        "verse": 13,
+        "title": "Ahab Defeats Ben-Hadad"
+      },
+      {
+        "verse": 35,
+        "title": "A Prophet Condemns Ahab"
+      }
+    ],
+    "1KI.21": [
+      {
+        "verse": 1,
+        "title": "Naboth’s Vineyard"
+      }
+    ],
+    "1KI.22": [
+      {
+        "verse": 1,
+        "title": "Micaiah Prophesies Against Ahab"
+      },
+      {
+        "verse": 29,
+        "title": "Ahab Killed at Ramoth Gilead"
+      },
+      {
+        "verse": 41,
+        "title": "Jehoshaphat King of Judah"
+      },
+      {
+        "verse": 51,
+        "title": "Ahaziah King of Israel"
+      }
+    ],
+    "1KI.3": [
+      {
+        "verse": 1,
+        "title": "Solomon Asks for Wisdom"
+      },
+      {
+        "verse": 16,
+        "title": "A Wise Ruling"
+      }
+    ],
+    "1KI.4": [
+      {
+        "verse": 1,
+        "title": "Solomon’s Officials and Governors"
+      },
+      {
+        "verse": 20,
+        "title": "Solomon’s Daily Provisions"
+      },
+      {
+        "verse": 29,
+        "title": "Solomon’s Wisdom"
+      }
+    ],
+    "1KI.6": [
+      {
+        "verse": 1,
+        "title": "Solomon Builds the Temple"
+      }
+    ],
+    "1KI.7": [
+      {
+        "verse": 1,
+        "title": "Solomon Builds His Palace"
+      },
+      {
+        "verse": 13,
+        "title": "The Temple’s Furnishings"
+      }
+    ],
+    "1KI.8": [
+      {
+        "verse": 1,
+        "title": "The Ark Brought to the Temple"
+      },
+      {
+        "verse": 22,
+        "title": "Solomon’s Prayer of Dedication"
+      },
+      {
+        "verse": 62,
+        "title": "The Dedication of the Temple"
+      }
+    ],
+    "1KI.9": [
+      {
+        "verse": 1,
+        "title": "The LORD Appears to Solomon"
+      },
+      {
+        "verse": 10,
+        "title": "Solomon’s Other Activities"
+      }
+    ],
+    "1PE.1": [
+      {
+        "verse": 3,
+        "title": "Praise to God for a Living Hope"
+      },
+      {
+        "verse": 13,
+        "title": "Be Holy"
+      }
+    ],
+    "1PE.2": [
+      {
+        "verse": 4,
+        "title": "The Living Stone and a Chosen People"
+      },
+      {
+        "verse": 11,
+        "title": "Living Godly Lives in a Pagan Society"
+      }
+    ],
+    "1PE.3": [
+      {
+        "verse": 8,
+        "title": "Suffering for Doing Good"
+      }
+    ],
+    "1PE.4": [
+      {
+        "verse": 1,
+        "title": "Living for God"
+      },
+      {
+        "verse": 12,
+        "title": "Suffering for Being a Christian"
+      }
+    ],
+    "1PE.5": [
+      {
+        "verse": 1,
+        "title": "To the Elders and the Flock"
+      },
+      {
+        "verse": 12,
+        "title": "Final Greetings"
+      }
+    ],
+    "1SA.1": [
+      {
+        "verse": 1,
+        "title": "The Birth of Samuel"
+      },
+      {
+        "verse": 21,
+        "title": "Hannah Dedicates Samuel"
+      }
+    ],
+    "1SA.10": [
+      {
+        "verse": 9,
+        "title": "Saul Made King"
+      }
+    ],
+    "1SA.11": [
+      {
+        "verse": 1,
+        "title": "Saul Rescues the City of Jabesh"
+      },
+      {
+        "verse": 12,
+        "title": "Saul Confirmed as King"
+      }
+    ],
+    "1SA.12": [
+      {
+        "verse": 1,
+        "title": "Samuel’s Farewell Speech"
+      }
+    ],
+    "1SA.13": [
+      {
+        "verse": 1,
+        "title": "Samuel Rebukes Saul"
+      },
+      {
+        "verse": 16,
+        "title": "Israel Without Weapons"
+      },
+      {
+        "verse": 23,
+        "title": "Jonathan Attacks the Philistines"
+      }
+    ],
+    "1SA.14": [
+      {
+        "verse": 15,
+        "title": "Israel Routs the Philistines"
+      },
+      {
+        "verse": 24,
+        "title": "Jonathan Eats Honey"
+      },
+      {
+        "verse": 49,
+        "title": "Saul’s Family"
+      }
+    ],
+    "1SA.15": [
+      {
+        "verse": 1,
+        "title": "The LORD Rejects Saul as King"
+      }
+    ],
+    "1SA.16": [
+      {
+        "verse": 1,
+        "title": "Samuel Anoints David"
+      },
+      {
+        "verse": 14,
+        "title": "David in Saul’s Service"
+      }
+    ],
+    "1SA.17": [
+      {
+        "verse": 1,
+        "title": "David and Goliath"
+      }
+    ],
+    "1SA.18": [
+      {
+        "verse": 1,
+        "title": "Saul’s Growing Fear of David"
+      }
+    ],
+    "1SA.19": [
+      {
+        "verse": 1,
+        "title": "Saul Tries to Kill David"
+      }
+    ],
+    "1SA.2": [
+      {
+        "verse": 1,
+        "title": "Hannah’s Prayer"
+      },
+      {
+        "verse": 12,
+        "title": "Eli’s Wicked Sons"
+      },
+      {
+        "verse": 27,
+        "title": "Prophecy Against the House of Eli"
+      }
+    ],
+    "1SA.20": [
+      {
+        "verse": 1,
+        "title": "David and Jonathan"
+      }
+    ],
+    "1SA.21": [
+      {
+        "verse": 10,
+        "title": "David at Gath"
+      }
+    ],
+    "1SA.22": [
+      {
+        "verse": 1,
+        "title": "David at Adullam and Mizpah"
+      },
+      {
+        "verse": 6,
+        "title": "Saul Kills the Priests of Nob"
+      }
+    ],
+    "1SA.23": [
+      {
+        "verse": 1,
+        "title": "David Saves Keilah"
+      },
+      {
+        "verse": 7,
+        "title": "Saul Pursues David"
+      }
+    ],
+    "1SA.25": [
+      {
+        "verse": 1,
+        "title": "David, Nabal and Abigail"
+      }
+    ],
+    "1SA.26": [
+      {
+        "verse": 1,
+        "title": "David Again Spares Saul’s Life"
+      }
+    ],
+    "1SA.27": [
+      {
+        "verse": 1,
+        "title": "David Among the Philistines"
+      }
+    ],
+    "1SA.28": [
+      {
+        "verse": 3,
+        "title": "Saul and the Medium at Endor"
+      }
+    ],
+    "1SA.29": [
+      {
+        "verse": 1,
+        "title": "Achish Sends David Back to Ziklag"
+      }
+    ],
+    "1SA.3": [
+      {
+        "verse": 1,
+        "title": "The LORD Calls Samuel"
+      }
+    ],
+    "1SA.30": [
+      {
+        "verse": 1,
+        "title": "David Destroys the Amalekites"
+      }
+    ],
+    "1SA.31": [
+      {
+        "verse": 1,
+        "title": "Saul Takes His Life"
+      }
+    ],
+    "1SA.4": [
+      {
+        "verse": 2,
+        "title": "The Philistines Capture the Ark"
+      },
+      {
+        "verse": 12,
+        "title": "Death of Eli"
+      }
+    ],
+    "1SA.5": [
+      {
+        "verse": 1,
+        "title": "The Ark in Ashdod and Ekron"
+      }
+    ],
+    "1SA.6": [
+      {
+        "verse": 1,
+        "title": "The Ark Returned to Israel"
+      }
+    ],
+    "1SA.7": [
+      {
+        "verse": 3,
+        "title": "Samuel Subdues the Philistines at Mizpah"
+      }
+    ],
+    "1SA.8": [
+      {
+        "verse": 1,
+        "title": "Israel Asks for a King"
+      }
+    ],
+    "1SA.9": [
+      {
+        "verse": 1,
+        "title": "Samuel Anoints Saul"
+      }
+    ],
+    "1TH.1": [
+      {
+        "verse": 2,
+        "title": "Thanksgiving for the Thessalonians’ Faith"
+      }
+    ],
+    "1TH.2": [
+      {
+        "verse": 1,
+        "title": "Paul’s Ministry in Thessalonica"
+      },
+      {
+        "verse": 17,
+        "title": "Paul’s Longing to See the Thessalonians"
+      }
+    ],
+    "1TH.3": [
+      {
+        "verse": 6,
+        "title": "Timothy’s Encouraging Report"
+      }
+    ],
+    "1TH.4": [
+      {
+        "verse": 1,
+        "title": "Living to Please God"
+      },
+      {
+        "verse": 13,
+        "title": "Believers Who Have Died"
+      }
+    ],
+    "1TH.5": [
+      {
+        "verse": 1,
+        "title": "The Day of the Lord"
+      },
+      {
+        "verse": 12,
+        "title": "Final Instructions"
+      }
+    ],
+    "1TI.1": [
+      {
+        "verse": 3,
+        "title": "Timothy Charged to Oppose False Teachers"
+      },
+      {
+        "verse": 12,
+        "title": "The Lord’s Grace to Paul"
+      },
+      {
+        "verse": 18,
+        "title": "The Charge to Timothy Renewed"
+      }
+    ],
+    "1TI.2": [
+      {
+        "verse": 1,
+        "title": "Instructions on Worship"
+      }
+    ],
+    "1TI.3": [
+      {
+        "verse": 1,
+        "title": "Qualifications for Overseers and Deacons"
+      },
+      {
+        "verse": 14,
+        "title": "Reasons for Paul’s Instructions"
+      }
+    ],
+    "1TI.5": [
+      {
+        "verse": 1,
+        "title": "Widows, Elders and Slaves"
+      }
+    ],
+    "1TI.6": [
+      {
+        "verse": 3,
+        "title": "False Teachers and the Love of Money"
+      },
+      {
+        "verse": 11,
+        "title": "Final Charge to Timothy"
+      }
+    ],
+    "2CH.1": [
+      {
+        "verse": 1,
+        "title": "Solomon Asks for Wisdom"
+      }
+    ],
+    "2CH.10": [
+      {
+        "verse": 1,
+        "title": "Israel Rebels Against Rehoboam"
+      }
+    ],
+    "2CH.11": [
+      {
+        "verse": 5,
+        "title": "Rehoboam Fortifies Judah"
+      },
+      {
+        "verse": 18,
+        "title": "Rehoboam’s Family"
+      }
+    ],
+    "2CH.12": [
+      {
+        "verse": 1,
+        "title": "Shishak Attacks Jerusalem"
+      }
+    ],
+    "2CH.13": [
+      {
+        "verse": 1,
+        "title": "Abijah King of Judah"
+      }
+    ],
+    "2CH.14": [
+      {
+        "verse": 2,
+        "title": "Asa King of Judah"
+      }
+    ],
+    "2CH.15": [
+      {
+        "verse": 1,
+        "title": "Asa’s Reform"
+      }
+    ],
+    "2CH.16": [
+      {
+        "verse": 1,
+        "title": "Asa’s Last Years"
+      }
+    ],
+    "2CH.17": [
+      {
+        "verse": 1,
+        "title": "Jehoshaphat King of Judah"
+      }
+    ],
+    "2CH.18": [
+      {
+        "verse": 1,
+        "title": "Micaiah Prophesies Against Ahab"
+      },
+      {
+        "verse": 28,
+        "title": "Ahab Killed at Ramoth Gilead"
+      }
+    ],
+    "2CH.19": [
+      {
+        "verse": 4,
+        "title": "Jehoshaphat Appoints Judges"
+      }
+    ],
+    "2CH.20": [
+      {
+        "verse": 1,
+        "title": "Jehoshaphat Defeats Moab and Ammon"
+      },
+      {
+        "verse": 31,
+        "title": "The End of Jehoshaphat’s Reign"
+      }
+    ],
+    "2CH.21": [
+      {
+        "verse": 4,
+        "title": "Jehoram King of Judah"
+      }
+    ],
+    "2CH.22": [
+      {
+        "verse": 1,
+        "title": "Ahaziah King of Judah"
+      },
+      {
+        "verse": 10,
+        "title": "Athaliah and Joash"
+      }
+    ],
+    "2CH.24": [
+      {
+        "verse": 1,
+        "title": "Joash Repairs the Temple"
+      },
+      {
+        "verse": 17,
+        "title": "The Wickedness of Joash"
+      }
+    ],
+    "2CH.25": [
+      {
+        "verse": 1,
+        "title": "Amaziah King of Judah"
+      }
+    ],
+    "2CH.26": [
+      {
+        "verse": 1,
+        "title": "Uzziah King of Judah"
+      }
+    ],
+    "2CH.27": [
+      {
+        "verse": 1,
+        "title": "Jotham King of Judah"
+      }
+    ],
+    "2CH.28": [
+      {
+        "verse": 1,
+        "title": "Ahaz King of Judah"
+      }
+    ],
+    "2CH.29": [
+      {
+        "verse": 1,
+        "title": "Hezekiah Purifies the Temple"
+      }
+    ],
+    "2CH.3": [
+      {
+        "verse": 1,
+        "title": "Solomon Builds the Temple"
+      }
+    ],
+    "2CH.30": [
+      {
+        "verse": 1,
+        "title": "Hezekiah Celebrates the Passover"
+      }
+    ],
+    "2CH.31": [
+      {
+        "verse": 2,
+        "title": "Contributions for Worship"
+      }
+    ],
+    "2CH.32": [
+      {
+        "verse": 1,
+        "title": "Sennacherib Threatens Jerusalem"
+      },
+      {
+        "verse": 24,
+        "title": "Hezekiah’s Pride, Success and Death"
+      }
+    ],
+    "2CH.33": [
+      {
+        "verse": 1,
+        "title": "Manasseh King of Judah"
+      },
+      {
+        "verse": 21,
+        "title": "Amon King of Judah"
+      }
+    ],
+    "2CH.34": [
+      {
+        "verse": 1,
+        "title": "Josiah’s Reforms"
+      },
+      {
+        "verse": 14,
+        "title": "The Book of the Law Found"
+      }
+    ],
+    "2CH.35": [
+      {
+        "verse": 1,
+        "title": "Josiah Celebrates the Passover"
+      },
+      {
+        "verse": 20,
+        "title": "The Death of Josiah"
+      }
+    ],
+    "2CH.36": [
+      {
+        "verse": 2,
+        "title": "Jehoahaz King of Judah"
+      },
+      {
+        "verse": 5,
+        "title": "Jehoiakim King of Judah"
+      },
+      {
+        "verse": 9,
+        "title": "Jehoiachin King of Judah"
+      },
+      {
+        "verse": 11,
+        "title": "Zedekiah King of Judah"
+      },
+      {
+        "verse": 15,
+        "title": "The Fall of Jerusalem"
+      }
+    ],
+    "2CH.4": [
+      {
+        "verse": 1,
+        "title": "The Temple’s Furnishings"
+      }
+    ],
+    "2CH.5": [
+      {
+        "verse": 2,
+        "title": "The Ark Brought to the Temple"
+      }
+    ],
+    "2CH.6": [
+      {
+        "verse": 12,
+        "title": "Solomon’s Prayer of Dedication"
+      }
+    ],
+    "2CH.7": [
+      {
+        "verse": 1,
+        "title": "The Dedication of the Temple"
+      },
+      {
+        "verse": 11,
+        "title": "The LORD Appears to Solomon"
+      }
+    ],
+    "2CH.8": [
+      {
+        "verse": 1,
+        "title": "Solomon’s Other Activities"
+      }
+    ],
+    "2CH.9": [
+      {
+        "verse": 1,
+        "title": "The Queen of Sheba Visits Solomon"
+      },
+      {
+        "verse": 13,
+        "title": "Solomon’s Splendor"
+      },
+      {
+        "verse": 29,
+        "title": "Solomon’s Death"
+      }
+    ],
+    "2CO.1": [
+      {
+        "verse": 3,
+        "title": "Praise to the God of All Comfort"
+      },
+      {
+        "verse": 12,
+        "title": "Paul’s Change of Plans"
+      }
+    ],
+    "2CO.10": [
+      {
+        "verse": 1,
+        "title": "Paul’s Defense of His Ministry"
+      }
+    ],
+    "2CO.11": [
+      {
+        "verse": 1,
+        "title": "Paul and the False Apostles"
+      },
+      {
+        "verse": 16,
+        "title": "Paul Boasts About His Sufferings"
+      }
+    ],
+    "2CO.12": [
+      {
+        "verse": 1,
+        "title": "Paul’s Vision and His Thorn"
+      },
+      {
+        "verse": 11,
+        "title": "Paul’s Concern for the Corinthians"
+      }
+    ],
+    "2CO.13": [
+      {
+        "verse": 1,
+        "title": "Final Warnings"
+      },
+      {
+        "verse": 11,
+        "title": "Final Greetings"
+      }
+    ],
+    "2CO.2": [
+      {
+        "verse": 5,
+        "title": "Forgiveness for the Offender"
+      },
+      {
+        "verse": 12,
+        "title": "Ministers of the New Covenant"
+      }
+    ],
+    "2CO.3": [
+      {
+        "verse": 7,
+        "title": "The Greater Glory of the New Covenant"
+      }
+    ],
+    "2CO.4": [
+      {
+        "verse": 1,
+        "title": "Present Weakness and Resurrection Life"
+      }
+    ],
+    "2CO.5": [
+      {
+        "verse": 1,
+        "title": "Awaiting the New Body"
+      },
+      {
+        "verse": 11,
+        "title": "The Ministry of Reconciliation"
+      }
+    ],
+    "2CO.6": [
+      {
+        "verse": 3,
+        "title": "Paul’s Hardships"
+      },
+      {
+        "verse": 14,
+        "title": "Warning Against Idolatry"
+      }
+    ],
+    "2CO.7": [
+      {
+        "verse": 2,
+        "title": "Paul’s Joy Over the Church’s Repentance"
+      }
+    ],
+    "2CO.8": [
+      {
+        "verse": 1,
+        "title": "The Collection for the Lord’s People"
+      },
+      {
+        "verse": 16,
+        "title": "Titus Sent to Receive the Collection"
+      }
+    ],
+    "2CO.9": [
+      {
+        "verse": 6,
+        "title": "Generosity Encouraged"
+      }
+    ],
+    "2KI.1": [
+      {
+        "verse": 1,
+        "title": "The LORD’s Judgment on Ahaziah"
+      }
+    ],
+    "2KI.10": [
+      {
+        "verse": 1,
+        "title": "Ahab’s Family Killed"
+      },
+      {
+        "verse": 18,
+        "title": "Servants of Baal Killed"
+      }
+    ],
+    "2KI.11": [
+      {
+        "verse": 1,
+        "title": "Athaliah and Joash"
+      }
+    ],
+    "2KI.13": [
+      {
+        "verse": 1,
+        "title": "Jehoahaz King of Israel"
+      },
+      {
+        "verse": 10,
+        "title": "Jehoash King of Israel"
+      }
+    ],
+    "2KI.14": [
+      {
+        "verse": 1,
+        "title": "Amaziah King of Judah"
+      },
+      {
+        "verse": 23,
+        "title": "Jeroboam II King of Israel"
+      }
+    ],
+    "2KI.15": [
+      {
+        "verse": 1,
+        "title": "Azariah King of Judah"
+      },
+      {
+        "verse": 8,
+        "title": "Zechariah King of Israel"
+      },
+      {
+        "verse": 13,
+        "title": "Shallum King of Israel"
+      },
+      {
+        "verse": 17,
+        "title": "Menahem King of Israel"
+      },
+      {
+        "verse": 23,
+        "title": "Pekahiah King of Israel"
+      },
+      {
+        "verse": 27,
+        "title": "Pekah King of Israel"
+      },
+      {
+        "verse": 32,
+        "title": "Jotham King of Judah"
+      }
+    ],
+    "2KI.16": [
+      {
+        "verse": 1,
+        "title": "Ahaz King of Judah"
+      }
+    ],
+    "2KI.17": [
+      {
+        "verse": 1,
+        "title": "Hoshea Last King of Israel"
+      },
+      {
+        "verse": 7,
+        "title": "Israel Exiled Because of Sin"
+      },
+      {
+        "verse": 24,
+        "title": "Samaria Resettled"
+      }
+    ],
+    "2KI.18": [
+      {
+        "verse": 1,
+        "title": "Hezekiah King of Judah"
+      },
+      {
+        "verse": 17,
+        "title": "Sennacherib Threatens Jerusalem"
+      }
+    ],
+    "2KI.19": [
+      {
+        "verse": 1,
+        "title": "Jerusalem’s Deliverance Foretold"
+      },
+      {
+        "verse": 14,
+        "title": "Hezekiah’s Prayer"
+      },
+      {
+        "verse": 20,
+        "title": "Isaiah Prophesies Sennacherib’s Fall"
+      }
+    ],
+    "2KI.2": [
+      {
+        "verse": 1,
+        "title": "Elijah Taken Up to Heaven"
+      },
+      {
+        "verse": 19,
+        "title": "Healing of the Water"
+      },
+      {
+        "verse": 23,
+        "title": "Elisha Is Jeered"
+      }
+    ],
+    "2KI.20": [
+      {
+        "verse": 1,
+        "title": "Hezekiah’s Illness"
+      },
+      {
+        "verse": 12,
+        "title": "Envoys From Babylon"
+      }
+    ],
+    "2KI.21": [
+      {
+        "verse": 1,
+        "title": "Manasseh King of Judah"
+      },
+      {
+        "verse": 19,
+        "title": "Amon King of Judah"
+      }
+    ],
+    "2KI.22": [
+      {
+        "verse": 1,
+        "title": "The Book of the Law Found"
+      }
+    ],
+    "2KI.23": [
+      {
+        "verse": 1,
+        "title": "Josiah Renews the Covenant"
+      },
+      {
+        "verse": 31,
+        "title": "Jehoahaz King of Judah"
+      },
+      {
+        "verse": 36,
+        "title": "Jehoiakim King of Judah"
+      }
+    ],
+    "2KI.24": [
+      {
+        "verse": 2,
+        "title": "The Fall of Jerusalem"
+      },
+      {
+        "verse": 8,
+        "title": "Jehoiachin King of Judah"
+      },
+      {
+        "verse": 18,
+        "title": "Zedekiah King of Judah"
+      }
+    ],
+    "2KI.25": [
+      {
+        "verse": 27,
+        "title": "Jehoiachin Released"
+      }
+    ],
+    "2KI.3": [
+      {
+        "verse": 1,
+        "title": "Moab Revolts"
+      }
+    ],
+    "2KI.4": [
+      {
+        "verse": 1,
+        "title": "The Widow’s Olive Oil"
+      },
+      {
+        "verse": 8,
+        "title": "The Shunammite’s Son Restored to Life"
+      },
+      {
+        "verse": 38,
+        "title": "Death in the Pot"
+      },
+      {
+        "verse": 42,
+        "title": "Feeding of a Hundred"
+      }
+    ],
+    "2KI.5": [
+      {
+        "verse": 1,
+        "title": "Naaman Healed of Leprosy"
+      }
+    ],
+    "2KI.6": [
+      {
+        "verse": 1,
+        "title": "An Axhead Floats"
+      },
+      {
+        "verse": 8,
+        "title": "Elisha Traps Blinded Arameans"
+      },
+      {
+        "verse": 24,
+        "title": "Famine in Besieged Samaria"
+      }
+    ],
+    "2KI.7": [
+      {
+        "verse": 3,
+        "title": "The Siege Lifted"
+      }
+    ],
+    "2KI.8": [
+      {
+        "verse": 1,
+        "title": "The Shunammite’s Land Restored"
+      },
+      {
+        "verse": 7,
+        "title": "Hazael Murders Ben-Hadad"
+      },
+      {
+        "verse": 16,
+        "title": "Jehoram King of Judah"
+      },
+      {
+        "verse": 25,
+        "title": "Ahaziah King of Judah"
+      }
+    ],
+    "2KI.9": [
+      {
+        "verse": 1,
+        "title": "Jehu Anointed King of Israel"
+      },
+      {
+        "verse": 14,
+        "title": "Jehu Kills Joram and Ahaziah"
+      },
+      {
+        "verse": 30,
+        "title": "Jezebel Killed"
+      }
+    ],
+    "2PE.1": [
+      {
+        "verse": 3,
+        "title": "Confirming One’s Calling and Election"
+      },
+      {
+        "verse": 12,
+        "title": "Prophecy of Scripture"
+      }
+    ],
+    "2PE.2": [
+      {
+        "verse": 1,
+        "title": "False Teachers and Their Destruction"
+      }
+    ],
+    "2PE.3": [
+      {
+        "verse": 1,
+        "title": "The Day of the Lord"
+      }
+    ],
+    "2SA.1": [
+      {
+        "verse": 1,
+        "title": "David Hears of Saul’s Death"
+      },
+      {
+        "verse": 17,
+        "title": "David’s Lament for Saul and Jonathan"
+      }
+    ],
+    "2SA.10": [
+      {
+        "verse": 1,
+        "title": "David Defeats the Ammonites"
+      }
+    ],
+    "2SA.11": [
+      {
+        "verse": 1,
+        "title": "David and Bathsheba"
+      }
+    ],
+    "2SA.12": [
+      {
+        "verse": 1,
+        "title": "Nathan Rebukes David"
+      }
+    ],
+    "2SA.13": [
+      {
+        "verse": 1,
+        "title": "Amnon and Tamar"
+      },
+      {
+        "verse": 23,
+        "title": "Absalom Kills Amnon"
+      }
+    ],
+    "2SA.14": [
+      {
+        "verse": 1,
+        "title": "Absalom Returns to Jerusalem"
+      }
+    ],
+    "2SA.15": [
+      {
+        "verse": 1,
+        "title": "Absalom’s Conspiracy"
+      },
+      {
+        "verse": 13,
+        "title": "David Flees"
+      }
+    ],
+    "2SA.16": [
+      {
+        "verse": 1,
+        "title": "David and Ziba"
+      },
+      {
+        "verse": 5,
+        "title": "Shimei Curses David"
+      },
+      {
+        "verse": 15,
+        "title": "The Advice of Ahithophel and Hushai"
+      }
+    ],
+    "2SA.17": [
+      {
+        "verse": 24,
+        "title": "Absalom’s Death"
+      }
+    ],
+    "2SA.18": [
+      {
+        "verse": 19,
+        "title": "David Mourns"
+      }
+    ],
+    "2SA.19": [
+      {
+        "verse": 9,
+        "title": "David Returns to Jerusalem"
+      }
+    ],
+    "2SA.2": [
+      {
+        "verse": 1,
+        "title": "David Anointed King Over Judah"
+      },
+      {
+        "verse": 8,
+        "title": "War Between the Houses of David and Saul"
+      }
+    ],
+    "2SA.20": [
+      {
+        "verse": 1,
+        "title": "Sheba Rebels Against David"
+      },
+      {
+        "verse": 23,
+        "title": "David’s Officials"
+      }
+    ],
+    "2SA.21": [
+      {
+        "verse": 1,
+        "title": "The Gibeonites Avenged"
+      },
+      {
+        "verse": 15,
+        "title": "Wars Against the Philistines"
+      }
+    ],
+    "2SA.22": [
+      {
+        "verse": 1,
+        "title": "David’s Song of Praise"
+      }
+    ],
+    "2SA.23": [
+      {
+        "verse": 1,
+        "title": "David’s Last Words"
+      },
+      {
+        "verse": 8,
+        "title": "David’s Mighty Warriors"
+      }
+    ],
+    "2SA.24": [
+      {
+        "verse": 1,
+        "title": "David Enrolls the Fighting Men"
+      },
+      {
+        "verse": 18,
+        "title": "David Builds an Altar"
+      }
+    ],
+    "2SA.3": [
+      {
+        "verse": 6,
+        "title": "Abner Goes Over to David"
+      },
+      {
+        "verse": 22,
+        "title": "Joab Murders Abner"
+      }
+    ],
+    "2SA.4": [
+      {
+        "verse": 1,
+        "title": "Ish-Bosheth Murdered"
+      }
+    ],
+    "2SA.5": [
+      {
+        "verse": 1,
+        "title": "David Becomes King Over Israel"
+      },
+      {
+        "verse": 6,
+        "title": "David Conquers Jerusalem"
+      },
+      {
+        "verse": 17,
+        "title": "David Defeats the Philistines"
+      }
+    ],
+    "2SA.6": [
+      {
+        "verse": 1,
+        "title": "The Ark Brought to Jerusalem"
+      }
+    ],
+    "2SA.7": [
+      {
+        "verse": 1,
+        "title": "God’s Promise to David"
+      },
+      {
+        "verse": 18,
+        "title": "David’s Prayer"
+      }
+    ],
+    "2SA.8": [
+      {
+        "verse": 1,
+        "title": "David’s Victories"
+      },
+      {
+        "verse": 15,
+        "title": "David’s Officials"
+      }
+    ],
+    "2SA.9": [
+      {
+        "verse": 1,
+        "title": "David and Mephibosheth"
+      }
+    ],
+    "2TH.1": [
+      {
+        "verse": 3,
+        "title": "Thanksgiving and Prayer"
+      }
+    ],
+    "2TH.2": [
+      {
+        "verse": 1,
+        "title": "The Man of Lawlessness"
+      },
+      {
+        "verse": 13,
+        "title": "Stand Firm"
+      }
+    ],
+    "2TH.3": [
+      {
+        "verse": 1,
+        "title": "Request for Prayer"
+      },
+      {
+        "verse": 6,
+        "title": "Warning Against Idleness"
+      },
+      {
+        "verse": 16,
+        "title": "Final Greetings"
+      }
+    ],
+    "2TI.1": [
+      {
+        "verse": 3,
+        "title": "Thanksgiving"
+      },
+      {
+        "verse": 6,
+        "title": "Appeal for Loyalty to Paul and the Gospel"
+      },
+      {
+        "verse": 15,
+        "title": "Examples of Disloyalty and Loyalty"
+      }
+    ],
+    "2TI.2": [
+      {
+        "verse": 1,
+        "title": "The Appeal Renewed"
+      },
+      {
+        "verse": 14,
+        "title": "Dealing With False Teachers"
+      }
+    ],
+    "2TI.3": [
+      {
+        "verse": 10,
+        "title": "A Final Charge to Timothy"
+      }
+    ],
+    "2TI.4": [
+      {
+        "verse": 9,
+        "title": "Personal Remarks"
+      },
+      {
+        "verse": 19,
+        "title": "Final Greetings"
+      }
+    ],
+    "ACT.1": [
+      {
+        "verse": 1,
+        "title": "Jesus Taken Up Into Heaven"
+      },
+      {
+        "verse": 12,
+        "title": "Matthias Chosen to Replace Judas"
+      }
+    ],
+    "ACT.10": [
+      {
+        "verse": 1,
+        "title": "Cornelius Calls for Peter"
+      },
+      {
+        "verse": 9,
+        "title": "Peter’s Vision"
+      },
+      {
+        "verse": 24,
+        "title": "Peter at Cornelius’s House"
+      }
+    ],
+    "ACT.11": [
+      {
+        "verse": 1,
+        "title": "Peter Explains His Actions"
+      },
+      {
+        "verse": 19,
+        "title": "The Church in Antioch"
+      }
+    ],
+    "ACT.12": [
+      {
+        "verse": 1,
+        "title": "Peter’s Miraculous Escape From Prison"
+      },
+      {
+        "verse": 20,
+        "title": "Herod’s Death"
+      },
+      {
+        "verse": 25,
+        "title": "Barnabas and Saul Sent Off"
+      }
+    ],
+    "ACT.13": [
+      {
+        "verse": 4,
+        "title": "On Cyprus"
+      },
+      {
+        "verse": 13,
+        "title": "In Pisidian Antioch"
+      }
+    ],
+    "ACT.14": [
+      {
+        "verse": 1,
+        "title": "In Iconium"
+      },
+      {
+        "verse": 8,
+        "title": "In Lystra and Derbe"
+      },
+      {
+        "verse": 21,
+        "title": "The Return to Antioch in Syria"
+      }
+    ],
+    "ACT.15": [
+      {
+        "verse": 1,
+        "title": "The Council at Jerusalem"
+      },
+      {
+        "verse": 22,
+        "title": "The Council’s Letter to Gentile Believers"
+      },
+      {
+        "verse": 36,
+        "title": "Disagreement Between Paul and Barnabas"
+      }
+    ],
+    "ACT.16": [
+      {
+        "verse": 1,
+        "title": "Timothy Joins Paul and Silas"
+      },
+      {
+        "verse": 6,
+        "title": "Paul’s Vision of the Man of Macedonia"
+      },
+      {
+        "verse": 11,
+        "title": "Lydia’s Conversion in Philippi"
+      },
+      {
+        "verse": 16,
+        "title": "Paul and Silas in Prison"
+      }
+    ],
+    "ACT.17": [
+      {
+        "verse": 1,
+        "title": "In Thessalonica"
+      },
+      {
+        "verse": 10,
+        "title": "In Berea"
+      },
+      {
+        "verse": 16,
+        "title": "In Athens"
+      }
+    ],
+    "ACT.18": [
+      {
+        "verse": 1,
+        "title": "In Corinth"
+      },
+      {
+        "verse": 18,
+        "title": "Priscilla, Aquila and Apollos"
+      }
+    ],
+    "ACT.19": [
+      {
+        "verse": 1,
+        "title": "Paul in Ephesus"
+      },
+      {
+        "verse": 23,
+        "title": "The Riot in Ephesus"
+      }
+    ],
+    "ACT.2": [
+      {
+        "verse": 1,
+        "title": "The Holy Spirit Comes at Pentecost"
+      },
+      {
+        "verse": 14,
+        "title": "Peter Addresses the Crowd"
+      },
+      {
+        "verse": 42,
+        "title": "The Fellowship of the Believers"
+      }
+    ],
+    "ACT.20": [
+      {
+        "verse": 1,
+        "title": "Through Macedonia and Greece"
+      },
+      {
+        "verse": 7,
+        "title": "Eutychus Raised From the Dead at Troas"
+      },
+      {
+        "verse": 13,
+        "title": "Paul’s Farewell to the Ephesian Elders"
+      }
+    ],
+    "ACT.21": [
+      {
+        "verse": 1,
+        "title": "On to Jerusalem"
+      },
+      {
+        "verse": 17,
+        "title": "Paul’s Arrival at Jerusalem"
+      },
+      {
+        "verse": 27,
+        "title": "Paul Arrested"
+      },
+      {
+        "verse": 37,
+        "title": "Paul Speaks to the Crowd"
+      }
+    ],
+    "ACT.22": [
+      {
+        "verse": 22,
+        "title": "Paul the Roman Citizen"
+      },
+      {
+        "verse": 30,
+        "title": "Paul Before the Sanhedrin"
+      }
+    ],
+    "ACT.23": [
+      {
+        "verse": 12,
+        "title": "The Plot to Kill Paul"
+      },
+      {
+        "verse": 23,
+        "title": "Paul Transferred to Caesarea"
+      }
+    ],
+    "ACT.24": [
+      {
+        "verse": 1,
+        "title": "Paul’s Trial Before Felix"
+      }
+    ],
+    "ACT.25": [
+      {
+        "verse": 1,
+        "title": "Paul’s Trial Before Festus"
+      },
+      {
+        "verse": 13,
+        "title": "Festus Consults King Agrippa"
+      },
+      {
+        "verse": 23,
+        "title": "Paul Before Agrippa"
+      }
+    ],
+    "ACT.27": [
+      {
+        "verse": 1,
+        "title": "Paul Sails for Rome"
+      },
+      {
+        "verse": 13,
+        "title": "The Storm"
+      },
+      {
+        "verse": 27,
+        "title": "The Shipwreck"
+      }
+    ],
+    "ACT.28": [
+      {
+        "verse": 1,
+        "title": "Paul Ashore on Malta"
+      },
+      {
+        "verse": 11,
+        "title": "Paul’s Arrival at Rome"
+      },
+      {
+        "verse": 17,
+        "title": "Paul Preaches at Rome Under Guard"
+      }
+    ],
+    "ACT.3": [
+      {
+        "verse": 1,
+        "title": "Peter Heals a Lame Beggar"
+      },
+      {
+        "verse": 11,
+        "title": "Peter Speaks to the Onlookers"
+      }
+    ],
+    "ACT.4": [
+      {
+        "verse": 1,
+        "title": "Peter and John Before the Sanhedrin"
+      },
+      {
+        "verse": 23,
+        "title": "The Believers Pray"
+      },
+      {
+        "verse": 32,
+        "title": "The Believers Share Their Possessions"
+      }
+    ],
+    "ACT.5": [
+      {
+        "verse": 1,
+        "title": "Ananias and Sapphira"
+      },
+      {
+        "verse": 12,
+        "title": "The Apostles Heal Many"
+      },
+      {
+        "verse": 17,
+        "title": "The Apostles Persecuted"
+      }
+    ],
+    "ACT.6": [
+      {
+        "verse": 1,
+        "title": "The Choosing of the Seven"
+      },
+      {
+        "verse": 8,
+        "title": "Stephen Seized"
+      }
+    ],
+    "ACT.7": [
+      {
+        "verse": 1,
+        "title": "Stephen’s Speech to the Sanhedrin"
+      },
+      {
+        "verse": 54,
+        "title": "The Stoning of Stephen"
+      }
+    ],
+    "ACT.8": [
+      {
+        "verse": 2,
+        "title": "The Church Persecuted and Scattered"
+      },
+      {
+        "verse": 4,
+        "title": "Philip in Samaria"
+      },
+      {
+        "verse": 9,
+        "title": "Simon the Sorcerer"
+      },
+      {
+        "verse": 26,
+        "title": "Philip and the Ethiopian"
+      }
+    ],
+    "ACT.9": [
+      {
+        "verse": 1,
+        "title": "Saul’s Conversion"
+      },
+      {
+        "verse": 20,
+        "title": "Saul in Damascus and Jerusalem"
+      },
+      {
+        "verse": 32,
+        "title": "Aeneas and Dorcas"
+      }
+    ],
+    "AMO.1": [
+      {
+        "verse": 3,
+        "title": "Judgment on Israel’s Neighbors"
+      }
+    ],
+    "AMO.2": [
+      {
+        "verse": 6,
+        "title": "Judgment on Israel"
+      }
+    ],
+    "AMO.3": [
+      {
+        "verse": 1,
+        "title": "Witnesses Summoned Against Israel"
+      }
+    ],
+    "AMO.4": [
+      {
+        "verse": 1,
+        "title": "Israel Has Not Returned to God"
+      }
+    ],
+    "AMO.5": [
+      {
+        "verse": 1,
+        "title": "A Lament and Call to Repentance"
+      },
+      {
+        "verse": 18,
+        "title": "The Day of the LORD"
+      }
+    ],
+    "AMO.6": [
+      {
+        "verse": 1,
+        "title": "Woe to the Complacent"
+      },
+      {
+        "verse": 8,
+        "title": "The LORD Abhors the Pride of Israel"
+      }
+    ],
+    "AMO.7": [
+      {
+        "verse": 1,
+        "title": "Locusts, Fire and a Plumb Line"
+      },
+      {
+        "verse": 10,
+        "title": "Amos and Amaziah"
+      }
+    ],
+    "AMO.8": [
+      {
+        "verse": 1,
+        "title": "A Basket of Ripe Fruit"
+      }
+    ],
+    "AMO.9": [
+      {
+        "verse": 1,
+        "title": "Israel to Be Destroyed"
+      },
+      {
+        "verse": 11,
+        "title": "Israel’s Restoration"
+      }
+    ],
+    "COL.1": [
+      {
+        "verse": 3,
+        "title": "Thanksgiving and Prayer"
+      },
+      {
+        "verse": 15,
+        "title": "The Supremacy of the Son of God"
+      },
+      {
+        "verse": 24,
+        "title": "Paul’s Labor for the Church"
+      }
+    ],
+    "COL.2": [
+      {
+        "verse": 6,
+        "title": "Spiritual Fullness in Christ"
+      },
+      {
+        "verse": 16,
+        "title": "Freedom From Human Rules"
+      }
+    ],
+    "COL.3": [
+      {
+        "verse": 1,
+        "title": "Living as Those Made Alive in Christ"
+      },
+      {
+        "verse": 18,
+        "title": "Instructions for Christian Households"
+      }
+    ],
+    "COL.4": [
+      {
+        "verse": 2,
+        "title": "Further Instructions"
+      },
+      {
+        "verse": 7,
+        "title": "Final Greetings"
+      }
+    ],
+    "DAN.1": [
+      {
+        "verse": 1,
+        "title": "Daniel’s Training in Babylon"
+      }
+    ],
+    "DAN.10": [
+      {
+        "verse": 1,
+        "title": "Daniel’s Vision of a Man"
+      }
+    ],
+    "DAN.11": [
+      {
+        "verse": 2,
+        "title": "The Kings of the South and the North"
+      },
+      {
+        "verse": 36,
+        "title": "The King Who Exalts Himself"
+      }
+    ],
+    "DAN.12": [
+      {
+        "verse": 1,
+        "title": "The End Times"
+      }
+    ],
+    "DAN.2": [
+      {
+        "verse": 1,
+        "title": "Nebuchadnezzar’s Dream"
+      },
+      {
+        "verse": 24,
+        "title": "Daniel Interprets the Dream"
+      }
+    ],
+    "DAN.3": [
+      {
+        "verse": 1,
+        "title": "The Image of Gold and the Blazing Furnace"
+      }
+    ],
+    "DAN.4": [
+      {
+        "verse": 19,
+        "title": "Daniel Interprets the Dream"
+      },
+      {
+        "verse": 28,
+        "title": "The Dream Is Fulfilled"
+      }
+    ],
+    "DAN.5": [
+      {
+        "verse": 1,
+        "title": "The Writing on the Wall"
+      }
+    ],
+    "DAN.7": [
+      {
+        "verse": 1,
+        "title": "Daniel’s Dream of Four Beasts"
+      },
+      {
+        "verse": 15,
+        "title": "The Interpretation of the Dream"
+      }
+    ],
+    "DAN.8": [
+      {
+        "verse": 1,
+        "title": "Daniel’s Vision of a Ram and a Goat"
+      },
+      {
+        "verse": 15,
+        "title": "The Interpretation of the Vision"
+      }
+    ],
+    "DAN.9": [
+      {
+        "verse": 1,
+        "title": "Daniel’s Prayer"
+      },
+      {
+        "verse": 20,
+        "title": "The Seventy “Sevens”"
+      }
+    ],
+    "DEU.1": [
+      {
+        "verse": 1,
+        "title": "The Command to Leave Horeb"
+      },
+      {
+        "verse": 9,
+        "title": "The Appointment of Leaders"
+      },
+      {
+        "verse": 19,
+        "title": "Spies Sent Out"
+      },
+      {
+        "verse": 26,
+        "title": "Rebellion Against the LORD"
+      }
+    ],
+    "DEU.10": [
+      {
+        "verse": 1,
+        "title": "Tablets Like the First Ones"
+      },
+      {
+        "verse": 12,
+        "title": "Fear the LORD"
+      }
+    ],
+    "DEU.11": [
+      {
+        "verse": 1,
+        "title": "Love and Obey the LORD"
+      }
+    ],
+    "DEU.12": [
+      {
+        "verse": 1,
+        "title": "The One Place of Worship"
+      }
+    ],
+    "DEU.14": [
+      {
+        "verse": 1,
+        "title": "Clean and Unclean Food"
+      },
+      {
+        "verse": 22,
+        "title": "Tithes"
+      }
+    ],
+    "DEU.15": [
+      {
+        "verse": 1,
+        "title": "The Year for Canceling Debts"
+      },
+      {
+        "verse": 12,
+        "title": "Freeing Servants"
+      },
+      {
+        "verse": 19,
+        "title": "The Firstborn Animals"
+      }
+    ],
+    "DEU.16": [
+      {
+        "verse": 1,
+        "title": "The Passover"
+      },
+      {
+        "verse": 9,
+        "title": "The Festival of Weeks"
+      },
+      {
+        "verse": 13,
+        "title": "The Festival of Tabernacles"
+      },
+      {
+        "verse": 18,
+        "title": "Judges"
+      },
+      {
+        "verse": 21,
+        "title": "Worshiping Other Gods"
+      }
+    ],
+    "DEU.17": [
+      {
+        "verse": 8,
+        "title": "Law Courts"
+      },
+      {
+        "verse": 14,
+        "title": "The King"
+      }
+    ],
+    "DEU.18": [
+      {
+        "verse": 1,
+        "title": "Offerings for Priests and Levites"
+      },
+      {
+        "verse": 9,
+        "title": "Occult Practices"
+      },
+      {
+        "verse": 14,
+        "title": "The Prophet"
+      }
+    ],
+    "DEU.19": [
+      {
+        "verse": 1,
+        "title": "Cities of Refuge"
+      },
+      {
+        "verse": 15,
+        "title": "Witnesses"
+      }
+    ],
+    "DEU.2": [
+      {
+        "verse": 1,
+        "title": "Wanderings in the Wilderness"
+      },
+      {
+        "verse": 24,
+        "title": "Defeat of Sihon King of Heshbon"
+      }
+    ],
+    "DEU.20": [
+      {
+        "verse": 1,
+        "title": "Going to War"
+      }
+    ],
+    "DEU.21": [
+      {
+        "verse": 1,
+        "title": "Atonement for an Unsolved Murder"
+      },
+      {
+        "verse": 10,
+        "title": "Marrying a Captive Woman"
+      },
+      {
+        "verse": 15,
+        "title": "The Right of the Firstborn"
+      },
+      {
+        "verse": 18,
+        "title": "A Rebellious Son"
+      },
+      {
+        "verse": 22,
+        "title": "Various Laws"
+      }
+    ],
+    "DEU.22": [
+      {
+        "verse": 13,
+        "title": "Marriage Violations"
+      }
+    ],
+    "DEU.23": [
+      {
+        "verse": 9,
+        "title": "Uncleanness in the Camp"
+      },
+      {
+        "verse": 15,
+        "title": "Miscellaneous Laws"
+      }
+    ],
+    "DEU.26": [
+      {
+        "verse": 1,
+        "title": "Firstfruits and Tithes"
+      },
+      {
+        "verse": 16,
+        "title": "Follow the LORD’s Commands"
+      }
+    ],
+    "DEU.27": [
+      {
+        "verse": 1,
+        "title": "The Altar on Mount Ebal"
+      },
+      {
+        "verse": 9,
+        "title": "Curses From Mount Ebal"
+      }
+    ],
+    "DEU.28": [
+      {
+        "verse": 1,
+        "title": "Blessings for Obedience"
+      },
+      {
+        "verse": 15,
+        "title": "Curses for Disobedience"
+      }
+    ],
+    "DEU.3": [
+      {
+        "verse": 1,
+        "title": "Defeat of Og King of Bashan"
+      },
+      {
+        "verse": 12,
+        "title": "Division of the Land"
+      },
+      {
+        "verse": 21,
+        "title": "Moses Forbidden to Cross the Jordan"
+      }
+    ],
+    "DEU.30": [
+      {
+        "verse": 1,
+        "title": "Prosperity After Turning to the LORD"
+      },
+      {
+        "verse": 11,
+        "title": "The Offer of Life or Death"
+      }
+    ],
+    "DEU.31": [
+      {
+        "verse": 1,
+        "title": "Joshua to Succeed Moses"
+      },
+      {
+        "verse": 9,
+        "title": "Public Reading of the Law"
+      },
+      {
+        "verse": 14,
+        "title": "Israel’s Rebellion Predicted"
+      },
+      {
+        "verse": 30,
+        "title": "The Song of Moses"
+      }
+    ],
+    "DEU.32": [
+      {
+        "verse": 48,
+        "title": "Moses to Die on Mount Nebo"
+      }
+    ],
+    "DEU.33": [
+      {
+        "verse": 1,
+        "title": "Moses Blesses the Tribes"
+      }
+    ],
+    "DEU.34": [
+      {
+        "verse": 1,
+        "title": "The Death of Moses"
+      }
+    ],
+    "DEU.4": [
+      {
+        "verse": 1,
+        "title": "Obedience Commanded"
+      },
+      {
+        "verse": 15,
+        "title": "Idolatry Forbidden"
+      },
+      {
+        "verse": 32,
+        "title": "The LORD Is God"
+      },
+      {
+        "verse": 41,
+        "title": "Cities of Refuge"
+      },
+      {
+        "verse": 44,
+        "title": "Introduction to the Law"
+      }
+    ],
+    "DEU.5": [
+      {
+        "verse": 1,
+        "title": "The Ten Commandments"
+      }
+    ],
+    "DEU.6": [
+      {
+        "verse": 1,
+        "title": "Love the LORD Your God"
+      }
+    ],
+    "DEU.7": [
+      {
+        "verse": 1,
+        "title": "Driving Out the Nations"
+      }
+    ],
+    "DEU.8": [
+      {
+        "verse": 1,
+        "title": "Do Not Forget the LORD"
+      }
+    ],
+    "DEU.9": [
+      {
+        "verse": 1,
+        "title": "Not Because of Israel’s Righteousness"
+      },
+      {
+        "verse": 7,
+        "title": "The Golden Calf"
+      }
+    ],
+    "ECC.1": [
+      {
+        "verse": 1,
+        "title": "Everything Is Meaningless"
+      },
+      {
+        "verse": 12,
+        "title": "Wisdom Is Meaningless"
+      }
+    ],
+    "ECC.11": [
+      {
+        "verse": 1,
+        "title": "Invest in Many Ventures"
+      },
+      {
+        "verse": 7,
+        "title": "Remember Your Creator While Young"
+      }
+    ],
+    "ECC.12": [
+      {
+        "verse": 9,
+        "title": "The Conclusion of the Matter"
+      }
+    ],
+    "ECC.2": [
+      {
+        "verse": 1,
+        "title": "Pleasures Are Meaningless"
+      },
+      {
+        "verse": 12,
+        "title": "Wisdom and Folly Are Meaningless"
+      },
+      {
+        "verse": 17,
+        "title": "Toil Is Meaningless"
+      }
+    ],
+    "ECC.3": [
+      {
+        "verse": 1,
+        "title": "A Time for Everything"
+      }
+    ],
+    "ECC.4": [
+      {
+        "verse": 1,
+        "title": "Oppression, Toil, Friendlessness"
+      },
+      {
+        "verse": 13,
+        "title": "Advancement Is Meaningless"
+      }
+    ],
+    "ECC.5": [
+      {
+        "verse": 8,
+        "title": "Riches Are Meaningless"
+      }
+    ],
+    "ECC.7": [
+      {
+        "verse": 1,
+        "title": "Wisdom"
+      }
+    ],
+    "ECC.8": [
+      {
+        "verse": 2,
+        "title": "Obey the King"
+      }
+    ],
+    "ECC.9": [
+      {
+        "verse": 1,
+        "title": "A Common Destiny for All"
+      },
+      {
+        "verse": 13,
+        "title": "Wisdom Better Than Folly"
+      }
+    ],
+    "EPH.1": [
+      {
+        "verse": 3,
+        "title": "Praise for Spiritual Blessings in Christ"
+      },
+      {
+        "verse": 15,
+        "title": "Thanksgiving and Prayer"
+      }
+    ],
+    "EPH.2": [
+      {
+        "verse": 1,
+        "title": "Made Alive in Christ"
+      },
+      {
+        "verse": 11,
+        "title": "Jew and Gentile Reconciled Through Christ"
+      }
+    ],
+    "EPH.3": [
+      {
+        "verse": 1,
+        "title": "God’s Marvelous Plan for the Gentiles"
+      },
+      {
+        "verse": 14,
+        "title": "A Prayer for the Ephesians"
+      }
+    ],
+    "EPH.4": [
+      {
+        "verse": 1,
+        "title": "Unity and Maturity in the Body of Christ"
+      },
+      {
+        "verse": 17,
+        "title": "Instructions for Christian Living"
+      }
+    ],
+    "EPH.5": [
+      {
+        "verse": 21,
+        "title": "Instructions for Christian Households"
+      }
+    ],
+    "EPH.6": [
+      {
+        "verse": 10,
+        "title": "The Armor of God"
+      },
+      {
+        "verse": 21,
+        "title": "Final Greetings"
+      }
+    ],
+    "EST.1": [
+      {
+        "verse": 1,
+        "title": "Queen Vashti Deposed"
+      }
+    ],
+    "EST.10": [
+      {
+        "verse": 1,
+        "title": "The Greatness of Mordecai"
+      }
+    ],
+    "EST.2": [
+      {
+        "verse": 1,
+        "title": "Esther Made Queen"
+      },
+      {
+        "verse": 19,
+        "title": "Mordecai Uncovers a Conspiracy"
+      }
+    ],
+    "EST.3": [
+      {
+        "verse": 1,
+        "title": "Haman’s Plot to Destroy the Jews"
+      }
+    ],
+    "EST.4": [
+      {
+        "verse": 1,
+        "title": "Mordecai Persuades Esther to Help"
+      }
+    ],
+    "EST.5": [
+      {
+        "verse": 1,
+        "title": "Esther’s Request to the King"
+      },
+      {
+        "verse": 9,
+        "title": "Haman’s Rage Against Mordecai"
+      }
+    ],
+    "EST.6": [
+      {
+        "verse": 1,
+        "title": "Mordecai Honored"
+      }
+    ],
+    "EST.7": [
+      {
+        "verse": 1,
+        "title": "Haman Impaled"
+      }
+    ],
+    "EST.8": [
+      {
+        "verse": 1,
+        "title": "The King’s Edict in Behalf of the Jews"
+      },
+      {
+        "verse": 15,
+        "title": "The Triumph of the Jews"
+      }
+    ],
+    "EST.9": [
+      {
+        "verse": 20,
+        "title": "Purim Established"
+      }
+    ],
+    "EXO.1": [
+      {
+        "verse": 1,
+        "title": "The Israelites Oppressed"
+      }
+    ],
+    "EXO.10": [
+      {
+        "verse": 1,
+        "title": "The Plague of Locusts"
+      },
+      {
+        "verse": 21,
+        "title": "The Plague of Darkness"
+      }
+    ],
+    "EXO.11": [
+      {
+        "verse": 1,
+        "title": "The Plague on the Firstborn"
+      }
+    ],
+    "EXO.12": [
+      {
+        "verse": 1,
+        "title": "The Passover and the Festival of Unleavened Bread"
+      },
+      {
+        "verse": 31,
+        "title": "The Exodus"
+      },
+      {
+        "verse": 43,
+        "title": "Passover Restrictions"
+      }
+    ],
+    "EXO.13": [
+      {
+        "verse": 1,
+        "title": "Consecration of the Firstborn"
+      },
+      {
+        "verse": 17,
+        "title": "Crossing the Sea"
+      }
+    ],
+    "EXO.15": [
+      {
+        "verse": 1,
+        "title": "The Song of Moses and Miriam"
+      },
+      {
+        "verse": 22,
+        "title": "The Waters of Marah and Elim"
+      }
+    ],
+    "EXO.16": [
+      {
+        "verse": 1,
+        "title": "Manna and Quail"
+      }
+    ],
+    "EXO.17": [
+      {
+        "verse": 1,
+        "title": "Water From the Rock"
+      },
+      {
+        "verse": 8,
+        "title": "The Amalekites Defeated"
+      }
+    ],
+    "EXO.18": [
+      {
+        "verse": 1,
+        "title": "Jethro Visits Moses"
+      }
+    ],
+    "EXO.19": [
+      {
+        "verse": 1,
+        "title": "At Mount Sinai"
+      }
+    ],
+    "EXO.2": [
+      {
+        "verse": 1,
+        "title": "The Birth of Moses"
+      },
+      {
+        "verse": 11,
+        "title": "Moses Flees to Midian"
+      }
+    ],
+    "EXO.20": [
+      {
+        "verse": 1,
+        "title": "The Ten Commandments"
+      },
+      {
+        "verse": 22,
+        "title": "Idols and Altars"
+      }
+    ],
+    "EXO.21": [
+      {
+        "verse": 2,
+        "title": "Hebrew Servants"
+      },
+      {
+        "verse": 12,
+        "title": "Personal Injuries"
+      }
+    ],
+    "EXO.22": [
+      {
+        "verse": 16,
+        "title": "Social Responsibility"
+      }
+    ],
+    "EXO.23": [
+      {
+        "verse": 1,
+        "title": "Laws of Justice and Mercy"
+      },
+      {
+        "verse": 10,
+        "title": "Sabbath Laws"
+      },
+      {
+        "verse": 14,
+        "title": "The Three Annual Festivals"
+      },
+      {
+        "verse": 20,
+        "title": "God’s Angel to Prepare the Way"
+      }
+    ],
+    "EXO.24": [
+      {
+        "verse": 1,
+        "title": "The Covenant Confirmed"
+      }
+    ],
+    "EXO.25": [
+      {
+        "verse": 1,
+        "title": "Offerings for the Tabernacle"
+      },
+      {
+        "verse": 10,
+        "title": "The Ark"
+      },
+      {
+        "verse": 23,
+        "title": "The Table"
+      },
+      {
+        "verse": 31,
+        "title": "The Lampstand"
+      }
+    ],
+    "EXO.26": [
+      {
+        "verse": 1,
+        "title": "The Tabernacle"
+      }
+    ],
+    "EXO.27": [
+      {
+        "verse": 1,
+        "title": "The Altar of Burnt Offering"
+      },
+      {
+        "verse": 9,
+        "title": "The Courtyard"
+      },
+      {
+        "verse": 20,
+        "title": "Oil for the Lampstand"
+      }
+    ],
+    "EXO.28": [
+      {
+        "verse": 1,
+        "title": "The Priestly Garments"
+      },
+      {
+        "verse": 6,
+        "title": "The Ephod"
+      },
+      {
+        "verse": 15,
+        "title": "The Breastpiece"
+      },
+      {
+        "verse": 31,
+        "title": "Other Priestly Garments"
+      }
+    ],
+    "EXO.29": [
+      {
+        "verse": 1,
+        "title": "Consecration of the Priests"
+      }
+    ],
+    "EXO.3": [
+      {
+        "verse": 1,
+        "title": "Moses and the Burning Bush"
+      }
+    ],
+    "EXO.30": [
+      {
+        "verse": 1,
+        "title": "The Altar of Incense"
+      },
+      {
+        "verse": 11,
+        "title": "Atonement Money"
+      },
+      {
+        "verse": 17,
+        "title": "Basin for Washing"
+      },
+      {
+        "verse": 22,
+        "title": "Anointing Oil"
+      },
+      {
+        "verse": 34,
+        "title": "Incense"
+      }
+    ],
+    "EXO.31": [
+      {
+        "verse": 1,
+        "title": "Bezalel and Oholiab"
+      },
+      {
+        "verse": 12,
+        "title": "The Sabbath"
+      }
+    ],
+    "EXO.32": [
+      {
+        "verse": 1,
+        "title": "The Golden Calf"
+      }
+    ],
+    "EXO.33": [
+      {
+        "verse": 7,
+        "title": "The Tent of Meeting"
+      },
+      {
+        "verse": 12,
+        "title": "Moses and the Glory of the LORD"
+      }
+    ],
+    "EXO.34": [
+      {
+        "verse": 1,
+        "title": "The New Stone Tablets"
+      },
+      {
+        "verse": 29,
+        "title": "The Radiant Face of Moses"
+      }
+    ],
+    "EXO.35": [
+      {
+        "verse": 1,
+        "title": "Sabbath Regulations"
+      },
+      {
+        "verse": 4,
+        "title": "Materials for the Tabernacle"
+      },
+      {
+        "verse": 30,
+        "title": "Bezalel and Oholiab"
+      }
+    ],
+    "EXO.36": [
+      {
+        "verse": 8,
+        "title": "The Tabernacle"
+      }
+    ],
+    "EXO.37": [
+      {
+        "verse": 1,
+        "title": "The Ark"
+      },
+      {
+        "verse": 10,
+        "title": "The Table"
+      },
+      {
+        "verse": 17,
+        "title": "The Lampstand"
+      },
+      {
+        "verse": 25,
+        "title": "The Altar of Incense"
+      }
+    ],
+    "EXO.38": [
+      {
+        "verse": 1,
+        "title": "The Altar of Burnt Offering"
+      },
+      {
+        "verse": 8,
+        "title": "The Basin for Washing"
+      },
+      {
+        "verse": 9,
+        "title": "The Courtyard"
+      },
+      {
+        "verse": 21,
+        "title": "The Materials Used"
+      }
+    ],
+    "EXO.39": [
+      {
+        "verse": 1,
+        "title": "The Priestly Garments"
+      },
+      {
+        "verse": 2,
+        "title": "The Ephod"
+      },
+      {
+        "verse": 8,
+        "title": "The Breastpiece"
+      },
+      {
+        "verse": 22,
+        "title": "Other Priestly Garments"
+      },
+      {
+        "verse": 32,
+        "title": "Moses Inspects the Tabernacle"
+      }
+    ],
+    "EXO.4": [
+      {
+        "verse": 1,
+        "title": "Signs for Moses"
+      },
+      {
+        "verse": 18,
+        "title": "Moses Returns to Egypt"
+      }
+    ],
+    "EXO.40": [
+      {
+        "verse": 1,
+        "title": "Setting Up the Tabernacle"
+      },
+      {
+        "verse": 34,
+        "title": "The Glory of the LORD"
+      }
+    ],
+    "EXO.5": [
+      {
+        "verse": 1,
+        "title": "Bricks Without Straw"
+      },
+      {
+        "verse": 22,
+        "title": "God Promises Deliverance"
+      }
+    ],
+    "EXO.6": [
+      {
+        "verse": 13,
+        "title": "Family Record of Moses and Aaron"
+      },
+      {
+        "verse": 28,
+        "title": "Aaron to Speak for Moses"
+      }
+    ],
+    "EXO.7": [
+      {
+        "verse": 8,
+        "title": "Aaron’s Staff Becomes a Snake"
+      },
+      {
+        "verse": 14,
+        "title": "The Plague of Blood"
+      },
+      {
+        "verse": 25,
+        "title": "The Plague of Frogs"
+      }
+    ],
+    "EXO.8": [
+      {
+        "verse": 16,
+        "title": "The Plague of Gnats"
+      },
+      {
+        "verse": 20,
+        "title": "The Plague of Flies"
+      }
+    ],
+    "EXO.9": [
+      {
+        "verse": 1,
+        "title": "The Plague on Livestock"
+      },
+      {
+        "verse": 8,
+        "title": "The Plague of Boils"
+      },
+      {
+        "verse": 13,
+        "title": "The Plague of Hail"
+      }
+    ],
+    "EZK.1": [
+      {
+        "verse": 1,
+        "title": "Ezekiel’s Inaugural Vision"
+      }
+    ],
+    "EZK.10": [
+      {
+        "verse": 1,
+        "title": "God’s Glory Departs From the Temple"
+      }
+    ],
+    "EZK.11": [
+      {
+        "verse": 1,
+        "title": "God’s Sure Judgment on Jerusalem"
+      },
+      {
+        "verse": 14,
+        "title": "The Promise of Israel’s Return"
+      }
+    ],
+    "EZK.12": [
+      {
+        "verse": 1,
+        "title": "The Exile Symbolized"
+      },
+      {
+        "verse": 21,
+        "title": "There Will Be No Delay"
+      }
+    ],
+    "EZK.13": [
+      {
+        "verse": 1,
+        "title": "False Prophets Condemned"
+      }
+    ],
+    "EZK.14": [
+      {
+        "verse": 1,
+        "title": "Idolaters Condemned"
+      },
+      {
+        "verse": 12,
+        "title": "Jerusalem’s Judgment Inescapable"
+      }
+    ],
+    "EZK.15": [
+      {
+        "verse": 1,
+        "title": "Jerusalem as a Useless Vine"
+      }
+    ],
+    "EZK.16": [
+      {
+        "verse": 1,
+        "title": "Jerusalem as an Adulterous Wife"
+      }
+    ],
+    "EZK.17": [
+      {
+        "verse": 1,
+        "title": "Two Eagles and a Vine"
+      }
+    ],
+    "EZK.18": [
+      {
+        "verse": 1,
+        "title": "The One Who Sins Will Die"
+      }
+    ],
+    "EZK.19": [
+      {
+        "verse": 1,
+        "title": "A Lament Over Israel’s Princes"
+      }
+    ],
+    "EZK.2": [
+      {
+        "verse": 1,
+        "title": "Ezekiel’s Call to Be a Prophet"
+      }
+    ],
+    "EZK.20": [
+      {
+        "verse": 1,
+        "title": "Rebellious Israel Purged"
+      },
+      {
+        "verse": 30,
+        "title": "Rebellious Israel Renewed"
+      },
+      {
+        "verse": 45,
+        "title": "Prophecy Against the South"
+      }
+    ],
+    "EZK.22": [
+      {
+        "verse": 1,
+        "title": "Judgment on Jerusalem’s Sins"
+      }
+    ],
+    "EZK.23": [
+      {
+        "verse": 1,
+        "title": "Two Adulterous Sisters"
+      }
+    ],
+    "EZK.24": [
+      {
+        "verse": 1,
+        "title": "Jerusalem as a Cooking Pot"
+      },
+      {
+        "verse": 15,
+        "title": "Ezekiel’s Wife Dies"
+      }
+    ],
+    "EZK.25": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Ammon"
+      },
+      {
+        "verse": 8,
+        "title": "A Prophecy Against Moab"
+      },
+      {
+        "verse": 12,
+        "title": "A Prophecy Against Edom"
+      },
+      {
+        "verse": 15,
+        "title": "A Prophecy Against Philistia"
+      }
+    ],
+    "EZK.26": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Tyre"
+      }
+    ],
+    "EZK.27": [
+      {
+        "verse": 1,
+        "title": "A Lament Over Tyre"
+      }
+    ],
+    "EZK.28": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against the King of Tyre"
+      },
+      {
+        "verse": 20,
+        "title": "A Prophecy Against Sidon"
+      }
+    ],
+    "EZK.29": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Egypt"
+      }
+    ],
+    "EZK.3": [
+      {
+        "verse": 16,
+        "title": "Ezekiel’s Task as Watchman"
+      }
+    ],
+    "EZK.33": [
+      {
+        "verse": 1,
+        "title": "Renewal of Ezekiel’s Call as Watchman"
+      },
+      {
+        "verse": 21,
+        "title": "Jerusalem’s Fall Explained"
+      }
+    ],
+    "EZK.34": [
+      {
+        "verse": 1,
+        "title": "The LORD Will Be Israel’s Shepherd"
+      }
+    ],
+    "EZK.35": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Edom"
+      }
+    ],
+    "EZK.36": [
+      {
+        "verse": 1,
+        "title": "Hope for the Mountains of Israel"
+      },
+      {
+        "verse": 16,
+        "title": "Israel’s Restoration Assured"
+      }
+    ],
+    "EZK.37": [
+      {
+        "verse": 1,
+        "title": "The Valley of Dry Bones"
+      },
+      {
+        "verse": 15,
+        "title": "One Nation Under One King"
+      }
+    ],
+    "EZK.38": [
+      {
+        "verse": 1,
+        "title": "The LORD’s Great Victory Over the Nations"
+      }
+    ],
+    "EZK.4": [
+      {
+        "verse": 1,
+        "title": "Siege of Jerusalem Symbolized"
+      }
+    ],
+    "EZK.40": [
+      {
+        "verse": 1,
+        "title": "The Temple Area Restored"
+      },
+      {
+        "verse": 48,
+        "title": "The New Temple"
+      }
+    ],
+    "EZK.42": [
+      {
+        "verse": 1,
+        "title": "The Rooms for the Priests"
+      }
+    ],
+    "EZK.43": [
+      {
+        "verse": 1,
+        "title": "God’s Glory Returns to the Temple"
+      },
+      {
+        "verse": 13,
+        "title": "The Great Altar Restored"
+      }
+    ],
+    "EZK.44": [
+      {
+        "verse": 1,
+        "title": "The Priesthood Restored"
+      }
+    ],
+    "EZK.45": [
+      {
+        "verse": 1,
+        "title": "Israel Fully Restored"
+      }
+    ],
+    "EZK.47": [
+      {
+        "verse": 1,
+        "title": "The River From the Temple"
+      },
+      {
+        "verse": 13,
+        "title": "The Boundaries of the Land"
+      }
+    ],
+    "EZK.48": [
+      {
+        "verse": 1,
+        "title": "The Division of the Land"
+      },
+      {
+        "verse": 30,
+        "title": "The Gates of the New City"
+      }
+    ],
+    "EZK.5": [
+      {
+        "verse": 1,
+        "title": "God’s Razor of Judgment"
+      }
+    ],
+    "EZK.6": [
+      {
+        "verse": 1,
+        "title": "Doom for the Mountains of Israel"
+      }
+    ],
+    "EZK.7": [
+      {
+        "verse": 1,
+        "title": "The End Has Come"
+      }
+    ],
+    "EZK.8": [
+      {
+        "verse": 1,
+        "title": "Idolatry in the Temple"
+      }
+    ],
+    "EZK.9": [
+      {
+        "verse": 1,
+        "title": "Judgment on the Idolaters"
+      }
+    ],
+    "EZR.1": [
+      {
+        "verse": 1,
+        "title": "Cyrus Helps the Exiles to Return"
+      }
+    ],
+    "EZR.10": [
+      {
+        "verse": 1,
+        "title": "The People’s Confession of Sin"
+      },
+      {
+        "verse": 18,
+        "title": "Those Guilty of Intermarriage"
+      }
+    ],
+    "EZR.2": [
+      {
+        "verse": 1,
+        "title": "The List of the Exiles Who Returned"
+      }
+    ],
+    "EZR.3": [
+      {
+        "verse": 1,
+        "title": "Rebuilding the Altar"
+      },
+      {
+        "verse": 7,
+        "title": "Rebuilding the Temple"
+      }
+    ],
+    "EZR.4": [
+      {
+        "verse": 1,
+        "title": "Opposition to the Rebuilding"
+      },
+      {
+        "verse": 6,
+        "title": "Later Opposition Under Xerxes and Artaxerxes"
+      }
+    ],
+    "EZR.5": [
+      {
+        "verse": 1,
+        "title": "Tattenai’s Letter to Darius"
+      }
+    ],
+    "EZR.6": [
+      {
+        "verse": 1,
+        "title": "The Decree of Darius"
+      },
+      {
+        "verse": 13,
+        "title": "Completion and Dedication of the Temple"
+      },
+      {
+        "verse": 19,
+        "title": "The Passover"
+      }
+    ],
+    "EZR.7": [
+      {
+        "verse": 1,
+        "title": "Ezra Comes to Jerusalem"
+      },
+      {
+        "verse": 11,
+        "title": "King Artaxerxes’ Letter to Ezra"
+      }
+    ],
+    "EZR.8": [
+      {
+        "verse": 1,
+        "title": "List of the Family Heads Returning With Ezra"
+      },
+      {
+        "verse": 15,
+        "title": "The Return to Jerusalem"
+      }
+    ],
+    "EZR.9": [
+      {
+        "verse": 1,
+        "title": "Ezra’s Prayer About Intermarriage"
+      }
+    ],
+    "GAL.1": [
+      {
+        "verse": 6,
+        "title": "No Other Gospel"
+      },
+      {
+        "verse": 11,
+        "title": "Paul Called by God"
+      }
+    ],
+    "GAL.2": [
+      {
+        "verse": 1,
+        "title": "Paul Accepted by the Apostles"
+      },
+      {
+        "verse": 11,
+        "title": "Paul Opposes Cephas"
+      }
+    ],
+    "GAL.3": [
+      {
+        "verse": 1,
+        "title": "Faith or Works of the Law"
+      },
+      {
+        "verse": 15,
+        "title": "The Law and the Promise"
+      },
+      {
+        "verse": 23,
+        "title": "Children of God"
+      }
+    ],
+    "GAL.4": [
+      {
+        "verse": 8,
+        "title": "Paul’s Concern for the Galatians"
+      },
+      {
+        "verse": 21,
+        "title": "Hagar and Sarah"
+      }
+    ],
+    "GAL.5": [
+      {
+        "verse": 1,
+        "title": "Freedom in Christ"
+      },
+      {
+        "verse": 13,
+        "title": "Life by the Spirit"
+      }
+    ],
+    "GAL.6": [
+      {
+        "verse": 1,
+        "title": "Doing Good to All"
+      },
+      {
+        "verse": 11,
+        "title": "Not Circumcision but the New Creation"
+      }
+    ],
+    "GEN.1": [
+      {
+        "verse": 1,
+        "title": "The Beginning"
+      }
+    ],
+    "GEN.10": [
+      {
+        "verse": 1,
+        "title": "The Table of Nations"
+      }
+    ],
+    "GEN.11": [
+      {
+        "verse": 1,
+        "title": "The Tower of Babel"
+      },
+      {
+        "verse": 10,
+        "title": "From Shem to Abram"
+      },
+      {
+        "verse": 27,
+        "title": "Abram’s Family"
+      }
+    ],
+    "GEN.12": [
+      {
+        "verse": 1,
+        "title": "The Call of Abram"
+      },
+      {
+        "verse": 10,
+        "title": "Abram in Egypt"
+      }
+    ],
+    "GEN.13": [
+      {
+        "verse": 1,
+        "title": "Abram and Lot Separate"
+      }
+    ],
+    "GEN.14": [
+      {
+        "verse": 1,
+        "title": "Abram Rescues Lot"
+      }
+    ],
+    "GEN.15": [
+      {
+        "verse": 1,
+        "title": "The LORD’s Covenant With Abram"
+      }
+    ],
+    "GEN.16": [
+      {
+        "verse": 1,
+        "title": "Hagar and Ishmael"
+      }
+    ],
+    "GEN.17": [
+      {
+        "verse": 1,
+        "title": "The Covenant of Circumcision"
+      }
+    ],
+    "GEN.18": [
+      {
+        "verse": 1,
+        "title": "The Three Visitors"
+      },
+      {
+        "verse": 16,
+        "title": "Abraham Pleads for Sodom"
+      }
+    ],
+    "GEN.19": [
+      {
+        "verse": 1,
+        "title": "Sodom and Gomorrah Destroyed"
+      },
+      {
+        "verse": 30,
+        "title": "Lot and His Daughters"
+      }
+    ],
+    "GEN.2": [
+      {
+        "verse": 4,
+        "title": "Adam and Eve"
+      }
+    ],
+    "GEN.20": [
+      {
+        "verse": 1,
+        "title": "Abraham and Abimelek"
+      }
+    ],
+    "GEN.21": [
+      {
+        "verse": 1,
+        "title": "The Birth of Isaac"
+      },
+      {
+        "verse": 8,
+        "title": "Hagar and Ishmael Sent Away"
+      },
+      {
+        "verse": 22,
+        "title": "The Treaty at Beersheba"
+      }
+    ],
+    "GEN.22": [
+      {
+        "verse": 1,
+        "title": "Abraham Tested"
+      },
+      {
+        "verse": 20,
+        "title": "Nahor’s Sons"
+      }
+    ],
+    "GEN.23": [
+      {
+        "verse": 1,
+        "title": "The Death of Sarah"
+      }
+    ],
+    "GEN.24": [
+      {
+        "verse": 1,
+        "title": "Isaac and Rebekah"
+      }
+    ],
+    "GEN.25": [
+      {
+        "verse": 1,
+        "title": "The Death of Abraham"
+      },
+      {
+        "verse": 12,
+        "title": "Ishmael’s Sons"
+      },
+      {
+        "verse": 19,
+        "title": "Jacob and Esau"
+      }
+    ],
+    "GEN.26": [
+      {
+        "verse": 1,
+        "title": "Isaac and Abimelek"
+      },
+      {
+        "verse": 34,
+        "title": "Jacob Takes Esau’s Blessing"
+      }
+    ],
+    "GEN.28": [
+      {
+        "verse": 10,
+        "title": "Jacob’s Dream at Bethel"
+      }
+    ],
+    "GEN.29": [
+      {
+        "verse": 1,
+        "title": "Jacob Arrives in Paddan Aram"
+      },
+      {
+        "verse": 15,
+        "title": "Jacob Marries Leah and Rachel"
+      },
+      {
+        "verse": 31,
+        "title": "Jacob’s Children"
+      }
+    ],
+    "GEN.3": [
+      {
+        "verse": 1,
+        "title": "The Fall"
+      }
+    ],
+    "GEN.30": [
+      {
+        "verse": 25,
+        "title": "Jacob’s Flocks Increase"
+      }
+    ],
+    "GEN.31": [
+      {
+        "verse": 1,
+        "title": "Jacob Flees From Laban"
+      },
+      {
+        "verse": 22,
+        "title": "Laban Pursues Jacob"
+      }
+    ],
+    "GEN.32": [
+      {
+        "verse": 22,
+        "title": "Jacob Wrestles With God"
+      }
+    ],
+    "GEN.33": [
+      {
+        "verse": 1,
+        "title": "Jacob Meets Esau"
+      }
+    ],
+    "GEN.34": [
+      {
+        "verse": 1,
+        "title": "Dinah and the Shechemites"
+      }
+    ],
+    "GEN.35": [
+      {
+        "verse": 1,
+        "title": "Jacob Returns to Bethel"
+      },
+      {
+        "verse": 16,
+        "title": "The Deaths of Rachel and Isaac"
+      }
+    ],
+    "GEN.36": [
+      {
+        "verse": 1,
+        "title": "Esau’s Descendants"
+      },
+      {
+        "verse": 31,
+        "title": "The Rulers of Edom"
+      }
+    ],
+    "GEN.37": [
+      {
+        "verse": 1,
+        "title": "Joseph’s Dreams"
+      },
+      {
+        "verse": 12,
+        "title": "Joseph Sold by His Brothers"
+      }
+    ],
+    "GEN.38": [
+      {
+        "verse": 1,
+        "title": "Judah and Tamar"
+      }
+    ],
+    "GEN.39": [
+      {
+        "verse": 1,
+        "title": "Joseph and Potiphar’s Wife"
+      }
+    ],
+    "GEN.4": [
+      {
+        "verse": 1,
+        "title": "Cain and Abel"
+      }
+    ],
+    "GEN.40": [
+      {
+        "verse": 1,
+        "title": "The Cupbearer and the Baker"
+      }
+    ],
+    "GEN.41": [
+      {
+        "verse": 1,
+        "title": "Pharaoh’s Dreams"
+      },
+      {
+        "verse": 41,
+        "title": "Joseph in Charge of Egypt"
+      }
+    ],
+    "GEN.42": [
+      {
+        "verse": 1,
+        "title": "Joseph’s Brothers Go to Egypt"
+      }
+    ],
+    "GEN.43": [
+      {
+        "verse": 1,
+        "title": "The Second Journey to Egypt"
+      }
+    ],
+    "GEN.44": [
+      {
+        "verse": 1,
+        "title": "A Silver Cup in a Sack"
+      }
+    ],
+    "GEN.45": [
+      {
+        "verse": 1,
+        "title": "Joseph Makes Himself Known"
+      }
+    ],
+    "GEN.46": [
+      {
+        "verse": 1,
+        "title": "Jacob Goes to Egypt"
+      }
+    ],
+    "GEN.47": [
+      {
+        "verse": 13,
+        "title": "Joseph and the Famine"
+      }
+    ],
+    "GEN.48": [
+      {
+        "verse": 1,
+        "title": "Manasseh and Ephraim"
+      }
+    ],
+    "GEN.49": [
+      {
+        "verse": 1,
+        "title": "Jacob Blesses His Sons"
+      },
+      {
+        "verse": 29,
+        "title": "The Death of Jacob"
+      }
+    ],
+    "GEN.5": [
+      {
+        "verse": 1,
+        "title": "From Adam to Noah"
+      }
+    ],
+    "GEN.50": [
+      {
+        "verse": 15,
+        "title": "Joseph Reassures His Brothers"
+      },
+      {
+        "verse": 22,
+        "title": "The Death of Joseph"
+      }
+    ],
+    "GEN.6": [
+      {
+        "verse": 1,
+        "title": "Wickedness in the World"
+      },
+      {
+        "verse": 9,
+        "title": "Noah and the Flood"
+      }
+    ],
+    "GEN.9": [
+      {
+        "verse": 1,
+        "title": "God’s Covenant With Noah"
+      },
+      {
+        "verse": 18,
+        "title": "The Sons of Noah"
+      }
+    ],
+    "HAB.1": [
+      {
+        "verse": 2,
+        "title": "Habakkuk’s Complaint"
+      },
+      {
+        "verse": 5,
+        "title": "The LORD’s Answer"
+      },
+      {
+        "verse": 12,
+        "title": "Habakkuk’s Second Complaint"
+      }
+    ],
+    "HAB.2": [
+      {
+        "verse": 2,
+        "title": "The LORD’s Answer"
+      }
+    ],
+    "HAB.3": [
+      {
+        "verse": 1,
+        "title": "Habakkuk’s Prayer"
+      }
+    ],
+    "HAG.1": [
+      {
+        "verse": 1,
+        "title": "A Call to Build the House of the LORD"
+      }
+    ],
+    "HAG.2": [
+      {
+        "verse": 10,
+        "title": "Blessings for a Defiled People"
+      },
+      {
+        "verse": 20,
+        "title": "Zerubbabel the LORD’s Signet Ring"
+      }
+    ],
+    "HEB.1": [
+      {
+        "verse": 1,
+        "title": "God’s Final Word: His Son"
+      },
+      {
+        "verse": 5,
+        "title": "The Son Superior to Angels"
+      }
+    ],
+    "HEB.10": [
+      {
+        "verse": 1,
+        "title": "Christ’s Sacrifice Once for All"
+      },
+      {
+        "verse": 19,
+        "title": "A Call to Persevere in Faith"
+      }
+    ],
+    "HEB.11": [
+      {
+        "verse": 1,
+        "title": "Faith in Action"
+      }
+    ],
+    "HEB.12": [
+      {
+        "verse": 4,
+        "title": "God Disciplines His Children"
+      },
+      {
+        "verse": 14,
+        "title": "Warning and Encouragement"
+      },
+      {
+        "verse": 18,
+        "title": "The Mountain of Fear and the Mountain of Joy"
+      }
+    ],
+    "HEB.13": [
+      {
+        "verse": 1,
+        "title": "Concluding Exhortations"
+      },
+      {
+        "verse": 20,
+        "title": "Benediction and Final Greetings"
+      }
+    ],
+    "HEB.2": [
+      {
+        "verse": 1,
+        "title": "Warning to Pay Attention"
+      },
+      {
+        "verse": 5,
+        "title": "Jesus Made Fully Human"
+      }
+    ],
+    "HEB.3": [
+      {
+        "verse": 1,
+        "title": "Jesus Greater Than Moses"
+      },
+      {
+        "verse": 7,
+        "title": "Warning Against Unbelief"
+      }
+    ],
+    "HEB.4": [
+      {
+        "verse": 1,
+        "title": "A Sabbath-Rest for the People of God"
+      },
+      {
+        "verse": 14,
+        "title": "Jesus the Great High Priest"
+      }
+    ],
+    "HEB.5": [
+      {
+        "verse": 11,
+        "title": "Warning Against Falling Away"
+      }
+    ],
+    "HEB.6": [
+      {
+        "verse": 13,
+        "title": "The Certainty of God’s Promise"
+      }
+    ],
+    "HEB.7": [
+      {
+        "verse": 1,
+        "title": "Melchizedek the Priest"
+      },
+      {
+        "verse": 11,
+        "title": "Jesus Like Melchizedek"
+      }
+    ],
+    "HEB.8": [
+      {
+        "verse": 1,
+        "title": "The High Priest of a New Covenant"
+      }
+    ],
+    "HEB.9": [
+      {
+        "verse": 1,
+        "title": "Worship in the Earthly Tabernacle"
+      },
+      {
+        "verse": 11,
+        "title": "The Blood of Christ"
+      }
+    ],
+    "HOS.1": [
+      {
+        "verse": 2,
+        "title": "Hosea’s Wife and Children"
+      }
+    ],
+    "HOS.11": [
+      {
+        "verse": 1,
+        "title": "God’s Love for Israel"
+      },
+      {
+        "verse": 12,
+        "title": "Israel’s Sin"
+      }
+    ],
+    "HOS.13": [
+      {
+        "verse": 1,
+        "title": "The LORD’s Anger Against Israel"
+      }
+    ],
+    "HOS.2": [
+      {
+        "verse": 2,
+        "title": "Israel Punished and Restored"
+      }
+    ],
+    "HOS.3": [
+      {
+        "verse": 1,
+        "title": "Hosea’s Reconciliation With His Wife"
+      }
+    ],
+    "HOS.4": [
+      {
+        "verse": 1,
+        "title": "The Charge Against Israel"
+      }
+    ],
+    "HOS.5": [
+      {
+        "verse": 1,
+        "title": "Judgment Against Israel"
+      }
+    ],
+    "HOS.6": [
+      {
+        "verse": 1,
+        "title": "Israel Unrepentant"
+      }
+    ],
+    "HOS.8": [
+      {
+        "verse": 1,
+        "title": "Israel to Reap the Whirlwind"
+      }
+    ],
+    "HOS.9": [
+      {
+        "verse": 1,
+        "title": "Punishment for Israel"
+      }
+    ],
+    "ISA.1": [
+      {
+        "verse": 2,
+        "title": "A Rebellious Nation"
+      }
+    ],
+    "ISA.10": [
+      {
+        "verse": 5,
+        "title": "God’s Judgment on Assyria"
+      },
+      {
+        "verse": 20,
+        "title": "The Remnant of Israel"
+      }
+    ],
+    "ISA.11": [
+      {
+        "verse": 1,
+        "title": "The Branch From Jesse"
+      }
+    ],
+    "ISA.12": [
+      {
+        "verse": 1,
+        "title": "Songs of Praise"
+      }
+    ],
+    "ISA.13": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Babylon"
+      }
+    ],
+    "ISA.14": [
+      {
+        "verse": 28,
+        "title": "A Prophecy Against the Philistines"
+      }
+    ],
+    "ISA.15": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Moab"
+      }
+    ],
+    "ISA.17": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Damascus"
+      }
+    ],
+    "ISA.18": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Cush"
+      }
+    ],
+    "ISA.19": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Egypt"
+      }
+    ],
+    "ISA.2": [
+      {
+        "verse": 1,
+        "title": "The Mountain of the LORD"
+      },
+      {
+        "verse": 6,
+        "title": "The Day of the LORD"
+      }
+    ],
+    "ISA.20": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Egypt and Cush"
+      }
+    ],
+    "ISA.21": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Babylon"
+      },
+      {
+        "verse": 11,
+        "title": "A Prophecy Against Edom"
+      },
+      {
+        "verse": 13,
+        "title": "A Prophecy Against Arabia"
+      }
+    ],
+    "ISA.22": [
+      {
+        "verse": 1,
+        "title": "A Prophecy About Jerusalem"
+      }
+    ],
+    "ISA.23": [
+      {
+        "verse": 1,
+        "title": "A Prophecy Against Tyre"
+      }
+    ],
+    "ISA.24": [
+      {
+        "verse": 1,
+        "title": "The LORD’s Devastation of the Earth"
+      }
+    ],
+    "ISA.25": [
+      {
+        "verse": 1,
+        "title": "Praise to the LORD"
+      }
+    ],
+    "ISA.26": [
+      {
+        "verse": 1,
+        "title": "A Song of Praise"
+      }
+    ],
+    "ISA.27": [
+      {
+        "verse": 1,
+        "title": "Deliverance of Israel"
+      }
+    ],
+    "ISA.28": [
+      {
+        "verse": 1,
+        "title": "Woe to the Leaders of Ephraim and Judah"
+      }
+    ],
+    "ISA.29": [
+      {
+        "verse": 1,
+        "title": "Woe to David’s City"
+      }
+    ],
+    "ISA.3": [
+      {
+        "verse": 1,
+        "title": "Judgment on Jerusalem and Judah"
+      }
+    ],
+    "ISA.30": [
+      {
+        "verse": 1,
+        "title": "Woe to the Obstinate Nation"
+      }
+    ],
+    "ISA.31": [
+      {
+        "verse": 1,
+        "title": "Woe to Those Who Rely on Egypt"
+      }
+    ],
+    "ISA.32": [
+      {
+        "verse": 1,
+        "title": "The Kingdom of Righteousness"
+      },
+      {
+        "verse": 9,
+        "title": "The Women of Jerusalem"
+      }
+    ],
+    "ISA.33": [
+      {
+        "verse": 1,
+        "title": "Distress and Help"
+      }
+    ],
+    "ISA.34": [
+      {
+        "verse": 1,
+        "title": "Judgment Against the Nations"
+      }
+    ],
+    "ISA.35": [
+      {
+        "verse": 1,
+        "title": "Joy of the Redeemed"
+      }
+    ],
+    "ISA.36": [
+      {
+        "verse": 1,
+        "title": "Sennacherib Threatens Jerusalem"
+      }
+    ],
+    "ISA.37": [
+      {
+        "verse": 1,
+        "title": "Jerusalem’s Deliverance Foretold"
+      },
+      {
+        "verse": 14,
+        "title": "Hezekiah’s Prayer"
+      },
+      {
+        "verse": 21,
+        "title": "Sennacherib’s Fall"
+      }
+    ],
+    "ISA.38": [
+      {
+        "verse": 1,
+        "title": "Hezekiah’s Illness"
+      }
+    ],
+    "ISA.39": [
+      {
+        "verse": 1,
+        "title": "Envoys From Babylon"
+      }
+    ],
+    "ISA.4": [
+      {
+        "verse": 2,
+        "title": "The Branch of the LORD"
+      }
+    ],
+    "ISA.40": [
+      {
+        "verse": 1,
+        "title": "Comfort for God’s People"
+      }
+    ],
+    "ISA.41": [
+      {
+        "verse": 1,
+        "title": "The Helper of Israel"
+      }
+    ],
+    "ISA.42": [
+      {
+        "verse": 1,
+        "title": "The Servant of the LORD"
+      },
+      {
+        "verse": 10,
+        "title": "Song of Praise to the LORD"
+      },
+      {
+        "verse": 18,
+        "title": "Israel Blind and Deaf"
+      }
+    ],
+    "ISA.43": [
+      {
+        "verse": 1,
+        "title": "Israel’s Only Savior"
+      },
+      {
+        "verse": 14,
+        "title": "God’s Mercy and Israel’s Unfaithfulness"
+      }
+    ],
+    "ISA.44": [
+      {
+        "verse": 1,
+        "title": "Israel the Chosen"
+      },
+      {
+        "verse": 6,
+        "title": "The LORD, Not Idols"
+      },
+      {
+        "verse": 24,
+        "title": "Jerusalem to Be Inhabited"
+      }
+    ],
+    "ISA.46": [
+      {
+        "verse": 1,
+        "title": "Gods of Babylon"
+      }
+    ],
+    "ISA.47": [
+      {
+        "verse": 1,
+        "title": "The Fall of Babylon"
+      }
+    ],
+    "ISA.48": [
+      {
+        "verse": 1,
+        "title": "Stubborn Israel"
+      },
+      {
+        "verse": 12,
+        "title": "Israel Freed"
+      }
+    ],
+    "ISA.49": [
+      {
+        "verse": 1,
+        "title": "The Servant of the LORD"
+      },
+      {
+        "verse": 8,
+        "title": "Restoration of Israel"
+      }
+    ],
+    "ISA.5": [
+      {
+        "verse": 1,
+        "title": "The Song of the Vineyard"
+      },
+      {
+        "verse": 8,
+        "title": "Woes and Judgments"
+      }
+    ],
+    "ISA.50": [
+      {
+        "verse": 1,
+        "title": "Israel’s Sin and the Servant’s Obedience"
+      }
+    ],
+    "ISA.51": [
+      {
+        "verse": 1,
+        "title": "Everlasting Salvation for Zion"
+      },
+      {
+        "verse": 17,
+        "title": "The Cup of the LORD’s Wrath"
+      }
+    ],
+    "ISA.52": [
+      {
+        "verse": 13,
+        "title": "The Suffering and Glory of the Servant"
+      }
+    ],
+    "ISA.54": [
+      {
+        "verse": 1,
+        "title": "The Future Glory of Zion"
+      }
+    ],
+    "ISA.55": [
+      {
+        "verse": 1,
+        "title": "Invitation to the Thirsty"
+      }
+    ],
+    "ISA.56": [
+      {
+        "verse": 1,
+        "title": "Salvation for Others"
+      },
+      {
+        "verse": 9,
+        "title": "God’s Accusation Against the Wicked"
+      }
+    ],
+    "ISA.57": [
+      {
+        "verse": 14,
+        "title": "Comfort for the Contrite"
+      }
+    ],
+    "ISA.58": [
+      {
+        "verse": 1,
+        "title": "True Fasting"
+      }
+    ],
+    "ISA.59": [
+      {
+        "verse": 1,
+        "title": "Sin, Confession and Redemption"
+      }
+    ],
+    "ISA.6": [
+      {
+        "verse": 1,
+        "title": "Isaiah’s Commission"
+      }
+    ],
+    "ISA.60": [
+      {
+        "verse": 1,
+        "title": "The Glory of Zion"
+      }
+    ],
+    "ISA.61": [
+      {
+        "verse": 1,
+        "title": "The Year of the LORD’s Favor"
+      }
+    ],
+    "ISA.62": [
+      {
+        "verse": 1,
+        "title": "Zion’s New Name"
+      }
+    ],
+    "ISA.63": [
+      {
+        "verse": 1,
+        "title": "God’s Day of Vengeance and Redemption"
+      },
+      {
+        "verse": 7,
+        "title": "Praise and Prayer"
+      }
+    ],
+    "ISA.65": [
+      {
+        "verse": 1,
+        "title": "Judgment and Salvation"
+      },
+      {
+        "verse": 17,
+        "title": "New Heavens and a New Earth"
+      }
+    ],
+    "ISA.66": [
+      {
+        "verse": 1,
+        "title": "Judgment and Hope"
+      }
+    ],
+    "ISA.7": [
+      {
+        "verse": 1,
+        "title": "The Sign of Immanuel"
+      },
+      {
+        "verse": 18,
+        "title": "Assyria, the LORD’s Instrument"
+      }
+    ],
+    "ISA.8": [
+      {
+        "verse": 1,
+        "title": "Isaiah and His Children as Signs"
+      },
+      {
+        "verse": 19,
+        "title": "The Darkness Turns to Light"
+      }
+    ],
+    "ISA.9": [
+      {
+        "verse": 8,
+        "title": "The LORD’s Anger Against Israel"
+      }
+    ],
+    "JAS.1": [
+      {
+        "verse": 2,
+        "title": "Trials and Temptations"
+      },
+      {
+        "verse": 19,
+        "title": "Listening and Doing"
+      }
+    ],
+    "JAS.2": [
+      {
+        "verse": 1,
+        "title": "Favoritism Forbidden"
+      },
+      {
+        "verse": 14,
+        "title": "Faith and Deeds"
+      }
+    ],
+    "JAS.3": [
+      {
+        "verse": 1,
+        "title": "Taming the Tongue"
+      },
+      {
+        "verse": 13,
+        "title": "Two Kinds of Wisdom"
+      }
+    ],
+    "JAS.4": [
+      {
+        "verse": 1,
+        "title": "Submit Yourselves to God"
+      },
+      {
+        "verse": 13,
+        "title": "Boasting About Tomorrow"
+      }
+    ],
+    "JAS.5": [
+      {
+        "verse": 1,
+        "title": "Warning to Rich Oppressors"
+      },
+      {
+        "verse": 7,
+        "title": "Patience in Suffering"
+      },
+      {
+        "verse": 13,
+        "title": "The Prayer of Faith"
+      }
+    ],
+    "JDG.1": [
+      {
+        "verse": 1,
+        "title": "Israel Fights the Remaining Canaanites"
+      }
+    ],
+    "JDG.10": [
+      {
+        "verse": 1,
+        "title": "Tola"
+      },
+      {
+        "verse": 3,
+        "title": "Jair"
+      },
+      {
+        "verse": 6,
+        "title": "Jephthah"
+      }
+    ],
+    "JDG.12": [
+      {
+        "verse": 1,
+        "title": "Jephthah and Ephraim"
+      },
+      {
+        "verse": 8,
+        "title": "Ibzan, Elon and Abdon"
+      }
+    ],
+    "JDG.13": [
+      {
+        "verse": 1,
+        "title": "The Birth of Samson"
+      }
+    ],
+    "JDG.14": [
+      {
+        "verse": 1,
+        "title": "Samson’s Marriage"
+      }
+    ],
+    "JDG.15": [
+      {
+        "verse": 1,
+        "title": "Samson’s Vengeance on the Philistines"
+      }
+    ],
+    "JDG.16": [
+      {
+        "verse": 1,
+        "title": "Samson and Delilah"
+      },
+      {
+        "verse": 23,
+        "title": "The Death of Samson"
+      }
+    ],
+    "JDG.17": [
+      {
+        "verse": 1,
+        "title": "Micah’s Idols"
+      }
+    ],
+    "JDG.18": [
+      {
+        "verse": 1,
+        "title": "The Danites Settle in Laish"
+      }
+    ],
+    "JDG.19": [
+      {
+        "verse": 1,
+        "title": "A Levite and His Concubine"
+      }
+    ],
+    "JDG.2": [
+      {
+        "verse": 1,
+        "title": "The Angel of the LORD at Bokim"
+      },
+      {
+        "verse": 6,
+        "title": "Disobedience and Defeat"
+      }
+    ],
+    "JDG.20": [
+      {
+        "verse": 1,
+        "title": "The Israelites Punish the Benjamites"
+      }
+    ],
+    "JDG.21": [
+      {
+        "verse": 1,
+        "title": "Wives for the Benjamites"
+      }
+    ],
+    "JDG.3": [
+      {
+        "verse": 7,
+        "title": "Othniel"
+      },
+      {
+        "verse": 12,
+        "title": "Ehud"
+      },
+      {
+        "verse": 31,
+        "title": "Shamgar"
+      }
+    ],
+    "JDG.4": [
+      {
+        "verse": 1,
+        "title": "Deborah"
+      }
+    ],
+    "JDG.5": [
+      {
+        "verse": 1,
+        "title": "The Song of Deborah"
+      }
+    ],
+    "JDG.6": [
+      {
+        "verse": 1,
+        "title": "Gideon"
+      }
+    ],
+    "JDG.7": [
+      {
+        "verse": 1,
+        "title": "Gideon Defeats the Midianites"
+      }
+    ],
+    "JDG.8": [
+      {
+        "verse": 1,
+        "title": "Zebah and Zalmunna"
+      },
+      {
+        "verse": 22,
+        "title": "Gideon’s Ephod"
+      },
+      {
+        "verse": 28,
+        "title": "Gideon’s Death"
+      }
+    ],
+    "JDG.9": [
+      {
+        "verse": 1,
+        "title": "Abimelek"
+      }
+    ],
+    "JER.1": [
+      {
+        "verse": 4,
+        "title": "The Call of Jeremiah"
+      }
+    ],
+    "JER.10": [
+      {
+        "verse": 1,
+        "title": "God and Idols"
+      },
+      {
+        "verse": 17,
+        "title": "Coming Destruction"
+      },
+      {
+        "verse": 23,
+        "title": "Jeremiah’s Prayer"
+      }
+    ],
+    "JER.11": [
+      {
+        "verse": 1,
+        "title": "The Covenant Is Broken"
+      },
+      {
+        "verse": 18,
+        "title": "Plot Against Jeremiah"
+      }
+    ],
+    "JER.12": [
+      {
+        "verse": 1,
+        "title": "Jeremiah’s Complaint"
+      },
+      {
+        "verse": 5,
+        "title": "God’s Answer"
+      }
+    ],
+    "JER.13": [
+      {
+        "verse": 1,
+        "title": "A Linen Belt"
+      },
+      {
+        "verse": 12,
+        "title": "Wineskins"
+      },
+      {
+        "verse": 15,
+        "title": "Threat of Captivity"
+      }
+    ],
+    "JER.14": [
+      {
+        "verse": 1,
+        "title": "Drought, Famine, Sword"
+      }
+    ],
+    "JER.16": [
+      {
+        "verse": 1,
+        "title": "Day of Disaster"
+      }
+    ],
+    "JER.17": [
+      {
+        "verse": 19,
+        "title": "Keeping the Sabbath Day Holy"
+      }
+    ],
+    "JER.18": [
+      {
+        "verse": 1,
+        "title": "At the Potter’s House"
+      }
+    ],
+    "JER.2": [
+      {
+        "verse": 1,
+        "title": "Israel Forsakes God"
+      }
+    ],
+    "JER.20": [
+      {
+        "verse": 1,
+        "title": "Jeremiah and Pashhur"
+      },
+      {
+        "verse": 7,
+        "title": "Jeremiah’s Complaint"
+      }
+    ],
+    "JER.21": [
+      {
+        "verse": 1,
+        "title": "God Rejects Zedekiah’s Request"
+      }
+    ],
+    "JER.22": [
+      {
+        "verse": 1,
+        "title": "Judgment Against Wicked Kings"
+      }
+    ],
+    "JER.23": [
+      {
+        "verse": 1,
+        "title": "The Righteous Branch"
+      },
+      {
+        "verse": 9,
+        "title": "Lying Prophets"
+      },
+      {
+        "verse": 33,
+        "title": "False Prophecy"
+      }
+    ],
+    "JER.24": [
+      {
+        "verse": 1,
+        "title": "Two Baskets of Figs"
+      }
+    ],
+    "JER.25": [
+      {
+        "verse": 1,
+        "title": "Seventy Years of Captivity"
+      },
+      {
+        "verse": 15,
+        "title": "The Cup of God’s Wrath"
+      }
+    ],
+    "JER.26": [
+      {
+        "verse": 1,
+        "title": "Jeremiah Threatened With Death"
+      }
+    ],
+    "JER.27": [
+      {
+        "verse": 1,
+        "title": "Judah to Serve Nebuchadnezzar"
+      }
+    ],
+    "JER.28": [
+      {
+        "verse": 1,
+        "title": "The False Prophet Hananiah"
+      }
+    ],
+    "JER.29": [
+      {
+        "verse": 1,
+        "title": "A Letter to the Exiles"
+      },
+      {
+        "verse": 24,
+        "title": "Message to Shemaiah"
+      }
+    ],
+    "JER.3": [
+      {
+        "verse": 6,
+        "title": "Unfaithful Israel"
+      }
+    ],
+    "JER.30": [
+      {
+        "verse": 1,
+        "title": "Restoration of Israel"
+      }
+    ],
+    "JER.32": [
+      {
+        "verse": 1,
+        "title": "Jeremiah Buys a Field"
+      }
+    ],
+    "JER.33": [
+      {
+        "verse": 1,
+        "title": "Promise of Restoration"
+      }
+    ],
+    "JER.34": [
+      {
+        "verse": 1,
+        "title": "Warning to Zedekiah"
+      },
+      {
+        "verse": 8,
+        "title": "Freedom for Slaves"
+      }
+    ],
+    "JER.35": [
+      {
+        "verse": 1,
+        "title": "The Rekabites"
+      }
+    ],
+    "JER.36": [
+      {
+        "verse": 1,
+        "title": "Jehoiakim Burns Jeremiah’s Scroll"
+      }
+    ],
+    "JER.37": [
+      {
+        "verse": 1,
+        "title": "Jeremiah in Prison"
+      }
+    ],
+    "JER.38": [
+      {
+        "verse": 1,
+        "title": "Jeremiah Thrown Into a Cistern"
+      },
+      {
+        "verse": 14,
+        "title": "Zedekiah Questions Jeremiah Again"
+      }
+    ],
+    "JER.4": [
+      {
+        "verse": 5,
+        "title": "Disaster From the North"
+      }
+    ],
+    "JER.40": [
+      {
+        "verse": 1,
+        "title": "Jeremiah Freed"
+      },
+      {
+        "verse": 7,
+        "title": "Gedaliah Assassinated"
+      }
+    ],
+    "JER.41": [
+      {
+        "verse": 16,
+        "title": "Flight to Egypt"
+      }
+    ],
+    "JER.44": [
+      {
+        "verse": 1,
+        "title": "Disaster Because of Idolatry"
+      }
+    ],
+    "JER.45": [
+      {
+        "verse": 1,
+        "title": "A Message to Baruch"
+      }
+    ],
+    "JER.46": [
+      {
+        "verse": 1,
+        "title": "A Message About Egypt"
+      }
+    ],
+    "JER.47": [
+      {
+        "verse": 1,
+        "title": "A Message About the Philistines"
+      }
+    ],
+    "JER.48": [
+      {
+        "verse": 1,
+        "title": "A Message About Moab"
+      }
+    ],
+    "JER.49": [
+      {
+        "verse": 1,
+        "title": "A Message About Ammon"
+      },
+      {
+        "verse": 7,
+        "title": "A Message About Edom"
+      },
+      {
+        "verse": 23,
+        "title": "A Message About Damascus"
+      },
+      {
+        "verse": 28,
+        "title": "A Message About Kedar and Hazor"
+      },
+      {
+        "verse": 34,
+        "title": "A Message About Elam"
+      }
+    ],
+    "JER.5": [
+      {
+        "verse": 1,
+        "title": "Not One Is Upright"
+      }
+    ],
+    "JER.50": [
+      {
+        "verse": 1,
+        "title": "A Message About Babylon"
+      }
+    ],
+    "JER.52": [
+      {
+        "verse": 1,
+        "title": "The Fall of Jerusalem"
+      },
+      {
+        "verse": 31,
+        "title": "Jehoiachin Released"
+      }
+    ],
+    "JER.6": [
+      {
+        "verse": 1,
+        "title": "Jerusalem Under Siege"
+      }
+    ],
+    "JER.7": [
+      {
+        "verse": 1,
+        "title": "False Religion Worthless"
+      },
+      {
+        "verse": 30,
+        "title": "The Valley of Slaughter"
+      }
+    ],
+    "JER.8": [
+      {
+        "verse": 4,
+        "title": "Sin and Punishment"
+      }
+    ],
+    "JHN.1": [
+      {
+        "verse": 1,
+        "title": "The Word Became Flesh"
+      },
+      {
+        "verse": 19,
+        "title": "John the Baptist Denies Being the Messiah"
+      },
+      {
+        "verse": 29,
+        "title": "John Testifies About Jesus"
+      },
+      {
+        "verse": 35,
+        "title": "John’s Disciples Follow Jesus"
+      },
+      {
+        "verse": 43,
+        "title": "Jesus Calls Philip and Nathanael"
+      }
+    ],
+    "JHN.10": [
+      {
+        "verse": 1,
+        "title": "The Good Shepherd and His Sheep"
+      },
+      {
+        "verse": 22,
+        "title": "Further Conflict Over Jesus’ Claims"
+      }
+    ],
+    "JHN.11": [
+      {
+        "verse": 1,
+        "title": "The Death of Lazarus"
+      },
+      {
+        "verse": 17,
+        "title": "Jesus Comforts the Sisters of Lazarus"
+      },
+      {
+        "verse": 38,
+        "title": "Jesus Raises Lazarus From the Dead"
+      },
+      {
+        "verse": 45,
+        "title": "The Plot to Kill Jesus"
+      }
+    ],
+    "JHN.12": [
+      {
+        "verse": 1,
+        "title": "Jesus Anointed at Bethany"
+      },
+      {
+        "verse": 12,
+        "title": "Jesus Comes to Jerusalem as King"
+      },
+      {
+        "verse": 20,
+        "title": "Jesus Predicts His Death"
+      },
+      {
+        "verse": 37,
+        "title": "Belief and Unbelief Among the Jews"
+      }
+    ],
+    "JHN.13": [
+      {
+        "verse": 1,
+        "title": "Jesus Washes His Disciples’ Feet"
+      },
+      {
+        "verse": 18,
+        "title": "Jesus Predicts His Betrayal"
+      },
+      {
+        "verse": 31,
+        "title": "Jesus Predicts Peter’s Denial"
+      }
+    ],
+    "JHN.14": [
+      {
+        "verse": 1,
+        "title": "Jesus Comforts His Disciples"
+      },
+      {
+        "verse": 5,
+        "title": "Jesus the Way to the Father"
+      },
+      {
+        "verse": 15,
+        "title": "Jesus Promises the Holy Spirit"
+      }
+    ],
+    "JHN.15": [
+      {
+        "verse": 1,
+        "title": "The Vine and the Branches"
+      },
+      {
+        "verse": 18,
+        "title": "The World Hates the Disciples"
+      },
+      {
+        "verse": 26,
+        "title": "The Work of the Holy Spirit"
+      }
+    ],
+    "JHN.16": [
+      {
+        "verse": 16,
+        "title": "The Disciples’ Grief Will Turn to Joy"
+      }
+    ],
+    "JHN.17": [
+      {
+        "verse": 1,
+        "title": "Jesus Prays to Be Glorified"
+      },
+      {
+        "verse": 6,
+        "title": "Jesus Prays for His Disciples"
+      },
+      {
+        "verse": 20,
+        "title": "Jesus Prays for All Believers"
+      }
+    ],
+    "JHN.18": [
+      {
+        "verse": 1,
+        "title": "Jesus Arrested"
+      },
+      {
+        "verse": 15,
+        "title": "Peter’s First Denial"
+      },
+      {
+        "verse": 19,
+        "title": "The High Priest Questions Jesus"
+      },
+      {
+        "verse": 25,
+        "title": "Peter’s Second and Third Denials"
+      },
+      {
+        "verse": 28,
+        "title": "Jesus Before Pilate"
+      }
+    ],
+    "JHN.19": [
+      {
+        "verse": 1,
+        "title": "Jesus Sentenced to Be Crucified"
+      },
+      {
+        "verse": 17,
+        "title": "The Crucifixion of Jesus"
+      },
+      {
+        "verse": 28,
+        "title": "The Death of Jesus"
+      },
+      {
+        "verse": 38,
+        "title": "The Burial of Jesus"
+      }
+    ],
+    "JHN.2": [
+      {
+        "verse": 1,
+        "title": "Jesus Changes Water Into Wine"
+      },
+      {
+        "verse": 13,
+        "title": "Jesus Clears the Temple Courts"
+      }
+    ],
+    "JHN.20": [
+      {
+        "verse": 1,
+        "title": "The Empty Tomb"
+      },
+      {
+        "verse": 11,
+        "title": "Jesus Appears to Mary Magdalene"
+      },
+      {
+        "verse": 19,
+        "title": "Jesus Appears to His Disciples"
+      },
+      {
+        "verse": 24,
+        "title": "Jesus Appears to Thomas"
+      },
+      {
+        "verse": 30,
+        "title": "The Purpose of John’s Gospel"
+      }
+    ],
+    "JHN.21": [
+      {
+        "verse": 1,
+        "title": "Jesus and the Miraculous Catch of Fish"
+      },
+      {
+        "verse": 15,
+        "title": "Jesus Reinstates Peter"
+      }
+    ],
+    "JHN.3": [
+      {
+        "verse": 1,
+        "title": "Jesus Teaches Nicodemus"
+      },
+      {
+        "verse": 22,
+        "title": "John Testifies Again About Jesus"
+      }
+    ],
+    "JHN.4": [
+      {
+        "verse": 1,
+        "title": "Jesus Talks With a Samaritan Woman"
+      },
+      {
+        "verse": 27,
+        "title": "The Disciples Rejoin Jesus"
+      },
+      {
+        "verse": 39,
+        "title": "Many Samaritans Believe"
+      },
+      {
+        "verse": 43,
+        "title": "Jesus Heals an Official’s Son"
+      }
+    ],
+    "JHN.5": [
+      {
+        "verse": 1,
+        "title": "The Healing at the Pool"
+      },
+      {
+        "verse": 16,
+        "title": "The Authority of the Son"
+      },
+      {
+        "verse": 31,
+        "title": "Testimonies About Jesus"
+      }
+    ],
+    "JHN.6": [
+      {
+        "verse": 1,
+        "title": "Jesus Feeds the Five Thousand"
+      },
+      {
+        "verse": 16,
+        "title": "Jesus Walks on the Water"
+      },
+      {
+        "verse": 25,
+        "title": "Jesus the Bread of Life"
+      },
+      {
+        "verse": 60,
+        "title": "Many Disciples Desert Jesus"
+      }
+    ],
+    "JHN.7": [
+      {
+        "verse": 1,
+        "title": "Jesus Goes to the Festival of Tabernacles"
+      },
+      {
+        "verse": 14,
+        "title": "Jesus Teaches at the Festival"
+      },
+      {
+        "verse": 25,
+        "title": "Division Over Who Jesus Is"
+      },
+      {
+        "verse": 45,
+        "title": "Unbelief of the Jewish Leaders"
+      }
+    ],
+    "JHN.8": [
+      {
+        "verse": 12,
+        "title": "Dispute Over Jesus’ Testimony"
+      },
+      {
+        "verse": 21,
+        "title": "Dispute Over Who Jesus Is"
+      },
+      {
+        "verse": 31,
+        "title": "Dispute Over Whose Children Jesus’ Opponents Are"
+      },
+      {
+        "verse": 48,
+        "title": "Jesus’ Claims About Himself"
+      }
+    ],
+    "JHN.9": [
+      {
+        "verse": 1,
+        "title": "Jesus Heals a Man Born Blind"
+      },
+      {
+        "verse": 13,
+        "title": "The Pharisees Investigate the Healing"
+      },
+      {
+        "verse": 35,
+        "title": "Spiritual Blindness"
+      }
+    ],
+    "JOB.1": [
+      {
+        "verse": 1,
+        "title": "Prologue"
+      }
+    ],
+    "JOB.11": [
+      {
+        "verse": 1,
+        "title": "Zophar"
+      }
+    ],
+    "JOB.12": [
+      {
+        "verse": 1,
+        "title": "Job"
+      }
+    ],
+    "JOB.15": [
+      {
+        "verse": 1,
+        "title": "Eliphaz"
+      }
+    ],
+    "JOB.16": [
+      {
+        "verse": 1,
+        "title": "Job"
+      }
+    ],
+    "JOB.18": [
+      {
+        "verse": 1,
+        "title": "Bildad"
+      }
+    ],
+    "JOB.19": [
+      {
+        "verse": 1,
+        "title": "Job"
+      }
+    ],
+    "JOB.20": [
+      {
+        "verse": 1,
+        "title": "Zophar"
+      }
+    ],
+    "JOB.21": [
+      {
+        "verse": 1,
+        "title": "Job"
+      }
+    ],
+    "JOB.22": [
+      {
+        "verse": 1,
+        "title": "Eliphaz"
+      }
+    ],
+    "JOB.23": [
+      {
+        "verse": 1,
+        "title": "Job"
+      }
+    ],
+    "JOB.25": [
+      {
+        "verse": 1,
+        "title": "Bildad"
+      }
+    ],
+    "JOB.26": [
+      {
+        "verse": 1,
+        "title": "Job"
+      }
+    ],
+    "JOB.27": [
+      {
+        "verse": 1,
+        "title": "Job’s Final Word to His Friends"
+      }
+    ],
+    "JOB.28": [
+      {
+        "verse": 1,
+        "title": "Interlude: Where Wisdom Is Found"
+      }
+    ],
+    "JOB.29": [
+      {
+        "verse": 1,
+        "title": "Job’s Final Defense"
+      }
+    ],
+    "JOB.3": [
+      {
+        "verse": 1,
+        "title": "Job Speaks"
+      }
+    ],
+    "JOB.32": [
+      {
+        "verse": 1,
+        "title": "Elihu"
+      }
+    ],
+    "JOB.38": [
+      {
+        "verse": 1,
+        "title": "The LORD Speaks"
+      }
+    ],
+    "JOB.4": [
+      {
+        "verse": 1,
+        "title": "Eliphaz"
+      }
+    ],
+    "JOB.42": [
+      {
+        "verse": 1,
+        "title": "Job"
+      },
+      {
+        "verse": 7,
+        "title": "Epilogue"
+      }
+    ],
+    "JOB.6": [
+      {
+        "verse": 1,
+        "title": "Job"
+      }
+    ],
+    "JOB.8": [
+      {
+        "verse": 1,
+        "title": "Bildad"
+      }
+    ],
+    "JOB.9": [
+      {
+        "verse": 1,
+        "title": "Job"
+      }
+    ],
+    "JOL.1": [
+      {
+        "verse": 2,
+        "title": "An Invasion of Locusts"
+      },
+      {
+        "verse": 13,
+        "title": "A Call to Lamentation"
+      }
+    ],
+    "JOL.2": [
+      {
+        "verse": 1,
+        "title": "An Army of Locusts"
+      },
+      {
+        "verse": 12,
+        "title": "Rend Your Heart"
+      },
+      {
+        "verse": 18,
+        "title": "The LORD’s Answer"
+      },
+      {
+        "verse": 28,
+        "title": "The Day of the LORD"
+      }
+    ],
+    "JOL.3": [
+      {
+        "verse": 17,
+        "title": "Blessings for God’s People"
+      }
+    ],
+    "JON.1": [
+      {
+        "verse": 1,
+        "title": "Jonah Flees From the LORD"
+      },
+      {
+        "verse": 17,
+        "title": "Jonah’s Prayer"
+      }
+    ],
+    "JON.3": [
+      {
+        "verse": 1,
+        "title": "Jonah Goes to Nineveh"
+      }
+    ],
+    "JON.4": [
+      {
+        "verse": 1,
+        "title": "Jonah’s Anger at the LORD’s Compassion"
+      }
+    ],
+    "JOS.1": [
+      {
+        "verse": 1,
+        "title": "Joshua Installed as Leader"
+      }
+    ],
+    "JOS.10": [
+      {
+        "verse": 1,
+        "title": "The Sun Stands Still"
+      },
+      {
+        "verse": 16,
+        "title": "Five Amorite Kings Killed"
+      },
+      {
+        "verse": 28,
+        "title": "Southern Cities Conquered"
+      }
+    ],
+    "JOS.11": [
+      {
+        "verse": 1,
+        "title": "Northern Kings Defeated"
+      }
+    ],
+    "JOS.12": [
+      {
+        "verse": 1,
+        "title": "List of Defeated Kings"
+      }
+    ],
+    "JOS.13": [
+      {
+        "verse": 1,
+        "title": "Land Still to Be Taken"
+      },
+      {
+        "verse": 8,
+        "title": "Division of the Land East of the Jordan"
+      }
+    ],
+    "JOS.14": [
+      {
+        "verse": 1,
+        "title": "Division of the Land West of the Jordan"
+      },
+      {
+        "verse": 6,
+        "title": "Allotment for Caleb"
+      }
+    ],
+    "JOS.15": [
+      {
+        "verse": 1,
+        "title": "Allotment for Judah"
+      }
+    ],
+    "JOS.16": [
+      {
+        "verse": 1,
+        "title": "Allotment for Ephraim and Manasseh"
+      }
+    ],
+    "JOS.18": [
+      {
+        "verse": 1,
+        "title": "Division of the Rest of the Land"
+      },
+      {
+        "verse": 11,
+        "title": "Allotment for Benjamin"
+      }
+    ],
+    "JOS.19": [
+      {
+        "verse": 1,
+        "title": "Allotment for Simeon"
+      },
+      {
+        "verse": 10,
+        "title": "Allotment for Zebulun"
+      },
+      {
+        "verse": 17,
+        "title": "Allotment for Issachar"
+      },
+      {
+        "verse": 24,
+        "title": "Allotment for Asher"
+      },
+      {
+        "verse": 32,
+        "title": "Allotment for Naphtali"
+      },
+      {
+        "verse": 40,
+        "title": "Allotment for Dan"
+      },
+      {
+        "verse": 49,
+        "title": "Allotment for Joshua"
+      }
+    ],
+    "JOS.2": [
+      {
+        "verse": 1,
+        "title": "Rahab and the Spies"
+      }
+    ],
+    "JOS.20": [
+      {
+        "verse": 1,
+        "title": "Cities of Refuge"
+      }
+    ],
+    "JOS.21": [
+      {
+        "verse": 1,
+        "title": "Towns for the Levites"
+      }
+    ],
+    "JOS.22": [
+      {
+        "verse": 1,
+        "title": "Eastern Tribes Return Home"
+      }
+    ],
+    "JOS.23": [
+      {
+        "verse": 1,
+        "title": "Joshua’s Farewell to the Leaders"
+      }
+    ],
+    "JOS.24": [
+      {
+        "verse": 1,
+        "title": "The Covenant Renewed at Shechem"
+      },
+      {
+        "verse": 29,
+        "title": "Buried in the Promised Land"
+      }
+    ],
+    "JOS.3": [
+      {
+        "verse": 1,
+        "title": "Crossing the Jordan"
+      }
+    ],
+    "JOS.5": [
+      {
+        "verse": 2,
+        "title": "Circumcision and Passover at Gilgal"
+      },
+      {
+        "verse": 13,
+        "title": "The Fall of Jericho"
+      }
+    ],
+    "JOS.7": [
+      {
+        "verse": 1,
+        "title": "Achan’s Sin"
+      }
+    ],
+    "JOS.8": [
+      {
+        "verse": 1,
+        "title": "Ai Destroyed"
+      },
+      {
+        "verse": 30,
+        "title": "The Covenant Renewed at Mount Ebal"
+      }
+    ],
+    "JOS.9": [
+      {
+        "verse": 1,
+        "title": "The Gibeonite Deception"
+      }
+    ],
+    "JUD.1": [
+      {
+        "verse": 3,
+        "title": "The Sin and Doom of Ungodly People"
+      },
+      {
+        "verse": 17,
+        "title": "A Call to Persevere"
+      },
+      {
+        "verse": 24,
+        "title": "Doxology"
+      }
+    ],
+    "LEV.1": [
+      {
+        "verse": 1,
+        "title": "The Burnt Offering"
+      }
+    ],
+    "LEV.10": [
+      {
+        "verse": 1,
+        "title": "The Death of Nadab and Abihu"
+      }
+    ],
+    "LEV.11": [
+      {
+        "verse": 1,
+        "title": "Clean and Unclean Food"
+      }
+    ],
+    "LEV.12": [
+      {
+        "verse": 1,
+        "title": "Purification After Childbirth"
+      }
+    ],
+    "LEV.13": [
+      {
+        "verse": 1,
+        "title": "Regulations About Defiling Skin Diseases"
+      },
+      {
+        "verse": 47,
+        "title": "Regulations About Defiling Molds"
+      }
+    ],
+    "LEV.14": [
+      {
+        "verse": 1,
+        "title": "Cleansing From Defiling Skin Diseases"
+      },
+      {
+        "verse": 33,
+        "title": "Cleansing From Defiling Molds"
+      }
+    ],
+    "LEV.15": [
+      {
+        "verse": 1,
+        "title": "Discharges Causing Uncleanness"
+      }
+    ],
+    "LEV.16": [
+      {
+        "verse": 1,
+        "title": "The Day of Atonement"
+      }
+    ],
+    "LEV.17": [
+      {
+        "verse": 1,
+        "title": "Eating Blood Forbidden"
+      }
+    ],
+    "LEV.18": [
+      {
+        "verse": 1,
+        "title": "Unlawful Sexual Relations"
+      }
+    ],
+    "LEV.19": [
+      {
+        "verse": 1,
+        "title": "Various Laws"
+      }
+    ],
+    "LEV.2": [
+      {
+        "verse": 1,
+        "title": "The Grain Offering"
+      }
+    ],
+    "LEV.20": [
+      {
+        "verse": 1,
+        "title": "Punishments for Sin"
+      }
+    ],
+    "LEV.21": [
+      {
+        "verse": 1,
+        "title": "Rules for Priests"
+      }
+    ],
+    "LEV.22": [
+      {
+        "verse": 17,
+        "title": "Unacceptable Sacrifices"
+      }
+    ],
+    "LEV.23": [
+      {
+        "verse": 1,
+        "title": "The Appointed Festivals"
+      }
+    ],
+    "LEV.24": [
+      {
+        "verse": 1,
+        "title": "Olive Oil and Bread Set Before the LORD"
+      },
+      {
+        "verse": 10,
+        "title": "A Blasphemer Put to Death"
+      }
+    ],
+    "LEV.25": [
+      {
+        "verse": 1,
+        "title": "The Sabbath Year"
+      },
+      {
+        "verse": 8,
+        "title": "The Year of Jubilee"
+      }
+    ],
+    "LEV.26": [
+      {
+        "verse": 1,
+        "title": "Reward for Obedience"
+      },
+      {
+        "verse": 14,
+        "title": "Punishment for Disobedience"
+      }
+    ],
+    "LEV.27": [
+      {
+        "verse": 1,
+        "title": "Redeeming What Is the LORD’s"
+      }
+    ],
+    "LEV.3": [
+      {
+        "verse": 1,
+        "title": "The Fellowship Offering"
+      }
+    ],
+    "LEV.4": [
+      {
+        "verse": 1,
+        "title": "The Sin Offering"
+      }
+    ],
+    "LEV.5": [
+      {
+        "verse": 14,
+        "title": "The Guilt Offering"
+      }
+    ],
+    "LEV.6": [
+      {
+        "verse": 8,
+        "title": "The Burnt Offering"
+      },
+      {
+        "verse": 14,
+        "title": "The Grain Offering"
+      },
+      {
+        "verse": 24,
+        "title": "The Sin Offering"
+      }
+    ],
+    "LEV.7": [
+      {
+        "verse": 1,
+        "title": "The Guilt Offering"
+      },
+      {
+        "verse": 11,
+        "title": "The Fellowship Offering"
+      },
+      {
+        "verse": 22,
+        "title": "Eating Fat and Blood Forbidden"
+      },
+      {
+        "verse": 28,
+        "title": "The Priests’ Share"
+      }
+    ],
+    "LEV.8": [
+      {
+        "verse": 1,
+        "title": "The Ordination of Aaron and His Sons"
+      }
+    ],
+    "LEV.9": [
+      {
+        "verse": 1,
+        "title": "The Priests Begin Their Ministry"
+      }
+    ],
+    "LUK.1": [
+      {
+        "verse": 1,
+        "title": "Introduction"
+      },
+      {
+        "verse": 5,
+        "title": "The Birth of John the Baptist Foretold"
+      },
+      {
+        "verse": 26,
+        "title": "The Birth of Jesus Foretold"
+      },
+      {
+        "verse": 39,
+        "title": "Mary Visits Elizabeth"
+      },
+      {
+        "verse": 46,
+        "title": "Mary’s Song"
+      },
+      {
+        "verse": 57,
+        "title": "The Birth of John the Baptist"
+      },
+      {
+        "verse": 67,
+        "title": "Zechariah’s Song"
+      }
+    ],
+    "LUK.10": [
+      {
+        "verse": 1,
+        "title": "Jesus Sends Out the Seventy-Two"
+      },
+      {
+        "verse": 25,
+        "title": "The Parable of the Good Samaritan"
+      },
+      {
+        "verse": 38,
+        "title": "At the Home of Martha and Mary"
+      }
+    ],
+    "LUK.11": [
+      {
+        "verse": 1,
+        "title": "Jesus’ Teaching on Prayer"
+      },
+      {
+        "verse": 14,
+        "title": "Jesus and Beelzebul"
+      },
+      {
+        "verse": 29,
+        "title": "The Sign of Jonah"
+      },
+      {
+        "verse": 33,
+        "title": "The Lamp of the Body"
+      },
+      {
+        "verse": 37,
+        "title": "Woes on the Pharisees and the Experts in the Law"
+      }
+    ],
+    "LUK.12": [
+      {
+        "verse": 1,
+        "title": "Warnings and Encouragements"
+      },
+      {
+        "verse": 13,
+        "title": "The Parable of the Rich Fool"
+      },
+      {
+        "verse": 22,
+        "title": "Do Not Worry"
+      },
+      {
+        "verse": 35,
+        "title": "Watchfulness"
+      },
+      {
+        "verse": 49,
+        "title": "Not Peace but Division"
+      },
+      {
+        "verse": 54,
+        "title": "Interpreting the Times"
+      }
+    ],
+    "LUK.13": [
+      {
+        "verse": 1,
+        "title": "Repent or Perish"
+      },
+      {
+        "verse": 10,
+        "title": "Jesus Heals a Crippled Woman on the Sabbath"
+      },
+      {
+        "verse": 18,
+        "title": "The Parables of the Mustard Seed and the Yeast"
+      },
+      {
+        "verse": 22,
+        "title": "The Narrow Door"
+      },
+      {
+        "verse": 31,
+        "title": "Jesus’ Sorrow for Jerusalem"
+      }
+    ],
+    "LUK.14": [
+      {
+        "verse": 1,
+        "title": "Jesus at a Pharisee’s House"
+      },
+      {
+        "verse": 15,
+        "title": "The Parable of the Great Banquet"
+      },
+      {
+        "verse": 25,
+        "title": "The Cost of Being a Disciple"
+      }
+    ],
+    "LUK.15": [
+      {
+        "verse": 1,
+        "title": "The Parable of the Lost Sheep"
+      },
+      {
+        "verse": 8,
+        "title": "The Parable of the Lost Coin"
+      },
+      {
+        "verse": 11,
+        "title": "The Parable of the Lost Son"
+      }
+    ],
+    "LUK.16": [
+      {
+        "verse": 1,
+        "title": "The Parable of the Shrewd Manager"
+      },
+      {
+        "verse": 16,
+        "title": "Additional Teachings"
+      },
+      {
+        "verse": 19,
+        "title": "The Rich Man and Lazarus"
+      }
+    ],
+    "LUK.17": [
+      {
+        "verse": 1,
+        "title": "Sin, Faith, Duty"
+      },
+      {
+        "verse": 11,
+        "title": "Jesus Heals Ten Men With Leprosy"
+      },
+      {
+        "verse": 20,
+        "title": "The Coming of the Kingdom of God"
+      }
+    ],
+    "LUK.18": [
+      {
+        "verse": 1,
+        "title": "The Parable of the Persistent Widow"
+      },
+      {
+        "verse": 9,
+        "title": "The Parable of the Pharisee and the Tax Collector"
+      },
+      {
+        "verse": 15,
+        "title": "The Little Children and Jesus"
+      },
+      {
+        "verse": 18,
+        "title": "The Rich and the Kingdom of God"
+      },
+      {
+        "verse": 31,
+        "title": "Jesus Predicts His Death a Third Time"
+      },
+      {
+        "verse": 35,
+        "title": "A Blind Beggar Receives His Sight"
+      }
+    ],
+    "LUK.19": [
+      {
+        "verse": 1,
+        "title": "Zacchaeus the Tax Collector"
+      },
+      {
+        "verse": 11,
+        "title": "The Parable of the Ten Minas"
+      },
+      {
+        "verse": 28,
+        "title": "Jesus Comes to Jerusalem as King"
+      },
+      {
+        "verse": 45,
+        "title": "Jesus at the Temple"
+      }
+    ],
+    "LUK.2": [
+      {
+        "verse": 1,
+        "title": "The Birth of Jesus"
+      },
+      {
+        "verse": 22,
+        "title": "Jesus Presented in the Temple"
+      },
+      {
+        "verse": 41,
+        "title": "The Boy Jesus at the Temple"
+      }
+    ],
+    "LUK.20": [
+      {
+        "verse": 1,
+        "title": "The Authority of Jesus Questioned"
+      },
+      {
+        "verse": 9,
+        "title": "The Parable of the Tenants"
+      },
+      {
+        "verse": 20,
+        "title": "Paying Taxes to Caesar"
+      },
+      {
+        "verse": 27,
+        "title": "The Resurrection and Marriage"
+      },
+      {
+        "verse": 41,
+        "title": "Whose Son Is the Messiah?"
+      },
+      {
+        "verse": 45,
+        "title": "Warning Against the Teachers of the Law"
+      }
+    ],
+    "LUK.21": [
+      {
+        "verse": 1,
+        "title": "The Widow’s Offering"
+      },
+      {
+        "verse": 5,
+        "title": "The Destruction of the Temple and Signs of the End Times"
+      }
+    ],
+    "LUK.22": [
+      {
+        "verse": 1,
+        "title": "Judas Agrees to Betray Jesus"
+      },
+      {
+        "verse": 7,
+        "title": "The Last Supper"
+      },
+      {
+        "verse": 39,
+        "title": "Jesus Prays on the Mount of Olives"
+      },
+      {
+        "verse": 47,
+        "title": "Jesus Arrested"
+      },
+      {
+        "verse": 54,
+        "title": "Peter Disowns Jesus"
+      },
+      {
+        "verse": 63,
+        "title": "The Guards Mock Jesus"
+      },
+      {
+        "verse": 66,
+        "title": "Jesus Before Pilate and Herod"
+      }
+    ],
+    "LUK.23": [
+      {
+        "verse": 26,
+        "title": "The Crucifixion of Jesus"
+      },
+      {
+        "verse": 44,
+        "title": "The Death of Jesus"
+      },
+      {
+        "verse": 50,
+        "title": "The Burial of Jesus"
+      }
+    ],
+    "LUK.24": [
+      {
+        "verse": 1,
+        "title": "Jesus Has Risen"
+      },
+      {
+        "verse": 13,
+        "title": "On the Road to Emmaus"
+      },
+      {
+        "verse": 36,
+        "title": "Jesus Appears to the Disciples"
+      },
+      {
+        "verse": 50,
+        "title": "The Ascension of Jesus"
+      }
+    ],
+    "LUK.3": [
+      {
+        "verse": 1,
+        "title": "John the Baptist Prepares the Way"
+      },
+      {
+        "verse": 21,
+        "title": "The Baptism and Genealogy of Jesus"
+      }
+    ],
+    "LUK.4": [
+      {
+        "verse": 1,
+        "title": "Jesus Is Tested in the Wilderness"
+      },
+      {
+        "verse": 14,
+        "title": "Jesus Rejected at Nazareth"
+      },
+      {
+        "verse": 31,
+        "title": "Jesus Drives Out an Impure Spirit"
+      },
+      {
+        "verse": 38,
+        "title": "Jesus Heals Many"
+      }
+    ],
+    "LUK.5": [
+      {
+        "verse": 1,
+        "title": "Jesus Calls His First Disciples"
+      },
+      {
+        "verse": 12,
+        "title": "Jesus Heals a Man With Leprosy"
+      },
+      {
+        "verse": 17,
+        "title": "Jesus Forgives and Heals a Paralyzed Man"
+      },
+      {
+        "verse": 27,
+        "title": "Jesus Calls Levi and Eats With Sinners"
+      },
+      {
+        "verse": 33,
+        "title": "Jesus Questioned About Fasting"
+      }
+    ],
+    "LUK.6": [
+      {
+        "verse": 1,
+        "title": "Jesus Is Lord of the Sabbath"
+      },
+      {
+        "verse": 12,
+        "title": "The Twelve Apostles"
+      },
+      {
+        "verse": 17,
+        "title": "Blessings and Woes"
+      },
+      {
+        "verse": 27,
+        "title": "Love for Enemies"
+      },
+      {
+        "verse": 37,
+        "title": "Judging Others"
+      },
+      {
+        "verse": 43,
+        "title": "A Tree and Its Fruit"
+      },
+      {
+        "verse": 46,
+        "title": "The Wise and Foolish Builders"
+      }
+    ],
+    "LUK.7": [
+      {
+        "verse": 1,
+        "title": "The Faith of the Centurion"
+      },
+      {
+        "verse": 11,
+        "title": "Jesus Raises a Widow’s Son"
+      },
+      {
+        "verse": 18,
+        "title": "Jesus and John the Baptist"
+      },
+      {
+        "verse": 36,
+        "title": "Jesus Anointed by a Sinful Woman"
+      }
+    ],
+    "LUK.8": [
+      {
+        "verse": 1,
+        "title": "The Parable of the Sower"
+      },
+      {
+        "verse": 16,
+        "title": "A Lamp on a Stand"
+      },
+      {
+        "verse": 19,
+        "title": "Jesus’ Mother and Brothers"
+      },
+      {
+        "verse": 22,
+        "title": "Jesus Calms the Storm"
+      },
+      {
+        "verse": 26,
+        "title": "Jesus Restores a Demon-Possessed Man"
+      },
+      {
+        "verse": 40,
+        "title": "Jesus Raises a Dead Girl and Heals a Sick Woman"
+      }
+    ],
+    "LUK.9": [
+      {
+        "verse": 1,
+        "title": "Jesus Sends Out the Twelve"
+      },
+      {
+        "verse": 10,
+        "title": "Jesus Feeds the Five Thousand"
+      },
+      {
+        "verse": 18,
+        "title": "Peter Declares That Jesus Is the Messiah"
+      },
+      {
+        "verse": 21,
+        "title": "Jesus Predicts His Death"
+      },
+      {
+        "verse": 28,
+        "title": "The Transfiguration"
+      },
+      {
+        "verse": 37,
+        "title": "Jesus Heals a Demon-Possessed Boy"
+      },
+      {
+        "verse": 44,
+        "title": "Jesus Predicts His Death a Second Time"
+      },
+      {
+        "verse": 51,
+        "title": "Samaritan Opposition"
+      },
+      {
+        "verse": 57,
+        "title": "The Cost of Following Jesus"
+      }
+    ],
+    "MAL.1": [
+      {
+        "verse": 2,
+        "title": "Israel Doubts God’s Love"
+      },
+      {
+        "verse": 6,
+        "title": "Breaking Covenant Through Blemished Sacrifices"
+      }
+    ],
+    "MAL.2": [
+      {
+        "verse": 1,
+        "title": "Additional Warning to the Priests"
+      },
+      {
+        "verse": 10,
+        "title": "Breaking Covenant Through Divorce"
+      },
+      {
+        "verse": 17,
+        "title": "Breaking Covenant Through Injustice"
+      }
+    ],
+    "MAL.3": [
+      {
+        "verse": 6,
+        "title": "Breaking Covenant by Withholding Tithes"
+      },
+      {
+        "verse": 13,
+        "title": "Israel Speaks Arrogantly Against God"
+      },
+      {
+        "verse": 16,
+        "title": "The Faithful Remnant"
+      }
+    ],
+    "MAT.1": [
+      {
+        "verse": 1,
+        "title": "The Genealogy of Jesus the Messiah"
+      },
+      {
+        "verse": 18,
+        "title": "Joseph Accepts Jesus as His Son"
+      }
+    ],
+    "MAT.10": [
+      {
+        "verse": 1,
+        "title": "Jesus Sends Out the Twelve"
+      }
+    ],
+    "MAT.11": [
+      {
+        "verse": 1,
+        "title": "Jesus and John the Baptist"
+      },
+      {
+        "verse": 20,
+        "title": "Woe on Unrepentant Towns"
+      },
+      {
+        "verse": 25,
+        "title": "The Father Revealed in the Son"
+      }
+    ],
+    "MAT.12": [
+      {
+        "verse": 1,
+        "title": "Jesus Is Lord of the Sabbath"
+      },
+      {
+        "verse": 15,
+        "title": "God’s Chosen Servant"
+      },
+      {
+        "verse": 22,
+        "title": "Jesus and Beelzebul"
+      },
+      {
+        "verse": 38,
+        "title": "The Sign of Jonah"
+      },
+      {
+        "verse": 46,
+        "title": "Jesus’ Mother and Brothers"
+      }
+    ],
+    "MAT.13": [
+      {
+        "verse": 1,
+        "title": "The Parable of the Sower"
+      },
+      {
+        "verse": 24,
+        "title": "The Parable of the Weeds"
+      },
+      {
+        "verse": 31,
+        "title": "The Parables of the Mustard Seed and the Yeast"
+      },
+      {
+        "verse": 36,
+        "title": "The Parable of the Weeds Explained"
+      },
+      {
+        "verse": 44,
+        "title": "The Parables of the Hidden Treasure and the Pearl"
+      },
+      {
+        "verse": 47,
+        "title": "The Parable of the Net"
+      },
+      {
+        "verse": 53,
+        "title": "A Prophet Without Honor"
+      }
+    ],
+    "MAT.14": [
+      {
+        "verse": 1,
+        "title": "John the Baptist Beheaded"
+      },
+      {
+        "verse": 13,
+        "title": "Jesus Feeds the Five Thousand"
+      },
+      {
+        "verse": 22,
+        "title": "Jesus Walks on the Water"
+      }
+    ],
+    "MAT.15": [
+      {
+        "verse": 1,
+        "title": "That Which Defiles"
+      },
+      {
+        "verse": 21,
+        "title": "The Faith of a Canaanite Woman"
+      },
+      {
+        "verse": 29,
+        "title": "Jesus Feeds the Four Thousand"
+      }
+    ],
+    "MAT.16": [
+      {
+        "verse": 1,
+        "title": "The Demand for a Sign"
+      },
+      {
+        "verse": 5,
+        "title": "The Yeast of the Pharisees and Sadducees"
+      },
+      {
+        "verse": 13,
+        "title": "Peter Declares That Jesus Is the Messiah"
+      },
+      {
+        "verse": 21,
+        "title": "Jesus Predicts His Death"
+      }
+    ],
+    "MAT.17": [
+      {
+        "verse": 1,
+        "title": "The Transfiguration"
+      },
+      {
+        "verse": 14,
+        "title": "Jesus Heals a Demon-Possessed Boy"
+      },
+      {
+        "verse": 22,
+        "title": "Jesus Predicts His Death a Second Time"
+      },
+      {
+        "verse": 24,
+        "title": "The Temple Tax"
+      }
+    ],
+    "MAT.18": [
+      {
+        "verse": 1,
+        "title": "The Greatest in the Kingdom of Heaven"
+      },
+      {
+        "verse": 6,
+        "title": "Causing to Stumble"
+      },
+      {
+        "verse": 10,
+        "title": "The Parable of the Wandering Sheep"
+      },
+      {
+        "verse": 15,
+        "title": "Dealing With Sin in the Church"
+      },
+      {
+        "verse": 21,
+        "title": "The Parable of the Unmerciful Servant"
+      }
+    ],
+    "MAT.19": [
+      {
+        "verse": 1,
+        "title": "Divorce"
+      },
+      {
+        "verse": 13,
+        "title": "The Little Children and Jesus"
+      },
+      {
+        "verse": 16,
+        "title": "The Rich and the Kingdom of God"
+      }
+    ],
+    "MAT.2": [
+      {
+        "verse": 1,
+        "title": "The Magi Visit the Messiah"
+      },
+      {
+        "verse": 13,
+        "title": "The Escape to Egypt"
+      },
+      {
+        "verse": 19,
+        "title": "The Return to Nazareth"
+      }
+    ],
+    "MAT.20": [
+      {
+        "verse": 1,
+        "title": "The Parable of the Workers in the Vineyard"
+      },
+      {
+        "verse": 17,
+        "title": "Jesus Predicts His Death a Third Time"
+      },
+      {
+        "verse": 20,
+        "title": "A Mother’s Request"
+      },
+      {
+        "verse": 29,
+        "title": "Two Blind Men Receive Sight"
+      }
+    ],
+    "MAT.21": [
+      {
+        "verse": 1,
+        "title": "Jesus Comes to Jerusalem as King"
+      },
+      {
+        "verse": 12,
+        "title": "Jesus at the Temple"
+      },
+      {
+        "verse": 18,
+        "title": "Jesus Curses a Fig Tree"
+      },
+      {
+        "verse": 23,
+        "title": "The Authority of Jesus Questioned"
+      },
+      {
+        "verse": 28,
+        "title": "The Parable of the Two Sons"
+      },
+      {
+        "verse": 33,
+        "title": "The Parable of the Tenants"
+      }
+    ],
+    "MAT.22": [
+      {
+        "verse": 1,
+        "title": "The Parable of the Wedding Banquet"
+      },
+      {
+        "verse": 15,
+        "title": "Paying the Imperial Tax to Caesar"
+      },
+      {
+        "verse": 23,
+        "title": "Marriage at the Resurrection"
+      },
+      {
+        "verse": 34,
+        "title": "The Greatest Commandment"
+      },
+      {
+        "verse": 41,
+        "title": "Whose Son Is the Messiah?"
+      }
+    ],
+    "MAT.23": [
+      {
+        "verse": 1,
+        "title": "A Warning Against Hypocrisy"
+      },
+      {
+        "verse": 13,
+        "title": "Seven Woes on the Teachers of the Law and the Pharisees"
+      }
+    ],
+    "MAT.24": [
+      {
+        "verse": 1,
+        "title": "The Destruction of the Temple and Signs of the End Times"
+      },
+      {
+        "verse": 36,
+        "title": "The Day and Hour Unknown"
+      }
+    ],
+    "MAT.25": [
+      {
+        "verse": 1,
+        "title": "The Parable of the Ten Virgins"
+      },
+      {
+        "verse": 14,
+        "title": "The Parable of the Bags of Gold"
+      },
+      {
+        "verse": 31,
+        "title": "The Sheep and the Goats"
+      }
+    ],
+    "MAT.26": [
+      {
+        "verse": 1,
+        "title": "The Plot Against Jesus"
+      },
+      {
+        "verse": 6,
+        "title": "Jesus Anointed at Bethany"
+      },
+      {
+        "verse": 14,
+        "title": "Judas Agrees to Betray Jesus"
+      },
+      {
+        "verse": 17,
+        "title": "The Last Supper"
+      },
+      {
+        "verse": 31,
+        "title": "Jesus Predicts Peter’s Denial"
+      },
+      {
+        "verse": 36,
+        "title": "Gethsemane"
+      },
+      {
+        "verse": 47,
+        "title": "Jesus Arrested"
+      },
+      {
+        "verse": 57,
+        "title": "Jesus Before the Sanhedrin"
+      },
+      {
+        "verse": 69,
+        "title": "Peter Disowns Jesus"
+      }
+    ],
+    "MAT.27": [
+      {
+        "verse": 1,
+        "title": "Judas Hangs Himself"
+      },
+      {
+        "verse": 11,
+        "title": "Jesus Before Pilate"
+      },
+      {
+        "verse": 27,
+        "title": "The Soldiers Mock Jesus"
+      },
+      {
+        "verse": 32,
+        "title": "The Crucifixion of Jesus"
+      },
+      {
+        "verse": 45,
+        "title": "The Death of Jesus"
+      },
+      {
+        "verse": 57,
+        "title": "The Burial of Jesus"
+      },
+      {
+        "verse": 62,
+        "title": "The Guard at the Tomb"
+      }
+    ],
+    "MAT.28": [
+      {
+        "verse": 1,
+        "title": "Jesus Has Risen"
+      },
+      {
+        "verse": 11,
+        "title": "The Guards’ Report"
+      },
+      {
+        "verse": 16,
+        "title": "The Great Commission"
+      }
+    ],
+    "MAT.3": [
+      {
+        "verse": 1,
+        "title": "John the Baptist Prepares the Way"
+      },
+      {
+        "verse": 13,
+        "title": "The Baptism of Jesus"
+      }
+    ],
+    "MAT.4": [
+      {
+        "verse": 1,
+        "title": "Jesus Is Tested in the Wilderness"
+      },
+      {
+        "verse": 12,
+        "title": "Jesus Begins to Preach"
+      },
+      {
+        "verse": 18,
+        "title": "Jesus Calls His First Disciples"
+      },
+      {
+        "verse": 23,
+        "title": "Jesus Heals the Sick"
+      }
+    ],
+    "MAT.5": [
+      {
+        "verse": 1,
+        "title": "Introduction to the Sermon on the Mount"
+      },
+      {
+        "verse": 3,
+        "title": "The Beatitudes"
+      },
+      {
+        "verse": 13,
+        "title": "Salt and Light"
+      },
+      {
+        "verse": 17,
+        "title": "The Fulfillment of the Law"
+      },
+      {
+        "verse": 21,
+        "title": "Murder"
+      },
+      {
+        "verse": 27,
+        "title": "Adultery"
+      },
+      {
+        "verse": 31,
+        "title": "Divorce"
+      },
+      {
+        "verse": 33,
+        "title": "Oaths"
+      },
+      {
+        "verse": 38,
+        "title": "Eye for Eye"
+      },
+      {
+        "verse": 43,
+        "title": "Love for Enemies"
+      }
+    ],
+    "MAT.6": [
+      {
+        "verse": 1,
+        "title": "Giving to the Needy"
+      },
+      {
+        "verse": 5,
+        "title": "Prayer"
+      },
+      {
+        "verse": 16,
+        "title": "Fasting"
+      },
+      {
+        "verse": 19,
+        "title": "Treasures in Heaven"
+      },
+      {
+        "verse": 25,
+        "title": "Do Not Worry"
+      }
+    ],
+    "MAT.7": [
+      {
+        "verse": 1,
+        "title": "Judging Others"
+      },
+      {
+        "verse": 7,
+        "title": "Ask, Seek, Knock"
+      },
+      {
+        "verse": 13,
+        "title": "The Narrow and Wide Gates"
+      },
+      {
+        "verse": 15,
+        "title": "True and False Prophets"
+      },
+      {
+        "verse": 21,
+        "title": "True and False Disciples"
+      },
+      {
+        "verse": 24,
+        "title": "The Wise and Foolish Builders"
+      }
+    ],
+    "MAT.8": [
+      {
+        "verse": 1,
+        "title": "Jesus Heals a Man With Leprosy"
+      },
+      {
+        "verse": 5,
+        "title": "The Faith of the Centurion"
+      },
+      {
+        "verse": 14,
+        "title": "Jesus Heals Many"
+      },
+      {
+        "verse": 18,
+        "title": "The Cost of Following Jesus"
+      },
+      {
+        "verse": 23,
+        "title": "Jesus Calms the Storm"
+      },
+      {
+        "verse": 28,
+        "title": "Jesus Restores Two Demon-Possessed Men"
+      }
+    ],
+    "MAT.9": [
+      {
+        "verse": 1,
+        "title": "Jesus Forgives and Heals a Paralyzed Man"
+      },
+      {
+        "verse": 9,
+        "title": "The Calling of Matthew"
+      },
+      {
+        "verse": 14,
+        "title": "Jesus Questioned About Fasting"
+      },
+      {
+        "verse": 18,
+        "title": "Jesus Raises a Dead Girl and Heals a Sick Woman"
+      },
+      {
+        "verse": 27,
+        "title": "Jesus Heals the Blind and the Mute"
+      },
+      {
+        "verse": 35,
+        "title": "The Workers Are Few"
+      }
+    ],
+    "MIC.1": [
+      {
+        "verse": 3,
+        "title": "Judgment Against Samaria and Jerusalem"
+      },
+      {
+        "verse": 8,
+        "title": "Weeping and Mourning"
+      }
+    ],
+    "MIC.2": [
+      {
+        "verse": 1,
+        "title": "Human Plans and God’s Plans"
+      },
+      {
+        "verse": 6,
+        "title": "False Prophets"
+      },
+      {
+        "verse": 12,
+        "title": "Deliverance Promised"
+      }
+    ],
+    "MIC.3": [
+      {
+        "verse": 1,
+        "title": "Leaders and Prophets Rebuked"
+      }
+    ],
+    "MIC.4": [
+      {
+        "verse": 1,
+        "title": "The Mountain of the LORD"
+      },
+      {
+        "verse": 6,
+        "title": "The LORD’s Plan"
+      }
+    ],
+    "MIC.6": [
+      {
+        "verse": 1,
+        "title": "The LORD’s Case Against Israel"
+      },
+      {
+        "verse": 9,
+        "title": "Israel’s Guilt and Punishment"
+      }
+    ],
+    "MIC.7": [
+      {
+        "verse": 1,
+        "title": "Israel’s Misery"
+      },
+      {
+        "verse": 8,
+        "title": "Israel Will Rise"
+      },
+      {
+        "verse": 14,
+        "title": "Prayer and Praise"
+      }
+    ],
+    "MRK.1": [
+      {
+        "verse": 1,
+        "title": "John the Baptist Prepares the Way"
+      },
+      {
+        "verse": 9,
+        "title": "The Baptism and Testing of Jesus"
+      },
+      {
+        "verse": 14,
+        "title": "Jesus Announces the Good News"
+      },
+      {
+        "verse": 16,
+        "title": "Jesus Calls His First Disciples"
+      },
+      {
+        "verse": 21,
+        "title": "Jesus Drives Out an Impure Spirit"
+      },
+      {
+        "verse": 29,
+        "title": "Jesus Heals Many"
+      },
+      {
+        "verse": 35,
+        "title": "Jesus Prays in a Solitary Place"
+      },
+      {
+        "verse": 40,
+        "title": "Jesus Heals a Man With Leprosy"
+      }
+    ],
+    "MRK.10": [
+      {
+        "verse": 1,
+        "title": "Divorce"
+      },
+      {
+        "verse": 13,
+        "title": "The Little Children and Jesus"
+      },
+      {
+        "verse": 17,
+        "title": "The Rich and the Kingdom of God"
+      },
+      {
+        "verse": 32,
+        "title": "Jesus Predicts His Death a Third Time"
+      },
+      {
+        "verse": 35,
+        "title": "The Request of James and John"
+      },
+      {
+        "verse": 46,
+        "title": "Blind Bartimaeus Receives His Sight"
+      }
+    ],
+    "MRK.11": [
+      {
+        "verse": 1,
+        "title": "Jesus Comes to Jerusalem as King"
+      },
+      {
+        "verse": 12,
+        "title": "Jesus Curses a Fig Tree and Clears the Temple Courts"
+      },
+      {
+        "verse": 27,
+        "title": "The Authority of Jesus Questioned"
+      }
+    ],
+    "MRK.12": [
+      {
+        "verse": 1,
+        "title": "The Parable of the Tenants"
+      },
+      {
+        "verse": 13,
+        "title": "Paying the Imperial Tax to Caesar"
+      },
+      {
+        "verse": 18,
+        "title": "Marriage at the Resurrection"
+      },
+      {
+        "verse": 28,
+        "title": "The Greatest Commandment"
+      },
+      {
+        "verse": 35,
+        "title": "Whose Son Is the Messiah?"
+      },
+      {
+        "verse": 38,
+        "title": "Warning Against the Teachers of the Law"
+      },
+      {
+        "verse": 41,
+        "title": "The Widow’s Offering"
+      }
+    ],
+    "MRK.13": [
+      {
+        "verse": 1,
+        "title": "The Destruction of the Temple and Signs of the End Times"
+      },
+      {
+        "verse": 32,
+        "title": "The Day and Hour Unknown"
+      }
+    ],
+    "MRK.14": [
+      {
+        "verse": 1,
+        "title": "Jesus Anointed at Bethany"
+      },
+      {
+        "verse": 12,
+        "title": "The Last Supper"
+      },
+      {
+        "verse": 27,
+        "title": "Jesus Predicts Peter’s Denial"
+      },
+      {
+        "verse": 32,
+        "title": "Gethsemane"
+      },
+      {
+        "verse": 43,
+        "title": "Jesus Arrested"
+      },
+      {
+        "verse": 53,
+        "title": "Jesus Before the Sanhedrin"
+      },
+      {
+        "verse": 66,
+        "title": "Peter Disowns Jesus"
+      }
+    ],
+    "MRK.15": [
+      {
+        "verse": 1,
+        "title": "Jesus Before Pilate"
+      },
+      {
+        "verse": 16,
+        "title": "The Soldiers Mock Jesus"
+      },
+      {
+        "verse": 21,
+        "title": "The Crucifixion of Jesus"
+      },
+      {
+        "verse": 33,
+        "title": "The Death of Jesus"
+      },
+      {
+        "verse": 42,
+        "title": "The Burial of Jesus"
+      }
+    ],
+    "MRK.16": [
+      {
+        "verse": 1,
+        "title": "Jesus Has Risen"
+      }
+    ],
+    "MRK.2": [
+      {
+        "verse": 1,
+        "title": "Jesus Forgives and Heals a Paralyzed Man"
+      },
+      {
+        "verse": 13,
+        "title": "Jesus Calls Levi and Eats With Sinners"
+      },
+      {
+        "verse": 18,
+        "title": "Jesus Questioned About Fasting"
+      },
+      {
+        "verse": 23,
+        "title": "Jesus Is Lord of the Sabbath"
+      }
+    ],
+    "MRK.3": [
+      {
+        "verse": 1,
+        "title": "Jesus Heals on the Sabbath"
+      },
+      {
+        "verse": 7,
+        "title": "Crowds Follow Jesus"
+      },
+      {
+        "verse": 13,
+        "title": "Jesus Appoints the Twelve"
+      },
+      {
+        "verse": 20,
+        "title": "Jesus Accused by His Family and by Teachers of the Law"
+      }
+    ],
+    "MRK.4": [
+      {
+        "verse": 1,
+        "title": "The Parable of the Sower"
+      },
+      {
+        "verse": 21,
+        "title": "A Lamp on a Stand"
+      },
+      {
+        "verse": 26,
+        "title": "The Parable of the Growing Seed"
+      },
+      {
+        "verse": 30,
+        "title": "The Parable of the Mustard Seed"
+      },
+      {
+        "verse": 35,
+        "title": "Jesus Calms the Storm"
+      }
+    ],
+    "MRK.5": [
+      {
+        "verse": 1,
+        "title": "Jesus Restores a Demon-Possessed Man"
+      },
+      {
+        "verse": 21,
+        "title": "Jesus Raises a Dead Girl and Heals a Sick Woman"
+      }
+    ],
+    "MRK.6": [
+      {
+        "verse": 1,
+        "title": "A Prophet Without Honor"
+      },
+      {
+        "verse": 7,
+        "title": "Jesus Sends Out the Twelve"
+      },
+      {
+        "verse": 14,
+        "title": "John the Baptist Beheaded"
+      },
+      {
+        "verse": 30,
+        "title": "Jesus Feeds the Five Thousand"
+      },
+      {
+        "verse": 45,
+        "title": "Jesus Walks on the Water"
+      }
+    ],
+    "MRK.7": [
+      {
+        "verse": 1,
+        "title": "That Which Defiles"
+      },
+      {
+        "verse": 24,
+        "title": "Jesus Honors a Syrophoenician Woman’s Faith"
+      },
+      {
+        "verse": 31,
+        "title": "Jesus Heals a Deaf and Mute Man"
+      }
+    ],
+    "MRK.8": [
+      {
+        "verse": 1,
+        "title": "Jesus Feeds the Four Thousand"
+      },
+      {
+        "verse": 14,
+        "title": "The Yeast of the Pharisees and Herod"
+      },
+      {
+        "verse": 22,
+        "title": "Jesus Heals a Blind Man at Bethsaida"
+      },
+      {
+        "verse": 27,
+        "title": "Peter Declares That Jesus Is the Messiah"
+      },
+      {
+        "verse": 31,
+        "title": "Jesus Predicts His Death"
+      },
+      {
+        "verse": 34,
+        "title": "The Way of the Cross"
+      }
+    ],
+    "MRK.9": [
+      {
+        "verse": 2,
+        "title": "The Transfiguration"
+      },
+      {
+        "verse": 14,
+        "title": "Jesus Heals a Boy Possessed by an Impure Spirit"
+      },
+      {
+        "verse": 30,
+        "title": "Jesus Predicts His Death a Second Time"
+      },
+      {
+        "verse": 38,
+        "title": "Whoever Is Not Against Us Is for Us"
+      },
+      {
+        "verse": 42,
+        "title": "Causing to Stumble"
+      }
+    ],
+    "NAM.1": [
+      {
+        "verse": 2,
+        "title": "The LORD’s Anger Against Nineveh"
+      }
+    ],
+    "NAM.3": [
+      {
+        "verse": 1,
+        "title": "Woe to Nineveh"
+      }
+    ],
+    "NEH.1": [
+      {
+        "verse": 1,
+        "title": "Nehemiah’s Prayer"
+      }
+    ],
+    "NEH.11": [
+      {
+        "verse": 1,
+        "title": "The New Residents of Jerusalem"
+      }
+    ],
+    "NEH.12": [
+      {
+        "verse": 1,
+        "title": "Priests and Levites"
+      },
+      {
+        "verse": 27,
+        "title": "Dedication of the Wall of Jerusalem"
+      }
+    ],
+    "NEH.13": [
+      {
+        "verse": 1,
+        "title": "Nehemiah’s Final Reforms"
+      }
+    ],
+    "NEH.2": [
+      {
+        "verse": 1,
+        "title": "Artaxerxes Sends Nehemiah to Jerusalem"
+      },
+      {
+        "verse": 11,
+        "title": "Nehemiah Inspects Jerusalem’s Walls"
+      }
+    ],
+    "NEH.3": [
+      {
+        "verse": 1,
+        "title": "Builders of the Wall"
+      }
+    ],
+    "NEH.5": [
+      {
+        "verse": 1,
+        "title": "Nehemiah Helps the Poor"
+      }
+    ],
+    "NEH.6": [
+      {
+        "verse": 1,
+        "title": "Further Opposition to the Rebuilding"
+      },
+      {
+        "verse": 16,
+        "title": "Opposition to the Completed Wall"
+      }
+    ],
+    "NEH.7": [
+      {
+        "verse": 4,
+        "title": "The List of the Exiles Who Returned"
+      }
+    ],
+    "NEH.9": [
+      {
+        "verse": 1,
+        "title": "The Israelites Confess Their Sins"
+      },
+      {
+        "verse": 38,
+        "title": "The Agreement of the People"
+      }
+    ],
+    "NUM.1": [
+      {
+        "verse": 1,
+        "title": "The Census"
+      }
+    ],
+    "NUM.10": [
+      {
+        "verse": 1,
+        "title": "The Silver Trumpets"
+      },
+      {
+        "verse": 11,
+        "title": "The Israelites Leave Sinai"
+      }
+    ],
+    "NUM.11": [
+      {
+        "verse": 1,
+        "title": "Fire From the LORD"
+      },
+      {
+        "verse": 4,
+        "title": "Quail From the LORD"
+      }
+    ],
+    "NUM.12": [
+      {
+        "verse": 1,
+        "title": "Miriam and Aaron Oppose Moses"
+      }
+    ],
+    "NUM.13": [
+      {
+        "verse": 1,
+        "title": "Exploring Canaan"
+      },
+      {
+        "verse": 26,
+        "title": "Report on the Exploration"
+      }
+    ],
+    "NUM.14": [
+      {
+        "verse": 1,
+        "title": "The People Rebel"
+      }
+    ],
+    "NUM.15": [
+      {
+        "verse": 1,
+        "title": "Supplementary Offerings"
+      },
+      {
+        "verse": 22,
+        "title": "Offerings for Unintentional Sins"
+      },
+      {
+        "verse": 32,
+        "title": "The Sabbath-Breaker Put to Death"
+      },
+      {
+        "verse": 37,
+        "title": "Tassels on Garments"
+      }
+    ],
+    "NUM.16": [
+      {
+        "verse": 1,
+        "title": "Korah, Dathan and Abiram"
+      }
+    ],
+    "NUM.18": [
+      {
+        "verse": 1,
+        "title": "Duties of Priests and Levites"
+      },
+      {
+        "verse": 8,
+        "title": "Offerings for Priests and Levites"
+      }
+    ],
+    "NUM.19": [
+      {
+        "verse": 1,
+        "title": "The Water of Cleansing"
+      }
+    ],
+    "NUM.2": [
+      {
+        "verse": 1,
+        "title": "The Arrangement of the Tribal Camps"
+      }
+    ],
+    "NUM.20": [
+      {
+        "verse": 1,
+        "title": "Water From the Rock"
+      },
+      {
+        "verse": 14,
+        "title": "Edom Denies Israel Passage"
+      },
+      {
+        "verse": 22,
+        "title": "The Death of Aaron"
+      }
+    ],
+    "NUM.21": [
+      {
+        "verse": 1,
+        "title": "Arad Destroyed"
+      },
+      {
+        "verse": 4,
+        "title": "The Bronze Snake"
+      },
+      {
+        "verse": 10,
+        "title": "The Journey to Moab"
+      },
+      {
+        "verse": 21,
+        "title": "Defeat of Sihon and Og"
+      }
+    ],
+    "NUM.22": [
+      {
+        "verse": 1,
+        "title": "Balak Summons Balaam"
+      },
+      {
+        "verse": 21,
+        "title": "Balaam’s Donkey"
+      }
+    ],
+    "NUM.23": [
+      {
+        "verse": 1,
+        "title": "Balaam’s First Message"
+      },
+      {
+        "verse": 13,
+        "title": "Balaam’s Second Message"
+      },
+      {
+        "verse": 27,
+        "title": "Balaam’s Third Message"
+      }
+    ],
+    "NUM.24": [
+      {
+        "verse": 15,
+        "title": "Balaam’s Fourth Message"
+      },
+      {
+        "verse": 20,
+        "title": "Balaam’s Fifth Message"
+      },
+      {
+        "verse": 21,
+        "title": "Balaam’s Sixth Message"
+      },
+      {
+        "verse": 23,
+        "title": "Balaam’s Seventh Message"
+      }
+    ],
+    "NUM.25": [
+      {
+        "verse": 1,
+        "title": "Moab Seduces Israel"
+      }
+    ],
+    "NUM.26": [
+      {
+        "verse": 1,
+        "title": "The Second Census"
+      }
+    ],
+    "NUM.27": [
+      {
+        "verse": 1,
+        "title": "Zelophehad’s Daughters"
+      },
+      {
+        "verse": 12,
+        "title": "Joshua to Succeed Moses"
+      }
+    ],
+    "NUM.28": [
+      {
+        "verse": 1,
+        "title": "Daily Offerings"
+      },
+      {
+        "verse": 9,
+        "title": "Sabbath Offerings"
+      },
+      {
+        "verse": 11,
+        "title": "Monthly Offerings"
+      },
+      {
+        "verse": 16,
+        "title": "The Passover"
+      },
+      {
+        "verse": 26,
+        "title": "The Festival of Weeks"
+      }
+    ],
+    "NUM.29": [
+      {
+        "verse": 1,
+        "title": "The Festival of Trumpets"
+      },
+      {
+        "verse": 7,
+        "title": "The Day of Atonement"
+      },
+      {
+        "verse": 12,
+        "title": "The Festival of Tabernacles"
+      }
+    ],
+    "NUM.3": [
+      {
+        "verse": 1,
+        "title": "The Levites"
+      }
+    ],
+    "NUM.31": [
+      {
+        "verse": 1,
+        "title": "Vengeance on the Midianites"
+      },
+      {
+        "verse": 25,
+        "title": "Dividing the Spoils"
+      }
+    ],
+    "NUM.32": [
+      {
+        "verse": 1,
+        "title": "The Transjordan Tribes"
+      }
+    ],
+    "NUM.33": [
+      {
+        "verse": 1,
+        "title": "Stages in Israel’s Journey"
+      }
+    ],
+    "NUM.34": [
+      {
+        "verse": 1,
+        "title": "Boundaries of Canaan"
+      }
+    ],
+    "NUM.35": [
+      {
+        "verse": 1,
+        "title": "Towns for the Levites"
+      },
+      {
+        "verse": 6,
+        "title": "Cities of Refuge"
+      }
+    ],
+    "NUM.36": [
+      {
+        "verse": 1,
+        "title": "Inheritance of Zelophehad’s Daughters"
+      }
+    ],
+    "NUM.4": [
+      {
+        "verse": 1,
+        "title": "The Kohathites"
+      },
+      {
+        "verse": 21,
+        "title": "The Gershonites"
+      },
+      {
+        "verse": 29,
+        "title": "The Merarites"
+      },
+      {
+        "verse": 34,
+        "title": "The Numbering of the Levite Clans"
+      }
+    ],
+    "NUM.5": [
+      {
+        "verse": 1,
+        "title": "The Purity of the Camp"
+      },
+      {
+        "verse": 5,
+        "title": "Restitution for Wrongs"
+      },
+      {
+        "verse": 11,
+        "title": "The Test for an Unfaithful Wife"
+      }
+    ],
+    "NUM.6": [
+      {
+        "verse": 1,
+        "title": "The Nazirite"
+      },
+      {
+        "verse": 22,
+        "title": "The Priestly Blessing"
+      }
+    ],
+    "NUM.7": [
+      {
+        "verse": 1,
+        "title": "Offerings at the Dedication of the Tabernacle"
+      }
+    ],
+    "NUM.8": [
+      {
+        "verse": 1,
+        "title": "Setting Up the Lamps"
+      },
+      {
+        "verse": 5,
+        "title": "The Setting Apart of the Levites"
+      }
+    ],
+    "NUM.9": [
+      {
+        "verse": 1,
+        "title": "The Passover"
+      },
+      {
+        "verse": 15,
+        "title": "The Cloud Above the Tabernacle"
+      }
+    ],
+    "OBA.1": [
+      {
+        "verse": 1,
+        "title": "Obadiah’s Vision"
+      }
+    ],
+    "PHM.1": [
+      {
+        "verse": 4,
+        "title": "Thanksgiving and Prayer"
+      },
+      {
+        "verse": 8,
+        "title": "Paul’s Plea for Onesimus"
+      }
+    ],
+    "PHP.1": [
+      {
+        "verse": 3,
+        "title": "Thanksgiving and Prayer"
+      },
+      {
+        "verse": 12,
+        "title": "Paul’s Chains Advance the Gospel"
+      },
+      {
+        "verse": 27,
+        "title": "Life Worthy of the Gospel"
+      }
+    ],
+    "PHP.2": [
+      {
+        "verse": 1,
+        "title": "Imitating Christ’s Humility"
+      },
+      {
+        "verse": 12,
+        "title": "Do Everything Without Grumbling"
+      },
+      {
+        "verse": 19,
+        "title": "Timothy and Epaphroditus"
+      }
+    ],
+    "PHP.3": [
+      {
+        "verse": 1,
+        "title": "No Confidence in the Flesh"
+      },
+      {
+        "verse": 15,
+        "title": "Following Paul’s Example"
+      }
+    ],
+    "PHP.4": [
+      {
+        "verse": 1,
+        "title": "Closing Appeal for Steadfastness and Unity"
+      },
+      {
+        "verse": 4,
+        "title": "Final Exhortations"
+      },
+      {
+        "verse": 10,
+        "title": "Thanks for Their Gifts"
+      },
+      {
+        "verse": 21,
+        "title": "Final Greetings"
+      }
+    ],
+    "PRO.1": [
+      {
+        "verse": 8,
+        "title": "Warning Against the Invitation of Sinful Men"
+      },
+      {
+        "verse": 20,
+        "title": "Wisdom’s Rebuke"
+      }
+    ],
+    "PRO.2": [
+      {
+        "verse": 1,
+        "title": "Moral Benefits of Wisdom"
+      }
+    ],
+    "PRO.3": [
+      {
+        "verse": 1,
+        "title": "Wisdom Bestows Well-Being"
+      }
+    ],
+    "PRO.4": [
+      {
+        "verse": 1,
+        "title": "Get Wisdom at Any Cost"
+      }
+    ],
+    "PRO.5": [
+      {
+        "verse": 1,
+        "title": "Warning Against Adultery"
+      }
+    ],
+    "PRO.6": [
+      {
+        "verse": 1,
+        "title": "Warnings Against Folly"
+      },
+      {
+        "verse": 20,
+        "title": "Warning Against Adultery"
+      }
+    ],
+    "PRO.7": [
+      {
+        "verse": 1,
+        "title": "Warning Against the Adulterous Woman"
+      }
+    ],
+    "PRO.8": [
+      {
+        "verse": 1,
+        "title": "Wisdom’s Call"
+      }
+    ],
+    "PRO.9": [
+      {
+        "verse": 1,
+        "title": "Invitations of Wisdom and Folly"
+      }
+    ],
+    "REV.1": [
+      {
+        "verse": 1,
+        "title": "Prologue"
+      },
+      {
+        "verse": 4,
+        "title": "Greetings and Doxology"
+      },
+      {
+        "verse": 9,
+        "title": "John’s Vision of Christ"
+      }
+    ],
+    "REV.10": [
+      {
+        "verse": 1,
+        "title": "The Angel and the Little Scroll"
+      }
+    ],
+    "REV.11": [
+      {
+        "verse": 1,
+        "title": "The Two Witnesses"
+      },
+      {
+        "verse": 15,
+        "title": "The Seventh Trumpet"
+      }
+    ],
+    "REV.12": [
+      {
+        "verse": 1,
+        "title": "The Woman and the Dragon"
+      }
+    ],
+    "REV.13": [
+      {
+        "verse": 1,
+        "title": "The Beast out of the Sea"
+      },
+      {
+        "verse": 11,
+        "title": "The Beast out of the Earth"
+      }
+    ],
+    "REV.14": [
+      {
+        "verse": 1,
+        "title": "The Lamb and the 144,000"
+      },
+      {
+        "verse": 6,
+        "title": "The Three Angels"
+      },
+      {
+        "verse": 14,
+        "title": "Harvesting the Earth and Trampling the Winepress"
+      }
+    ],
+    "REV.15": [
+      {
+        "verse": 1,
+        "title": "Seven Angels With Seven Plagues"
+      }
+    ],
+    "REV.16": [
+      {
+        "verse": 1,
+        "title": "The Seven Bowls of God’s Wrath"
+      }
+    ],
+    "REV.17": [
+      {
+        "verse": 1,
+        "title": "Babylon, the Prostitute on the Beast"
+      }
+    ],
+    "REV.18": [
+      {
+        "verse": 1,
+        "title": "Lament Over Fallen Babylon"
+      },
+      {
+        "verse": 4,
+        "title": "Warning to Escape Babylon’s Judgment"
+      },
+      {
+        "verse": 9,
+        "title": "Threefold Woe Over Babylon’s Fall"
+      },
+      {
+        "verse": 21,
+        "title": "The Finality of Babylon’s Doom"
+      }
+    ],
+    "REV.19": [
+      {
+        "verse": 1,
+        "title": "Threefold Hallelujah Over Babylon’s Fall"
+      },
+      {
+        "verse": 11,
+        "title": "The Heavenly Warrior Defeats the Beast"
+      }
+    ],
+    "REV.2": [
+      {
+        "verse": 1,
+        "title": "To the Church in Ephesus"
+      },
+      {
+        "verse": 8,
+        "title": "To the Church in Smyrna"
+      },
+      {
+        "verse": 12,
+        "title": "To the Church in Pergamum"
+      },
+      {
+        "verse": 18,
+        "title": "To the Church in Thyatira"
+      }
+    ],
+    "REV.20": [
+      {
+        "verse": 1,
+        "title": "The Thousand Years"
+      },
+      {
+        "verse": 7,
+        "title": "The Judgment of Satan"
+      },
+      {
+        "verse": 11,
+        "title": "The Judgment of the Dead"
+      }
+    ],
+    "REV.21": [
+      {
+        "verse": 1,
+        "title": "A New Heaven and a New Earth"
+      },
+      {
+        "verse": 9,
+        "title": "The New Jerusalem, the Bride of the Lamb"
+      }
+    ],
+    "REV.22": [
+      {
+        "verse": 1,
+        "title": "Eden Restored"
+      },
+      {
+        "verse": 6,
+        "title": "John and the Angel"
+      },
+      {
+        "verse": 12,
+        "title": "Epilogue: Invitation and Warning"
+      }
+    ],
+    "REV.3": [
+      {
+        "verse": 1,
+        "title": "To the Church in Sardis"
+      },
+      {
+        "verse": 7,
+        "title": "To the Church in Philadelphia"
+      },
+      {
+        "verse": 14,
+        "title": "To the Church in Laodicea"
+      }
+    ],
+    "REV.4": [
+      {
+        "verse": 1,
+        "title": "The Throne in Heaven"
+      }
+    ],
+    "REV.5": [
+      {
+        "verse": 1,
+        "title": "The Scroll and the Lamb"
+      }
+    ],
+    "REV.6": [
+      {
+        "verse": 1,
+        "title": "The Seals"
+      }
+    ],
+    "REV.7": [
+      {
+        "verse": 1,
+        "title": "144,000 Sealed"
+      },
+      {
+        "verse": 9,
+        "title": "The Great Multitude in White Robes"
+      }
+    ],
+    "REV.8": [
+      {
+        "verse": 1,
+        "title": "The Seventh Seal and the Golden Censer"
+      },
+      {
+        "verse": 6,
+        "title": "The Trumpets"
+      }
+    ],
+    "ROM.1": [
+      {
+        "verse": 8,
+        "title": "Paul’s Longing to Visit Rome"
+      },
+      {
+        "verse": 18,
+        "title": "God’s Wrath Against Sinful Humanity"
+      }
+    ],
+    "ROM.11": [
+      {
+        "verse": 1,
+        "title": "The Remnant of Israel"
+      },
+      {
+        "verse": 11,
+        "title": "Ingrafted Branches"
+      },
+      {
+        "verse": 25,
+        "title": "All Israel Will Be Saved"
+      },
+      {
+        "verse": 33,
+        "title": "Doxology"
+      }
+    ],
+    "ROM.12": [
+      {
+        "verse": 1,
+        "title": "A Living Sacrifice"
+      },
+      {
+        "verse": 3,
+        "title": "Humble Service in the Body of Christ"
+      },
+      {
+        "verse": 9,
+        "title": "Love in Action"
+      }
+    ],
+    "ROM.13": [
+      {
+        "verse": 1,
+        "title": "Submission to Governing Authorities"
+      },
+      {
+        "verse": 8,
+        "title": "Love Fulfills the Law"
+      },
+      {
+        "verse": 11,
+        "title": "The Day Is Near"
+      }
+    ],
+    "ROM.14": [
+      {
+        "verse": 1,
+        "title": "The Weak and the Strong"
+      }
+    ],
+    "ROM.15": [
+      {
+        "verse": 14,
+        "title": "Paul the Minister to the Gentiles"
+      },
+      {
+        "verse": 23,
+        "title": "Paul’s Plan to Visit Rome"
+      }
+    ],
+    "ROM.16": [
+      {
+        "verse": 1,
+        "title": "Personal Greetings"
+      }
+    ],
+    "ROM.2": [
+      {
+        "verse": 1,
+        "title": "God’s Righteous Judgment"
+      },
+      {
+        "verse": 17,
+        "title": "The Jews and the Law"
+      }
+    ],
+    "ROM.3": [
+      {
+        "verse": 1,
+        "title": "God’s Faithfulness"
+      },
+      {
+        "verse": 9,
+        "title": "No One Is Righteous"
+      },
+      {
+        "verse": 21,
+        "title": "Righteousness Through Faith"
+      }
+    ],
+    "ROM.4": [
+      {
+        "verse": 1,
+        "title": "Abraham Justified by Faith"
+      }
+    ],
+    "ROM.5": [
+      {
+        "verse": 1,
+        "title": "Peace and Hope"
+      },
+      {
+        "verse": 12,
+        "title": "Death Through Adam, Life Through Christ"
+      }
+    ],
+    "ROM.6": [
+      {
+        "verse": 1,
+        "title": "Dead to Sin, Alive in Christ"
+      },
+      {
+        "verse": 15,
+        "title": "Slaves to Righteousness"
+      }
+    ],
+    "ROM.7": [
+      {
+        "verse": 1,
+        "title": "Released From the Law, Bound to Christ"
+      },
+      {
+        "verse": 7,
+        "title": "The Law and Sin"
+      }
+    ],
+    "ROM.8": [
+      {
+        "verse": 1,
+        "title": "Life Through the Spirit"
+      },
+      {
+        "verse": 18,
+        "title": "Present Suffering and Future Glory"
+      },
+      {
+        "verse": 31,
+        "title": "More Than Conquerors"
+      }
+    ],
+    "ROM.9": [
+      {
+        "verse": 1,
+        "title": "Paul’s Anguish Over Israel"
+      },
+      {
+        "verse": 6,
+        "title": "God’s Sovereign Choice"
+      },
+      {
+        "verse": 30,
+        "title": "Israel’s Unbelief"
+      }
+    ],
+    "RUT.1": [
+      {
+        "verse": 1,
+        "title": "Naomi Loses Her Husband and Sons"
+      },
+      {
+        "verse": 6,
+        "title": "Naomi and Ruth Return to Bethlehem"
+      }
+    ],
+    "RUT.2": [
+      {
+        "verse": 1,
+        "title": "Ruth Meets Boaz in the Grain Field"
+      }
+    ],
+    "RUT.3": [
+      {
+        "verse": 1,
+        "title": "Ruth and Boaz at the Threshing Floor"
+      }
+    ],
+    "RUT.4": [
+      {
+        "verse": 1,
+        "title": "Boaz Marries Ruth"
+      },
+      {
+        "verse": 13,
+        "title": "Naomi Gains a Son"
+      },
+      {
+        "verse": 18,
+        "title": "The Genealogy of David"
+      }
+    ],
+    "TIT.1": [
+      {
+        "verse": 5,
+        "title": "Appointing Elders Who Love What Is Good"
+      },
+      {
+        "verse": 10,
+        "title": "Rebuking Those Who Fail to Do Good"
+      }
+    ],
+    "TIT.2": [
+      {
+        "verse": 1,
+        "title": "Doing Good for the Sake of the Gospel"
+      }
+    ],
+    "TIT.3": [
+      {
+        "verse": 1,
+        "title": "Saved in Order to Do Good"
+      },
+      {
+        "verse": 12,
+        "title": "Final Remarks"
+      }
+    ],
+    "ZEC.1": [
+      {
+        "verse": 1,
+        "title": "A Call to Return to the LORD"
+      },
+      {
+        "verse": 7,
+        "title": "The Man Among the Myrtle Trees"
+      },
+      {
+        "verse": 18,
+        "title": "Four Horns and Four Craftsmen"
+      }
+    ],
+    "ZEC.10": [
+      {
+        "verse": 1,
+        "title": "The LORD Will Care for Judah"
+      }
+    ],
+    "ZEC.11": [
+      {
+        "verse": 4,
+        "title": "Two Shepherds"
+      }
+    ],
+    "ZEC.12": [
+      {
+        "verse": 1,
+        "title": "Jerusalem’s Enemies to Be Destroyed"
+      },
+      {
+        "verse": 10,
+        "title": "Mourning for the One They Pierced"
+      }
+    ],
+    "ZEC.13": [
+      {
+        "verse": 1,
+        "title": "Cleansing From Sin"
+      },
+      {
+        "verse": 7,
+        "title": "The Shepherd Struck, the Sheep Scattered"
+      }
+    ],
+    "ZEC.14": [
+      {
+        "verse": 1,
+        "title": "The LORD Comes and Reigns"
+      }
+    ],
+    "ZEC.3": [
+      {
+        "verse": 1,
+        "title": "Clean Garments for the High Priest"
+      }
+    ],
+    "ZEC.4": [
+      {
+        "verse": 1,
+        "title": "The Gold Lampstand and the Two Olive Trees"
+      }
+    ],
+    "ZEC.5": [
+      {
+        "verse": 1,
+        "title": "The Flying Scroll"
+      },
+      {
+        "verse": 5,
+        "title": "The Woman in a Basket"
+      }
+    ],
+    "ZEC.6": [
+      {
+        "verse": 1,
+        "title": "Four Chariots"
+      },
+      {
+        "verse": 9,
+        "title": "A Crown for Joshua"
+      }
+    ],
+    "ZEC.7": [
+      {
+        "verse": 1,
+        "title": "Justice and Mercy, Not Fasting"
+      }
+    ],
+    "ZEC.8": [
+      {
+        "verse": 1,
+        "title": "The LORD Promises to Bless Jerusalem"
+      }
+    ],
+    "ZEC.9": [
+      {
+        "verse": 1,
+        "title": "Judgment on Israel’s Enemies"
+      },
+      {
+        "verse": 9,
+        "title": "The Coming of Zion’s King"
+      },
+      {
+        "verse": 14,
+        "title": "The LORD Will Appear"
+      }
+    ],
+    "ZEP.1": [
+      {
+        "verse": 2,
+        "title": "Judgment on the Whole Earth in the Day of the LORD"
+      }
+    ],
+    "ZEP.2": [
+      {
+        "verse": 1,
+        "title": "Judah and Jerusalem Judged Along With the Nations"
+      }
+    ],
+    "ZEP.3": [
+      {
+        "verse": 9,
+        "title": "Restoration of Israel’s Remnant"
+      }
+    ]
+  },
+  "count": 1826
+}

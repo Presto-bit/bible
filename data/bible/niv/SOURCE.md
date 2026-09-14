@@ -18,6 +18,7 @@
 ## Local build outputs
 
 - `data/bible/niv/verses.json`
+- `data/bible/niv/sections.json`（EPUB 原生段落小标题；`scripts/extract_niv_sections.py`）
 - `build/bible_niv.sqlite`
 
 ## Book id note

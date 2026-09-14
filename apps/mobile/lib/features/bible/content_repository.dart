@@ -242,9 +242,12 @@ class ContentRepository {
     String book,
     int chapter, {
     String lang = 'zh',
+    String? versionId,
   }) async {
     final params = <String, dynamic>{'book': book, 'chapter': chapter};
     if (lang == 'en') params['lang'] = 'en';
+    final ver = (versionId ?? '').trim();
+    if (ver.isNotEmpty) params['version'] = ver;
     final res = await _dio.get('/content/sections', queryParameters: params);
     return ((res.data['sections'] ?? []) as List)
         .map((e) => SectionMark.fromJson(e as Map<String, dynamic>))
@@ -452,9 +455,12 @@ final sectionTitlesProvider =
       ({String book, int chapter, String? versionId})
     >((ref, args) {
       final lang = sectionTitlesLang(args.versionId);
-      return ref
-          .watch(contentRepoProvider)
-          .sectionTitles(args.book, args.chapter, lang: lang);
+      return ref.watch(contentRepoProvider).sectionTitles(
+            args.book,
+            args.chapter,
+            lang: lang,
+            versionId: args.versionId,
+          );
     });
 
 final paragraphRangesProvider =

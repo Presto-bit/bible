@@ -165,9 +165,8 @@ export default function VersionPickerPop({
             trailing = copy.retry;
           } else if (localReady) {
             trailing = copy.downloaded;
-          } else if (catalogued && vv.available) {
-            trailing = copy.available;
           } else if (catalogued) {
+            // 目录内译本一律可下离线包（含在线可读的 NIV/KJV）
             trailing = copy.download;
           } else if (vv.available) {
             trailing = copy.downloaded;
@@ -175,8 +174,7 @@ export default function VersionPickerPop({
             trailing = copy.unavailable;
           }
 
-          const needsOfflineDownload =
-            catalogued && !localReady && !vv.available;
+          const needsOfflineDownload = catalogued && !localReady;
           const actionClickable =
             failed || (needsOfflineDownload && !downloading);
 
@@ -186,7 +184,8 @@ export default function VersionPickerPop({
               startDownload(vv.id);
               return;
             }
-            if (needsOfflineDownload) {
+            // 仅「不可在线选读」时点行触发下载；在线可读则点行=勾选，下载走右侧按钮
+            if (needsOfflineDownload && !selectable) {
               startDownload(vv.id);
               return;
             }

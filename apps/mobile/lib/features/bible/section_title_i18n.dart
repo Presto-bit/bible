@@ -51,6 +51,10 @@ List<SectionMark> outlineForVersion(
   int chapter, {
   String? versionId,
 }) {
+  // NIV 用 API 原生英文标题；本地 outlines 是中文，切勿回落。
+  if ((versionId ?? '').trim().toLowerCase() == 'niv') {
+    return const [];
+  }
   final marks = outlineFor(bookId, chapter);
   return localizeSectionMarks(
     marks,

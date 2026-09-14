@@ -259,28 +259,63 @@ def dictionary_lookup(term: str | None = None, ref: str | None = None) -> list[d
     return sorted(items, key=score, reverse=True)
 
 
-# ── 段落标题（CNV 源文件抽取） ──
-@lru_cache(maxsize=1)
-def section_titles_index() -> dict[str, list[dict]]:
-    path = _data_dir() / "bible/cnv/sections.json"
+# ── 段落标题（默认 CNV；NIV 等译本可有独立 sections.json） ──
+@lru_cache(maxsize=8)
+def section_titles_index(version: str | None = None) -> dict[str, list[dict]]:
+    ver = (version or "").strip().lower()
+    if ver == "niv":
+        path = _data_dir() / "bible/niv/sections.json"
+    else:
+        path = _data_dir() / "bible/cnv/sections.json"
     if not path.exists():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
     return data.get("chapters", {})
 
 
-def section_titles(book: str, chapter: int, lang: str | None = None) -> list[dict]:
+def section_titles(
+    book: str,
+    chapter: int,
+    lang: str | None = None,
+    version: str | None = None,
+) -> list[dict]:
     from .section_title_i18n import localize_section_marks
 
+    ver = (version or "").strip().lower()
     key = f"{book.upper()}.{chapter}"
-    marks = section_titles_index().get(key, [])
+    marks = section_titles_index(ver or None).get(key, [])
+    # NIV 自带英文标题，不再走 CNV zh→en；缺章时返回空，避免英文 UI 回落中文
+    if ver == "niv":
+        return [
+            {"verse": int(m.get("verse") or 0), "title": str(m.get("title") or "").strip()}
+            for m in marks
+            if int(m.get("verse") or 0) > 0 and str(m.get("title") or "").strip()
+        ]
     return localize_section_marks(marks, lang)
 
 
-def section_titles_index_localized(lang: str | None = None) -> dict[str, list[dict]]:
+def section_titles_index_localized(
+    lang: str | None = None,
+    version: str | None = None,
+) -> dict[str, list[dict]]:
     from .section_title_i18n import localize_section_marks
 
-    raw = section_titles_index()
+    ver = (version or "").strip().lower()
+    raw = section_titles_index(ver or None)
+    if ver == "niv":
+        out: dict[str, list[dict]] = {}
+        for k, marks in raw.items():
+            cleaned = [
+                {
+                    "verse": int(m.get("verse") or 0),
+                    "title": str(m.get("title") or "").strip(),
+                }
+                for m in marks
+                if int(m.get("verse") or 0) > 0 and str(m.get("title") or "").strip()
+            ]
+            if cleaned:
+                out[k] = cleaned
+        return out
     code = (lang or "zh").strip().lower()
     if code in ("", "zh", "cn", "chinese"):
         return raw

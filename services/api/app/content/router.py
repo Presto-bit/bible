@@ -510,10 +510,22 @@ def sections(
         None,
         description="zh（默认）或 en：KJV 等英文 UI 返回英译段落标题，缺译名回退中文",
     ),
+    version: str | None = Query(
+        None,
+        description="译本 id；niv 使用 NIV 原生英文段落标题，不回落中文 CNV 标题",
+    ),
 ) -> dict:
     if book and chapter:
-        return {"sections": loader.section_titles(book, chapter, lang=lang)}
-    return {"chapters": loader.section_titles_index_localized(lang=lang)}
+        return {
+            "sections": loader.section_titles(
+                book, chapter, lang=lang, version=version
+            )
+        }
+    return {
+        "chapters": loader.section_titles_index_localized(
+            lang=lang, version=version
+        )
+    }
 
 
 @router.get("/section-title-translations")

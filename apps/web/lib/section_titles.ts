@@ -11,22 +11,32 @@ import {
 export type { SectionMark };
 export { sectionTitlesLang };
 
-type SectionTitlesLang = 'zh' | 'en';
-
 type SectionsPayload = {
   chapters?: Record<string, { verse: number; title: string }[]>;
 };
 
-const cacheByLang = new Map<SectionTitlesLang, Record<string, SectionMark[]>>();
-const loadPromises = new Map<SectionTitlesLang, Promise<Record<string, SectionMark[]>>>();
+/** 缓存键：zh | en（KJV 等英译）| niv（NIV 原生英文） */
+type SectionsCacheKey = 'zh' | 'en' | 'niv';
+
+const cacheByKey = new Map<SectionsCacheKey, Record<string, SectionMark[]>>();
+const loadPromises = new Map<
+  SectionsCacheKey,
+  Promise<Record<string, SectionMark[]>>
+>();
 
 function chapterKey(bookId: string, chapter: number): string {
   return `${bookId.toUpperCase()}.${chapter}`;
 }
 
+function sectionsCacheKey(versionId?: string | null): SectionsCacheKey {
+  const id = (versionId || '').trim().toLowerCase();
+  if (id === 'niv') return 'niv';
+  return sectionTitlesLang(versionId);
+}
+
 async function localizeIndex(
   idx: Record<string, SectionMark[]>,
-  lang: SectionTitlesLang,
+  lang: 'zh' | 'en',
 ): Promise<Record<string, SectionMark[]>> {
   if (lang === 'zh') return idx;
   const out: Record<string, SectionMark[]> = {};
@@ -37,16 +47,37 @@ async function localizeIndex(
 }
 
 async function loadSectionsIndex(
-  lang: SectionTitlesLang = 'zh',
+  cacheKey: SectionsCacheKey,
 ): Promise<Record<string, SectionMark[]>> {
-  const cached = cacheByLang.get(lang);
+  const cached = cacheByKey.get(cacheKey);
   if (cached) return cached;
-  let pending = loadPromises.get(lang);
+  let pending = loadPromises.get(cacheKey);
   if (!pending) {
     pending = (async () => {
       try {
         const { api } = await import('@/lib/api');
-        const data = (await api.sectionTitles(undefined, undefined, lang)) as SectionsPayload;
+        if (cacheKey === 'niv') {
+          const data = (await api.sectionTitles(
+            undefined,
+            undefined,
+            'en',
+            'niv',
+          )) as SectionsPayload;
+          const chapters = data.chapters ?? {};
+          const idx: Record<string, SectionMark[]> = {};
+          for (const [key, marks] of Object.entries(chapters)) {
+            idx[key] = marks.map((m) => ({ verse: m.verse, title: m.title }));
+          }
+          // NIV：只用原生英文标题，不合并中文 SECTION_OUTLINES
+          cacheByKey.set(cacheKey, idx);
+          return idx;
+        }
+        const lang = cacheKey;
+        const data = (await api.sectionTitles(
+          undefined,
+          undefined,
+          lang,
+        )) as SectionsPayload;
         const chapters = data.chapters ?? {};
         const idx: Record<string, SectionMark[]> = {};
         for (const [key, marks] of Object.entries(chapters)) {
@@ -54,53 +85,63 @@ async function loadSectionsIndex(
         }
         const merged = { ...SECTION_OUTLINES, ...idx };
         const result = await localizeIndex(merged, lang);
-        cacheByLang.set(lang, result);
+        cacheByKey.set(cacheKey, result);
         return result;
       } catch {
+        if (cacheKey === 'niv') {
+          const empty = {};
+          cacheByKey.set(cacheKey, empty);
+          return empty;
+        }
         const fallback = { ...SECTION_OUTLINES };
-        const result = await localizeIndex(fallback, lang);
-        cacheByLang.set(lang, result);
+        const result = await localizeIndex(fallback, cacheKey);
+        cacheByKey.set(cacheKey, result);
         return result;
       }
     })();
-    loadPromises.set(lang, pending);
+    loadPromises.set(cacheKey, pending);
   }
   return pending;
 }
 
 /** 预加载段落标题索引（阅读器 mount 时调用） */
 export function preloadSectionTitles(versionId?: string | null): void {
-  const lang = sectionTitlesLang(versionId);
-  void loadSectionsIndex(lang);
-  if (lang === 'en') preloadSectionTitleTranslations();
+  const key = sectionsCacheKey(versionId);
+  void loadSectionsIndex(key);
+  if (key === 'en') preloadSectionTitleTranslations();
 }
 
-/** 同步读取：需先 preload；无缓存时回退手工大纲 */
+/** 同步读取：需先 preload；无缓存时回退手工大纲（NIV 不回落中文） */
 export function outlineFor(
   bookId: string,
   chapter: number,
   versionId?: string | null,
 ): SectionMark[] {
-  const lang = sectionTitlesLang(versionId);
-  const key = chapterKey(bookId, chapter);
-  const cached = cacheByLang.get(lang)?.[key];
+  const key = sectionsCacheKey(versionId);
+  const ck = chapterKey(bookId, chapter);
+  const cached = cacheByKey.get(key)?.[ck];
   if (cached?.length) return cached;
-  const marks = SECTION_OUTLINES[key] ?? [];
-  return localizeSectionMarks(marks, lang, getSectionTitleEnMapSync() ?? undefined);
+  if (key === 'niv') return [];
+  const marks = SECTION_OUTLINES[ck] ?? [];
+  return localizeSectionMarks(
+    marks,
+    key,
+    getSectionTitleEnMapSync() ?? undefined,
+  );
 }
 
-/** 异步读取（确保已加载 CNV 源文件标题） */
+/** 异步读取（确保已加载对应译本标题） */
 export async function outlineForAsync(
   bookId: string,
   chapter: number,
   versionId?: string | null,
 ): Promise<SectionMark[]> {
-  const lang = sectionTitlesLang(versionId);
-  const idx = await loadSectionsIndex(lang);
+  const key = sectionsCacheKey(versionId);
+  const idx = await loadSectionsIndex(key);
   return idx[chapterKey(bookId, chapter)] ?? [];
 }
 
 export function invalidateSectionCache() {
-  cacheByLang.clear();
+  cacheByKey.clear();
   loadPromises.clear();
 }

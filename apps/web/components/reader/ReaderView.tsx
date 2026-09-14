@@ -1633,7 +1633,10 @@ export default function ReaderView({
     const cached = getCachedChapter(book.id, chapter, version);
     const hasCached = Boolean(cached?.length);
     if (hasCached && cached) {
-      setLayoutVerses(cached);
+      // 有当前译本缓存：先快显；结构层仍尽量用和合本分段
+      const cnCached =
+        getCachedChapter(book.id, chapter, chapterCacheVersion(null)) ?? cached;
+      setLayoutVerses(cnCached);
       setVerses(cached);
       setChapterLoading(false);
     } else if (!swipeTurn) {
@@ -1645,9 +1648,10 @@ export default function ReaderView({
     let cancelled = false;
     const load = async () => {
       try {
-        const chineseVerses = hasCached
-          ? cached!
-          : await loadChapterVerses(book.id, chapter);
+        // 结构层始终取主译本（cuvs），勿把 NIV 缓存当作中文结构
+        const chineseVerses =
+          getCachedChapter(book.id, chapter, chapterCacheVersion(null))
+          ?? (await loadChapterVerses(book.id, chapter));
         if (cancelled || !chineseVerses) {
           if (!cancelled) {
             if (!chineseVerses) flashToast('加载失败');
@@ -1657,7 +1661,9 @@ export default function ReaderView({
         }
         setLayoutVerses(chineseVerses);
         if (mainVersionId) {
-          const altVerses = await loadChapterVerses(book.id, chapter, mainVersionId);
+          const altVerses =
+            (hasCached && cached?.length ? cached : null)
+            ?? (await loadChapterVerses(book.id, chapter, mainVersionId));
           if (cancelled) return;
           if (!altVerses?.length) {
             const verLabel = versionDisplayLabel(mainVersionId, versions);
@@ -1914,14 +1920,13 @@ export default function ReaderView({
         isNextPeek ? peekNextBundle : isPrevPeek ? peekPrevBundle : null;
       const version = chapterCacheVersion(mainVersionId);
       const cached = getCachedChapter(target.book.id, target.chapter, version);
-      // 优先 peek 完整包 / 当前译本缓存，再回退主译本缓存，减少快滑时空窗
-      let instant =
+      // 优先 peek / 当前译本缓存；禁止把主译本（cuvs）回退内容当成 NIV/KJV 写入缓存
+      let instant: Verse[] | null =
         (peekBundle?.verses?.length ? peekBundle.verses : null)
         ?? (cached?.length ? cached : null)
-        ?? getChapterVersesSync(target.book.id, target.chapter, mainVersionId)
-        ?? getChapterVersesSync(target.book.id, target.chapter, null);
+        ?? getChapterVersesSync(target.book.id, target.chapter, mainVersionId);
 
-      // 先到位再换内容：无缓存时等加载完成再切换，消灭闪白
+      // 无当前译本正文时：先等加载，避免用和合本冒充 NIV/KJV
       if (!instant?.length) {
         setChapterLoading(true);
         const loadedBundle = await loadChapterReaderBundle(target.book.id, target.chapter, bundleOpts);
@@ -1945,6 +1950,7 @@ export default function ReaderView({
         peekBundle?.outline ?? outlineFor(target.book.id, target.chapter, mainVersionId);
 
       if (instant?.length) {
+        // 仅当 instant 确属当前译本时跳过 hydrate，避免和合本占位被永久跳过纠正
         if (opts?.fromSwipe) {
           skipChapterHydrateRef.current = true;
           let structureSource = peekBundle?.layoutVerses?.length
@@ -1959,7 +1965,7 @@ export default function ReaderView({
           }
           flushSync(() => {
             setLayoutVerses(structureSource);
-            setVerses(instant);
+            setVerses(instant!);
             setOutline(outlineReady ?? []);
             const committedRanges =
               peekBundle?.paragraphRanges?.length
@@ -2999,7 +3005,6 @@ export default function ReaderView({
                   style={verseBlockStyle}
                 >
                   {para.verses.map((v, vi) => {
-                    const text = v.text;
                     const displayText = verseDisplayText(v.verse, v.text);
                     const markInfo = underlinesOn
                       ? markForVerse(highlightMap, book.id, chapter, v.verse)
@@ -3029,7 +3034,7 @@ export default function ReaderView({
                             )}
                             <span className="verse-text-body">
                               {renderVerseBody(
-                                text,
+                                displayText,
                                 `p${v.verse}`,
                                 v.verse,
                                 resumeFlashVerse === v.verse,
@@ -3120,6 +3125,7 @@ export default function ReaderView({
                 style={verseBlockStyle}
               >
                 {para.verses.map((v, vi) => {
+                  const displayText = verseDisplayText(v.verse, v.text);
                   const markInfo = underlinesOn
                     ? markForVerse(highlightMap, book.id, chapter, v.verse)
                     : null;
@@ -3137,7 +3143,7 @@ export default function ReaderView({
                       <span
                         id={`verse-anchor-${v.verse}`}
                         className={`verse-inline verse-token${verseParaStartClass(vi, v.verse)} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${listenVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
-                        onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
+                        onClick={(e) => handleVerseClick(e, v.verse, displayText)}
                         onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                       >
                         {verseNo !== 'hidden' && (
@@ -3145,7 +3151,7 @@ export default function ReaderView({
                         )}
                         <span className="verse-text-body">
                           {renderVerseBody(
-                            v.text,
+                            displayText,
                             `v${v.verse}`,
                             v.verse,
                             resumeFlashVerse === v.verse,
