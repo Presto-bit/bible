@@ -3071,7 +3071,7 @@ export default function ReaderView({
                                     setAiSheetContext({
                                       refParam: `${book.id}.${chapter}.${v.verse}`,
                                       refLabel: `${book.name} ${chapter}:${v.verse}`,
-                                      selectionText: text,
+                                      selectionText: displayText,
                                       explicitSelection: true,
                                     });
                                     setAiSheet(true);
@@ -3093,7 +3093,7 @@ export default function ReaderView({
                                         setAiSheetContext({
                                           refParam: `${book.id}.${chapter}.${v.verse}`,
                                           refLabel: `${book.name} ${chapter}:${v.verse}`,
-                                          selectionText: text,
+                                          selectionText: displayText,
                                           explicitSelection: true,
                                         });
                                         setAiSheet(true);
