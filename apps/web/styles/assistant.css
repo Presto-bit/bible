@@ -1248,15 +1248,7 @@ body.assistant-active .assistant-page {
   margin: 0 0 14px;
   line-height: 1.82;
   max-width: 42em;
-  text-indent: 2em;
-}
-.answer-rich-md .ans-md-h-section + .ans-md-p,
-.answer-rich-md .ans-md-h-summary + .ans-md-p,
-.answer-rich-md .ans-md-h-viewpoint + .ans-md-p,
-.answer-rich-md .ans-md-quote .ans-md-p,
-.answer-rich-md .ans-md-li .ans-md-p,
-.answer-rich-md .ans-md-pre,
-.answer-rich-md .answer-rich-streaming .ans-md-p {
+  /* 对话式输出：靠段间距区分段落，不做书籍首行缩进（对齐 Gemini 等通用 AI） */
   text-indent: 0;
 }
 .answer-rich-md .ans-md-h-section + .ans-md-p {

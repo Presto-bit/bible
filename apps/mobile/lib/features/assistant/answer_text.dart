@@ -395,14 +395,7 @@ class AnswerText extends StatelessWidget {
   Widget _bodyParagraph(String content, TextStyle base) {
     return Padding(
       padding: EdgeInsets.only(bottom: dense ? 6 : 10),
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(text: '\u3000\u3000', style: base),
-            ..._inline(content, base),
-          ],
-        ),
-      ),
+      child: Text.rich(TextSpan(children: _inline(content, base))),
     );
   }
 
