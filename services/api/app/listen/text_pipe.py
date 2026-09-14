@@ -5,7 +5,7 @@ import hashlib
 import re
 import unicodedata
 
-from ..bible.reader import VERSIONS, book_name
+from ..bible.reader import VERSIONS, book_name, list_books
 
 # 产品 voice_id → MiniMax 系统音色
 VOICE_MAP: dict[str, str] = {
@@ -20,8 +20,15 @@ VOICE_LABELS: dict[str, str] = {
 
 DEFAULT_VOICE = "voice_calm_m"
 MODEL = "speech-2.8-turbo"
-# 合成策略变更时递增，避免旧缓存混用
-PROSODY_VER = "v5-pangban-male"
+# 合成策略变更时递增，避免旧缓存混用（v6：英文译本章头 + language_boost）
+PROSODY_VER = "v6-en-intro"
+
+# 英文译本（章头 / TTS language_boost）
+_ENGLISH_TRANSLATIONS = frozenset({"kjv", "niv"})
+
+
+def is_english_translation(translation: str | None) -> bool:
+    return (translation or "").strip().lower() in _ENGLISH_TRANSLATIONS
 
 
 def normalize_verse_text(text: str) -> str:
@@ -67,9 +74,30 @@ def _chapter_spoken(n: int) -> str:
     return head + _chapter_spoken(rest)
 
 
-def chapter_intro(book_id: str, chapter: int) -> str:
-    """章头播报：卷名 + 第几章（独立成句，便于听清）。"""
-    name = book_name(book_id) or book_id
+def _book_display_name(book_id: str, translation: str | None) -> str:
+    bid = (book_id or "").upper()
+    if is_english_translation(translation):
+        try:
+            for b in list_books(translation or "kjv"):
+                if str(b.get("id") or "").upper() == bid:
+                    name = str(b.get("name") or "").strip()
+                    if name:
+                        return name
+        except Exception:
+            pass
+    return book_name(bid) or bid
+
+
+def chapter_intro(
+    book_id: str,
+    chapter: int,
+    *,
+    translation: str | None = None,
+) -> str:
+    """章头播报：卷名 + 第几章（独立成句，便于听清）。英文译本用 English。"""
+    name = _book_display_name(book_id, translation)
+    if is_english_translation(translation):
+        return f"{name}. Chapter {int(chapter)}."
     return f"{name}。第{_chapter_spoken(chapter)}章。"
 
 
@@ -77,11 +105,25 @@ def translation_label(translation: str) -> str:
     return VERSIONS.get(translation, translation)
 
 
+def tts_language_boost(translation: str | None) -> str:
+    return "English" if is_english_translation(translation) else "Chinese"
+
+
 def build_verse_units(
-    book_id: str, chapter: int, verses: list[dict]
+    book_id: str,
+    chapter: int,
+    verses: list[dict],
+    *,
+    translation: str | None = None,
 ) -> list[dict]:
     """返回 [{kind, verse|None, text}, ...]，首段为章引子。"""
-    units: list[dict] = [{"kind": "intro", "verse": None, "text": chapter_intro(book_id, chapter)}]
+    units: list[dict] = [
+        {
+            "kind": "intro",
+            "verse": None,
+            "text": chapter_intro(book_id, chapter, translation=translation),
+        }
+    ]
     for row in verses:
         body = normalize_verse_text(str(row.get("text") or ""))
         if not body:

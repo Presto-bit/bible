@@ -104,7 +104,7 @@ def listen_chapter(
     if not verses:
         raise HTTPException(404, detail="本章无经文")
 
-    units = build_verse_units(book, chapter, verses)
+    units = build_verse_units(book, chapter, verses, translation=translation)
     text_hash = chapter_text_hash(translation=translation, voice=voice, units=units)
     hit = read_ready(translation, voice, text_hash)
     if hit:

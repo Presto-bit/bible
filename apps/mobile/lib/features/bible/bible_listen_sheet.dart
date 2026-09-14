@@ -22,6 +22,7 @@ Future<void> showBibleListenSheet(
   required bool canNextChapter,
   required Future<void> Function(int delta) onNavChapter,
   required Future<void> Function(BibleBook book, int chapter) onPickChapter,
+  bool englishUI = false,
 }) async {
   final ctrl = ref.read(bibleListenProvider.notifier);
   await showModalBottomSheet<void>(
@@ -39,6 +40,7 @@ Future<void> showBibleListenSheet(
         canNextChapter: canNextChapter,
         onNavChapter: onNavChapter,
         onPickChapter: onPickChapter,
+        englishUI: englishUI,
       );
     },
   ).whenComplete(() {
@@ -56,6 +58,7 @@ class _BibleListenSheetBody extends ConsumerStatefulWidget {
     required this.canNextChapter,
     required this.onNavChapter,
     required this.onPickChapter,
+    this.englishUI = false,
   });
 
   final List<BibleBook> books;
@@ -66,6 +69,7 @@ class _BibleListenSheetBody extends ConsumerStatefulWidget {
   final bool canNextChapter;
   final Future<void> Function(int delta) onNavChapter;
   final Future<void> Function(BibleBook book, int chapter) onPickChapter;
+  final bool englishUI;
 
   @override
   ConsumerState<_BibleListenSheetBody> createState() =>
@@ -198,8 +202,10 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                             ),
                           ),
                         ),
-                        const Text(
-                          '下滑可继续听',
+                        Text(
+                          widget.englishUI
+                              ? 'Swipe down to keep listening'
+                              : '下滑可继续听',
                           textAlign: TextAlign.center,
                           style:
                               TextStyle(fontSize: 12, color: AppColors.inkSoft),
@@ -261,7 +267,13 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                       child: verses.isEmpty
                         ? Center(
                             child: Text(
-                              preparing ? '正在准备听读…' : '暂无经文',
+                              preparing
+                                  ? (widget.englishUI
+                                      ? 'Preparing listen…'
+                                      : '正在准备听读…')
+                                  : (widget.englishUI
+                                      ? 'No verses'
+                                      : '暂无经文'),
                               style: const TextStyle(
                                 fontSize: 15,
                                 color: AppColors.inkSoft,
@@ -438,9 +450,12 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                           ),
                           Text(
                             preparing
-                                ? '正在准备'
+                                ? (widget.englishUI ? 'Preparing' : '正在准备')
                                 : (errored
-                                    ? (session.error ?? '准备失败，点按重试')
+                                    ? (session.error ??
+                                        (widget.englishUI
+                                            ? 'Failed — tap to retry'
+                                            : '准备失败，点按重试'))
                                     : ' '),
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -456,7 +471,9 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                             runSpacing: 6,
                             children: [
                               _chip(
-                                label: '语速 ${session.settings.speed}×',
+                                label: widget.englishUI
+                                    ? 'Speed ${session.settings.speed}×'
+                                    : '语速 ${session.settings.speed}×',
                                 on: _panel == 'speed',
                                 onTap: () => setState(
                                   () => _panel =
@@ -468,7 +485,7 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                         .where((v) => v.id == session.settings.voice)
                                         .map((v) => v.label)
                                         .firstOrNull ??
-                                    '音色',
+                                    (widget.englishUI ? 'Voice' : '音色'),
                                 on: _panel == 'voice',
                                 onTap: () => setState(
                                   () => _panel =
@@ -477,8 +494,10 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                               ),
                               _chip(
                                 label: session.settings.sleepMinutes == null
-                                    ? '定时'
-                                    : '定时 ${session.settings.sleepMinutes}′',
+                                    ? (widget.englishUI ? 'Timer' : '定时')
+                                    : (widget.englishUI
+                                        ? 'Timer ${session.settings.sleepMinutes}′'
+                                        : '定时 ${session.settings.sleepMinutes}′'),
                                 on: _panel == 'sleep',
                                 onTap: () => setState(
                                   () => _panel =
@@ -524,10 +543,10 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                               alignment: WrapAlignment.center,
                               spacing: 8,
                               children: [
-                                (null, '关'),
-                                (15, '15 分'),
-                                (30, '30 分'),
-                                (60, '60 分'),
+                                (null, widget.englishUI ? 'Off' : '关'),
+                                (15, widget.englishUI ? '15 min' : '15 分'),
+                                (30, widget.englishUI ? '30 min' : '30 分'),
+                                (60, widget.englishUI ? '60 min' : '60 分'),
                               ].map((e) {
                                 final minutes = e.$1;
                                 return _chip(
@@ -572,7 +591,9 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                 TextButton(
                                   onPressed: () =>
                                       setState(() => _catalogOpen = false),
-                                  child: const Text('关闭'),
+                                  child: Text(
+                                    widget.englishUI ? 'Close' : '关闭',
+                                  ),
                                 ),
                               ],
                             ),
@@ -582,13 +603,13 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                             child: Row(
                               children: [
                                 _seg(
-                                  '卷',
+                                  widget.englishUI ? 'Books' : '卷',
                                   _locTab == 'books',
                                   () => setState(() => _locTab = 'books'),
                                 ),
                                 const SizedBox(width: 8),
                                 _seg(
-                                  '章',
+                                  widget.englishUI ? 'Chapters' : '章',
                                   _locTab == 'chapters',
                                   () => setState(() => _locTab = 'chapters'),
                                 ),
@@ -656,8 +677,18 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                 : ListView(
                                     padding: const EdgeInsets.all(16),
                                     children: [
-                                      _bookGroup('旧约', ot),
-                                      _bookGroup('新约', nt),
+                                      _bookGroup(
+                                        widget.englishUI
+                                            ? 'Old Testament'
+                                            : '旧约',
+                                        ot,
+                                      ),
+                                      _bookGroup(
+                                        widget.englishUI
+                                            ? 'New Testament'
+                                            : '新约',
+                                        nt,
+                                      ),
                                     ],
                                   ),
                           ),

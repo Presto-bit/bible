@@ -131,7 +131,7 @@ function CatalogView({
       <div className="reader-bar catalog-page-bar">
         <h2 className="catalog-page-title">
           {showBack && onBack && (
-            <PageBackBar variant="sheet" ariaLabel="返回" onClick={onBack} />
+            <PageBackBar variant="sheet" ariaLabel={englishUI ? 'Back' : '返回'} onClick={onBack} />
           )}
           {ui.title}{planSteps?.length ? ui.planMode : ''}
         </h2>

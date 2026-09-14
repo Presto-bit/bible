@@ -17,6 +17,8 @@ from .text_pipe import (
     VOICE_MAP,
     build_verse_units,
     chapter_text_hash,
+    is_english_translation,
+    tts_language_boost,
 )
 
 log = logging.getLogger(__name__)
@@ -25,12 +27,12 @@ log = logging.getLogger(__name__)
 _CHUNK_CHARS = 9000
 
 
-def _tts_sentence(text: str) -> str:
+def _tts_sentence(text: str, *, english: bool = False) -> str:
     t = (text or "").strip()
     if not t:
         return ""
     if not re.search(r"[。！？.!?]$", t):
-        t += "。"
+        t += "." if english else "。"
     return t
 
 
@@ -82,7 +84,7 @@ def _concat_mp3(blobs: list[bytes]) -> bytes:
         return data
 
 
-def _build_chunks(units: list[dict]) -> list[dict]:
+def _build_chunks(units: list[dict], *, english: bool = False) -> list[dict]:
     """把 units 切成若干块。
 
     实际送 TTS 的文本用换行分隔句子，便于 MiniMax 出句级字幕；
@@ -109,7 +111,7 @@ def _build_chunks(units: list[dict]) -> list[dict]:
         cursor = 0
 
     for unit in units:
-        sent = _tts_sentence(str(unit.get("text") or ""))
+        sent = _tts_sentence(str(unit.get("text") or ""), english=english)
         if not sent:
             continue
         # 块大小按「有效字」估算（不含换行）
@@ -202,20 +204,21 @@ def prepare_chapter(
     if not verses:
         raise FileNotFoundError(f"无经文 {translation} {book}.{chapter}")
 
-    units = build_verse_units(book, chapter, verses)
+    units = build_verse_units(book, chapter, verses, translation=translation)
     text_hash = chapter_text_hash(translation=translation, voice=voice, units=units)
 
     hit = read_ready(translation, voice, text_hash)
     if hit:
         return hit
 
-    chunks = _build_chunks(units)
+    chunks = _build_chunks(units, english=is_english_translation(translation))
     if not chunks:
         raise RuntimeError("无可合成文本")
 
     blobs: list[bytes] = []
     timeline: list[dict] = []
     cursor = 0
+    lang_boost = tts_language_boost(translation)
 
     for i, chunk in enumerate(chunks):
         log.info(
@@ -231,6 +234,7 @@ def prepare_chapter(
             voice_id=mm_voice,
             model=MODEL,
             with_subtitles=True,
+            language_boost=lang_boost,
         )
         piece_tl = _timeline_from_subtitles(
             chunk["ranges"],

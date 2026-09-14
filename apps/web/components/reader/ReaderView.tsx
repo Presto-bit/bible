@@ -677,9 +677,12 @@ export default function ReaderView({
   const hasSelRef = useRef(hasSel);
 
   const screenVersionId = mainVersionId || getMainVersion() || FALLBACK_PRIMARY_VERSION;
+  const listenEnglishUI = isEnglishBibleVersion(mainVersionId);
+  const listenBookName =
+    localizedBooks.find((b) => b.id === book.id)?.name ?? book.name;
   const bibleListen = useBibleListen({
     bookId: book.id,
-    bookName: book.name,
+    bookName: listenBookName,
     chapter,
     translation: screenVersionId,
     translationLabel: versionLabel,
@@ -689,7 +692,11 @@ export default function ReaderView({
       if (b) onNavigate(b, nextChapter);
     },
     onFirstListenTip: () => {
-      flashToast('下滑可继续听；暂停请打开听读页');
+      flashToast(
+        listenEnglishUI
+          ? 'Swipe down to keep listening; open Listen to pause'
+          : '下滑可继续听；暂停请打开听读页',
+      );
     },
   });
   const {
@@ -3960,7 +3967,7 @@ export default function ReaderView({
 
       <ListenPlayerSheet
         open={listenSheetOpen}
-        title={`${book.name} ${chapter}`}
+        title={`${displayBook.name} ${chapter}`}
         translationLabel={versionLabel}
         ui={listenUi}
         error={listenError}
@@ -3972,8 +3979,8 @@ export default function ReaderView({
         settings={listenSettings}
         speeds={listenSpeeds}
         canSeek={listenCanSeek}
-        books={books}
-        book={book}
+        books={localizedBooks}
+        book={displayBook}
         chapter={chapter}
         bookAbbr={bookAbbr}
         canPrevChapter={canNavPrev}
@@ -3989,6 +3996,7 @@ export default function ReaderView({
         onArmSleep={armListenSleep}
         voices={listenVoices}
         onSelectVoice={selectListenVoice}
+        englishUI={englishUI}
       />
     </main>
   );

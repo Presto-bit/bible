@@ -18,6 +18,39 @@ const SLEEP_OPTIONS: { label: string; minutes: number | null }[] = [
 
 type LocTab = 'chapters' | 'books';
 
+type ListenSheetCopy = {
+  pickLoc: string;
+  close: string;
+  books: string;
+  chapters: string;
+  ot: string;
+  nt: string;
+  voice: string;
+  sleep: string;
+};
+
+const COPY_ZH: ListenSheetCopy = {
+  pickLoc: '选择经卷与章节',
+  close: '关闭',
+  books: '卷',
+  chapters: '章',
+  ot: '旧约',
+  nt: '新约',
+  voice: '音色',
+  sleep: '定时关闭',
+};
+
+const COPY_EN: ListenSheetCopy = {
+  pickLoc: 'Select book and chapter',
+  close: 'Close',
+  books: 'Books',
+  chapters: 'Chapters',
+  ot: 'Old Testament',
+  nt: 'New Testament',
+  voice: 'Voice',
+  sleep: 'Sleep timer',
+};
+
 export function ListenPlayerSheet({
   open,
   title,
@@ -49,6 +82,7 @@ export function ListenPlayerSheet({
   onArmSleep,
   voices,
   onSelectVoice,
+  englishUI = false,
 }: {
   open: boolean;
   title: string;
@@ -66,7 +100,7 @@ export function ListenPlayerSheet({
   books: BibleBook[];
   book: BibleBook;
   chapter: number;
-  bookAbbr: (name: string) => string;
+  bookAbbr: (name: string, bookId?: string) => string;
   canPrevChapter: boolean;
   canNextChapter: boolean;
   onClose: () => void;
@@ -80,7 +114,9 @@ export function ListenPlayerSheet({
   onArmSleep: (minutes: number | null) => void;
   voices: readonly { id: string; label: string }[];
   onSelectVoice: (voiceId: string) => void;
+  englishUI?: boolean;
 }) {
+  const copy = englishUI ? COPY_EN : COPY_ZH;
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const lastScrolledVerseRef = useRef<number | null>(null);
@@ -93,7 +129,7 @@ export function ListenPlayerSheet({
   });
   const [panel, setPanel] = useState<'none' | 'speed' | 'sleep' | 'voice'>('none');
   const voiceLabel =
-    voices.find((v) => v.id === settings.voice)?.label ?? '音色';
+    voices.find((v) => v.id === settings.voice)?.label ?? copy.voice;
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [locTab, setLocTab] = useState<LocTab>('chapters');
   const [selectedBookId, setSelectedBookId] = useState(book.id);
@@ -363,7 +399,7 @@ export function ListenPlayerSheet({
             </div>
           ) : null}
           {panel === 'sleep' ? (
-            <div className="listen-sheet-panel" role="group" aria-label="定时关闭">
+            <div className="listen-sheet-panel" role="group" aria-label={copy.sleep}>
               {SLEEP_OPTIONS.map((o) => (
                 <button
                   key={o.label}
@@ -374,7 +410,11 @@ export function ListenPlayerSheet({
                     setPanel('none');
                   }}
                 >
-                  {o.label}
+                  {englishUI
+                    ? o.minutes == null
+                      ? 'Off'
+                      : `${o.minutes} min`
+                    : o.label}
                 </button>
               ))}
             </div>
@@ -382,7 +422,7 @@ export function ListenPlayerSheet({
           </div>
 
           {catalogOpen ? (
-            <div className="listen-catalog" role="dialog" aria-label="选择经卷与章节">
+            <div className="listen-catalog" role="dialog" aria-label={copy.pickLoc}>
               <div className="listen-catalog-head">
                 <strong>{selectedBook.name}</strong>
                 <button
@@ -390,7 +430,7 @@ export function ListenPlayerSheet({
                   className="listen-catalog-close"
                   onClick={() => setCatalogOpen(false)}
                 >
-                  关闭
+                  {copy.close}
                 </button>
               </div>
               <div className="seg-tabs reader-loc-seg-tabs">
@@ -399,14 +439,14 @@ export function ListenPlayerSheet({
                   className={`seg-tab ${locTab === 'books' ? 'seg-tab-active' : ''}`}
                   onClick={() => setLocTab('books')}
                 >
-                  卷
+                  {copy.books}
                 </button>
                 <button
                   type="button"
                   className={`seg-tab ${locTab === 'chapters' ? 'seg-tab-active' : ''}`}
                   onClick={() => setLocTab('chapters')}
                 >
-                  章
+                  {copy.chapters}
                 </button>
               </div>
               {locTab === 'chapters' ? (
@@ -435,8 +475,8 @@ export function ListenPlayerSheet({
               ) : (
                 <div className="listen-catalog-books">
                   {[
-                    ['旧约', ot],
-                    ['新约', nt],
+                    [copy.ot, ot],
+                    [copy.nt, nt],
                   ].map(([label, list]) =>
                     (list as BibleBook[]).length ? (
                       <div key={label as string} className="reader-loc-book-group">
@@ -454,7 +494,7 @@ export function ListenPlayerSheet({
                                 setLocTab('chapters');
                               }}
                             >
-                              {bookAbbr(b.name)}
+                              {bookAbbr(b.name, b.id)}
                             </button>
                           ))}
                         </div>

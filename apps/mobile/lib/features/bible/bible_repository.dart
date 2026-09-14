@@ -37,10 +37,20 @@ class BibleRepository {
       final parsed = list
           .map((e) => BibleBook.fromJson(e as Map<String, dynamic>))
           .toList();
-      if (isEnglishBibleVersion(version)) return parsed;
+      if (isEnglishBibleVersion(version)) {
+        final looksZh = parsed.take(5).any(
+          (b) => RegExp(r'[\u4e00-\u9fff]').hasMatch(b.name),
+        );
+        if (looksZh) return _localizeBooks(parsed, version);
+      }
       return parsed;
     } catch (e) {
       if (isEnglishBibleVersion(version)) {
+        final prefer = (version ?? '').trim().toLowerCase();
+        if (prefer.isNotEmpty) {
+          final localVer = await _offline?.listBooks(prefer) ?? [];
+          if (localVer.isNotEmpty) return localVer;
+        }
         final kjvLocal = await _offline?.listBooks('kjv') ?? [];
         if (kjvLocal.isNotEmpty) return kjvLocal;
         final primary = await _offline?.listBooks() ?? [];

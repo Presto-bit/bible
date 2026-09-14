@@ -18,6 +18,7 @@ Future<void> showBibleSummarySheet(
   required String bookName,
   required int chapter,
   String initialTab = 'chapter', // chapter | book
+  bool englishUI = false,
 }) {
   return showReaderSheet<void>(
     context: context,
@@ -26,6 +27,7 @@ Future<void> showBibleSummarySheet(
       bookName: bookName,
       chapter: chapter,
       initialTab: initialTab,
+      englishUI: englishUI,
     ),
   );
 }
@@ -36,11 +38,13 @@ class _SummarySheetBody extends ConsumerStatefulWidget {
     required this.bookName,
     required this.chapter,
     required this.initialTab,
+    this.englishUI = false,
   });
   final String bookId;
   final String bookName;
   final int chapter;
   final String initialTab;
+  final bool englishUI;
 
   @override
   ConsumerState<_SummarySheetBody> createState() => _SummarySheetBodyState();
@@ -142,13 +146,15 @@ class _SummarySheetBodyState extends ConsumerState<_SummarySheetBody> {
             Row(
               children: [
                 _tabBtn(
-                  label: '第 ${widget.chapter} 章',
+                  label: widget.englishUI
+                      ? 'Chapter ${widget.chapter}'
+                      : '第 ${widget.chapter} 章',
                   active: _tab == 'chapter',
                   onTap: () => setState(() => _tab = 'chapter'),
                 ),
                 const SizedBox(width: 8),
                 _tabBtn(
-                  label: '整卷概览',
+                  label: widget.englishUI ? 'Whole book' : '整卷概览',
                   active: _tab == 'book',
                   onTap: () => setState(() => _tab = 'book'),
                 ),

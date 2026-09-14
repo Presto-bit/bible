@@ -935,9 +935,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       await ref.read(prefsProvider).setBool('bible_listen_tip_v1', true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('下滑可继续听；暂停请打开听读页'),
-            duration: Duration(milliseconds: 2600),
+          SnackBar(
+            content: Text(
+              isEnglishBibleVersion(translation)
+                  ? 'Swipe down to keep listening; open Listen to pause'
+                  : '下滑可继续听；暂停请打开听读页',
+            ),
+            duration: const Duration(milliseconds: 2600),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -947,9 +951,25 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     listenCtrl.onContinuousNext = (bookId, chapter) {
       unawaited(_navToListenChapter(bookId, chapter));
     };
+    final catalogBooks =
+        ref.read(catalogBooksProvider(_mainVersionId)).value ??
+            ref.read(booksProvider).value ??
+            const <BibleBook>[];
+    final displayBook = catalogBooks.firstWhere(
+      (x) => x.id == b.id,
+      orElse: () => isEnglishBibleVersion(translation)
+          ? BibleBook(
+              id: b.id,
+              name: englishBookName(b.id, fallback: b.name),
+              testament: b.testament,
+              sortOrder: b.sortOrder,
+              chapterCount: b.chapterCount,
+            )
+          : b,
+    );
     await listenCtrl.openSheet(
-      bookId: b.id,
-      bookName: b.name,
+      bookId: displayBook.id,
+      bookName: displayBook.name,
       chapter: _chapter,
       translation: translation,
       translationLabel: label,
@@ -958,16 +978,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       ],
     );
     if (!mounted) return;
-    final books = ref.read(booksProvider).value ?? const <BibleBook>[];
     await showBibleListenSheet(
       context,
       ref,
-      books: books,
-      book: b,
+      books: catalogBooks.isNotEmpty ? catalogBooks : [displayBook],
+      book: displayBook,
       chapter: _chapter,
-      bookAbbr: bibleBookAbbr,
+      bookAbbr: (name) {
+        final hit = catalogBooks.where((x) => x.name == name).firstOrNull;
+        return bibleBookAbbrFor(
+          hit?.id ?? displayBook.id,
+          name,
+          english: isEnglishBibleVersion(translation),
+        );
+      },
       canPrevChapter: _canNavChapter(-1),
       canNextChapter: _canNavChapter(1),
+      englishUI: isEnglishBibleVersion(translation),
       onNavChapter: (delta) => _nav(delta),
       onPickChapter: (picked, ch) async {
         setState(() {
@@ -1019,7 +1046,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     } catch (_) {}
     await ref.read(bibleListenProvider.notifier).onChapterChanged(
           bookId: b.id,
-          bookName: b.name,
+          bookName: isEnglishBibleVersion(translation)
+              ? englishBookName(b.id, fallback: b.name)
+              : b.name,
           chapter: _chapter,
           translation: translation,
           translationLabel: label,
@@ -1120,9 +1149,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       context,
       ref,
       bookId: book.id,
-      bookName: book.name,
+      bookName: isEnglishBibleVersion(_mainVersionId)
+          ? englishBookName(book.id, fallback: book.name)
+          : book.name,
       chapter: _chapter,
       initialTab: 'chapter',
+      englishUI: isEnglishBibleVersion(_mainVersionId),
     );
   }
 

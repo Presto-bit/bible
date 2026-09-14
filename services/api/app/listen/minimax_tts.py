@@ -81,6 +81,7 @@ def synthesize_mp3(
     voice_id: str,
     model: str = "speech-2.8-turbo",
     with_subtitles: bool = False,
+    language_boost: str = "Chinese",
 ) -> tuple[bytes, int, int, list[dict[str, Any]]]:
     """返回 (mp3_bytes, duration_ms, usage_characters, subtitles)。"""
     settings = get_settings()
@@ -92,11 +93,12 @@ def synthesize_mp3(
     if not clean:
         raise RuntimeError("合成文本为空")
 
+    boost = (language_boost or "Chinese").strip() or "Chinese"
     payload: dict[str, Any] = {
         "model": model,
         "text": clean,
         "stream": False,
-        "language_boost": "Chinese",
+        "language_boost": boost,
         "voice_setting": {
             "voice_id": voice_id,
             "speed": 1,
