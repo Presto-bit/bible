@@ -176,4 +176,37 @@ export function resolveListenVerse(
   return current;
 }
 
+/** 把元素滚到滚动容器偏上位置（默认约 28%），避免贴底挡住进度条。 */
+export function scrollElementToBand(
+  el: HTMLElement,
+  opts?: { band?: number; behavior?: ScrollBehavior; root?: HTMLElement | null },
+): void {
+  const band = opts?.band ?? 0.28;
+  const behavior = opts?.behavior ?? 'smooth';
+  let root = opts?.root ?? null;
+  if (!root) {
+    let node: HTMLElement | null = el.parentElement;
+    while (node) {
+      const { overflowY } = getComputedStyle(node);
+      if (
+        (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') &&
+        node.scrollHeight > node.clientHeight + 4
+      ) {
+        root = node;
+        break;
+      }
+      node = node.parentElement;
+    }
+  }
+  if (!root) {
+    el.scrollIntoView({ block: 'start', behavior });
+    return;
+  }
+  const rootRect = root.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const targetTop = rootRect.top + rootRect.height * band;
+  const next = root.scrollTop + (elRect.top - targetTop);
+  root.scrollTo({ top: Math.max(0, next), behavior });
+}
+
 export { DEFAULT_VOICE as LISTEN_DEFAULT_VOICE };

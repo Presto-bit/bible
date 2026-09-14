@@ -616,7 +616,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     if (ctx != null) {
       Scrollable.ensureVisible(
         ctx,
-        alignment: 0.5,
+        alignment: 0.28,
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOut,
       );

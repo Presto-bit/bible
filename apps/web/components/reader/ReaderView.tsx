@@ -90,6 +90,7 @@ import {
 } from '@/lib/reader_viewport';
 import { sliceVerseWords } from '@/lib/verse_words';
 import { useBibleListen } from '@/hooks/useBibleListen';
+import { scrollElementToBand } from '@/lib/listen_api';
 import {
   textFromWordRange,
   wordOverlapsRange,
@@ -719,16 +720,14 @@ export default function ReaderView({
         : '',
     [listenCurrentVerse, listenUi],
   );
-  // 听读面关闭 / 切回圣经 Tab / 播中换节且面已关 → 阅读页滚到正在听的节
+  // 听读面关闭 / 切回圣经 Tab / 播中换节且面已关 → 阅读页滚到正在听的节（偏上）
   useEffect(() => {
     if (!paneActive || listenUi !== 'playing' || listenCurrentVerse == null) return;
     if (listenSheetOpen) return;
     const verse = listenCurrentVerse;
     const t = window.setTimeout(() => {
-      document.getElementById(`verse-anchor-${verse}`)?.scrollIntoView({
-        block: 'center',
-        behavior: 'smooth',
-      });
+      const el = document.getElementById(`verse-anchor-${verse}`);
+      if (el) scrollElementToBand(el, { band: 0.28, behavior: 'smooth' });
     }, 40);
     return () => window.clearTimeout(t);
   }, [paneActive, listenUi, listenCurrentVerse, listenSheetOpen]);

@@ -7,6 +7,7 @@ import type { BibleListenSettings, BibleListenUiState } from '@/hooks/useBibleLi
 import { useSheetOpenGuard } from '@/lib/use_sheet_open_guard';
 import { SHEET_OPEN_GUARD_MS } from '@/lib/reader_gesture';
 import { useVerticalSwipeDismiss } from '@/lib/use_vertical_swipe_dismiss';
+import { scrollElementToBand } from '@/lib/listen_api';
 
 const SLEEP_OPTIONS: { label: string; minutes: number | null }[] = [
   { label: '关', minutes: null },
@@ -121,7 +122,7 @@ export function ListenPlayerSheet({
     if (!el) return;
     // rAF：等当前节 class/布局稳定后再滚，避免先闪到顶部
     const id = window.requestAnimationFrame(() => {
-      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      scrollElementToBand(el, { root: bodyRef.current, band: 0.28, behavior: 'smooth' });
     });
     return () => window.cancelAnimationFrame(id);
   }, [open, currentVerse]);
@@ -204,6 +205,7 @@ export function ListenPlayerSheet({
                     </button>
                   );
                 })}
+                <div className="listen-sheet-scripture-spacer" aria-hidden />
               </div>
             )}
           </div>

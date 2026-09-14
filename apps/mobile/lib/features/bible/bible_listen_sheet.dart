@@ -114,7 +114,7 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
       Scrollable.ensureVisible(
         ctx,
         duration: const Duration(milliseconds: 280),
-        alignment: 0.5,
+        alignment: 0.28,
         curve: Curves.easeOut,
       );
     });
@@ -254,7 +254,8 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                     ),
                   ),
                   Expanded(
-                    child: verses.isEmpty
+                    child: ClipRect(
+                      child: verses.isEmpty
                         ? Center(
                             child: Text(
                               preparing ? '正在准备听读…' : '暂无经文',
@@ -265,7 +266,12 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                             ),
                           )
                         : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                            padding: EdgeInsets.fromLTRB(
+                              16,
+                              4,
+                              16,
+                              MediaQuery.sizeOf(context).height * 0.38,
+                            ),
                             itemCount: verses.length,
                             itemBuilder: (context, i) {
                               final v = verses[i];
@@ -320,12 +326,16 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                               );
                             },
                           ),
+                    ),
                   ),
-                  SizedBox(
-                    height: MediaQuery.sizeOf(context).height * 0.95 * 0.20,
+                  Material(
+                    color: AppColors.surface,
+                    elevation: 6,
+                    shadowColor: const Color(0x14000000),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+                      padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           SliderTheme(
