@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { isFinePointerUI } from '@/lib/touch_ui';
 import {
   swipeRevealActivate,
@@ -167,6 +173,11 @@ export function SwipeRevealRow({
     onClickRef.current?.();
   };
 
+  const handleContentPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (finePointer || e.button !== 0) return;
+    handleContentClick();
+  };
+
   if (!resolved.length) {
     return (
       <div className="swipe-reveal-row" onClick={() => onClickRef.current?.()}>
@@ -220,7 +231,8 @@ export function SwipeRevealRow({
         ref={contentRef}
         className="swipe-reveal-content"
         style={{ transform: `translateX(${offset}px)` }}
-        onClick={handleContentClick}
+        onClick={finePointer ? handleContentClick : undefined}
+        onPointerUp={finePointer ? undefined : handleContentPointerUp}
       >
         {children}
       </div>

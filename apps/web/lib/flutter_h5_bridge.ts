@@ -41,7 +41,8 @@ type PeiaiNativePayload =
       openPath?: string;
     }
   | { type: 'cancel_reminder'; kind?: 'daily' | 'group' | string }
-  | { type: 'set_theme'; theme?: string; app_theme?: string };
+  | { type: 'set_theme'; theme?: string; app_theme?: string }
+  | { type: 'hard_reload' };
 
 declare global {
   interface Window {
@@ -51,6 +52,8 @@ declare global {
       theme?: string;
       /** Flutter 壳当前主 Tab：home|bible|assistant|discover|profile */
       hostTab?: string;
+      /** 对齐 Flutter networkOkProvider；弱网时 H5 勿误用 navigator.onLine */
+      online?: boolean;
       openNative: (payload: PeiaiNativePayload | string) => void;
     };
   }

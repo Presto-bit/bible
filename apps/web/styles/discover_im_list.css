@@ -94,6 +94,11 @@
 .discover-conv-list{
   list-style:none;margin:0;padding:8px 12px 12px;display:flex;flex-direction:column;gap:8px;
 }
+.discover-conv-li.is-navigating .discover-conv-row{
+  opacity:.72;
+  background:color-mix(in srgb, var(--accent-wash,#e8efe9) 45%, transparent);
+  transition:opacity 120ms ease, background 120ms ease;
+}
 .discover-conv-li{
   position:relative;display:flex;align-items:stretch;gap:0;
   border-radius:16px;

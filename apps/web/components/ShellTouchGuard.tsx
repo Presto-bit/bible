@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { initPcUiClass } from '@/lib/pc_ui';
 import { initPcWheelPassthrough } from '@/lib/pc_wheel_passthrough';
+import { onShellOrFlutterResume } from '@/lib/shell_resume';
 import { purgeShellTouchBlockers, softRecoverShellTouch } from '@/lib/sheet_overlay';
 
 export default function ShellTouchGuard() {
@@ -39,10 +40,10 @@ export default function ShellTouchGuard() {
       if (document.visibilityState === 'visible') softRecover();
     };
 
-    window.addEventListener('peiai-shell-resume', hardRecover);
+    const offShellResume = onShellOrFlutterResume(hardRecover);
     document.addEventListener('visibilitychange', onVis);
     return () => {
-      window.removeEventListener('peiai-shell-resume', hardRecover);
+      offShellResume();
       document.removeEventListener('visibilitychange', onVis);
     };
   }, []);

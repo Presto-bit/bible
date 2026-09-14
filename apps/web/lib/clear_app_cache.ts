@@ -1,5 +1,7 @@
 /** 清除 Service Worker 与 Cache API 缓存，保留 localStorage（读经记录、账号等） */
 
+import { isPeiaiFlutterH5Host } from '@/lib/android_host';
+import { peiaiOpenNative } from '@/lib/flutter_h5_bridge';
 import { isPeiaiAndroidWebViewShell } from '@/lib/pwa_platform';
 
 /** 清除 SW / Cache API；仅旧 WebView 壳另清系统 HTTP 缓存 */
@@ -39,6 +41,15 @@ export async function clearAppCache(): Promise<void> {
 /** 清除缓存后带参刷新，绕过 CDN/Nginx 对 / 的长期缓存 */
 export function reloadBypassingShellCache(): void {
   if (typeof window === 'undefined') return;
+
+  // Flutter 嵌 H5：清 WebView 缓存后硬刷
+  if (isPeiaiFlutterH5Host()) {
+    try {
+      if (peiaiOpenNative({ type: 'hard_reload' })) return;
+    } catch {
+      /* fall through */
+    }
+  }
 
   // 旧 WebView 壳：原生 hardReload 更干净
   if (isPeiaiAndroidWebViewShell()) {

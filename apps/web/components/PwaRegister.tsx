@@ -5,6 +5,7 @@ import { BASE_PATH } from '@/lib/basePath';
 import { initNotificationServices } from '@/lib/notifications';
 
 import { initDeferredInstallPrompt } from '@/lib/pwa_deferred_prompt';
+import { onShellOrFlutterResume } from '@/lib/shell_resume';
 
 const UPDATE_POLL_MS = 60_000;
 
@@ -90,7 +91,7 @@ export default function PwaRegister() {
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('pageshow', onVisible);
     window.addEventListener('focus', onVisible);
-    window.addEventListener('peiai-shell-resume', onShellResume);
+    const offShellResume = onShellOrFlutterResume(onShellResume);
 
     initNotificationServices();
 
@@ -100,7 +101,7 @@ export default function PwaRegister() {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('pageshow', onVisible);
       window.removeEventListener('focus', onVisible);
-      window.removeEventListener('peiai-shell-resume', onShellResume);
+      offShellResume();
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
     };
   }, []);

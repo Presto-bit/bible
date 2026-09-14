@@ -10,6 +10,7 @@ import {
 import { isPeiaiAndroidShell } from './pwa_platform';
 import { isFlutterH5Host, peiaiOpenNative } from './flutter_h5_bridge';
 import { isDiscoverImSessionPath } from './im_session_gate';
+import { onShellOrFlutterResume } from './shell_resume';
 import { normalizeAppPath } from './tab_keep_alive';
 
 export interface PushDigest {
@@ -201,14 +202,14 @@ export function startDigestPoller() {
   };
 
   document.addEventListener('visibilitychange', onVis);
-  window.addEventListener('peiai-shell-resume', onResume);
+  const offShellResume = onShellOrFlutterResume(onResume);
 
   shellDigestStop = () => {
     cancelled = true;
     unsubRealtime?.();
     if (shellDigestTimer != null) window.clearTimeout(shellDigestTimer);
     document.removeEventListener('visibilitychange', onVis);
-    window.removeEventListener('peiai-shell-resume', onResume);
+    offShellResume();
     shellDigestStop = null;
   };
 }

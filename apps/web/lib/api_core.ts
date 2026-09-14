@@ -1436,28 +1436,47 @@ export function authHeaders(): Record<string, string> {
 
 export async function authed<T>(
   path: string,
-  opts: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
+  opts: {
+    method?: string;
+    body?: unknown;
+    headers?: Record<string, string>;
+    timeoutMs?: number;
+  } = {},
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: opts.method || 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-      ...opts.headers,
-    },
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-    cache: 'no-store',
-  });
-  if (res.status === 401) throw new Error('未登录');
-  if (!res.ok) {
-    let detail = `${res.status}`;
-    try {
-      detail = (await res.json()).detail || detail;
-    } catch {
-      /* ignore */
+  const timeoutMs =
+    opts.timeoutMs ?? (path.startsWith('/social') ? 8_000 : 12_000);
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: opts.method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(),
+        ...opts.headers,
+      },
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      cache: 'no-store',
+      signal: ac.signal,
+    });
+    if (res.status === 401) throw new Error('未登录');
+    if (!res.ok) {
+      let detail = `${res.status}`;
+      try {
+        detail = (await res.json()).detail || detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail);
     }
-    throw new Error(detail);
+    return res.json() as Promise<T>;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error(`请求超时: ${path}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json() as Promise<T>;
 }
 

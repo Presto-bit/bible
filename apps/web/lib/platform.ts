@@ -1,10 +1,11 @@
 /** 低端/省流判定与 Tab 保活策略 */
 
+import { isPeiaiFlutterH5Host } from '@/lib/android_host';
 import { isAndroid, isPeiaiAndroidCapabilityHost } from '@/lib/pwa_platform';
 
 export function isStandalonePwa(): boolean {
   if (typeof window === 'undefined') return false;
-  if (isPeiaiAndroidCapabilityHost()) return true;
+  if (isPeiaiAndroidCapabilityHost() || isPeiaiFlutterH5Host()) return true;
   const nav = navigator as Navigator & { standalone?: boolean };
   return (
     window.matchMedia('(display-mode: standalone)').matches
@@ -64,7 +65,7 @@ export function isLowEndDevice(): boolean {
  */
 export function isTabKeepAliveEnabled(): boolean {
   if (typeof window === 'undefined') return false;
-  if (isPeiaiAndroidCapabilityHost()) return true;
+  if (isPeiaiAndroidCapabilityHost() || isPeiaiFlutterH5Host()) return true;
   const nav = navigator as NavHints;
   if (nav.connection?.saveData) return false;
   const et = nav.connection?.effectiveType;

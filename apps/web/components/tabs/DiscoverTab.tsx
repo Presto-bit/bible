@@ -37,8 +37,13 @@ import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
 import { notifyDiscoverUnreadChanged } from '@/lib/discover_unread';
 import { Pressable } from '@/components/ui/Pressable';
+import { shellTapProps } from '@/lib/shell_tap';
 
 const CONV_CACHE_KEY = 'presto_discover_conv_cache_v1';
+
+function convNavKey(it: ConversationItem): string {
+  return `${it.scope}:${it.ref_id}`;
+}
 
 function readConvCache(): ConversationItem[] {
   try {
@@ -137,6 +142,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const [plusOpen, setPlusOpen] = useState(false);
   const [remarkTick, setRemarkTick] = useState(0);
   const [draftTick, setDraftTick] = useState(0);
+  const [navigatingKey, setNavigatingKey] = useState<string | null>(null);
   const plusRef = useRef<HTMLDivElement | null>(null);
   const messagesLoadedRef = useRef(false);
   const reloadGenRef = useRef(0);
@@ -332,7 +338,18 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     navigateAppHref(href, router);
   };
 
+  useEffect(() => {
+    setNavigatingKey(null);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!navigatingKey) return;
+    const t = window.setTimeout(() => setNavigatingKey(null), 3_000);
+    return () => window.clearTimeout(t);
+  }, [navigatingKey]);
+
   const openItem = (it: ConversationItem) => {
+    setNavigatingKey(convNavKey(it));
     if (it.scope === 'group' || it.scope === 'dm') {
       const prevUnread = it.unread || 0;
       go(it.scope === 'group' ? `/discover/group/${it.ref_id}` : `/discover/dm/${it.ref_id}`);
@@ -680,10 +697,14 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                   </div>
                 </div>
               );
+              const rowTap = shellTapProps({
+                onTap: () => openItem(it),
+                softRecover: true,
+              });
               return (
                 <li
                   key={key}
-                  className={`discover-conv-li${(it.unread || 0) > 0 ? ' is-unread' : ''}`}
+                  className={`discover-conv-li${(it.unread || 0) > 0 ? ' is-unread' : ''}${navigatingKey === key ? ' is-navigating' : ''}`}
                 >
                   {canState ? (
                     <SwipeRevealRow
@@ -721,7 +742,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                       {row}
                     </SwipeRevealRow>
                   ) : (
-                    <div onClick={() => openItem(it)}>{row}</div>
+                    <div {...rowTap}>{row}</div>
                   )}
                 </li>
               );

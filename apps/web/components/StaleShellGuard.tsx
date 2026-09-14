@@ -4,7 +4,9 @@ import { useEffect } from 'react';
 import { BASE_PATH } from '@/lib/basePath';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { shouldDeferShellInterrupt } from '@/lib/im_session_gate';
+import { isPeiaiFlutterH5Host } from '@/lib/android_host';
 import { isPeiaiAndroidWebViewShell } from '@/lib/pwa_platform';
+import { onShellOrFlutterResume } from '@/lib/shell_resume';
 import { purgeShellTouchBlockers } from '@/lib/sheet_overlay';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
@@ -68,8 +70,8 @@ export default function StaleShellGuard() {
     const base = BASE_PATH || '';
     const home = `${base}/`;
     const swPath = `${base}/sw.js`;
-    // 仅旧 WebView 壳需要激进 resume 对齐；Chrome Host 由浏览器托管 SW
-    const inShell = isPeiaiAndroidWebViewShell();
+    // 旧 WebView / Flutter 嵌 H5：resume 对齐公网版本；Chrome Host 由浏览器托管 SW
+    const inShell = isPeiaiAndroidWebViewShell() || isPeiaiFlutterH5Host();
 
     let cancelled = false;
     let probing = false;
@@ -257,7 +259,7 @@ export default function StaleShellGuard() {
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('pageshow', onVisible);
     window.addEventListener('focus', onVisible);
-    window.addEventListener('peiai-shell-resume', onShellResume);
+    const offShellResume = onShellOrFlutterResume(onShellResume);
     window.addEventListener('presto-tab-nav', onNav);
     window.addEventListener('popstate', onNav);
 
@@ -266,7 +268,7 @@ export default function StaleShellGuard() {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('pageshow', onVisible);
       window.removeEventListener('focus', onVisible);
-      window.removeEventListener('peiai-shell-resume', onShellResume);
+      offShellResume();
       window.removeEventListener('presto-tab-nav', onNav);
       window.removeEventListener('popstate', onNav);
     };

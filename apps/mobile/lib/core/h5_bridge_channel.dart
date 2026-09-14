@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../app/app_shell.dart';
 import '../features/assistant/assistant_seed.dart';
@@ -236,6 +237,18 @@ void attachPeiaiJsChannel(
           Future.microtask(() {
             if (!context.mounted) return;
             showOfflineDownloadSheet(context, ref);
+          });
+        } else if (type == 'hard_reload') {
+          Future.microtask(() async {
+            try {
+              final platform = controller.platform;
+              if (platform is AndroidWebViewController) {
+                await platform.clearCache();
+              }
+            } catch (_) {}
+            try {
+              await controller.reload();
+            } catch (_) {}
           });
         }
       } catch (e) {

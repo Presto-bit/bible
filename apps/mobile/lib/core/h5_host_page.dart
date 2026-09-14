@@ -16,6 +16,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../app/app_shell.dart';
 import '../features/assistant/assistant_seed.dart';
+import '../features/bible/offline_notice.dart' show networkOkProvider;
 import 'api_client.dart';
 import 'app_update.dart';
 import 'app_update_progress_hub.dart';
@@ -259,17 +260,39 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     );
   }
 
+  Future<void> _injectFlutterOnline(bool online) async {
+    final c = _controller;
+    if (c == null) return;
+    try {
+      await c.runJavaScript('''
+(function(){
+  try {
+    if (!window.__PEIAI_FLUTTER__) window.__PEIAI_FLUTTER__ = {};
+    window.__PEIAI_FLUTTER__.online = ${online ? 'true' : 'false'};
+    window.dispatchEvent(new CustomEvent('peiai-flutter-online', { detail: { online: ${online ? 'true' : 'false'} } }));
+  } catch (e) {}
+})();
+''');
+    } catch (_) {}
+  }
+
   Future<void> _reinjectSession() async {
     final c = _controller;
     if (c == null) return;
     final token = await ref.read(sessionProvider).token();
     await _runBridgeJs(c, token);
     await _injectViewportMetrics();
-    // IM/发现：回前台时通知 H5 可重拉未读（若页面监听）
+    final online = ref.read(networkOkProvider).maybeWhen(
+          data: (ok) => ok,
+          orElse: () => !widget.forceOffline,
+        );
+    await _injectFlutterOnline(online && !widget.forceOffline);
+    // IM/发现：回前台时通知 H5（对齐旧壳 peiai-shell-resume + Flutter 专用事件）
     try {
       await c.runJavaScript('''
 (function(){
   try {
+    window.dispatchEvent(new Event('peiai-shell-resume'));
     window.dispatchEvent(new CustomEvent('peiai-flutter-resume'));
     if (typeof window.__PEIAI_ON_RESUME__ === 'function') window.__PEIAI_ON_RESUME__();
   } catch (e) {}
@@ -878,7 +901,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final prefs = ref.read(prefsProvider);
     final readingDnd = NotifPrefs.readingDnd(prefs);
     final injectKey =
-        '$token|${themeId.storageKey}|$readingDnd|${widget.embedInTab}|${widget.tabIndex}|${_readingHydrateJs.hashCode}';
+        '$token|${themeId.storageKey}|$readingDnd|${widget.embedInTab}|${widget.tabIndex}|${widget.forceOffline}|${_readingHydrateJs.hashCode}';
     if (injectKey == _lastBridgeInjectKey) return;
     _lastBridgeInjectKey = injectKey;
     final tokenJs = token != null && token.isNotEmpty ? _jsStr(token) : 'null';
@@ -940,6 +963,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       client: 'android_h5_tab',
       theme: '${themeId.storageKey}',
       hostTab: '$hostTab',
+      online: ${widget.forceOffline ? 'false' : 'true'},
       openNative: function(payload) {
         try {
           if (window.PeiaiFlutter && window.PeiaiFlutter.postMessage) {
@@ -1102,6 +1126,12 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
         unawaited(_reinjectSession());
       });
     }
+
+    ref.listen(networkOkProvider, (prev, next) {
+      if (prev == next) return;
+      final online = next.maybeWhen(data: (ok) => ok, orElse: () => true);
+      unawaited(_injectFlutterOnline(online && !widget.forceOffline));
+    });
 
     // 深链 / open_path：发现子路径喂进常驻 WebView
     if (widget.embedInTab && widget.tabIndex == 3) {
