@@ -715,6 +715,19 @@ export default function ReaderView({
         : '',
     [listenCurrentVerse, listenUi],
   );
+  // 听读面关闭 / 切回圣经 Tab / 播中换节且面已关 → 阅读页滚到正在听的节
+  useEffect(() => {
+    if (!paneActive || listenUi !== 'playing' || listenCurrentVerse == null) return;
+    if (listenSheetOpen) return;
+    const verse = listenCurrentVerse;
+    const t = window.setTimeout(() => {
+      document.getElementById(`verse-anchor-${verse}`)?.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth',
+      });
+    }, 40);
+    return () => window.clearTimeout(t);
+  }, [paneActive, listenUi, listenCurrentVerse, listenSheetOpen]);
   useEffect(() => {
     hasSelRef.current = hasSel;
   }, [hasSel]);

@@ -179,9 +179,10 @@ final bibleListenApiProvider = Provider<BibleListenApi>((ref) {
 
 int? resolveListenVerse(List<ListenTimelineItem> timeline, int positionMs) {
   if (timeline.isEmpty) return null;
+  // 取已开始的最后一节；节间空隙保持上一节，避免回跳到首节。
+  int? current;
   for (final t in timeline) {
-    if (positionMs >= t.startMs && positionMs < t.endMs) return t.verse;
+    if (positionMs >= t.startMs) current = t.verse;
   }
-  if (positionMs >= timeline.last.startMs) return timeline.last.verse;
-  return timeline.first.verse;
+  return current;
 }

@@ -167,13 +167,13 @@ export function resolveListenVerse(
   positionMs: number,
 ): number | null {
   if (!timeline.length) return null;
+  // 取已开始的最后一节；节间空隙保持上一节，避免回跳到首节。
+  // 章引（尚未到第 1 节 start）返回 null。
+  let current: number | null = null;
   for (const t of timeline) {
-    if (positionMs >= t.start_ms && positionMs < t.end_ms) return t.verse;
+    if (positionMs >= t.start_ms) current = t.verse;
   }
-  if (positionMs >= timeline[timeline.length - 1].start_ms) {
-    return timeline[timeline.length - 1].verse;
-  }
-  return timeline[0]?.verse ?? null;
+  return current;
 }
 
 export { DEFAULT_VOICE as LISTEN_DEFAULT_VOICE };

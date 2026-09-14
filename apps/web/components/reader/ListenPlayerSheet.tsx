@@ -78,7 +78,7 @@ export function ListenPlayerSheet({
 }) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
-  const currentRowRef = useRef<HTMLButtonElement | null>(null);
+  const lastScrolledVerseRef = useRef<number | null>(null);
   const { guardedClose } = useSheetOpenGuard(SHEET_OPEN_GUARD_MS);
   const swipe = useVerticalSwipeDismiss({
     onDismiss: onClose,
@@ -95,8 +95,13 @@ export function ListenPlayerSheet({
     if (!open) {
       setPanel('none');
       setCatalogOpen(false);
+      lastScrolledVerseRef.current = null;
     }
   }, [open]);
+
+  useEffect(() => {
+    lastScrolledVerseRef.current = null;
+  }, [chapter, book.id]);
 
   useEffect(() => {
     if (!catalogOpen) return;
@@ -106,10 +111,20 @@ export function ListenPlayerSheet({
 
   useEffect(() => {
     if (!open || currentVerse == null) return;
-    const el = currentRowRef.current;
+    if (lastScrolledVerseRef.current === currentVerse) return;
+    lastScrolledVerseRef.current = currentVerse;
+    const root = bodyRef.current;
+    if (!root) return;
+    const el = root.querySelector(
+      `[data-listen-verse="${currentVerse}"]`,
+    ) as HTMLElement | null;
     if (!el) return;
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [open, currentVerse, chapter, book.id]);
+    // rAF：等当前节 class/布局稳定后再滚，避免先闪到顶部
+    const id = window.requestAnimationFrame(() => {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [open, currentVerse]);
 
   if (!open) return null;
 
@@ -176,7 +191,7 @@ export function ListenPlayerSheet({
                     <button
                       key={v.verse}
                       type="button"
-                      ref={isCurrent ? currentRowRef : undefined}
+                      data-listen-verse={v.verse}
                       className={`listen-sheet-verse-row${isCurrent ? ' is-current' : ''}`}
                       disabled={!canSeek || preparing}
                       onClick={() => {

@@ -11,7 +11,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/app_shell.dart' show peiaiTabContentBottomPad;
+import '../../app/app_shell.dart' show peiaiTabContentBottomPad, navIndexProvider;
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/mark_notes.dart';
 import '../../core/mark_ref.dart' show selectionRef;
@@ -614,7 +614,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     if (ctx != null) {
       Scrollable.ensureVisible(
         ctx,
-        alignment: 0.35,
+        alignment: 0.5,
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOut,
       );
@@ -2466,14 +2466,42 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       bibleListenProvider.select((s) => s.currentVerse),
       (prev, next) {
         if (next == null || next == _lastAudioScrollVerse) return;
-        final st = ref.read(bibleListenProvider).ui;
-        if (st != BibleListenUi.playing) return;
+        final listen = ref.read(bibleListenProvider);
+        if (listen.ui != BibleListenUi.playing) return;
+        // 听读面打开时只滚面内列表，避免背后阅读页跟着抖
+        if (listen.sheetOpen) return;
         _lastAudioScrollVerse = next;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _scrollToAudioVerse(next);
         });
       },
     );
+    ref.listen<bool>(
+      bibleListenProvider.select((s) => s.sheetOpen),
+      (prev, next) {
+        // 关掉听读面 → 阅读页滚到正在听的节
+        if (prev != true || next) return;
+        final listen = ref.read(bibleListenProvider);
+        final v = listen.currentVerse;
+        if (v == null || listen.ui != BibleListenUi.playing) return;
+        _lastAudioScrollVerse = v;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scrollToAudioVerse(v);
+        });
+      },
+    );
+    ref.listen<int>(navIndexProvider, (prev, next) {
+      // 从其它 Tab 回到圣经 → 滚到正在听的节
+      if (next != 1 || prev == 1) return;
+      final listen = ref.read(bibleListenProvider);
+      final v = listen.currentVerse;
+      if (v == null || listen.ui != BibleListenUi.playing) return;
+      if (listen.sheetOpen) return;
+      _lastAudioScrollVerse = v;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToAudioVerse(v);
+      });
+    });
     ref.listen<int?>(
       readerAudioProvider.select((s) => s.currentVerse),
       (prev, next) {

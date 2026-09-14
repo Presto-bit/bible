@@ -81,6 +81,10 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
   void initState() {
     super.initState();
     _selectedBookId = widget.book.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _scrollToVerse(ref.read(bibleListenProvider).currentVerse);
+    });
   }
 
   @override
@@ -91,6 +95,10 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
       _selectedBookId = widget.book.id;
       _lastScrolledVerse = null;
       _verseKeys.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _scrollToVerse(ref.read(bibleListenProvider).currentVerse);
+      });
     }
   }
 
@@ -106,7 +114,7 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
       Scrollable.ensureVisible(
         ctx,
         duration: const Duration(milliseconds: 280),
-        alignment: 0.28,
+        alignment: 0.5,
         curve: Curves.easeOut,
       );
     });
@@ -122,9 +130,12 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
     final errored = session.ui == BibleListenUi.error;
     ref.listen<int?>(
       bibleListenProvider.select((s) => s.currentVerse),
-      (prev, next) => _scrollToVerse(next),
+      (prev, next) {
+        if (next == null) return;
+        // 仅在真正换节时滚；忽略间隙误判造成的回跳已在 resolve 层消除
+        _scrollToVerse(next);
+      },
     );
-    _scrollToVerse(session.currentVerse);
     final maxMs = session.duration.inMilliseconds <= 0
         ? 1.0
         : session.duration.inMilliseconds.toDouble();
