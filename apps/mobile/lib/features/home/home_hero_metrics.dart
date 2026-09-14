@@ -37,6 +37,28 @@ double homeHeroVerseFontSize(BuildContext context) {
   return (w * 0.046).clamp(17.0, 20.0);
 }
 
+/// Hero 卡与全屏壁纸共用经文字体栈（避免进全屏换宋体/换字号）。
+TextStyle homeHeroVerseTextStyle(
+  BuildContext context, {
+  Color color = const Color(0xFFFFFFFF),
+}) {
+  final fs = homeHeroVerseFontSize(context);
+  return TextStyle(
+    fontFamily: 'Georgia',
+    fontFamilyFallback: const [
+      'Songti SC',
+      'STSong',
+      'Noto Serif SC',
+      'serif',
+    ],
+    fontSize: fs,
+    height: 1.65,
+    letterSpacing: fs * 0.015,
+    fontWeight: FontWeight.w500,
+    color: color,
+  );
+}
+
 /// 最大行数：宁多行展全，不用省略号吃字（全屏壁纸另有完整文）。
 int homeHeroVerseMaxLines(int textLen) {
   if (textLen > 110) return 9;

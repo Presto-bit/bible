@@ -1487,7 +1487,6 @@ class _VerseCardState extends ConsumerState<_VerseCard>
         : formatDailyVerseQuote(widget.text);
     final textLen = displayText.characters.length;
     final h = homeHeroVerseHeight(context, textLen: textLen);
-    final verseFs = homeHeroVerseFontSize(context);
     final verseLines = homeHeroVerseMaxLines(textLen);
     final canRead = widget.book.isNotEmpty && widget.chapter > 0;
     return DecoratedBox(
@@ -1585,21 +1584,7 @@ class _VerseCardState extends ConsumerState<_VerseCard>
                               maxLines: verseLines,
                               overflow: TextOverflow.fade,
                               softWrap: true,
-                              style: TextStyle(
-                                // 对齐 PWA --font-reader：英文 Georgia，中文回落宋体。
-                                fontFamily: 'Georgia',
-                                fontFamilyFallback: const [
-                                  'Songti SC',
-                                  'STSong',
-                                  'Noto Serif SC',
-                                  'serif',
-                                ],
-                                fontSize: verseFs,
-                                height: 1.65,
-                                letterSpacing: verseFs * 0.02,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                              ),
+                              style: homeHeroVerseTextStyle(context),
                             ),
                           ],
                         ),

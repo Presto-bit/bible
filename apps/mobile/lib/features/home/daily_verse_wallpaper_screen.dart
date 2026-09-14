@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/home_greeting.dart';
+import 'home_hero_metrics.dart';
 
 class DailyVerseWallpaperScreen extends StatelessWidget {
   const DailyVerseWallpaperScreen({
@@ -96,25 +97,38 @@ class DailyVerseWallpaperScreen extends StatelessWidget {
                   Text(
                     formatDailyVerseQuote(text),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Songti SC',
-                      fontFamilyFallback: ['STSong', 'Noto Serif SC', 'serif'],
-                      color: Colors.white,
-                      fontSize: 24,
-                      height: 1.75,
-                      fontWeight: FontWeight.w500,
+                    style: homeHeroVerseTextStyle(context).copyWith(
+                      shadows: const [
+                        Shadow(
+                          color: Color(0x8C000000),
+                          blurRadius: 12,
+                          offset: Offset(0, 2),
+                        ),
+                        Shadow(
+                          color: Color(0x73000000),
+                          blurRadius: 3,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
                     ),
                   ),
                   if (ref.isNotEmpty) ...[
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 12),
                     Text(
                       ref,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.78),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.4,
+                        fontFamily: 'Georgia',
+                        fontFamilyFallback: const [
+                          'Songti SC',
+                          'STSong',
+                          'Noto Serif SC',
+                          'serif',
+                        ],
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.48,
                       ),
                     ),
                   ],
