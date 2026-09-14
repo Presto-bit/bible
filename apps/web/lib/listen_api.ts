@@ -37,16 +37,55 @@ export type ListenJobError = {
 
 const DEFAULT_VOICE = 'voice_calm_m';
 
-function absUrl(url: string): string {
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${API_BASE}${url.startsWith('/') ? url : `/${url}`}`;
+/** 统一成可播的绝对地址（始终走前端 API_BASE，避免服务端 host 不一致）。 */
+function absUrl(url: string | undefined | null): string {
+  const raw = (url || '').trim();
+  if (!raw) throw new Error('听读地址缺失');
+  let path = raw;
+  try {
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      path = new URL(raw).pathname + new URL(raw).search;
+    }
+  } catch {
+    throw new Error('听读地址无效');
+  }
+  if (!path.startsWith('/')) path = `/${path}`;
+  const base = API_BASE.replace(/\/$/, '');
+  return `${base}${path}`;
+}
+
+async function parseListenJson(res: Response): Promise<unknown> {
+  const text = await res.text();
+  if (!text) {
+    throw new Error(res.ok ? '听读响应为空' : `听读请求失败 ${res.status}`);
+  }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    // Safari 对非 JSON（如 HTML 404）会抛 pattern 错误，这里改成可读文案
+    throw new Error(
+      res.status === 404
+        ? '听读接口未就绪，请稍后重试'
+        : res.ok
+          ? '听读响应异常'
+          : `听读请求失败 ${res.status}`,
+    );
+  }
+}
+
+function detailFrom(data: unknown, fallback: string): string {
+  if (data && typeof data === 'object' && 'detail' in data) {
+    const d = (data as { detail?: unknown }).detail;
+    if (typeof d === 'string' && d.trim()) return d;
+  }
+  return fallback;
 }
 
 async function listenFetch(path: string, timeoutMs = 30_000): Promise<Response> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);
   try {
-    return await fetch(`${API_BASE}${path}`, {
+    return await fetch(`${API_BASE.replace(/\/$/, '')}${path}`, {
       cache: 'no-store',
       headers: { ...authHeaders() },
       signal: ac.signal,
@@ -70,16 +109,12 @@ export async function fetchListenChapter(opts: {
     voice,
   });
   const res = await listenFetch(`/listen/chapter?${q}`, 20_000);
-  const data = (await res.json()) as ListenChapterReady | ListenChapterPending | { detail?: string };
+  const data = await parseListenJson(res);
   if (res.status === 202) {
     return data as ListenChapterPending;
   }
   if (!res.ok) {
-    const detail =
-      typeof (data as { detail?: string }).detail === 'string'
-        ? (data as { detail: string }).detail
-        : `听读请求失败 ${res.status}`;
-    throw new Error(detail);
+    throw new Error(detailFrom(data, `听读请求失败 ${res.status}`));
   }
   const ready = data as ListenChapterReady;
   return { ...ready, url: absUrl(ready.url) };
@@ -95,17 +130,17 @@ export async function pollListenJob(
   while (Date.now() - t0 < timeout) {
     if (opts?.signal?.aborted) throw new Error('已取消');
     const res = await listenFetch(`/listen/jobs/${encodeURIComponent(jobId)}`, 20_000);
-    const data = (await res.json()) as ListenChapterReady | ListenChapterPending | ListenJobError;
+    const data = await parseListenJson(res);
     if (!res.ok) {
-      const detailVal = (data as unknown as { detail?: unknown }).detail;
-      throw new Error(typeof detailVal === 'string' ? detailVal : `任务查询失败 ${res.status}`);
+      throw new Error(detailFrom(data, `任务查询失败 ${res.status}`));
     }
-    if (data.status === 'ready') {
-      const ready = data as ListenChapterReady;
+    const typed = data as ListenChapterReady | ListenChapterPending | ListenJobError;
+    if (typed.status === 'ready') {
+      const ready = typed as ListenChapterReady;
       return { ...ready, url: absUrl(ready.url) };
     }
-    if (data.status === 'error') {
-      throw new Error((data as ListenJobError).error || '合成失败');
+    if (typed.status === 'error') {
+      throw new Error((typed as ListenJobError).error || '合成失败');
     }
     await new Promise((r) => setTimeout(r, interval));
   }
@@ -123,6 +158,7 @@ export async function ensureListenChapter(
 ): Promise<ListenChapterReady> {
   const first = await fetchListenChapter(opts);
   if (first.status === 'ready') return first;
+  if (!first.job_id) throw new Error('听读任务异常');
   return pollListenJob(first.job_id, pollOpts);
 }
 

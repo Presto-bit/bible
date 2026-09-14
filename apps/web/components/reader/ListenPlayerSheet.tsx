@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
+import type { BibleBook } from '@/lib/api';
 import type { BibleListenSettings, BibleListenUiState } from '@/hooks/useBibleListen';
 import { useSheetOpenGuard } from '@/lib/use_sheet_open_guard';
 import { SHEET_OPEN_GUARD_MS } from '@/lib/reader_gesture';
@@ -13,6 +14,8 @@ const SLEEP_OPTIONS: { label: string; minutes: number | null }[] = [
   { label: '30 分', minutes: 30 },
   { label: '60 分', minutes: 60 },
 ];
+
+type LocTab = 'chapters' | 'books';
 
 export function ListenPlayerSheet({
   open,
@@ -27,10 +30,18 @@ export function ListenPlayerSheet({
   settings,
   speeds,
   canSeek,
+  books,
+  book,
+  chapter,
+  bookAbbr,
+  canPrevChapter,
+  canNextChapter,
   onClose,
   onToggle,
   onSeekMs,
-  onStepVerse,
+  onPrevChapter,
+  onNextChapter,
+  onPickChapter,
   onUpdateSettings,
   onArmSleep,
 }: {
@@ -46,10 +57,18 @@ export function ListenPlayerSheet({
   settings: BibleListenSettings;
   speeds: readonly number[];
   canSeek: boolean;
+  books: BibleBook[];
+  book: BibleBook;
+  chapter: number;
+  bookAbbr: (name: string) => string;
+  canPrevChapter: boolean;
+  canNextChapter: boolean;
   onClose: () => void;
   onToggle: () => void;
   onSeekMs: (ms: number) => void;
-  onStepVerse: (dir: -1 | 1) => void;
+  onPrevChapter: () => void;
+  onNextChapter: () => void;
+  onPickChapter: (book: BibleBook, chapter: number) => void;
   onUpdateSettings: (patch: Partial<BibleListenSettings>) => void;
   onArmSleep: (minutes: number | null) => void;
 }) {
@@ -63,10 +82,22 @@ export function ListenPlayerSheet({
     headerRef,
   });
   const [panel, setPanel] = useState<'none' | 'speed' | 'sleep'>('none');
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [locTab, setLocTab] = useState<LocTab>('chapters');
+  const [selectedBookId, setSelectedBookId] = useState(book.id);
 
   useEffect(() => {
-    if (!open) setPanel('none');
+    if (!open) {
+      setPanel('none');
+      setCatalogOpen(false);
+    }
   }, [open]);
+
+  useEffect(() => {
+    if (!catalogOpen) return;
+    setLocTab('chapters');
+    setSelectedBookId(book.id);
+  }, [catalogOpen, book.id]);
 
   if (!open) return null;
 
@@ -78,6 +109,10 @@ export function ListenPlayerSheet({
   const dragStyle = dragY
     ? { transform: `translateY(${dragY}px)`, transition: 'none' as const }
     : undefined;
+
+  const selectedBook = books.find((b) => b.id === selectedBookId) ?? book;
+  const ot = books.filter((b) => b.testament.toUpperCase().startsWith('O'));
+  const nt = books.filter((b) => !b.testament.toUpperCase().startsWith('O'));
 
   return (
     <AppBodyPortal onTabAway={onClose}>
@@ -102,7 +137,17 @@ export function ListenPlayerSheet({
           <div ref={headerRef} className="listen-sheet-head">
             <div className="listen-sheet-grab" aria-hidden />
             <p className="listen-sheet-hint">下滑可继续听</p>
-            <h2 className="listen-sheet-title">{title}</h2>
+            <button
+              type="button"
+              className="listen-sheet-title-btn"
+              onClick={() => setCatalogOpen(true)}
+              aria-label="选择书卷章节"
+            >
+              <h2 className="listen-sheet-title">{title}</h2>
+              <span className="listen-sheet-title-caret" aria-hidden>
+                ▾
+              </span>
+            </button>
             <p className="listen-sheet-sub">{translationLabel}</p>
           </div>
 
@@ -138,9 +183,9 @@ export function ListenPlayerSheet({
             <button
               type="button"
               className="listen-sheet-ctl"
-              disabled={preparing}
-              aria-label="上一节"
-              onClick={() => onStepVerse(-1)}
+              disabled={preparing || !canPrevChapter}
+              aria-label="上一章"
+              onClick={onPrevChapter}
             >
               ‹‹
             </button>
@@ -176,9 +221,9 @@ export function ListenPlayerSheet({
             <button
               type="button"
               className="listen-sheet-ctl"
-              disabled={preparing}
-              aria-label="下一节"
-              onClick={() => onStepVerse(1)}
+              disabled={preparing || !canNextChapter}
+              aria-label="下一章"
+              onClick={onNextChapter}
             >
               ››
             </button>
@@ -217,15 +262,6 @@ export function ListenPlayerSheet({
               定时
               {settings.sleepMinutes ? ` ${settings.sleepMinutes}′` : ''}
             </button>
-            <button
-              type="button"
-              className={settings.continuousChapter ? 'is-on' : ''}
-              onClick={() =>
-                onUpdateSettings({ continuousChapter: !settings.continuousChapter })
-              }
-            >
-              续听{settings.continuousChapter ? '开' : '关'}
-            </button>
           </div>
 
           {panel === 'speed' ? (
@@ -260,6 +296,91 @@ export function ListenPlayerSheet({
                   {o.label}
                 </button>
               ))}
+            </div>
+          ) : null}
+
+          {catalogOpen ? (
+            <div className="listen-catalog" role="dialog" aria-label="选择经卷与章节">
+              <div className="listen-catalog-head">
+                <strong>{selectedBook.name}</strong>
+                <button
+                  type="button"
+                  className="listen-catalog-close"
+                  onClick={() => setCatalogOpen(false)}
+                >
+                  关闭
+                </button>
+              </div>
+              <div className="seg-tabs reader-loc-seg-tabs">
+                <button
+                  type="button"
+                  className={`seg-tab ${locTab === 'books' ? 'seg-tab-active' : ''}`}
+                  onClick={() => setLocTab('books')}
+                >
+                  卷
+                </button>
+                <button
+                  type="button"
+                  className={`seg-tab ${locTab === 'chapters' ? 'seg-tab-active' : ''}`}
+                  onClick={() => setLocTab('chapters')}
+                >
+                  章
+                </button>
+              </div>
+              {locTab === 'chapters' ? (
+                <div className="listen-catalog-chapters">
+                  <div className="chapter-grid reader-loc-chapter-grid">
+                    {Array.from({ length: selectedBook.chapter_count }, (_, i) => i + 1).map(
+                      (n) => {
+                        const isCurrent = selectedBook.id === book.id && chapter === n;
+                        return (
+                          <button
+                            key={n}
+                            type="button"
+                            className={`chapter-cell${isCurrent ? ' chapter-cell-active' : ''}`}
+                            onClick={() => {
+                              onPickChapter(selectedBook, n);
+                              setCatalogOpen(false);
+                            }}
+                          >
+                            {n}
+                          </button>
+                        );
+                      },
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="listen-catalog-books">
+                  {[
+                    ['旧约', ot],
+                    ['新约', nt],
+                  ].map(([label, list]) =>
+                    (list as BibleBook[]).length ? (
+                      <div key={label as string} className="reader-loc-book-group">
+                        <p className="reader-loc-book-label">{label as string}</p>
+                        <div className="reader-loc-book-grid">
+                          {(list as BibleBook[]).map((b) => (
+                            <button
+                              key={b.id}
+                              type="button"
+                              className={`reader-loc-book-cell${
+                                selectedBookId === b.id ? ' is-active' : ''
+                              }`}
+                              onClick={() => {
+                                setSelectedBookId(b.id);
+                                setLocTab('chapters');
+                              }}
+                            >
+                              {bookAbbr(b.name)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null,
+                  )}
+                </div>
+              )}
             </div>
           ) : null}
         </div>

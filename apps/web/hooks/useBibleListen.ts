@@ -33,7 +33,7 @@ function loadSettings(): BibleListenSettings {
     const j = JSON.parse(raw) as Partial<BibleListenSettings>;
     return {
       speed: typeof j.speed === 'number' ? j.speed : 1,
-      continuousChapter: j.continuousChapter !== false,
+      continuousChapter: true,
       sleepMinutes: typeof j.sleepMinutes === 'number' ? j.sleepMinutes : null,
     };
   } catch {
@@ -243,7 +243,20 @@ export function useBibleListen(opts: {
         el.src = ready.url;
         el.playbackRate = settings.speed;
         setDurationSec((ready.duration_ms || 0) / 1000);
-        await el.play();
+        try {
+          await el.play();
+        } catch (playErr) {
+          preparingRef.current = false;
+          setUi('error');
+          setError(
+            playErr instanceof Error && playErr.name === 'NotAllowedError'
+              ? '请点播放键开始听读'
+              : playErr instanceof Error
+                ? playErr.message
+                : '播放失败',
+          );
+          return;
+        }
         preparingRef.current = false;
         setUi('playing');
         if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {

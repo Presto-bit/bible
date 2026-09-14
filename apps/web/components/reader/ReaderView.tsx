@@ -702,7 +702,6 @@ export default function ReaderView({
     armSleep: armListenSleep,
     togglePlayPause: toggleListenPlayPause,
     seekMs: seekListenMs,
-    stepVerse: stepListenVerse,
     formatTime: listenFormatTime,
     canSeek: listenCanSeek,
   } = bibleListen;
@@ -3935,10 +3934,18 @@ export default function ReaderView({
         settings={listenSettings}
         speeds={listenSpeeds}
         canSeek={listenCanSeek}
+        books={books}
+        book={book}
+        chapter={chapter}
+        bookAbbr={bookAbbr}
+        canPrevChapter={canNavPrev}
+        canNextChapter={canNavNext}
         onClose={closeListenSheet}
         onToggle={toggleListenPlayPause}
         onSeekMs={seekListenMs}
-        onStepVerse={stepListenVerse}
+        onPrevChapter={() => navChapter(-1)}
+        onNextChapter={() => navChapter(1)}
+        onPickChapter={(b, ch) => onNavigate(b, ch)}
         onUpdateSettings={updateListenSettings}
         onArmSleep={armListenSleep}
       />

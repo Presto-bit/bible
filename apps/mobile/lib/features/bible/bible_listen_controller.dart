@@ -41,7 +41,7 @@ class BibleListenSettings {
   static Future<BibleListenSettings> load(SharedPreferences prefs) async {
     return BibleListenSettings(
       speed: prefs.getDouble('bible_listen_speed') ?? 1.0,
-      continuousChapter: prefs.getBool('bible_listen_continuous') ?? true,
+      continuousChapter: true,
       sleepMinutes: prefs.getInt('bible_listen_sleep'),
     );
   }

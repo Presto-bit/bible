@@ -853,32 +853,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           child: Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Material(
-              color: AppColors.paper,
-              elevation: 1.5,
-              shape: StadiumBorder(
-                side: BorderSide(
-                  color: listenSession.ui == BibleListenUi.playing ||
-                          listenSession.ui == BibleListenUi.paused
-                      ? AppColors.accentDeep.withValues(alpha: 0.4)
-                      : AppColors.line,
-                ),
-              ),
+              color: listenSession.ui == BibleListenUi.playing
+                  ? AppColors.ink
+                  : AppColors.accentDeep,
+              elevation: 3,
+              shape: const StadiumBorder(),
               child: InkWell(
                 customBorder: const StadiumBorder(),
                 onTap: () {
                   peiaiHapticLight(context);
                   unawaited(_openListenSheet(context));
                 },
-                child: Padding(
+                child: const Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Text(
                     '听',
                     style: TextStyle(
-                      color: listenSession.ui == BibleListenUi.playing ||
-                              listenSession.ui == BibleListenUi.paused
-                          ? AppColors.accentDeep
-                          : AppColors.inkSoft,
+                      color: Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       height: 1,
@@ -967,7 +959,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       ],
     );
     if (!mounted) return;
-    await showBibleListenSheet(context, ref);
+    final books = ref.read(booksProvider).value ?? const <BibleBook>[];
+    await showBibleListenSheet(
+      context,
+      ref,
+      books: books,
+      book: b,
+      chapter: _chapter,
+      bookAbbr: bibleBookAbbr,
+      canPrevChapter: _canNavChapter(-1),
+      canNextChapter: _canNavChapter(1),
+      onNavChapter: (delta) => _nav(delta),
+      onPickChapter: (picked, ch) async {
+        setState(() {
+          _book = picked;
+          _chapter = ch.clamp(1, picked.chapterCount);
+          _hasSelection = false;
+        });
+        ref.read(readingRepoProvider).record(picked.id, _chapter);
+        await _syncListenAfterChapterChange();
+      },
+    );
   }
 
   Future<void> _navToListenChapter(String bookId, int chapter) async {

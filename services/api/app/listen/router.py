@@ -29,9 +29,8 @@ def _next_chapter(book: str, chapter: int, translation: str) -> dict | None:
 
 
 def _media_url(translation: str, voice: str, text_hash: str) -> str:
-    base = (get_settings().api_base_url or "").rstrip("/")
-    path = f"/listen/media/{translation}/{voice}/{text_hash}.mp3"
-    return f"{base}{path}" if base else path
+    # 相对路径：由客户端拼 API_BASE，避免服务端 api_base_url 与现网域名不一致
+    return f"/listen/media/{translation}/{voice}/{text_hash}.mp3"
 
 
 def _ready_payload(ready: dict, *, book: str, chapter: int) -> dict:
