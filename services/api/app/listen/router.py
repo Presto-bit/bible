@@ -12,7 +12,14 @@ from ..config import get_settings
 from .cache import read_ready
 from .jobs import get_job, prune_jobs, start_job
 from .synthesize import prepare_chapter
-from .text_pipe import DEFAULT_VOICE, VOICE_MAP, build_verse_units, chapter_text_hash, translation_label
+from .text_pipe import (
+    DEFAULT_VOICE,
+    VOICE_LABELS,
+    VOICE_MAP,
+    build_verse_units,
+    chapter_text_hash,
+    translation_label,
+)
 
 router = APIRouter(prefix="/listen", tags=["listen"])
 
@@ -58,10 +65,11 @@ def list_voices() -> dict:
     return {
         "voices": [
             {
-                "id": DEFAULT_VOICE,
-                "label": "沉稳男声",
-                "default": True,
+                "id": vid,
+                "label": VOICE_LABELS.get(vid, vid),
+                "default": vid == DEFAULT_VOICE,
             }
+            for vid in VOICE_MAP
         ]
     }
 

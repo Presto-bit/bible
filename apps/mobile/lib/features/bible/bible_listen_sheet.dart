@@ -1,10 +1,13 @@
 /// AI 听经全屏播放面。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import 'bible_listen_api.dart';
 import 'bible_listen_controller.dart';
 import 'models.dart';
 
@@ -461,9 +464,16 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                 ),
                               ),
                               _chip(
-                                label: '沉稳男声',
-                                on: false,
-                                onTap: null,
+                                label: kListenVoices
+                                        .where((v) => v.id == session.settings.voice)
+                                        .map((v) => v.label)
+                                        .firstOrNull ??
+                                    '音色',
+                                on: _panel == 'voice',
+                                onTap: () => setState(
+                                  () => _panel =
+                                      _panel == 'voice' ? 'none' : 'voice',
+                                ),
                               ),
                               _chip(
                                 label: session.settings.sleepMinutes == null
@@ -489,6 +499,21 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                     ctrl.updateSettings(
                                       session.settings.copyWith(speed: s),
                                     );
+                                    setState(() => _panel = 'none');
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                          if (_panel == 'voice')
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 8,
+                              children: kListenVoices.map((v) {
+                                return _chip(
+                                  label: v.label,
+                                  on: session.settings.voice == v.id,
+                                  onTap: () {
+                                    unawaited(ctrl.selectVoice(v.id));
                                     setState(() => _panel = 'none');
                                   },
                                 );

@@ -8,6 +8,12 @@ import '../../core/api_client.dart';
 import '../../core/config.dart';
 
 const kListenDefaultVoice = 'voice_calm_m';
+const kListenGentleFemaleVoice = 'voice_gentle_f';
+
+const kListenVoices = <({String id, String label})>[
+  (id: kListenDefaultVoice, label: '沉稳男声'),
+  (id: kListenGentleFemaleVoice, label: '温柔女声'),
+];
 
 class ListenTimelineItem {
   const ListenTimelineItem({

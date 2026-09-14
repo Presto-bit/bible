@@ -5,6 +5,7 @@ import {
   ensureListenChapter,
   fetchListenChapter,
   LISTEN_DEFAULT_VOICE,
+  LISTEN_VOICES,
   pollListenJob,
   resolveListenVerse,
   type ListenChapterReady,
@@ -17,6 +18,7 @@ export type BibleListenSettings = {
   speed: number;
   continuousChapter: boolean;
   sleepMinutes: number | null;
+  voice: string;
 };
 
 const SETTINGS_KEY = 'bible_listen_settings_v1';
@@ -25,19 +27,26 @@ const SPEEDS = [0.8, 1, 1.25, 1.5] as const;
 
 function loadSettings(): BibleListenSettings {
   if (typeof window === 'undefined') {
-    return { speed: 1, continuousChapter: true, sleepMinutes: null };
+    return { speed: 1, continuousChapter: true, sleepMinutes: null, voice: LISTEN_DEFAULT_VOICE };
   }
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { speed: 1, continuousChapter: true, sleepMinutes: null };
+    if (!raw) {
+      return { speed: 1, continuousChapter: true, sleepMinutes: null, voice: LISTEN_DEFAULT_VOICE };
+    }
     const j = JSON.parse(raw) as Partial<BibleListenSettings>;
+    const voice =
+      typeof j.voice === 'string' && LISTEN_VOICES.some((v) => v.id === j.voice)
+        ? j.voice
+        : LISTEN_DEFAULT_VOICE;
     return {
       speed: typeof j.speed === 'number' ? j.speed : 1,
       continuousChapter: true,
       sleepMinutes: typeof j.sleepMinutes === 'number' ? j.sleepMinutes : null,
+      voice,
     };
   } catch {
-    return { speed: 1, continuousChapter: true, sleepMinutes: null };
+    return { speed: 1, continuousChapter: true, sleepMinutes: null, voice: LISTEN_DEFAULT_VOICE };
   }
 }
 
@@ -87,7 +96,9 @@ export function useBibleListen(opts: {
   /** 章末续听等「听读驱动」换章：允许关面也跟听；首页/阅读自行换章则不跟。 */
   const followChapterRef = useRef(false);
   const optsRef = useRef(opts);
+  const settingsRef = useRef(settings);
   optsRef.current = opts;
+  settingsRef.current = settings;
 
   continuousRef.current = settings.continuousChapter;
   metaRef.current = meta;
@@ -123,7 +134,7 @@ export function useBibleListen(opts: {
             translation: m.translation,
             book: m.next.book,
             chapter: m.next.chapter,
-            voice: LISTEN_DEFAULT_VOICE,
+            voice: settingsRef.current.voice,
           })
             .then(async (first) => {
               if (first.status === 'pending') {
@@ -176,6 +187,7 @@ export function useBibleListen(opts: {
   const updateSettings = useCallback((patch: Partial<BibleListenSettings>) => {
     setSettingsState((prev) => {
       const next = { ...prev, ...patch };
+      settingsRef.current = next;
       saveSettings(next);
       return next;
     });
@@ -234,7 +246,7 @@ export function useBibleListen(opts: {
             translation,
             book,
             chapter,
-            voice: LISTEN_DEFAULT_VOICE,
+            voice: settingsRef.current.voice,
           },
           { signal: ac.signal },
         );
@@ -284,6 +296,20 @@ export function useBibleListen(opts: {
     [ensureAudio, settings.speed],
   );
 
+  const selectVoice = useCallback(
+    (voice: string) => {
+      if (!LISTEN_VOICES.some((v) => v.id === voice)) return;
+      const next = { ...settingsRef.current, voice };
+      settingsRef.current = next;
+      saveSettings(next);
+      setSettingsState(next);
+      if (ui !== 'idle') {
+        void prepareAndPlay(optsRef.current.bookId, optsRef.current.chapter, optsRef.current.translation);
+      }
+    },
+    [prepareAndPlay, ui],
+  );
+
   const openSheet = useCallback(() => {
     setSheetOpen(true);
     try {
@@ -298,7 +324,8 @@ export function useBibleListen(opts: {
       meta &&
       meta.book === opts.bookId &&
       meta.chapter === opts.chapter &&
-      meta.translation === opts.translation;
+      meta.translation === opts.translation &&
+      meta.voice === settings.voice;
     const el = audioRef.current;
     if (same && el?.src && !el.paused) {
       setUi('playing');
@@ -309,7 +336,7 @@ export function useBibleListen(opts: {
       return;
     }
     void prepareAndPlay(opts.bookId, opts.chapter, opts.translation);
-  }, [meta, opts.bookId, opts.chapter, opts.translation, prepareAndPlay, ui]);
+  }, [meta, opts.bookId, opts.chapter, opts.translation, settings.voice, prepareAndPlay, ui]);
 
   const closeSheet = useCallback(() => {
     setSheetOpen(false);
@@ -413,6 +440,8 @@ export function useBibleListen(opts: {
     settings,
     speeds: SPEEDS,
     updateSettings,
+    selectVoice,
+    voices: LISTEN_VOICES,
     armSleep,
     togglePlayPause,
     seekMs,

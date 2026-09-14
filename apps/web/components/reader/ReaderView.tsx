@@ -704,6 +704,8 @@ export default function ReaderView({
     settings: listenSettings,
     speeds: listenSpeeds,
     updateSettings: updateListenSettings,
+    selectVoice: selectListenVoice,
+    voices: listenVoices,
     armSleep: armListenSleep,
     togglePlayPause: toggleListenPlayPause,
     seekMs: seekListenMs,
@@ -3979,6 +3981,8 @@ export default function ReaderView({
         onPickChapter={(b, ch) => onNavigate(b, ch)}
         onUpdateSettings={updateListenSettings}
         onArmSleep={armListenSleep}
+        voices={listenVoices}
+        onSelectVoice={selectListenVoice}
       />
     </main>
   );

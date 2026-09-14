@@ -47,6 +47,8 @@ export function ListenPlayerSheet({
   onPickChapter,
   onUpdateSettings,
   onArmSleep,
+  voices,
+  onSelectVoice,
 }: {
   open: boolean;
   title: string;
@@ -76,6 +78,8 @@ export function ListenPlayerSheet({
   onPickChapter: (book: BibleBook, chapter: number) => void;
   onUpdateSettings: (patch: Partial<BibleListenSettings>) => void;
   onArmSleep: (minutes: number | null) => void;
+  voices: readonly { id: string; label: string }[];
+  onSelectVoice: (voiceId: string) => void;
 }) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
@@ -87,7 +91,9 @@ export function ListenPlayerSheet({
     dismissFromHeaderOnly: false,
     headerRef,
   });
-  const [panel, setPanel] = useState<'none' | 'speed' | 'sleep'>('none');
+  const [panel, setPanel] = useState<'none' | 'speed' | 'sleep' | 'voice'>('none');
+  const voiceLabel =
+    voices.find((v) => v.id === settings.voice)?.label ?? '音色';
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [locTab, setLocTab] = useState<LocTab>('chapters');
   const [selectedBookId, setSelectedBookId] = useState(book.id);
@@ -305,8 +311,12 @@ export function ListenPlayerSheet({
             >
               语速 {settings.speed}×
             </button>
-            <button type="button" disabled title="P0 仅沉稳男声">
-              沉稳男声
+            <button
+              type="button"
+              className={panel === 'voice' ? 'is-on' : ''}
+              onClick={() => setPanel((p) => (p === 'voice' ? 'none' : 'voice'))}
+            >
+              {voiceLabel}
             </button>
             <button
               type="button"
@@ -331,6 +341,23 @@ export function ListenPlayerSheet({
                   }}
                 >
                   {s}×
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {panel === 'voice' ? (
+            <div className="listen-sheet-panel" role="group" aria-label="音色">
+              {voices.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  className={settings.voice === v.id ? 'is-on' : ''}
+                  onClick={() => {
+                    onSelectVoice(v.id);
+                    setPanel('none');
+                  }}
+                >
+                  {v.label}
                 </button>
               ))}
             </div>

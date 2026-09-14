@@ -9,13 +9,19 @@ from ..bible.reader import VERSIONS, book_name
 
 # 产品 voice_id → MiniMax 系统音色
 VOICE_MAP: dict[str, str] = {
-    "voice_calm_m": "audiobook_male_1",  # 沉稳男声（读经向）
+    "voice_calm_m": "Chinese_pangban_male",  # 沉稳男声（旁白男）
+    "voice_gentle_f": "Chinese_wenrounvxing",  # 温柔女声
+}
+
+VOICE_LABELS: dict[str, str] = {
+    "voice_calm_m": "沉稳男声",
+    "voice_gentle_f": "温柔女声",
 }
 
 DEFAULT_VOICE = "voice_calm_m"
 MODEL = "speech-2.8-turbo"
 # 合成策略变更时递增，避免旧缓存混用
-PROSODY_VER = "v4-single-mp3"
+PROSODY_VER = "v5-pangban-male"
 
 
 def normalize_verse_text(text: str) -> str:

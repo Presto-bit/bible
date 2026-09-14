@@ -37,6 +37,11 @@ export type ListenJobError = {
 
 const DEFAULT_VOICE = 'voice_calm_m';
 
+export const LISTEN_VOICES = [
+  { id: 'voice_calm_m', label: '沉稳男声' },
+  { id: 'voice_gentle_f', label: '温柔女声' },
+] as const;
+
 /** 统一成可播的绝对地址（始终走前端 API_BASE，避免服务端 host 不一致）。 */
 function absUrl(url: string | undefined | null): string {
   const raw = (url || '').trim();

@@ -19,36 +19,50 @@ class BibleListenSettings {
     this.speed = 1.0,
     this.continuousChapter = true,
     this.sleepMinutes,
+    this.voice = kListenDefaultVoice,
   });
 
   final double speed;
   final bool continuousChapter;
   final int? sleepMinutes;
+  final String voice;
 
   BibleListenSettings copyWith({
     double? speed,
     bool? continuousChapter,
     int? sleepMinutes,
     bool clearSleep = false,
+    String? voice,
   }) {
     return BibleListenSettings(
       speed: speed ?? this.speed,
       continuousChapter: continuousChapter ?? this.continuousChapter,
       sleepMinutes: clearSleep ? null : (sleepMinutes ?? this.sleepMinutes),
+      voice: voice ?? this.voice,
     );
   }
 
-  static Future<BibleListenSettings> load(SharedPreferences prefs) async {
+  static BibleListenSettings loadSync(SharedPreferences prefs) {
+    final rawVoice = prefs.getString('bible_listen_voice') ?? kListenDefaultVoice;
+    final voice = kListenVoices.any((v) => v.id == rawVoice)
+        ? rawVoice
+        : kListenDefaultVoice;
     return BibleListenSettings(
       speed: prefs.getDouble('bible_listen_speed') ?? 1.0,
       continuousChapter: true,
       sleepMinutes: prefs.getInt('bible_listen_sleep'),
+      voice: voice,
     );
+  }
+
+  static Future<BibleListenSettings> load(SharedPreferences prefs) async {
+    return loadSync(prefs);
   }
 
   Future<void> save(SharedPreferences prefs) async {
     await prefs.setDouble('bible_listen_speed', speed);
     await prefs.setBool('bible_listen_continuous', continuousChapter);
+    await prefs.setString('bible_listen_voice', voice);
     if (sleepMinutes == null) {
       await prefs.remove('bible_listen_sleep');
     } else {
@@ -151,13 +165,8 @@ class BibleListenController extends Notifier<BibleListenSession> {
       _playerStateSub?.cancel();
       _sleepTimer?.cancel();
     });
-    Future.microtask(() async {
-      final prefs = ref.read(prefsProvider);
-      final s = await BibleListenSettings.load(prefs);
-      if (!ref.mounted) return;
-      state = state.copyWith(settings: s);
-    });
-    return const BibleListenSession();
+    final settings = BibleListenSettings.loadSync(ref.read(prefsProvider));
+    return BibleListenSession(settings: settings);
   }
 
   bool _followChapterOnce = false;
@@ -188,7 +197,8 @@ class BibleListenController extends Notifier<BibleListenSession> {
     final same = state.meta != null &&
         state.meta!.book == bookId &&
         state.meta!.chapter == chapter &&
-        state.meta!.translation == translation;
+        state.meta!.translation == translation &&
+        state.meta!.voice == state.settings.voice;
     final player = ReaderAudioHandler.instance?.player;
     if (same && player != null && player.playing) {
       state = state.copyWith(ui: BibleListenUi.playing);
@@ -252,6 +262,7 @@ class BibleListenController extends Notifier<BibleListenSession> {
         translation: translation,
         book: bookId,
         chapter: chapter,
+        voice: state.settings.voice,
       );
       if (gen != _gen || !ref.mounted) return;
       final handler = ReaderAudioHandler.instance;
@@ -354,6 +365,7 @@ class BibleListenController extends Notifier<BibleListenSession> {
             translation: m.translation,
             book: m.nextBook!,
             chapter: m.nextChapter!,
+            voice: state.settings.voice,
           ),
     );
   }
@@ -409,11 +421,27 @@ class BibleListenController extends Notifier<BibleListenSession> {
   }
 
   Future<void> updateSettings(BibleListenSettings next) async {
+    final voiceChanged = next.voice != state.settings.voice;
     state = state.copyWith(settings: next);
     await next.save(ref.read(prefsProvider));
     final player = ReaderAudioHandler.instance?.player;
     await player?.setSpeed(next.speed);
     _applySleepTimer();
+    if (voiceChanged && state.sessionActive) {
+      await prepareAndPlay(
+        bookId: state.bookId,
+        bookName: state.bookName,
+        chapter: state.chapter,
+        translation: state.translation,
+        translationLabel: state.translationLabel,
+        verses: _verses,
+      );
+    }
+  }
+
+  Future<void> selectVoice(String voice) async {
+    if (!kListenVoices.any((v) => v.id == voice)) return;
+    await updateSettings(state.settings.copyWith(voice: voice));
   }
 
   void armSleep(int? minutes) {
