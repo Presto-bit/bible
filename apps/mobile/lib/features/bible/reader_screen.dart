@@ -296,6 +296,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         return '当代译本';
       case 'kjv':
         return 'King James Version';
+      case 'niv':
+        return 'NIV';
       default:
         return id.toUpperCase();
     }
@@ -392,7 +394,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     });
 
     final readerReturn = ref.watch(readerReturnProvider);
-    final englishUI = _mainVersionId == 'kjv';
+    final englishUI = isEnglishBibleVersion(_mainVersionId);
     final audioSession = ref.watch(readerAudioProvider);
     final audioCtrl = ref.read(readerAudioProvider.notifier);
     final screenVer = _mainVersionId ?? 'cuvs';
@@ -1282,7 +1284,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       currentBook: displayBook,
       currentChapter: _chapter,
       planSteps: _planMeta?.steps,
-      englishUI: _mainVersionId == 'kjv',
+      englishUI: isEnglishBibleVersion(_mainVersionId),
     );
     if (picked == null || !mounted) return;
     setState(() {
@@ -1383,7 +1385,7 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
   }
 
   bool _offlineable(String id) =>
-      const {'cuvs', 'cnv', 'contemporary', 'kjv'}.contains(id);
+      const {'cuvs', 'cnv', 'contemporary', 'kjv', 'niv'}.contains(id);
 
   bool _selectable(BibleVersion v) {
     if (_offlineable(v.id)) return _offlineOk[v.id] == true || v.available;

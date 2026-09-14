@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../assistant/assistant_format.dart';
 import '../assistant/assistant_markdown.dart';
-import 'answer_text.dart' show AssistantMarkdownBody;
+import 'answer_text.dart'
+    show AssistantMarkdownBody, kAssistantAnswerFontSize;
 
 class AnswerExpandable extends StatefulWidget {
   const AnswerExpandable({

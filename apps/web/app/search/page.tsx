@@ -321,6 +321,7 @@ export default function SearchPage() {
           { id: 'cnv', label: '新译本', available: true, primary: false },
           { id: 'contemporary', label: '当代译本', available: true, primary: false },
           { id: 'kjv', label: 'King James Version', available: true, primary: false },
+          { id: 'niv', label: 'NIV', available: true, primary: false },
         ]);
       }).catch(() => {
         setVersions([
@@ -328,6 +329,7 @@ export default function SearchPage() {
           { id: 'cnv', label: '新译本', available: true, primary: false },
           { id: 'contemporary', label: '当代译本', available: true, primary: false },
           { id: 'kjv', label: 'King James Version', available: true, primary: false },
+          { id: 'niv', label: 'NIV', available: true, primary: false },
         ]);
       }),
     ]).finally(() => setToursReady(true));

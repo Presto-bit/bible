@@ -27,6 +27,7 @@
 |------|------|------|
 | `bible/cnv/` | 圣经新译本（CNV）主译本 | `verses.json` / `*.epub` |
 | `bible/kjv/` | KJV 英文对照 | `verses.json`（scrollmapper 生成） |
+| `bible/niv/` | NIV 英文对照（需授权） | `verses.json` / `SOURCE.md` |
 | `dictionary/` | 人名、地名、专词与关系 | `entities.json` / `relations.json` |
 | `crossrefs/` | 交叉引用 | `cross_references.json` |
 | `plans/` | 读经计划 | CSV |

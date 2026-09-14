@@ -27,6 +27,7 @@ import '../assistant/assistant_sections.dart';
 import '../assistant/assistant_format.dart';
 import '../assistant/assistant_markdown.dart';
 import '../assistant/assistant_reader_context.dart';
+import '../assistant/assistant_output_plan.dart';
 import '../assistant/assistant_repository.dart';
 import '../assistant/assistant_scenes.dart';
 import '../assistant/assistant_seed.dart';
@@ -294,6 +295,10 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
     String? kbId;
     String? kbName;
 
+    final streamPerf = AssistantStreamPerf(
+      AssistantPerfDetail(surface: 'half_sheet', scene: scene.id),
+    );
+
     void syncSectionStream() {
       if (!sectionStream.active) return;
       pending = sectionStream.toMarkdown();
@@ -382,10 +387,6 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
         return;
       }
     }
-
-    final streamPerf = AssistantStreamPerf(
-      AssistantPerfDetail(surface: 'half_sheet', scene: scene.id),
-    );
 
     Future<void> startNetwork() async {
       if (!isRetry &&

@@ -79,6 +79,7 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
         'cnv',
         'contemporary',
         'kjv',
+        'niv',
         'dictionary',
         'crossrefs',
         'daily',

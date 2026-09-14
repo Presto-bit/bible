@@ -27,6 +27,7 @@ import 'assistant_perf.dart';
 import 'verse_faq.dart';
 import 'instant_answer_status.dart';
 import 'assistant_instant.dart';
+import 'answer_profile_body.dart';
 import 'assistant_answer_document.dart';
 import 'assistant_output_plan.dart';
 import 'assistant_visible.dart';

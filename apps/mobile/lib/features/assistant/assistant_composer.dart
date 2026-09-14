@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import 'assistant_scenes.dart';
+import 'models.dart';
 
 typedef AssistantChipTap = void Function(
   String question, {

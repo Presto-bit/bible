@@ -10,6 +10,7 @@ export const VERSION_LABELS: Record<string, string> = {
   cnv: '新译本',
   contemporary: '当代译本',
   kjv: 'King James Version',
+  niv: 'NIV',
 };
 
 export function versionDisplayLabel(
@@ -28,9 +29,10 @@ export function resolveChapterVersion(mainVersionId?: string | null): string {
   return v || FALLBACK_PRIMARY_VERSION;
 }
 
-/** 正文 UI 使用英文壳层（目前仅 KJV）。 */
+/** 正文 UI 使用英文壳层（KJV / NIV）。 */
 export function isEnglishBibleVersion(
   versionId: string | null | undefined,
 ): boolean {
-  return (versionId || '').trim().toLowerCase() === 'kjv';
+  const id = (versionId || '').trim().toLowerCase();
+  return id === 'kjv' || id === 'niv';
 }

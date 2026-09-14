@@ -11,7 +11,7 @@ import {
   seededBooks,
   writeBooksLsCache,
 } from './bible_local';
-import { isCuvsOfflineReady, isKjvOfflineReady, isContemporaryOfflineReady, isOfflinePackReady } from './offline_pack';
+import { isCuvsOfflineReady, isKjvOfflineReady, isContemporaryOfflineReady, isNivOfflineReady, isOfflinePackReady } from './offline_pack';
 import { isEnglishBibleVersion } from './bible_version';
 import { localizeBooksForVersion } from './bible_book_names';
 
@@ -88,7 +88,7 @@ export async function bibleChapter(
   const ver = version || 'cuvs';
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-  const tryLocal = async (translation: 'cnv' | 'cuvs' | 'kjv' | 'contemporary') => {
+  const tryLocal = async (translation: 'cnv' | 'cuvs' | 'kjv' | 'contemporary' | 'niv') => {
     try {
       return await getLocalChapter(bookId, chapter, translation);
     } catch {
@@ -96,16 +96,18 @@ export async function bibleChapter(
     }
   };
 
-  const translation: 'cnv' | 'cuvs' | 'kjv' | 'contemporary' | null =
+  const translation: 'cnv' | 'cuvs' | 'kjv' | 'contemporary' | 'niv' | null =
     ver === 'cnv'
       ? 'cnv'
       : ver === 'kjv'
         ? 'kjv'
-        : ver === 'contemporary'
-          ? 'contemporary'
-          : ver === 'cuvs'
-            ? 'cuvs'
-            : null;
+        : ver === 'niv'
+          ? 'niv'
+          : ver === 'contemporary'
+            ? 'contemporary'
+            : ver === 'cuvs'
+              ? 'cuvs'
+              : null;
 
   // 在线：优先 API，避免进阅读器时 sql.js 整库进内存尖刺
   if (!offline) {
@@ -132,6 +134,10 @@ export async function bibleChapter(
   }
   if (translation === 'kjv' && (await isKjvOfflineReady())) {
     const local = await tryLocal('kjv');
+    if (local?.length) return local;
+  }
+  if (translation === 'niv' && (await isNivOfflineReady())) {
+    const local = await tryLocal('niv');
     if (local?.length) return local;
   }
   if (translation === 'contemporary' && (await isContemporaryOfflineReady())) {
@@ -168,11 +174,13 @@ export async function bibleSearch(
   const localTranslation =
     version === 'kjv'
       ? 'kjv'
-      : version === 'cnv'
-        ? 'cnv'
-        : version === 'contemporary'
-          ? 'contemporary'
-          : 'cuvs';
+      : version === 'niv'
+        ? 'niv'
+        : version === 'cnv'
+          ? 'cnv'
+          : version === 'contemporary'
+            ? 'contemporary'
+            : 'cuvs';
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
   const fromRemote = async (): Promise<BibleSearchPage> => {
@@ -203,6 +211,8 @@ export async function bibleSearch(
   const localReady =
     localTranslation === 'kjv'
       ? await isKjvOfflineReady()
+      : localTranslation === 'niv'
+        ? await isNivOfflineReady()
       : localTranslation === 'contemporary'
         ? await isContemporaryOfflineReady()
       : localTranslation === 'cuvs'

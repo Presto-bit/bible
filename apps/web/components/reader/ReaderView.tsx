@@ -34,6 +34,7 @@ import {
 import { bibleChapter } from '@/lib/bible_client';
 import {
   FALLBACK_PRIMARY_VERSION,
+  isEnglishBibleVersion,
   versionDisplayLabel,
   VERSION_LABELS,
 } from '@/lib/bible_version';
@@ -1079,7 +1080,7 @@ export default function ReaderView({
   );
   const verseBlockStyle = verseBlockStyleFor(book.id);
 
-  const englishUI = mainVersionId === 'kjv';
+  const englishUI = isEnglishBibleVersion(mainVersionId);
   const ui = readerUi(englishUI);
   const displayBook =
     localizedBooks.find((b) => b.id === book.id) ?? book;

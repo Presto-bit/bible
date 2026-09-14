@@ -213,7 +213,8 @@ fi
 
 for pair in \
   "cnv:data/bible/cnv/verses.json:build/bible_cnv.sqlite" \
-  "contemporary:data/bible/contemporary/verses.json:build/bible_contemporary.sqlite"
+  "contemporary:data/bible/contemporary/verses.json:build/bible_contemporary.sqlite" \
+  "niv:data/bible/niv/verses.json:build/bible_niv.sqlite"
 do
   IFS=: read -r _ rel_in rel_out <<< "$pair"
   in="$ROOT/$rel_in"

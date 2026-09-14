@@ -49,6 +49,13 @@ export const CONTENT_ATTRIBUTION_SECTIONS: AttributionSection[] = [
         url: 'https://github.com/scrollmapper/bible_databases',
         note: '经文来自 scrollmapper/bible_databases（KJV.json，1769 公版）；离线经库与对照阅读使用此来源。',
       },
+      {
+        id: 'niv',
+        name: 'New International Version（NIV）',
+        license: '需授权',
+        url: 'https://www.biblica.com/bible/niv/',
+        note: '版权归 Biblica / Zondervan（NIV ©2011 等）。本应用仅在获书面授权范围内提供阅读与检索；禁止未授权再分发。详见 data/bible/niv/SOURCE.md。',
+      },
     ],
   },
   {

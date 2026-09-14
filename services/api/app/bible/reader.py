@@ -12,12 +12,12 @@ from ..config import get_settings
 
 
 # 译本注册表：id → 展示名。主译本提供卷名/目录，其余供对照。
-# NIV 无授权源时不注册，避免前端展示不可用项。
 VERSIONS: dict[str, str] = {
     "cuvs": "和合本",
     "cnv": "新译本",
     "contemporary": "当代译本",
     "kjv": "King James Version",
+    "niv": "NIV",
 }
 PRIMARY_VERSION = "cuvs"
 
@@ -30,6 +30,8 @@ def _db_path(version: str) -> Path:
         return Path(s.bible_cuvs_db_path)
     if version == "contemporary":
         return Path(s.bible_contemporary_db_path)
+    if version == "niv":
+        return Path(s.bible_niv_db_path)
     return Path(s.bible_db_path)
 
 

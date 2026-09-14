@@ -20,7 +20,7 @@ class OfflineCatalogItem {
   final String kind;
 }
 
-/// 已有源数据并可打包的译本；NIV 无授权源时不进目录。
+/// 已有源数据并可打包的译本。
 const offlineCatalog = [
   OfflineCatalogItem(
     id: 'cuvs',
@@ -48,6 +48,13 @@ const offlineCatalog = [
     tab: 'bible',
     name: 'King James Version',
     paths: ['bible/bible_kjv.sqlite'],
+    kind: 'sqlite',
+  ),
+  OfflineCatalogItem(
+    id: 'niv',
+    tab: 'bible',
+    name: 'NIV',
+    paths: ['bible/bible_niv.sqlite'],
     kind: 'sqlite',
   ),
   OfflineCatalogItem(

@@ -166,7 +166,7 @@ class OfflineBibleService {
   }
 
   Future<bool> checkAnyInstalled() async {
-    for (final id in const ['cuvs', 'cnv', 'contemporary', 'kjv']) {
+    for (final id in const ['cuvs', 'cnv', 'contemporary', 'kjv', 'niv']) {
       if (await checkInstalled(id)) return true;
     }
     return false;
@@ -351,7 +351,7 @@ class OfflineBibleService {
     final database = await db(translationId);
     if (database == null) {
       // 主本缺失时尝试任意已装
-      for (final id in const ['cnv', 'contemporary', 'kjv']) {
+      for (final id in const ['cnv', 'contemporary', 'kjv', 'niv']) {
         final d = await db(id);
         if (d != null) {
           return _listBooksFrom(d);

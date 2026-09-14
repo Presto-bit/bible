@@ -155,6 +155,6 @@ ResolvedTurnRequest buildAssistantTurnRequest({
       history: history,
       readerContext: readerContext,
       knowledgeBaseId: knowledgeBaseId,
-    );
+    ),
   );
 }

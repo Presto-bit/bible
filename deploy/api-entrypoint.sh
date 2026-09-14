@@ -5,6 +5,7 @@ CNV="/app/build/bible_cnv.sqlite"
 KJV="/app/build/bible_kjv.sqlite"
 CUVS="/app/build/bible_cuvs.sqlite"
 CONTEMPORARY="/app/build/bible_contemporary.sqlite"
+NIV="/app/build/bible_niv.sqlite"
 
 if [[ ! -f "$CNV" && -f /app/data/bible/cnv/verses.json ]]; then
   echo "[entrypoint] 生成 bible_cnv.sqlite …"
@@ -58,6 +59,24 @@ if [[ -f "$CONTEMPORARY" && -f /app/data/bible/contemporary/verses.json ]]; then
     python /app/scripts/import_bible.py \
       --input /app/data/bible/contemporary/verses.json \
       --out "$CONTEMPORARY"
+  fi
+fi
+
+if [[ ! -f "$NIV" && -f /app/data/bible/niv/verses.json ]]; then
+  echo "[entrypoint] 生成 bible_niv.sqlite …"
+  python /app/scripts/import_bible.py \
+    --input /app/data/bible/niv/verses.json \
+    --out "$NIV"
+fi
+
+if [[ -f "$NIV" && -f /app/data/bible/niv/verses.json ]]; then
+  niv_n="$(python -c "import sqlite3; c=sqlite3.connect('$NIV'); print(c.execute('SELECT COUNT(*) FROM verses').fetchone()[0]); c.close()" 2>/dev/null || echo 0)"
+  niv_jhn="$(python -c "import sqlite3; c=sqlite3.connect('$NIV'); print(c.execute(\"SELECT COUNT(*) FROM verses WHERE book='JHN' AND chapter=3\").fetchone()[0]); c.close()" 2>/dev/null || echo 0)"
+  if [[ "${niv_n:-0}" -lt 10000 || "${niv_jhn:-0}" -lt 1 ]]; then
+    echo "[entrypoint] 重建 bible_niv.sqlite（节数=${niv_n:-0} · JHN.3=${niv_jhn:-0}）…"
+    python /app/scripts/import_bible.py \
+      --input /app/data/bible/niv/verses.json \
+      --out "$NIV"
   fi
 fi
 

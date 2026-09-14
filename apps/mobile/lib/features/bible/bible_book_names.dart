@@ -139,8 +139,10 @@ const bookEnAbbr = <String, String>{
   'REV': 'Rev',
 };
 
-bool isEnglishBibleVersion(String? versionId) =>
-    (versionId ?? '').trim().toLowerCase() == 'kjv';
+bool isEnglishBibleVersion(String? versionId) {
+  final id = (versionId ?? '').trim().toLowerCase();
+  return id == 'kjv' || id == 'niv';
+}
 
 String englishBookName(String bookId, {String? fallback}) {
   final id = bookId.toUpperCase();

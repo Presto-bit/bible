@@ -1,4 +1,5 @@
-"""小爱秒回文案与判定（对齐 PRODUCT §v2.9）。"""
+/// 小爱秒回文案与判定（对齐 PRODUCT §v2.9）。
+library;
 
 bool isInstantAnswer({bool? instant, bool? cacheHit}) {
   return instant == true || cacheHit == true;

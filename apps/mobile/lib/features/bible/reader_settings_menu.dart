@@ -248,6 +248,8 @@ String _verLabel(String id) {
       return '当代译本';
     case 'kjv':
       return 'King James Version';
+    case 'niv':
+      return 'NIV';
     default:
       return id.toUpperCase();
   }

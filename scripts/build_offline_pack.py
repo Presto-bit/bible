@@ -7,6 +7,7 @@
   bible/bible_cuvs.sqlite         和合本（主译本；manifest 含独立直链字段）
   bible/bible_contemporary.sqlite 当代译本（开放源 CC BY-SA 4.0）
   bible/bible_kjv.sqlite          KJV
+  bible/bible_niv.sqlite          NIV（需授权）
   content/plans/*.csv|json        读经/祷告计划
   content/daily-verses/*.json     每日经文
   content/crossrefs/*.json|sqlite 交叉引用
@@ -32,8 +33,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 # 按需打入的额外译本（存在才加）；主 translation 由 --translation 指定，默认 cnv
-# 不含 niv：无授权源文件时不打包
-EXTRA_TRANSLATIONS = ["cuvs", "cnv", "contemporary", "kjv"]
+EXTRA_TRANSLATIONS = ["cuvs", "cnv", "contemporary", "kjv", "niv"]
 
 
 def _sha256(path: Path) -> str:
@@ -134,6 +134,14 @@ def main() -> int:
         outer["contemporary_sqlite"] = "bible_contemporary.sqlite"
         outer["contemporary_sqlite_sha256"] = contemporary_entry["sha256"]
         outer["contemporary_sqlite_bytes"] = contemporary_entry["bytes"]
+    niv_entry = next(
+        (f for f in manifest if f["path"] == "bible/bible_niv.sqlite"),
+        None,
+    )
+    if niv_entry:
+        outer["niv_sqlite"] = "bible_niv.sqlite"
+        outer["niv_sqlite_sha256"] = niv_entry["sha256"]
+        outer["niv_sqlite_bytes"] = niv_entry["bytes"]
 
     (args.out_dir / f"manifest_{args.version}.json").write_text(
         json.dumps(outer, ensure_ascii=False, indent=2),

@@ -605,7 +605,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     }
   }
 
-  bool get _englishUI => widget.mainVersionId == 'kjv';
+  bool get _englishUI => isEnglishBibleVersion(widget.mainVersionId);
 
   int? _lastAudioScrollVerse;
 
@@ -1493,7 +1493,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   String _selectionText(Chapter? ch) {
     if (ch == null) return '';
     final discourse =
-        ref.read(discourseCatalogProvider).valueOrNull ?? const [];
+        ref.read(discourseCatalogProvider).value ?? const [];
     String fmt(Verse v) => formatVerseTextForReader(
       discourse,
       widget.book.id,
@@ -4716,9 +4716,9 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     const selBg = Color(0x333390FF);
     final marginMode = widget.verseNo == ReaderVerseNumberMode.margin;
     final discourseCatalog =
-        ref.watch(discourseCatalogProvider).valueOrNull ?? const [];
+        ref.watch(discourseCatalogProvider).value ?? const [];
     final poetryLinesIndex =
-        ref.watch(poetryLinesProvider).valueOrNull ?? PoetryLinesIndex(const {});
+        ref.watch(poetryLinesProvider).value ?? PoetryLinesIndex(const {});
     final quoteMode = ref.watch(quoteDisplayProvider);
 
     if (marginMode) {
@@ -5160,9 +5160,9 @@ class _MarginVerseRowState extends ConsumerState<_MarginVerseRow> {
     final markInfo = widget.markInfo;
     final anchorKey = widget.anchorKey;
     final discourseCatalog =
-        ref.watch(discourseCatalogProvider).valueOrNull ?? const [];
+        ref.watch(discourseCatalogProvider).value ?? const [];
     final poetryLinesIndex =
-        ref.watch(poetryLinesProvider).valueOrNull ?? PoetryLinesIndex(const {});
+        ref.watch(poetryLinesProvider).value ?? PoetryLinesIndex(const {});
     final quoteMode = ref.watch(quoteDisplayProvider);
     final displayText = formatQuotesForDisplay(v.text, quoteMode);
     final semicolonLines = isSemicolonBreakVerse(

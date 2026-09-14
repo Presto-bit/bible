@@ -1,4 +1,4 @@
-/** 离线经包：下载 zip / 和合本直链 sqlite → 校验 → IndexedDB（CNV / CUVS / 当代 / KJV）。 */
+/** 离线经包：下载 zip / 和合本直链 sqlite → 校验 → IndexedDB（CNV / CUVS / 当代 / KJV / NIV）。 */
 
 import { idbDelete, idbGet, idbGetBundle, idbSet, idbSetBundle } from './offline_idb';
 import {
@@ -15,14 +15,15 @@ export const OFFLINE_CNV_KEY = 'bible_cnv_sqlite_v1';
 export const OFFLINE_CUVS_KEY = 'bible_cuvs_sqlite_v1';
 export const OFFLINE_KJV_KEY = 'bible_kjv_sqlite_v1';
 export const OFFLINE_CONTEMPORARY_KEY = 'bible_contemporary_sqlite_v1';
+export const OFFLINE_NIV_KEY = 'bible_niv_sqlite_v1';
 /** @deprecated 兼容旧键名 */
 export const OFFLINE_DB_KEY = OFFLINE_CNV_KEY;
 export const OFFLINE_META_KEY = 'presto_offline_pack_meta';
 export const OFFLINE_ITEMS_REGISTRY_KEY = 'presto_offline_items_v1';
 
-export type OfflineTranslation = 'cnv' | 'cuvs' | 'kjv' | 'contemporary';
+export type OfflineTranslation = 'cnv' | 'cuvs' | 'kjv' | 'contemporary' | 'niv';
 
-const BIBLE_OFFLINE_IDS = ['cnv', 'cuvs', 'kjv', 'contemporary'] as const;
+const BIBLE_OFFLINE_IDS = ['cnv', 'cuvs', 'kjv', 'contemporary', 'niv'] as const;
 
 export type OfflineItemRecord = {
   manifestVersion: string;
@@ -51,6 +52,10 @@ export interface OfflinePackManifest {
   contemporary_sqlite?: string;
   contemporary_sqlite_sha256?: string;
   contemporary_sqlite_bytes?: number;
+  /** NIV 单独直链（相对 /offline/） */
+  niv_sqlite?: string;
+  niv_sqlite_sha256?: string;
+  niv_sqlite_bytes?: number;
 }
 
 export interface OfflinePackMeta {
@@ -179,6 +184,9 @@ export function expectedItemBytes(
   if (item.id === 'contemporary' && manifest.contemporary_sqlite_bytes) {
     return manifest.contemporary_sqlite_bytes;
   }
+  if (item.id === 'niv' && manifest.niv_sqlite_bytes) {
+    return manifest.niv_sqlite_bytes;
+  }
   if (item.id === 'cuvs' && manifest.cuvs_sqlite_bytes) {
     return manifest.cuvs_sqlite_bytes;
   }
@@ -188,6 +196,9 @@ export function expectedItemBytes(
 function hasDirectSqlite(itemId: string, manifest: OfflinePackManifest): boolean {
   if (itemId === 'contemporary') {
     return Boolean(manifest.contemporary_sqlite || manifest.contemporary_sqlite_sha256);
+  }
+  if (itemId === 'niv') {
+    return Boolean(manifest.niv_sqlite || manifest.niv_sqlite_sha256);
   }
   if (itemId === 'cuvs') {
     return Boolean(manifest.cuvs_sqlite || manifest.cuvs_sqlite_sha256);
@@ -274,6 +285,9 @@ async function tryDownloadSqliteDirect(
   } else if (itemId === 'contemporary') {
     fileName = manifest.contemporary_sqlite || 'bible_contemporary.sqlite';
     expectedSha = manifest.contemporary_sqlite_sha256 || mf?.sha256;
+  } else if (itemId === 'niv') {
+    fileName = manifest.niv_sqlite || 'bible_niv.sqlite';
+    expectedSha = manifest.niv_sqlite_sha256 || mf?.sha256;
   } else {
     return false;
   }
@@ -446,6 +460,7 @@ function idbKeyForTranslation(t: OfflineTranslation): string {
   if (t === 'cuvs') return OFFLINE_CUVS_KEY;
   if (t === 'kjv') return OFFLINE_KJV_KEY;
   if (t === 'contemporary') return OFFLINE_CONTEMPORARY_KEY;
+  if (t === 'niv') return OFFLINE_NIV_KEY;
   return OFFLINE_CNV_KEY;
 }
 
@@ -511,6 +526,10 @@ export async function isKjvOfflineReady(): Promise<boolean> {
 
 export async function isContemporaryOfflineReady(): Promise<boolean> {
   return isTranslationOfflineReady('contemporary');
+}
+
+export async function isNivOfflineReady(): Promise<boolean> {
+  return isTranslationOfflineReady('niv');
 }
 
 export async function clearOfflinePack() {

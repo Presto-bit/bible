@@ -15,7 +15,7 @@ export type OfflineCatalogItem = {
   idbKey?: string;
 };
 
-/** 已有源数据并可打包的译本；NIV 无授权源时不进目录 */
+/** 已有源数据并可打包的译本 */
 export const OFFLINE_CATALOG: OfflineCatalogItem[] = [
   {
     id: 'cuvs',
@@ -48,6 +48,14 @@ export const OFFLINE_CATALOG: OfflineCatalogItem[] = [
     paths: ['bible/bible_kjv.sqlite'],
     kind: 'sqlite',
     idbKey: 'bible_kjv_sqlite_v1',
+  },
+  {
+    id: 'niv',
+    tab: 'bible',
+    name: 'NIV',
+    paths: ['bible/bible_niv.sqlite'],
+    kind: 'sqlite',
+    idbKey: 'bible_niv_sqlite_v1',
   },
   {
     id: 'dictionary',

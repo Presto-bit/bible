@@ -13,6 +13,8 @@ import 'package:uuid/uuid.dart';
 import '../../core/api_client.dart';
 import 'assistant_answer_document.dart';
 import 'assistant_format.dart';
+import 'assistant_scenes.dart';
+import 'assistant_sections.dart';
 import 'assistant_turn_request.dart';
 import 'models.dart';
 

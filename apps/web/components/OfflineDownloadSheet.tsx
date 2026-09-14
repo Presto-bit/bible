@@ -140,6 +140,7 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
             [
               manifest.cuvs_sqlite,
               manifest.contemporary_sqlite,
+              manifest.niv_sqlite,
             ].filter((x): x is string => Boolean(x)),
           )
         : catalogItemsForTab(tab);

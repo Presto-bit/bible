@@ -26,7 +26,7 @@ class TimelineRail extends StatelessWidget {
           : const EdgeInsets.only(left: 14),
       decoration: preset
           ? BoxDecoration(
-              color: Color.lerp(AppColors.surface, AppColors.wash, 0.35) ??
+              color: Color.lerp(AppColors.surface, AppColors.goldWash, 0.35) ??
                   AppColors.surface,
               borderRadius: BorderRadius.circular(12),
             )

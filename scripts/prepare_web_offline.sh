@@ -37,6 +37,22 @@ if [[ ! -f "$ROOT/build/bible_contemporary.sqlite" ]]; then
   fi
 fi
 
+if [[ ! -f "$ROOT/build/bible_niv.sqlite" ]]; then
+  if [[ -f "$ROOT/data/bible/niv/verses.json" ]]; then
+    echo "→ 生成 NIV SQLite…"
+    python3 "$ROOT/scripts/import_bible.py" \
+      --input "$ROOT/data/bible/niv/verses.json" \
+      --out "$ROOT/build/bible_niv.sqlite"
+  else
+    echo "⚠ 缺少 NIV verses.json，跳过"
+  fi
+elif [[ "$ROOT/data/bible/niv/verses.json" -nt "$ROOT/build/bible_niv.sqlite" ]]; then
+  echo "→ 更新 NIV SQLite…"
+  python3 "$ROOT/scripts/import_bible.py" \
+    --input "$ROOT/data/bible/niv/verses.json" \
+    --out "$ROOT/build/bible_niv.sqlite"
+fi
+
 echo "→ 打离线 zip…"
 python3 "$ROOT/scripts/build_offline_pack.py" --translation cuvs
 
@@ -59,6 +75,14 @@ if [[ -f "$CONTEMPORARY_SRC" ]]; then
   echo "✓ bible_contemporary.sqlite ($(du -h "$OUT/bible_contemporary.sqlite" | awk '{print $1}'))"
 else
   echo "⚠ 缺少 $CONTEMPORARY_SRC，跳过当代译本直链"
+fi
+
+NIV_SRC="$ROOT/build/bible_niv.sqlite"
+if [[ -f "$NIV_SRC" ]]; then
+  cp "$NIV_SRC" "$OUT/bible_niv.sqlite"
+  echo "✓ bible_niv.sqlite ($(du -h "$OUT/bible_niv.sqlite" | awk '{print $1}'))"
+else
+  echo "⚠ 缺少 $NIV_SRC，跳过 NIV 直链"
 fi
 
 python3 - <<PY
@@ -86,6 +110,16 @@ if contemporary.is_file():
         if f.get("path") == "bible/bible_contemporary.sqlite":
             f["sha256"] = manifest["contemporary_sqlite_sha256"]
             f["bytes"] = manifest["contemporary_sqlite_bytes"]
+niv = out / "bible_niv.sqlite"
+if niv.is_file():
+    raw = niv.read_bytes()
+    manifest["niv_sqlite"] = "bible_niv.sqlite"
+    manifest["niv_sqlite_bytes"] = len(raw)
+    manifest["niv_sqlite_sha256"] = hashlib.sha256(raw).hexdigest()
+    for f in manifest.get("files") or []:
+        if f.get("path") == "bible/bible_niv.sqlite":
+            f["sha256"] = manifest["niv_sqlite_sha256"]
+            f["bytes"] = manifest["niv_sqlite_bytes"]
 Path("$OUT/manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 PY
 

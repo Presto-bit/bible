@@ -754,6 +754,12 @@ def content_attribution() -> dict:
             "url": "https://github.com/scrollmapper/bible_databases",
         },
         {
+            "id": "niv",
+            "name": "New International Version（NIV）",
+            "license": "需授权（Biblica / Zondervan）",
+            "url": "https://www.biblica.com/bible/niv/",
+        },
+        {
             "id": "openbible-crossrefs",
             "name": "OpenBible.info Cross References",
             "license": "CC-BY",
