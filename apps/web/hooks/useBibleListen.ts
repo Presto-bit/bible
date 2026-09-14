@@ -84,6 +84,8 @@ export function useBibleListen(opts: {
   const metaRef = useRef<ListenChapterReady | null>(null);
   const preparingRef = useRef(false);
   const prefetchRef = useRef<string | null>(null);
+  /** 章末续听等「听读驱动」换章：允许关面也跟听；首页/阅读自行换章则不跟。 */
+  const followChapterRef = useRef(false);
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
@@ -146,6 +148,7 @@ export function useBibleListen(opts: {
     const onEnded = () => {
       const m = metaRef.current;
       if (continuousRef.current && m?.next && optsRef.current.onRequestNavigateChapter) {
+        followChapterRef.current = true;
         optsRef.current.onRequestNavigateChapter(m.next.book, m.next.chapter);
         return;
       }
@@ -364,13 +367,20 @@ export function useBibleListen(opts: {
     [currentVerse, seekMs],
   );
 
-  // 续听换章 / 同译本换章：面开着或会话活跃时自动准备
+  // 换章：仅听读面内 / 章末续听跟听；首页·阅读自行换章则结束听读（避免每日经文误触发）
   useEffect(() => {
     if (!meta) return;
     if (meta.book === opts.bookId && meta.chapter === opts.chapter) return;
     if (meta.translation !== opts.translation) return;
-    if (!(sheetOpen || ui === 'playing' || ui === 'paused' || ui === 'preparing')) return;
-    void prepareAndPlay(opts.bookId, opts.chapter, opts.translation);
+    const follow = sheetOpen || followChapterRef.current;
+    followChapterRef.current = false;
+    if (follow) {
+      void prepareAndPlay(opts.bookId, opts.chapter, opts.translation);
+      return;
+    }
+    if (ui === 'playing' || ui === 'paused' || ui === 'preparing') {
+      stopSession();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opts.bookId, opts.chapter]);
 

@@ -160,6 +160,13 @@ class BibleListenController extends Notifier<BibleListenSession> {
     return const BibleListenSession();
   }
 
+  bool _followChapterOnce = false;
+
+  /// 章末续听等听读驱动换章：关面时也允许跟听下一章。
+  void markFollowChapterOnce() {
+    _followChapterOnce = true;
+  }
+
   Future<void> openSheet({
     required String bookId,
     required String bookName,
@@ -317,6 +324,7 @@ class BibleListenController extends Notifier<BibleListenSession> {
         if (state.settings.continuousChapter &&
             m?.nextBook != null &&
             m?.nextChapter != null) {
+          _followChapterOnce = true;
           onContinuousNext?.call(m!.nextBook!, m.nextChapter!);
           return;
         }
@@ -445,7 +453,7 @@ class BibleListenController extends Notifier<BibleListenSession> {
     );
   }
 
-  /// 同译本换章：若会话活跃则继续准备。
+  /// 同译本换章：听读面内或章末续听才跟听；其它导航结束听读。
   Future<void> onChapterChanged({
     required String bookId,
     required String bookName,
@@ -459,6 +467,12 @@ class BibleListenController extends Notifier<BibleListenSession> {
       return;
     }
     if (!state.sessionActive && !state.sheetOpen) return;
+    final follow = state.sheetOpen || _followChapterOnce;
+    _followChapterOnce = false;
+    if (!follow) {
+      await stopSession();
+      return;
+    }
     await prepareAndPlay(
       bookId: bookId,
       bookName: bookName,
