@@ -40,8 +40,8 @@ def test_no_fill_when_oia_complete():
         "### 经文背景\n"
         "保罗在此回应罗马教会关于律法与恩典的争论，并承接前五章因信称义的教导。\n\n"
         "### 经文解释\n"
-        "「向罪死」指不再让罪作主；「向神活」指把自己交给神，在圣灵里更新行事。\n"
-        "这不是靠行为换救恩，而是在新生命里持续顺服。\n\n"
+        "承接上文因信称义，「向罪死」指不再让罪作主；「向神活」指把自己交给神更新行事。\n"
+        "当初读者是罗马教会中的犹太与外邦信徒，作者意在说明称义后当活出新生命。\n\n"
         "### 今日回应\n"
         "今天可以先承认哪些旧习惯仍在拉扯，并求圣灵给你具体一步顺服的行动。"
     )
@@ -55,20 +55,21 @@ def test_no_fill_when_oia_complete():
     assert hints == []
 
 
-def test_oia_standard_skips_thickness_fill():
+def test_oia_standard_fills_missing_explain_dimensions():
     body = (
         "### 摘要\n短摘要。\n\n"
         "### 经文解释\n- 一句解释。\n\n"
         "### 经文背景\n- 一句关联。\n\n"
         "### 今日回应\n- 一句回应。"
     )
-    assert not needs_section_fill(
+    hints = collect_section_fill_hints(
         body,
         "verse_full",
         depth="oia_standard",
         planned_sections=("摘要", "经文背景", "经文解释", "今日回应"),
         min_complete=180,
     )
+    assert any("经文解释" in h for h in hints)
 
 
 def test_oia_compact_fills_truncation():

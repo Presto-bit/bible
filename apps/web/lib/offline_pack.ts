@@ -129,30 +129,40 @@ async function fetchOfflineZip(manifest: OfflinePackManifest): Promise<ArrayBuff
   return zipBuf;
 }
 
+/** IndexedDB 已有 sqlite 但 localStorage 缺注册表时补写（旧版安装 / 注册表丢失）。 */
+async function syncBibleSqliteRecordFromIdb(
+  itemId: string,
+  manifest: OfflinePackManifest,
+): Promise<OfflineItemRecord | null> {
+  const item = getCatalogItem(itemId);
+  if (!item?.idbKey || item.kind !== 'sqlite') return null;
+  if (!(BIBLE_OFFLINE_IDS as readonly string[]).includes(itemId)) return null;
+  const existing = loadItemRecord(itemId);
+  if (existing?.hasFiles) return existing;
+  const buf = await idbGet(item.idbKey);
+  if (!buf?.byteLength) return null;
+  const mf = manifestFilesForItem(item, manifest)[0];
+  const path = mf?.path ?? `bible/bible_${itemId}.sqlite`;
+  const hash = mf?.sha256 ?? (await sha256Hex(buf));
+  const record: OfflineItemRecord = {
+    manifestVersion: manifest.version,
+    fileHashes: { [path]: hash },
+    installedAt: Date.now(),
+    bytes: buf.byteLength,
+    hasFiles: true,
+  };
+  saveItemRecord(itemId, record);
+  return record;
+}
+
 function syncLegacyBibleRecords() {
   if (typeof window === 'undefined') return;
   void (async () => {
     const manifest = await fetchManifest().catch(() => null);
     if (!manifest) return;
-    const registry = loadItemsRegistry();
-    let changed = false;
     for (const id of BIBLE_OFFLINE_IDS) {
-      const item = getCatalogItem(id);
-      if (!item?.idbKey || registry[id]?.hasFiles) continue;
-      const buf = await idbGet(item.idbKey);
-      if (!buf?.byteLength) continue;
-      const mf = manifestFilesForItem(item, manifest)[0];
-      if (!mf) continue;
-      registry[id] = {
-        manifestVersion: manifest.version,
-        fileHashes: { [mf.path]: mf.sha256 },
-        installedAt: Date.now(),
-        bytes: buf.byteLength,
-        hasFiles: true,
-      };
-      changed = true;
+      await syncBibleSqliteRecordFromIdb(id, manifest);
     }
-    if (changed) saveItemsRegistry(registry);
   })();
 }
 
@@ -191,13 +201,43 @@ export async function getOfflineItemStatus(
 ): Promise<OfflineItemStatus> {
   const item = getCatalogItem(itemId);
   if (!item) return 'download';
-  const m = manifest ?? (await fetchManifest());
-  const record = loadItemRecord(itemId);
-  if (!record?.hasFiles) return 'download';
+
+  let m: OfflinePackManifest | null = manifest ?? null;
+  if (!m) {
+    try {
+      m = await fetchManifest();
+    } catch {
+      m = null;
+    }
+  }
+
+  // 清单拉取失败时：圣经 sqlite 仍可按 IDB 字节判定已安装
+  if (!m) {
+    if (item.kind === 'sqlite' && item.idbKey) {
+      const buf = await idbGet(item.idbKey);
+      if (buf?.byteLength) return 'ready';
+    }
+    return 'download';
+  }
+
+  let record = loadItemRecord(itemId);
+  if (!record?.hasFiles && item.kind === 'sqlite' && item.idbKey) {
+    record = (await syncBibleSqliteRecordFromIdb(itemId, m)) ?? record;
+  }
+  if (!record?.hasFiles) {
+    if (item.kind === 'sqlite' && item.idbKey) {
+      const buf = await idbGet(item.idbKey);
+      if (buf?.byteLength) return 'ready';
+    }
+    return 'download';
+  }
+
   const expected = manifestFilesForItem(item, m);
-  if (!expected.length) return 'download';
+  if (!expected.length) {
+    return record.bytes > 0 ? 'ready' : 'download';
+  }
   const upToDate = expected.every(
-    (f) => record.fileHashes[f.path] === f.sha256,
+    (f) => record!.fileHashes[f.path] === f.sha256,
   );
   return upToDate ? 'ready' : 'update';
 }

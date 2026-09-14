@@ -6,6 +6,11 @@ import logging
 from .answer_normalize import is_prose_wall
 from .answer_schema import missing_required_sections
 from .llm import complete_chat
+from .explain_rubric import (
+    explain_dimensions_missing,
+    explain_fill_hint,
+    explain_repeats_background,
+)
 from .parse_output import (
     SECTION_MD_RE,
     answer_ends_abruptly,
@@ -141,6 +146,13 @@ def collect_section_fill_hints(
 
     if mode in ("structure", "full") and not narrow and is_prose_wall(text, scene):
         hints.append("将散文段改为 ### 标题下 - 列表要点")
+
+    if scene in ("verse_full", "verse_quick") and mode in ("intent", "oia", "structure"):
+        dim_hint = explain_fill_hint(explain_dimensions_missing(text, depth=depth))
+        if dim_hint:
+            hints.append(dim_hint)
+        if explain_repeats_background(text):
+            hints.append("经文解释勿重复经文背景，改写为原意、对象或意图")
 
     if not missing and scene in ("verse_full", "verse_quick"):
         if mode in ("intent", "oia"):

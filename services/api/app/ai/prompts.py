@@ -105,8 +105,9 @@ _MARKDOWN_OUTPUT_COMPACT = (
     "- ### 摘要 — 观察：1 句完整话（约 35–55 字），直接说经文核心；须以主语或「这节/本章」起笔，"
     "主谓完整、以。收束；禁止残缺起笔（如「婚的比喻说明」「住一个误解」）。\n"
     "- ### 经文背景 — 背景：当时处境、前后文或同卷主线的衔接（40–60 字，勿重复摘要）。\n"
-    "- ### 经文解释 — 解释：至少 2 句（合计 50–90 字），点明 1 个关键用语或动作，"
-    "说明当时语境下的原意；不要只写一句短语。\n"
+    "- ### 经文解释 — 解释：至少 2 句（合计 50–90 字）；"
+    "句 1 写上下文衔接 + 关键字句原意；句 2 写原读者（写作对象）或作者意图（至少其一）；"
+    "承接背景，勿重复背景事实。\n"
     "- ### 今日回应 — 应用：温柔一句贴近生活的回应（≤50 字，非命令式清单）。\n"
     "- 不要另开「段落脉络」小节；不要 HTML；不要「相关追问」。\n"
 )
@@ -163,8 +164,9 @@ _MODE_GUIDE = {
         "并温柔地引导默想其与个人生命的连接。"
     ),
     "explain": (
-        "本次模式：释经解释。请说明这段经文的历史文化背景、写作语境与原意"
-        "（它在当时对原读者意味着什么），必要时点出关键词或习俗。"
+        "本次模式：释经解释。背景节写历史处境；解释节须结合上下文衔接、当时原意、"
+        "写作对象与写作意图（它在当时对原读者意味着什么、作者要他们明白什么），"
+        "必要时点出关键词或习俗。"
     ),
     "apply": (
         "本次模式：生活应用。请基于经文本意，给出今日可实践的具体方向，贴近日常处境。"
@@ -230,8 +232,8 @@ def depth_format_guide(profile: DepthProfile, scene_id: str, verse_span: int = 1
         return (
             f"（半屏 OIA · 总篇幅约 {lo}–{hi} 字，勿复述本说明）\n"
             "四节顺序：### 摘要 → ### 经文背景 → ### 经文解释 → ### 今日回应。\n"
-            "每节 1–2 句完整 prose；摘要须完整句；经文解释至少 2 句；职责不重复；"
-            "不要列表堆砌；不要「相关追问」。"
+            "每节 1–2 句完整 prose；摘要须完整句；经文解释至少 2 句且含原意 + 对象或意图；"
+            "职责不重复；不要列表堆砌；不要「相关追问」。"
         )
     if profile.depth in ("oia_standard", "oia_deep"):
         lo, hi = profile.target_chars - 60, profile.soft_max
@@ -242,7 +244,7 @@ def depth_format_guide(profile: DepthProfile, scene_id: str, verse_span: int = 1
             f"（Tab OIA 深读 · 总篇幅约 {lo}–{hi} 字）\n"
             "四节：### 摘要（1–2 句完整话，直接说核心，勿残缺起笔）→ "
             "### 经文背景（2–3 条，处境/前后文/同卷主线，勿重复摘要）→ "
-            "### 经文解释（2–3 条完整句，当时原意）→ "
+            "### 经文解释（2–3 条：衔接 + 原意 + 对象 + 意图，勿重复背景）→ "
             "### 今日回应（1 条核心 + 2 条行动或默想）。"
             f"{extra}\n"
             "多节经按主题归纳，禁止逐节罗列；每节最多 3 条。"
@@ -282,6 +284,7 @@ def build_messages(
     citations: list[dict],
     use_rag: bool = True,
     reader_context: dict | None = None,
+    passage_context: str | None = None,
     has_prior_turns: bool = False,
     narrow: bool = False,
     verse_span: int = 1,
@@ -373,6 +376,9 @@ def build_messages(
         user_lines.append(f"经文：{passage_display}")
         if passage_text:
             user_lines.append(f"经文内容：{passage_text}")
+    ctx = (passage_context or "").strip()
+    if ctx:
+        user_lines.extend(["", "【释经上下文】", ctx, ""])
     if use_rag:
         user_lines.extend(["", "【背景注释】", notes_block, ""])
     if question and question.strip():

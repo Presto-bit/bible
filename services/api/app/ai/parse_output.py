@@ -317,7 +317,13 @@ def verse_explain_incomplete(
         if summary and summary_text_incomplete(summary.replace("\n", " ")):
             return True
         floor = min_complete if min_complete is not None else 180
-        return len(text) < floor
+        if len(text) < floor:
+            return True
+        from .explain_rubric import explain_dimensions_missing, explain_repeats_background
+
+        if explain_dimensions_missing(text, depth=depth):
+            return True
+        return explain_repeats_background(text)
 
     if depth in ("oia_standard", "oia_deep"):
         expected = expected_sections or OIA_SECTIONS
@@ -333,7 +339,11 @@ def verse_explain_incomplete(
             return True
         if depth == "oia_deep" and "段落脉络" in expected and "段落脉络" not in titles:
             return True
-        return False
+        from .explain_rubric import explain_dimensions_missing, explain_repeats_background
+
+        if explain_dimensions_missing(text, depth=depth):
+            return True
+        return explain_repeats_background(text)
 
     if not _verse_sections_satisfied(
         scene,
@@ -554,6 +564,12 @@ def oia_thin_section_titles(body_text: str, *, depth: str | None = None) -> list
     explain_len = _section_plain_len(body_text, "经文解释")
     if explain_len and explain_len < min_explain:
         thin.append("经文解释")
+    else:
+        from .explain_rubric import explain_dimensions_missing
+
+        if explain_len and explain_dimensions_missing(body_text, depth=depth):
+            if "经文解释" not in thin:
+                thin.append("经文解释")
 
     bg_len = _section_plain_len(body_text, "经文背景") or _section_plain_len(body_text, "背景")
     if not bg_len:

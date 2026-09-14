@@ -3893,6 +3893,7 @@ export default function ReaderView({
               hint: ui.versionHint,
               done: englishUI ? 'Done' : '完成',
               downloaded: ui.versionDownloaded,
+              available: ui.versionAvailable,
               download: ui.versionDownload,
               downloading: ui.versionDownloading,
               retry: ui.versionRetry,

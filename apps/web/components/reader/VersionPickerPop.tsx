@@ -23,6 +23,7 @@ export type VersionPickerCopy = {
   hint: string;
   done: string;
   downloaded: string;
+  available: string;
   download: string;
   downloading: string;
   retry: string;
@@ -164,6 +165,8 @@ export default function VersionPickerPop({
             trailing = copy.retry;
           } else if (localReady) {
             trailing = copy.downloaded;
+          } else if (catalogued && vv.available) {
+            trailing = copy.available;
           } else if (catalogued) {
             trailing = copy.download;
           } else if (vv.available) {
@@ -172,8 +175,10 @@ export default function VersionPickerPop({
             trailing = copy.unavailable;
           }
 
+          const needsOfflineDownload =
+            catalogued && !localReady && !vv.available;
           const actionClickable =
-            failed || (!localReady && catalogued && !downloading);
+            failed || (needsOfflineDownload && !downloading);
 
           const onRowClick = () => {
             if (downloading) return;
@@ -181,7 +186,7 @@ export default function VersionPickerPop({
               startDownload(vv.id);
               return;
             }
-            if (catalogued && !localReady) {
+            if (needsOfflineDownload) {
               startDownload(vv.id);
               return;
             }

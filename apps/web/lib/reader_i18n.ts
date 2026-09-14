@@ -8,6 +8,7 @@ export type ReaderUiCopy = {
   pickVersion: string;
   versionHint: string;
   versionDownloaded: string;
+  versionAvailable: string;
   versionDownload: string;
   versionDownloading: string;
   versionRetry: string;
@@ -33,6 +34,7 @@ const ZH: ReaderUiCopy = {
   pickVersion: '选择版本',
   versionHint: '最多勾选 2 本；先勾选的显示在上，后勾选的为对照',
   versionDownloaded: '已下载',
+  versionAvailable: '可用',
   versionDownload: '下载',
   versionDownloading: '下载中…',
   versionRetry: '重试',
@@ -58,6 +60,7 @@ const EN: ReaderUiCopy = {
   pickVersion: 'Select version',
   versionHint: 'Select up to 2 versions; first selected shows on top',
   versionDownloaded: 'Downloaded',
+  versionAvailable: 'Available',
   versionDownload: 'Download',
   versionDownloading: 'Downloading…',
   versionRetry: 'Retry',

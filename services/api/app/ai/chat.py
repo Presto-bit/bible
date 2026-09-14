@@ -18,6 +18,7 @@ from .depth_router import resolve_depth, wants_expanded_answer
 from .rag_policy import skip_rag_for_passage
 from .response_profile import resolve_response_profile
 from .structure_assets import resolve_structure_assets
+from .passage_context import passage_context_brief
 from .scenes import NO_RAG_SURFACES, resolve_scene
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,14 @@ def _sanitize_history(history: list[dict] | None) -> list[dict[str, str]]:
         if content:
             out.append({"role": role, "content": content})
     return out
+
+
+def _rag_query(
+    passage_display: str,
+    question: str | None,
+) -> str:
+    base = f"{passage_display} {question or ''}".strip()
+    return f"{base} 原读者 写作目的 历史处境 上下文".strip()
 
 
 def _retrieve_hits(
@@ -173,8 +182,13 @@ def prepare(
     hits: list[dict] = []
     rag_ms: int | None = None
     rag_timed_out = False
+    passage_context = ""
+    if ref and spec.id in ("verse_full", "verse_quick", "chat_explain"):
+        ctx_max = 120 if (surface or "").strip().lower() in {"half_sheet", "prewarm"} else 280
+        passage_context = passage_context_brief(ref, max_chars=ctx_max)
+
     if use_rag and ref:
-        query = f"{passage_display} {question or ''}".strip()
+        query = _rag_query(passage_display, question)
         rag_t0 = time.monotonic()
         with ThreadPoolExecutor(max_workers=2) as pool:
             f_passage = pool.submit(_passage_text, ref)
@@ -242,6 +256,7 @@ def prepare(
         citations=citations,
         use_rag=use_rag,
         reader_context=reader_context,
+        passage_context=passage_context or None,
         has_prior_turns=has_prior_turns,
         narrow=narrow,
         verse_span=verse_span,

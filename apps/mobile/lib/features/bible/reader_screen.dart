@@ -28,6 +28,7 @@ import '../plans/plan_steps.dart';
 import '../plans/plans_repository.dart';
 import 'offline_notice.dart';
 import 'offline_bible.dart';
+import 'offline_catalog.dart';
 import 'bible_listen_controller.dart';
 import 'bible_listen_sheet.dart';
 import 'bible_repository.dart';
@@ -1364,13 +1365,19 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
   }
 
   void _onTick() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final svc = ref.read(offlineBibleProvider);
+    if (!svc.isDownloading) {
+      unawaited(_refreshInstalled());
+    }
+    setState(() {});
   }
 
   Future<void> _refreshInstalled() async {
     final svc = ref.read(offlineBibleProvider);
-    for (final id in const ['cuvs', 'cnv', 'contemporary', 'kjv']) {
-      _offlineOk[id] = await svc.checkInstalled(id);
+    for (final item in offlineCatalog) {
+      if (item.tab != 'bible') continue;
+      _offlineOk[item.id] = await svc.checkInstalled(item.id);
     }
     if (mounted) setState(() {});
   }
