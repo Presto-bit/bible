@@ -15,7 +15,7 @@ VOICE_MAP: dict[str, str] = {
 DEFAULT_VOICE = "voice_calm_m"
 MODEL = "speech-2.8-turbo"
 # 合成策略变更时递增，避免旧缓存混用
-PROSODY_VER = "v3-intro-solo"
+PROSODY_VER = "v4-single-mp3"
 
 
 def normalize_verse_text(text: str) -> str:

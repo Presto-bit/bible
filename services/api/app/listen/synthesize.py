@@ -3,6 +3,10 @@ from __future__ import annotations
 
 import logging
 import re
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 
 from ..bible.reader import get_chapter
 from .cache import read_ready, write_ready
@@ -17,8 +21,8 @@ from .text_pipe import (
 
 log = logging.getLogger(__name__)
 
-# 单次请求字符上限（官方 1 万；流式建议 3 千，非流式取保守值）
-_CHUNK_CHARS = 2800
+# 单次请求字符上限（官方 1 万；尽量整章一次，避免裸拼 MP3 被播放器截断）
+_CHUNK_CHARS = 9000
 
 
 def _tts_sentence(text: str) -> str:
@@ -30,11 +34,60 @@ def _tts_sentence(text: str) -> str:
     return t
 
 
+def _concat_mp3(blobs: list[bytes]) -> bytes:
+    """拼接多段同规格 MP3；优先 ffmpeg，避免时长头导致只播第一段。"""
+    if not blobs:
+        return b""
+    if len(blobs) == 1:
+        return blobs[0]
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        log.warning("listen: ffmpeg 不可用，裸拼 MP3 可能只播首段")
+        return b"".join(blobs)
+    with tempfile.TemporaryDirectory(prefix="listen_mp3_") as td:
+        root = Path(td)
+        names: list[str] = []
+        for i, raw in enumerate(blobs):
+            name = f"p{i:03d}.mp3"
+            (root / name).write_bytes(raw)
+            names.append(name)
+        lst = root / "concat.txt"
+        lst.write_text("".join(f"file '{n}'\n" for n in names), encoding="utf-8")
+        out = root / "out.mp3"
+        try:
+            subprocess.run(
+                [
+                    ffmpeg,
+                    "-y",
+                    "-f",
+                    "concat",
+                    "-safe",
+                    "0",
+                    "-i",
+                    str(lst),
+                    "-c",
+                    "copy",
+                    str(out),
+                ],
+                check=True,
+                capture_output=True,
+                timeout=120,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            log.warning("listen: ffmpeg concat 失败，回退裸拼: %s", e)
+            return b"".join(blobs)
+        data = out.read_bytes()
+        if len(data) < 64:
+            return b"".join(blobs)
+        return data
+
+
 def _build_chunks(units: list[dict]) -> list[dict]:
     """把 units 切成若干块。
 
     实际送 TTS 的文本用换行分隔句子，便于 MiniMax 出句级字幕；
     但 text_begin 索引不计换行，故 ranges 按「无换行拼接」计坐标。
+    章引子与正文同块，避免多段 MP3 播放截断。
     """
     chunks: list[dict] = []
     cur_ranges: list[tuple[dict, int, int]] = []
@@ -58,18 +111,6 @@ def _build_chunks(units: list[dict]) -> list[dict]:
     for unit in units:
         sent = _tts_sentence(str(unit.get("text") or ""))
         if not sent:
-            continue
-        # 章引子单独一块，保证开场先读「卷名、第几章」再进正文
-        if unit.get("kind") == "intro":
-            flush()
-            start = 0
-            end = len(sent)
-            chunks.append(
-                {
-                    "text": sent,
-                    "ranges": [(unit, start, end)],
-                }
-            )
             continue
         # 块大小按「有效字」估算（不含换行）
         if sentences and cursor + len(sent) > _CHUNK_CHARS:
@@ -212,7 +253,7 @@ def prepare_chapter(
             merged[v]["end_ms"] = max(merged[v]["end_ms"], item["end_ms"])
     timeline = [merged[k] for k in sorted(merged)]
 
-    mp3 = b"".join(blobs)
+    mp3 = _concat_mp3(blobs)
     return write_ready(
         translation=translation,
         voice=voice,

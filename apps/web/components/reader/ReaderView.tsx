@@ -3359,7 +3359,6 @@ export default function ReaderView({
             'reader-fab',
             'reader-fab-listen',
             listenUi === 'playing' ? 'is-playing' : '',
-            listenUi === 'paused' ? 'is-paused' : '',
           ]
             .filter(Boolean)
             .join(' ')}

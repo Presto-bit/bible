@@ -254,29 +254,29 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                             ),
                           )
                         : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                             itemCount: verses.length,
                             itemBuilder: (context, i) {
                               final v = verses[i];
                               final isCurrent = session.currentVerse == v.verse;
                               return Padding(
                                 key: _keyFor(v.verse),
-                                padding: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.only(bottom: 2),
                                 child: Material(
                                   color: isCurrent
                                       ? const Color(0xFF8EC8E8)
                                           .withValues(alpha: 0.38)
                                       : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(8),
                                   child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(8),
                                     onTap: !session.canSeek || preparing
                                         ? null
                                         : () => ctrl.seekVerse(v.verse),
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 10,
+                                        horizontal: 10,
+                                        vertical: 5,
                                       ),
                                       child: Text.rich(
                                         TextSpan(
@@ -284,7 +284,7 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                             TextSpan(
                                               text: '${v.verse} ',
                                               style: TextStyle(
-                                                fontSize: 13,
+                                                fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                                 color: isCurrent
                                                     ? const Color(0xFF3D7EA8)
@@ -294,10 +294,10 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
                                             TextSpan(
                                               text: v.text,
                                               style: const TextStyle(
-                                                fontSize: 17,
-                                                height: 1.75,
+                                                fontSize: 16,
+                                                height: 1.55,
                                                 color: AppColors.ink,
-                                                letterSpacing: 0.2,
+                                                letterSpacing: 0.15,
                                               ),
                                             ),
                                           ],

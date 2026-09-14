@@ -266,7 +266,7 @@
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
-/* FAB 听钮：默认与小爱同底；播放中淡蓝 + 字本身呼吸动画 */
+/* FAB 听钮：默认与小爱同底；仅播放中淡蓝 + 字呼吸；暂停恢复原色 */
 .reader-fab-listen {
   background: var(--accent-deep);
   color: #fff;
@@ -274,11 +274,6 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
   min-width: 48px;
   padding: 0 16px;
-}
-
-.reader-fab-listen.is-paused {
-  background: #7eb6d9;
-  color: #fff;
 }
 
 .reader-fab-listen.is-playing {
@@ -350,20 +345,20 @@
 .listen-sheet-scripture {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 4px 2px 12px;
+  gap: 2px;
+  padding: 2px 2px 8px;
   text-align: left;
 }
 
 .listen-sheet-verse-row {
   margin: 0;
-  padding: 10px 12px;
+  padding: 5px 10px;
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   background: transparent;
   color: var(--ink, #2a2622);
-  font-size: 17px;
-  line-height: 1.75;
+  font-size: 16px;
+  line-height: 1.55;
   letter-spacing: 0.02em;
   text-align: left;
   cursor: pointer;

@@ -854,7 +854,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             padding: const EdgeInsets.only(bottom: 10),
             child: _ListenFabButton(
               playing: listenSession.ui == BibleListenUi.playing,
-              paused: listenSession.ui == BibleListenUi.paused,
               onTap: () {
                 peiaiHapticLight(context);
                 unawaited(_openListenSheet(context));
@@ -1688,16 +1687,14 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
   }
 }
 
-/// 听读 FAB：播放/暂停时淡蓝底；播放中「听」字呼吸动画（无右侧竖线）。
+/// 听读 FAB：仅播放中淡蓝底 +「听」字呼吸；暂停恢复原色。
 class _ListenFabButton extends StatefulWidget {
   const _ListenFabButton({
     required this.playing,
-    required this.paused,
     required this.onTap,
   });
 
   final bool playing;
-  final bool paused;
   final VoidCallback onTap;
 
   @override
@@ -1737,14 +1734,9 @@ class _ListenFabButtonState extends State<_ListenFabButton>
 
   @override
   Widget build(BuildContext context) {
-    final Color bg;
-    if (widget.playing) {
-      bg = const Color(0xFF8EC8E8);
-    } else if (widget.paused) {
-      bg = const Color(0xFF7EB6D9);
-    } else {
-      bg = AppColors.accentDeep;
-    }
+    final bg = widget.playing
+        ? const Color(0xFF8EC8E8)
+        : AppColors.accentDeep;
     return Material(
       color: bg,
       elevation: 3,
