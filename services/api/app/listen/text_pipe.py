@@ -14,7 +14,8 @@ VOICE_MAP: dict[str, str] = {
 
 DEFAULT_VOICE = "voice_calm_m"
 MODEL = "speech-2.8-turbo"
-PROSODY_VER = "v1"
+# 合成策略变更（分块+字幕轴）时递增，避免与旧「按节多请求」缓存混用
+PROSODY_VER = "v2-chunk-sub"
 
 
 def normalize_verse_text(text: str) -> str:
