@@ -33,6 +33,7 @@ import 'bible_listen_sheet.dart';
 import 'bible_repository.dart';
 import 'models.dart';
 import 'reader_audio.dart';
+import 'bible_book_names.dart';
 import 'reader_catalog_view.dart';
 import 'feed_activity.dart';
 import 'reader_experience.dart';
@@ -484,9 +485,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                       child: Text(
                         _book == null
                             ? (englishUI ? 'Select book' : '选择经卷')
-                            : englishUI
-                            ? '${bibleBookAbbr(_book!.name)} $_chapter'
-                            : '${bibleBookAbbr(_book!.name)} $_chapter',
+                            : '${bibleBookAbbrFor(_book!.id, _book!.name, english: englishUI)} $_chapter',
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -583,6 +582,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             onRetry: () => ref.refresh(booksProvider),
           ),
           data: (books) {
+            final catalogBooks =
+                ref.watch(catalogBooksProvider(_mainVersionId)).value ??
+                books;
             final progressAsync = ref.watch(readingProgressStreamProvider);
             if (!_seeded) {
               if (widget.initialBook != null) {
@@ -623,7 +625,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                   const OfflineBibleCard(),
                   Expanded(
                     child: ReaderCatalogView(
-                      books: books,
+                      books: catalogBooks,
+                      englishUI: englishUI,
                       showBack: _catalogOverlay && _book != null,
                       onBack: () => setState(() => _catalogOverlay = false),
                       resumeBookId: _book?.id ?? saved?.book,
@@ -645,15 +648,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               );
             }
 
+            final displayBook = catalogBooks.firstWhere(
+              (b) => b.id == _book!.id,
+              orElse: () => englishUI
+                  ? BibleBook(
+                      id: _book!.id,
+                      name: englishBookName(_book!.id, fallback: _book!.name),
+                      testament: _book!.testament,
+                      sortOrder: _book!.sortOrder,
+                      chapterCount: _book!.chapterCount,
+                    )
+                  : _book!,
+            );
+
             return Column(
               children: [
                 const OfflineBibleCard(),
                 Expanded(
                   child: ReaderChapterBody(
                     key: _chapterBodyKey,
-                    book: _book!,
+                    book: displayBook,
                     chapter: _chapter,
-                    books: books,
+                    books: catalogBooks,
                     compareVersionId: _compareVersionId,
                     mainVersionId: _mainVersionId,
                     chromeHidden: _chromeHidden,
@@ -1248,17 +1264,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 
   Future<void> _pickBookChapter(BuildContext context) async {
-    final books = ref.read(booksProvider).value;
+    final books =
+        ref.read(catalogBooksProvider(_mainVersionId)).value ??
+        ref.read(booksProvider).value;
     final book = _book;
     if (books == null || book == null) return;
+    final displayBook = books.firstWhere(
+      (b) => b.id == book.id,
+      orElse: () => book,
+    );
     // 对齐 PWA：读经中点卷章用锚点弹层；无书卷时仍走全屏目录。
     final picked = await showReaderLocPopover(
       context,
       anchorKey: _locKey,
       books: books,
-      currentBook: book,
+      currentBook: displayBook,
       currentChapter: _chapter,
       planSteps: _planMeta?.steps,
+      englishUI: _mainVersionId == 'kjv',
     );
     if (picked == null || !mounted) return;
     setState(() {
@@ -1271,78 +1294,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 }
 
-/// 书卷简称（对齐 canvas BOOK_ABBR）。
-const Map<String, String> _kBookAbbr = {
-  '创世记': '创',
-  '出埃及记': '出',
-  '利未记': '利',
-  '民数记': '民',
-  '申命记': '申',
-  '约书亚记': '书',
-  '士师记': '士',
-  '路得记': '得',
-  '撒母耳记上': '撒上',
-  '撒母耳记下': '撒下',
-  '列王纪上': '王上',
-  '列王纪下': '王下',
-  '历代志上': '代上',
-  '历代志下': '代下',
-  '以斯拉记': '拉',
-  '尼希米记': '尼',
-  '以斯帖记': '斯',
-  '约伯记': '伯',
-  '诗篇': '诗',
-  '箴言': '箴',
-  '传道书': '传',
-  '雅歌': '歌',
-  '以赛亚书': '赛',
-  '耶利米书': '耶',
-  '耶利米哀歌': '哀',
-  '以西结书': '结',
-  '但以理书': '但',
-  '何西阿书': '何',
-  '约珥书': '珥',
-  '阿摩司书': '摩',
-  '俄巴底亚书': '俄',
-  '约拿书': '拿',
-  '弥迦书': '弥',
-  '那鸿书': '鸿',
-  '哈巴谷书': '哈',
-  '西番雅书': '番',
-  '哈该书': '该',
-  '撒迦利亚书': '亚',
-  '玛拉基书': '玛',
-  '马太福音': '太',
-  '马可福音': '可',
-  '路加福音': '路',
-  '约翰福音': '约',
-  '使徒行传': '徒',
-  '罗马书': '罗',
-  '哥林多前书': '林前',
-  '哥林多后书': '林后',
-  '加拉太书': '加',
-  '以弗所书': '弗',
-  '腓立比书': '腓',
-  '歌罗西书': '西',
-  '帖撒罗尼迦前书': '帖前',
-  '帖撒罗尼迦后书': '帖后',
-  '提摩太前书': '提前',
-  '提摩太后书': '提后',
-  '提多书': '多',
-  '腓利门书': '门',
-  '希伯来书': '来',
-  '雅各书': '雅',
-  '彼得前书': '彼前',
-  '彼得后书': '彼后',
-  '约翰一书': '约一',
-  '约翰二书': '约二',
-  '约翰三书': '约三',
-  '犹大书': '犹',
-  '启示录': '启',
-};
-
-String bibleBookAbbr(String name) =>
-    _kBookAbbr[name] ?? (name.isEmpty ? '' : name.substring(0, 1));
+String bibleBookAbbr(String name, {String? bookId, bool english = false}) =>
+    bibleBookAbbrFor(bookId ?? '', name, english: english);
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});

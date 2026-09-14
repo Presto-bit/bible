@@ -877,12 +877,21 @@ export const api = {
         ...(ref ? { ref } : {}),
       }).toString()}` : ''}`,
     ),
-  sectionTitles: (book?: string, chapter?: number) =>
+  sectionTitles: (book?: string, chapter?: number, lang?: 'zh' | 'en') =>
     getJson<{ chapters?: Record<string, { verse: number; title: string }[]>; sections?: { verse: number; title: string }[] }>(
-      book && chapter
-        ? `/content/sections?book=${encodeURIComponent(book)}&chapter=${chapter}`
-        : '/content/sections',
+      (() => {
+        const params = new URLSearchParams();
+        if (book && chapter) {
+          params.set('book', book);
+          params.set('chapter', String(chapter));
+        }
+        if (lang && lang !== 'zh') params.set('lang', lang);
+        const qs = params.toString();
+        return qs ? `/content/sections?${qs}` : '/content/sections';
+      })(),
     ),
+  sectionTitleTranslations: () =>
+    getJson<{ titles: Record<string, string> }>('/content/section-title-translations'),
   paragraphRanges: () =>
     getJson<{ chapters?: Record<string, [number, number][]> }>('/content/paragraphs'),
   discourseRanges: () =>

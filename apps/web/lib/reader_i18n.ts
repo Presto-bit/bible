@@ -75,6 +75,67 @@ const EN: ReaderUiCopy = {
   note: 'Note',
 };
 
-export function readerUi(_english?: boolean): ReaderUiCopy {
-  return ZH;
+export type CatalogUiCopy = {
+  title: string;
+  resume: string;
+  resumeSub: string;
+  startJohn: string;
+  startHint: string;
+  booksTab: string;
+  chaptersTab: string;
+  ot: string;
+  nt: string;
+  chaptersUnit: string;
+  chaptersTotal: string;
+  switchBook: string;
+  planMode: string;
+  planOnly: string;
+  planWarnChapter: string;
+  planWarnBook: string;
+};
+
+const CATALOG_ZH: CatalogUiCopy = {
+  title: '圣经目录',
+  resume: '继续',
+  resumeSub: '从上次读到的地方继续',
+  startJohn: '从约翰福音开始',
+  startHint: '新手友好 · 也可在下方自由选卷',
+  booksTab: '分卷',
+  chaptersTab: '章节',
+  ot: '旧约',
+  nt: '新约',
+  chaptersUnit: '章',
+  chaptersTotal: '共',
+  switchBook: '换卷 ›',
+  planMode: ' · 计划模式',
+  planOnly: '仅显示今日计划经卷与章节',
+  planWarnChapter: '该章节不在今日计划内，请从计划段列表选择',
+  planWarnBook: '该经卷不在今日计划内',
+};
+
+const CATALOG_EN: CatalogUiCopy = {
+  title: 'Bible',
+  resume: 'Continue',
+  resumeSub: 'Pick up where you left off',
+  startJohn: 'Start with John',
+  startHint: 'A gentle entry · or choose any book below',
+  booksTab: 'Books',
+  chaptersTab: 'Chapters',
+  ot: 'Old Testament',
+  nt: 'New Testament',
+  chaptersUnit: ' ch',
+  chaptersTotal: '',
+  switchBook: 'All books ›',
+  planMode: ' · Plan',
+  planOnly: 'Showing today’s plan books and chapters only',
+  planWarnChapter: 'This chapter is not in today’s plan',
+  planWarnBook: 'This book is not in today’s plan',
+};
+
+export function catalogUi(english?: boolean): CatalogUiCopy {
+  return english ? CATALOG_EN : CATALOG_ZH;
+}
+
+export function readerUi(english?: boolean): ReaderUiCopy {
+  return english ? EN : ZH;
 }

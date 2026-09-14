@@ -55,7 +55,12 @@ export interface GuideResult {
 }
 
 export const bibleApi = {
-  books: () => getJson<{ books: BibleBook[] }>('/bible/books'),
+  books: (version?: string) =>
+    getJson<{ books: BibleBook[] }>(
+      version
+        ? `/bible/books?version=${encodeURIComponent(version)}`
+        : '/bible/books',
+    ),
   chapter: (book: string, chapter: number, version?: string) =>
     getJson<{ verses: Verse[] }>(
       `/bible/chapter?book=${encodeURIComponent(book)}&chapter=${chapter}${version ? `&version=${encodeURIComponent(version)}` : ''}`,

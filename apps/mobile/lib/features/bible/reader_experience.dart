@@ -25,6 +25,7 @@ import '../plans/plans_repository.dart';
 import '../plans/plan_steps.dart';
 import '../notes/notes_for_chapter.dart';
 import '../notes/notes_repository.dart';
+import 'bible_book_names.dart';
 import 'bible_repository.dart';
 import 'chapter_cache.dart';
 import 'chapter_guide_tip.dart';
@@ -39,6 +40,7 @@ import 'group_checkin_sheet.dart';
 import 'markings_repository.dart';
 import 'models.dart';
 import 'outlines.dart';
+import 'section_title_i18n.dart';
 import 'paragraphs.dart';
 import 'reader_typography.dart';
 import 'reader_focus_bar.dart';
@@ -739,6 +741,13 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         unawaited(ref.read(contentRepoProvider).preloadParagraphRangesIndex());
         unawaited(ref.read(contentRepoProvider).preloadDiscourseCatalog());
         unawaited(ref.read(contentRepoProvider).preloadPoetryLinesIndex());
+        if (isEnglishBibleVersion(widget.mainVersionId)) {
+          unawaited(
+            preloadSectionTitleTranslations(
+              () => ref.read(contentRepoProvider).sectionTitleTranslations(),
+            ),
+          );
+        }
         _prefetchAdjacentChapters();
       }
     });
@@ -2233,6 +2242,11 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       if (target == null) continue;
 
       final layoutKey = (book: target.book.id, chapter: target.chapter);
+      final sectionKey = (
+        book: target.book.id,
+        chapter: target.chapter,
+        versionId: widget.mainVersionId,
+      );
 
       unawaited(
         ref.read(chapterProvider(layoutKey).future).then((ch) {
@@ -2265,7 +2279,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
       unawaited(
         ref
-            .read(sectionTitlesProvider(layoutKey).future)
+            .read(sectionTitlesProvider(sectionKey).future)
             .then((_) {}, onError: (_) {}),
       );
       unawaited(
@@ -2539,14 +2553,20 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final dictIndex = _cachedDictIndex ?? const {};
     final dictKeys = _cachedDictKeys ?? const [];
     final dictRev = _cachedDictRev ?? 0;
-    final outline = outlineFor(widget.book.id, widget.chapter);
-    final sectionByVerse = {for (final s in outline) s.verse: s.title};
+    final sectionByVerse = <int, String>{};
+    final outline = outlineForVersion(
+      widget.book.id,
+      widget.chapter,
+      versionId: widget.mainVersionId,
+    );
+    sectionByVerse.addAll({for (final s in outline) s.verse: s.title});
     // API 分段优先；本地 outlines 作兜底
     final apiSections = ref
         .watch(
           sectionTitlesProvider((
             book: widget.book.id,
             chapter: widget.chapter,
+            versionId: widget.mainVersionId,
           )),
         )
         .value;
@@ -3376,7 +3396,11 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final sections =
         sectionByVerse ??
         {
-          for (final s in outlineFor(widget.book.id, widget.chapter))
+          for (final s in outlineForVersion(
+            widget.book.id,
+            widget.chapter,
+            versionId: widget.mainVersionId,
+          ))
             s.verse: s.title,
         };
     final paras = groupVersesIntoParagraphs(
@@ -3854,13 +3878,19 @@ class _AdjacentChapterPeekPanelState
             chapterProvider((book: target.book.id, chapter: target.chapter)),
           )
         : null;
-    final outline = outlineFor(target.book.id, target.chapter);
-    final sectionByVerse = {for (final s in outline) s.verse: s.title};
+    final sectionByVerse = <int, String>{};
+    final outline = outlineForVersion(
+      target.book.id,
+      target.chapter,
+      versionId: widget.mainVersionId,
+    );
+    sectionByVerse.addAll({for (final s in outline) s.verse: s.title});
     final apiSections = ref
         .watch(
           sectionTitlesProvider((
             book: target.book.id,
             chapter: target.chapter,
+            versionId: widget.mainVersionId,
           )),
         )
         .value;

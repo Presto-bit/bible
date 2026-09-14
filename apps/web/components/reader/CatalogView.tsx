@@ -6,6 +6,7 @@ import type { BibleBook } from '@/lib/api';
 import { allowedChaptersForBook, isChapterInPlan, planBooksInSteps } from '@/lib/plan_navigation';
 import type { PlanStep } from '@/lib/plan_steps';
 import { clearReaderChrome } from '@/lib/reader_chrome';
+import { catalogUi } from '@/lib/reader_i18n';
 import { getLastRead } from '@/lib/reading';
 
 type CatalogTab = 'books' | 'chapters';
@@ -17,7 +18,9 @@ type CatalogProps = {
   showBack: boolean;
   onBack?: () => void;
   onPickChapter: (book: BibleBook, chapter: number) => void;
-  bookAbbr: (name: string) => string;
+  bookAbbr: (name: string, bookId?: string) => string;
+  /** KJV 等英文正文译本：目录与卷名用英文 */
+  englishUI?: boolean;
   /** 计划模式：仅允许跳转今日 Step 章节 */
   planSteps?: PlanStep[];
 };
@@ -30,8 +33,10 @@ function CatalogView({
   onBack,
   onPickChapter,
   bookAbbr,
+  englishUI = false,
   planSteps,
 }: CatalogProps) {
+  const ui = catalogUi(englishUI);
   const [tab, setTab] = useState<CatalogTab>('books');
   const [pickWarn, setPickWarn] = useState<string | null>(null);
   const [selectedBookId, setSelectedBookId] = useState(
@@ -67,7 +72,7 @@ function CatalogView({
 
   const tryPickChapter = (b: BibleBook, n: number) => {
     if (planSteps?.length && !isChapterInPlan(planSteps, b.id, n)) {
-      setPickWarn('该章节不在今日计划内，请从计划段列表选择');
+      setPickWarn(ui.planWarnChapter);
       return;
     }
     setPickWarn(null);
@@ -76,7 +81,7 @@ function CatalogView({
 
   const pickBook = (b: BibleBook) => {
     if (planBookIds && !planBookIds.has(b.id)) {
-      setPickWarn('该经卷不在今日计划内');
+      setPickWarn(ui.planWarnBook);
       return;
     }
     setSelectedBookId(b.id);
@@ -103,9 +108,11 @@ function CatalogView({
             }`}
             onClick={() => pickBook(b)}
           >
-            <span className="catalog-abbr">{bookAbbr(b.name)}</span>
+            <span className="catalog-abbr">{bookAbbr(b.name, b.id)}</span>
             <span className="catalog-name">{b.name}</span>
-            <span className="catalog-ch">{b.chapter_count} 章</span>
+            <span className="catalog-ch">
+              {englishUI ? `${b.chapter_count}${ui.chaptersUnit}` : `${b.chapter_count} ${ui.chaptersUnit.trim()}`}
+            </span>
           </button>
         ))}
       </div>
@@ -126,7 +133,7 @@ function CatalogView({
           {showBack && onBack && (
             <PageBackBar variant="sheet" ariaLabel="返回" onClick={onBack} />
           )}
-          圣经目录{planSteps?.length ? ' · 计划模式' : ''}
+          {ui.title}{planSteps?.length ? ui.planMode : ''}
         </h2>
       </div>
 
@@ -136,12 +143,14 @@ function CatalogView({
           className="card row-card home-list-row catalog-resume-card"
           onClick={() => tryPickChapter(lastBook, last.chapter)}
         >
-          <span className="pill pill-active">继续</span>
+          <span className="pill pill-active">{ui.resume}</span>
           <span className="home-list-main">
             <strong>
-              {lastBook.name} {last.chapter} 章
+              {englishUI
+                ? `${lastBook.name} ${last.chapter}`
+                : `${lastBook.name} ${last.chapter} ${ui.chaptersUnit.trim()}`}
             </strong>
-            <span className="muted home-list-sub">从上次读到的地方继续</span>
+            <span className="muted home-list-sub">{ui.resumeSub}</span>
           </span>
           <span className="muted home-list-chevron">›</span>
         </button>
@@ -155,9 +164,9 @@ function CatalogView({
               if (jhn) tryPickChapter(jhn, 1);
             }}
           >
-            从约翰福音开始
+            {ui.startJohn}
           </button>
-          <p className="muted catalog-start-hint">新手友好 · 也可在下方自由选卷</p>
+          <p className="muted catalog-start-hint">{ui.startHint}</p>
         </div>
       ) : null}
 
@@ -169,7 +178,7 @@ function CatalogView({
 
       {planSteps?.length ? (
         <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-          仅显示今日计划经卷与章节
+          {ui.planOnly}
         </p>
       ) : null}
 
@@ -179,7 +188,7 @@ function CatalogView({
           className={`seg-tab ${tab === 'books' ? 'seg-tab-active' : ''}`}
           onClick={() => setTab('books')}
         >
-          分卷
+          {ui.booksTab}
         </button>
         <button
           type="button"
@@ -187,22 +196,26 @@ function CatalogView({
           onClick={() => setTab('chapters')}
           disabled={!selectedBook}
         >
-          章节
+          {ui.chaptersTab}
         </button>
       </div>
 
       {tab === 'books' ? (
         <>
-          {ot.length > 0 && renderBookGroup('旧约', ot)}
-          {nt.length > 0 && renderBookGroup('新约', nt)}
+          {ot.length > 0 && renderBookGroup(ui.ot, ot)}
+          {nt.length > 0 && renderBookGroup(ui.nt, nt)}
         </>
       ) : selectedBook ? (
         <div className="catalog-chapters-panel">
           <div className="catalog-chapters-head">
             <strong>{selectedBook.name}</strong>
-            <span className="muted">共 {selectedBook.chapter_count} 章</span>
+            <span className="muted">
+              {englishUI
+                ? `${selectedBook.chapter_count} chapters`
+                : `${ui.chaptersTotal} ${selectedBook.chapter_count} ${ui.chaptersUnit.trim()}`}
+            </span>
             <button type="button" className="text-link" onClick={() => setTab('books')}>
-              换卷 ›
+              {ui.switchBook}
             </button>
           </div>
           <div className="chapter-grid catalog-chapter-grid">
@@ -228,7 +241,7 @@ function CatalogView({
         </div>
       ) : (
         <p className="muted" style={{ textAlign: 'center', marginTop: 24 }}>
-          请先在「分卷」中选择一卷书
+          {englishUI ? 'Choose a book first' : '请先在「分卷」中选择一卷书'}
         </p>
       )}
     </main>

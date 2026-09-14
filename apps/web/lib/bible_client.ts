@@ -12,6 +12,8 @@ import {
   writeBooksLsCache,
 } from './bible_local';
 import { isCuvsOfflineReady, isKjvOfflineReady, isContemporaryOfflineReady, isOfflinePackReady } from './offline_pack';
+import { isEnglishBibleVersion } from './bible_version';
+import { localizeBooksForVersion } from './bible_book_names';
 
 function refreshBooksFromApi() {
   void bibleApi
@@ -20,6 +22,16 @@ function refreshBooksFromApi() {
       if (remote?.books?.length) writeBooksLsCache(remote.books);
     })
     .catch(() => {});
+}
+
+/** 按当前正文译本返回目录卷名（结构 id 与主译本一致）。 */
+export async function bibleBooksForDisplay(
+  versionId?: string | null,
+): Promise<BibleBook[]> {
+  const base = await bibleBooks();
+  if (!isEnglishBibleVersion(versionId)) return base;
+  const localized = await bibleApi.books(versionId!).catch(() => null);
+  return localizeBooksForVersion(base, versionId, localized?.books);
 }
 
 export async function bibleBooks(): Promise<BibleBook[]> {

@@ -7,7 +7,7 @@ import '../../core/theme.dart';
 import '../plans/plan_navigation.dart';
 import '../plans/plan_steps.dart';
 import 'models.dart';
-import 'reader_screen.dart' show bibleBookAbbr;
+import 'bible_book_names.dart';
 
 class ReaderCatalogView extends StatefulWidget {
   const ReaderCatalogView({
@@ -21,6 +21,7 @@ class ReaderCatalogView extends StatefulWidget {
     this.onBack,
     this.compact = false,
     this.initialTab = 'books',
+    this.englishUI = false,
   });
 
   final List<BibleBook> books;
@@ -34,6 +35,7 @@ class ReaderCatalogView extends StatefulWidget {
   /// 顶栏卷章弹窗使用：收起「继续阅读」与新手 CTA。
   final bool compact;
   final String initialTab;
+  final bool englishUI;
 
   @override
   State<ReaderCatalogView> createState() => _ReaderCatalogViewState();
@@ -94,7 +96,11 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
   void _tryPick(BibleBook b, int n) {
     final steps = widget.planSteps;
     if (steps != null && steps.isNotEmpty && !isChapterInPlan(steps, b.id, n)) {
-      setState(() => _warn = '该章节不在今日计划内，请从计划段列表选择');
+      setState(
+        () => _warn = widget.englishUI
+            ? 'This chapter is not in today’s plan'
+            : '该章节不在今日计划内，请从计划段列表选择',
+      );
       return;
     }
     setState(() => _warn = null);
@@ -104,7 +110,11 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
   void _pickBook(BibleBook b) {
     final ids = _planBookIds;
     if (ids != null && !ids.contains(b.id)) {
-      setState(() => _warn = '该经卷不在今日计划内');
+      setState(
+        () => _warn = widget.englishUI
+            ? 'This book is not in today’s plan'
+            : '该经卷不在今日计划内',
+      );
       return;
     }
     setState(() {
@@ -135,7 +145,7 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
               child: TextButton.icon(
                 onPressed: widget.onBack,
                 icon: const Icon(Icons.arrow_back_ios_new, size: 14),
-                label: const Text('返回阅读'),
+                label: Text(widget.englishUI ? 'Back' : '返回阅读'),
               ),
             ),
           ),
@@ -173,8 +183,8 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
                           color: AppColors.accentDeep,
                           borderRadius: BorderRadius.circular(999),
                         ),
-                        child: const Text(
-                          '继续',
+                        child: Text(
+                          widget.englishUI ? 'Continue' : '继续',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -188,14 +198,18 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${resume.name} $resumeCh 章',
+                              widget.englishUI
+                                  ? '${resume.name} $resumeCh'
+                                  : '${resume.name} $resumeCh 章',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15,
                               ),
                             ),
-                            const Text(
-                              '从上次读到的地方继续',
+                            Text(
+                              widget.englishUI
+                                  ? 'Pick up where you left off'
+                                  : '从上次读到的地方继续',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.inkFaint,
@@ -235,14 +249,16 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
                     }
                     if (jhn != null) _tryPick(jhn, 1);
                   },
-                  child: const Text(
-                    '从约翰福音开始',
+                  child: Text(
+                    widget.englishUI ? 'Start with John' : '从约翰福音开始',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  '新手友好 · 也可在下方自由选卷',
+                Text(
+                  widget.englishUI
+                      ? 'A gentle entry · or choose any book below'
+                      : '新手友好 · 也可在下方自由选卷',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
                 ),
@@ -261,7 +277,7 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
               children: [
                 Expanded(
                   child: _Seg(
-                    label: '卷',
+                    label: widget.englishUI ? 'Books' : '卷',
                     active: _tab == 'books',
                     onTap: () => setState(() {
                       _tab = 'books';
@@ -271,7 +287,7 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
                 ),
                 Expanded(
                   child: _Seg(
-                    label: '章',
+                    label: widget.englishUI ? 'Chapters' : '章',
                     active: _tab == 'chapters',
                     onTap: () => setState(() {
                       _tab = 'chapters';
@@ -287,7 +303,7 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Text(
-              '${selected.name} · ${bibleBookAbbr(selected.name)}',
+              '${selected.name} · ${bibleBookAbbrFor(selected.id, selected.name, english: widget.englishUI)}',
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -334,20 +350,22 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   children: [
                     if (ot.isNotEmpty) ...[
-                      const _Label('旧约'),
+                      _Label(widget.englishUI ? 'Old Testament' : '旧约'),
                       _BookGrid(
                         books: ot,
                         selectedId: _selectedBookId,
                         onPick: _pickBook,
+                        englishUI: widget.englishUI,
                       ),
                     ],
                     if (nt.isNotEmpty) ...[
                       const SizedBox(height: 14),
-                      const _Label('新约'),
+                      _Label(widget.englishUI ? 'New Testament' : '新约'),
                       _BookGrid(
                         books: nt,
                         selectedId: _selectedBookId,
                         onPick: _pickBook,
+                        englishUI: widget.englishUI,
                       ),
                     ],
                   ],
@@ -414,10 +432,12 @@ class _BookGrid extends StatelessWidget {
     required this.books,
     required this.selectedId,
     required this.onPick,
+    this.englishUI = false,
   });
   final List<BibleBook> books;
   final String selectedId;
   final void Function(BibleBook) onPick;
+  final bool englishUI;
 
   @override
   Widget build(BuildContext context) {
@@ -446,7 +466,7 @@ class _BookGrid extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    bibleBookAbbr(b.name),
+                    bibleBookAbbrFor(b.id, b.name, english: englishUI),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,

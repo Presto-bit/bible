@@ -10,8 +10,14 @@ router = APIRouter(prefix="/bible", tags=["bible"])
 
 
 @router.get("/books")
-def books() -> dict:
-    return {"books": reader.list_books()}
+def books(
+    version: str | None = Query(
+        None,
+        description="译本 id：返回该译本卷名（如 kjv 为英文）；默认主译本",
+    ),
+) -> dict:
+    ver = (version or "").strip().lower() or reader.PRIMARY_VERSION
+    return {"books": reader.list_books(ver)}
 
 
 @router.get("/versions")

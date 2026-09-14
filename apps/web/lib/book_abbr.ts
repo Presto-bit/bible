@@ -1,3 +1,5 @@
+import { BOOK_EN_ABBR } from './bible_book_names';
+
 /** 经卷中文名 → 简称（全站共用） */
 export const BOOK_ABBR: Record<string, string> = {
   创世记: '创', 出埃及记: '出', 利未记: '利', 民数记: '民', 申命记: '申',
@@ -15,6 +17,11 @@ export const BOOK_ABBR: Record<string, string> = {
   约翰三书: '约三', 犹大书: '犹', 启示录: '启',
 };
 
-export function bookAbbr(name: string): string {
+export function bookAbbr(name: string, bookId?: string, english = false): string {
+  if (english && bookId) {
+    const abbr = BOOK_EN_ABBR[bookId.toUpperCase()];
+    if (abbr) return abbr;
+    return name.split(/\s+/).slice(0, 2).join(' ');
+  }
   return BOOK_ABBR[name] ?? name.slice(0, 1);
 }

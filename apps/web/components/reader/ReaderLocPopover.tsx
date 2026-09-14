@@ -15,7 +15,8 @@ type Props = {
   books: BibleBook[];
   book: BibleBook;
   chapter: number;
-  bookAbbr: (name: string) => string;
+  bookAbbr: (name: string, bookId?: string) => string;
+  englishUI?: boolean;
   planSteps?: PlanStep[];
   onPickChapter: (book: BibleBook, chapter: number) => void;
   onClose: () => void;
@@ -28,6 +29,7 @@ export function ReaderLocPopover({
   book,
   chapter,
   bookAbbr,
+  englishUI = false,
   planSteps,
   onPickChapter,
   onClose,
@@ -93,7 +95,7 @@ export function ReaderLocPopover({
 
   const tryPickChapter = (b: BibleBook, n: number) => {
     if (planSteps?.length && !isChapterInPlan(planSteps, b.id, n)) {
-      setPickWarn('该章节不在今日计划内');
+      setPickWarn(englishUI ? 'This chapter is not in today’s plan' : '该章节不在今日计划内');
       return;
     }
     onPickChapter(b, n);
@@ -102,7 +104,7 @@ export function ReaderLocPopover({
 
   const pickBook = (b: BibleBook) => {
     if (planBookIds && !planBookIds.has(b.id)) {
-      setPickWarn('该经卷不在今日计划内');
+      setPickWarn(englishUI ? 'This book is not in today’s plan' : '该经卷不在今日计划内');
       return;
     }
     setPickWarn(null);
@@ -128,7 +130,7 @@ export function ReaderLocPopover({
               className={`reader-loc-book-cell${selectedBookId === b.id ? ' is-active' : ''}`}
               onClick={() => pickBook(b)}
             >
-              {bookAbbr(b.name)}
+              {bookAbbr(b.name, b.id)}
             </button>
           ))}
         </div>
@@ -149,15 +151,17 @@ export function ReaderLocPopover({
         className="reader-loc-popover"
         style={style}
         role="dialog"
-        aria-label="选择经卷与章节"
+        aria-label={englishUI ? 'Select book and chapter' : '选择经卷与章节'}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="reader-loc-popover-head">
           <strong>{selectedBook.name}</strong>
           <span className="muted reader-loc-popover-sub">
             {tab === 'chapters'
-              ? (selectedBook.id === book.id ? `第 ${chapter} 章` : '选章')
-              : '选卷'}
+              ? (selectedBook.id === book.id
+                ? (englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`)
+                : (englishUI ? 'Chapter' : '选章'))
+              : (englishUI ? 'Book' : '选卷')}
           </span>
         </div>
 
@@ -169,14 +173,14 @@ export function ReaderLocPopover({
             className={`seg-tab ${tab === 'books' ? 'seg-tab-active' : ''}`}
             onClick={() => { setTab('books'); setPickWarn(null); }}
           >
-            卷
+            {englishUI ? 'Books' : '卷'}
           </button>
           <button
             type="button"
             className={`seg-tab ${tab === 'chapters' ? 'seg-tab-active' : ''}`}
             onClick={() => { setTab('chapters'); setPickWarn(null); }}
           >
-            章
+            {englishUI ? 'Chapters' : '章'}
           </button>
         </div>
 
@@ -206,8 +210,8 @@ export function ReaderLocPopover({
           </div>
         ) : (
           <div className="reader-loc-books">
-            {renderBookGroup('旧约', ot)}
-            {renderBookGroup('新约', nt)}
+            {renderBookGroup(englishUI ? 'Old Testament' : '旧约', ot)}
+            {renderBookGroup(englishUI ? 'New Testament' : '新约', nt)}
           </div>
         )}
       </div>

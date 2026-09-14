@@ -8,6 +8,7 @@ import '../../core/api_client.dart';
 import 'discourse_ranges.dart';
 import 'paragraphs.dart';
 import 'poetry_lines.dart';
+import 'section_title_i18n.dart';
 
 class RelatedVerse {
   RelatedVerse({required this.ref, required this.text});
@@ -237,14 +238,24 @@ class ContentRepository {
         .toList();
   }
 
-  Future<List<SectionMark>> sectionTitles(String book, int chapter) async {
-    final res = await _dio.get(
-      '/content/sections',
-      queryParameters: {'book': book, 'chapter': chapter},
-    );
+  Future<List<SectionMark>> sectionTitles(
+    String book,
+    int chapter, {
+    String lang = 'zh',
+  }) async {
+    final params = <String, dynamic>{'book': book, 'chapter': chapter};
+    if (lang == 'en') params['lang'] = 'en';
+    final res = await _dio.get('/content/sections', queryParameters: params);
     return ((res.data['sections'] ?? []) as List)
         .map((e) => SectionMark.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<Map<String, String>> sectionTitleTranslations() async {
+    final res = await _dio.get('/content/section-title-translations');
+    final raw = res.data['titles'];
+    if (raw is! Map) return const {};
+    return raw.map((k, v) => MapEntry('$k', '$v'));
   }
 
   Future<List<(int, int)>> paragraphRanges(String book, int chapter) async {
@@ -436,10 +447,15 @@ final strongsProvider = FutureProvider.family<List<StrongsWord>, String>(
 );
 
 final sectionTitlesProvider =
-    FutureProvider.family<List<SectionMark>, ({String book, int chapter})>(
-      (ref, args) =>
-          ref.watch(contentRepoProvider).sectionTitles(args.book, args.chapter),
-    );
+    FutureProvider.family<
+      List<SectionMark>,
+      ({String book, int chapter, String? versionId})
+    >((ref, args) {
+      final lang = sectionTitlesLang(args.versionId);
+      return ref
+          .watch(contentRepoProvider)
+          .sectionTitles(args.book, args.chapter, lang: lang);
+    });
 
 final paragraphRangesProvider =
     FutureProvider.family<List<(int, int)>, ({String book, int chapter})>(

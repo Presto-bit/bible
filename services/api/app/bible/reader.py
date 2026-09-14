@@ -81,9 +81,20 @@ def _connect(version: str = PRIMARY_VERSION) -> sqlite3.Connection:
     return conn
 
 
-@lru_cache(maxsize=1)
-def list_books() -> list[dict]:
-    with _connect() as conn:
+def _normalize_books_version(version: str | None) -> str:
+    ver = (version or "").strip().lower() or PRIMARY_VERSION
+    if ver not in VERSIONS:
+        return PRIMARY_VERSION
+    if ver != PRIMARY_VERSION and not _version_has_verses(ver):
+        return PRIMARY_VERSION
+    return ver
+
+
+@lru_cache(maxsize=8)
+def list_books(version: str = PRIMARY_VERSION) -> list[dict]:
+    """卷目录；可选 version 返回该译本卷名（如 KJV 英文）。"""
+    ver = _normalize_books_version(version)
+    with _connect(ver) as conn:
         rows = conn.execute(
             "SELECT id, name, testament, sort_order, chapter_count "
             "FROM books ORDER BY sort_order"

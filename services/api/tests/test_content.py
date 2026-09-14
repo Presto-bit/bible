@@ -95,6 +95,24 @@ def test_section_titles_genesis():
     assert len(idx) > 100
 
 
+def test_section_titles_en_fallback_to_zh():
+    marks_zh = loader.section_titles("GEN", 1, lang="zh")
+    marks_en = loader.section_titles("GEN", 1, lang="en")
+    assert len(marks_en) == len(marks_zh)
+    for zh, en in zip(marks_zh, marks_en):
+        assert zh["verse"] == en["verse"]
+        # 无英译表或缺项时回退中文
+        assert en["title"]
+
+
+def test_section_titles_index_localized_en():
+    idx = loader.section_titles_index_localized(lang="en")
+    assert len(idx) > 100
+    sample = idx.get("GEN.1") or []
+    assert sample
+    assert all(m.get("title") for m in sample)
+
+
 def test_illustrations_index_and_guard():
     idx = loader.illustrations_index()
     assert idx["items"]

@@ -27,3 +27,10 @@ export function resolveChapterVersion(mainVersionId?: string | null): string {
   const v = (mainVersionId || '').trim();
   return v || FALLBACK_PRIMARY_VERSION;
 }
+
+/** 正文 UI 使用英文壳层（目前仅 KJV）。 */
+export function isEnglishBibleVersion(
+  versionId: string | null | undefined,
+): boolean {
+  return (versionId || '').trim().toLowerCase() === 'kjv';
+}

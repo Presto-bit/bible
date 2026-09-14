@@ -7,7 +7,7 @@ import '../../core/theme.dart';
 import '../plans/plan_navigation.dart';
 import '../plans/plan_steps.dart';
 import 'models.dart';
-import 'reader_screen.dart' show bibleBookAbbr;
+import 'bible_book_names.dart';
 
 Future<({BibleBook book, int chapter})?> showReaderLocPopover(
   BuildContext context, {
@@ -16,6 +16,7 @@ Future<({BibleBook book, int chapter})?> showReaderLocPopover(
   required BibleBook currentBook,
   required int currentChapter,
   List<PlanStep>? planSteps,
+  bool englishUI = false,
 }) async {
   final box = anchorKey.currentContext?.findRenderObject() as RenderBox?;
   if (box == null || !box.hasSize) return null;
@@ -51,6 +52,7 @@ Future<({BibleBook book, int chapter})?> showReaderLocPopover(
                   currentBook: currentBook,
                   currentChapter: currentChapter,
                   planSteps: planSteps,
+                  englishUI: englishUI,
                   onPick: (b, ch) => Navigator.pop(ctx, (book: b, chapter: ch)),
                   onClose: () => Navigator.pop(ctx),
                 ),
@@ -69,6 +71,7 @@ class _ReaderLocPanel extends StatefulWidget {
     required this.currentBook,
     required this.currentChapter,
     this.planSteps,
+    this.englishUI = false,
     required this.onPick,
     required this.onClose,
   });
@@ -77,6 +80,7 @@ class _ReaderLocPanel extends StatefulWidget {
   final BibleBook currentBook;
   final int currentChapter;
   final List<PlanStep>? planSteps;
+  final bool englishUI;
   final void Function(BibleBook book, int chapter) onPick;
   final VoidCallback onClose;
 
@@ -125,7 +129,11 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
     if (steps != null &&
         steps.isNotEmpty &&
         !isChapterInPlan(steps, _selectedBook.id, n)) {
-      setState(() => _warn = '该章节不在今日计划内');
+      setState(
+        () => _warn = widget.englishUI
+            ? 'This chapter is not in today’s plan'
+            : '该章节不在今日计划内',
+      );
       return;
     }
     widget.onPick(_selectedBook, n);
@@ -134,7 +142,11 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
   void _pickBook(BibleBook b) {
     final ids = _planBookIds;
     if (ids != null && !ids.contains(b.id)) {
-      setState(() => _warn = '该经卷不在今日计划内');
+      setState(
+        () => _warn = widget.englishUI
+            ? 'This book is not in today’s plan'
+            : '该经卷不在今日计划内',
+      );
       return;
     }
     setState(() {
@@ -191,9 +203,11 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
                       Text(
                         _tab == 'chapters'
                             ? (_selectedBook.id == widget.currentBook.id
-                                ? '第 ${widget.currentChapter} 章'
-                                : '选章')
-                            : '选卷',
+                                ? (widget.englishUI
+                                    ? 'Chapter ${widget.currentChapter}'
+                                    : '第 ${widget.currentChapter} 章')
+                                : (widget.englishUI ? 'Chapter' : '选章'))
+                            : (widget.englishUI ? 'Book' : '选卷'),
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.inkFaint,
@@ -233,7 +247,7 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
                 children: [
                   Expanded(
                     child: _SegTab(
-                      label: '卷',
+                      label: widget.englishUI ? 'Books' : '卷',
                       active: _tab == 'books',
                       onTap: () => setState(() {
                         _tab = 'books';
@@ -243,7 +257,7 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
                   ),
                   Expanded(
                     child: _SegTab(
-                      label: '章',
+                      label: widget.englishUI ? 'Chapters' : '章',
                       active: _tab == 'chapters',
                       onTap: () => setState(() {
                         _tab = 'chapters';
@@ -304,20 +318,22 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                     children: [
                       if (ot.isNotEmpty) ...[
-                        const _GroupLabel('旧约'),
+                        _GroupLabel(widget.englishUI ? 'Old Testament' : '旧约'),
                         _BookGrid(
                           books: ot,
                           selectedId: _selectedBookId,
                           onPick: _pickBook,
+                          englishUI: widget.englishUI,
                         ),
                       ],
                       if (nt.isNotEmpty) ...[
                         const SizedBox(height: 10),
-                        const _GroupLabel('新约'),
+                        _GroupLabel(widget.englishUI ? 'New Testament' : '新约'),
                         _BookGrid(
                           books: nt,
                           selectedId: _selectedBookId,
                           onPick: _pickBook,
+                          englishUI: widget.englishUI,
                         ),
                       ],
                     ],
@@ -389,10 +405,12 @@ class _BookGrid extends StatelessWidget {
     required this.books,
     required this.selectedId,
     required this.onPick,
+    this.englishUI = false,
   });
   final List<BibleBook> books;
   final String selectedId;
   final void Function(BibleBook) onPick;
+  final bool englishUI;
 
   @override
   Widget build(BuildContext context) {
@@ -413,7 +431,7 @@ class _BookGrid extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 child: Text(
-                  bibleBookAbbr(b.name),
+                  bibleBookAbbrFor(b.id, b.name, english: englishUI),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,

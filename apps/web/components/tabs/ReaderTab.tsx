@@ -11,7 +11,9 @@ import '@/styles/assistant.css';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api, type BibleBook, type DictEntity } from '@/lib/api';
-import { bibleBooks } from '@/lib/bible_client';
+import { bibleBooks, bibleBooksForDisplay } from '@/lib/bible_client';
+import { isEnglishBibleVersion } from '@/lib/bible_version';
+import { getMainVersion } from '@/lib/reader_settings';
 import { seededBooks } from '@/lib/bible_local';
 import { getLastRead, setLastRead } from '@/lib/reading';
 import { hydratePlanFromUrl, type PlanReadingMeta } from '@/lib/plan_reading';
@@ -89,6 +91,15 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [booksLoading, setBooksLoading] = useState(false);
+  const [displayBooks, setDisplayBooks] = useState<BibleBook[]>(() => {
+    try {
+      return seededBooks();
+    } catch {
+      return [];
+    }
+  });
+  const [mainVersionId, setMainVersionId] = useState<string | null>(() => getMainVersion());
+  const englishUI = isEnglishBibleVersion(mainVersionId);
   const [dict, setDict] = useState<DictEntity[]>([]);
   const [dictPopup, setDictPopup] = useState<{
     entity: DictEntity;
@@ -107,6 +118,19 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const loadSeqRef = useRef(0);
   booksLenRef.current = books.length;
   errRef.current = err;
+
+  useEffect(() => {
+    void bibleBooksForDisplay(mainVersionId).then(setDisplayBooks);
+  }, [books, mainVersionId]);
+
+  useEffect(() => {
+    if (catalogOpen) setMainVersionId(getMainVersion());
+  }, [catalogOpen]);
+
+  const catalogBookAbbr = useCallback(
+    (name: string, bookId?: string) => bookAbbr(name, bookId, englishUI),
+    [englishUI],
+  );
 
   const loadBooks = useCallback((silent = false) => {
     if (silent && booksLenRef.current > 0) return;
@@ -329,7 +353,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     let idleId: number | undefined;
     let timeoutId: number | undefined;
     const run = () => {
-      preloadSectionTitles();
+      preloadSectionTitles(mainVersionId);
       preloadParagraphRanges();
       preloadDiscourseRanges();
       preloadPoetryLines();
@@ -350,7 +374,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
       }
       if (timeoutId != null) window.clearTimeout(timeoutId);
     };
-  }, [paneActive, book, catalogOpen, dict.length]);
+  }, [paneActive, book, catalogOpen, dict.length, mainVersionId]);
 
   const bookRef = useRef(book);
   bookRef.current = book;
@@ -527,13 +551,14 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
           </main>
         ) : null}
         <CatalogView
-          books={books}
+          books={displayBooks}
           currentBookId={book.id}
           currentChapter={chapter}
           showBack
           onBack={() => setCatalogOpen(false)}
           onPickChapter={handlePickChapter}
-          bookAbbr={bookAbbr}
+          bookAbbr={catalogBookAbbr}
+          englishUI={englishUI}
           planSteps={planMeta?.steps}
         />
       </>
@@ -549,10 +574,11 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
           </OfflineInlineNotice>
         ) : null}
         <CatalogView
-          books={books}
+          books={displayBooks}
           showBack={false}
           onPickChapter={handlePickChapter}
-          bookAbbr={bookAbbr}
+          bookAbbr={catalogBookAbbr}
+          englishUI={englishUI}
         />
       </main>
     );
@@ -567,10 +593,11 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
       ) : null}
       <ReaderView
         book={book}
-        books={books}
+        books={displayBooks}
         chapter={chapter}
         onNavigate={handleNavigate}
-        bookAbbr={bookAbbr}
+        bookAbbr={catalogBookAbbr}
+        onMainVersionChange={setMainVersionId}
         renderVerseText={renderVerseText}
         quoteDisplayMode={quoteDisplayMode}
         onQuoteDisplayModeChange={handleQuoteDisplayModeChange}

@@ -134,6 +134,7 @@ import {
 } from '@/lib/reading';
 import { recordParallelChapter } from '@/lib/badge_events';
 import { outlineFor, outlineForAsync, preloadSectionTitles, type SectionMark } from '@/lib/section_titles';
+import { bibleBooksForDisplay } from '@/lib/bible_client';
 import {
   paragraphRangesFor,
   paragraphRangesForAsync,
@@ -277,12 +278,14 @@ export default function ReaderView({
   feedHint = null,
   checkinGroupId = null,
   paneActive = true,
+  onMainVersionChange,
 }: {
   book: BibleBook;
   books: BibleBook[];
   chapter: number;
   onNavigate: (book: BibleBook, chapter: number) => void;
-  bookAbbr: (name: string) => string;
+  bookAbbr: (name: string, bookId?: string) => string;
+  onMainVersionChange?: (versionId: string | null) => void;
   renderVerseText: (text: string, keyBase: string, verse: number) => React.ReactNode;
   quoteDisplayMode?: QuoteDisplayMode;
   onQuoteDisplayModeChange?: (mode: QuoteDisplayMode) => void;
@@ -319,6 +322,7 @@ export default function ReaderView({
   const [layout, setLayout] = useState<ReadingLayout>('single');
   const [parallelVer, setParallelVer] = useState('kjv');
   const [mainVersionId, setMainVersionId] = useState<string | null>(null);
+  const [localizedBooks, setLocalizedBooks] = useState(books);
   const [chapterAnim, setChapterAnim] = useState('');
   const [verseTransitionOff, setVerseTransitionOff] = useState(false);
   const [peekPrevBundle, setPeekPrevBundle] = useState<ChapterReaderBundle | null>(null);
@@ -573,7 +577,7 @@ export default function ReaderView({
   useEffect(() => {
     if (skipChapterHydrateRef.current) return;
     let cancelled = false;
-    void outlineForAsync(book.id, chapter).then((marks) => {
+    void outlineForAsync(book.id, chapter, mainVersionId).then((marks) => {
       if (!cancelled) setOutline(marks);
     });
     void paragraphRangesForAsync(book.id, chapter).then((ranges) => {
@@ -586,7 +590,7 @@ export default function ReaderView({
     return () => {
       cancelled = true;
     };
-  }, [book.id, chapter]);
+  }, [book.id, chapter, mainVersionId]);
   const structureVerses = layoutVerses.length ? layoutVerses : verses;
   const paragraphs = useMemo(
     () => {
@@ -1078,6 +1082,8 @@ export default function ReaderView({
 
   const englishUI = mainVersionId === 'kjv';
   const ui = readerUi(englishUI);
+  const displayBook =
+    localizedBooks.find((b) => b.id === book.id) ?? book;
 
   const applyVersionSelection = useCallback(
     (next: string[]) => {
@@ -1294,6 +1300,7 @@ export default function ReaderView({
     setLayout(savedLayout);
     setParallelVer(savedParallel);
     setMainVersionId(savedMain);
+    onMainVersionChange?.(savedMain);
     if (savedMain) {
       setVersionLabel(versionDisplayLabel(savedMain));
     } else if (savedLayout === 'parallel') {
@@ -1315,6 +1322,14 @@ export default function ReaderView({
     setReadingMode(getReadingMode());
     setShowParallelDiff(getShowParallelDiff());
   }, []);
+
+  useEffect(() => {
+    onMainVersionChange?.(mainVersionId);
+  }, [mainVersionId, onMainVersionChange]);
+
+  useEffect(() => {
+    void bibleBooksForDisplay(mainVersionId).then(setLocalizedBooks);
+  }, [books, mainVersionId]);
 
   // 对照差异：idle 分片计算，不挡翻页
   useEffect(() => {
@@ -1509,7 +1524,7 @@ export default function ReaderView({
 
   useEffect(() => {
     if (!swipeTurn) return;
-    preloadSectionTitles();
+    preloadSectionTitles(mainVersionId);
     preloadParagraphRanges();
     preloadDiscourseRanges();
     preloadPoetryLines();
@@ -1925,7 +1940,7 @@ export default function ReaderView({
       }
 
       const outlineReady =
-        peekBundle?.outline ?? outlineFor(target.book.id, target.chapter);
+        peekBundle?.outline ?? outlineFor(target.book.id, target.chapter, mainVersionId);
 
       if (instant?.length) {
         if (opts?.fromSwipe) {
@@ -2942,11 +2957,11 @@ export default function ReaderView({
       title="双击回到本章第一节"
     >
       <span className="reader-chapter-title">
-        {book.name} · {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
+        {displayBook.name} · {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
       </span>
       {guideTipVisible ? (
         <ChapterGuideTip
-          bookName={book.name}
+          bookName={displayBook.name}
           chapter={chapter}
           compact={guideTipCompact}
           englishUI={englishUI}
@@ -3848,10 +3863,11 @@ export default function ReaderView({
         <ReaderLocPopover
           open={locPopoverOpen}
           anchorRef={locBtnRef}
-          books={books}
-          book={book}
+          books={localizedBooks}
+          book={displayBook}
           chapter={chapter}
           bookAbbr={bookAbbr}
+          englishUI={englishUI}
           planSteps={planMeta?.steps}
           onPickChapter={onNavigate}
           onClose={() => setLocPopoverOpen(false)}

@@ -506,10 +506,21 @@ def dictionary(
 def sections(
     book: str | None = Query(None),
     chapter: int | None = Query(None, ge=1),
+    lang: str | None = Query(
+        None,
+        description="zh（默认）或 en：KJV 等英文 UI 返回英译段落标题，缺译名回退中文",
+    ),
 ) -> dict:
     if book and chapter:
-        return {"sections": loader.section_titles(book, chapter)}
-    return {"chapters": loader.section_titles_index()}
+        return {"sections": loader.section_titles(book, chapter, lang=lang)}
+    return {"chapters": loader.section_titles_index_localized(lang=lang)}
+
+
+@router.get("/section-title-translations")
+def section_title_translations() -> dict:
+    from .section_title_i18n import section_title_en_map
+
+    return {"titles": section_title_en_map()}
 
 
 @router.get("/paragraphs")

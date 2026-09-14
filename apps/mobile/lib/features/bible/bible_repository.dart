@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api_client.dart';
 import 'chapter_cache.dart';
 import 'offline_bible.dart';
+import 'bible_book_names.dart';
 import 'models.dart';
 
 class BibleRepository {
@@ -24,18 +25,46 @@ class BibleRepository {
   final OfflineBibleService? _offline;
   final SharedPreferences? _prefs;
 
-  Future<List<BibleBook>> books() async {
+  Future<List<BibleBook>> books({String? version}) async {
     try {
-      final res = await _dio.get('/bible/books');
+      final res = await _dio.get(
+        '/bible/books',
+        queryParameters: version != null && version.isNotEmpty
+            ? {'version': version}
+            : null,
+      );
       final list = (res.data['books'] ?? []) as List;
-      return list
+      final parsed = list
           .map((e) => BibleBook.fromJson(e as Map<String, dynamic>))
           .toList();
+      if (isEnglishBibleVersion(version)) return parsed;
+      return parsed;
     } catch (e) {
+      if (isEnglishBibleVersion(version)) {
+        final kjvLocal = await _offline?.listBooks('kjv') ?? [];
+        if (kjvLocal.isNotEmpty) return kjvLocal;
+        final primary = await _offline?.listBooks() ?? [];
+        if (primary.isNotEmpty) return _localizeBooks(primary, version);
+      }
       final local = await _offline?.listBooks() ?? [];
       if (local.isNotEmpty) return local;
       rethrow;
     }
+  }
+
+  List<BibleBook> _localizeBooks(List<BibleBook> base, String? version) {
+    if (!isEnglishBibleVersion(version)) return base;
+    return base
+        .map(
+          (b) => BibleBook(
+            id: b.id,
+            name: englishBookName(b.id, fallback: b.name),
+            testament: b.testament,
+            sortOrder: b.sortOrder,
+            chapterCount: b.chapterCount,
+          ),
+        )
+        .toList(growable: false);
   }
 
   Future<Chapter> chapter(String book, int chapter, {String? version}) async {
@@ -261,6 +290,11 @@ final bibleRepoProvider = Provider<BibleRepository>(
 
 final booksProvider = FutureProvider<List<BibleBook>>(
   (ref) => ref.watch(bibleRepoProvider).books(),
+);
+
+/// 按正文译本返回目录卷名（id 与主译本一致）。
+final catalogBooksProvider = FutureProvider.family<List<BibleBook>, String?>(
+  (ref, version) => ref.watch(bibleRepoProvider).books(version: version),
 );
 
 /// 章节内容（book, chapter）。

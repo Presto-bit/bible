@@ -39,7 +39,7 @@ export async function loadChapterReaderBundle(
   const layoutP = mainVersionId
     ? loadChapterVerses(bookId, chapter, null)
     : versesP;
-  const outlineP = outlineForAsync(bookId, chapter);
+  const outlineP = outlineForAsync(bookId, chapter, mainVersionId);
   const rangesP = paragraphRangesForAsync(bookId, chapter);
   const parallelP =
     parallelVer
@@ -93,7 +93,7 @@ export function getChapterReaderBundleSync(
   return {
     verses,
     layoutVerses,
-    outline: outlineFor(bookId, chapter),
+    outline: outlineFor(bookId, chapter, mainVersionId),
     paragraphRanges: paragraphRangesFor(bookId, chapter) ?? [],
     parallelVerses,
   };

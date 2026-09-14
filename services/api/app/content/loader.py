@@ -269,9 +269,22 @@ def section_titles_index() -> dict[str, list[dict]]:
     return data.get("chapters", {})
 
 
-def section_titles(book: str, chapter: int) -> list[dict]:
+def section_titles(book: str, chapter: int, lang: str | None = None) -> list[dict]:
+    from .section_title_i18n import localize_section_marks
+
     key = f"{book.upper()}.{chapter}"
-    return section_titles_index().get(key, [])
+    marks = section_titles_index().get(key, [])
+    return localize_section_marks(marks, lang)
+
+
+def section_titles_index_localized(lang: str | None = None) -> dict[str, list[dict]]:
+    from .section_title_i18n import localize_section_marks
+
+    raw = section_titles_index()
+    code = (lang or "zh").strip().lower()
+    if code in ("", "zh", "cn", "chinese"):
+        return raw
+    return {k: localize_section_marks(v, lang) for k, v in raw.items()}
 
 
 # ── 阅读段落边界（CNV paragraphs.json） ──
