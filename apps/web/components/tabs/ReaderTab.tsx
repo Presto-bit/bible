@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import '@/styles/reader.css';
 import '@/styles/reader_catalog.css';
+import '@/styles/listen_player.css';
 import '@/styles/plans.css';
 import '@/styles/group_chat.css';
 import '@/styles/assistant.css';

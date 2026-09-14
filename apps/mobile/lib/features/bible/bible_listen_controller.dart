@@ -1,0 +1,474 @@
+/// AI 听经会话：按需合成 + 全屏面 + MediaSession。
+library;
+
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/api_client.dart';
+import '../../core/peiai_haptics.dart';
+import 'bible_listen_api.dart';
+import 'reader_audio_handler.dart';
+
+enum BibleListenUi { idle, preparing, playing, paused, error }
+
+class BibleListenSettings {
+  const BibleListenSettings({
+    this.speed = 1.0,
+    this.continuousChapter = true,
+    this.sleepMinutes,
+  });
+
+  final double speed;
+  final bool continuousChapter;
+  final int? sleepMinutes;
+
+  BibleListenSettings copyWith({
+    double? speed,
+    bool? continuousChapter,
+    int? sleepMinutes,
+    bool clearSleep = false,
+  }) {
+    return BibleListenSettings(
+      speed: speed ?? this.speed,
+      continuousChapter: continuousChapter ?? this.continuousChapter,
+      sleepMinutes: clearSleep ? null : (sleepMinutes ?? this.sleepMinutes),
+    );
+  }
+
+  static Future<BibleListenSettings> load(SharedPreferences prefs) async {
+    return BibleListenSettings(
+      speed: prefs.getDouble('bible_listen_speed') ?? 1.0,
+      continuousChapter: prefs.getBool('bible_listen_continuous') ?? true,
+      sleepMinutes: prefs.getInt('bible_listen_sleep'),
+    );
+  }
+
+  Future<void> save(SharedPreferences prefs) async {
+    await prefs.setDouble('bible_listen_speed', speed);
+    await prefs.setBool('bible_listen_continuous', continuousChapter);
+    if (sleepMinutes == null) {
+      await prefs.remove('bible_listen_sleep');
+    } else {
+      await prefs.setInt('bible_listen_sleep', sleepMinutes!);
+    }
+  }
+}
+
+class BibleListenSession {
+  const BibleListenSession({
+    this.ui = BibleListenUi.idle,
+    this.sheetOpen = false,
+    this.error,
+    this.position = Duration.zero,
+    this.duration = Duration.zero,
+    this.currentVerse,
+    this.verseText = '',
+    this.meta,
+    this.settings = const BibleListenSettings(),
+    this.bookId = '',
+    this.bookName = '',
+    this.chapter = 0,
+    this.translation = '',
+    this.translationLabel = '',
+  });
+
+  final BibleListenUi ui;
+  final bool sheetOpen;
+  final String? error;
+  final Duration position;
+  final Duration duration;
+  final int? currentVerse;
+  final String verseText;
+  final ListenChapterReady? meta;
+  final BibleListenSettings settings;
+  final String bookId;
+  final String bookName;
+  final int chapter;
+  final String translation;
+  final String translationLabel;
+
+  bool get sessionActive =>
+      ui == BibleListenUi.playing ||
+      ui == BibleListenUi.paused ||
+      ui == BibleListenUi.preparing;
+
+  bool get canSeek => (meta?.timeline.isNotEmpty ?? false);
+
+  BibleListenSession copyWith({
+    BibleListenUi? ui,
+    bool? sheetOpen,
+    String? error,
+    bool clearError = false,
+    Duration? position,
+    Duration? duration,
+    int? currentVerse,
+    bool clearVerse = false,
+    String? verseText,
+    ListenChapterReady? meta,
+    bool clearMeta = false,
+    BibleListenSettings? settings,
+    String? bookId,
+    String? bookName,
+    int? chapter,
+    String? translation,
+    String? translationLabel,
+  }) {
+    return BibleListenSession(
+      ui: ui ?? this.ui,
+      sheetOpen: sheetOpen ?? this.sheetOpen,
+      error: clearError ? null : (error ?? this.error),
+      position: position ?? this.position,
+      duration: duration ?? this.duration,
+      currentVerse: clearVerse ? null : (currentVerse ?? this.currentVerse),
+      verseText: verseText ?? this.verseText,
+      meta: clearMeta ? null : (meta ?? this.meta),
+      settings: settings ?? this.settings,
+      bookId: bookId ?? this.bookId,
+      bookName: bookName ?? this.bookName,
+      chapter: chapter ?? this.chapter,
+      translation: translation ?? this.translation,
+      translationLabel: translationLabel ?? this.translationLabel,
+    );
+  }
+}
+
+class BibleListenController extends Notifier<BibleListenSession> {
+  StreamSubscription? _posSub;
+  StreamSubscription? _playerStateSub;
+  Timer? _sleepTimer;
+  int _gen = 0;
+  List<({int verse, String text})> _verses = const [];
+  void Function(String book, int chapter)? onContinuousNext;
+  String? _prefetchKey;
+
+  @override
+  BibleListenSession build() {
+    ref.onDispose(() {
+      _posSub?.cancel();
+      _playerStateSub?.cancel();
+      _sleepTimer?.cancel();
+    });
+    Future.microtask(() async {
+      final prefs = ref.read(prefsProvider);
+      final s = await BibleListenSettings.load(prefs);
+      if (!ref.mounted) return;
+      state = state.copyWith(settings: s);
+    });
+    return const BibleListenSession();
+  }
+
+  Future<void> openSheet({
+    required String bookId,
+    required String bookName,
+    required int chapter,
+    required String translation,
+    required String translationLabel,
+    required List<({int verse, String text})> verses,
+  }) async {
+    _verses = verses;
+    state = state.copyWith(
+      sheetOpen: true,
+      bookId: bookId,
+      bookName: bookName,
+      chapter: chapter,
+      translation: translation,
+      translationLabel: translationLabel,
+      verseText: verses.isNotEmpty ? verses.first.text : '',
+    );
+    final same = state.meta != null &&
+        state.meta!.book == bookId &&
+        state.meta!.chapter == chapter &&
+        state.meta!.translation == translation;
+    final player = ReaderAudioHandler.instance?.player;
+    if (same && player != null && player.playing) {
+      state = state.copyWith(ui: BibleListenUi.playing);
+      return;
+    }
+    if (same &&
+        player != null &&
+        !player.playing &&
+        state.ui != BibleListenUi.error &&
+        state.ui != BibleListenUi.idle) {
+      state = state.copyWith(ui: BibleListenUi.paused);
+      return;
+    }
+    await prepareAndPlay(
+      bookId: bookId,
+      bookName: bookName,
+      chapter: chapter,
+      translation: translation,
+      translationLabel: translationLabel,
+      verses: verses,
+    );
+  }
+
+  void closeSheet({bool cancelIfPreparing = true}) {
+    state = state.copyWith(sheetOpen: false);
+    if (cancelIfPreparing && state.ui == BibleListenUi.preparing) {
+      final player = ReaderAudioHandler.instance?.player;
+      final started = player != null &&
+          player.playing &&
+          player.position > const Duration(milliseconds: 50);
+      if (!started) {
+        _gen++;
+        state = state.copyWith(ui: BibleListenUi.idle, clearError: true);
+      }
+    }
+  }
+
+  Future<void> prepareAndPlay({
+    required String bookId,
+    required String bookName,
+    required int chapter,
+    required String translation,
+    required String translationLabel,
+    required List<({int verse, String text})> verses,
+  }) async {
+    final gen = ++_gen;
+    _verses = verses;
+    state = state.copyWith(
+      ui: BibleListenUi.preparing,
+      clearError: true,
+      bookId: bookId,
+      bookName: bookName,
+      chapter: chapter,
+      translation: translation,
+      translationLabel: translationLabel,
+      verseText: verses.isNotEmpty ? verses.first.text : state.verseText,
+    );
+    try {
+      final api = ref.read(bibleListenApiProvider);
+      final ready = await api.ensureChapter(
+        translation: translation,
+        book: bookId,
+        chapter: chapter,
+      );
+      if (gen != _gen || !ref.mounted) return;
+      final handler = ReaderAudioHandler.instance;
+      final player = handler?.player;
+      if (handler == null || player == null) {
+        state = state.copyWith(ui: BibleListenUi.error, error: '播放器未就绪');
+        return;
+      }
+      await handler.setChapterMedia(
+        bookId: bookId,
+        chapter: chapter,
+        bookName: bookName,
+        audioLabel: ready.translationLabel.isNotEmpty
+            ? ready.translationLabel
+            : '彼爱听读',
+      );
+      await handler.loadUrl(ready.url);
+      await player.setSpeed(state.settings.speed);
+      await _attachStreams();
+      peiaiHapticAudioToggle();
+      await handler.play();
+      if (gen != _gen || !ref.mounted) return;
+      state = state.copyWith(
+        ui: BibleListenUi.playing,
+        meta: ready,
+        duration: Duration(milliseconds: ready.durationMs),
+        clearError: true,
+      );
+      _applySleepTimer();
+    } catch (e) {
+      if (gen != _gen || !ref.mounted) return;
+      state = state.copyWith(
+        ui: BibleListenUi.error,
+        error: e.toString().replaceFirst('DioException: ', ''),
+      );
+    }
+  }
+
+  Future<void> _attachStreams() async {
+    await _posSub?.cancel();
+    await _playerStateSub?.cancel();
+    final player = ReaderAudioHandler.instance?.player;
+    if (player == null) return;
+    _posSub = player.positionStream.listen((pos) {
+      if (!ref.mounted) return;
+      final ms = pos.inMilliseconds;
+      final verse = resolveListenVerse(state.meta?.timeline ?? const [], ms);
+      String text = state.verseText;
+      if (verse != null) {
+        for (final v in _verses) {
+          if (v.verse == verse) {
+            text = v.text;
+            break;
+          }
+        }
+      }
+      state = state.copyWith(
+        position: pos,
+        duration: player.duration ?? state.duration,
+        currentVerse: verse,
+        verseText: text,
+      );
+      _maybePrefetch(pos, player.duration);
+    });
+    _playerStateSub = player.playerStateStream.listen((ps) {
+      if (!ref.mounted) return;
+      if (state.ui == BibleListenUi.preparing) return;
+      if (ps.processingState == ProcessingState.completed) {
+        final m = state.meta;
+        if (state.settings.continuousChapter &&
+            m?.nextBook != null &&
+            m?.nextChapter != null) {
+          onContinuousNext?.call(m!.nextBook!, m.nextChapter!);
+          return;
+        }
+        state = state.copyWith(ui: BibleListenUi.paused);
+        return;
+      }
+      if (ps.playing) {
+        state = state.copyWith(ui: BibleListenUi.playing);
+      } else if (state.ui == BibleListenUi.playing) {
+        state = state.copyWith(ui: BibleListenUi.paused);
+      }
+    });
+  }
+
+  void _maybePrefetch(Duration pos, Duration? dur) {
+    final m = state.meta;
+    if (!state.settings.continuousChapter || m?.nextBook == null || dur == null) {
+      return;
+    }
+    if (dur.inMilliseconds <= 0) return;
+    if (pos.inMilliseconds / dur.inMilliseconds < 0.7) return;
+    final key = '${m!.translation}:${m.nextBook}:${m.nextChapter}';
+    if (_prefetchKey == key) return;
+    _prefetchKey = key;
+    unawaited(
+      ref.read(bibleListenApiProvider).ensureChapter(
+            translation: m.translation,
+            book: m.nextBook!,
+            chapter: m.nextChapter!,
+          ),
+    );
+  }
+
+  Future<void> togglePlayPause() async {
+    final player = ReaderAudioHandler.instance?.player;
+    final handler = ReaderAudioHandler.instance;
+    if (player == null || handler == null) return;
+    if (state.ui == BibleListenUi.preparing) return;
+    if (state.ui == BibleListenUi.error || state.ui == BibleListenUi.idle) {
+      await prepareAndPlay(
+        bookId: state.bookId,
+        bookName: state.bookName,
+        chapter: state.chapter,
+        translation: state.translation,
+        translationLabel: state.translationLabel,
+        verses: _verses,
+      );
+      return;
+    }
+    if (player.playing) {
+      await handler.pause();
+      state = state.copyWith(ui: BibleListenUi.paused);
+    } else {
+      await handler.play();
+      state = state.copyWith(ui: BibleListenUi.playing);
+    }
+  }
+
+  Future<void> seekMs(int ms) async {
+    final player = ReaderAudioHandler.instance?.player;
+    if (player == null || !state.canSeek) return;
+    await player.seek(Duration(milliseconds: ms));
+  }
+
+  Future<void> stepVerse(int dir) async {
+    final tl = state.meta?.timeline ?? const [];
+    if (tl.isEmpty) return;
+    final cur = state.currentVerse ?? tl.first.verse;
+    final idx = tl.indexWhere((t) => t.verse == cur);
+    final nextIdx = (idx < 0 ? 0 : idx) + dir;
+    if (nextIdx < 0 || nextIdx >= tl.length) return;
+    await seekMs(tl[nextIdx].startMs);
+  }
+
+  Future<void> updateSettings(BibleListenSettings next) async {
+    state = state.copyWith(settings: next);
+    await next.save(ref.read(prefsProvider));
+    final player = ReaderAudioHandler.instance?.player;
+    await player?.setSpeed(next.speed);
+    _applySleepTimer();
+  }
+
+  void armSleep(int? minutes) {
+    unawaited(
+      updateSettings(
+        state.settings.copyWith(
+          sleepMinutes: minutes,
+          clearSleep: minutes == null,
+        ),
+      ),
+    );
+  }
+
+  void _applySleepTimer() {
+    _sleepTimer?.cancel();
+    final m = state.settings.sleepMinutes;
+    if (m == null || m <= 0) return;
+    _sleepTimer = Timer(Duration(minutes: m), () {
+      unawaited(ReaderAudioHandler.instance?.pause());
+      if (ref.mounted) state = state.copyWith(ui: BibleListenUi.paused);
+    });
+  }
+
+  Future<void> stopSession() async {
+    _gen++;
+    _sleepTimer?.cancel();
+    await ReaderAudioHandler.instance?.stop();
+    state = state.copyWith(
+      ui: BibleListenUi.idle,
+      sheetOpen: false,
+      clearMeta: true,
+      clearError: true,
+      clearVerse: true,
+      position: Duration.zero,
+      duration: Duration.zero,
+      verseText: '',
+    );
+  }
+
+  /// 同译本换章：若会话活跃则继续准备。
+  Future<void> onChapterChanged({
+    required String bookId,
+    required String bookName,
+    required int chapter,
+    required String translation,
+    required String translationLabel,
+    required List<({int verse, String text})> verses,
+  }) async {
+    if (state.translation.isNotEmpty && state.translation != translation) {
+      await stopSession();
+      return;
+    }
+    if (!state.sessionActive && !state.sheetOpen) return;
+    await prepareAndPlay(
+      bookId: bookId,
+      bookName: bookName,
+      chapter: chapter,
+      translation: translation,
+      translationLabel: translationLabel,
+      verses: verses,
+    );
+  }
+}
+
+final bibleListenProvider =
+    NotifierProvider<BibleListenController, BibleListenSession>(
+  BibleListenController.new,
+);
+
+String formatListenTime(Duration d) {
+  final total = d.inSeconds;
+  final m = total ~/ 60;
+  final s = total % 60;
+  return '$m:${s.toString().padLeft(2, '0')}';
+}

@@ -28,6 +28,8 @@ import '../plans/plan_steps.dart';
 import '../plans/plans_repository.dart';
 import 'offline_notice.dart';
 import 'offline_bible.dart';
+import 'bible_listen_controller.dart';
+import 'bible_listen_sheet.dart';
 import 'bible_repository.dart';
 import 'models.dart';
 import 'reader_audio.dart';
@@ -811,6 +813,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   Widget _readerFab() {
     // bottom 由外层 Positioned(_readerFabBottomInset) 负责，避免被五 Tab 遮挡。
+    final listenSession = ref.watch(bibleListenProvider);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -846,6 +849,47 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             ),
           ),
         Tooltip(
+          message: '听读',
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Material(
+              color: AppColors.paper,
+              elevation: 1.5,
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: listenSession.ui == BibleListenUi.playing ||
+                          listenSession.ui == BibleListenUi.paused
+                      ? AppColors.accentDeep.withValues(alpha: 0.4)
+                      : AppColors.line,
+                ),
+              ),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: () {
+                  peiaiHapticLight(context);
+                  unawaited(_openListenSheet(context));
+                },
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Text(
+                    '听',
+                    style: TextStyle(
+                      color: listenSession.ui == BibleListenUi.playing ||
+                              listenSession.ui == BibleListenUi.paused
+                          ? AppColors.accentDeep
+                          : AppColors.inkSoft,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Tooltip(
           message: '问小爱',
           child: Material(
             color: AppColors.accentDeep,
@@ -875,6 +919,103 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         ),
       ],
     );
+  }
+
+  Future<void> _openListenSheet(BuildContext context) async {
+    final b = _book;
+    if (b == null) return;
+    final translation = _mainVersionId ?? 'cuvs';
+    final label = _versionLabel.split(' · ').first;
+    List<Verse> verses = const [];
+    try {
+      final ch = await ref.read(bibleRepoProvider).chapter(
+            b.id,
+            _chapter,
+            version: translation,
+          );
+      verses = ch.verses;
+    } catch (_) {
+      /* 面内仍可准备；正文可空 */
+    }
+    if (!mounted) return;
+    final tipSeen =
+        ref.read(prefsProvider).getBool('bible_listen_tip_v1') ?? false;
+    if (!tipSeen) {
+      await ref.read(prefsProvider).setBool('bible_listen_tip_v1', true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('下滑可继续听；暂停请打开听读页'),
+            duration: Duration(milliseconds: 2600),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+    final listenCtrl = ref.read(bibleListenProvider.notifier);
+    listenCtrl.onContinuousNext = (bookId, chapter) {
+      unawaited(_navToListenChapter(bookId, chapter));
+    };
+    await listenCtrl.openSheet(
+      bookId: b.id,
+      bookName: b.name,
+      chapter: _chapter,
+      translation: translation,
+      translationLabel: label,
+      verses: [
+        for (final v in verses) (verse: v.verse, text: v.text),
+      ],
+    );
+    if (!mounted) return;
+    await showBibleListenSheet(context, ref);
+  }
+
+  Future<void> _navToListenChapter(String bookId, int chapter) async {
+    final books = ref.read(booksProvider).value;
+    if (books == null) return;
+    BibleBook? b;
+    for (final x in books) {
+      if (x.id == bookId) {
+        b = x;
+        break;
+      }
+    }
+    if (b == null) return;
+    setState(() {
+      _book = b;
+      _chapter = chapter.clamp(1, b!.chapterCount);
+      _hasSelection = false;
+    });
+    ref.read(readingRepoProvider).record(b.id, _chapter);
+    await _syncListenAfterChapterChange();
+  }
+
+  Future<void> _syncListenAfterChapterChange() async {
+    final b = _book;
+    if (b == null) return;
+    final session = ref.read(bibleListenProvider);
+    if (!session.sessionActive && !session.sheetOpen) return;
+    final translation = _mainVersionId ?? 'cuvs';
+    final label = _versionLabel.split(' · ').first;
+    List<Verse> verses = const [];
+    try {
+      final ch = await ref.read(bibleRepoProvider).chapter(
+            b.id,
+            _chapter,
+            version: translation,
+          );
+      verses = ch.verses;
+    } catch (_) {}
+    await ref.read(bibleListenProvider.notifier).onChapterChanged(
+          bookId: b.id,
+          bookName: b.name,
+          chapter: _chapter,
+          translation: translation,
+          translationLabel: label,
+          verses: [
+            for (final v in verses) (verse: v.verse, text: v.text),
+          ],
+        );
   }
 
   void _openXiaoAiSheet(
@@ -1009,6 +1150,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         _book = target.book;
         _chapter = target.chapter;
       });
+      await _syncListenAfterChapterChange();
       return;
     }
 
@@ -1053,6 +1195,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       _chapter = chapter;
       _hasSelection = false;
     });
+    await _syncListenAfterChapterChange();
   }
 
   Future<void> _continuePlanSegmentTo(String bookId, int chapter) async {

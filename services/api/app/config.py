@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     bible_audio_fhl_cdn_nt: str = "springunv"
     bible_audio_fhl_cdn_ot: str = "unv1"
 
+    # ── AI 听经（MiniMax Speech）──
+    minimax_api_key: str = ""
+    listen_storage_dir: str = str(REPO_ROOT / "data" / "listen_cache")
+
     # ── LLM（DeepSeek，OpenAI 兼容）──
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com/v1"

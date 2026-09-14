@@ -2,7 +2,7 @@
 
 import { API_BASE } from './api_core';
 
-/** 暂时关闭朗读入口（恢复时改为 true）。 */
+/** 旧 FHL/章级 MP3 朗读已下线；新 AI 听经见 useBibleListen /listen。 */
 export const READER_AUDIO_ENABLED = false;
 
 export type ReaderAudioState = 'off' | 'playing' | 'paused' | 'loading' | 'error';

@@ -89,8 +89,7 @@ import {
   sectionRangeForVerse,
 } from '@/lib/reader_viewport';
 import { sliceVerseWords } from '@/lib/verse_words';
-import { useReaderAudio } from '@/hooks/useReaderAudio';
-import { READER_AUDIO_ENABLED } from '@/lib/reader_audio';
+import { useBibleListen } from '@/hooks/useBibleListen';
 import {
   textFromWordRange,
   wordOverlapsRange,
@@ -248,23 +247,10 @@ const ShareToSocialSheet = dynamic(
   () => import('@/components/ShareToSocialSheet').then((m) => m.ShareToSocialSheet),
   { ssr: false },
 );
-const ReaderAudioButton = dynamic(
-  () => import('@/components/reader/ReaderAudioButton').then((m) => m.ReaderAudioButton),
+const ListenPlayerSheet = dynamic(
+  () => import('@/components/reader/ListenPlayerSheet').then((m) => m.ListenPlayerSheet),
   { ssr: false },
 );
-const ReaderAudioFocus = dynamic(
-  () => import('@/components/reader/ReaderAudioFocus').then((m) => m.ReaderAudioFocus),
-  { ssr: false },
-);
-const ReaderAudioOrb = dynamic(
-  () => import('@/components/reader/ReaderAudioOrb').then((m) => m.ReaderAudioOrb),
-  { ssr: false },
-);
-const ReaderAudioSettingsSheet = dynamic(
-  () => import('@/components/reader/ReaderAudioSettingsSheet').then((m) => m.ReaderAudioSettingsSheet),
-  { ssr: false },
-);
-
 const FONT_SIZES = [
   { label: '中', px: 18 },
   { label: '大', px: 20 },
@@ -479,7 +465,7 @@ export default function ReaderView({
     ranges: null,
   });
   const overlayOpenRef = useRef(false);
-  const audioFocusOpenRef = useRef(false);
+  const listenSheetOpenRef = useRef(false);
   /** 划词结束后短时忽略横滑 */
   const swipeIgnoreUntilRef = useRef(0);
   const applyWordRangeRef = useRef<
@@ -685,103 +671,51 @@ export default function ReaderView({
   const hasSelRef = useRef(hasSel);
 
   const screenVersionId = mainVersionId || getMainVersion() || FALLBACK_PRIMARY_VERSION;
-  const audioPausedByOverlay = planOverlayOpen || locPopoverOpen || showVersions || externalOverlayOpen;
-  const readerAudio = useReaderAudio({
+  const bibleListen = useBibleListen({
     bookId: book.id,
     bookName: book.name,
     chapter,
-    screenVersion: screenVersionId,
-    pausedByOverlay: audioPausedByOverlay,
+    translation: screenVersionId,
+    translationLabel: versionLabel,
+    verses,
+    onRequestNavigateChapter: (nextBook, nextChapter) => {
+      const b = books.find((x) => x.id === nextBook);
+      if (b) onNavigate(b, nextChapter);
+    },
+    onFirstListenTip: () => {
+      flashToast('下滑可继续听；暂停请打开听读页');
+    },
   });
   const {
-    state: audioState,
-    unavailable: audioUnavailable,
-    focusOpen: audioFocusOpen,
-    setFocusOpen: setAudioFocusOpen,
-    settingsOpen: audioSettingsOpen,
-    setSettingsOpen: setAudioSettingsOpen,
-    coachVisible: audioCoachVisible,
-    minimized: audioMinimized,
-    setMinimized: setAudioMinimized,
-    currentSec: audioCurrentSec,
-    durationSec: audioDurationSec,
-    formatTime: audioFormatTime,
-    togglePlay: audioTogglePlay,
-    stop: audioStop,
-    seekTo: audioSeekTo,
-    retryPlay: audioRetryPlay,
-    updateSettings: audioUpdateSettings,
-    openSettings: audioOpenSettings,
-    playChapter: audioPlayChapter,
-    meta: audioMeta,
-    currentVerse: audioCurrentVerse,
-    timestamps: audioTimestamps,
-    notifyManualScroll: audioNotifyManualScroll,
-  } = readerAudio;
-  audioFocusOpenRef.current = audioFocusOpen;
-  const overlayOpen = heavyOverlayOpen || locPopoverOpen || audioSettingsOpen;
+    sheetOpen: listenSheetOpen,
+    openSheet: openListenSheet,
+    closeSheet: closeListenSheet,
+    ui: listenUi,
+    error: listenError,
+    currentSec: listenCurrentSec,
+    durationSec: listenDurationSec,
+    currentVerse: listenCurrentVerse,
+    verseText: listenVerseText,
+    settings: listenSettings,
+    speeds: listenSpeeds,
+    updateSettings: updateListenSettings,
+    armSleep: armListenSleep,
+    togglePlayPause: toggleListenPlayPause,
+    seekMs: seekListenMs,
+    stepVerse: stepListenVerse,
+    formatTime: listenFormatTime,
+    canSeek: listenCanSeek,
+  } = bibleListen;
+  listenSheetOpenRef.current = listenSheetOpen;
+  const overlayOpen = heavyOverlayOpen || locPopoverOpen || listenSheetOpen;
   overlayOpenRef.current = overlayOpen;
-  const audioVerseClass = useCallback(
+  const listenVerseClass = useCallback(
     (verse: number) =>
-      audioCurrentVerse === verse && (audioState === 'playing' || audioState === 'paused')
-        ? ' verse-audio-current'
+      listenCurrentVerse === verse && (listenUi === 'playing' || listenUi === 'paused')
+        ? ' verse-listen-current'
         : '',
-    [audioCurrentVerse, audioState],
+    [listenCurrentVerse, listenUi],
   );
-  const audioVisible = READER_AUDIO_ENABLED && audioState !== 'off';
-  const audioOrbVisible =
-    READER_AUDIO_ENABLED
-    && audioVisible
-    && audioMinimized
-    && !audioFocusOpen
-    && !audioSettingsOpen
-    && paneActive
-    && readingMode !== 'focus';
-
-  const audioMinimizePanel = useCallback(() => {
-    setAudioFocusOpen(false);
-    setAudioMinimized(true);
-  }, [setAudioFocusOpen, setAudioMinimized]);
-
-  const audioRestorePanel = useCallback(() => {
-    setAudioMinimized(false);
-    setAudioFocusOpen(true);
-  }, [setAudioFocusOpen, setAudioMinimized]);
-
-  const handleReaderAudioTap = useCallback(() => {
-    if (audioUnavailable) return;
-    if (audioState === 'off' || audioState === 'error') {
-      setAudioMinimized(false);
-      setAudioFocusOpen(true);
-      void audioTogglePlay();
-      return;
-    }
-    if (audioMinimized || !audioFocusOpen) {
-      audioRestorePanel();
-      return;
-    }
-    void audioTogglePlay();
-  }, [
-    audioFocusOpen,
-    audioMinimized,
-    audioRestorePanel,
-    audioState,
-    audioTogglePlay,
-    audioUnavailable,
-    setAudioFocusOpen,
-    setAudioMinimized,
-  ]);
-  const audioNotifyManualScrollRef = useRef(audioNotifyManualScroll);
-  const audioPlayingRef = useRef(audioState === 'playing');
-  audioNotifyManualScrollRef.current = audioNotifyManualScroll;
-  audioPlayingRef.current = audioState === 'playing';
-
-  useEffect(() => {
-    if (!paneActive && readerAudio.settings.pauseOnTabLeave && readerAudio.state === 'playing') {
-      audioStop();
-    }
-  }, [paneActive, readerAudio.settings.pauseOnTabLeave, readerAudio.state, audioStop]);
-
   useEffect(() => {
     hasSelRef.current = hasSel;
   }, [hasSel]);
@@ -1205,20 +1139,19 @@ export default function ReaderView({
   const toggleChrome = useCallback((source: 'content' | 'tab' = 'content') => {
     if (source === 'tab') {
       setLocPopoverOpen(false);
-      setAudioSettingsOpen(false);
-      if (READER_AUDIO_ENABLED && audioFocusOpenRef.current) {
-        audioMinimizePanel();
+      if (listenSheetOpenRef.current) {
+        closeListenSheet();
       }
       if (heavyOverlayOpen) return;
       setChromeHidden((hidden) => !hidden);
       return;
     }
     if (overlayOpenRef.current) return;
-    if (READER_AUDIO_ENABLED && audioFocusOpenRef.current) {
-      audioMinimizePanel();
+    if (listenSheetOpenRef.current) {
+      closeListenSheet();
     }
     setChromeHidden((hidden) => !hidden);
-  }, [audioMinimizePanel, heavyOverlayOpen, setAudioSettingsOpen]);
+  }, [closeListenSheet, heavyOverlayOpen]);
 
   useEffect(() => {
     if (!paneActive) return;
@@ -1322,18 +1255,18 @@ export default function ReaderView({
   }, [chromeHidden, paneActive]);
 
   useEffect(() => {
-    if (!paneActive || !audioFocusOpen) {
-      document.body.classList.remove('reader-audio-focus-open');
-      if (paneActive && !audioFocusOpen && !chromeHidden) restoreMainTabbar();
+    if (!paneActive || !listenSheetOpen) {
+      document.body.classList.remove('listen-sheet-open');
+      if (paneActive && !listenSheetOpen && !chromeHidden) restoreMainTabbar();
       return;
     }
     setChromeHidden(false);
-    document.body.classList.add('reader-audio-focus-open');
+    document.body.classList.add('listen-sheet-open');
     return () => {
-      document.body.classList.remove('reader-audio-focus-open');
+      document.body.classList.remove('listen-sheet-open');
       restoreMainTabbar();
     };
-  }, [audioFocusOpen, paneActive, chromeHidden]);
+  }, [listenSheetOpen, paneActive, chromeHidden]);
 
   // 半屏面板打开时显示顶栏与底部 Tab。
   useEffect(() => {
@@ -1788,10 +1721,6 @@ export default function ReaderView({
       }
       lastScrollTop.current = cur;
 
-      if (audioPlayingRef.current) {
-        audioNotifyManualScrollRef.current();
-      }
-
       const mid = el.scrollTop + el.clientHeight * 0.35;
       const bottom = el.scrollTop + el.clientHeight;
       let bestVerse: number | null = null;
@@ -2109,31 +2038,7 @@ export default function ReaderView({
     }, 180);
   };
 
-  const audioNavChapter = useCallback(
-    (delta: number) => {
-      if (delta < 0 && !canNavPrev) return;
-      if (delta > 0 && !canNavNext) return;
-      const target = planNavActive
-        ? resolvePlanNav(books, planMeta!.steps, readerLocation, delta)
-        : resolveChapterNav(books, readerLocation, delta);
-      if (!target) return;
-      navChapter(delta);
-      void audioPlayChapter(target.book.id, target.chapter, { skipCheckpoint: true });
-    },
-    [
-      audioPlayChapter,
-      books,
-      canNavNext,
-      canNavPrev,
-      navChapter,
-      planMeta,
-      planNavActive,
-      readerLocation,
-    ],
-  );
-
-  const turn = useReaderPageTurn({
-    enabled: swipeTurn,
+  const turn = useReaderPageTurn({    enabled: swipeTurn,
     canPrev: canNavPrev,
     canNext: canNavNext,
     blocked: overlayOpen || hasSel,
@@ -3086,7 +2991,7 @@ export default function ReaderView({
                         <div className="reader-parallel-primary">
                           <span
                             id={`verse-anchor-${v.verse}`}
-                            className={`verse-inline verse-token${verseParaStartClass(vi, v.verse)} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${audioVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
+                            className={`verse-inline verse-token${verseParaStartClass(vi, v.verse)} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${listenVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
                             onClick={(e) => handleVerseClick(e, v.verse, displayText)}
                             onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                           >
@@ -3202,7 +3107,7 @@ export default function ReaderView({
                       {renderFeedHint(v.verse)}
                       <span
                         id={`verse-anchor-${v.verse}`}
-                        className={`verse-inline verse-token${verseParaStartClass(vi, v.verse)} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${audioVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
+                        className={`verse-inline verse-token${verseParaStartClass(vi, v.verse)} ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${listenVerseClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
                         onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
                         onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                       >
@@ -3231,7 +3136,7 @@ export default function ReaderView({
 
   return (
     <main
-      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chapterHasDiscourseVersePerLine(book.id, chapter, discourseEntries) ? ' reader-discourse' : ''}${chromeHidden ? ' reader-chrome-hidden' : ''}${audioMinimized ? ' reader-audio-minimized' : ''}${audioFocusOpen ? ' reader-audio-focus-open' : ''}${aiSheet ? ' reader-ai-sheet-open' : ''}`}
+      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chapterHasDiscourseVersePerLine(book.id, chapter, discourseEntries) ? ' reader-discourse' : ''}${chromeHidden ? ' reader-chrome-hidden' : ''}${listenSheetOpen ? ' listen-sheet-open' : ''}${aiSheet ? ' reader-ai-sheet-open' : ''}`}
       onClick={(e) => {
         if (focusBarRef.current?.contains(e.target as Node)) return;
         const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
@@ -3333,19 +3238,6 @@ export default function ReaderView({
               <path d="M21 21l-4-4" />
             </svg>
           </Link>
-          {READER_AUDIO_ENABLED ? (
-          <div className="reader-audio-btn-wrap">
-            <ReaderAudioButton
-              state={audioState}
-              unavailable={audioUnavailable}
-              onTap={handleReaderAudioTap}
-              onLongPress={audioOpenSettings}
-            />
-            {audioCoachVisible ? (
-              <span className="reader-audio-coach" role="status">可以听本章</span>
-            ) : null}
-          </div>
-          ) : null}
           <button
             type="button"
             className="reader-more"
@@ -3449,7 +3341,7 @@ export default function ReaderView({
 
       {paneActive && !chromeHidden && readingMode !== 'focus' ? (
       <div
-        className={`reader-fab-stack${hasSel || aiSheet ? ' is-hidden' : ''}${audioOrbVisible ? ' is-audio-playing' : ''}`}
+        className={`reader-fab-stack${hasSel || aiSheet || listenSheetOpen ? ' is-hidden' : ''}`}
         aria-hidden={hasSel}
       >
         {planMeta && onPlanExit && (
@@ -3462,17 +3354,25 @@ export default function ReaderView({
             退出计划
           </button>
         )}
-        {READER_AUDIO_ENABLED ? (
-        <ReaderAudioOrb
-          visible={audioOrbVisible && !chromeHidden}
-          state={audioState}
-          currentSec={audioCurrentSec}
-          durationSec={audioDurationSec}
-          onToggle={() => void audioTogglePlay()}
-          onRestore={audioRestorePanel}
-          onStop={audioStop}
-        />
-        ) : null}
+        <button
+          type="button"
+          className={[
+            'reader-fab',
+            'reader-fab-listen',
+            listenUi === 'playing' ? 'is-playing' : '',
+            listenUi === 'paused' ? 'is-paused' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          {...shellTapProps({
+            blurOnClick: true,
+            softRecover: true,
+            onTap: () => openListenSheet(),
+          })}
+          aria-label="听读"
+        >
+          听
+        </button>
         <button
           type="button"
           className="reader-fab"
@@ -3486,19 +3386,6 @@ export default function ReaderView({
           ✦ 小爱
         </button>
       </div>
-      ) : null}
-
-      {READER_AUDIO_ENABLED ? (
-      <ReaderAudioOrb
-        visible={audioOrbVisible && chromeHidden}
-        state={audioState}
-        currentSec={audioCurrentSec}
-        durationSec={audioDurationSec}
-        immersive
-        onToggle={() => void audioTogglePlay()}
-        onRestore={audioRestorePanel}
-        onStop={audioStop}
-      />
       ) : null}
 
       {hasSel && !overlayOpen && (
@@ -4035,44 +3922,26 @@ export default function ReaderView({
         />
       )}
 
-      {READER_AUDIO_ENABLED ? (
-      <>
-      <ReaderAudioFocus
-        open={audioFocusOpen}
+      <ListenPlayerSheet
+        open={listenSheetOpen}
         title={`${book.name} ${chapter}`}
-        subtitle={audioMeta?.audio_label || '本章朗读'}
-        state={audioState}
-        currentSec={audioCurrentSec}
-        durationSec={audioDurationSec}
-        formatTime={audioFormatTime}
-        verses={verses}
-        timestamps={audioTimestamps}
-        currentVerse={audioCurrentVerse}
-        onMinimize={audioMinimizePanel}
-        onToggle={() => void audioTogglePlay()}
-        onSeek={(delta) => audioSeekTo(Math.max(0, audioCurrentSec + delta))}
-        onSeekToVerse={audioSeekTo}
-        onRetry={() => void audioRetryPlay()}
-        onOpenSettings={() => {
-          setAudioFocusOpen(false);
-          setAudioSettingsOpen(true);
-        }}
-        onStop={audioStop}
-        canPrevChapter={canNavPrev}
-        canNextChapter={canNavNext}
-        onPrevChapter={() => audioNavChapter(-1)}
-        onNextChapter={() => audioNavChapter(1)}
+        translationLabel={versionLabel}
+        ui={listenUi}
+        error={listenError}
+        verseText={listenVerseText}
+        currentSec={listenCurrentSec}
+        durationSec={listenDurationSec}
+        formatTime={listenFormatTime}
+        settings={listenSettings}
+        speeds={listenSpeeds}
+        canSeek={listenCanSeek}
+        onClose={closeListenSheet}
+        onToggle={toggleListenPlayPause}
+        onSeekMs={seekListenMs}
+        onStepVerse={stepListenVerse}
+        onUpdateSettings={updateListenSettings}
+        onArmSleep={armListenSleep}
       />
-
-      <ReaderAudioSettingsSheet
-        open={audioSettingsOpen}
-        onClose={() => setAudioSettingsOpen(false)}
-        settings={readerAudio.settings}
-        onChange={audioUpdateSettings}
-        copyright={audioMeta?.copyright}
-      />
-      </>
-      ) : null}
     </main>
   );
 }

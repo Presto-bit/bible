@@ -2,10 +2,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse, RedirectResponse
 
-from ..config import get_settings
-from . import audio, reader
+from . import reader
 from .refs import parse_ref
 
 router = APIRouter(prefix="/bible", tags=["bible"])
@@ -107,8 +105,7 @@ def by_ref(ref: str = Query(..., description="经文引用，如 JHN.3.16 / 约�
 def audio_manifest(
     version: str = Query("cuvs", description="音频源译本 id"),
 ) -> dict:
-    ver = (version or "cuvs").strip().lower()
-    return audio.manifest(ver)
+    raise HTTPException(status_code=410, detail="旧章朗读已下线，请使用 AI 听经 /listen")
 
 
 @router.get("/audio/chapter")
@@ -118,46 +115,14 @@ def audio_chapter(
     version: str | None = Query(None, description="屏幕译本 id"),
     audio_version: str | None = Query(None, description="音频源译本 id"),
 ) -> dict:
-    av = (audio_version or "").strip().lower() or None
-    sv = (version or "").strip().lower() or None
-    b = reader.resolve_book(book)
-    if not b:
-        raise HTTPException(status_code=404, detail=f"未知卷：{book}")
-    resolved_av = av or audio.resolve_audio_version(sv)
-    return audio.chapter_entry(
-        b["id"], chapter, screen_version=sv, audio_version=resolved_av
-    )
+    raise HTTPException(status_code=410, detail="旧章朗读已下线，请使用 AI 听经 /listen")
 
 
 @router.get("/audio/timestamps/{audio_version}/{book}/{chapter}")
 def audio_timestamps(audio_version: str, book: str, chapter: int) -> dict:
-    b = reader.resolve_book(book)
-    if not b:
-        raise HTTPException(status_code=404, detail=f"未知卷：{book}")
-    ver = audio_version.strip().lower()
-    return audio.get_timestamps(ver, b["id"], chapter)
+    raise HTTPException(status_code=410, detail="旧章朗读已下线，请使用 AI 听经 /listen")
 
 
 @router.get("/audio/stream/{audio_version}/{book}/{chapter}")
 def audio_stream(audio_version: str, book: str, chapter: int):
-    b = reader.resolve_book(book)
-    if not b:
-        raise HTTPException(status_code=404, detail=f"未知卷：{book}")
-    ver = audio_version.strip().lower()
-    try:
-        path = audio.ensure_cached(ver, b["id"], chapter)
-    except HTTPException as exc:
-        if exc.status_code == 404 and get_settings().bible_audio_offline:
-            raise
-        if exc.status_code != 502:
-            raise
-        bid = int(b["sort_order"])
-        return RedirectResponse(
-            audio.fhl_direct_mp3_url(bid, chapter, book_id=b["id"]),
-            status_code=307,
-        )
-    return FileResponse(
-        path,
-        media_type="audio/mpeg",
-        filename=f"{b['id']}_{chapter}.mp3",
-    )
+    raise HTTPException(status_code=410, detail="旧章朗读已下线，请使用 AI 听经 /listen")
