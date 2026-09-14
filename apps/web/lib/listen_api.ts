@@ -65,7 +65,7 @@ async function parseListenJson(res: Response): Promise<unknown> {
     // Safari 对非 JSON（如 HTML 404）会抛 pattern 错误，这里改成可读文案
     throw new Error(
       res.status === 404
-        ? '听读接口未就绪，请稍后重试'
+        ? '听读服务未上线：请更新 Nginx 代理 /listen 并重启 API'
         : res.ok
           ? '听读响应异常'
           : `听读请求失败 ${res.status}`,

@@ -138,262 +138,284 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody> {
           top: false,
           child: Stack(
             children: [
-              ListView(
-                padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
+              Column(
                 children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.inkSoft.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(22, 10, 22, 8),
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 36,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.inkSoft.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          '下滑可继续听',
+                          textAlign: TextAlign.center,
+                          style:
+                              TextStyle(fontSize: 12, color: AppColors.inkSoft),
+                        ),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: () => setState(() {
+                            _catalogOpen = true;
+                            _locTab = 'chapters';
+                            _selectedBookId = widget.book.id;
+                          }),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    '${session.bookName} ${session.chapter}',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.ink,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  '▾',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.inkSoft,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          session.translationLabel,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.inkSoft,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          preparing && session.verseText.isEmpty
+                              ? '正在准备听读…'
+                              : (session.verseText.isEmpty
+                                  ? ' '
+                                  : session.verseText),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 19,
+                            height: 1.75,
+                            color: AppColors.ink,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Text(
-                    '下滑可继续听',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
-                  ),
-                  const SizedBox(height: 6),
-                  InkWell(
-                    onTap: () => setState(() {
-                      _catalogOpen = true;
-                      _locTab = 'chapters';
-                      _selectedBookId = widget.book.id;
-                    }),
-                    borderRadius: BorderRadius.circular(10),
+                  SizedBox(
+                    height: MediaQuery.sizeOf(context).height * 0.95 * 0.20,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
+                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Flexible(
-                            child: Text(
-                              '${session.bookName} ${session.chapter}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.ink,
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              trackHeight: 3,
+                              thumbShape: const RoundSliderThumbShape(
+                                enabledThumbRadius: 7,
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            '▾',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.inkSoft,
+                            child: Slider(
+                              value: posMs,
+                              max: maxMs,
+                              onChanged: !session.canSeek || preparing
+                                  ? null
+                                  : (v) => ctrl.seekMs(v.round()),
                             ),
                           ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                formatListenTime(session.position),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.inkSoft,
+                                ),
+                              ),
+                              Text(
+                                formatListenTime(session.duration),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.inkSoft,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                onPressed:
+                                    preparing || !widget.canPrevChapter
+                                        ? null
+                                        : () => widget.onNavChapter(-1),
+                                icon: const Text(
+                                  '‹‹',
+                                  style: TextStyle(fontSize: 22),
+                                ),
+                              ),
+                              const SizedBox(width: 18),
+                              Material(
+                                color: AppColors.accentDeep,
+                                shape: const CircleBorder(),
+                                elevation: 3,
+                                child: InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: preparing
+                                      ? null
+                                      : () => ctrl.togglePlayPause(),
+                                  child: SizedBox(
+                                    width: 64,
+                                    height: 64,
+                                    child: Center(
+                                      child: preparing
+                                          ? const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child:
+                                                  CircularProgressIndicator(
+                                                strokeWidth: 2.2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : Text(
+                                              playing ? '‖' : '▶',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 24,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 18),
+                              IconButton(
+                                onPressed:
+                                    preparing || !widget.canNextChapter
+                                        ? null
+                                        : () => widget.onNavChapter(1),
+                                icon: const Text(
+                                  '››',
+                                  style: TextStyle(fontSize: 22),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            preparing
+                                ? '正在准备'
+                                : (errored
+                                    ? (session.error ?? '准备失败，点按重试')
+                                    : ' '),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: errored
+                                  ? const Color(0xFFA0483A)
+                                  : AppColors.inkSoft,
+                            ),
+                          ),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              _chip(
+                                label: '语速 ${session.settings.speed}×',
+                                on: _panel == 'speed',
+                                onTap: () => setState(
+                                  () => _panel =
+                                      _panel == 'speed' ? 'none' : 'speed',
+                                ),
+                              ),
+                              _chip(
+                                label: '沉稳男声',
+                                on: false,
+                                onTap: null,
+                              ),
+                              _chip(
+                                label: session.settings.sleepMinutes == null
+                                    ? '定时'
+                                    : '定时 ${session.settings.sleepMinutes}′',
+                                on: _panel == 'sleep',
+                                onTap: () => setState(
+                                  () => _panel =
+                                      _panel == 'sleep' ? 'none' : 'sleep',
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_panel == 'speed')
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 8,
+                              children: [0.8, 1.0, 1.25, 1.5].map((s) {
+                                return _chip(
+                                  label: '$s×',
+                                  on: session.settings.speed == s,
+                                  onTap: () {
+                                    ctrl.updateSettings(
+                                      session.settings.copyWith(speed: s),
+                                    );
+                                    setState(() => _panel = 'none');
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                          if (_panel == 'sleep')
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 8,
+                              children: [
+                                (null, '关'),
+                                (15, '15 分'),
+                                (30, '30 分'),
+                                (60, '60 分'),
+                              ].map((e) {
+                                final minutes = e.$1;
+                                return _chip(
+                                  label: e.$2,
+                                  on: session.settings.sleepMinutes == minutes,
+                                  onTap: () {
+                                    ctrl.armSleep(minutes);
+                                    setState(() => _panel = 'none');
+                                  },
+                                );
+                              }).toList(),
+                            ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    session.translationLabel,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.inkSoft,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 140),
-                    child: Text(
-                      preparing && session.verseText.isEmpty
-                          ? '正在准备听读…'
-                          : (session.verseText.isEmpty
-                              ? ' '
-                              : session.verseText),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 19,
-                        height: 1.75,
-                        color: AppColors.ink,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3,
-                      thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 7),
-                    ),
-                    child: Slider(
-                      value: posMs,
-                      max: maxMs,
-                      onChanged: !session.canSeek || preparing
-                          ? null
-                          : (v) => ctrl.seekMs(v.round()),
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        formatListenTime(session.position),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.inkSoft,
-                        ),
-                      ),
-                      Text(
-                        formatListenTime(session.duration),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.inkSoft,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        onPressed: preparing || !widget.canPrevChapter
-                            ? null
-                            : () => widget.onNavChapter(-1),
-                        icon: const Text('‹‹', style: TextStyle(fontSize: 22)),
-                      ),
-                      const SizedBox(width: 18),
-                      Material(
-                        color: AppColors.accentDeep,
-                        shape: const CircleBorder(),
-                        elevation: 3,
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap:
-                              preparing ? null : () => ctrl.togglePlayPause(),
-                          child: SizedBox(
-                            width: 68,
-                            height: 68,
-                            child: Center(
-                              child: preparing
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : Text(
-                                      playing ? '‖' : '▶',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 26,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 18),
-                      IconButton(
-                        onPressed: preparing || !widget.canNextChapter
-                            ? null
-                            : () => widget.onNavChapter(1),
-                        icon: const Text('››', style: TextStyle(fontSize: 22)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    preparing
-                        ? '正在准备'
-                        : (errored
-                            ? (session.error ?? '准备失败，点按重试')
-                            : ' '),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: errored
-                          ? const Color(0xFFA0483A)
-                          : AppColors.inkSoft,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _chip(
-                        label: '语速 ${session.settings.speed}×',
-                        on: _panel == 'speed',
-                        onTap: () => setState(
-                          () =>
-                              _panel = _panel == 'speed' ? 'none' : 'speed',
-                        ),
-                      ),
-                      _chip(label: '沉稳男声', on: false, onTap: null),
-                      _chip(
-                        label: session.settings.sleepMinutes == null
-                            ? '定时'
-                            : '定时 ${session.settings.sleepMinutes}′',
-                        on: _panel == 'sleep',
-                        onTap: () => setState(
-                          () =>
-                              _panel = _panel == 'sleep' ? 'none' : 'sleep',
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_panel == 'speed') ...[
-                    const SizedBox(height: 10),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 8,
-                      children: [0.8, 1.0, 1.25, 1.5].map((s) {
-                        return _chip(
-                          label: '$s×',
-                          on: session.settings.speed == s,
-                          onTap: () {
-                            ctrl.updateSettings(
-                              session.settings.copyWith(speed: s),
-                            );
-                            setState(() => _panel = 'none');
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                  if (_panel == 'sleep') ...[
-                    const SizedBox(height: 10),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 8,
-                      children: [
-                        (null, '关'),
-                        (15, '15 分'),
-                        (30, '30 分'),
-                        (60, '60 分'),
-                      ].map((e) {
-                        final minutes = e.$1;
-                        return _chip(
-                          label: e.$2,
-                          on: session.settings.sleepMinutes == minutes,
-                          onTap: () {
-                            ctrl.armSleep(minutes);
-                            setState(() => _panel = 'none');
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ],
                 ],
               ),
               if (_catalogOpen)

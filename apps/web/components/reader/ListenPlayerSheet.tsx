@@ -157,6 +157,7 @@ export function ListenPlayerSheet({
             </p>
           </div>
 
+          <div className="listen-sheet-footer">
           <div className="listen-sheet-progress">
             <input
               type="range"
@@ -298,6 +299,7 @@ export function ListenPlayerSheet({
               ))}
             </div>
           ) : null}
+          </div>
 
           {catalogOpen ? (
             <div className="listen-catalog" role="dialog" aria-label="选择经卷与章节">
