@@ -317,13 +317,7 @@ def verse_explain_incomplete(
         if summary and summary_text_incomplete(summary.replace("\n", " ")):
             return True
         floor = min_complete if min_complete is not None else 180
-        if len(text) < floor:
-            return True
-        from .explain_rubric import explain_dimensions_missing, explain_repeats_background
-
-        if explain_dimensions_missing(text, depth=depth):
-            return True
-        return explain_repeats_background(text)
+        return len(text) < floor
 
     if depth in ("oia_standard", "oia_deep"):
         expected = expected_sections or OIA_SECTIONS
@@ -339,11 +333,7 @@ def verse_explain_incomplete(
             return True
         if depth == "oia_deep" and "段落脉络" in expected and "段落脉络" not in titles:
             return True
-        from .explain_rubric import explain_dimensions_missing, explain_repeats_background
-
-        if explain_dimensions_missing(text, depth=depth):
-            return True
-        return explain_repeats_background(text)
+        return False
 
     if not _verse_sections_satisfied(
         scene,
@@ -612,9 +602,25 @@ def dedupe_similar_bullets(
     return out
 
 
+def _strip_duplicate_oia_restart(text: str) -> str:
+    """去掉整段 OIA 重复（常见于补形/续写再次输出 ### 摘要 …）。"""
+    matches = list(SECTION_MD_RE.finditer(text))
+    if len(matches) < 2:
+        return text
+    summary_idxs = [
+        i for i, m in enumerate(matches) if m.group(1).strip() == "摘要"
+    ]
+    if len(summary_idxs) < 2:
+        return text
+    cut = matches[summary_idxs[1]].start()
+    if cut > 80:
+        return text[:cut].strip()
+    return text
+
+
 def merge_continuation_sections(body_text: str) -> str:
     """合并重复小节（含「经文解释（续）」），并对列表要点去重。"""
-    text = body_text.strip()
+    text = _strip_duplicate_oia_restart(body_text.strip())
     if not text:
         return text
     matches = list(SECTION_MD_RE.finditer(text))

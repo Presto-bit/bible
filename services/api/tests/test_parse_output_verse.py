@@ -137,6 +137,13 @@ def test_mid_bullet_truncated_detects_ellipsis():
     assert verse_explain_incomplete("verse_full", body, depth="oia_deep")
 
 
+def test_strip_duplicate_oia_restart():
+    body = _oia_body() + "\n\n" + _oia_body()
+    merged = merge_continuation_sections(body)
+    assert merged.count("### 摘要") == 1
+    assert merged.count("### 今日回应") == 1
+
+
 def test_merge_duplicate_explain_sections_without_xu():
     body = (
         "### 摘要\n神爱世人。\n\n"

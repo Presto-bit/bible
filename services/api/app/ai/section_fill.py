@@ -92,26 +92,37 @@ def collect_section_fill_hints(
                 missing.append(title)
         if mode == "oia" and missing:
             hints.append("每节 1–2 句 prose，勿重复已写内容，勿列表堆砌")
-        if mode == "oia":
-            summary = ""
-            for m in SECTION_MD_RE.finditer(text):
-                if m.group(1).strip() == "摘要":
-                    start = m.end()
-                    nxt = SECTION_MD_RE.search(text, start)
-                    end = nxt.start() if nxt else len(text)
-                    summary = text[start:end].replace("\n", " ").strip()
-                    break
-            if summary and summary_text_incomplete(summary):
-                hints.append(
-                    "摘要须 1 句完整话（35–55 字），主谓齐全、自然收束，勿残缺起笔"
-                )
+        if mode in ("oia", "intent"):
+            if mode == "oia":
+                summary = ""
+                for m in SECTION_MD_RE.finditer(text):
+                    if m.group(1).strip() == "摘要":
+                        start = m.end()
+                        nxt = SECTION_MD_RE.search(text, start)
+                        end = nxt.start() if nxt else len(text)
+                        summary = text[start:end].replace("\n", " ").strip()
+                        break
+                if summary and summary_text_incomplete(summary):
+                    hints.append(
+                        "摘要须 1 句完整话（35–55 字），主谓齐全、自然收束，勿残缺起笔"
+                    )
             thin = oia_thin_section_titles(text, depth=depth)
             if thin:
-                hints.append(
-                    f"加厚偏薄小节（{'、'.join(thin)}）："
-                    "每节至少 2 句或 50 字，点明 1 个关键用语，勿重复其他节"
-                )
-        elif mode == "intent" and missing:
+                if "经文解释" in thin:
+                    dim_h = explain_fill_hint(
+                        explain_dimensions_missing(text, depth=depth),
+                    )
+                    if dim_h:
+                        hints.append(dim_h)
+                    thin = [t for t in thin if t != "经文解释"]
+                if thin:
+                    suffix = (
+                        "每节至少 2 句或 50 字，点明 1 个关键用语，勿重复其他节"
+                        if mode == "oia"
+                        else "补全列表要点，勿重复已写内容"
+                    )
+                    hints.append(f"加厚偏薄小节（{'、'.join(thin)}）：{suffix}")
+        if mode == "intent" and missing:
             structure_secs = {"经文背景", "段落脉络", "经文解释", "背景", "和上下文连", "今日回应"}
             if any(title in structure_secs for title in missing):
                 mode = "structure"
@@ -147,12 +158,12 @@ def collect_section_fill_hints(
     if mode in ("structure", "full") and not narrow and is_prose_wall(text, scene):
         hints.append("将散文段改为 ### 标题下 - 列表要点")
 
-    if scene in ("verse_full", "verse_quick") and mode in ("intent", "oia", "structure"):
-        dim_hint = explain_fill_hint(explain_dimensions_missing(text, depth=depth))
-        if dim_hint:
-            hints.append(dim_hint)
-        if explain_repeats_background(text):
-            hints.append("经文解释勿重复经文背景，改写为原意、对象或意图")
+    if (
+        scene in ("verse_full", "verse_quick")
+        and mode in ("intent", "oia", "structure")
+        and explain_repeats_background(text)
+    ):
+        hints.append("经文解释勿重复经文背景，改写为原意、对象或意图")
 
     if not missing and scene in ("verse_full", "verse_quick"):
         if mode in ("intent", "oia"):
@@ -290,7 +301,12 @@ def section_fill_once(
     if not extra or not extra.strip():
         return None
     extra = extra.strip()
-    if restructure or SECTION_MD_RE.search(extra):
+    body = body_text.strip()
+    if restructure:
         return merge_continuation_sections(extra)
-    combined = body_text.rstrip() + "\n\n" + extra
+    if SECTION_MD_RE.search(extra):
+        if SECTION_MD_RE.search(body):
+            return merge_continuation_sections(f"{body}\n\n{extra}")
+        return merge_continuation_sections(extra)
+    combined = f"{body}\n\n{extra}".strip()
     return merge_continuation_sections(combined)
