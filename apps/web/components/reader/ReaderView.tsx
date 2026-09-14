@@ -3256,7 +3256,7 @@ export default function ReaderView({
               },
             })}
           >
-            概要
+            {englishUI ? 'Summary' : '概要'}
           </button>
         </div>
         <div className="reader-topbar-right">
