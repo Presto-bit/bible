@@ -458,6 +458,11 @@ def record_daily_visit(
 ) -> bool:
     """写入今日 UV。返回是否成功落库（或已存在幂等）。client_kind 仅首次写入。"""
     from .client_kind import normalize_client_kind
+    from .exclude import should_exclude_visit
+
+    if should_exclude_visit(user_code=user_code, device_id=device_id):
+        _set_err(None)
+        return True
 
     fingerprint = resolve_device_fingerprint(user_id=user_id, device_id=device_id)
     if not fingerprint:
@@ -486,6 +491,11 @@ def record_daily_visit(
                 # 请求只带设备头、未带用户码时：从设备绑定回填，避免计成「游客设备」
                 if not code:
                     code = _lookup_bound_user_code(conn, fingerprint)
+                from .exclude import should_exclude_visit as _skip
+
+                if _skip(user_code=code, device_id=fingerprint):
+                    _set_err(None)
+                    return True
                 effective_user_id = user_id
                 if not effective_user_id and code:
                     try:

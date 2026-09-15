@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ..time_cn import CN_TODAY_SQL, cn_day_sql
+from .exclude import uv_not_excluded_sql
 from .uv import (
     UV_GUEST_IDENTITY_SQL,
     UV_IDENTITY_SQL,
@@ -32,22 +33,26 @@ def uv_attributed_where(alias: str | None = None) -> str:
     return f"({uv_identity_sql(alias)} IS NOT NULL)"
 
 
+def _uv_base_where(*, where: str = _TODAY, alias: str | None = None) -> str:
+    return f"{where} AND {uv_not_excluded_sql(alias)}"
+
+
 def uv_deduped_count_sql(*, where: str = _TODAY) -> str:
-    """概览 UV：按 accounts.user_code 去重，不含游客设备。"""
+    """概览 UV：按 accounts.user_code 去重，不含游客设备与测试账号。"""
     return f"""
         SELECT count(DISTINCT {UV_IDENTITY_SQL})
         FROM daily_active_visitors
-        WHERE {where}
+        WHERE {_uv_base_where(where=where)}
           AND {uv_attributed_where()}
     """
 
 
 def uv_guest_rows_sql(*, where: str = _TODAY) -> str:
-    """未计入概览 UV：无法解析到 accounts 的访客设备去重。"""
+    """未计入概览 UV：无法解析到 accounts 的访客设备去重（仍排除冒烟设备）。"""
     return f"""
         SELECT count(DISTINCT {UV_GUEST_IDENTITY_SQL})
         FROM daily_active_visitors
-        WHERE {where}
+        WHERE {_uv_base_where(where=where)}
           AND NOT {uv_attributed_where()}
     """
 
@@ -56,7 +61,7 @@ def uv_login_rows_sql(*, where: str = _TODAY) -> str:
     """已归属账号访问行数（未去重；与概览口径一致）。"""
     return f"""
         SELECT count(*) FROM daily_active_visitors
-        WHERE {where}
+        WHERE {_uv_base_where(where=where)}
           AND {uv_attributed_where()}
     """
 
@@ -74,7 +79,7 @@ def uv_converted_sql(*, where: str = _TODAY) -> str:
     bound_day = cn_day_sql("user_bound_at")
     return f"""
         SELECT count(*) FROM daily_active_visitors
-        WHERE {where}
+        WHERE {_uv_base_where(where=where)}
           AND user_bound_at IS NOT NULL
           AND {bound_day} = visit_date
           AND user_bound_at > created_at
@@ -87,6 +92,7 @@ def uv_series_deduped_sql() -> str:
         SELECT visit_date::text, count(DISTINCT {UV_IDENTITY_SQL})
         FROM daily_active_visitors
         WHERE visit_date >= {CN_TODAY_SQL} - %s::int
+          AND {uv_not_excluded_sql()}
           AND {uv_attributed_where()}
         GROUP BY visit_date
         ORDER BY visit_date

@@ -9,6 +9,7 @@ from starlette.requests import Request
 from ..auth.local_session import verify_session_token
 from ..auth.session import resolve_user_id
 from ..auth.user_code import is_user_code
+from .exclude import should_exclude_visit
 from .uv import record_daily_visit, should_record_uv
 
 
@@ -44,7 +45,13 @@ class DailyUvMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         if not should_record_uv(request.url.path, request.method):
             return response
+        # 冒烟 / dry-run 探测不计入 UV
+        smoke = (request.headers.get("x-smoke-test") or "").strip().lower()
+        if smoke in ("1", "true", "dry-run", "smoke"):
+            return response
         user_id, device_id, user_code = _visitor_ids_from_request(request)
+        if should_exclude_visit(user_code=user_code, device_id=device_id):
+            return response
         client_kind = (request.headers.get("x-client-kind") or "").strip() or None
         try:
             # UV 写入放线程池，避免卡死事件循环

@@ -634,6 +634,20 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     _scroll.animateTo(target, duration: const Duration(milliseconds: 280), curve: Curves.easeOut);
   }
 
+  /// 听读最小化后锚点可能尚未挂上，多帧重试直到能 ensureVisible。
+  void _scheduleScrollToAudioVerse(int verse) {
+    void attempt(int tries) {
+      if (!mounted) return;
+      _scrollToAudioVerse(verse);
+      final ctx = _scrollVerseKeys[verse]?.currentContext;
+      if (ctx == null && tries < 10) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => attempt(tries + 1));
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => attempt(0));
+  }
+
   GlobalKey _scrollVerseKey(int verse) =>
       _scrollVerseKeys.putIfAbsent(verse, GlobalKey.new);
 
@@ -2491,9 +2505,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         // 听读面打开时只滚面内列表，避免背后阅读页跟着抖
         if (listen.sheetOpen) return;
         _lastAudioScrollVerse = next;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _scrollToAudioVerse(next);
-        });
+        _scheduleScrollToAudioVerse(next);
       },
     );
     ref.listen<bool>(
@@ -2503,11 +2515,13 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         if (prev != true || next) return;
         final listen = ref.read(bibleListenProvider);
         final v = listen.currentVerse;
-        if (v == null || listen.ui != BibleListenUi.playing) return;
+        if (v == null) return;
+        if (listen.ui != BibleListenUi.playing &&
+            listen.ui != BibleListenUi.paused) {
+          return;
+        }
         _lastAudioScrollVerse = v;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _scrollToAudioVerse(v);
-        });
+        _scheduleScrollToAudioVerse(v);
       },
     );
     ref.listen<int>(navIndexProvider, (prev, next) {
@@ -2515,12 +2529,14 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       if (next != 1 || prev == 1) return;
       final listen = ref.read(bibleListenProvider);
       final v = listen.currentVerse;
-      if (v == null || listen.ui != BibleListenUi.playing) return;
+      if (v == null) return;
+      if (listen.ui != BibleListenUi.playing &&
+          listen.ui != BibleListenUi.paused) {
+        return;
+      }
       if (listen.sheetOpen) return;
       _lastAudioScrollVerse = v;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _scrollToAudioVerse(v);
-      });
+      _scheduleScrollToAudioVerse(v);
     });
     ref.listen<int?>(
       readerAudioProvider.select((s) => s.currentVerse),
@@ -2530,9 +2546,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         final st = ref.read(readerAudioProvider).state;
         if (st != ReaderAudioState.playing) return;
         _lastAudioScrollVerse = next;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _scrollToAudioVerse(next);
-        });
+        _scheduleScrollToAudioVerse(next);
       },
     );
     final thoughtsByVerse = ref.watch(
@@ -3107,9 +3121,8 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                 selectionAnchorKey: _selectionAnchorKey,
                 resumeFlashVerse: _resumeFlashVerse,
                 resumeAnchorKey: _resumeAnchorKey,
-                scrollVerseKey: verseNo == ReaderVerseNumberMode.margin
-                    ? _scrollVerseKey
-                    : null,
+                // 听读跟读：inline / margin 都挂锚点，最小化后才能滚到高亮节
+                scrollVerseKey: _scrollVerseKey,
                 audioCurrentVerse: audioCurrentVerse,
                 audioHighlightStrong: audioHighlightStrong,
                 feedHintForVerse: _feedHintForVerse,
@@ -4875,7 +4888,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           ? widget.selectionAnchorKey
           : resumeFlash
           ? widget.resumeAnchorKey
-          : null;
+          : widget.scrollVerseKey?.call(v.verse);
 
       if (indentHere) {
         spans.add(readerProseIndentSpan(fontPx: fontPx, index: index));

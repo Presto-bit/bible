@@ -126,6 +126,11 @@ def bind_user_acquisition(
     if not code:
         return {"ok": False, "bound": False, "error": "missing_user_code"}
 
+    from .exclude import should_exclude_visit
+
+    if should_exclude_visit(user_code=code, device_id=device_id):
+        return {"ok": True, "bound": False, "skipped": "excluded"}
+
     l1, l2, l3 = normalize_channels(
         channel_l1=channel_l1, channel_l2=channel_l2, channel_l3=channel_l3
     )

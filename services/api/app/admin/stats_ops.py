@@ -8,6 +8,11 @@ from fastapi import HTTPException
 from ..db import get_pool
 from ..time_cn import china_today
 from ..analytics.client_kind import CLIENT_KIND_LABELS, client_kind_label
+from ..analytics.exclude import (
+    accounts_not_excluded_sql,
+    users_not_excluded_sql,
+    uv_not_excluded_sql,
+)
 from ..analytics.uv import UV_IDENTITY_SQL, uv_identity_sql, uv_last_error
 from ..analytics.uv_stats import (
     UV_IDENTITY_A,
@@ -338,7 +343,10 @@ def _count_dormant_users(conn, *, span_days: int = 30) -> tuple[int, str | None]
             "WHERE re.user_id = u.id AND re.deleted = false "
             f"AND re.updated_at >= (((timezone('Asia/Shanghai', now()))::date - {since})::timestamp AT TIME ZONE 'Asia/Shanghai'))"
         )
-    sql = f"SELECT count(*) FROM users u WHERE {' AND '.join(clauses)}"
+    sql = (
+        f"SELECT count(*) FROM users u WHERE {users_not_excluded_sql('u')} "
+        f"AND {' AND '.join(clauses)}"
+    )
     hint = None if has_event else "未含 read_event，仅按 reading_log"
     return _scalar(conn, sql), hint
 
@@ -365,11 +373,13 @@ def _uv_metrics(conn, *, where: str) -> dict[str, int]:
     login_rows = _scalar(
         conn,
         f"SELECT count(*) FROM daily_active_visitors WHERE {where} "
+        f"AND {uv_not_excluded_sql()} "
         "AND visitor_key LIKE 'u:%%'",
     )
     guest_rows = _scalar(
         conn,
         f"SELECT count(*) FROM daily_active_visitors WHERE {where} "
+        f"AND {uv_not_excluded_sql()} "
         "AND visitor_key LIKE 'd:%%'",
     )
     return {
@@ -388,7 +398,8 @@ def _fetch_admin_totals(conn) -> dict:
     uv_today = _uv_metrics(conn, where=uv_today_where)
     uv_today_raw = _scalar(
         conn,
-        f"SELECT count(*) FROM daily_active_visitors WHERE {uv_today_where}",
+        f"SELECT count(*) FROM daily_active_visitors WHERE {uv_today_where} "
+        f"AND {uv_not_excluded_sql()}",
     )
     uv_7d_where = f"visit_date >= DATE '{cn_today}' - 6"
     if uv_schema_v2(conn):
@@ -397,11 +408,18 @@ def _fetch_admin_totals(conn) -> dict:
         uv_7d = _scalar(
             conn,
             f"SELECT count(*) FROM daily_active_visitors WHERE {uv_7d_where} "
+            f"AND {uv_not_excluded_sql()} "
             "AND visitor_key LIKE 'u:%%'",
         )
     return {
-        "users": _scalar(conn, "SELECT count(*) FROM users"),
-        "accounts": _scalar(conn, "SELECT count(*) FROM accounts"),
+        "users": _scalar(
+            conn,
+            f"SELECT count(*) FROM users u WHERE {users_not_excluded_sql('u')}",
+        ),
+        "accounts": _scalar(
+            conn,
+            f"SELECT count(*) FROM accounts a WHERE {accounts_not_excluded_sql('a')}",
+        ),
         "groups": _scalar(conn, "SELECT count(*) FROM social_group"),
         "group_members": _scalar(conn, "SELECT count(*) FROM group_member"),
         "friendships": _scalar(conn, "SELECT count(*) FROM friendship"),
@@ -475,9 +493,11 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
         dod = {
             "users_new": _dod(
                 conn,
-                "SELECT count(*) FROM users WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
-                "SELECT count(*) FROM users WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - 1)::timestamp AT TIME ZONE 'Asia/Shanghai') "
-                "AND created_at < (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+                f"SELECT count(*) FROM users u WHERE {users_not_excluded_sql('u')} "
+                "AND u.created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+                f"SELECT count(*) FROM users u WHERE {users_not_excluded_sql('u')} "
+                "AND u.created_at >= (((timezone('Asia/Shanghai', now()))::date - 1)::timestamp AT TIME ZONE 'Asia/Shanghai') "
+                "AND u.created_at < (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
             ),
             "groups_new": _dod(
                 conn,
@@ -511,13 +531,14 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
                 if uv_schema_v2(conn)
                 else (
                     f"SELECT count(*) FROM daily_active_visitors WHERE {uv_today_where} "
-                    "AND visitor_key LIKE 'u:%%'"
+                    f"AND {uv_not_excluded_sql()} AND visitor_key LIKE 'u:%%'"
                 ),
                 uv_deduped_count_sql(where=f"visit_date = DATE '{cn_today}' - 1")
                 if uv_schema_v2(conn)
                 else (
                     f"SELECT count(*) FROM daily_active_visitors "
-                    f"WHERE visit_date = DATE '{cn_today}' - 1 AND visitor_key LIKE 'u:%%'"
+                    f"WHERE visit_date = DATE '{cn_today}' - 1 "
+                    f"AND {uv_not_excluded_sql()} AND visitor_key LIKE 'u:%%'"
                 ),
             ),
             "ai_requests_today": _dod(
@@ -558,10 +579,13 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
             ),
             "users": _date_series(
                 conn,
-                """
-                SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*)
-                FROM users WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp AT TIME ZONE 'Asia/Shanghai')
-                GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date
+                f"""
+                SELECT (timezone('Asia/Shanghai', u.created_at))::date::text, count(*)
+                FROM users u
+                WHERE {users_not_excluded_sql('u')}
+                  AND u.created_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp AT TIME ZONE 'Asia/Shanghai')
+                GROUP BY (timezone('Asia/Shanghai', u.created_at))::date
+                ORDER BY (timezone('Asia/Shanghai', u.created_at))::date
                 """,
                 span,
             ),
@@ -643,9 +667,11 @@ def _series_for_metric(conn, metric: str, start: date, end: date) -> list[dict]:
         return product_events_series_between(conn, start, end)
     sql_map = {
         "users": (
-            "SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*) FROM users "
-            "WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s "
-            "GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date"
+            f"SELECT (timezone('Asia/Shanghai', u.created_at))::date::text, count(*) FROM users u "
+            f"WHERE {users_not_excluded_sql('u')} "
+            "AND (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s "
+            "GROUP BY (timezone('Asia/Shanghai', u.created_at))::date "
+            "ORDER BY (timezone('Asia/Shanghai', u.created_at))::date"
         ),
         "groups": (
             "SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*) FROM social_group "
@@ -670,12 +696,14 @@ def _series_for_metric(conn, metric: str, start: date, end: date) -> list[dict]:
         "uv": (
             f"SELECT visit_date::text, count(DISTINCT {UV_IDENTITY_SQL}) "
             "FROM daily_active_visitors "
-            f"WHERE visit_date BETWEEN %s AND %s AND {uv_attributed_where()} "
+            f"WHERE visit_date BETWEEN %s AND %s AND {uv_not_excluded_sql()} "
+            f"AND {uv_attributed_where()} "
             "GROUP BY visit_date ORDER BY visit_date"
             if uv_schema_v2(conn)
             else (
                 "SELECT visit_date::text, count(*) FROM daily_active_visitors "
-                "WHERE visit_date BETWEEN %s AND %s AND visitor_key LIKE 'u:%%' "
+                f"WHERE visit_date BETWEEN %s AND %s AND {uv_not_excluded_sql()} "
+                "AND visitor_key LIKE 'u:%%' "
                 "GROUP BY visit_date ORDER BY visit_date"
             )
         ),
@@ -778,7 +806,8 @@ def fetch_admin_stats_detail(
             dormant_30d, dormant_hint = _count_dormant_users(conn, span_days=30)
             with_account = _scalar(
                 conn,
-                "SELECT count(DISTINCT user_id) FROM accounts",
+                f"SELECT count(DISTINCT user_id) FROM accounts a "
+                f"WHERE {accounts_not_excluded_sql('a')}",
             )
             insights = [
                 _insight("近 7 日活跃", active_7d, active_hint or "有读经记录"),
@@ -808,7 +837,8 @@ def fetch_admin_stats_detail(
                     {_USER_JOINS}
                     LEFT JOIN user_acquisition acq
                       ON acq.user_code = COALESCE(a.user_code, up.user_code)
-                    WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
+                    WHERE {users_not_excluded_sql('u')}
+                      AND (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
                     ORDER BY u.created_at DESC
                     LIMIT %s
                     """,
@@ -846,7 +876,8 @@ def fetch_admin_stats_detail(
                            (a.user_code IS NOT NULL)
                     FROM users u
                     {_USER_JOINS}
-                    WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
+                    WHERE {users_not_excluded_sql('u')}
+                      AND (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
                     ORDER BY u.created_at DESC
                     LIMIT %s
                     """,

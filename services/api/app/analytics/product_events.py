@@ -114,6 +114,11 @@ def record_product_event(
     if not code and not device:
         return {"ok": False, "error": "missing_identity"}
 
+    from .exclude import should_exclude_visit
+
+    if should_exclude_visit(user_code=code, device_id=device):
+        return {"ok": True, "event": name, "skipped": "excluded"}
+
     payload = props if isinstance(props, dict) else {}
     # 限制 props 体积，避免滥用
     try:

@@ -775,64 +775,78 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
                                   builder: (context, _) {
                                     final pulse =
                                         playing ? _ringCtl.value : 0.0;
+                                    // 对齐 PWA .listen-sheet-play：实心圆 + ▶/‖，无 Material/Ink 中间多余层
+                                    final bg = preparing
+                                        ? Color.lerp(
+                                            AppColors.accentDeep,
+                                            const Color(0xFF6A7A72),
+                                            0.22,
+                                          )!
+                                        : AppColors.accentDeep;
                                     return SizedBox(
                                       width: 96,
                                       height: 96,
-                                      child: CustomPaint(
-                                        painter: _ListenPlayRingPainter(
-                                          playing: playing,
-                                          preparing: preparing,
-                                          pulse: pulse,
-                                          spin: _spinCtl.value,
-                                          color: AppColors.accentDeep,
-                                        ),
-                                        child: Center(
-                                          child: Material(
-                                            color: preparing
-                                                ? Color.lerp(
-                                                    AppColors.accentDeep,
-                                                    const Color(0xFF6A7A72),
-                                                    0.22,
-                                                  )!
-                                                : AppColors.accentDeep,
-                                            shape: const CircleBorder(),
-                                            elevation: preparing ? 0 : 3,
-                                            shadowColor: AppColors.accentDeep
-                                                .withValues(alpha: 0.35),
-                                            child: InkWell(
-                                              customBorder:
-                                                  const CircleBorder(),
-                                              onTap: preparing
-                                                  ? null
-                                                  : () =>
-                                                      ctrl.togglePlayPause(),
-                                              child: SizedBox(
-                                                width: 68,
-                                                height: 68,
-                                                child: Center(
-                                                  child: preparing
-                                                      ? const SizedBox.shrink()
-                                                      : Text(
-                                                          playing ? '‖' : '▶',
-                                                          style: TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: playing
-                                                                ? 26
-                                                                : 24,
-                                                            height: 1,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            letterSpacing:
-                                                                playing
-                                                                    ? 0
-                                                                    : 2,
-                                                          ),
-                                                        ),
-                                                ),
-                                              ),
+                                      child: Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          CustomPaint(
+                                            size: const Size(96, 96),
+                                            painter: _ListenPlayRingPainter(
+                                              playing: playing,
+                                              preparing: preparing,
+                                              pulse: pulse,
+                                              spin: _spinCtl.value,
+                                              color: AppColors.accentDeep,
                                             ),
                                           ),
-                                        ),
+                                          GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTap: preparing
+                                                ? null
+                                                : () =>
+                                                    ctrl.togglePlayPause(),
+                                            child: Container(
+                                              width: 68,
+                                              height: 68,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: bg,
+                                                boxShadow: preparing
+                                                    ? null
+                                                    : [
+                                                        BoxShadow(
+                                                          color: AppColors
+                                                              .accentDeep
+                                                              .withValues(
+                                                                alpha: 0.35,
+                                                              ),
+                                                          blurRadius: 18,
+                                                          offset: const Offset(
+                                                            0,
+                                                            6,
+                                                          ),
+                                                        ),
+                                                      ],
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: preparing
+                                                  ? null
+                                                  : Text(
+                                                      playing ? '‖' : '▶',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize:
+                                                            playing ? 26 : 24,
+                                                        height: 1,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        letterSpacing:
+                                                            playing ? 0 : 2,
+                                                      ),
+                                                    ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     );
                                   },

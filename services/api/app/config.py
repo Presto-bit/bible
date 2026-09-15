@@ -121,6 +121,9 @@ class Settings(BaseSettings):
     shelf_admin_user_codes: str = "45716122"
     rag_upload_dir: str = str(REPO_ROOT / "data" / "rag" / "uploads")
 
+    # ── 统计：排除测试 / 冒烟账号（逗号分隔 user_code；默认含 99990001）──
+    analytics_exclude_user_codes: str = "99990001"
+
     # ── 社交 IM 附件（local | s3 兼容 OSS/COS/MinIO）──
     social_media_backend: str = "local"
     social_media_upload_dir: str = str(REPO_ROOT / "data" / "social_message_uploads")
