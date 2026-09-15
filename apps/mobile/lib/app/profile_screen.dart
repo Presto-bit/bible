@@ -1650,9 +1650,7 @@ class _SettingsSheet extends ConsumerWidget {
                 future: const AppUpdateService().installedVersion(),
                 builder: (context, snap) {
                   final v = snap.data;
-                  final label = v == null
-                      ? '…'
-                      : (v.code > 0 ? '${v.name} (${v.code})' : v.name);
+                  final label = v == null ? '…' : v.name;
                   return _InfoTile(label: '版本', value: label);
                 },
               ),

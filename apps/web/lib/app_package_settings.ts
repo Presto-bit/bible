@@ -183,12 +183,12 @@ export function resolveAppPackageRow(opts?: {
       localCode: local.versionCode,
     });
     const current = local.versionName
-      ? `当前 ${local.versionName}${local.versionCode != null ? ` (${local.versionCode})` : ''}`
+      ? `当前 ${local.versionName}`
       : '当前版本';
     return {
       title: updateAvailable ? '更新彼爱 App' : '彼爱 App',
       hint: updateAvailable
-        ? `${current} · 可更新至 ${latest || '?'}${latestCode != null ? ` (${latestCode})` : ''}`
+        ? `${current} · 可更新至 ${latest || '?'}`
         : latest
           ? `${current} · 已是最新版本`
           : `${current} · 暂无法检查更新`,
@@ -212,7 +212,7 @@ export function resolveAppPackageRow(opts?: {
     if (updateAvailable) {
       return {
         title: '更新安装包',
-        hint: `当前 ${shellVersion || '?'}${shellVersionCode != null ? ` (${shellVersionCode})` : ''} → 可升到 ${latest || '?'}${latestCode != null ? ` (${latestCode})` : ''}`,
+        hint: `当前 ${shellVersion || '?'} → 可升到 ${latest || '?'}`,
         action: 'download_apk',
         latestVersion: latest,
         shellVersion,

@@ -44,7 +44,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     final v = await const AppUpdateService().installedVersion();
     if (!mounted) return;
     setState(() {
-      _versionLabel = v.code > 0 ? '${v.name} (${v.code})' : v.name;
+      _versionLabel = v.name;
     });
   }
 
