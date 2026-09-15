@@ -851,7 +851,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
-                    childAspectRatio: 1.28,
+                    mainAxisExtent: 112,
                     children: [
                 _FootprintCell(
                   // 足迹入口统一用用户可理解的「笔记」；底层仍复用经文想法数据。
@@ -977,23 +977,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
-            // 帮助/协议已迁入设置（与 PWA ProfileSettings 一致）
-            if (auth.signedIn) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFB1554A),
-                    side: const BorderSide(color: AppColors.line),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () =>
-                      ref.read(authControllerProvider.notifier).logout(),
-                  child: const Text('退出登录'),
-                ),
-              ),
-            ],
+            // 登出仅在设置 → 数据（对齐 PWA ProfileSettingsPanel）
             const SizedBox(height: 24),
             const Center(
               child: Text(
@@ -1090,83 +1074,168 @@ class _FootprintCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PaperCard(
-      tier: 1,
-      tint: tone.tint,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final surface = theme.colorScheme.surface;
+    final softEdge = Color.lerp(
+      theme.colorScheme.onSurface.withValues(alpha: 0.45),
+      theme.dividerColor,
+      0.78,
+    )!.withValues(alpha: dark ? 0.55 : 0.9);
+    final bg = Color.lerp(surface, tone.tint, tone.surfaceMix)!;
+    const radius = 18.0;
+
+    Widget cell = Container(
+      height: 112,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: softEdge),
+        boxShadow: PeiaiShadows.card(dark),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Row(
-            children: [
-              Icon(tone.icon, size: 17, color: tone.ink),
-              const SizedBox(width: 7),
-              Text(
-                kind,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkSoft,
-                ),
-              ),
-              if (isNew) ...[
-                const SizedBox(width: 6),
-                Container(
-                  width: 7,
-                  height: 7,
+          if (isNew)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: tone.ink,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(radius),
+                    border: Border.all(
+                      color: AppColors.accent.withValues(alpha: 0.28),
+                    ),
                   ),
                 ),
-              ],
-              const Spacer(),
-              if (count > 0)
-                Text(
-                  '$count',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkSoft,
-                  ),
-                ),
-            ],
-          ),
-          const Spacer(),
-          if (badgeIcons.isNotEmpty)
-            Row(
-              children: [
-                for (final icon in badgeIcons.take(3))
-                  Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: Text(icon, style: const TextStyle(fontSize: 18)),
-                  ),
-              ],
-            )
-          else if (!hideValue)
-            Text(
-              value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: empty ? 13 : 15,
-                height: 1.35,
-                fontWeight: empty ? FontWeight.w500 : FontWeight.w600,
-                fontStyle: empty ? FontStyle.italic : FontStyle.normal,
-                color: empty ? AppColors.inkFaint : AppColors.ink,
               ),
             ),
+          if (isNew)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: surface, width: 2),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: surface.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(tone.icon, size: 17, color: tone.ink),
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        kind,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.02,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ),
+                    if (count > 0)
+                      Text(
+                        '$count',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                  ],
+                ),
+                const Spacer(),
+                if (badgeIcons.isNotEmpty)
+                  Row(
+                    children: [
+                      for (final icon in badgeIcons.take(3))
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Text(icon, style: const TextStyle(fontSize: 18)),
+                        ),
+                    ],
+                  )
+                else if (!hideValue)
+                  Text(
+                    value,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: empty ? 13 : 15,
+                      height: 1.35,
+                      fontWeight: empty ? FontWeight.w500 : FontWeight.w600,
+                      fontStyle: empty ? FontStyle.normal : FontStyle.normal,
+                      color: empty ? AppColors.inkFaint : AppColors.ink,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
+
+    if (onLongPress != null) {
+      cell = Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          borderRadius: BorderRadius.circular(radius),
+          splashColor: AppColors.ink.withValues(alpha: 0.06),
+          highlightColor: AppColors.ink.withValues(alpha: 0.04),
+          child: cell,
+        ),
+      );
+    } else {
+      cell = Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(radius),
+          splashColor: AppColors.ink.withValues(alpha: 0.06),
+          highlightColor: AppColors.ink.withValues(alpha: 0.04),
+          child: cell,
+        ),
+      );
+    }
+    return cell;
   }
 }
 
 enum _FootprintTone { thought, shelf, badge, journey }
 
 extension on _FootprintTone {
+  /// 对齐 PWA `color-mix(..., tone, surface)` 比例。
+  double get surfaceMix => switch (this) {
+    _FootprintTone.thought => 0.08,
+    _FootprintTone.shelf => 0.09,
+    _FootprintTone.badge => 0.08,
+    _FootprintTone.journey => 0.09,
+  };
+
   Color get tint => switch (this) {
     _FootprintTone.thought => AppColors.accent,
     _FootprintTone.shelf => const Color(0xFFC4A574),
@@ -1175,10 +1244,10 @@ extension on _FootprintTone {
   };
 
   Color get ink => switch (this) {
-    _FootprintTone.thought => AppColors.accentDeep,
-    _FootprintTone.shelf => const Color(0xFFA67C52),
-    _FootprintTone.badge => const Color(0xFFB8860B),
-    _FootprintTone.journey => const Color(0xFF5A7A9A),
+    _FootprintTone.thought => Color.lerp(AppColors.ink, AppColors.accent, 0.78)!,
+    _FootprintTone.shelf => Color.lerp(AppColors.ink, const Color(0xFFA67C52), 0.75)!,
+    _FootprintTone.badge => Color.lerp(AppColors.ink, const Color(0xFFB8860B), 0.78)!,
+    _FootprintTone.journey => Color.lerp(AppColors.ink, const Color(0xFF5A7A9A), 0.78)!,
   };
 
   IconData get icon => switch (this) {
