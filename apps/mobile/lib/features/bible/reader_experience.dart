@@ -1523,12 +1523,13 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     // 对齐 PWA：字号随正文缩放，字体继承读经衬线栈。
     final readerPx = ref.watch(readerFontProvider).px;
     final fontFamily = ref.watch(readerFontFamilyProvider);
+    final stack = readerFontStack(family: fontFamily, english: _englishUI);
     final style = TextStyle(
       fontSize: (readerPx * 0.88).roundToDouble().clamp(13, 32),
       fontWeight: FontWeight.w700,
       color: baseColor,
-      fontFamily: fontFamily.fontFamily,
-      fontFamilyFallback: fontFamily.fontFamilyFallback,
+      fontFamily: stack.fontFamily,
+      fontFamilyFallback: stack.fontFamilyFallback,
     );
     final parts = splitInlineRefs(title);
     return Padding(
@@ -2233,9 +2234,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
   /// 与当前主文同译本预取邻章，并写入磁盘缓存，横滑 peek 可即时同构渲染。
   void _prefetchAdjacentChapters() {
     final prefs = ref.read(prefsProvider);
-    final compareId = widget.mainVersionId == null
-        ? widget.compareVersionId
-        : null;
+    final compareId = widget.compareVersionId;
 
     for (final delta in const [-1, 1]) {
       final target = _adjacentTarget(delta);
@@ -2472,12 +2471,17 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
             listenSession.ui == BibleListenUi.preparing)
         ? listenSession.currentVerse
         : null;
+    // 对齐 PWA：playing = 强高亮；paused/preparing = 弱 echo
+    final listenHighlightStrong = listenSession.ui == BibleListenUi.playing;
     final audioCurrentVerse =
         listenCurrentVerse ??
         (audioSession.state == ReaderAudioState.playing ||
                 audioSession.state == ReaderAudioState.paused
             ? audioSession.currentVerse
             : null);
+    final audioHighlightStrong = listenCurrentVerse != null
+        ? listenHighlightStrong
+        : audioSession.state == ReaderAudioState.playing;
     ref.listen<int?>(
       bibleListenProvider.select((s) => s.currentVerse),
       (prev, next) {
@@ -2613,9 +2617,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       'JOB',
     }.contains(widget.book.id.toUpperCase());
 
-    final compareId = widget.mainVersionId == null
-        ? widget.compareVersionId
-        : null;
+    final compareId = widget.compareVersionId;
     final notesByVerse = ref
         .watch(notesStreamProvider)
         .maybeWhen(
@@ -2715,6 +2717,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         fontFamily: fontFamily,
         paragraphRanges: paragraphRanges,
         audioCurrentVerse: audioCurrentVerse,
+        audioHighlightStrong: audioHighlightStrong,
       );
     }
 
@@ -2752,6 +2755,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                         notesByVerse: notesByVerse,
                         paragraphRanges: paragraphRanges,
                         audioCurrentVerse: audioCurrentVerse,
+                        audioHighlightStrong: audioHighlightStrong,
                       );
                     }
                     if (_navFromSwipe) {
@@ -2946,6 +2950,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     ReaderFontFamily fontFamily = ReaderFontFamily.serif,
     List<(int, int)>? paragraphRanges,
     int? audioCurrentVerse,
+    bool audioHighlightStrong = true,
   }) {
     if (compareChapter != null || compareStatus != null) {
       return _buildParallelList(
@@ -3084,6 +3089,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                 sectionByVerse: sectionByVerse,
                 verseNo: verseNo,
                 poetry: poetry,
+                english: _englishUI,
                 selected: _selected,
                 wordRange: _wordRange,
                 highlightMarks: highlights,
@@ -3105,6 +3111,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                     ? _scrollVerseKey
                     : null,
                 audioCurrentVerse: audioCurrentVerse,
+                audioHighlightStrong: audioHighlightStrong,
                 feedHintForVerse: _feedHintForVerse,
                 onViewNote: _viewNote,
                 onStart: _startSelect,
@@ -3525,18 +3532,24 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         final r = rows[i - 1];
         final para = r as VerseParagraph;
         final selBg = Paint()..color = AppColors.accentWash;
+        final fontStack = readerFontStack(
+          family: fontFamily,
+          english: _englishUI,
+        );
         final mainBase = readerBodyTextStyle(
           color: theme.ink,
           fontPx: fontPx,
           poetry: poetry,
-          fontFamily: fontFamily.fontFamily,
-          fontFamilyFallback: fontFamily.fontFamilyFallback,
+          fontFamily: fontStack.fontFamily,
+          fontFamilyFallback: fontStack.fontFamilyFallback,
+          english: _englishUI,
         );
         final parallelBase = mainBase.copyWith(
           color: theme.ink.withValues(alpha: 0.55),
           fontSize: fontPx * 0.92,
           height: kReaderParallelSecondaryLineHeight,
         );
+        final bodyAlign = readerBodyTextAlign(english: _englishUI);
         return RepaintBoundary(
           child: Container(
             margin: EdgeInsets.only(
@@ -3644,12 +3657,12 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           RichText(
-                            textAlign: TextAlign.justify,
+                            textAlign: bodyAlign,
                             text: TextSpan(style: mainBase, children: versePrimary),
                           ),
                           const SizedBox(height: 6),
                           RichText(
-                            textAlign: TextAlign.justify,
+                            textAlign: bodyAlign,
                             text: TextSpan(style: parallelBase, children: verseCompare),
                           ),
                           if (v != para.verses.last) const SizedBox(height: 8),
@@ -3946,9 +3959,7 @@ class _AdjacentChapterPeekPanelState
       peekDictKeys = dictList.map((e) => e.name).toList();
     }
 
-    final compareId = widget.mainVersionId == null
-        ? widget.compareVersionId
-        : null;
+    final compareId = widget.compareVersionId;
     final parallelAsync = compareId != null
         ? ref.watch(
             chapterVersionProvider((
@@ -3982,6 +3993,7 @@ class _AdjacentChapterPeekPanelState
         verseNo: verseNo,
         fontPx: fontPx,
         fontFamily: fontFamily,
+        english: isEnglishBibleVersion(widget.mainVersionId),
         highlights: highlights,
         underlinesEnabled: toggles.underlines,
         dictIndex: peekDictIndex,
@@ -4104,6 +4116,7 @@ class _ChapterPeekContent extends StatelessWidget {
     required this.verseNo,
     required this.fontPx,
     required this.fontFamily,
+    this.english = false,
     required this.highlights,
     required this.underlinesEnabled,
     required this.dictIndex,
@@ -4130,6 +4143,7 @@ class _ChapterPeekContent extends StatelessWidget {
   final ReaderVerseNumberMode verseNo;
   final double fontPx;
   final ReaderFontFamily fontFamily;
+  final bool english;
   final Map<String, HighlightMark> highlights;
   final bool underlinesEnabled;
   final Map<String, List<DictEntity>> dictIndex;
@@ -4167,13 +4181,19 @@ class _ChapterPeekContent extends StatelessWidget {
     'JOB',
   }.contains(book.id.toUpperCase());
 
-  TextStyle get _mainStyle => readerBodyTextStyle(
-    color: theme.ink,
-    fontPx: fontPx,
-    poetry: _poetry,
-    fontFamily: fontFamily.fontFamily,
-    fontFamilyFallback: fontFamily.fontFamilyFallback,
-  );
+  TextStyle get _mainStyle {
+    final stack = readerFontStack(family: fontFamily, english: english);
+    return readerBodyTextStyle(
+      color: theme.ink,
+      fontPx: fontPx,
+      poetry: _poetry,
+      fontFamily: stack.fontFamily,
+      fontFamilyFallback: stack.fontFamilyFallback,
+      english: english,
+    );
+  }
+
+  TextAlign get _bodyAlign => readerBodyTextAlign(english: english);
 
   TextStyle get _parallelStyle => _mainStyle.copyWith(
     color: theme.ink.withValues(alpha: 0.55),
@@ -4211,8 +4231,8 @@ class _ChapterPeekContent extends StatelessWidget {
                 fontSize: fontPx * kReaderInlineVerseEm,
                 fontWeight: FontWeight.w700,
                 height: 1,
-                fontFamily: fontFamily.fontFamily,
-                fontFamilyFallback: fontFamily.fontFamilyFallback,
+                fontFamily: _mainStyle.fontFamily,
+                fontFamilyFallback: _mainStyle.fontFamilyFallback,
               ),
             ),
           ),
@@ -4295,8 +4315,8 @@ class _ChapterPeekContent extends StatelessWidget {
       fontSize: (fontPx * 0.88).roundToDouble().clamp(13, 32),
       fontWeight: FontWeight.w700,
       color: AppColors.accentDeep,
-      fontFamily: fontFamily.fontFamily,
-      fontFamilyFallback: fontFamily.fontFamilyFallback,
+      fontFamily: _mainStyle.fontFamily,
+      fontFamilyFallback: _mainStyle.fontFamilyFallback,
     );
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 16, 0, 4),
@@ -4362,7 +4382,7 @@ class _ChapterPeekContent extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.only(right: 4),
                         child: RichText(
-                          textAlign: TextAlign.justify,
+                          textAlign: _bodyAlign,
                           text: TextSpan(
                             style: _mainStyle,
                             children: _verseSpans(
@@ -4430,7 +4450,7 @@ class _ChapterPeekContent extends StatelessWidget {
         bottom: readerParagraphGapBottom(poetry: _poetry, fontPx: fontPx),
       ),
       child: RichText(
-        textAlign: TextAlign.justify,
+        textAlign: _bodyAlign,
         text: TextSpan(style: _mainStyle, children: spans),
       ),
     );
@@ -4447,7 +4467,7 @@ class _ChapterPeekContent extends StatelessWidget {
       firstVerse = false;
       children.add(
         RichText(
-          textAlign: TextAlign.justify,
+          textAlign: _bodyAlign,
           text: TextSpan(
             style: _mainStyle,
             children: _verseSpans(
@@ -4465,7 +4485,7 @@ class _ChapterPeekContent extends StatelessWidget {
       children.add(const SizedBox(height: 6));
       children.add(
         RichText(
-          textAlign: TextAlign.justify,
+          textAlign: _bodyAlign,
           text: TextSpan(
             style: _parallelStyle,
             text:
@@ -4533,6 +4553,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     this.sectionByVerse = const {},
     required this.verseNo,
     required this.poetry,
+    this.english = false,
     required this.selected,
     this.wordRange,
     required this.highlightMarks,
@@ -4552,6 +4573,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     this.resumeAnchorKey,
     this.scrollVerseKey,
     this.audioCurrentVerse,
+    this.audioHighlightStrong = true,
     this.feedHintForVerse,
     required this.onViewNote,
     required this.onStart,
@@ -4568,6 +4590,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final Map<int, String> sectionByVerse;
   final ReaderVerseNumberMode verseNo;
   final bool poetry;
+  final bool english;
   final Set<int> selected;
   final WordRange? wordRange;
   final Map<String, HighlightMark> highlightMarks;
@@ -4589,6 +4612,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final GlobalKey? resumeAnchorKey;
   final GlobalKey Function(int verse)? scrollVerseKey;
   final int? audioCurrentVerse;
+  final bool audioHighlightStrong;
   final Widget? Function(int verse)? feedHintForVerse;
   final void Function(Note note) onViewNote;
   final void Function(int verse, String text) onStart;
@@ -4650,12 +4674,16 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     if (title == null || title.isEmpty) return null;
     final fontPx = ref.watch(readerFontProvider).px;
     final fontFamily = ref.watch(readerFontFamilyProvider);
+    final stack = readerFontStack(
+      family: fontFamily,
+      english: widget.english,
+    );
     final style = TextStyle(
       fontSize: (fontPx * 0.88).roundToDouble().clamp(13, 32),
       fontWeight: FontWeight.w700,
       color: AppColors.accentDeep,
-      fontFamily: fontFamily.fontFamily,
-      fontFamilyFallback: fontFamily.fontFamilyFallback,
+      fontFamily: stack.fontFamily,
+      fontFamilyFallback: stack.fontFamilyFallback,
     );
     final parts = splitInlineRefs(title);
     return Padding(
@@ -4708,13 +4736,19 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     final selectionActive = widget.selected.isNotEmpty;
     // 选中节高亮即可；不压暗其他节（对齐 PWA，避免「白蒙层」观感）
     // PWA 晨光/护眼：line-height 2.05 + letter-spacing 0.015em
+    final fontStack = readerFontStack(
+      family: widget.fontFamily,
+      english: widget.english,
+    );
     final baseStyle = readerBodyTextStyle(
       color: widget.inkColor,
       fontPx: fontPx,
       poetry: widget.poetry,
-      fontFamily: widget.fontFamily.fontFamily,
-      fontFamilyFallback: widget.fontFamily.fontFamilyFallback,
+      fontFamily: fontStack.fontFamily,
+      fontFamilyFallback: fontStack.fontFamilyFallback,
+      english: widget.english,
     );
+    final bodyAlign = readerBodyTextAlign(english: widget.english);
     const selBg = Color(0x333390FF);
     final marginMode = widget.verseNo == ReaderVerseNumberMode.margin;
     final discourseCatalog =
@@ -4738,6 +4772,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                 chapter: widget.chapter,
                 baseStyle: baseStyle,
                 fontPx: fontPx,
+                textAlign: bodyAlign,
                 proseIndent:
                     !widget.poetry &&
                     i == 0 &&
@@ -4760,7 +4795,10 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                       )
                     : null,
                 resumeFlash: widget.resumeFlashVerse == v.verse,
-                audioCurrent: widget.audioCurrentVerse == v.verse,
+                audioCurrent: widget.audioCurrentVerse == v.verse &&
+                    widget.audioHighlightStrong,
+                audioEcho: widget.audioCurrentVerse == v.verse &&
+                    !widget.audioHighlightStrong,
                 anchorKey: v.verse == widget.selectionAnchorVerse
                     ? widget.selectionAnchorKey
                     : (widget.resumeFlashVerse == v.verse
@@ -4830,7 +4868,9 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
 
       final verseInSel = widget.selected.contains(v.verse);
       final resumeFlash = widget.resumeFlashVerse == v.verse;
-      final audioCurrent = widget.audioCurrentVerse == v.verse;
+      final isListenVerse = widget.audioCurrentVerse == v.verse;
+      final audioCurrent = isListenVerse && widget.audioHighlightStrong;
+      final audioEcho = isListenVerse && !widget.audioHighlightStrong;
       final GlobalKey? verseKey = v.verse == widget.selectionAnchorVerse
           ? widget.selectionAnchorKey
           : resumeFlash
@@ -4869,8 +4909,8 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                     backgroundColor: verseInSel && widget.wordRange == null
                         ? selBg
                         : null,
-                    fontFamily: widget.fontFamily.fontFamily,
-                    fontFamilyFallback: widget.fontFamily.fontFamilyFallback,
+                    fontFamily: baseStyle.fontFamily,
+                    fontFamilyFallback: baseStyle.fontFamilyFallback,
                   ),
                 ),
               ),
@@ -4996,6 +5036,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             markInfo: markInfo,
             resumeFlash: resumeFlash,
             audioCurrent: audioCurrent,
+            audioEcho: audioEcho,
             hasThought: hasThought,
             hasMyThought: hasMyThought,
             dictIndex: widget.dictIndex,
@@ -5054,6 +5095,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             child: SelectionContainer.disabled(
               child: readerLocatedRichText(
                 locator: index.build(),
+                textAlign: bodyAlign,
                 text: TextSpan(style: baseStyle, children: spans),
               ),
             ),
@@ -5073,6 +5115,7 @@ class _MarginVerseRow extends ConsumerStatefulWidget {
     required this.baseStyle,
     required this.fontPx,
     this.proseIndent = false,
+    this.textAlign = TextAlign.justify,
     required this.selectionActive,
     required this.selBg,
     required this.wordRange,
@@ -5080,6 +5123,7 @@ class _MarginVerseRow extends ConsumerStatefulWidget {
     required this.markInfo,
     required this.resumeFlash,
     this.audioCurrent = false,
+    this.audioEcho = false,
     required this.anchorKey,
     required this.dictIndex,
     required this.dictKeys,
@@ -5103,6 +5147,7 @@ class _MarginVerseRow extends ConsumerStatefulWidget {
   final TextStyle baseStyle;
   final double fontPx;
   final bool proseIndent;
+  final TextAlign textAlign;
   final bool selectionActive;
   final Color selBg;
   final WordRange? wordRange;
@@ -5110,6 +5155,7 @@ class _MarginVerseRow extends ConsumerStatefulWidget {
   final VerseMarkInfo? markInfo;
   final bool resumeFlash;
   final bool audioCurrent;
+  final bool audioEcho;
   final GlobalKey? anchorKey;
   final Map<String, List<DictEntity>> dictIndex;
   final List<String> dictKeys;
@@ -5152,6 +5198,7 @@ class _MarginVerseRowState extends ConsumerState<_MarginVerseRow> {
     final hasMyThought = widget.hasMyThought;
     final resumeFlash = widget.resumeFlash;
     final audioCurrent = widget.audioCurrent;
+    final audioEcho = widget.audioEcho;
     final onStart = widget.onStart;
     final onToggle = widget.onToggle;
     final onWordExtend = widget.onWordExtend;
@@ -5227,6 +5274,7 @@ class _MarginVerseRowState extends ConsumerState<_MarginVerseRow> {
       markInfo: markInfo,
       resumeFlash: resumeFlash,
       audioCurrent: audioCurrent,
+      audioEcho: audioEcho,
       hasThought: thoughtsEnabled && thoughtsCount > 0,
       hasMyThought: hasMyThought,
       dictIndex: dictIndex,
@@ -5275,6 +5323,7 @@ class _MarginVerseRowState extends ConsumerState<_MarginVerseRow> {
                 child: SelectionContainer.disabled(
                   child: readerLocatedRichText(
                     locator: index.build(),
+                    textAlign: widget.textAlign,
                     text: TextSpan(style: baseStyle, children: bodyChildren),
                   ),
                 ),

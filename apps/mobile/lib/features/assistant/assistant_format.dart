@@ -462,7 +462,7 @@ String streamingSafeBody(String text) {
   final last = lines.isEmpty ? '' : lines.last;
   final trimmed = last.trim();
   if (RegExp(r'^【[^】]*$').hasMatch(trimmed) ||
-      RegExp(r'^###\s*$').hasMatch(trimmed)) {
+      RegExp(r'^#{1,6}\s*$').hasMatch(trimmed)) {
     return lines.sublist(0, lines.length - 1).join('\n').trimRight();
   }
   return t;

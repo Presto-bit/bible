@@ -187,6 +187,7 @@ void appendReaderWordSpans({
   VerseMarkInfo? markInfo,
   required bool resumeFlash,
   bool audioCurrent = false,
+  bool audioEcho = false,
   required bool hasThought,
   required bool hasMyThought,
   Map<String, List<DictEntity>> dictIndex = const {},
@@ -228,11 +229,20 @@ void appendReaderWordSpans({
       );
     }
     if (audioCurrent && !inWordSel) {
+      // 对齐 PWA .verse-listen-current
       wordStyle = wordStyle.copyWith(
-        backgroundColor: const Color(0xFF8EC8E8).withValues(alpha: 0.22),
+        backgroundColor: const Color(0xFF8EC8E8).withValues(alpha: 0.36),
         decoration: TextDecoration.underline,
-        decorationColor: const Color(0xFF5AA0C8).withValues(alpha: 0.45),
-        decorationThickness: 1.2,
+        decorationColor: const Color(0xFF5AA0C8).withValues(alpha: 0.55),
+        decorationThickness: 1.4,
+      );
+    } else if (audioEcho && !inWordSel) {
+      // 对齐 PWA .verse-listen-echo
+      wordStyle = wordStyle.copyWith(
+        backgroundColor: const Color(0xFF8EC8E8).withValues(alpha: 0.14),
+        decoration: TextDecoration.underline,
+        decorationColor: const Color(0xFF5AA0C8).withValues(alpha: 0.35),
+        decorationThickness: 1.0,
       );
     }
     if (hasThought && !inWordSel) {

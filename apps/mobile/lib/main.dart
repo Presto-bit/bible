@@ -32,7 +32,8 @@ Future<void> main() async {
   try {
     await initReaderAudioService();
   } catch (_) {
-    // 无通知栏仍可用 just_audio 章级播。
+    // init 内部已 fallback；此处再兜底一次
+    ensureReaderAudioHandler();
   }
   final prefs = await SharedPreferences.getInstance();
   final device = DeviceIdentity(prefs);

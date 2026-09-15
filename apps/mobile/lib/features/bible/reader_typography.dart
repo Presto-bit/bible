@@ -10,6 +10,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 
+import 'reader_preferences.dart';
 import 'verse_selection_gesture.dart' show SpanIndexBuilder;
 
 /// 散文段首字符（与 PWA `\3000` 同码点；实际占位用 [readerProseIndentSpan] 锁 1em）。
@@ -78,12 +79,48 @@ TextStyle readerBodyTextStyle({
   required bool poetry,
   String? fontFamily,
   List<String>? fontFamilyFallback,
+  bool english = false,
 }) =>
     TextStyle(
       color: color,
       fontSize: fontPx,
       height: readerLineHeight(poetry: poetry),
-      letterSpacing: readerLetterSpacing(fontPx),
+      letterSpacing: english ? 0 : readerLetterSpacing(fontPx),
       fontFamily: fontFamily,
       fontFamilyFallback: fontFamilyFallback,
     );
+
+/// 英文译本：左齐（避免 justify 拉出右侧大空白）；中文仍两端对齐。
+TextAlign readerBodyTextAlign({required bool english}) =>
+    english ? TextAlign.start : TextAlign.justify;
+
+/// 英文正文优先拉丁衬线；中文沿用 Georgia → 宋体回退链。
+({String? fontFamily, List<String> fontFamilyFallback}) readerFontStack({
+  required ReaderFontFamily family,
+  required bool english,
+}) {
+  if (!english) {
+    return (
+      fontFamily: family.fontFamily,
+      fontFamilyFallback: family.fontFamilyFallback,
+    );
+  }
+  if (family == ReaderFontFamily.sans) {
+    return (
+      fontFamily: null,
+      fontFamilyFallback: const [
+        'Noto Sans',
+        'Roboto',
+        'sans-serif',
+      ],
+    );
+  }
+  return (
+    fontFamily: 'Georgia',
+    fontFamilyFallback: const [
+      'Noto Serif',
+      'Times New Roman',
+      'serif',
+    ],
+  );
+}

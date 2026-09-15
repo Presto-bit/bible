@@ -809,6 +809,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     await showReaderSettingsSheet(
       context,
       ref,
+      mainVersionId: _mainVersionId,
+      compareVersionId: _compareVersionId,
       onLayoutApplied: (mainId, compareId, label) {
         final prefs = ref.read(prefsProvider);
         setState(() {
@@ -1454,9 +1456,32 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
       await svc.downloadPack(translationId: v.id);
       await _refreshInstalled();
       if (v.primary || v.id == 'cuvs') {
+        // 下完主本不强制切回和合本；仅刷新安装态
+      } else {
+        // 对齐 PWA：下完自动勾选（保持最多 2 本）
         final primary = versions.where((x) => x.primary).firstOrNull;
-        final label = primary?.label ?? '和合本';
-        widget.onApplied(null, null, label);
+        final primaryId = primary?.id ?? 'cuvs';
+        final primaryLabel = primary?.label ?? '和合本';
+        final mainId = widget.mainVersionId ?? primaryId;
+        final current = <String>[mainId];
+        if (widget.compareVersionId != null &&
+            widget.compareVersionId != mainId) {
+          current.add(widget.compareVersionId!);
+        }
+        var next = [...current];
+        if (!next.contains(v.id)) {
+          if (next.length < 2) {
+            next = [...next, v.id];
+          } else {
+            next = [next[0], v.id];
+          }
+        }
+        _applySelection(
+          next,
+          versions,
+          primaryId: primaryId,
+          primaryLabel: primaryLabel,
+        );
       }
       ref.invalidate(offlineInstalledProvider);
     } catch (_) {
@@ -1466,38 +1491,79 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
 
   void _applyTap(BibleVersion v, List<BibleVersion> versions) {
     final primary = versions.where((x) => x.primary).firstOrNull;
+    final primaryId = primary?.id ?? 'cuvs';
     final primaryLabel = primary?.label ?? '和合本';
-    final isParallel =
-        widget.compareVersionId != null && widget.mainVersionId == null;
-    final isMainDisplay = v.primary
-        ? widget.mainVersionId == null && !isParallel
-        : widget.mainVersionId == v.id;
-    final isCompare = isParallel && widget.compareVersionId == v.id;
 
-    if (v.primary) {
-      if (isCompare) {
-        final other = versions
-            .where((x) => x.id == widget.compareVersionId)
-            .map((x) => x.label)
-            .firstOrNull;
-        widget.onApplied(
-          null,
-          widget.compareVersionId,
-          '$primaryLabel · ${other ?? widget.compareVersionId}',
-        );
-      } else {
-        widget.onApplied(null, null, v.label);
-      }
-    } else if (isMainDisplay) {
-      widget.onApplied(null, null, primaryLabel);
-    } else if (isCompare) {
-      widget.onApplied(null, null, primaryLabel);
-    } else if (widget.mainVersionId == null && !isParallel) {
-      widget.onApplied(v.id, null, v.label);
-    } else {
-      widget.onApplied(null, v.id, '$primaryLabel · ${v.label}');
+    // 当前勾选顺序：主栏在前、对照在后（对齐 PWA VersionPickerPop）
+    final current = <String>[];
+    final mainId = widget.mainVersionId ?? primaryId;
+    current.add(mainId);
+    if (widget.compareVersionId != null &&
+        widget.compareVersionId != mainId) {
+      current.add(widget.compareVersionId!);
     }
+
+    var next = [...current];
+    final checked = next.contains(v.id);
+    if (checked) {
+      if (v.id == primaryId && next.length == 1) return;
+      next = next.where((x) => x != v.id).toList();
+      if (next.isEmpty) next = [primaryId];
+    } else if (next.length < 2) {
+      next.add(v.id);
+    } else {
+      next = [next[0], v.id];
+    }
+
+    _applySelection(next, versions, primaryId: primaryId, primaryLabel: primaryLabel);
     widget.onClose();
+  }
+
+  void _applySelection(
+    List<String> next,
+    List<BibleVersion> versions, {
+    required String primaryId,
+    required String primaryLabel,
+  }) {
+    String labelOf(String id) =>
+        versions.where((x) => x.id == id).map((x) => x.label).firstOrNull ??
+        _versionLabelFor(id);
+
+    if (next.length == 1) {
+      final id = next[0];
+      if (id == primaryId) {
+        widget.onApplied(null, null, primaryLabel);
+      } else {
+        widget.onApplied(id, null, labelOf(id));
+      }
+      return;
+    }
+
+    final topId = next[0];
+    final bottomId = next[1];
+    final topIsPrimary = topId == primaryId;
+    widget.onApplied(
+      topIsPrimary ? null : topId,
+      bottomId,
+      '${labelOf(topId)} · ${labelOf(bottomId)}',
+    );
+  }
+
+  static String _versionLabelFor(String id) {
+    switch (id.toLowerCase()) {
+      case 'cuvs':
+        return '和合本';
+      case 'cnv':
+        return '新译本';
+      case 'contemporary':
+        return '当代译本';
+      case 'kjv':
+        return 'King James Version';
+      case 'niv':
+        return 'NIV';
+      default:
+        return id.toUpperCase();
+    }
   }
 
   @override
@@ -1538,9 +1604,15 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                 ),
               ),
               data: (versions) {
-                final isParallel =
-                    widget.compareVersionId != null &&
-                    widget.mainVersionId == null;
+                final primaryId =
+                    versions.where((x) => x.primary).map((x) => x.id).firstOrNull ??
+                        'cuvs';
+                final mainId = widget.mainVersionId ?? primaryId;
+                final checkedIds = <String>[mainId];
+                if (widget.compareVersionId != null &&
+                    widget.compareVersionId != mainId) {
+                  checkedIds.add(widget.compareVersionId!);
+                }
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1549,12 +1621,8 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
                       final downloading =
                           svc.isDownloading && svc.downloadingId == v.id;
                       final needsDl = _needsDownload(v) || _failedId == v.id;
-                      final isMainDisplay = v.primary
-                          ? widget.mainVersionId == null && !isParallel
-                          : widget.mainVersionId == v.id;
-                      final isCompare =
-                          isParallel && widget.compareVersionId == v.id;
-                      final checked = selectable && (isMainDisplay || isCompare);
+                      final checked =
+                          selectable && checkedIds.contains(v.id);
                       final trailing = _trailing(v, svc);
                       final actionClickable =
                           _failedId == v.id ||

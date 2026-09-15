@@ -94,20 +94,36 @@ class ReaderAudioHandler extends BaseAudioHandler with SeekHandler {
 }
 
 Future<ReaderAudioHandler> initReaderAudioService() async {
-  final handler = await AudioService.init(
-    builder: () {
-      final h = ReaderAudioHandler();
-      ReaderAudioHandler.instance = h;
-      return h;
-    },
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'reader_audio',
-      androidNotificationChannelName: '圣经朗读',
-      androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,
-      androidNotificationIcon: 'mipmap/ic_launcher',
-    ),
-  );
-  ReaderAudioHandler.instance = handler;
-  return handler;
+  try {
+    final handler = await AudioService.init(
+      builder: () {
+        final h = ReaderAudioHandler();
+        ReaderAudioHandler.instance = h;
+        return h;
+      },
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'reader_audio',
+        androidNotificationChannelName: '圣经朗读',
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: true,
+        androidNotificationIcon: 'mipmap/ic_launcher',
+      ),
+    );
+    ReaderAudioHandler.instance = handler;
+    return handler;
+  } catch (_) {
+    // 通知栏服务失败时仍提供可播的 AudioPlayer（听读 / 章朗读）。
+    final fallback = ReaderAudioHandler();
+    ReaderAudioHandler.instance = fallback;
+    return fallback;
+  }
+}
+
+/// 确保听读可用；若冷启动未 init 成功则懒创建 fallback。
+ReaderAudioHandler ensureReaderAudioHandler() {
+  final existing = ReaderAudioHandler.instance;
+  if (existing != null) return existing;
+  final fallback = ReaderAudioHandler();
+  ReaderAudioHandler.instance = fallback;
+  return fallback;
 }

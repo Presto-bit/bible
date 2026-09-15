@@ -270,12 +270,8 @@ class BibleListenController extends Notifier<BibleListenSession> {
         voice: state.settings.voice,
       );
       if (gen != _gen || !ref.mounted) return;
-      final handler = ReaderAudioHandler.instance;
-      final player = handler?.player;
-      if (handler == null || player == null) {
-        state = state.copyWith(ui: BibleListenUi.error, error: '播放器未就绪');
-        return;
-      }
+      final handler = ensureReaderAudioHandler();
+      final player = handler.player;
       await handler.setChapterMedia(
         bookId: bookId,
         chapter: chapter,
@@ -376,9 +372,8 @@ class BibleListenController extends Notifier<BibleListenSession> {
   }
 
   Future<void> togglePlayPause() async {
-    final player = ReaderAudioHandler.instance?.player;
-    final handler = ReaderAudioHandler.instance;
-    if (player == null || handler == null) return;
+    final handler = ensureReaderAudioHandler();
+    final player = handler.player;
     if (state.ui == BibleListenUi.preparing) return;
     if (state.ui == BibleListenUi.error || state.ui == BibleListenUi.idle) {
       await prepareAndPlay(
@@ -401,8 +396,8 @@ class BibleListenController extends Notifier<BibleListenSession> {
   }
 
   Future<void> seekMs(int ms) async {
-    final player = ReaderAudioHandler.instance?.player;
-    if (player == null || !state.canSeek) return;
+    final player = ensureReaderAudioHandler().player;
+    if (!state.canSeek) return;
     await player.seek(Duration(milliseconds: ms));
   }
 

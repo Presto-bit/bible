@@ -13,6 +13,8 @@ import 'reader_preferences.dart';
 Future<void> showReaderSettingsSheet(
   BuildContext context,
   WidgetRef ref, {
+  String? mainVersionId,
+  String? compareVersionId,
   void Function(String? mainId, String? compareId, String label)?
       onLayoutApplied,
 }) async {
@@ -101,19 +103,28 @@ Future<void> showReaderSettingsSheet(
                     onSelected: (_) async {
                       await ref.read(readingLayoutProvider.notifier).set(l);
                       final prefs = ref.read(prefsProvider);
+                      // 切布局时保留当前主译本，勿强行回到和合本。
+                      final mainId = mainVersionId;
+                      final mainLabel = _verLabel(mainId ?? 'cuvs');
                       if (l == ReadingLayout.parallel) {
-                        final compare =
-                            prefs.getString('reader_parallel_version') ?? 'cnv';
+                        var compare = compareVersionId ??
+                            prefs.getString('reader_parallel_version') ??
+                            'cnv';
+                        if (compare == (mainId ?? 'cuvs')) {
+                          compare = mainId == null || mainId == 'cuvs'
+                              ? 'cnv'
+                              : 'cuvs';
+                        }
                         await prefs.setString(
                             'reader_parallel_version', compare);
                         onLayoutApplied?.call(
-                          null,
+                          mainId,
                           compare,
-                          '和合本 · ${_verLabel(compare)}',
+                          '$mainLabel · ${_verLabel(compare)}',
                         );
                       } else {
                         await prefs.remove('reader_parallel_version');
-                        onLayoutApplied?.call(null, null, '和合本');
+                        onLayoutApplied?.call(mainId, null, mainLabel);
                       }
                     },
                   );

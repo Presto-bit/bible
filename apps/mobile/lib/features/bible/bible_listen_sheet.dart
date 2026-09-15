@@ -2,6 +2,8 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,9 @@ import '../../core/theme.dart';
 import 'bible_listen_api.dart';
 import 'bible_listen_controller.dart';
 import 'models.dart';
+
+/// 对齐 PWA `SHEET_OPEN_GUARD_MS`：刚打开时忽略遮罩误触。
+const _kListenSheetOpenGuard = Duration(milliseconds: 400);
 
 Future<void> showBibleListenSheet(
   BuildContext context,
@@ -29,23 +34,70 @@ Future<void> showBibleListenSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: 0.42),
+    // 对齐 PWA backdrop 终态 ~0.48；误触由 sheet 内 guard 处理
+    barrierColor: const Color(0x7A1C1814),
+    isDismissible: false,
+    enableDrag: true,
     builder: (ctx) {
-      return _BibleListenSheetBody(
-        books: books,
-        book: book,
-        chapter: chapter,
-        bookAbbr: bookAbbr,
-        canPrevChapter: canPrevChapter,
-        canNextChapter: canNextChapter,
-        onNavChapter: onNavChapter,
-        onPickChapter: onPickChapter,
-        englishUI: englishUI,
+      return _ListenSheetDismissGuard(
+        child: _BibleListenSheetBody(
+          books: books,
+          book: book,
+          chapter: chapter,
+          bookAbbr: bookAbbr,
+          canPrevChapter: canPrevChapter,
+          canNextChapter: canNextChapter,
+          onNavChapter: onNavChapter,
+          onPickChapter: onPickChapter,
+          englishUI: englishUI,
+        ),
       );
     },
   ).whenComplete(() {
     ctrl.closeSheet();
   });
+}
+
+/// 遮罩点击需过开场保护窗（对齐 PWA guardedClose）；拖拽 / 返回键仍可关。
+class _ListenSheetDismissGuard extends StatefulWidget {
+  const _ListenSheetDismissGuard({required this.child});
+  final Widget child;
+
+  @override
+  State<_ListenSheetDismissGuard> createState() =>
+      _ListenSheetDismissGuardState();
+}
+
+class _ListenSheetDismissGuardState extends State<_ListenSheetDismissGuard> {
+  late final DateTime _openedAt = DateTime.now();
+
+  bool get _canClose =>
+      DateTime.now().difference(_openedAt) >= _kListenSheetOpenGuard;
+
+  void _tryClose() {
+    if (!_canClose) return;
+    Navigator.of(context).maybePop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _tryClose,
+            child: const ColoredBox(color: Colors.transparent),
+          ),
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: widget.child,
+        ),
+      ],
+    );
+  }
 }
 
 class _BibleListenSheetBody extends ConsumerStatefulWidget {
@@ -89,6 +141,8 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
   late final AnimationController _enterCtl;
   late final AnimationController _breatheCtl;
   late final AnimationController _ringCtl;
+  late final AnimationController _spinCtl;
+  late final AnimationController _flashCtl;
   String _locKey = '';
 
   @override
@@ -108,6 +162,14 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
       vsync: this,
       duration: const Duration(milliseconds: 2600),
     )..repeat(reverse: true);
+    _spinCtl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+    _flashCtl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _scrollToVerse(ref.read(bibleListenProvider).currentVerse);
@@ -119,6 +181,8 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
     _enterCtl.dispose();
     _breatheCtl.dispose();
     _ringCtl.dispose();
+    _spinCtl.dispose();
+    _flashCtl.dispose();
     super.dispose();
   }
 
@@ -138,6 +202,7 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
           _chapterFlash =
               '${ref.read(bibleListenProvider).bookName} ${widget.chapter}';
         });
+        _flashCtl.forward(from: 0);
         Future<void>.delayed(const Duration(milliseconds: 320), () {
           if (mounted) setState(() => _scriptureFading = false);
         });
@@ -204,37 +269,75 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
         .toList();
 
     return FadeTransition(
-      opacity: CurvedAnimation(parent: _enterCtl, curve: Curves.easeOut),
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.06),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(
+      opacity: Tween<double>(begin: 0.88, end: 1).animate(
+        CurvedAnimation(
           parent: _enterCtl,
-          curve: Curves.easeOutCubic,
-        )),
+          curve: const Cubic(0.22, 1, 0.36, 1),
+        ),
+      ),
+      child: SlideTransition(
+        // 对齐 PWA listen-sheet-rise：自 18% 抬起
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.18),
+          end: Offset.zero,
+        ).animate(
+          CurvedAnimation(
+            parent: _enterCtl,
+            curve: const Cubic(0.22, 1, 0.36, 1),
+          ),
+        ),
         child: FractionallySizedBox(
       heightFactor: 0.95,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color.lerp(AppColors.paper, AppColors.accent, 0.08)!,
-              AppColors.surface,
-            ],
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x2E000000),
-              blurRadius: 28,
-              offset: Offset(0, -6),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 底：纸感渐变
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFF9F6F1),
+                    Color(0xFFFAF8F4),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
-        child: SafeArea(
+            // 顶：径向 accent 光晕（对齐 PWA radial-gradient）
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 220,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(0, -0.85),
+                    radius: 1.15,
+                    colors: [
+                      AppColors.accent.withValues(alpha: 0.14),
+                      AppColors.accent.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // 顶阴影
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x2E281810),
+                    blurRadius: 40,
+                    offset: Offset(0, -8),
+                  ),
+                ],
+              ),
+            ),
+            SafeArea(
           top: false,
           child: Stack(
             children: [
@@ -319,159 +422,263 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
                     child: ClipRect(
                       child: Stack(
                         children: [
-                          AnimatedOpacity(
-                            opacity: _scriptureFading ? 0.28 : 1,
-                            duration: const Duration(milliseconds: 320),
-                            child: verses.isEmpty
-                        ? Center(
-                            child: Text(
-                              preparing
-                                  ? (widget.englishUI
-                                      ? 'Preparing listen…'
-                                      : '正在准备听读…')
-                                  : (widget.englishUI
-                                      ? 'No verses'
-                                      : '暂无经文'),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                color: AppColors.inkSoft,
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: EdgeInsets.fromLTRB(
-                              16,
-                              4,
-                              16,
-                              MediaQuery.sizeOf(context).height * 0.38,
-                            ),
-                            itemCount: verses.length,
-                            itemBuilder: (context, i) {
-                              final v = verses[i];
-                              final isCurrent = session.currentVerse == v.verse;
-                              return AnimatedBuilder(
-                                key: _keyFor(v.verse),
-                                animation: _breatheCtl,
-                                builder: (context, _) {
-                                  final breathe = isCurrent
-                                      ? 0.32 + _breatheCtl.value * 0.2
-                                      : 0.0;
-                                  return Padding(
-                                padding: const EdgeInsets.only(bottom: 2),
-                                child: Opacity(
-                                  opacity: session.currentVerse != null &&
-                                          !isCurrent
-                                      ? 0.58
-                                      : 1,
-                                  child: Transform.scale(
-                                    scale: isCurrent ? 1.012 : 1,
-                                    alignment: Alignment.centerLeft,
-                                    child: Material(
-                                  color: isCurrent
-                                      ? Color.lerp(
-                                          const Color(0xFFD4EAF6),
-                                          Colors.white,
-                                          0.28 - breathe * 0.15,
-                                        )!
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(8),
-                                    onTap: !session.canSeek || preparing
-                                        ? null
-                                        : () => ctrl.seekVerse(v.verse),
-                                    child: Container(
-                                      decoration: isCurrent
-                                          ? BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              border: Border(
-                                                left: BorderSide(
-                                                  color: Color(0xFF5AA0C8)
-                                                      .withValues(
-                                                    alpha: 0.55 + breathe,
-                                                  ),
-                                                  width: 3,
-                                                ),
-                                              ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: const Color(0xFF8EC8E8)
-                                                      .withValues(
-                                                    alpha: 0.18 + breathe * 0.35,
-                                                  ),
-                                                  blurRadius: 12 + breathe * 10,
-                                                ),
-                                              ],
-                                            )
-                                          : null,
-                                      child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 5,
-                                      ),
-                                      child: Text.rich(
-                                        TextSpan(
-                                          children: [
-                                            TextSpan(
-                                              text: '${v.verse} ',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: isCurrent
-                                                    ? const Color(0xFF3D7EA8)
-                                                    : AppColors.inkSoft,
-                                              ),
-                                            ),
-                                            TextSpan(
-                                              text: v.text,
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                height: 1.55,
-                                                fontWeight: isCurrent
-                                                    ? FontWeight.w500
-                                                    : FontWeight.w400,
-                                                color: AppColors.ink,
-                                                letterSpacing: 0.15,
-                                              ),
-                                            ),
-                                          ],
+                          ImageFiltered(
+                            imageFilter: _scriptureFading
+                                ? ImageFilter.blur(sigmaX: 0.45, sigmaY: 0.45)
+                                : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+                            child: AnimatedOpacity(
+                              opacity: _scriptureFading ? 0.28 : 1,
+                              duration: const Duration(milliseconds: 320),
+                              child: verses.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        preparing
+                                            ? (widget.englishUI
+                                                ? 'Preparing listen…'
+                                                : '正在准备听读…')
+                                            : (widget.englishUI
+                                                ? 'No verses'
+                                                : '暂无经文'),
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          color: AppColors.inkSoft,
                                         ),
                                       ),
+                                    )
+                                  : ListView.builder(
+                                      padding: EdgeInsets.fromLTRB(
+                                        16,
+                                        4,
+                                        16,
+                                        math.min(
+                                          MediaQuery.sizeOf(context).height *
+                                              0.46,
+                                          360,
+                                        ),
+                                      ),
+                                      itemCount: verses.length,
+                                      itemBuilder: (context, i) {
+                                        final v = verses[i];
+                                        final isCurrent =
+                                            session.currentVerse == v.verse;
+                                        return AnimatedBuilder(
+                                          key: _keyFor(v.verse),
+                                          animation: _breatheCtl,
+                                          builder: (context, _) {
+                                            final breathe = isCurrent
+                                                ? _breatheCtl.value
+                                                : 0.0;
+                                            final peak = isCurrent
+                                                ? (breathe <= 0.5
+                                                    ? breathe * 2
+                                                    : (1 - breathe) * 2)
+                                                : 0.0;
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 2,
+                                              ),
+                                              child: Opacity(
+                                                opacity:
+                                                    session.currentVerse !=
+                                                                null &&
+                                                            !isCurrent
+                                                        ? 0.58
+                                                        : 1,
+                                                child: Transform.scale(
+                                                  scale: isCurrent
+                                                      ? 1.012
+                                                      : 1,
+                                                  alignment:
+                                                      Alignment.centerLeft,
+                                                  child: Material(
+                                                    color: isCurrent
+                                                        ? Color.lerp(
+                                                            const Color(
+                                                              0xFFD4EAF6,
+                                                            ),
+                                                            Colors.white,
+                                                            0.28 -
+                                                                peak * 0.08,
+                                                          )!
+                                                        : Colors.transparent,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      8,
+                                                    ),
+                                                    child: InkWell(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                        8,
+                                                      ),
+                                                      onTap: !session
+                                                                  .canSeek ||
+                                                              preparing
+                                                          ? null
+                                                          : () => ctrl
+                                                              .seekVerse(
+                                                                v.verse,
+                                                              ),
+                                                      child: Container(
+                                                        decoration: isCurrent
+                                                            ? BoxDecoration(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                  8,
+                                                                ),
+                                                                border:
+                                                                    Border.all(
+                                                                  color: Color(
+                                                                    0xFF8EC8E8,
+                                                                  ).withValues(
+                                                                    alpha: 0.4 +
+                                                                        peak *
+                                                                            0.15,
+                                                                  ),
+                                                                ),
+                                                                boxShadow: [
+                                                                  BoxShadow(
+                                                                    color: const Color(
+                                                                      0xFF8EC8E8,
+                                                                    ).withValues(
+                                                                      alpha: 0.18 +
+                                                                          peak *
+                                                                              0.18,
+                                                                    ),
+                                                                    blurRadius: 12 +
+                                                                        peak *
+                                                                            10,
+                                                                  ),
+                                                                ],
+                                                              )
+                                                            : null,
+                                                        foregroundDecoration:
+                                                            isCurrent
+                                                                ? BoxDecoration(
+                                                                    borderRadius:
+                                                                        BorderRadius
+                                                                            .circular(
+                                                                      8,
+                                                                    ),
+                                                                    border:
+                                                                        const Border(
+                                                                      left:
+                                                                          BorderSide(
+                                                                        color: Color(
+                                                                          0xBF5AA0C8,
+                                                                        ),
+                                                                        width: 3,
+                                                                      ),
+                                                                    ),
+                                                                  )
+                                                                : null,
+                                                        child: Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 5,
+                                                          ),
+                                                          child: Text.rich(
+                                                            TextSpan(
+                                                              children: [
+                                                                TextSpan(
+                                                                  text:
+                                                                      '${v.verse} ',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        13,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                    color: isCurrent
+                                                                        ? const Color(
+                                                                            0xFF3D7EA8,
+                                                                          )
+                                                                        : AppColors
+                                                                            .inkSoft,
+                                                                  ),
+                                                                ),
+                                                                TextSpan(
+                                                                  text: v.text,
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        16,
+                                                                    height:
+                                                                        1.55,
+                                                                    fontWeight:
+                                                                        isCurrent
+                                                                            ? FontWeight
+                                                                                .w500
+                                                                            : FontWeight
+                                                                                .w400,
+                                                                    color:
+                                                                        AppColors
+                                                                            .ink,
+                                                                    letterSpacing:
+                                                                        0.32,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      },
                                     ),
-                                    ),
-                                  ),
-                                ),
-                                  ),
-                                ),
-                                  );
-                                },
-                              );
-                            },
-                          ),
+                            ),
                           ),
                           if (_chapterFlash != null)
                             Positioned.fill(
                               child: IgnorePointer(
-                                child: AnimatedOpacity(
-                                  opacity: _chapterFlash != null ? 1 : 0,
-                                  duration: const Duration(milliseconds: 200),
-                                  child: ColoredBox(
-                                    color: AppColors.surface
-                                        .withValues(alpha: 0.55),
-                                    child: Center(
-                                      child: Text(
-                                        _chapterFlash!,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.4,
-                                          color: AppColors.ink,
+                                child: AnimatedBuilder(
+                                  animation: _flashCtl,
+                                  builder: (context, _) {
+                                    // 对齐 PWA listen-chapter-flash keyframes
+                                    final t = _flashCtl.value;
+                                    double opacity;
+                                    if (t < 0.18) {
+                                      opacity = t / 0.18;
+                                    } else if (t < 0.70) {
+                                      opacity = 1;
+                                    } else {
+                                      opacity = (1 - t) / 0.30;
+                                    }
+                                    return Opacity(
+                                      opacity: opacity.clamp(0.0, 1.0),
+                                      child: ColoredBox(
+                                        color: AppColors.surface
+                                            .withValues(alpha: 0.55),
+                                        child: Center(
+                                          child: Text(
+                                            _chapterFlash!,
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 0.64,
+                                              color: AppColors.ink,
+                                              shadows: [
+                                                Shadow(
+                                                  color: Color(0x99FFFFFF),
+                                                  offset: Offset(0, 1),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
@@ -479,22 +686,47 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
                       ),
                     ),
                   ),
-                  Material(
-                    color: AppColors.surface,
-                    elevation: 6,
-                    shadowColor: const Color(0x14000000),
+                  // 底栏：渐变盖住经文（对齐 PWA .listen-sheet-footer，非 Material 卡片）
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          AppColors.surface.withValues(alpha: 0),
+                          AppColors.surface.withValues(alpha: 0.92),
+                          AppColors.surface,
+                        ],
+                        stops: const [0, 0.18, 1],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.surface.withValues(alpha: 0.85),
+                          blurRadius: 18,
+                          offset: const Offset(0, -10),
+                        ),
+                      ],
+                    ),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
+                      padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           SliderTheme(
                             data: SliderTheme.of(context).copyWith(
-                              trackHeight: 3,
+                              trackHeight: 3.5,
+                              activeTrackColor: AppColors.accentDeep,
+                              inactiveTrackColor:
+                                  AppColors.line.withValues(alpha: 0.85),
+                              thumbColor: AppColors.accentDeep,
+                              overlayColor:
+                                  AppColors.accentDeep.withValues(alpha: 0.12),
                               thumbShape: const RoundSliderThumbShape(
-                                enabledThumbRadius: 7,
+                                enabledThumbRadius: 8,
                               ),
+                              trackShape:
+                                  const RoundedRectSliderTrackShape(),
                             ),
                             child: Slider(
                               value: posMs,
@@ -523,89 +755,103 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
                               ),
                             ],
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              IconButton(
-                                onPressed:
-                                    preparing || !widget.canPrevChapter
-                                        ? null
-                                        : () => widget.onNavChapter(-1),
-                                icon: const Text(
-                                  '‹‹',
-                                  style: TextStyle(fontSize: 22),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _chapterCtl(
+                                  label: '‹‹',
+                                  enabled:
+                                      !preparing && widget.canPrevChapter,
+                                  onTap: () => widget.onNavChapter(-1),
                                 ),
-                              ),
-                              const SizedBox(width: 18),
-                              AnimatedBuilder(
-                                animation: _ringCtl,
-                                builder: (context, _) {
-                                  final pulse = playing ? _ringCtl.value : 0.0;
-                                  return SizedBox(
-                                    width: 92,
-                                    height: 92,
-                                    child: CustomPaint(
-                                      painter: _ListenPlayRingPainter(
-                                        playing: playing,
-                                        pulse: pulse,
-                                        color: AppColors.accentDeep,
-                                      ),
-                                      child: Center(
-                                        child: Material(
+                                const SizedBox(width: 28),
+                                AnimatedBuilder(
+                                  animation: Listenable.merge([
+                                    _ringCtl,
+                                    _spinCtl,
+                                  ]),
+                                  builder: (context, _) {
+                                    final pulse =
+                                        playing ? _ringCtl.value : 0.0;
+                                    return SizedBox(
+                                      width: 96,
+                                      height: 96,
+                                      child: CustomPaint(
+                                        painter: _ListenPlayRingPainter(
+                                          playing: playing,
+                                          preparing: preparing,
+                                          pulse: pulse,
+                                          spin: _spinCtl.value,
                                           color: AppColors.accentDeep,
-                                          shape: const CircleBorder(),
-                                          elevation: 3,
-                                          child: InkWell(
-                                            customBorder: const CircleBorder(),
-                                            onTap: preparing
-                                                ? null
-                                                : () => ctrl.togglePlayPause(),
-                                            child: SizedBox(
-                                              width: 64,
-                                              height: 64,
-                                              child: Center(
-                                                child: preparing
-                                                    ? const SizedBox(
-                                                        width: 22,
-                                                        height: 22,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                          strokeWidth: 2.2,
-                                                          color: Colors.white,
+                                        ),
+                                        child: Center(
+                                          child: Material(
+                                            color: preparing
+                                                ? Color.lerp(
+                                                    AppColors.accentDeep,
+                                                    const Color(0xFF6A7A72),
+                                                    0.22,
+                                                  )!
+                                                : AppColors.accentDeep,
+                                            shape: const CircleBorder(),
+                                            elevation: preparing ? 0 : 3,
+                                            shadowColor: AppColors.accentDeep
+                                                .withValues(alpha: 0.35),
+                                            child: InkWell(
+                                              customBorder:
+                                                  const CircleBorder(),
+                                              onTap: preparing
+                                                  ? null
+                                                  : () =>
+                                                      ctrl.togglePlayPause(),
+                                              child: SizedBox(
+                                                width: 68,
+                                                height: 68,
+                                                child: Center(
+                                                  child: preparing
+                                                      ? const SizedBox.shrink()
+                                                      : Text(
+                                                          playing ? '‖' : '▶',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: playing
+                                                                ? 26
+                                                                : 24,
+                                                            height: 1,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            letterSpacing:
+                                                                playing
+                                                                    ? 0
+                                                                    : 2,
+                                                          ),
                                                         ),
-                                                      )
-                                                    : Text(
-                                                        playing ? '‖' : '▶',
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 24,
-                                                        ),
-                                                      ),
+                                                ),
                                               ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 18),
-                              IconButton(
-                                onPressed:
-                                    preparing || !widget.canNextChapter
-                                        ? null
-                                        : () => widget.onNavChapter(1),
-                                icon: const Text(
-                                  '››',
-                                  style: TextStyle(fontSize: 22),
+                                    );
+                                  },
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 28),
+                                _chapterCtl(
+                                  label: '››',
+                                  enabled:
+                                      !preparing && widget.canNextChapter,
+                                  onTap: () => widget.onNavChapter(1),
+                                ),
+                              ],
+                            ),
                           ),
                           Text(
                             preparing
-                                ? (widget.englishUI ? 'Preparing' : '正在准备')
+                                ? (widget.englishUI
+                                    ? 'Preparing'
+                                    : '正在准备')
                                 : session.sleepClosing
                                     ? (widget.englishUI
                                         ? 'Rest well — softly closing'
@@ -618,7 +864,8 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
                                         : ' '),
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
+                              letterSpacing: session.sleepClosing ? 0.32 : 0,
                               color: errored
                                   ? const Color(0xFFA0483A)
                                   : session.sleepClosing
@@ -643,7 +890,8 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
                               ),
                               _chip(
                                 label: kListenVoices
-                                        .where((v) => v.id == session.settings.voice)
+                                        .where((v) =>
+                                            v.id == session.settings.voice)
                                         .map((v) => v.label)
                                         .firstOrNull ??
                                     (widget.englishUI ? 'Voice' : '音色'),
@@ -712,7 +960,8 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
                                 final minutes = e.$1;
                                 return _chip(
                                   label: e.$2,
-                                  on: session.settings.sleepMinutes == minutes,
+                                  on: session.settings.sleepMinutes ==
+                                      minutes,
                                   onTap: () {
                                     ctrl.armSleep(minutes);
                                     setState(() => _panel = 'none');
@@ -861,7 +1110,38 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
             ],
           ),
         ),
+            ],
+          ),
+        ),
       ),
+      ),
+    );
+  }
+
+  Widget _chapterCtl({
+    required String label,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: enabled ? onTap : null,
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 22,
+                color: enabled
+                    ? AppColors.ink
+                    : AppColors.ink.withValues(alpha: 0.35),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -982,34 +1262,75 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
 class _ListenPlayRingPainter extends CustomPainter {
   _ListenPlayRingPainter({
     required this.playing,
+    required this.preparing,
     required this.pulse,
+    required this.spin,
     required this.color,
   });
 
   final bool playing;
+  final bool preparing;
   final double pulse;
+  final double spin;
   final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (!playing) return;
     final c = Offset(size.width / 2, size.height / 2);
-    final base = size.shortestSide * 0.36;
+    final buttonR = 34.0;
+
+    if (preparing) {
+      // 对齐 PWA .listen-sheet-play.is-preparing::before 转圈描边
+      final rect = Rect.fromCircle(center: c, radius: buttonR + 5);
+      final bg = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = Colors.white.withValues(alpha: 0.12);
+      canvas.drawCircle(c, buttonR + 5, bg);
+      final fg = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round
+        ..color = Colors.white.withValues(alpha: 0.72);
+      canvas.drawArc(
+        rect,
+        -math.pi / 2 + spin * math.pi * 2,
+        math.pi * 1.15,
+        false,
+        fg,
+      );
+      return;
+    }
+
+    if (!playing) return;
+    final t = pulse;
+    final scaleA = 1.0 + 0.07 * _easePeak(t);
+    final scaleB = 1.0 + 0.07 * _easePeak((t + 0.35) % 1.0);
+    final opacityA = 0.55 + 0.4 * _easePeak(t);
+    final opacityB = 0.35 + 0.3 * _easePeak((t + 0.35) % 1.0);
+
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5
-      ..color = color.withValues(alpha: 0.35 + pulse * 0.4);
-    canvas.drawCircle(c, base + 4 + pulse * 3, paint);
+      ..color = color.withValues(alpha: opacityA * 0.9);
+    canvas.drawCircle(c, (buttonR + 7) * scaleA, paint);
     paint
       ..strokeWidth = 1
-      ..color = color.withValues(alpha: 0.18 + pulse * 0.25);
-    canvas.drawCircle(c, base + 11 + pulse * 5, paint);
+      ..color = color.withValues(alpha: opacityB * 0.45);
+    canvas.drawCircle(c, (buttonR + 14) * scaleB, paint);
+  }
+
+  double _easePeak(double t) {
+    final x = (t <= 0.5) ? t * 2 : (1 - t) * 2;
+    return Curves.easeInOut.transform(x.clamp(0.0, 1.0));
   }
 
   @override
   bool shouldRepaint(covariant _ListenPlayRingPainter oldDelegate) {
     return oldDelegate.playing != playing ||
+        oldDelegate.preparing != preparing ||
         oldDelegate.pulse != pulse ||
+        oldDelegate.spin != spin ||
         oldDelegate.color != color;
   }
 }

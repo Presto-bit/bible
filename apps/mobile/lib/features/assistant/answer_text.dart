@@ -63,7 +63,9 @@ class AnswerText extends StatelessWidget {
   final void Function(int n)? onCitationTap;
 
   static final _labelRe = RegExp(r'^【([^】]+)】\s*(.*)$');
-  static final _headingRe = RegExp(r'^(#{1,4})\s+(.*)$');
+  /// 允许 `### 标题` 与模型偶发的 `###标题`（无空格）。
+  static final _headingRe = RegExp(r'^(#{1,4})(?:\s+|(?=[^\s#]))(.*)$');
+  static final _bareHashesRe = RegExp(r'^#{1,6}\s*$');
   static final _bulletRe = RegExp(r'^\s*[-*+•·]\s+(.*)$');
   static final _numberedRe = RegExp(r'^\s*(\d+)[.、)）]\s+(.*)$');
   static final _mdOrderedRe = RegExp(r'^\s*(\d+)\.\s+(.*)$');
@@ -263,6 +265,11 @@ class AnswerText extends StatelessWidget {
       }
 
       final trimmed = line.trim();
+      if (_bareHashesRe.hasMatch(trimmed)) {
+        // 流式半截 ### 或误输出的裸井号：不展示给用户
+        i += 1;
+        continue;
+      }
       final label = _labelRe.firstMatch(trimmed);
       final heading = _headingRe.firstMatch(trimmed);
       final bullet = _bulletRe.firstMatch(trimmed);
@@ -293,6 +300,10 @@ class AnswerText extends StatelessWidget {
       if (heading != null) {
         final level = heading.group(1)!.length;
         final title = heading.group(2)!.trim();
+        if (title.isEmpty) {
+          i += 1;
+          continue;
+        }
         if (level <= 3) {
           widgets.add(_sectionHeading(
             title,
