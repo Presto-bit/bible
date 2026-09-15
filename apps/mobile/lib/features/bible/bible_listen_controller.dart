@@ -217,13 +217,16 @@ class BibleListenController extends Notifier<BibleListenSession> {
       state = state.copyWith(ui: BibleListenUi.paused);
       return;
     }
-    await prepareAndPlay(
-      bookId: bookId,
-      bookName: bookName,
-      chapter: chapter,
-      translation: translation,
-      translationLabel: translationLabel,
-      verses: verses,
+    // 不阻塞听读面弹出：准备/开播在后台进行
+    unawaited(
+      prepareAndPlay(
+        bookId: bookId,
+        bookName: bookName,
+        chapter: chapter,
+        translation: translation,
+        translationLabel: translationLabel,
+        verses: verses,
+      ),
     );
   }
 

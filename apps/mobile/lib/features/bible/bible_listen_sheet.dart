@@ -16,6 +16,9 @@ import 'models.dart';
 /// 对齐 PWA `SHEET_OPEN_GUARD_MS`：刚打开时忽略遮罩误触。
 const _kListenSheetOpenGuard = Duration(milliseconds: 400);
 
+/// 进程内只允许一层听读 modal（防连点 / 竞态叠两张）。
+bool _listenSheetRouteActive = false;
+
 Future<void> showBibleListenSheet(
   BuildContext context,
   WidgetRef ref, {
@@ -29,33 +32,38 @@ Future<void> showBibleListenSheet(
   required Future<void> Function(BibleBook book, int chapter) onPickChapter,
   bool englishUI = false,
 }) async {
+  if (_listenSheetRouteActive) return;
+  _listenSheetRouteActive = true;
   final ctrl = ref.read(bibleListenProvider.notifier);
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    // 对齐 PWA backdrop 终态 ~0.48；误触由 sheet 内 guard 处理
-    barrierColor: const Color(0x7A1C1814),
-    isDismissible: false,
-    enableDrag: true,
-    builder: (ctx) {
-      return _ListenSheetDismissGuard(
-        child: _BibleListenSheetBody(
-          books: books,
-          book: book,
-          chapter: chapter,
-          bookAbbr: bookAbbr,
-          canPrevChapter: canPrevChapter,
-          canNextChapter: canNextChapter,
-          onNavChapter: onNavChapter,
-          onPickChapter: onPickChapter,
-          englishUI: englishUI,
-        ),
-      );
-    },
-  ).whenComplete(() {
+  try {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      // 对齐 PWA backdrop 终态 ~0.48；误触由 sheet 内 guard 处理
+      barrierColor: const Color(0x7A1C1814),
+      isDismissible: false,
+      enableDrag: true,
+      builder: (ctx) {
+        return _ListenSheetDismissGuard(
+          child: _BibleListenSheetBody(
+            books: books,
+            book: book,
+            chapter: chapter,
+            bookAbbr: bookAbbr,
+            canPrevChapter: canPrevChapter,
+            canNextChapter: canNextChapter,
+            onNavChapter: onNavChapter,
+            onPickChapter: onPickChapter,
+            englishUI: englishUI,
+          ),
+        );
+      },
+    );
+  } finally {
+    _listenSheetRouteActive = false;
     ctrl.closeSheet();
-  });
+  }
 }
 
 /// 遮罩点击需过开场保护窗（对齐 PWA guardedClose）；拖拽 / 返回键仍可关。

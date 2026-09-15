@@ -146,6 +146,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   int? _pendingFlashVerse;
   FeedActivityHint? _pendingFeedHint;
   String? _lastAudioBindKey;
+  /// 听读面正在弹出（防连点叠两层 modal）
+  bool _listenSheetPresenting = false;
   bool _lastHasSelectionForAudio = false;
   String? _lastPrewarmChapterKey;
   Timer? _prewarmTimer;
@@ -917,97 +919,110 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   Future<void> _openListenSheet(BuildContext context) async {
     final b = _book;
     if (b == null) return;
-    final translation = _mainVersionId ?? 'cuvs';
-    final label = _versionLabel.split(' · ').first;
-    List<Verse> verses = const [];
-    try {
-      final ch = await ref.read(bibleRepoProvider).chapter(
-            b.id,
-            _chapter,
-            version: translation,
-          );
-      verses = ch.verses;
-    } catch (_) {
-      /* 面内仍可准备；正文可空 */
-    }
-    if (!mounted) return;
-    final tipSeen =
-        ref.read(prefsProvider).getBool('bible_listen_tip_v1') ?? false;
-    if (!tipSeen) {
-      await ref.read(prefsProvider).setBool('bible_listen_tip_v1', true);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isEnglishBibleVersion(translation)
-                  ? 'Swipe down to keep listening; open Listen to pause'
-                  : '下滑可继续听；暂停请打开听读页',
-            ),
-            duration: const Duration(milliseconds: 2600),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
     final listenCtrl = ref.read(bibleListenProvider.notifier);
-    listenCtrl.onContinuousNext = (bookId, chapter) {
-      unawaited(_navToListenChapter(bookId, chapter));
-    };
-    final catalogBooks =
-        ref.read(catalogBooksProvider(_mainVersionId)).value ??
-            ref.read(booksProvider).value ??
-            const <BibleBook>[];
-    final displayBook = catalogBooks.firstWhere(
-      (x) => x.id == b.id,
-      orElse: () => isEnglishBibleVersion(translation)
-          ? BibleBook(
-              id: b.id,
-              name: englishBookName(b.id, fallback: b.name),
-              testament: b.testament,
-              sortOrder: b.sortOrder,
-              chapterCount: b.chapterCount,
-            )
-          : b,
-    );
-    await listenCtrl.openSheet(
-      bookId: displayBook.id,
-      bookName: displayBook.name,
-      chapter: _chapter,
-      translation: translation,
-      translationLabel: label,
-      verses: [
-        for (final v in verses) (verse: v.verse, text: v.text),
-      ],
-    );
-    if (!mounted) return;
-    await showBibleListenSheet(
-      context,
-      ref,
-      books: catalogBooks.isNotEmpty ? catalogBooks : [displayBook],
-      book: displayBook,
-      chapter: _chapter,
-      bookAbbr: (name) {
-        final hit = catalogBooks.where((x) => x.name == name).firstOrNull;
-        return bibleBookAbbrFor(
-          hit?.id ?? displayBook.id,
-          name,
-          english: isEnglishBibleVersion(translation),
+    final session = ref.read(bibleListenProvider);
+    // 防连点叠两层听读面（旧逻辑会等开播完才弹面，二次点击再叠一张）
+    if (session.sheetOpen || _listenSheetPresenting) return;
+    _listenSheetPresenting = true;
+    try {
+      final translation = _mainVersionId ?? 'cuvs';
+      final label = _versionLabel.split(' · ').first;
+      List<Verse> verses = const [];
+      try {
+        final ch = await ref.read(bibleRepoProvider).chapter(
+              b.id,
+              _chapter,
+              version: translation,
+            );
+        verses = ch.verses;
+      } catch (_) {
+        /* 面内仍可准备；正文可空 */
+      }
+      if (!mounted) return;
+      final tipSeen =
+          ref.read(prefsProvider).getBool('bible_listen_tip_v1') ?? false;
+      if (!tipSeen) {
+        unawaited(
+          ref.read(prefsProvider).setBool('bible_listen_tip_v1', true),
         );
-      },
-      canPrevChapter: _canNavChapter(-1),
-      canNextChapter: _canNavChapter(1),
-      englishUI: isEnglishBibleVersion(translation),
-      onNavChapter: (delta) => _nav(delta),
-      onPickChapter: (picked, ch) async {
-        setState(() {
-          _book = picked;
-          _chapter = ch.clamp(1, picked.chapterCount);
-          _hasSelection = false;
-        });
-        ref.read(readingRepoProvider).record(picked.id, _chapter);
-        await _syncListenAfterChapterChange();
-      },
-    );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isEnglishBibleVersion(translation)
+                    ? 'Swipe down to keep listening; open Listen to pause'
+                    : '下滑可继续听；暂停请打开听读页',
+              ),
+              duration: const Duration(milliseconds: 2600),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+      listenCtrl.onContinuousNext = (bookId, chapter) {
+        unawaited(_navToListenChapter(bookId, chapter));
+      };
+      final catalogBooks =
+          ref.read(catalogBooksProvider(_mainVersionId)).value ??
+              ref.read(booksProvider).value ??
+              const <BibleBook>[];
+      final displayBook = catalogBooks.firstWhere(
+        (x) => x.id == b.id,
+        orElse: () => isEnglishBibleVersion(translation)
+            ? BibleBook(
+                id: b.id,
+                name: englishBookName(b.id, fallback: b.name),
+                testament: b.testament,
+                sortOrder: b.sortOrder,
+                chapterCount: b.chapterCount,
+              )
+            : b,
+      );
+      await listenCtrl.openSheet(
+        bookId: displayBook.id,
+        bookName: displayBook.name,
+        chapter: _chapter,
+        translation: translation,
+        translationLabel: label,
+        verses: [
+          for (final v in verses) (verse: v.verse, text: v.text),
+        ],
+      );
+      if (!mounted) {
+        listenCtrl.closeSheet(cancelIfPreparing: false);
+        return;
+      }
+      await showBibleListenSheet(
+        context,
+        ref,
+        books: catalogBooks.isNotEmpty ? catalogBooks : [displayBook],
+        book: displayBook,
+        chapter: _chapter,
+        bookAbbr: (name) {
+          final hit = catalogBooks.where((x) => x.name == name).firstOrNull;
+          return bibleBookAbbrFor(
+            hit?.id ?? displayBook.id,
+            name,
+            english: isEnglishBibleVersion(translation),
+          );
+        },
+        canPrevChapter: _canNavChapter(-1),
+        canNextChapter: _canNavChapter(1),
+        englishUI: isEnglishBibleVersion(translation),
+        onNavChapter: (delta) => _nav(delta),
+        onPickChapter: (picked, ch) async {
+          setState(() {
+            _book = picked;
+            _chapter = ch.clamp(1, picked.chapterCount);
+            _hasSelection = false;
+          });
+          ref.read(readingRepoProvider).record(picked.id, _chapter);
+          await _syncListenAfterChapterChange();
+        },
+      );
+    } finally {
+      _listenSheetPresenting = false;
+    }
   }
 
   Future<void> _navToListenChapter(String bookId, int chapter) async {

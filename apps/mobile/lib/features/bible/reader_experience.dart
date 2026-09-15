@@ -2480,17 +2480,15 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
     final readingMode = ref.watch(readingModeProvider);
     final audioSession = ref.watch(readerAudioProvider);
     final listenSession = ref.watch(bibleListenProvider);
-    final listenCurrentVerse = (listenSession.ui == BibleListenUi.playing ||
-            listenSession.ui == BibleListenUi.paused ||
-            listenSession.ui == BibleListenUi.preparing)
-        ? listenSession.currentVerse
-        : null;
-    // 对齐 PWA：playing = 强高亮；paused/preparing = 弱 echo
-    final listenHighlightStrong = listenSession.ui == BibleListenUi.playing;
+    final listenCurrentVerse =
+        listenSession.ui == BibleListenUi.playing
+            ? listenSession.currentVerse
+            : null;
+    // 仅播放中高亮；暂停后清掉底色（不再用 echo）
+    final listenHighlightStrong = listenCurrentVerse != null;
     final audioCurrentVerse =
         listenCurrentVerse ??
-        (audioSession.state == ReaderAudioState.playing ||
-                audioSession.state == ReaderAudioState.paused
+        (audioSession.state == ReaderAudioState.playing
             ? audioSession.currentVerse
             : null);
     final audioHighlightStrong = listenCurrentVerse != null
