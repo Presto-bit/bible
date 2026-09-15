@@ -671,7 +671,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                         crossAxisCount: 3,
                         mainAxisSpacing: 14,
                         crossAxisSpacing: 10,
-                        // 3:4 封面 + 标题约两行：略增高格子避免裁切书名
+                        // 封面固定 3:4 + 间距 + 统一标题区；比值偏低留余量，避免窄屏裁切
                         childAspectRatio: 0.52,
                       ),
                       delegate: SliverChildBuilderDelegate(

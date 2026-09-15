@@ -7,6 +7,12 @@ import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
 import 'shelf_repository.dart';
 
+/// 对齐 PWA `.shelf-book-card-cover { aspect-ratio: 3 / 4 }`
+const _kCoverAspect = 3 / 4;
+
+/// 标题区固定高：两行书名，或一行书名 + 合集 meta（避免挤占封面高度）
+const _kTitleBlockHeight = 48.0;
+
 class ShelfBookCard extends StatelessWidget {
   const ShelfBookCard({
     super.key,
@@ -29,6 +35,7 @@ class ShelfBookCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ratio = progressRatio?.clamp(0.0, 1.0);
     final resolvedCover = (coverUrl ?? '').trim();
+    final isCollection = book.bookType == 'collection';
 
     // 格子约束是 tight：必须 expand，否则空白区无命中、滚动易吞掉子树
     return Material(
@@ -41,7 +48,8 @@ class ShelfBookCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
+              AspectRatio(
+                aspectRatio: _kCoverAspect,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: Stack(
@@ -113,13 +121,13 @@ class ShelfBookCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               SizedBox(
-                height: book.bookType == 'collection' ? 48 : 34,
+                height: _kTitleBlockHeight,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
                       book.title.isEmpty ? '未命名' : book.title,
-                      maxLines: book.bookType == 'collection' ? 1 : 2,
+                      maxLines: isCollection ? 1 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 12,
@@ -128,7 +136,7 @@ class ShelfBookCard extends StatelessWidget {
                         color: AppColors.ink,
                       ),
                     ),
-                    if (book.bookType == 'collection')
+                    if (isCollection)
                       Text(
                         '合集 · ${book.sectionCount} 份',
                         maxLines: 1,
