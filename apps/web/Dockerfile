@@ -4,7 +4,11 @@ ARG NODE_BASE_IMAGE=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/n
 FROM ${NODE_BASE_IMAGE} AS deps
 WORKDIR /app
 COPY apps/web/package.json apps/web/package-lock.json ./
-RUN npm ci
+RUN npm ci \
+  && node -e "const s=require('next/package.json').version; const v=s.split('.').map(Number); \
+     const floors=[[15,0,5],[15,1,9],[15,2,6],[15,3,6],[15,4,8],[15,5,7],[16,0,7]]; \
+     const ok=floors.some(([M,m,p])=>v[0]>M||(v[0]===M&&(v[1]>m||(v[1]===m&&v[2]>=p)))); \
+     if(!ok){console.error('CVE-2025-55182: next not patched, got '+s); process.exit(1)}"
 
 FROM ${NODE_BASE_IMAGE} AS builder
 WORKDIR /app
