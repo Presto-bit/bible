@@ -17,6 +17,7 @@ import '../../core/database/app_database.dart';
 import '../../core/badge_stats.dart';
 import '../../core/gamification.dart' show readingStreak;
 import '../../core/analysis_share_sheet.dart';
+import '../../core/native_permissions.dart';
 import '../../core/reader_ref.dart';
 import '../../core/ref_label.dart' show refToChineseLabel;
 import '../../core/theme.dart';
@@ -77,12 +78,21 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   String? _anchorRef;
   String? _sessionId;
   String _knowledgeBaseId = 'platform';
-  String _knowledgeBaseName = '平台知识库';
+  String _knowledgeBaseName = '平台参考库';
   List<KnowledgeBaseSummary> _kbs = const [];
   bool _bootstrapped = false;
   CancelToken? _chatCancel;
   bool _followScroll = true;
   int _streamGen = 0;
+
+  // 语音输入（对齐 PWA：麦克风/键盘切换 + 按住说话）
+  final SpeechToText _speech = SpeechToText();
+  bool _speechReady = false;
+  bool _voiceMode = false;
+  bool _recording = false;
+  bool _cancelArmed = false;
+  String _voiceTranscript = '';
+  double _voiceStartY = 0;
 
   void _maybeBootstrap() {
     if (_bootstrapped) return;
@@ -290,44 +300,189 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       _lastMeta = null;
       _conversationId = null;
       _knowledgeBaseId = 'platform';
-      _knowledgeBaseName = '平台知识库';
+      _knowledgeBaseName = '平台参考库';
     });
+  }
+
+  Future<bool> _ensureSpeechReady() async {
+    final micOk = await NativePermissions.requestMicrophone();
+    if (!micOk) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('需要麦克风权限才能语音输入')),
+        );
+      }
+      return false;
+    }
+    if (_speechReady) return true;
+    try {
+      _speechReady = await _speech.initialize(
+        onError: (_) {},
+        onStatus: (_) {},
+      );
+    } catch (_) {
+      _speechReady = false;
+    }
+    if (!_speechReady && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('当前设备不支持语音输入，请用键盘')),
+      );
+    }
+    return _speechReady;
+  }
+
+  Future<void> _toggleVoiceMode() async {
+    if (_voiceMode) {
+      if (_speech.isListening) await _speech.stop();
+      if (!mounted) return;
+      setState(() {
+        _voiceMode = false;
+        _recording = false;
+        _cancelArmed = false;
+        _voiceTranscript = '';
+      });
+      return;
+    }
+    final ok = await _ensureSpeechReady();
+    if (!mounted || !ok) return;
+    setState(() => _voiceMode = true);
+  }
+
+  Future<void> _onVoicePointerDown(Offset global) async {
+    if (_streaming || _quotaExhausted || !_voiceMode) return;
+    final ok = await _ensureSpeechReady();
+    if (!mounted || !ok) return;
+    _voiceStartY = global.dy;
+    _voiceTranscript = '';
+    setState(() {
+      _recording = true;
+      _cancelArmed = false;
+    });
+    try {
+      await _speech.listen(
+        onResult: (r) {
+          _voiceTranscript = r.recognizedWords;
+        },
+        listenOptions: SpeechListenOptions(
+          localeId: 'zh_CN',
+          listenMode: ListenMode.dictation,
+          partialResults: true,
+          cancelOnError: true,
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _recording = false;
+          _cancelArmed = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('无法开始语音识别，请用键盘')),
+        );
+      }
+    }
+  }
+
+  void _onVoicePointerMove(Offset global) {
+    if (!_recording) return;
+    final armed = _voiceStartY - global.dy > 60;
+    if (armed != _cancelArmed) {
+      setState(() => _cancelArmed = armed);
+    }
+  }
+
+  Future<void> _onVoicePointerUp() async {
+    if (!_recording) return;
+    final willCancel = _cancelArmed;
+    setState(() {
+      _recording = false;
+      _cancelArmed = false;
+    });
+    try {
+      if (willCancel) {
+        await _speech.cancel();
+      } else {
+        await _speech.stop();
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    // 给识别一点收尾时间再发送（对齐 PWA 250ms）
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (!mounted) return;
+    final text = _voiceTranscript.trim();
+    _voiceTranscript = '';
+    if (!willCancel && text.isNotEmpty) {
+      _input.text = text;
+      await _send(seedQuestion: text);
+    }
   }
 
   Future<void> _pickKnowledgeBase() async {
     if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+      ),
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '知识库',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSunken,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '平台参考库',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      '当前问答唯一检索来源 · 含中文研经与公版注释',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.inkSoft,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            ListTile(
-              title: const Text('平台知识库'),
-              subtitle: const Text('含中文研经、公版英文注释、原文与词典（默认）'),
-              trailing: const Icon(Icons.check, color: AppColors.accentDeep),
-              onTap: () => Navigator.pop(ctx),
-            ),
-            ListTile(
-              title: const Text('浏览知识库'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/knowledge-bases');
-              },
-            ),
-          ],
+              const SizedBox(height: 4),
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/knowledge-bases');
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  child: Text(
+                    '浏览专题资料（仅查阅） ›',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.accentDeep,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -378,6 +533,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   void dispose() {
     _chatCancel?.cancel();
     _slowTimer?.cancel();
+    if (_speech.isListening) {
+      unawaited(_speech.stop());
+    }
     // 不在异步间隙写已 dispose 的 controller；先取文字再 dispose。
     final draft = _input.text;
     unawaited(saveComposerDraft(draft));
@@ -995,11 +1153,6 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                         ),
                       ),
                     ),
-                  IconButton(
-                    tooltip: '新会话',
-                    icon: const Icon(Icons.add_comment_outlined),
-                    onPressed: _newSession,
-                  ),
                 ],
               ),
             ),
@@ -1076,10 +1229,20 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                           onChip: null,
                           onSend: () => _send(),
                           onStop: _stopStream,
-                          knowledgeBaseLabel: _knowledgeBaseName,
                           onPickKnowledgeBase: _quotaExhausted
                               ? null
                               : _pickKnowledgeBase,
+                          voiceMode: _voiceMode,
+                          recording: _recording,
+                          cancelArmed: _cancelArmed,
+                          onToggleVoiceMode: _quotaExhausted
+                              ? null
+                              : () => unawaited(_toggleVoiceMode()),
+                          onVoicePointerDown: (p) =>
+                              unawaited(_onVoicePointerDown(p)),
+                          onVoicePointerMove: _onVoicePointerMove,
+                          onVoicePointerUp: () =>
+                              unawaited(_onVoicePointerUp()),
                         ),
                       ],
                     ),
@@ -1139,7 +1302,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                               ),
                       onSwitchToPlatform: () => setState(() {
                         _knowledgeBaseId = 'platform';
-                        _knowledgeBaseName = '平台知识库';
+                        _knowledgeBaseName = '平台参考库';
                       }),
                     );
                   },
@@ -1154,10 +1317,18 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 onChip: _quotaExhausted ? null : _sendChip,
                 onSend: () => _send(),
                 onStop: _stopStream,
-                knowledgeBaseLabel: _knowledgeBaseName,
                 onPickKnowledgeBase: _quotaExhausted
                     ? null
                     : _pickKnowledgeBase,
+                voiceMode: _voiceMode,
+                recording: _recording,
+                cancelArmed: _cancelArmed,
+                onToggleVoiceMode: _quotaExhausted
+                    ? null
+                    : () => unawaited(_toggleVoiceMode()),
+                onVoicePointerDown: (p) => unawaited(_onVoicePointerDown(p)),
+                onVoicePointerMove: _onVoicePointerMove,
+                onVoicePointerUp: () => unawaited(_onVoicePointerUp()),
               ),
             ],
           ],
