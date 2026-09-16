@@ -53,7 +53,7 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
   } | null>(null);
   const [coverKey, setCoverKey] = useState<string | null>(book?.cover_storage_key ?? null);
   const [coverSource, setCoverSource] = useState<string | null>(book?.cover_source ?? null);
-  const [coverNonce, setCoverNonce] = useState(0);
+  const [coverVersion, setCoverVersion] = useState<number | null>(book?.cover_version ?? null);
 
   const isCollection = book?.book_type === 'collection';
 
@@ -66,6 +66,7 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
     setSubtitle(book.subtitle || '');
     setCoverKey(book.cover_storage_key ?? null);
     setCoverSource(book.cover_source ?? null);
+    setCoverVersion(book.cover_version ?? null);
     if (book.book_type !== 'collection') return;
     let cancelled = false;
     setLoading(true);
@@ -216,7 +217,7 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
           {coverKey ? (
             <img
               className="shelf-manage-cover-preview"
-              src={`${shelfCoverUrl(book.id, coverKey)}?v=${coverNonce}`}
+              src={shelfCoverUrl(book.id, coverKey, coverVersion) ?? undefined}
               alt=""
             />
           ) : (
@@ -235,7 +236,7 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
                       .then((res) => {
                         setCoverKey(res.cover_storage_key);
                         setCoverSource(res.cover_source ?? 'ai');
-                        setCoverNonce((n) => n + 1);
+                        setCoverVersion(res.cover_version ?? Date.now());
                         toast('封面已生成');
                         invalidateShelfListCache();
                         invalidateShelfBookCache(book.id);
@@ -264,7 +265,7 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
                     .then((res) => {
                       setCoverKey(res.cover_storage_key);
                       setCoverSource(res.cover_source ?? 'user');
-                      setCoverNonce((n) => n + 1);
+                      setCoverVersion(res.cover_version ?? Date.now());
                       toast('封面已更新');
                       invalidateShelfListCache();
                       invalidateShelfBookCache(book.id);

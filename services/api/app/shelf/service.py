@@ -26,6 +26,8 @@ from .schema import ensure_shelf_schema
 from .cover_gen import (
     COVER_SOURCE_USER,
     CoverProtectedError,
+    cover_version_for_book,
+    cover_version_for_key,
     ensure_book_cover,
     generate_ai_book_cover,
     persist_cover_meta,
@@ -269,15 +271,24 @@ def _book_cover_context(item: dict[str, Any]) -> dict[str, Any]:
     return ctx
 
 
+def _set_cover_version(item: dict[str, Any], storage_key: str | None) -> None:
+    ver = cover_version_for_key(storage_key)
+    if ver is not None:
+        item["cover_version"] = ver
+
+
 def _attach_cover_fields(items: list[dict[str, Any]]) -> None:
     for item in items:
-        if resolve_existing_cover_key(item):
-            item["cover_storage_key"] = resolve_existing_cover_key(item)
+        existing = resolve_existing_cover_key(item)
+        if existing:
+            item["cover_storage_key"] = existing
+            _set_cover_version(item, existing)
             continue
         try:
             key = ensure_book_cover(_book_cover_context(item), persist=True)
             if key:
                 item["cover_storage_key"] = key
+                _set_cover_version(item, key)
         except Exception:
             continue
 
@@ -462,6 +473,9 @@ def _finalize_book_detail(out: dict[str, Any]) -> dict[str, Any]:
             out["cover_storage_key"] = key
     except Exception:
         pass
+    ver = cover_version_for_book(out)
+    if ver is not None:
+        out["cover_version"] = ver
     return out
 
 
@@ -1205,7 +1219,11 @@ def upload_platform_book_cover(
 
     key = write_cover_bytes(book_id, data)
     persist_cover_meta({"id": book_id}, key, COVER_SOURCE_USER)
-    return {"ok": True, "cover_storage_key": key, "cover_source": COVER_SOURCE_USER}
+    ver = cover_version_for_key(key)
+    out: dict[str, Any] = {"ok": True, "cover_storage_key": key, "cover_source": COVER_SOURCE_USER}
+    if ver is not None:
+        out["cover_version"] = ver
+    return out
 
 
 def generate_platform_book_cover_ai(
@@ -1269,11 +1287,15 @@ def generate_platform_book_cover_ai(
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
 
-    return {
+    ver = cover_version_for_key(key)
+    out: dict[str, Any] = {
         "ok": True,
         "cover_storage_key": key,
         "cover_source": "ai",
     }
+    if ver is not None:
+        out["cover_version"] = ver
+    return out
 
 
 def collection_units(book_id: str) -> list[str]:

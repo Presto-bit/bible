@@ -57,6 +57,17 @@ def test_generate_ai_book_cover_blocks_user_source(tmp_path, monkeypatch):
         generate_ai_book_cover(book, persist=False, force=True)
 
 
+def test_cover_version_for_key(tmp_path, monkeypatch):
+    from app.shelf import cover_gen as cg
+
+    monkeypatch.setattr(cg, "shelf_dir", lambda: tmp_path)
+    monkeypatch.setattr(cg, "shelf_file_path", lambda key: tmp_path / Path(key).name)
+    key = write_cover_bytes("book-v", b"fake-webp-bytes-placeholder-xx")
+    ver = cg.cover_version_for_key(key)
+    assert ver is not None
+    assert ver > 0
+
+
 def test_fit_cover_webp_dimensions():
     from PIL import Image
     import io

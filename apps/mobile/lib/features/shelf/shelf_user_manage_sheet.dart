@@ -46,7 +46,7 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
   var _busy = false;
   String? _coverKey;
   String? _coverSource;
-  var _coverNonce = 0;
+  int? _coverVersion;
 
   bool get _isCollection => widget.book.bookType == 'collection';
 
@@ -57,6 +57,7 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
     _subtitle = TextEditingController(text: widget.book.subtitle);
     _coverKey = widget.book.coverStorageKey;
     _coverSource = widget.book.coverSource;
+    _coverVersion = widget.book.coverVersion;
     if (_isCollection) unawaited(_loadDetail());
   }
 
@@ -188,7 +189,8 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
         setState(() {
           _coverKey = res['cover_storage_key'] as String?;
           _coverSource = (res['cover_source'] as String?) ?? 'ai';
-          _coverNonce++;
+          _coverVersion = (res['cover_version'] as num?)?.toInt() ??
+              DateTime.now().millisecondsSinceEpoch ~/ 1000;
         });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('封面已生成')));
       }
@@ -216,7 +218,8 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
         setState(() {
           _coverKey = res['cover_storage_key'] as String?;
           _coverSource = (res['cover_source'] as String?) ?? 'user';
-          _coverNonce++;
+          _coverVersion = (res['cover_version'] as num?)?.toInt() ??
+              DateTime.now().millisecondsSinceEpoch ~/ 1000;
         });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('封面已更新')));
       }
@@ -266,8 +269,12 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
   Widget build(BuildContext context) {
     final sections = _detail?.sections ?? const <ShelfSectionSummary>[];
     final repo = ref.read(shelfRepoProvider);
-    final coverUrl = repo.coverUrl(widget.book.id, _coverKey);
-    final coverUri = coverUrl == null ? null : Uri.parse('$coverUrl?v=$_coverNonce');
+    final coverUrl = repo.coverUrl(
+      widget.book.id,
+      _coverKey,
+      coverVersion: _coverVersion,
+    );
+    final coverUri = coverUrl == null ? null : Uri.parse(coverUrl);
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(

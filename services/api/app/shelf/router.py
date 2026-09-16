@@ -333,7 +333,10 @@ def shelf_platform_asset(book_id: str, storage_key: str) -> FileResponse:
         ".webm": "video/webm",
         ".mov": "video/quicktime",
     }.get(suffix, "application/octet-stream")
-    return FileResponse(path, media_type=media, filename=path.name)
+    headers: dict[str, str] = {}
+    if storage_key.startswith("cover-"):
+        headers["Cache-Control"] = "private, max-age=300, must-revalidate"
+    return FileResponse(path, media_type=media, filename=path.name, headers=headers)
 
 
 @router.get("/platform/{book_id}/file")

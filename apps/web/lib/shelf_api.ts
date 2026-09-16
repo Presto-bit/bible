@@ -36,6 +36,8 @@ export type ShelfBookSummary = {
   can_edit?: boolean;
   cover_storage_key?: string | null;
   cover_source?: 'user' | 'pdf' | 'ai' | 'typography' | string | null;
+  /** 封面文件 mtime，用于 ?v= 破浏览器缓存 */
+  cover_version?: number | null;
   source: 'platform' | 'local';
 };
 
@@ -94,10 +96,18 @@ export function shelfAssetUrl(bookId: string, storageKey: string): string {
   return `${API_BASE}/shelf/platform/${encodeURIComponent(bookId)}/files/${key}`;
 }
 
-export function shelfCoverUrl(bookId: string, coverStorageKey?: string | null): string | null {
+export function shelfCoverUrl(
+  bookId: string,
+  coverStorageKey?: string | null,
+  coverVersion?: number | null,
+): string | null {
   const key = (coverStorageKey || '').trim();
   if (!key) return null;
-  return shelfAssetUrl(bookId, key);
+  const base = shelfAssetUrl(bookId, key);
+  if (coverVersion != null && coverVersion > 0) {
+    return `${base}?v=${coverVersion}`;
+  }
+  return base;
 }
 
 /** API 抽出的 Word 内嵌图 src 为 `/shelf/platform/...` 或裸文件名，补成绝对地址。 */
@@ -425,7 +435,7 @@ export async function updatePlatformShelfBook(
 export async function generatePlatformBookCover(
   bookId: string,
   options?: { force?: boolean },
-): Promise<{ ok: boolean; cover_storage_key: string; cover_source?: string }> {
+): Promise<{ ok: boolean; cover_storage_key: string; cover_source?: string; cover_version?: number }> {
   const qs = options?.force ? '?force=true' : '';
   const res = await fetch(
     `${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}/cover/generate${qs}`,
@@ -450,7 +460,7 @@ export async function generatePlatformBookCover(
 export async function uploadPlatformBookCover(
   bookId: string,
   file: File,
-): Promise<{ ok: boolean; cover_storage_key: string; cover_source?: string }> {
+): Promise<{ ok: boolean; cover_storage_key: string; cover_source?: string; cover_version?: number }> {
   const form = new FormData();
   form.append('file', file);
   const res = await fetch(

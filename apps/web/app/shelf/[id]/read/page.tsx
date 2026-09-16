@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { Suspense, use } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
+import { useSettleSoftSecondaryNav } from '@/lib/use_settle_soft_secondary_nav';
 
 const ShelfReader = dynamic(() => import('@/components/shelf/ShelfReader'), {
   ssr: false,
@@ -25,6 +26,7 @@ export default function ShelfBookReadPage({ params }: { params: Promise<{ id: st
 }
 
 function ShelfBookReadInner({ params }: { params: Promise<{ id: string }> }) {
+  useSettleSoftSecondaryNav();
   const { id } = use(params);
   const search = useSearchParams();
   const section = search.get('section');

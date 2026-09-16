@@ -193,6 +193,20 @@ def write_cover_bytes(book_id: str, data: bytes) -> str:
     return key
 
 
+def cover_version_for_key(storage_key: str | None) -> int | None:
+    """封面文件 mtime（秒），用于客户端 ?v= 破缓存。"""
+    key = (storage_key or "").strip()
+    if not key:
+        return None
+    path = shelf_file_path(key)
+    if not path.is_file():
+        return None
+    try:
+        return int(path.stat().st_mtime)
+    except OSError:
+        return None
+
+
 def resolve_existing_cover_key(book: dict[str, Any]) -> str | None:
     explicit = (book.get("cover_storage_key") or "").strip()
     if explicit and shelf_file_path(explicit).is_file():
@@ -371,6 +385,11 @@ def generate_ai_book_cover(
     if persist:
         persist_cover_meta(book, key, COVER_SOURCE_AI)
     return key
+
+
+def cover_version_for_book(book: dict[str, Any]) -> int | None:
+    key = resolve_existing_cover_key(book) or (book.get("cover_storage_key") or "").strip() or None
+    return cover_version_for_key(key)
 
 
 def ensure_book_cover(book: dict[str, Any], *, persist: bool = True) -> str | None:

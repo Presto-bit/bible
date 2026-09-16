@@ -124,7 +124,11 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   }
 
   Widget _buildCover(ShelfBookDetail book) {
-    final url = ref.read(shelfRepoProvider).coverUrl(book.id, book.coverStorageKey);
+    final url = ref.read(shelfRepoProvider).coverUrl(
+          book.id,
+          book.coverStorageKey,
+          coverVersion: book.coverVersion,
+        );
     if (url != null && url.isNotEmpty) {
       return Image.network(
         url,

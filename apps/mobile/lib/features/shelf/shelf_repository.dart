@@ -47,6 +47,7 @@ class ShelfBookSummary {
     this.canEdit = false,
     this.coverStorageKey,
     this.coverSource,
+    this.coverVersion,
   });
 
   final String id;
@@ -61,6 +62,7 @@ class ShelfBookSummary {
   final bool canEdit;
   final String? coverStorageKey;
   final String? coverSource;
+  final int? coverVersion;
 
   factory ShelfBookSummary.fromJson(Map<String, dynamic> j) => ShelfBookSummary(
         id: '${j['id'] ?? ''}',
@@ -75,6 +77,7 @@ class ShelfBookSummary {
         canEdit: j['can_edit'] == true,
         coverStorageKey: j['cover_storage_key'] as String?,
         coverSource: j['cover_source'] as String?,
+        coverVersion: (j['cover_version'] as num?)?.toInt(),
       );
 }
 
@@ -232,6 +235,8 @@ class ShelfBookDetail extends ShelfBookSummary {
     super.canDelete,
     super.canEdit,
     super.coverStorageKey,
+    super.coverSource,
+    super.coverVersion,
     required this.toc,
     this.sections = const [],
   });
@@ -251,6 +256,8 @@ class ShelfBookDetail extends ShelfBookSummary {
         canDelete: j['can_delete'] == true,
         canEdit: j['can_edit'] == true,
         coverStorageKey: j['cover_storage_key'] as String?,
+        coverSource: j['cover_source'] as String?,
+        coverVersion: (j['cover_version'] as num?)?.toInt(),
         toc: ShelfBookToc.fromJson(j['toc'] as Map<String, dynamic>?),
         sections: (j['sections'] as List<dynamic>? ?? const [])
             .whereType<Map>()
@@ -423,10 +430,14 @@ class ShelfRepository {
     return '${AppConfig.baseUrl}/shelf/platform/${Uri.encodeComponent(bookId)}/files/$key';
   }
 
-  String? coverUrl(String bookId, String? coverStorageKey) {
+  String? coverUrl(String bookId, String? coverStorageKey, {int? coverVersion}) {
     final key = (coverStorageKey ?? '').trim();
     if (key.isEmpty) return null;
-    return assetUrl(bookId, key);
+    final base = assetUrl(bookId, key);
+    if (coverVersion != null && coverVersion > 0) {
+      return '$base?v=$coverVersion';
+    }
+    return base;
   }
 
   Future<Map<String, dynamic>> uploadBookCover(String bookId, String filePath, String filename) async {

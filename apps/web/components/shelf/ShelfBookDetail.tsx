@@ -145,7 +145,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   }, [book, reloadPosts]);
 
   const continueHref = readHref(bookId, progress?.sectionId, progress?.pageIndex);
-  const coverUrl = book ? shelfCoverUrl(bookId, book.cover_storage_key) : null;
+  const coverUrl = book ? shelfCoverUrl(bookId, book.cover_storage_key, book.cover_version) : null;
   const tocGroups = useMemo(() => {
     if (!book) return [];
     return buildShelfTocGroups(book.toc, book.book_type);

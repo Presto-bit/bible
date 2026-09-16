@@ -171,7 +171,7 @@ export function ShelfListContent() {
             <ShelfBookCard
               key={book.id}
               book={book}
-              coverUrl={shelfCoverUrl(book.id, book.cover_storage_key)}
+              coverUrl={shelfCoverUrl(book.id, book.cover_storage_key, book.cover_version)}
               actionMenuOpen={bookActionMenu?.book.id === book.id}
               onActionMenu={(b, anchorEl) => setBookActionMenu({ book: b, anchorEl })}
             />

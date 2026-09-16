@@ -649,7 +649,11 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                           final book = books[i];
                           return ShelfBookCard(
                             book: book,
-                            coverUrl: repo.coverUrl(book.id, book.coverStorageKey),
+                            coverUrl: repo.coverUrl(
+                              book.id,
+                              book.coverStorageKey,
+                              coverVersion: book.coverVersion,
+                            ),
                             progressRatio: _library.bookProgressRatio(book.id),
                             onTap: () => _openBook(book),
                             onDetailTap: () => _openBookDetail(book),

@@ -24,11 +24,16 @@ const ShelfListContent = dynamic(
   { ssr: false },
 );
 
+function isShelfListPath(p: string): boolean {
+  return p === '/shelf';
+}
+
 function titleForHref(href: string): string {
   const p = href.split('?')[0] ?? href;
   if (p === '/profile/settings' || p.startsWith('/profile/settings/')) return '设置';
   if (p === '/notes' || p.startsWith('/notes/')) return '笔记';
-  if (p === '/shelf' || p.startsWith('/shelf/')) return '书架';
+  if (isShelfListPath(p)) return '书架';
+  if (p.startsWith('/shelf/')) return '书目';
   if (p === '/report' || p.startsWith('/report/')) return '本月已读';
   if (p === '/profile/appearance') return '外观';
   if (p === '/profile/reminders') return '提醒与勿扰';
@@ -40,7 +45,8 @@ function liveKind(href: string): 'settings' | 'notes' | 'shelf' | null {
   const p = href.split('?')[0] ?? href;
   if (p === '/profile/settings' || p.startsWith('/profile/settings/')) return 'settings';
   if (p === '/notes' || p.startsWith('/notes/')) return 'notes';
-  if (p === '/shelf' || p.startsWith('/shelf/')) return 'shelf';
+  // 仅书架列表用乐观壳；/shelf/[id] 详情与阅读器须走 Next 路由，勿叠挂列表
+  if (isShelfListPath(p)) return 'shelf';
   return null;
 }
 
