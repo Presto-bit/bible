@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import type { ShelfBookSummary } from '@/lib/shelf_api';
-import { shelfBookDetailHref, shelfBookReadHref } from '@/lib/shelf_library';
-import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { shellTapProps } from '@/lib/shell_tap';
 import { shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
 
@@ -21,102 +18,68 @@ type Props = {
   book: ShelfBookSummary;
   anchorEl: HTMLElement | null;
   canManage?: boolean;
-  canDelete?: boolean;
   canAppendLesson?: boolean;
-  canEdit?: boolean;
   onClose: () => void;
-  onMoveGroup: (book: ShelfBookSummary) => void;
-  onShare?: (book: ShelfBookSummary) => void;
   onManage?: (book: ShelfBookSummary) => void;
-  onRemove?: (book: ShelfBookSummary) => void;
-  onAppendLesson?: (book: ShelfBookSummary) => void;
   onUserManage?: (book: ShelfBookSummary) => void;
+  onAppendLesson?: (book: ShelfBookSummary) => void;
 };
 
 const PAD = 12;
 
+function buildShelfBookActions(
+  book: ShelfBookSummary,
+  opts: {
+    canManage?: boolean;
+    canAppendLesson?: boolean;
+    onUserManage?: (book: ShelfBookSummary) => void;
+    onManage?: (book: ShelfBookSummary) => void;
+    onAppendLesson?: (book: ShelfBookSummary) => void;
+  },
+): ShelfBookAction[] {
+  const { canManage, canAppendLesson, onUserManage, onManage, onAppendLesson } = opts;
+  if (book.can_edit && onUserManage) {
+    return [{ id: 'manage', label: '管理', onClick: () => onUserManage(book) }];
+  }
+  if (canManage && onManage) {
+    return [{ id: 'manage', label: '管理', onClick: () => onManage(book) }];
+  }
+  if (
+    canAppendLesson &&
+    onAppendLesson &&
+    (book.book_type === 'collection' || shelfIsChildrenLessonBook(book))
+  ) {
+    return [{ id: 'append', label: '添加资料', onClick: () => onAppendLesson(book) }];
+  }
+  return [];
+}
+
 /**
- * 书架长按：锚定在书籍卡片附近的轻量操作条。
+ * 书架长按：仅管理类操作（读/详情/分组/分享已移至点按与详情页）。
  */
 export default function ShelfBookActionPopover({
   open,
   book,
   anchorEl,
   canManage,
-  canDelete,
   canAppendLesson,
-  canEdit,
   onClose,
-  onMoveGroup,
-  onShare,
   onManage,
-  onRemove,
-  onAppendLesson,
   onUserManage,
+  onAppendLesson,
 }: Props) {
-  const router = useRouter();
   const barRef = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number; place: 'above' | 'below' } | null>(
     null,
   );
 
-  const actions: ShelfBookAction[] = [
-    {
-      id: 'read',
-      label: '继续阅读',
-      onClick: () => navigateAppHref(shelfBookReadHref(book.id), router),
-    },
-    {
-      id: 'detail',
-      label: '书籍详情',
-      onClick: () => navigateAppHref(shelfBookDetailHref(book.id), router),
-    },
-    ...(canEdit && onUserManage
-      ? [{
-          id: 'user-manage',
-          label: book.book_type === 'collection' ? '管理合集' : '管理书籍',
-          onClick: () => onUserManage(book),
-        }]
-      : []),
-    ...((canEdit || canAppendLesson) &&
-    (book.book_type === 'collection' || shelfIsChildrenLessonBook(book)) &&
-    onAppendLesson
-      ? [{
-          id: 'append',
-          label: '添加资料',
-          onClick: () => onAppendLesson(book),
-        }]
-      : []),
-    ...(onShare
-      ? [{
-          id: 'share',
-          label: '分享到群',
-          onClick: () => onShare(book),
-        }]
-      : []),
-    {
-      id: 'move',
-      label: '移到分组',
-      onClick: () => onMoveGroup(book),
-    },
-  ];
-
-  if (canDelete && onRemove) {
-    actions.push({
-      id: 'remove',
-      label: '下架删除',
-      onClick: () => onRemove(book),
-      danger: true,
-    });
-  }
-
-  if (canManage && onManage) {
-    actions.push({
-      id: 'manage',
-      label: '管理此书',
-      onClick: () => onManage(book),
-    });
-  }
+  const actions = buildShelfBookActions(book, {
+    canManage,
+    canAppendLesson,
+    onUserManage,
+    onManage,
+    onAppendLesson,
+  });
 
   useLayoutEffect(() => {
     if (!open) {
@@ -125,8 +88,8 @@ export default function ShelfBookActionPopover({
     }
     const place = () => {
       const bar = barRef.current;
-      const bw = bar?.offsetWidth || Math.min(240, window.innerWidth - PAD * 2);
-      const bh = bar?.offsetHeight || 160;
+      const bw = bar?.offsetWidth || Math.min(200, window.innerWidth - PAD * 2);
+      const bh = bar?.offsetHeight || 80;
       if (!anchorEl) {
         setPos({
           top: Math.max(PAD, (window.innerHeight - bh) / 2),
@@ -187,7 +150,7 @@ export default function ShelfBookActionPopover({
     return () => obs.disconnect();
   }, [open, anchorEl, onClose]);
 
-  if (!open) return null;
+  if (!open || actions.length === 0) return null;
 
   return (
     <AppBodyPortal onTabAway={onClose}>
@@ -208,7 +171,6 @@ export default function ShelfBookActionPopover({
           }
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="shelf-book-action-title">{book.title}</p>
           <div className="shelf-book-action-list">
             {actions.map((action) => (
               <button

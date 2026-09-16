@@ -5,6 +5,7 @@ import {
   loadShelfLastRead,
   type ShelfBookSummary,
 } from './shelf_api';
+import { shelfIsChildrenLessonBook } from './shelf_reader_contract';
 
 export const SHELF_LIBRARY_KEY = 'presto_shelf_library_v1';
 export const SHELF_MAX_USER_GROUPS = 8;
@@ -324,6 +325,21 @@ export function formatShelfLastReadAgo(at: number | null | undefined): string | 
 }
 
 /** 卡片副信息：作者 > 副标题 > 上次阅读时间 */
+/** 长按菜单：仅有管理/添加权限时弹出（P2）。 */
+export function shelfBookHasLongPressActions(
+  book: ShelfBookSummary,
+  opts: { canManage?: boolean; canAppendLesson?: boolean } = {},
+): boolean {
+  if (book.can_edit || opts.canManage) return true;
+  if (
+    opts.canAppendLesson &&
+    (book.book_type === 'collection' || shelfIsChildrenLessonBook(book))
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function shelfBookCardMetaLine(bookId: string, book: ShelfBookSummary): string | null {
   const author = book.author?.trim();
   if (author) return author;

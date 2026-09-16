@@ -6,13 +6,10 @@ import ShelfBookCard from '@/components/shelf/ShelfBookCard';
 import ShelfLibraryHeader from '@/components/shelf/ShelfLibraryHeader';
 import ShelfLibraryTabs from '@/components/shelf/ShelfLibraryTabs';
 import ShelfManageSheet from '@/components/shelf/ShelfManageSheet';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
-import { useToast } from '@/components/ui/ToastProvider';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { adminCheck } from '@/lib/admin_rag';
 import { canManageShelf, fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
 import {
-  deletePlatformShelfBook,
   invalidateShelfListCache,
   listPlatformShelfFull,
   shelfCoverUrl,
@@ -23,6 +20,7 @@ import {
   filterAndSortShelfBooks,
   listShelfUserGroups,
   SHELF_MAX_USER_GROUPS,
+  shelfBookHasLongPressActions,
   shelfUngroupedCount,
   type ShelfLibraryTab,
   type ShelfUserGroup,
@@ -32,7 +30,6 @@ import '@/styles/shelf.css';
 
 const ShelfImportSheet = dynamic(() => import('@/components/shelf/ShelfImportSheet'), { ssr: false });
 const ShelfLibrarySheet = dynamic(() => import('@/components/shelf/ShelfLibrarySheet'), { ssr: false });
-const ShelfCheckinSheet = dynamic(() => import('@/components/shelf/ShelfCheckinSheet'), { ssr: false });
 const ShelfBookActionPopover = dynamic(
   () => import('@/components/shelf/ShelfBookActionPopover'),
   { ssr: false },
@@ -48,8 +45,6 @@ const ShelfBookManageSheet = dynamic(
 
 export function ShelfListContent() {
   useEdgeSwipeBack({ href: '/profile' });
-  const confirm = useConfirm();
-  const toast = useToast();
 
   const cached = peekShelfListCache(true);
   const [groups, setGroups] = useState<ShelfGroup[]>(() => cached?.groups ?? []);
@@ -73,7 +68,6 @@ export function ShelfListContent() {
     book: ShelfBookSummary;
     anchorEl: HTMLElement;
   } | null>(null);
-  const [shareBook, setShareBook] = useState<ShelfBookSummary | null>(null);
   const [libraryTick, setLibraryTick] = useState(0);
 
   const reload = useCallback((force = false) => {
@@ -93,27 +87,6 @@ export function ShelfListContent() {
     setUserGroups(listShelfUserGroups());
     setLibraryTick((n) => n + 1);
   }, []);
-
-  const handleRemoveBook = useCallback(
-    async (book: ShelfBookSummary) => {
-      const ok = await confirm({
-        title: '下架此书？',
-        message: `「${book.title}」将从书架移除，并删除服务器上的书籍文件。`,
-        confirmLabel: '下架删除',
-        danger: true,
-      });
-      if (!ok) return;
-      try {
-        await deletePlatformShelfBook(book.id);
-        invalidateShelfListCache();
-        toast('已下架');
-        await reload(true);
-      } catch (e) {
-        toast(e instanceof Error ? e.message : '下架失败');
-      }
-    },
-    [confirm, reload, toast],
-  );
 
   useEffect(() => {
     void reload(false);
@@ -191,7 +164,14 @@ export function ShelfListContent() {
               book={book}
               coverUrl={shelfCoverUrl(book.id, book.cover_storage_key)}
               actionMenuOpen={bookActionMenu?.book.id === book.id}
-              onActionMenu={(b, anchorEl) => setBookActionMenu({ book: b, anchorEl })}
+              onActionMenu={
+                shelfBookHasLongPressActions(book, {
+                  canManage,
+                  canAppendLesson,
+                })
+                  ? (b, anchorEl) => setBookActionMenu({ book: b, anchorEl })
+                  : undefined
+              }
             />
           ))}
         </div>
@@ -205,18 +185,8 @@ export function ShelfListContent() {
           book={bookActionMenu.book}
           anchorEl={bookActionMenu.anchorEl}
           canManage={canManage}
-          canDelete={Boolean(bookActionMenu.book.can_delete)}
           canAppendLesson={canAppendLesson}
-          canEdit={Boolean(bookActionMenu.book.can_edit)}
           onClose={() => setBookActionMenu(null)}
-          onMoveGroup={(book) => {
-            setBookActionMenu(null);
-            setLibrarySheet({ mode: 'move_book', book });
-          }}
-          onShare={(book) => {
-            setBookActionMenu(null);
-            setShareBook(book);
-          }}
           onAppendLesson={(book) => {
             setBookActionMenu(null);
             setAppendBook(book);
@@ -224,10 +194,6 @@ export function ShelfListContent() {
           onManage={(book) => {
             setBookActionMenu(null);
             setManageBook(book);
-          }}
-          onRemove={(book) => {
-            setBookActionMenu(null);
-            void handleRemoveBook(book);
           }}
           onUserManage={(book) => {
             setBookActionMenu(null);
@@ -250,14 +216,6 @@ export function ShelfListContent() {
           bookTitle={appendBook.title}
           onClose={() => setAppendBook(null)}
           onAdded={() => void reload(true)}
-        />
-      ) : null}
-
-      {shareBook ? (
-        <ShelfCheckinSheet
-          bookId={shareBook.id}
-          bookTitle={shareBook.title}
-          onClose={() => setShareBook(null)}
         />
       ) : null}
 

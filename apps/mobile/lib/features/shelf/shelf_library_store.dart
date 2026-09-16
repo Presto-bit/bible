@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'shelf_progress.dart';
+import 'shelf_reader_contract.dart';
 import 'shelf_repository.dart';
 
 const shelfLibraryKey = 'presto_shelf_library_v1';
@@ -408,4 +409,19 @@ class ShelfLibraryStore {
       bookCardOpensDetail(bookId)
           ? '/shelf/${Uri.encodeComponent(bookId)}'
           : bookReadPath(bookId);
+}
+
+/// 长按菜单：仅有管理/添加权限时弹出（P2）。
+bool shelfBookHasLongPressActions(
+  ShelfBookSummary book, {
+  required bool canManage,
+  required bool canAppendLesson,
+}) {
+  if (book.canEdit || canManage) return true;
+  if (canAppendLesson &&
+      (book.bookType == 'collection' ||
+          shelfIsChildrenLessonBook(id: book.id, title: book.title))) {
+    return true;
+  }
+  return false;
 }

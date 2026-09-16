@@ -46,6 +46,18 @@ const ShelfAppendLessonSheet = dynamic(
   () => import('@/components/shelf/ShelfAppendLessonSheet'),
   { ssr: false },
 );
+const ShelfCheckinSheet = dynamic(
+  () => import('@/components/shelf/ShelfCheckinSheet'),
+  { ssr: false },
+);
+const ShelfLibrarySheet = dynamic(
+  () => import('@/components/shelf/ShelfLibrarySheet'),
+  { ssr: false },
+);
+const ShelfBookManageSheet = dynamic(
+  () => import('@/components/shelf/ShelfBookManageSheet'),
+  { ssr: false },
+);
 
 type Tab = 'reviews' | 'notes' | 'mine';
 
@@ -78,6 +90,9 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   const [hubPostId, setHubPostId] = useState<string | null>(null);
   const [hubAbstract, setHubAbstract] = useState<string | undefined>();
   const [appendOpen, setAppendOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [moveGroupOpen, setMoveGroupOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const progress = useMemo(() => loadShelfBookProgress(bookId), [bookId]);
   const finishedCelebration = search.get('finished') === '1' || Boolean(progress?.finished);
@@ -257,6 +272,27 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
         <p className="shelf-detail-stats muted">
           {stats.reviews} 篇书评 · {stats.notes} 条公开笔记
         </p>
+        <div className="shelf-detail-secondary">
+          <button type="button" className="shelf-detail-link" onClick={() => setMoveGroupOpen(true)}>
+            移到分组
+          </button>
+          <span className="shelf-detail-link-sep" aria-hidden>
+            ·
+          </span>
+          <button type="button" className="shelf-detail-link" onClick={() => setShareOpen(true)}>
+            分享到群
+          </button>
+          {book?.can_edit ? (
+            <>
+              <span className="shelf-detail-link-sep" aria-hidden>
+                ·
+              </span>
+              <button type="button" className="shelf-detail-link" onClick={() => setManageOpen(true)}>
+                管理
+              </button>
+            </>
+          ) : null}
+        </div>
       </section>
 
       {tocPreview.length > 0 ? (
@@ -378,6 +414,33 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
           bookTitle={book.title}
           onClose={() => setAppendOpen(false)}
           onAdded={() => {
+            void getPlatformShelfBook(bookId).then(setBook);
+          }}
+        />
+      ) : null}
+
+      {shareOpen && book ? (
+        <ShelfCheckinSheet
+          bookId={bookId}
+          bookTitle={book.title}
+          onClose={() => setShareOpen(false)}
+        />
+      ) : null}
+
+      {moveGroupOpen && book ? (
+        <ShelfLibrarySheet
+          mode="move_book"
+          book={book}
+          onClose={() => setMoveGroupOpen(false)}
+          onChanged={() => setMoveGroupOpen(false)}
+        />
+      ) : null}
+
+      {manageOpen && book ? (
+        <ShelfBookManageSheet
+          book={book}
+          onClose={() => setManageOpen(false)}
+          onChanged={() => {
             void getPlatformShelfBook(bookId).then(setBook);
           }}
         />

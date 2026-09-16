@@ -3341,6 +3341,31 @@ mark.shelf-sel-pinned {
   font-size: 12px;
 }
 
+.shelf-detail-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 6px;
+  margin-top: 10px;
+  max-width: 28rem;
+}
+
+.shelf-detail-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+  color: var(--accent-deep, #4a6b52);
+  cursor: pointer;
+}
+
+.shelf-detail-link-sep {
+  color: var(--ink-soft, #5c6b63);
+  font-size: 12px;
+  user-select: none;
+}
+
 .shelf-detail-tabs {
   display: flex;
   gap: 4px;

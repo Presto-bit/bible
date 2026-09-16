@@ -12,7 +12,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'shelf_book_card.dart';
-import 'shelf_checkin_sheet.dart';
 import 'shelf_library_store.dart';
 import 'shelf_manage_sheet.dart';
 import 'shelf_navigator.dart';
@@ -264,91 +263,60 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   }
 
   Future<void> _bookActions(ShelfBookSummary book) async {
-    final action = await showModalBottomSheet<String>(
+    if (!shelfBookHasLongPressActions(
+      book,
+      canManage: _canManage,
+      canAppendLesson: _canAppendLesson,
+    )) {
+      return;
+    }
+
+    final String action;
+    final String label;
+    final IconData icon;
+    if (book.canEdit) {
+      action = 'user_manage';
+      label = '管理';
+      icon = Icons.settings_outlined;
+    } else if (_canManage) {
+      action = 'manage';
+      label = '管理';
+      icon = Icons.settings_outlined;
+    } else if (_canAppendLesson &&
+        (book.bookType == 'collection' ||
+            shelfIsChildrenLessonBook(id: book.id, title: book.title))) {
+      action = 'append';
+      label = '添加资料';
+      icon = Icons.note_add_outlined;
+    } else {
+      return;
+    }
+
+    final picked = await showModalBottomSheet<String>(
       context: context,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(title: Text(book.title, style: AppTypography.meta)),
             ListTile(
-              leading: const Icon(Icons.menu_book_outlined),
-              title: const Text('继续阅读'),
-              onTap: () => Navigator.pop(ctx, 'read'),
+              leading: Icon(icon),
+              title: Text(label),
+              onTap: () => Navigator.pop(ctx, action),
             ),
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('书籍详情'),
-              onTap: () => Navigator.pop(ctx, 'detail'),
-            ),
-            if (book.canEdit)
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: Text(book.bookType == 'collection' ? '管理合集' : '管理书籍'),
-                onTap: () => Navigator.pop(ctx, 'user_manage'),
-              ),
-            if ((book.canEdit || _canAppendLesson) &&
-                (book.bookType == 'collection' ||
-                    shelfIsChildrenLessonBook(id: book.id, title: book.title)))
-              ListTile(
-                leading: const Icon(Icons.note_add_outlined),
-                title: const Text('添加资料'),
-                onTap: () => Navigator.pop(ctx, 'append'),
-              ),
-            ListTile(
-              leading: const Icon(Icons.ios_share_outlined),
-              title: const Text('分享到群'),
-              onTap: () => Navigator.pop(ctx, 'share'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.folder_outlined),
-              title: const Text('移到分组'),
-              onTap: () => Navigator.pop(ctx, 'move'),
-            ),
-            if (book.canDelete)
-              ListTile(
-                leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
-                title: Text('下架删除', style: TextStyle(color: Colors.red.shade700)),
-                onTap: () => Navigator.pop(ctx, 'remove'),
-              ),
-            if (_canManage)
-              ListTile(
-                leading: const Icon(Icons.settings_outlined),
-                title: const Text('管理此书'),
-                onTap: () => Navigator.pop(ctx, 'manage'),
-              ),
           ],
         ),
       ),
     );
-    if (!mounted || action == null) return;
-    if (action == 'read') {
-      await ShelfNavigator.openRead(context, book.id);
-    } else if (action == 'detail') {
-      await ShelfNavigator.openDetail(context, book.id);
-    } else if (action == 'user_manage') {
+    if (!mounted || picked == null) return;
+
+    if (picked == 'user_manage') {
       final changed = await showShelfUserManageSheet(context, ref, book: book);
       if (changed) await _refresh(ref);
-    } else if (action == 'append') {
-      final ok = await showShelfAppendLessonSheet(
-        context,
-        ref,
-        bookId: book.id,
-        bookTitle: book.title,
-      );
-      if (ok) await _refresh(ref);
-    } else if (action == 'share') {
-      await showShelfCheckinSheet(
-        context,
-        ref,
-        bookId: book.id,
-        bookTitle: book.title,
-      );
-    } else if (action == 'move') {
-      await _moveBook(book);
-    } else if (action == 'remove') {
-      await _removeBook(book);
-    } else if (action == 'manage') {
+    } else if (picked == 'manage') {
       final groups =
           ref.read(shelfListProvider).asData?.value.groups ?? const <ShelfGroup>[];
       final changed = await showShelfManageSheet(
@@ -358,73 +326,15 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
         groups: groups,
       );
       if (changed) await _refresh(ref);
-    }
-  }
-
-  Future<void> _removeBook(ShelfBookSummary book) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('下架此书？'),
-        content: Text(
-          '「${book.title}」将从书架移除，并删除服务器上的书籍文件。',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
-            child: const Text('下架删除'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    try {
-      await ref.read(shelfRepoProvider).deletePlatformBook(book.id);
-      ref.invalidate(shelfListProvider);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已下架')),
+    } else if (picked == 'append') {
+      final ok = await showShelfAppendLessonSheet(
+        context,
+        ref,
+        bookId: book.id,
+        bookTitle: book.title,
       );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      if (ok) await _refresh(ref);
     }
-  }
-
-  Future<void> _moveBook(ShelfBookSummary book) async {
-    final groups = _library.listGroups();
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(title: Text(book.title, style: AppTypography.meta)),
-            ListTile(
-              title: const Text('未分组'),
-              onTap: () {
-                _library.setBookGroup(book.id, null);
-                _reloadGroups();
-                Navigator.pop(ctx);
-              },
-            ),
-            for (final g in groups)
-              ListTile(
-                title: Text(g.title),
-                onTap: () {
-                  _library.setBookGroup(book.id, g.id);
-                  _reloadGroups();
-                  Navigator.pop(ctx);
-                },
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _selectTab(ShelfLibraryTab tab) {
@@ -684,7 +594,13 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                             progressRatio: _library.bookProgressRatio(book.id),
                             onTap: () => _openBook(book),
                             onDetailTap: () => _openBookDetail(book),
-                            onLongPress: () => _bookActions(book),
+                            onLongPress: shelfBookHasLongPressActions(
+                              book,
+                              canManage: _canManage,
+                              canAppendLesson: _canAppendLesson,
+                            )
+                                ? () => unawaited(_bookActions(book))
+                                : null,
                           );
                         },
                         childCount: books.length,

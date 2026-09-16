@@ -12,12 +12,15 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
+import 'shelf_checkin_sheet.dart';
+import 'shelf_library_store.dart';
 import 'shelf_post_sheets.dart';
 import 'shelf_posts_repository.dart';
 import 'shelf_progress.dart';
 import 'shelf_reader_screen.dart';
 import 'shelf_repository.dart';
 import 'shelf_toc.dart';
+import 'shelf_user_manage_sheet.dart';
 
 class ShelfBookDetailScreen extends ConsumerStatefulWidget {
   const ShelfBookDetailScreen({
@@ -148,6 +151,44 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   int _tocTotalCount(ShelfBookDetail book) {
     return buildShelfTocGroups(book.toc, bookType: book.bookType)
         .fold(0, (count, group) => count + group.items.length);
+  }
+
+  Future<void> _moveToGroup(ShelfBookDetail book) async {
+    final library = ShelfLibraryStore(
+      ref.read(prefsProvider),
+      ShelfProgressStore(ref.read(prefsProvider)),
+    );
+    final groups = library.listGroups();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(title: Text(book.title, style: AppTypography.meta)),
+            ListTile(
+              title: const Text('未分组'),
+              onTap: () {
+                library.setBookGroup(book.id, null);
+                Navigator.pop(ctx);
+              },
+            ),
+            for (final g in groups)
+              ListTile(
+                title: Text(g.title),
+                onTap: () {
+                  library.setBookGroup(book.id, g.id);
+                  Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _openReadToc() async {
@@ -427,6 +468,62 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                             '${_stats.reviews} 篇书评 · ${_stats.notes} 条公开笔记',
                             style: AppTypography.meta,
                             textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              TextButton(
+                                onPressed: () => unawaited(_moveToGroup(book)),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  foregroundColor: AppColors.accentDeep,
+                                ),
+                                child: const Text('移到分组', style: TextStyle(fontSize: 13)),
+                              ),
+                              Text('·', style: AppTypography.meta),
+                              TextButton(
+                                onPressed: () => unawaited(
+                                  showShelfCheckinSheet(
+                                    context,
+                                    ref,
+                                    bookId: book.id,
+                                    bookTitle: book.title,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  foregroundColor: AppColors.accentDeep,
+                                ),
+                                child: const Text('分享到群', style: TextStyle(fontSize: 13)),
+                              ),
+                              if (book.canEdit) ...[
+                                Text('·', style: AppTypography.meta),
+                                TextButton(
+                                  onPressed: () async {
+                                    final changed = await showShelfUserManageSheet(
+                                      context,
+                                      ref,
+                                      book: book,
+                                    );
+                                    if (changed && mounted) unawaited(_loadBook());
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    foregroundColor: AppColors.accentDeep,
+                                  ),
+                                  child: const Text('管理', style: TextStyle(fontSize: 13)),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
