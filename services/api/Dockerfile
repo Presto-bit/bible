@@ -7,7 +7,9 @@ WORKDIR /app
 ARG PIP_INDEX_URL=
 ARG PIP_TRUSTED_HOST=
 
-RUN apt-get update \
+# 国内 VPS 构建：Debian 源换阿里云，避免 deb.debian.org 拉索引过慢
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources \
+  && apt-get update \
   && apt-get install -y --no-install-recommends curl fonts-noto-cjk \
   && fc-cache -f \
   && rm -rf /var/lib/apt/lists/*
