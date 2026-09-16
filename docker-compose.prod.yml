@@ -7,6 +7,9 @@ services:
     image: postgres:16-alpine
     container_name: bible-postgres
     restart: unless-stopped
+    # ~2–4G 宿主预算：PG 次优先；可被 OOM 优先于 web/api 回收
+    mem_limit: ${PG_MEM_LIMIT:-512m}
+    oom_score_adj: -200
     environment:
       POSTGRES_USER: ${DB_USER:-bible}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env.production}
@@ -31,6 +34,9 @@ services:
         PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-mirrors.aliyun.com}
     container_name: bible-api
     restart: unless-stopped
+    # 优先保活：限额 + 更不易被宿主 OOM 选中
+    mem_limit: ${API_MEM_LIMIT:-768m}
+    oom_score_adj: -500
     env_file:
       - .env.production
     environment:
@@ -73,11 +79,16 @@ services:
         NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
     container_name: bible-web
     restart: unless-stopped
+    # 优先保活：堆上限 < mem_limit，爆堆自杀可重启，避免拖死整机
+    mem_limit: ${WEB_MEM_LIMIT:-512m}
+    oom_score_adj: -500
+    environment:
+      NODE_OPTIONS: ${WEB_NODE_OPTIONS:---max-old-space-size=384}
     # 只读根文件系统：降低容器内改写 server.js 类劫持的成功率（仍需修主机失守）
     read_only: true
     tmpfs:
       - /tmp:size=64M,mode=1777
-      - /app/.next/cache:size=64M,uid=1001,gid=1001,mode=1777
+      - /app/.next/cache:size=128M,uid=1001,gid=1001,mode=1777
     security_opt:
       - no-new-privileges:true
     cap_drop:

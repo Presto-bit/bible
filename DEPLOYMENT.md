@@ -197,7 +197,7 @@ DEPLOY_APP_DIR=/opt/bible
 | 现象 | 处理 |
 |------|------|
 | 域名无法访问 | 查 DNS A 记录、安全组 80/443 |
-| 502 Bad Gateway | `docker compose ps`；`curl 127.0.0.1:3002` |
+| 502 Bad Gateway | `docker compose ps`；`curl 127.0.0.1:3002`；见下方 **运行时加固（防 Web OOM）** |
 | `port is already allocated` | `ss -tlnp \| grep 3002` 查占用；改 `WEB_HOST_PORT` 并同步 Nginx `proxy_pass` |
 | API 404 | Nginx 是否加载 `nginx-2sc.prestoai.cn.conf` |
 | git pull 失败 | `git status`，勿在生产机改代码 |
@@ -207,6 +207,41 @@ DEPLOY_APP_DIR=/opt/bible
 | 页面无样式 / 一直「加载中」 | 本机 `curl 127.0.0.1:3002` CSS=200 但公网 404 → **宝塔反代改 3002**（见 §宝塔）；否则 `docker exec bible-web ls .next/static/css/` |
 | **发版后仅首页仍旧**（仍见 `3,842`、`知识闯关`；其它页如 `/challenge` 已是新版） | **Nginx/宝塔缓存了 `/`**。本机 `curl -s http://127.0.0.1:3002/ \| grep 每日问答` 有新内容、但 `curl -s https://2sc.prestoai.cn/ \| grep 3,842` 仍有旧内容即属此类。见下方 §首页缓存 |
 | `dubious ownership` | 勿用 root 发版；`ssh presto@...` 后 `bash release.sh`，或 `sudo -u presto -H bash -c 'cd /opt/bible && bash release.sh'` |
+
+### 运行时加固（防 Web OOM / 早起 502）
+
+同机跑 Postgres + API + Next 时，夜间内存顶满会先打死 **bible-web**，表现为首页壁纸、设置、管理后台页全站 502，而 `/bible/versions` 等 API 仍可能 200。
+
+**一体化方案（已入库）：**
+
+| 层 | 做什么 | 默认 |
+|----|--------|------|
+| 宿主 | 2G swap + `vm.swappiness=30` | `deploy/harden_runtime.sh` |
+| 容器 | `mem_limit` + `oom_score_adj`（web/api 优先保活） | `docker-compose.prod.yml` |
+| Node | `NODE_OPTIONS=--max-old-space-size=384`（堆 < 容器限额） | 同上，可用 `WEB_NODE_OPTIONS` 覆盖 |
+| 自愈 | 每分钟探活 `:3002`，失败则 `restart web`（5 分钟冷却） | `deploy/web_watchdog.sh` |
+
+默认限额（约 2–4G ECS）：`web=512m` / `api=768m` / `postgres=512m`。宿主须再留 ≥400MB 给系统与 Nginx。可用环境变量 `WEB_MEM_LIMIT`、`API_MEM_LIMIT`、`PG_MEM_LIMIT` 调整。
+
+**服务器一次性执行：**
+
+```bash
+cd /opt/bible
+git pull
+sudo bash deploy/harden_runtime.sh          # swap + cron
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+# 若 web 镜像需带上 environment 变更，up -d 即可；限额变更一般不必 --build
+
+# 自检
+free -h
+swapon --show
+docker stats --no-stream
+curl -sS -o /dev/null -w "web:%{http_code}\n" http://127.0.0.1:3002/
+crontab -l | grep bible-web-watchdog
+tail -20 /var/log/bible-web-watchdog.log
+```
+
+**设计要点：** 堆上限故意低于 `mem_limit`，让 Node 先因堆溢出退出并由 Docker/`unless-stopped` 拉起，而不是把整机拖进 OOM；swap 只做缓冲；cron 是健康检查失败后的最后兜底（带冷却防抖振）。
 
 ### 首页缓存（发版后仅 `/` 仍旧）
 
