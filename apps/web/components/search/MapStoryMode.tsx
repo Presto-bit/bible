@@ -258,7 +258,7 @@ export function MapStoryMode({
           {schematic ? (
             <div className="story-mode-map">
               <SchematicPathMap
-                layoutId={tourId}
+                layoutId={schematic.id}
                 stops={routeStops.map((s) => ({
                   placeId: s.placeId,
                   order: s.order,
