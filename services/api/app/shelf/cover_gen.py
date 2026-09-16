@@ -37,22 +37,9 @@ def cover_hue_from_title(title: str) -> int:
 
 
 def _load_font(size: int, bold: bool = False):
-    from PIL import ImageFont
+    from .cover_fonts import load_cover_font
 
-    candidates = [
-        "/System/Library/Fonts/PingFang.ttc",
-        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc" if bold else "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc" if bold else "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    ]
-    for path in candidates:
-        if Path(path).is_file():
-            try:
-                return ImageFont.truetype(path, size=size)
-            except OSError:
-                continue
-    return ImageFont.load_default()
+    return load_cover_font(size, bold=bold)
 
 
 def render_typographic_cover(

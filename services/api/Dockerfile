@@ -8,7 +8,8 @@ ARG PIP_INDEX_URL=
 ARG PIP_TRUSTED_HOST=
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl \
+  && apt-get install -y --no-install-recommends curl fonts-noto-cjk \
+  && fc-cache -f \
   && rm -rf /var/lib/apt/lists/*
 
 COPY services/api/requirements.txt /app/services/api/requirements.txt

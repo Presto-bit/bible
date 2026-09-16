@@ -3,25 +3,28 @@ from __future__ import annotations
 
 import io
 
-from .cover_gen import _COVER_H, _COVER_W, _load_font, _wrap_text
+from .cover_fonts import load_cover_font
+from .cover_gen import _COVER_H, _COVER_W, _wrap_text
 
 _INK = (25, 25, 25)
 _PAPER = (250, 248, 245)
-_SIDE_PAD = 24
-_TOP_START_RATIO = 0.09
-_MIST_HEIGHT_RATIO = 0.42
+_SIDE_PAD = 16
+_TOP_START_RATIO = 0.08
+_MIST_HEIGHT_RATIO = 0.48
 
 
 def poster_title_layout(title: str) -> tuple[int, int]:
-    """返回 (字号, 最大行数)。"""
+    """返回 (字号, 最大行数)。400×533 成图，书架卡片约 1/4 缩放，字号偏大保可读。"""
     n = len((title or "").strip())
-    if n <= 8:
-        return 28, 2
+    if n <= 6:
+        return 40, 2
+    if n <= 10:
+        return 36, 2
     if n <= 16:
-        return 24, 2
-    if n <= 26:
-        return 21, 3
-    return 18, 3
+        return 32, 2
+    if n <= 24:
+        return 28, 3
+    return 24, 3
 
 
 def _truncate_lines(lines: list[str], max_lines: int, draw, font) -> list[str]:
@@ -51,23 +54,23 @@ def overlay_poster_title_on_cover(img, title: str):
     grad_h = int(h * _MIST_HEIGHT_RATIO)
     for y in range(grad_h + 1):
         t_ratio = 1.0 - (y / max(grad_h, 1))
-        alpha = int(175 * (t_ratio**0.82))
+        alpha = int(198 * (t_ratio**0.78))
         mist_draw.line([(0, y), (w, y)], fill=(*_PAPER, alpha))
 
     composed = Image.alpha_composite(base, mist)
     draw = ImageDraw.Draw(composed)
 
     font_size, max_lines = poster_title_layout(t)
-    font = _load_font(font_size, bold=True)
+    font = load_cover_font(font_size, bold=True)
     max_text_w = w - _SIDE_PAD * 2
     lines = _truncate_lines(_wrap_text(draw, t, font, max_text_w), max_lines, draw, font)
 
-    line_height = int(font_size * 1.38)
+    line_height = int(font_size * 1.32)
     y = int(h * _TOP_START_RATIO)
     for line in lines:
         tw = draw.textlength(line, font=font)
         x = (w - tw) / 2
-        draw.text((x + 1, y + 1), line, fill=(0, 0, 0, 48), font=font)
+        draw.text((x + 1, y + 2), line, fill=(0, 0, 0, 72), font=font)
         draw.text((x, y), line, fill=(*_INK, 255), font=font)
         y += line_height
 

@@ -83,7 +83,10 @@ def render_ai_cover(book: dict[str, Any]) -> bytes | None:
     try:
         raw = generate_image_bytes(prompt)
         img = fit_cover_image(raw)
-        img = overlay_poster_title_on_cover(img, title)
+        try:
+            img = overlay_poster_title_on_cover(img, title)
+        except OSError as e:
+            logger.warning("shelf cover title overlay skipped for %s: %s", book.get("id"), e)
         return cover_image_to_webp(img)
     except ZhipuImageError as e:
         logger.warning("shelf ai cover failed for %s: %s", book.get("id"), e)

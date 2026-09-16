@@ -71,7 +71,20 @@ def test_cover_version_for_key(tmp_path, monkeypatch):
 
 
 def test_poster_title_layout_scales_with_length():
-    assert poster_title_layout("短书名")[0] >= poster_title_layout("这是一本名字比较长的书籍资料")[0]
+    short, long = poster_title_layout("短书名")[0], poster_title_layout("这是一本名字比较长的书籍资料")[0]
+    assert short >= long
+    assert long >= 24
+
+
+def test_load_cover_font_renders_cjk():
+    from app.shelf.cover_fonts import load_cover_font
+
+    font = load_cover_font(24, bold=True)
+    from PIL import Image, ImageDraw
+
+    draw = ImageDraw.Draw(Image.new("RGB", (80, 80)))
+    bbox = draw.textbbox((0, 0), "恩典的安慰", font=font)
+    assert bbox[2] - bbox[0] > 40
 
 
 def test_overlay_poster_title_preserves_size():
