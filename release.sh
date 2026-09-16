@@ -355,8 +355,9 @@ else
 fi
 
 # 干净工作区：避免把服务器上被改过的脏文件打进镜像
+# data/shelf_uploads 为运行时挂载目录（封面、用户上传），不计入脏检查
 if [[ "$ALLOW_DIRTY" != "1" ]]; then
-  dirty="$(git status --porcelain 2>/dev/null || true)"
+  dirty="$(git status --porcelain 2>/dev/null | grep -Ev '^.. data/shelf_uploads/|^\?\? data/shelf_uploads/' || true)"
   if [[ -n "$dirty" ]]; then
     printf '%s\n' "$dirty" >&2
     die "工作区不干净（ALLOW_DIRTY=1 可强制）。请 git status 清理后再发版，勿在容器/宿主机热改代码"
