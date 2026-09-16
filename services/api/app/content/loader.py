@@ -515,6 +515,47 @@ def map_tours() -> list[dict]:
 
 
 @lru_cache(maxsize=1)
+def knowledge_layouts_index() -> dict:
+    path = _data_dir() / "knowledge" / "layouts" / "index.json"
+    if not path.exists():
+        return {"layouts": []}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def knowledge_layout(layout_id: str) -> dict | None:
+    """结构→版式产物 knowledge_layout@1（§19.14.14）。"""
+    safe = (layout_id or "").strip().replace("..", "").replace("/", "")
+    if not safe or safe == "schema":
+        return None
+    path = _data_dir() / "knowledge" / "layouts" / f"{safe}.json"
+    if not path.exists() or not path.is_file():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def knowledge_layouts() -> list[dict]:
+    out: list[dict] = []
+    for name in knowledge_layouts_index().get("layouts") or []:
+        name_s = str(name)
+        if not name_s.endswith(".json"):
+            continue
+        lid = name_s.removesuffix(".json")
+        row = knowledge_layout(lid)
+        if not row:
+            continue
+        out.append(
+            {
+                "id": row.get("id"),
+                "title": row.get("title"),
+                "template": row.get("template"),
+                "source": row.get("source"),
+                "beat_count": len(row.get("beats") or []),
+            }
+        )
+    return out
+
+
+@lru_cache(maxsize=1)
 def timeline_tours() -> list[dict]:
     path = _data_dir() / "geography" / "timeline_tours.json"
     if not path.exists():

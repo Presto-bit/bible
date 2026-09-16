@@ -1,0 +1,154 @@
+{
+  "schema": "knowledge_layout@1",
+  "id": "jesus-ministry-galilee",
+  "title": "耶稣加利利事工",
+  "guide_one_liner": "加利利：呼召、教导、医治与权柄显明，行程环绕湖区展开。",
+  "density": "standard",
+  "source": {
+    "kind": "map_tour",
+    "id": "jesus-ministry-galilee"
+  },
+  "template": "path_grid_explain",
+  "blocks": [
+    {
+      "type": "path_diagram",
+      "schematic_id": "jesus-ministry-galilee"
+    },
+    {
+      "type": "beat_grid",
+      "columns": 2
+    },
+    {
+      "type": "explain_bar",
+      "fields": [
+        "title",
+        "ref",
+        "happen",
+        "chips",
+        "note",
+        "ask"
+      ]
+    }
+  ],
+  "arc": [
+    {
+      "name": "呼召与起行",
+      "stop_orders": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "教导与医治",
+      "stop_orders": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "name": "权柄与回应",
+      "stop_orders": [
+        6,
+        7
+      ]
+    }
+  ],
+  "beats": [
+    {
+      "order": 1,
+      "place_id": "nazareth",
+      "label": "拿撒勒",
+      "ref": "LUK 4:16",
+      "happen": "在家乡会堂读以赛亚书，宣告恩年已到，…",
+      "link": "",
+      "chips": [],
+      "must_see": [],
+      "note": "在家乡会堂读以赛亚书，宣告恩年已到，却也被拒绝。",
+      "ask_seed": "耶稣在拿撒勒被弃对理解祂的使命有何意义？",
+      "vignette": ""
+    },
+    {
+      "order": 2,
+      "place_id": "capernaum",
+      "label": "迦百农",
+      "ref": "MAT 4:13",
+      "happen": "以迦百农为加利利事工中心，多方教导与…",
+      "link": "",
+      "chips": [],
+      "must_see": [],
+      "note": "以迦百农为加利利事工中心，多方教导与医治。",
+      "ask_seed": "为何福音书特别强调迦百农？",
+      "vignette": ""
+    },
+    {
+      "order": 3,
+      "place_id": "sea-of-galilee",
+      "label": "加利利海",
+      "ref": "MAT 4:18",
+      "happen": "在海边呼召渔夫作得人的渔夫，门徒训练…",
+      "link": "",
+      "chips": [],
+      "must_see": [],
+      "note": "在海边呼召渔夫作得人的渔夫，门徒训练由此展开。",
+      "ask_seed": "呼召渔夫作门徒说明天国优先怎样的人？",
+      "vignette": ""
+    },
+    {
+      "order": 4,
+      "place_id": "bethsaida",
+      "label": "伯赛大",
+      "ref": "LUK 9:10",
+      "happen": "五饼二鱼喂饱众人，显明供应与怜悯",
+      "link": "",
+      "chips": [],
+      "must_see": [],
+      "note": "五饼二鱼喂饱众人，显明供应与怜悯。",
+      "ask_seed": "五饼二鱼神迹主要启示什么？",
+      "vignette": ""
+    },
+    {
+      "order": 5,
+      "place_id": "caesarea-philippi",
+      "label": "该撒利亚腓立比",
+      "ref": "MAT 16:13",
+      "happen": "彼得认耶稣为基督，也首次清楚听见受难…",
+      "link": "",
+      "chips": [],
+      "must_see": [],
+      "note": "彼得认耶稣为基督，也首次清楚听见受难预言。",
+      "ask_seed": "彼得的认信与随后的受难宣告如何并列？",
+      "vignette": ""
+    },
+    {
+      "order": 6,
+      "place_id": "mount-of-olives-2",
+      "label": "橄榄山",
+      "ref": "MAT 24:3",
+      "happen": "面向圣城讲论末后的事，提醒门徒儆醒等…",
+      "link": "",
+      "chips": [],
+      "must_see": [],
+      "note": "面向圣城讲论末后的事，提醒门徒儆醒等候。",
+      "ask_seed": "橄榄山讲论对今日信徒的核心劝勉是什么？",
+      "vignette": ""
+    },
+    {
+      "order": 7,
+      "place_id": "jerusalem",
+      "label": "耶路撒冷",
+      "ref": "MAT 21:1",
+      "happen": "荣入圣城，走向受难与复活",
+      "link": "",
+      "chips": [],
+      "must_see": [],
+      "note": "荣入圣城，走向受难与复活——救恩故事的高峰。",
+      "ask_seed": "从加利利到耶路撒冷，事工重心如何转移？",
+      "vignette": ""
+    }
+  ],
+  "fill": {
+    "engine_default": "none",
+    "policy": "AI 只填 vignette 无字母题；中文 happen/站名由 UI/SVG；禁止烤底栏"
+  }
+}

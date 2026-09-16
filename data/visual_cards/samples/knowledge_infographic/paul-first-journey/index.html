@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>保罗第一次宣教旅程 · 知识信息页</title>
+<style>
+:root {
+  --ink:#2c2825; --muted:#6e675f; --paper:#f7f3ec; --line:#e5ddd0;
+  --accent:#5b6b4f; --chip:#fffdf8; --card:#fff;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; font-family:"PingFang SC","Noto Sans SC",sans-serif;
+  color:var(--ink);
+  background:
+    radial-gradient(900px 420px at 10% -10%, #fff8ee, transparent 55%),
+    linear-gradient(180deg,#f3eee5,var(--paper));
+}
+main { max-width:720px; margin:0 auto; padding:20px 16px 64px; }
+.eyebrow { font-size:.72rem; color:var(--muted); letter-spacing:.04em; }
+h1 { font-size:1.45rem; margin:6px 0 8px; font-weight:650; letter-spacing:.01em; }
+.lead { margin:0 0 16px; color:var(--muted); line-height:1.55; font-size:.95rem; }
+.banner {
+  display:flex; flex-wrap:wrap; gap:8px; margin:0 0 18px;
+}
+.banner span {
+  border:1px solid var(--line); background:var(--chip);
+  border-radius:999px; padding:5px 11px; font-size:.72rem; color:var(--muted);
+}
+section { margin:0 0 22px; }
+.sec-h {
+  display:flex; justify-content:space-between; align-items:baseline;
+  margin:0 0 10px; font-size:.78rem; color:var(--muted);
+}
+.sec-h strong { color:var(--ink); font-size:.95rem; }
+.card {
+  background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden;
+}
+.card .pad { padding:12px 14px; }
+.arc { display:flex; gap:8px; list-style:none; margin:0; padding:0; flex-wrap:wrap; }
+.arc li {
+  flex:1; min-width:140px; background:var(--chip); border:1px solid var(--line);
+  border-radius:12px; padding:10px 12px;
+}
+.arc strong { display:block; font-size:.88rem; margin-bottom:4px; }
+.arc span { font-size:.72rem; color:var(--muted); }
+.map svg { display:block; width:100%; height:auto; }
+.steps { list-style:none; margin:0; padding:0; }
+.steps li {
+  display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);
+}
+.steps li:last-child { border-bottom:0; }
+.steps .n {
+  flex:0 0 24px; width:24px; height:24px; border-radius:50%;
+  background:#785035; color:#f7f3ec; font-size:12px; font-weight:600;
+  display:flex; align-items:center; justify-content:center; margin-top:2px;
+}
+.steps .lab { font-weight:600; font-size:.9rem; }
+.steps .hp { margin-top:2px; font-size:.88rem; }
+.steps .rf { margin-top:2px; font-size:.72rem; color:var(--muted); }
+.grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:10px;
+}
+.cell {
+  background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;
+}
+.thumb {
+  height:110px; background:#ddd center/cover no-repeat;
+}
+.thumb.empty {
+  display:flex; align-items:center; justify-content:center;
+  color:var(--muted); font-size:.75rem; background:#efe8dc;
+}
+.meta { padding:10px 11px 12px; }
+.meta .row { display:flex; gap:6px; align-items:center; }
+.meta .n {
+  width:18px; height:18px; border-radius:50%; background:#785035; color:#f7f3ec;
+  font-size:11px; display:inline-flex; align-items:center; justify-content:center;
+}
+.meta strong { font-size:.86rem; }
+.happen { margin:6px 0 0; font-size:.8rem; line-height:1.35; }
+.link { margin:4px 0 0; font-size:.72rem; color:var(--muted); line-height:1.35; }
+.note { margin:8px 0 0; font-size:.72rem; color:var(--muted); line-height:1.4; }
+.chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+.chips span {
+  border:1px solid var(--line); border-radius:999px; padding:2px 8px;
+  font-size:.68rem; color:var(--muted); background:#fff;
+}
+.musts { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.must { background:var(--chip); border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+.must h3 { margin:0 0 6px; font-size:.82rem; }
+.must ul { margin:0; padding-left:1.1em; color:var(--muted); font-size:.75rem; line-height:1.45; }
+.formula {
+  margin-top:8px; padding:12px 14px; background:#fff; border:1px dashed var(--line);
+  border-radius:12px; font-size:.78rem; color:var(--muted); line-height:1.5;
+}
+footer {
+  margin-top:8px; text-align:center; font-size:.7rem; color:var(--muted);
+}
+@media (max-width:560px) {
+  .grid, .musts { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">彼爱知识信息页 · density=standard · §19.14.12/13 · 字在 UI/SVG，不烤进位图</div>
+  <h1>保罗第一次宣教旅程</h1>
+  <p class="lead">圣灵差遣保罗与巴拿巴：跨海、会堂讲道、外邦回应，再回到差遣教会回报。</p>
+  <div class="banner">
+    <span>来源：经文结构 layout</span>
+    <span>模板：path_grid_explain</span>
+    <span>站数：7</span>
+    <span>释义说明，仅供参考</span>
+  </div>
+
+  <section>
+    <div class="sec-h"><strong>① 叙事弧</strong><span>结构层 · 先看脉络</span></div>
+    <ul class="arc"><li><strong>差遣与启程</strong><span>站 1, 2</span></li><li><strong>小亚细亚内陆</strong><span>站 3, 4, 5, 6</span></li><li><strong>回程与汇报</strong><span>站 7</span></li></ul>
+  </section>
+
+  <section>
+    <div class="sec-h"><strong>② 路径总览</strong><span>SVG diagram · 站名矢量字</span></div>
+    <div class="card"><svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="路径示意">
+  <rect width="640" height="220" fill="#e8f0ef"/>
+  <rect x="20" y="36" width="600" height="148" rx="16" fill="#d5e2df"/>
+  <path d="M40,70 C160,40 280,50 400,55 L420,160 L60,170 Z" fill="#e8dcc8"/>
+  <polyline fill="none" stroke="#785035" stroke-width="3" stroke-linecap="round"
+    stroke-linejoin="round" points="48.0,92.0 138.7,128.0 229.3,92.0 320.0,128.0 410.7,92.0 501.3,128.0 592.0,92.0"/>
+  <g transform="translate(48.0,92.0)"><circle r="12" fill="#5b6b4f" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">1</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">安提阿（叙利</text></g><g transform="translate(138.7,128.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">2</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">塞浦路斯</text></g><g transform="translate(229.3,92.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">3</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">彼西底的安提</text></g><g transform="translate(320.0,128.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">4</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">以哥念</text></g><g transform="translate(410.7,92.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">5</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">路司得</text></g><g transform="translate(501.3,128.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">6</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">特庇</text></g><g transform="translate(592.0,92.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">7</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">安提阿（叙利</text></g>
+</svg></div>
+  </section>
+
+  <section>
+    <div class="sec-h"><strong>③ 站序事实条</strong><span>每站一句 happen</span></div>
+    <div class="card pad"><ol class="steps"><li>
+          <span class="n">1</span>
+          <div>
+            <div class="lab">安提阿（叙利亚）</div>
+            <div class="hp">禁食祷告按手差遣</div>
+            <div class="rf">ACT 13:1</div>
+          </div>
+        </li><li>
+          <span class="n">2</span>
+          <div>
+            <div class="lab">塞浦路斯</div>
+            <div class="hp">坐船往塞浦路斯传道</div>
+            <div class="rf">ACT 13:4</div>
+          </div>
+        </li><li>
+          <span class="n">3</span>
+          <div>
+            <div class="lab">彼西底的安提阿</div>
+            <div class="hp">安息日在会堂讲道</div>
+            <div class="rf">ACT 13:14</div>
+          </div>
+        </li><li>
+          <span class="n">4</span>
+          <div>
+            <div class="lab">以哥念</div>
+            <div class="hp">多人信主也遇逼迫</div>
+            <div class="rf">ACT 14:1</div>
+          </div>
+        </li><li>
+          <span class="n">5</span>
+          <div>
+            <div class="lab">路司得</div>
+            <div class="hp">医治后被人当作神</div>
+            <div class="rf">ACT 14:8</div>
+          </div>
+        </li><li>
+          <span class="n">6</span>
+          <div>
+            <div class="lab">特庇</div>
+            <div class="hp">传福音并坚固门徒</div>
+            <div class="rf">ACT 14:20</div>
+          </div>
+        </li><li>
+          <span class="n">7</span>
+          <div>
+            <div class="lab">安提阿（叙利亚）</div>
+            <div class="hp">回报外邦信道的门开了</div>
+            <div class="rf">ACT 14:26</div>
+          </div>
+        </li></ol></div>
+  </section>
+
+  <section>
+    <div class="sec-h"><strong>④ 多格叙事</strong><span>一格一事 · 图下短标</span></div>
+    <div class="grid"><article class="cell">
+          <div class="thumb" style="background-image:url('art/01_antioch-syria.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">1</span><strong>安提阿（叙利亚）</strong></div>
+            <p class="happen">禁食祷告按手差遣</p>
+            <p class="link">宣教从差遣教会出发</p>
+            <div class="chips"><span>差遣</span><span>祷告</span></div>
+            <p class="note">教会禁食祷告，圣灵差遣保罗与巴拿巴出发。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb" style="background-image:url('art/02_cyprus.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">2</span><strong>塞浦路斯</strong></div>
+            <p class="happen">坐船往塞浦路斯传道</p>
+            <p class="link">福音跨海进入岛屿</p>
+            <div class="chips"><span>海船</span><span>会堂</span></div>
+            <p class="note">在撒拉米会堂传道，并在帕弗遇见方伯与术士。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb" style="background-image:url('art/03_antioch-pisidia.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">3</span><strong>彼西底的安提阿</strong></div>
+            <p class="happen">安息日在会堂讲道</p>
+            <p class="link">深入内陆会堂</p>
+            <div class="chips"><span>会堂</span><span>讲道</span></div>
+            <p class="note">保罗在会堂讲述救恩历史，外邦人欢喜，也引起嫉妒逼迫。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb empty">文字格</div>
+          <div class="meta">
+            <div class="row"><span class="n">4</span><strong>以哥念</strong></div>
+            <p class="happen">多人信主也遇逼迫</p>
+            <p class="link">福音双刃回应</p>
+            <div class="chips"><span>信主</span><span>逼迫</span></div>
+            <p class="note">犹太人和希腊人中有许多人信主，却也有人要凌辱使徒。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb" style="background-image:url('art/05_lystra.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">5</span><strong>路司得</strong></div>
+            <p class="happen">医治后被人当作神</p>
+            <p class="link">外邦城市的复杂</p>
+            <div class="chips"><span>医治</span><span>误会</span></div>
+            <p class="note">医治瘸腿者后几乎被当作神；随后又遭石头攻击，显出外邦城市的复杂。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb empty">文字格</div>
+          <div class="meta">
+            <div class="row"><span class="n">6</span><strong>特庇</strong></div>
+            <p class="happen">传福音并坚固门徒</p>
+            <p class="link">建立后仍回访</p>
+            <div class="chips"><span>门徒</span><span>回访</span></div>
+            <p class="note">在特庇传福音、教导门徒，再回头坚固各城的教会。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb" style="background-image:url('art/07_antioch-syria.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">7</span><strong>安提阿（叙利亚）</strong></div>
+            <p class="happen">回报外邦信道的门开了</p>
+            <p class="link">向差遣教会述说神所行的事</p>
+            <div class="chips"><span>回报</span><span>外邦</span></div>
+            <p class="note">回到差遣他们的教会，述说神怎样为外邦人开了信道的门。</p>
+          </div>
+        </article></div>
+  </section>
+
+  <section>
+    <div class="sec-h"><strong>⑤ 画面母题清单</strong><span>must_see · 供填格验收</span></div>
+    <div class="musts"><div class='must'><h3>1 · 安提阿（叙利亚）</h3><ul><li>室内窗光</li><li>按手圈</li><li>远景背影</li></ul></div><div class='must'><h3>2 · 塞浦路斯</h3><ul><li>古帆船</li><li>岛屿岸线</li><li>柱廊</li></ul></div><div class='must'><h3>3 · 彼西底的安提阿</h3><ul><li>讲台</li><li>听者背影</li><li>经卷</li></ul></div><div class='must'><h3>4 · 以哥念</h3><ul><li>会堂外景</li><li>人群分阵</li><li>行囊起行</li></ul></div><div class='must'><h3>5 · 路司得</h3><ul><li>柱廊</li><li>站起姿态</li><li>举手人群</li></ul></div><div class='must'><h3>6 · 特庇</h3><ul><li>城门口</li><li>教导圈</li><li>归途</li></ul></div><div class='must'><h3>7 · 安提阿（叙利亚）</h3><ul><li>室内窗光</li><li>按手圈</li><li>远景背影</li></ul></div></div>
+  </section>
+
+  <div class="formula">
+    <strong>为何不是「一张大海报」：</strong>
+    NotebookLM 信息多，靠的是「结构→版式→多区块同屏」；中文若烤进智谱像素易乱码、挡图。
+    彼爱公式 = 经文结构 ×（路径 SVG + 多格 UI + 讲解）× AI 只填无字母题格。
+  </div>
+  <footer>生成自 data/knowledge/layouts/paul-first-journey.json · scripts/render_knowledge_infographic.py</footer>
+</main>
+</body>
+</html>

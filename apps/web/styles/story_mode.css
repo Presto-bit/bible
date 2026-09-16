@@ -242,3 +242,326 @@
   margin-top: 12px;
 }
 
+/* ── §19.14.12 知识页：示意路径 + 多格 + 图下讲解 ── */
+.schematic-path-map {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.schematic-path-map svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.spm-bg { fill: #f7f3ec; }
+.spm-sea { fill: #c9d6d4; }
+.spm-land { fill: #e8dcc8; }
+.spm-route {
+  fill: none;
+  stroke: #785035;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.spm-core {
+  fill: #785035;
+  stroke: #f7f3ec;
+  stroke-width: 2;
+}
+.spm-stop.is-active .spm-core { fill: var(--accent-deep, #4a6b52); }
+.spm-num {
+  fill: #f7f3ec;
+  font-size: 11px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+.spm-label {
+  fill: var(--ink, #2c2825);
+  font-size: 10px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.spm-caption {
+  margin: 0;
+  padding: 6px 12px 8px;
+  font-size: 11px;
+  color: var(--ink-faint, #8e8e93);
+  border-top: 1px solid var(--line, #f0e4dc);
+}
+
+.story-mode-section-label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--ink-faint, #8e8e93);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.story-mode-section-label strong {
+  color: var(--ink, #1a1a1a);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.knowledge-blocks .story-mode-hook {
+  margin-bottom: 14px;
+}
+
+.knowledge-block {
+  margin: 0 0 16px;
+}
+
+.knowledge-arc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.knowledge-arc-item {
+  display: block;
+  width: 100%;
+  min-width: 120px;
+  text-align: left;
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 12px;
+  background: #fffcf7;
+  padding: 10px 12px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.knowledge-arc li {
+  flex: 1 1 140px;
+}
+
+.knowledge-arc-item strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.knowledge-arc-item span {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.knowledge-arc-item.is-active {
+  outline: 2px solid var(--accent-deep, #4a6b52);
+  outline-offset: 1px;
+  background: #fff;
+}
+
+.knowledge-step-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.knowledge-step-item {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line, #f0e4dc);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.knowledge-step-strip li:last-child .knowledge-step-item {
+  border-bottom: 0;
+}
+
+.knowledge-step-item.is-active {
+  background: #fffcf7;
+}
+
+.knowledge-step-n {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #785035;
+  color: #f7f3ec;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 22px;
+  text-align: center;
+  margin-top: 1px;
+}
+
+.knowledge-step-item.is-active .knowledge-step-n {
+  background: var(--accent-deep, #4a6b52);
+}
+
+.knowledge-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.knowledge-step-label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.knowledge-step-happen {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.knowledge-explain-link {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.story-mode-beats {
+  margin: 0 0 14px;
+}
+
+.knowledge-beat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.knowledge-beat-cell {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.knowledge-beat-cell.is-active {
+  outline: 2px solid var(--accent-deep, #4a6b52);
+  outline-offset: 1px;
+}
+
+.knowledge-beat-thumb {
+  height: 72px;
+  background: #e8e0d4 center / cover no-repeat;
+}
+
+.knowledge-beat-meta {
+  padding: 8px 9px 10px;
+}
+
+.knowledge-beat-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.knowledge-beat-n {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: #785035;
+  color: #f7f3ec;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  vertical-align: 1px;
+}
+
+.knowledge-beat-happen {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.knowledge-explain-card {
+  margin-bottom: 12px;
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface, #fff);
+}
+
+.knowledge-explain-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  object-fit: cover;
+  object-position: center top;
+  background: #e8e0d4;
+}
+
+.knowledge-explain-body {
+  padding: 12px 14px 14px;
+  background: #fffcf7;
+  border-top: 1px solid var(--line, #f0e4dc);
+}
+
+.knowledge-explain-ref {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.knowledge-explain-happen {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink, #1a1a1a);
+}
+
+.knowledge-explain-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.knowledge-explain-chips span {
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  color: var(--ink-faint, #8e8e93);
+  background: #fff;
+}
+
+.knowledge-explain-more {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
-/** 人生主题已下线，旧链接重定向到搜索 */
+/** 人生主题产品已删除；旧 /discover/topic/* 深链回落搜索 */
 export default function TopicRedirectPage() {
   const router = useRouter();
   useEdgeSwipeBack({ href: '/discover' });

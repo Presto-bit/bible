@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>彼爱 · 知识页原型 §19.14.12/13</title>
+  <style>
+    :root {
+      --ink: #2c2825;
+      --muted: #6e675f;
+      --paper: #f7f3ec;
+      --line: #e5ddd0;
+      --accent: #5b6b4f;
+      --chip: #fff;
+      --shadow: 0 8px 28px rgba(44, 40, 37, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+      background: #ebe4d8;
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    .stage {
+      max-width: 430px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+    }
+    header.app {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(247,243,236,.92);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+    .tabs button {
+      flex: 1;
+      border: 1px solid var(--line);
+      background: transparent;
+      border-radius: 999px;
+      padding: 8px 10px;
+      font: inherit;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .tabs button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #f7f3ec;
+    }
+    .eyebrow { font-size: 12px; color: var(--muted); letter-spacing: .02em; }
+    h1 { font-size: 1.15rem; margin: 4px 0 0; font-weight: 600; }
+    .lead { margin: 6px 0 0; font-size: .88rem; color: var(--muted); line-height: 1.45; }
+
+    main { padding: 12px 16px 28px; flex: 1; }
+    section { margin-bottom: 18px; }
+    .sec-title {
+      font-size: .78rem;
+      color: var(--muted);
+      margin: 0 0 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .sec-title strong { color: var(--ink); font-size: .92rem; font-weight: 600; }
+
+    /* SVG path diagram */
+    .map-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .map-card svg { display: block; width: 100%; height: auto; }
+    .stop-dot { cursor: pointer; }
+    .stop-dot circle.core { fill: #785035; stroke: #f7f3ec; stroke-width: 2; }
+    .stop-dot text { fill: #f7f3ec; font-size: 11px; font-weight: 600; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+    .stop-dot.active circle.core { fill: var(--accent); }
+    .stop-label { font-size: 10px; fill: var(--ink); }
+    .route { fill: none; stroke: #785035; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .sea { fill: #c9d6d4; }
+    .land { fill: #e8dcc8; }
+    .map-hint { padding: 8px 12px 10px; font-size: .75rem; color: var(--muted); border-top: 1px solid var(--line); }
+
+    /* Multi-grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .cell {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      text-align: left;
+      padding: 0;
+      font: inherit;
+      color: inherit;
+    }
+    .cell.active { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .cell .thumb {
+      height: 88px;
+      background: #ddd center/cover no-repeat;
+    }
+    .cell .meta { padding: 8px 9px 10px; }
+    .cell .n {
+      display: inline-block;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #785035; color: #f7f3ec;
+      font-size: 11px; text-align: center; line-height: 18px;
+      margin-right: 4px;
+    }
+    .cell .name { font-size: .82rem; font-weight: 600; }
+    .cell .happen { margin: 4px 0 0; font-size: .72rem; color: var(--muted); line-height: 1.35; }
+
+    /* Clean art + UI explain bar (not baked into image) */
+    .detail {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .detail .art {
+      width: 100%;
+      aspect-ratio: 16 / 7;
+      object-fit: cover;
+      object-position: center top;
+      display: block;
+      background: #ddd;
+    }
+    .explain {
+      padding: 12px 14px 14px;
+      border-top: 1px solid var(--line);
+      background: #fffcf7;
+    }
+    .explain .title { font-size: 1.05rem; font-weight: 600; margin: 0; }
+    .explain .ref { margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
+    .explain .happen {
+      margin: 10px 0 0;
+      font-size: .95rem;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chips span {
+      background: var(--chip);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: .72rem;
+      color: var(--muted);
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .actions button {
+      flex: 1;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 10px;
+      font: inherit;
+      font-size: .82rem;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .actions button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #f7f3ec;
+    }
+    .quote {
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      background: #f3eee5;
+      border-radius: 10px;
+      font-size: .8rem;
+      color: var(--muted);
+      line-height: 1.45;
+      display: none;
+    }
+    .quote.show { display: block; }
+
+    footer.note {
+      padding: 8px 16px 20px;
+      font-size: .7rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <header class="app">
+      <div class="tabs" role="tablist">
+        <button type="button" class="active" data-pack="wilderness" id="tab-w">旷野行程</button>
+        <button type="button" data-pack="paul" id="tab-p">保罗宣教</button>
+      </div>
+      <div class="eyebrow">知识页原型 · §19.14.12 / 13</div>
+      <h1 id="pack-title">旷野行程</h1>
+      <p class="lead" id="pack-lead">从埃及到西奈：路径骨架 + 多格情节点 + 图下讲解（字不挡图）。</p>
+    </header>
+
+    <main>
+      <section>
+        <div class="sec-title"><strong>① 路径总览</strong><span>SVG diagram · 可点</span></div>
+        <div class="map-card">
+          <div id="map-wilderness"></div>
+          <div id="map-paul" class="hidden"></div>
+          <div class="map-hint">点站点或下方格子 → 讲解在图外更新 · 释义说明，仅供参考</div>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-title"><strong>② 多格叙事</strong><span>一格一事</span></div>
+        <div class="grid" id="grid"></div>
+      </section>
+
+      <section>
+        <div class="sec-title"><strong>③ 当前站</strong><span>干净图 + UI 讲解条</span></div>
+        <div class="detail">
+          <img class="art" id="art" alt="" />
+          <div class="explain">
+            <h2 class="title" id="d-title">—</h2>
+            <div class="ref" id="d-ref"></div>
+            <p class="happen" id="d-happen"></p>
+            <div class="chips" id="d-chips"></div>
+            <div class="quote" id="d-quote"></div>
+            <div class="actions">
+              <button type="button" id="btn-quote">看原文锚点</button>
+              <button type="button" class="primary" id="btn-read">去读经</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="note">图区无烤中文底栏 · 讲解为系统字体 UI · NotebookLM 对齐：结构 → 版式 → 填格</footer>
+  </div>
+
+  <script>
+    const PACKS = {
+      wilderness: {
+        title: '旷野行程',
+        lead: '出埃及记 12–19 · 先看路径骨架，再点站看母题与事实句。',
+        stops: [
+          { id: 'depart', n: 1, label: '兰塞·疏割', ref: '出 12:37', happen: '从兰塞起行往疏割', chips: ['起行', '离开'], quote: '以色列人从兰塞起行，往疏割去…', art: 'art/wilderness/00_overview.png', map: [48, 70] },
+          { id: 'red_sea', n: 2, label: '过红海', ref: '出 14:21-29', happen: '水分开，百姓走干地', chips: ['水墙', '干地', '行进'], quote: '水在他们的左右作了墙垣。', art: 'art/wilderness/01_red_sea.png', map: [110, 95] },
+          { id: 'marah', n: 3, label: '玛拉', ref: '出 15:23-25', happen: '苦水变甜', chips: ['苦泉', '枯枝'], quote: '水是苦的，不能喝…耶和华指示一棵树。', art: 'art/wilderness/02_marah.png', map: [160, 108] },
+          { id: 'elim', n: 4, label: '以琳', ref: '出 15:27', happen: '十二泉七十棕树歇息', chips: ['棕树', '泉源'], quote: '在以琳有十二股水泉，七十棵棕树。', art: 'art/wilderness/03_elim.png', map: [205, 118] },
+          { id: 'manna', n: 5, label: '汛的旷野', ref: '出 16', happen: '吗哪显明可日日拾取', chips: ['吗哪', '晨光'], quote: '地上有如白霜的小圆物。', art: 'art/wilderness/04_manna.png', map: [250, 128] },
+          { id: 'rephidim', n: 6, label: '利非订', ref: '出 17:6', happen: '击打磐石水流出', chips: ['磐石', '出水'], quote: '你要击打磐石，从磐石里必有水流出来。', art: 'art/wilderness/05_rephidim.png', map: [290, 140] },
+          { id: 'sinai', n: 7, label: '西奈', ref: '出 19:1-2', happen: '在西奈山下安营', chips: ['山下', '安营'], quote: '到了西奈的旷野，就在那里的山下安营。', art: 'art/wilderness/06_sinai.png', map: [330, 155] },
+        ],
+      },
+      paul: {
+        title: '保罗第一次宣教',
+        lead: '使徒行传 13–14 · diagram 路径 + 关键站多格 + 图下讲解。',
+        stops: [
+          { id: 'antioch_send', n: 1, label: '安提阿差遣', ref: '徒 13:2-3', happen: '禁食祷告按手差遣', chips: ['禁食', '按手', '差遣'], quote: '要为我分派巴拿巴和扫罗…按手在他们头上，就打发他们去了。', art: 'art/paul/01_antioch_send.png', map: [320, 95] },
+          { id: 'cyprus', n: 2, label: '塞浦路斯', ref: '徒 13:4-5', happen: '坐船往塞浦路斯传道', chips: ['古帆船', '岛屿', '会堂'], quote: '下到西流基，从那里坐船往塞浦路斯去。', art: 'art/paul/02_cyprus.png', map: [210, 130] },
+          { id: 'pisidian', n: 3, label: '彼西底安提阿', ref: '徒 13:14', happen: '安息日在会堂讲道', chips: ['会堂', '讲道', '经卷'], quote: '来到彼西底的安提阿，在安息日进会堂坐下。', art: 'art/paul/03_pisidian_antioch.png', map: [165, 70] },
+          { id: 'lystra', n: 4, label: '路司得', ref: '徒 14:8-20', happen: '医治后被人当作神', chips: ['柱廊', '站起', '欢呼'], quote: '众人看见保罗所做的事，就用吕高尼的话大声说…', art: 'art/paul/04_lystra.png', map: [130, 95] },
+        ],
+      },
+    };
+
+    let packId = 'wilderness';
+    let stopId = PACKS.wilderness.stops[1].id; // default 红海
+
+    function renderWildernessMap(activeId) {
+      const stops = PACKS.wilderness.stops;
+      const pts = stops.map(s => s.map.join(',')).join(' ');
+      const dots = stops.map(s => {
+        const [x, y] = s.map;
+        const on = s.id === activeId ? ' active' : '';
+        return `<g class="stop-dot${on}" data-id="${s.id}" transform="translate(${x},${y})">
+          <circle class="core" r="11"/>
+          <text y="1">${s.n}</text>
+          <text class="stop-label" y="22">${s.label.length > 4 ? s.label.slice(0, 4) : s.label}</text>
+        </g>`;
+      }).join('');
+      return `<svg viewBox="0 0 380 200" xmlns="http://www.w3.org/2000/svg" aria-label="旷野路径示意">
+        <rect class="sea" x="200" y="20" width="160" height="160" rx="8"/>
+        <path class="land" d="M20,40 C80,30 140,50 190,70 L200,180 L30,180 Z"/>
+        <polyline class="route" points="${pts}"/>
+        ${dots}
+      </svg>`;
+    }
+
+    function renderPaulMap(activeId) {
+      const stops = PACKS.paul.stops;
+      // schematic: east antioch, cyprus lower, inland upper-left
+      const dots = stops.map(s => {
+        const [x, y] = s.map;
+        const on = s.id === activeId ? ' active' : '';
+        return `<g class="stop-dot${on}" data-id="${s.id}" transform="translate(${x},${y})">
+          <circle class="core" r="11"/>
+          <text y="1">${s.n}</text>
+          <text class="stop-label" y="22">${s.label.slice(0, 5)}</text>
+        </g>`;
+      }).join('');
+      const route = '320,95 280,110 210,130 165,70 130,95 150,120 280,110 320,95';
+      return `<svg viewBox="0 0 380 200" xmlns="http://www.w3.org/2000/svg" aria-label="保罗宣教路径示意">
+        <rect class="sea" x="20" y="40" width="340" height="130" rx="10"/>
+        <ellipse class="land" cx="210" cy="130" rx="48" ry="28"/>
+        <path class="land" d="M40,50 C120,35 200,45 250,55 L260,100 L80,110 Z"/>
+        <path class="land" d="M280,70 C330,60 360,80 355,120 L300,130 Z"/>
+        <polyline class="route" points="${route}"/>
+        ${dots}
+      </svg>`;
+    }
+
+    function currentPack() { return PACKS[packId]; }
+    function currentStop() {
+      return currentPack().stops.find(s => s.id === stopId) || currentPack().stops[0];
+    }
+
+    function render() {
+      const pack = currentPack();
+      const stop = currentStop();
+      document.getElementById('pack-title').textContent = pack.title;
+      document.getElementById('pack-lead').textContent = pack.lead;
+      document.getElementById('tab-w').classList.toggle('active', packId === 'wilderness');
+      document.getElementById('tab-p').classList.toggle('active', packId === 'paul');
+
+      const mw = document.getElementById('map-wilderness');
+      const mp = document.getElementById('map-paul');
+      if (packId === 'wilderness') {
+        mw.classList.remove('hidden');
+        mp.classList.add('hidden');
+        mw.innerHTML = renderWildernessMap(stop.id);
+      } else {
+        mp.classList.remove('hidden');
+        mw.classList.add('hidden');
+        mp.innerHTML = renderPaulMap(stop.id);
+      }
+
+      const grid = document.getElementById('grid');
+      grid.innerHTML = pack.stops.map(s => `
+        <button type="button" class="cell${s.id === stop.id ? ' active' : ''}" data-id="${s.id}">
+          <div class="thumb" style="background-image:url('${s.art}')"></div>
+          <div class="meta">
+            <div><span class="n">${s.n}</span><span class="name">${s.label}</span></div>
+            <p class="happen">${s.happen}</p>
+          </div>
+        </button>
+      `).join('');
+
+      document.getElementById('art').src = stop.art;
+      document.getElementById('art').alt = stop.label;
+      document.getElementById('d-title').textContent = stop.label;
+      document.getElementById('d-ref').textContent = stop.ref;
+      document.getElementById('d-happen').textContent = stop.happen;
+      document.getElementById('d-chips').innerHTML = stop.chips.map(c => `<span>${c}</span>`).join('');
+      const q = document.getElementById('d-quote');
+      q.textContent = stop.quote;
+      q.classList.remove('show');
+
+      document.querySelectorAll('.stop-dot').forEach(el => {
+        el.addEventListener('click', () => { stopId = el.getAttribute('data-id'); render(); });
+      });
+      document.querySelectorAll('.cell').forEach(el => {
+        el.addEventListener('click', () => { stopId = el.getAttribute('data-id'); render(); });
+      });
+    }
+
+    document.getElementById('tab-w').onclick = () => {
+      packId = 'wilderness';
+      stopId = PACKS.wilderness.stops[1].id;
+      render();
+    };
+    document.getElementById('tab-p').onclick = () => {
+      packId = 'paul';
+      stopId = PACKS.paul.stops[0].id;
+      render();
+    };
+    document.getElementById('btn-quote').onclick = () => {
+      document.getElementById('d-quote').classList.toggle('show');
+    };
+    document.getElementById('btn-read').onclick = () => {
+      alert('原型：此处深链到读经页（' + currentStop().ref + '）');
+    };
+
+    render();
+  </script>
+</body>
+</html>

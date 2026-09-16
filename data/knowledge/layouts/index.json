@@ -1,0 +1,9 @@
+{
+  "schema": "knowledge_layouts_index@1",
+  "count": 3,
+  "layouts": [
+    "exodus-wilderness.json",
+    "jesus-ministry-galilee.json",
+    "paul-first-journey.json"
+  ]
+}

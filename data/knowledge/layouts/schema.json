@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "knowledge_layout@1",
+  "title": "KnowledgeLayout",
+  "description": "彼爱「结构→版式」产物：讲解结构 + 页面版式 + 可选填格资产。字不进位图。",
+  "type": "object",
+  "required": ["schema", "id", "source", "template", "blocks", "beats"],
+  "properties": {
+    "schema": { "const": "knowledge_layout@1" },
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "guide_one_liner": { "type": "string" },
+    "density": { "enum": ["concise", "standard", "detailed"] },
+    "source": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "enum": ["map_tour", "timeline_tour", "graph_topic", "diagram"] },
+        "id": { "type": "string" }
+      }
+    },
+    "template": {
+      "enum": ["path_grid_explain", "grid_explain", "explain_only", "diagram_hotspots"],
+      "description": "版式模板 ID（结构层选定后写入）"
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "enum": ["path_diagram", "beat_grid", "explain_bar", "related", "ask"]
+          },
+          "columns": { "type": "integer" },
+          "schematic_id": { "type": "string" },
+          "fields": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "arc": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "stop_orders"],
+        "properties": {
+          "name": { "type": "string" },
+          "stop_orders": { "type": "array", "items": { "type": "integer" } }
+        }
+      }
+    },
+    "beats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["order", "label"],
+        "properties": {
+          "order": { "type": "integer" },
+          "place_id": { "type": "string" },
+          "label": { "type": "string" },
+          "ref": { "type": "string" },
+          "happen": { "type": "string", "maxLength": 24 },
+          "link": { "type": "string" },
+          "chips": { "type": "array", "items": { "type": "string" } },
+          "must_see": { "type": "array", "items": { "type": "string" } },
+          "note": { "type": "string" },
+          "ask_seed": { "type": "string" },
+          "vignette": { "type": "string" },
+          "fill_prompt_en": { "type": "string" }
+        }
+      }
+    },
+    "fill": {
+      "type": "object",
+      "properties": {
+        "engine_default": { "enum": ["none", "cogview-3-flash", "glm-image"] },
+        "policy": {
+          "type": "string",
+          "description": "AI 只填 vignette 母题格；禁止烤中文底栏"
+        }
+      }
+    }
+  }
+}

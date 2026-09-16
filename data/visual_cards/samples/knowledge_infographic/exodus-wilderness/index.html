@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>出埃及 · 旷野行程 · 知识信息页</title>
+<style>
+:root {
+  --ink:#2c2825; --muted:#6e675f; --paper:#f7f3ec; --line:#e5ddd0;
+  --accent:#5b6b4f; --chip:#fffdf8; --card:#fff;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; font-family:"PingFang SC","Noto Sans SC",sans-serif;
+  color:var(--ink);
+  background:
+    radial-gradient(900px 420px at 10% -10%, #fff8ee, transparent 55%),
+    linear-gradient(180deg,#f3eee5,var(--paper));
+}
+main { max-width:720px; margin:0 auto; padding:20px 16px 64px; }
+.eyebrow { font-size:.72rem; color:var(--muted); letter-spacing:.04em; }
+h1 { font-size:1.45rem; margin:6px 0 8px; font-weight:650; letter-spacing:.01em; }
+.lead { margin:0 0 16px; color:var(--muted); line-height:1.55; font-size:.95rem; }
+.banner {
+  display:flex; flex-wrap:wrap; gap:8px; margin:0 0 18px;
+}
+.banner span {
+  border:1px solid var(--line); background:var(--chip);
+  border-radius:999px; padding:5px 11px; font-size:.72rem; color:var(--muted);
+}
+section { margin:0 0 22px; }
+.sec-h {
+  display:flex; justify-content:space-between; align-items:baseline;
+  margin:0 0 10px; font-size:.78rem; color:var(--muted);
+}
+.sec-h strong { color:var(--ink); font-size:.95rem; }
+.card {
+  background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden;
+}
+.card .pad { padding:12px 14px; }
+.arc { display:flex; gap:8px; list-style:none; margin:0; padding:0; flex-wrap:wrap; }
+.arc li {
+  flex:1; min-width:140px; background:var(--chip); border:1px solid var(--line);
+  border-radius:12px; padding:10px 12px;
+}
+.arc strong { display:block; font-size:.88rem; margin-bottom:4px; }
+.arc span { font-size:.72rem; color:var(--muted); }
+.map svg { display:block; width:100%; height:auto; }
+.steps { list-style:none; margin:0; padding:0; }
+.steps li {
+  display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);
+}
+.steps li:last-child { border-bottom:0; }
+.steps .n {
+  flex:0 0 24px; width:24px; height:24px; border-radius:50%;
+  background:#785035; color:#f7f3ec; font-size:12px; font-weight:600;
+  display:flex; align-items:center; justify-content:center; margin-top:2px;
+}
+.steps .lab { font-weight:600; font-size:.9rem; }
+.steps .hp { margin-top:2px; font-size:.88rem; }
+.steps .rf { margin-top:2px; font-size:.72rem; color:var(--muted); }
+.grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:10px;
+}
+.cell {
+  background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;
+}
+.thumb {
+  height:110px; background:#ddd center/cover no-repeat;
+}
+.thumb.empty {
+  display:flex; align-items:center; justify-content:center;
+  color:var(--muted); font-size:.75rem; background:#efe8dc;
+}
+.meta { padding:10px 11px 12px; }
+.meta .row { display:flex; gap:6px; align-items:center; }
+.meta .n {
+  width:18px; height:18px; border-radius:50%; background:#785035; color:#f7f3ec;
+  font-size:11px; display:inline-flex; align-items:center; justify-content:center;
+}
+.meta strong { font-size:.86rem; }
+.happen { margin:6px 0 0; font-size:.8rem; line-height:1.35; }
+.link { margin:4px 0 0; font-size:.72rem; color:var(--muted); line-height:1.35; }
+.note { margin:8px 0 0; font-size:.72rem; color:var(--muted); line-height:1.4; }
+.chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+.chips span {
+  border:1px solid var(--line); border-radius:999px; padding:2px 8px;
+  font-size:.68rem; color:var(--muted); background:#fff;
+}
+.musts { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.must { background:var(--chip); border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+.must h3 { margin:0 0 6px; font-size:.82rem; }
+.must ul { margin:0; padding-left:1.1em; color:var(--muted); font-size:.75rem; line-height:1.45; }
+.formula {
+  margin-top:8px; padding:12px 14px; background:#fff; border:1px dashed var(--line);
+  border-radius:12px; font-size:.78rem; color:var(--muted); line-height:1.5;
+}
+footer {
+  margin-top:8px; text-align:center; font-size:.7rem; color:var(--muted);
+}
+@media (max-width:560px) {
+  .grid, .musts { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">彼爱知识信息页 · density=standard · §19.14.12/13 · 字在 UI/SVG，不烤进位图</div>
+  <h1>出埃及 · 旷野行程</h1>
+  <p class="lead">从埃及到西奈：离开、过海、旷野供应与试炼，最终在山下安营。</p>
+  <div class="banner">
+    <span>来源：经文结构 layout</span>
+    <span>模板：path_grid_explain</span>
+    <span>站数：6</span>
+    <span>释义说明，仅供参考</span>
+  </div>
+
+  <section>
+    <div class="sec-h"><strong>① 叙事弧</strong><span>结构层 · 先看脉络</span></div>
+    <ul class="arc"><li><strong>离开</strong><span>站 1</span></li><li><strong>拯救</strong><span>站 2</span></li><li><strong>供应与试炼</strong><span>站 3, 4, 5</span></li><li><strong>朝见预备</strong><span>站 6</span></li></ul>
+  </section>
+
+  <section>
+    <div class="sec-h"><strong>② 路径总览</strong><span>SVG diagram · 站名矢量字</span></div>
+    <div class="card"><svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="路径示意">
+  <rect width="640" height="220" fill="#e8f0ef"/>
+  <rect x="20" y="36" width="600" height="148" rx="16" fill="#d5e2df"/>
+  <path d="M40,70 C160,40 280,50 400,55 L420,160 L60,170 Z" fill="#e8dcc8"/>
+  <polyline fill="none" stroke="#785035" stroke-width="3" stroke-linecap="round"
+    stroke-linejoin="round" points="48.0,92.0 156.8,128.0 265.6,92.0 374.4,128.0 483.2,92.0 592.0,128.0"/>
+  <g transform="translate(48.0,92.0)"><circle r="12" fill="#5b6b4f" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">1</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">埃及</text></g><g transform="translate(156.8,128.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">2</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">红海</text></g><g transform="translate(265.6,92.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">3</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">玛拉</text></g><g transform="translate(374.4,128.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">4</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">以琳</text></g><g transform="translate(483.2,92.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">5</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">利非订</text></g><g transform="translate(592.0,128.0)"><circle r="12" fill="#785035" stroke="#f7f3ec" stroke-width="2"/><text y="1" fill="#f7f3ec" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">6</text><text y="26" fill="#2c2825" font-size="11" text-anchor="middle">西奈山</text></g>
+</svg></div>
+  </section>
+
+  <section>
+    <div class="sec-h"><strong>③ 站序事实条</strong><span>每站一句 happen</span></div>
+    <div class="card pad"><ol class="steps"><li>
+          <span class="n">1</span>
+          <div>
+            <div class="lab">埃及</div>
+            <div class="hp">百姓在苦役中，行程将启</div>
+            <div class="rf">EXO 1:11</div>
+          </div>
+        </li><li>
+          <span class="n">2</span>
+          <div>
+            <div class="lab">红海</div>
+            <div class="hp">水分开，百姓走干地</div>
+            <div class="rf">EXO 14:21</div>
+          </div>
+        </li><li>
+          <span class="n">3</span>
+          <div>
+            <div class="lab">玛拉</div>
+            <div class="hp">苦水变甜</div>
+            <div class="rf">EXO 15:23</div>
+          </div>
+        </li><li>
+          <span class="n">4</span>
+          <div>
+            <div class="lab">以琳</div>
+            <div class="hp">十二泉七十棕树歇息</div>
+            <div class="rf">EXO 15:27</div>
+          </div>
+        </li><li>
+          <span class="n">5</span>
+          <div>
+            <div class="lab">利非订</div>
+            <div class="hp">击打磐石水流出</div>
+            <div class="rf">EXO 17:6</div>
+          </div>
+        </li><li>
+          <span class="n">6</span>
+          <div>
+            <div class="lab">西奈山</div>
+            <div class="hp">在西奈山下安营</div>
+            <div class="rf">EXO 19:20</div>
+          </div>
+        </li></ol></div>
+  </section>
+
+  <section>
+    <div class="sec-h"><strong>④ 多格叙事</strong><span>一格一事 · 图下短标</span></div>
+    <div class="grid"><article class="cell">
+          <div class="thumb" style="background-image:url('art/01_egypt.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">1</span><strong>埃及</strong></div>
+            <p class="happen">百姓在苦役中，行程将启</p>
+            <p class="link">奴役之地被抛在身后</p>
+            <div class="chips"><span>为奴</span><span>起行</span></div>
+            <p class="note">百姓在法老的苦役下呻吟，神听见他们的哀声，开始拯救的故事。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb" style="background-image:url('art/02_red-sea.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">2</span><strong>红海</strong></div>
+            <p class="happen">水分开，百姓走干地</p>
+            <p class="link">神开路拯救</p>
+            <div class="chips"><span>水墙</span><span>干地</span><span>行进</span></div>
+            <p class="note">前有大海、后有追兵，神分开海水，让百姓走干地过去——这是出埃及的标志性神迹。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb" style="background-image:url('art/03_marah.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">3</span><strong>玛拉</strong></div>
+            <p class="happen">苦水变甜</p>
+            <p class="link">刚得救仍遇试炼</p>
+            <div class="chips"><span>苦泉</span><span>变甜</span></div>
+            <p class="note">三日行路后水苦不能喝；神指示摩西把树丢在水里，水就变甜，也立下顺服的试验。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb" style="background-image:url('art/04_elim.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">4</span><strong>以琳</strong></div>
+            <p class="happen">十二泉七十棕树歇息</p>
+            <p class="link">苦后有供应之地</p>
+            <div class="chips"><span>棕树</span><span>泉源</span></div>
+            <p class="note">十二股水泉、七十棵棕树：苦水之后，神也赐下休息与供应的绿洲。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb" style="background-image:url('art/05_rephidim.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">5</span><strong>利非订</strong></div>
+            <p class="happen">击打磐石水流出</p>
+            <p class="link">再次经历缺水被供应</p>
+            <div class="chips"><span>磐石</span><span>出水</span></div>
+            <p class="note">百姓又缺水争闹；神吩咐摩西击打磐石，水就流出。随后也在此抵挡亚玛力人。</p>
+          </div>
+        </article><article class="cell">
+          <div class="thumb" style="background-image:url('art/06_mount-sinai.png')"></div>
+          <div class="meta">
+            <div class="row"><span class="n">6</span><strong>西奈山</strong></div>
+            <p class="happen">在西奈山下安营</p>
+            <p class="link">行程收束到朝见</p>
+            <div class="chips"><span>山下</span><span>安营</span></div>
+            <p class="note">耶和华降临在山上，颁布十诫与约法；百姓自此成为「祭司的国度」。随后神也启示建造会幕。</p>
+          </div>
+        </article></div>
+  </section>
+
+  <section>
+    <div class="sec-h"><strong>⑤ 画面母题清单</strong><span>must_see · 供填格验收</span></div>
+    <div class="musts"><div class='must'><h3>1 · 埃及</h3><ul><li>泥砖城邑</li><li>行进队伍</li><li>旷野边缘</li></ul></div><div class='must'><h3>2 · 红海</h3><ul><li>左右海水墙</li><li>干海床</li><li>远景队伍</li></ul></div><div class='must'><h3>3 · 玛拉</h3><ul><li>泉旁</li><li>枯枝</li><li>营地远景</li></ul></div><div class='must'><h3>4 · 以琳</h3><ul><li>棕树</li><li>多泉</li><li>帐篷</li></ul></div><div class='must'><h3>5 · 利非订</h3><ul><li>裂石</li><li>流水</li><li>杖剪影</li></ul></div><div class='must'><h3>6 · 西奈山</h3><ul><li>山体</li><li>云雾</li><li>环山帐篷</li></ul></div></div>
+  </section>
+
+  <div class="formula">
+    <strong>为何不是「一张大海报」：</strong>
+    NotebookLM 信息多，靠的是「结构→版式→多区块同屏」；中文若烤进智谱像素易乱码、挡图。
+    彼爱公式 = 经文结构 ×（路径 SVG + 多格 UI + 讲解）× AI 只填无字母题格。
+  </div>
+  <footer>生成自 data/knowledge/layouts/exodus-wilderness.json · scripts/render_knowledge_infographic.py</footer>
+</main>
+</body>
+</html>

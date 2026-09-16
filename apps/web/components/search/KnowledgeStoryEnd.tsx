@@ -11,26 +11,30 @@ import {
   clipShareBody,
 } from '@/lib/knowledge_story';
 import { shareKnowledgeTour } from '@/lib/knowledge_share';
+import { shareKnowledgeInfographic } from '@/lib/knowledge_infographic_share';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 type Props = {
   title: string;
   related?: KnowledgeRelatedLink[] | null;
-  /** 出埃及系列下一件；有则优先于「再走一遍」 */
   seriesNext?: KnowledgeRelatedLink | null;
   listHref: string;
   listLabel: string;
   onAsk: () => void;
   onRestart: () => void;
   restartLabel?: string;
-  /** 分享出站卡 */
   share?: {
     kind: KnowledgeRelatedKind;
     id: string;
-    /** 最后一站 note 或总结句 */
     highlight?: string | null;
     stopCount?: number;
     unit?: string;
+    infographic?: {
+      guide?: string;
+      vignetteUrl?: string | null;
+      arcNames?: string[];
+      beats: Array<{ order: number; label: string; happen?: string; ref?: string }>;
+    } | null;
   };
 };
 
@@ -58,23 +62,41 @@ export function KnowledgeStoryEnd({
     setShareBusy(true);
     setShareHint(null);
     try {
-      const result = await shareKnowledgeTour({
-        kind: share.kind,
-        id: share.id,
-        title,
-        body: clipShareBody(share.highlight || ''),
-        footer:
-          share.stopCount && share.stopCount > 0
-            ? `${share.stopCount} ${share.unit || '站'} · 彼爱`
-            : undefined,
-        badge: seriesNext ? '出埃及系列' : '圣经知识',
-      });
+      const ig = share.infographic;
+      const result =
+        ig && ig.beats.length > 0
+          ? await shareKnowledgeInfographic({
+              kind: share.kind,
+              id: share.id,
+              title,
+              guide: ig.guide,
+              vignetteUrl: ig.vignetteUrl,
+              arcNames: ig.arcNames,
+              beats: ig.beats,
+            })
+          : await shareKnowledgeTour({
+              kind: share.kind,
+              id: share.id,
+              title,
+              body: clipShareBody(share.highlight || ''),
+              footer:
+                share.stopCount && share.stopCount > 0
+                  ? `${share.stopCount} ${share.unit || '站'} · 彼爱`
+                  : undefined,
+              badge: seriesNext ? '出埃及系列' : '圣经知识',
+            });
       if (result === 'cancelled') return;
       if (result === 'failed') {
         setShareHint('分享未完成，可稍后重试');
         return;
       }
-      setShareHint(result === 'copied' ? '已复制链接与摘要' : '已调起分享');
+      setShareHint(
+        result === 'copied'
+          ? '已复制链接与摘要'
+          : result === 'downloaded'
+            ? '已保存信息图'
+            : '已调起分享',
+      );
     } catch {
       setShareHint('分享未完成，可稍后重试');
     } finally {
@@ -88,7 +110,9 @@ export function KnowledgeStoryEnd({
       <p className="muted knowledge-story-end-lead">
         {seriesNext
           ? `建议接着走「${seriesNext.label}」，把出埃及故事串完整。`
-          : '可以分享这一程，或问小爱梳理脉络。'}
+          : share?.infographic
+            ? '可分享上图下文信息图，或问小爱梳理脉络。'
+            : '可以分享这一程，或问小爱梳理脉络。'}
       </p>
       <div className="story-mode-actions knowledge-story-end-actions">
         {seriesNext ? (
@@ -114,7 +138,11 @@ export function KnowledgeStoryEnd({
             disabled={shareBusy}
             onClick={() => void onShare()}
           >
-            {shareBusy ? '准备分享…' : '分享这程'}
+            {shareBusy
+              ? '准备分享…'
+              : share.infographic
+                ? '分享信息图'
+                : '分享这程'}
           </button>
         ) : null}
         <button type="button" className="font-pill" onClick={onRestart}>

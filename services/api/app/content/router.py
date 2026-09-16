@@ -633,6 +633,49 @@ def map_tour_detail(tour_id: str) -> dict:
     raise HTTPException(status_code=404, detail=f"无地图专题：{tour_id}")
 
 
+@router.get("/knowledge-layouts")
+def knowledge_layouts_list() -> dict:
+    """结构→版式产物索引（knowledge_layout@1）。"""
+    return {"layouts": loader.knowledge_layouts()}
+
+
+class KnowledgeLayoutFromScriptureBody(BaseModel):
+    title: str = Field(..., min_length=1, max_length=80)
+    refs: list[str] = Field(..., min_length=1, max_length=12)
+    scripture_text: str = Field(..., min_length=12, max_length=8000)
+    era_geo: str | None = Field(default=None, max_length=240)
+    category: str | None = Field(default=None, max_length=40)
+
+
+@router.post("/knowledge-layouts/from-scripture")
+def knowledge_layout_from_scripture(body: KnowledgeLayoutFromScriptureBody) -> dict:
+    """经文原文 → knowledge_layout@1 预览（不落盘）。"""
+    from .layout_writer import compile_layout_from_scripture
+
+    try:
+        layout = compile_layout_from_scripture(
+            title=body.title,
+            refs=body.refs,
+            scripture_text=body.scripture_text,
+            era_geo=body.era_geo,
+            category=body.category,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.exception("knowledge_layout_from_scripture failed")
+        raise HTTPException(status_code=502, detail=f"结构生成失败：{e}") from e
+    return {"layout": layout, "persisted": False}
+
+
+@router.get("/knowledge-layouts/{layout_id}")
+def knowledge_layout_detail(layout_id: str) -> dict:
+    row = loader.knowledge_layout(layout_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"无知识版式：{layout_id}")
+    return {"layout": row}
+
+
 @router.get("/timeline-tours")
 def timeline_tours_list() -> dict:
     return {"tours": loader.timeline_tours()}

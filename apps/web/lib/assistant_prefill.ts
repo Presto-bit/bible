@@ -37,16 +37,6 @@ export function explainVerseQuestion(ref: string, excerpt?: string): string {
   return `请解释：${snippet}${snippet.length >= 24 ? '…' : ''}`;
 }
 
-/** 人生主题专题：不绑定无关经文，以主题为中心提问 */
-export function topicQuestion(title: string, verseRef?: string, verseText?: string): string {
-  const topic = title.trim();
-  if (verseRef && verseText) {
-    const snippet = verseText.replace(/\s+/g, ' ').trim().slice(0, 36);
-    return `关于「${topic}」这一主题，请帮我理解经文 ${verseRef}：${snippet}${snippet.length >= 36 ? '…' : ''}`;
-  }
-  return `请从圣经的角度谈谈「${topic}」这一人生主题，并推荐相关经文与实用建议。`;
-}
-
 function genSid(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }

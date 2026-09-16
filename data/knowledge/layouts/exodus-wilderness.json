@@ -1,0 +1,188 @@
+{
+  "schema": "knowledge_layout@1",
+  "id": "exodus-wilderness",
+  "title": "出埃及 · 旷野行程",
+  "guide_one_liner": "从埃及到西奈：离开、过海、旷野供应与试炼，最终在山下安营。",
+  "density": "standard",
+  "source": {
+    "kind": "map_tour",
+    "id": "exodus-wilderness"
+  },
+  "template": "path_grid_explain",
+  "blocks": [
+    {
+      "type": "path_diagram",
+      "schematic_id": "exodus-wilderness"
+    },
+    {
+      "type": "beat_grid",
+      "columns": 2
+    },
+    {
+      "type": "explain_bar",
+      "fields": [
+        "title",
+        "ref",
+        "happen",
+        "chips",
+        "note",
+        "ask"
+      ]
+    }
+  ],
+  "arc": [
+    {
+      "name": "离开",
+      "stop_orders": [
+        1
+      ]
+    },
+    {
+      "name": "拯救",
+      "stop_orders": [
+        2
+      ]
+    },
+    {
+      "name": "供应与试炼",
+      "stop_orders": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "name": "朝见预备",
+      "stop_orders": [
+        6
+      ]
+    }
+  ],
+  "beats": [
+    {
+      "order": 1,
+      "place_id": "egypt",
+      "label": "埃及",
+      "ref": "EXO 1:11",
+      "happen": "百姓在苦役中，行程将启",
+      "link": "奴役之地被抛在身后",
+      "chips": [
+        "为奴",
+        "起行"
+      ],
+      "must_see": [
+        "泥砖城邑",
+        "行进队伍",
+        "旷野边缘"
+      ],
+      "note": "百姓在法老的苦役下呻吟，神听见他们的哀声，开始拯救的故事。",
+      "ask_seed": "以色列人为何在埃及为奴？神如何预备拯救？",
+      "vignette": "/knowledge/vignettes/wilderness/00_overview.png"
+    },
+    {
+      "order": 2,
+      "place_id": "red-sea",
+      "label": "红海",
+      "ref": "EXO 14:21",
+      "happen": "水分开，百姓走干地",
+      "link": "神开路拯救",
+      "chips": [
+        "水墙",
+        "干地",
+        "行进"
+      ],
+      "must_see": [
+        "左右海水墙",
+        "干海床",
+        "远景队伍"
+      ],
+      "note": "前有大海、后有追兵，神分开海水，让百姓走干地过去——这是出埃及的标志性神迹。",
+      "ask_seed": "过红海这件事，在后来的圣经里常如何被记念？",
+      "vignette": "/knowledge/vignettes/wilderness/01_red_sea.png"
+    },
+    {
+      "order": 3,
+      "place_id": "marah",
+      "label": "玛拉",
+      "ref": "EXO 15:23",
+      "happen": "苦水变甜",
+      "link": "刚得救仍遇试炼",
+      "chips": [
+        "苦泉",
+        "变甜"
+      ],
+      "must_see": [
+        "泉旁",
+        "枯枝",
+        "营地远景"
+      ],
+      "note": "三日行路后水苦不能喝；神指示摩西把树丢在水里，水就变甜，也立下顺服的试验。",
+      "ask_seed": "玛拉苦水变甜说明神怎样对待抱怨中的百姓？",
+      "vignette": "/knowledge/vignettes/wilderness/02_marah.png"
+    },
+    {
+      "order": 4,
+      "place_id": "elim",
+      "label": "以琳",
+      "ref": "EXO 15:27",
+      "happen": "十二泉七十棕树歇息",
+      "link": "苦后有供应之地",
+      "chips": [
+        "棕树",
+        "泉源"
+      ],
+      "must_see": [
+        "棕树",
+        "多泉",
+        "帐篷"
+      ],
+      "note": "十二股水泉、七十棵棕树：苦水之后，神也赐下休息与供应的绿洲。",
+      "ask_seed": "以琳的水泉与棕树，在叙事里起什么作用？",
+      "vignette": "/knowledge/vignettes/wilderness/03_elim.png"
+    },
+    {
+      "order": 5,
+      "place_id": "rephidim",
+      "label": "利非订",
+      "ref": "EXO 17:6",
+      "happen": "击打磐石水流出",
+      "link": "再次经历缺水被供应",
+      "chips": [
+        "磐石",
+        "出水"
+      ],
+      "must_see": [
+        "裂石",
+        "流水",
+        "杖剪影"
+      ],
+      "note": "百姓又缺水争闹；神吩咐摩西击打磐石，水就流出。随后也在此抵挡亚玛力人。",
+      "ask_seed": "利非订的磐石出水与争战，显明神怎样与百姓同在？",
+      "vignette": "/knowledge/vignettes/wilderness/05_rephidim.png"
+    },
+    {
+      "order": 6,
+      "place_id": "mount-sinai",
+      "label": "西奈山",
+      "ref": "EXO 19:20",
+      "happen": "在西奈山下安营",
+      "link": "行程收束到朝见",
+      "chips": [
+        "山下",
+        "安营"
+      ],
+      "must_see": [
+        "山体",
+        "云雾",
+        "环山帐篷"
+      ],
+      "note": "耶和华降临在山上，颁布十诫与约法；百姓自此成为「祭司的国度」。随后神也启示建造会幕。",
+      "ask_seed": "西奈之约与后来的会幕敬拜有何关系？",
+      "vignette": "/knowledge/vignettes/wilderness/06_sinai.png"
+    }
+  ],
+  "fill": {
+    "engine_default": "none",
+    "policy": "AI 只填 vignette 无字母题；中文 happen/站名由 UI/SVG；禁止烤底栏"
+  }
+}

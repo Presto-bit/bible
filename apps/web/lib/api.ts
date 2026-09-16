@@ -545,6 +545,50 @@ export interface MapTour {
   stops: MapTourStop[];
 }
 
+/** 结构→版式产物 knowledge_layout@1（§19.14.14） */
+export interface KnowledgeLayoutBeat {
+  order: number;
+  place_id?: string;
+  label: string;
+  ref?: string;
+  happen?: string;
+  link?: string;
+  chips?: string[];
+  must_see?: string[];
+  note?: string;
+  ask_seed?: string;
+  vignette?: string;
+}
+
+export interface KnowledgeLayoutBlock {
+  type: 'path_diagram' | 'beat_grid' | 'explain_bar' | 'related' | 'ask';
+  columns?: number;
+  schematic_id?: string;
+  fields?: string[];
+}
+
+export interface KnowledgeLayout {
+  schema: 'knowledge_layout@1' | string;
+  id: string;
+  title?: string;
+  guide_one_liner?: string;
+  density?: 'concise' | 'standard' | 'detailed';
+  source: { kind: string; id: string };
+  template: string;
+  blocks: KnowledgeLayoutBlock[];
+  arc?: { name: string; stop_orders: number[] }[];
+  beats: KnowledgeLayoutBeat[];
+  fill?: { engine_default?: string; policy?: string };
+}
+
+export interface KnowledgeLayoutSummary {
+  id: string;
+  title?: string;
+  template?: string;
+  source?: { kind: string; id: string };
+  beat_count?: number;
+}
+
 export interface TimelineTourEvent {
   order: number;
   book: string;
@@ -831,6 +875,20 @@ export const api = {
     ),
   mapTours: () => getJson<{ tours: MapTour[] }>('/content/map-tours'),
   mapTour: (id: string) => getJson<{ tour: MapTour }>(`/content/map-tours/${encodeURIComponent(id)}`),
+  knowledgeLayouts: () => getJson<{ layouts: KnowledgeLayoutSummary[] }>('/content/knowledge-layouts'),
+  knowledgeLayout: (id: string) =>
+    getJson<{ layout: KnowledgeLayout }>(`/content/knowledge-layouts/${encodeURIComponent(id)}`),
+  knowledgeLayoutFromScripture: (body: {
+    title: string;
+    refs: string[];
+    scripture_text: string;
+    era_geo?: string;
+    category?: string;
+  }) =>
+    authed<{ layout: KnowledgeLayout; persisted: boolean }>(
+      '/content/knowledge-layouts/from-scripture',
+      { method: 'POST', body },
+    ),
   timelineTours: () => getJson<{ tours: TimelineTour[] }>('/content/timeline-tours'),
   timelineTour: (id: string) =>
     getJson<{ tour: TimelineTour }>(`/content/timeline-tours/${encodeURIComponent(id)}`),

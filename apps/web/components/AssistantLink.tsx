@@ -6,7 +6,7 @@ import { assistantHref } from '@/lib/assistant_prefill';
 import type { ComponentProps, MouseEvent } from 'react';
 
 type Props = Omit<ComponentProps<typeof Link>, 'href'> & {
-  /** 可选：无 ref 时仅按问题进入小爱（如人生主题） */
+  /** 可选：无 ref 时仅按问题进入小爱 */
   refParam?: string;
   excerpt?: string;
   question?: string;
