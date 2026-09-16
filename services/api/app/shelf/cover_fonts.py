@@ -1,14 +1,7 @@
-"""书架封面叠字字体：仅允许 CJK 字体，禁止回退到 DejaVu/默认字体（避免方框 tofu）。"""
+"""书架封面叠字字体：仅系统 CJK 字体，禁止 DejaVu/默认字体回退（避免方框 tofu）。"""
 from __future__ import annotations
 
 from pathlib import Path
-
-_ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
-
-_BUNDLED = [
-    _ASSETS_DIR / "NotoSansSC-Bold.otf",
-    _ASSETS_DIR / "NotoSansSC-Regular.otf",
-]
 
 _SYSTEM_BOLD = [
     Path("/System/Library/Fonts/PingFang.ttc"),
@@ -43,7 +36,7 @@ def load_cover_font(size: int, *, bold: bool = True):
     """加载封面用字体；找不到 CJK 字体时抛错，不用缺字回退。"""
     from PIL import ImageFont
 
-    paths = list(_BUNDLED) + (_SYSTEM_BOLD if bold else _SYSTEM_REGULAR)
+    paths = _SYSTEM_BOLD if bold else _SYSTEM_REGULAR
     for path in paths:
         if not path.is_file():
             continue
@@ -56,5 +49,5 @@ def load_cover_font(size: int, *, bold: bool = True):
 
     raise OSError(
         "书架封面缺少可用的中日韩字体。"
-        "生产镜像请安装 fonts-noto-cjk，或将 NotoSansSC-Bold.otf 放入 services/api/assets/fonts/"
+        "生产环境请在 API 镜像中安装 fonts-noto-cjk（见 services/api/Dockerfile）。"
     )
