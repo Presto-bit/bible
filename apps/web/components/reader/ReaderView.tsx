@@ -1629,6 +1629,9 @@ export default function ReaderView({
     cancelPendingChapterProgress();
     setChapterAnim(swipeTurn ? '' : 'chapter-enter');
 
+    const version = chapterCacheVersion(mainVersionId);
+    const cached = getCachedChapter(book.id, chapter, version);
+
     const skipHydrate = skipChapterHydrateRef.current;
     if (skipHydrate) {
       skipChapterHydrateRef.current = false;
@@ -1650,9 +1653,6 @@ export default function ReaderView({
         cancelPendingChapterProgress();
       };
     }
-
-    const version = chapterCacheVersion(mainVersionId);
-    const cached = getCachedChapter(book.id, chapter, version);
     const hasCached = Boolean(cached?.length);
     if (hasCached && cached) {
       // 有当前译本缓存：先快显；结构层仍尽量用和合本分段
