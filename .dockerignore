@@ -1,0 +1,44 @@
+# 缩小 compose build 上下文（api/web 共用仓库根 context）
+.git
+.github
+.cursor
+**/.DS_Store
+
+# Flutter 壳（~GB 级，与 H5/API 镜像无关）
+apps/mobile
+
+# 文档与预览素材
+docs
+data/visual_cards
+
+# 运行时挂载 / 容器内生成（勿打进镜像）
+data/bible_audio
+data/shelf_uploads
+data/shelf_html_cache
+data/.cache
+data/rag/uploads
+
+# 大文件与下载中间态
+**/*.mp3
+**/*.part
+**/*.mp4
+
+# 前端本地构建产物
+apps/web/node_modules
+apps/web/.next
+apps/web/out
+**/*.tsbuildinfo
+
+# 本地/测试环境
+node_modules
+.env
+.env.*
+!.env.production.example
+deploy/deploy.env
+deploy/publish.env
+.release-sha
+
+# 生成物（镜像内由脚本/卷提供）
+data/bible/**/*.sqlite
+data/crossrefs/*.sqlite
+build/

@@ -42,7 +42,21 @@ COPY scripts/build_rag_zh_content.py /app/scripts/build_rag_zh_content.py
 COPY scripts/lib /app/scripts/lib
 
 COPY content /app/content
-COPY data /app/data
+# 只 COPY API 只读内容；运行时目录见下方 mkdir（shelf_uploads/bible_audio 由 compose volume 挂载）
+COPY data/bible /app/data/bible
+COPY data/crossrefs /app/data/crossrefs
+COPY data/strongs /app/data/strongs
+COPY data/vendor /app/data/vendor
+COPY data/plans /app/data/plans
+COPY data/illustrations /app/data/illustrations
+COPY data/topics /app/data/topics
+COPY data/geography /app/data/geography
+COPY data/summaries /app/data/summaries
+COPY data/dictionary /app/data/dictionary
+COPY data/diagrams /app/data/diagrams
+COPY data/knowledge /app/data/knowledge
+COPY data/daily-verses /app/data/daily-verses
+COPY data/shelf /app/data/shelf
 COPY deploy/api-entrypoint.sh /app/deploy/api-entrypoint.sh
 
 RUN chmod +x /app/deploy/api-entrypoint.sh \
@@ -52,6 +66,12 @@ RUN chmod +x /app/deploy/api-entrypoint.sh \
     /app/build \
     /app/data/.cache \
     /app/data/rag/uploads \
+    /app/data/bible_audio \
+    /app/data/shelf_uploads \
+    /app/data/shelf_html_cache \
+    /app/data/social_message_uploads \
+    /app/data/group_task_uploads \
+    /app/data/listen_cache \
     /app/content/commentary/public-domain \
     /app/content/commentary/public-domain-ocd \
     /app/content/commentary/reference-en \

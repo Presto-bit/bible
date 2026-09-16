@@ -53,9 +53,13 @@ if [[ -f "$APP_DIR/scripts/ensure_pg_schema.sh" ]]; then
   }
 fi
 
-log "生成内容 SQLite（串珠 / Strong's / CUVS）"
-if ! "${compose[@]}" exec -T api bash /app/scripts/ensure_content_data.sh 2>&1; then
-  log "⚠️  内容 SQLite 生成失败（可能无出网）；串珠/原文/三译本对照或降级"
+if [[ "${SKIP_CONTENT_DATA:-0}" == "1" ]]; then
+  log "SKIP_CONTENT_DATA=1，跳过内容 SQLite"
+else
+  log "生成内容 SQLite（串珠 / Strong's / CUVS）"
+  if ! "${compose[@]}" exec -T api bash /app/scripts/ensure_content_data.sh 2>&1; then
+    log "⚠️  内容 SQLite 生成失败（可能无出网）；串珠/原文/三译本对照或降级"
+  fi
 fi
 
 log "RAG 不在发版环节执行；请登录管理后台 → RAG 资料 → 拉取注释 / 索引"

@@ -21,6 +21,9 @@
 #   RECREATE_WEB=0|1       默认 1：重建 web 镜像后 --force-recreate 容器（避免旧进程挂着）
 #   INSTALL_HIJACK_CRON=1  安装每分钟劫持探测+自愈 cron（默认 0）
 #   SKIP_SW_CHECK=1        跳过 SW 烙印 / Cache-Control 门禁（默认 0；紧急回滚时可开）
+#   SKIP_CONTENT_DATA=1    跳过 post_deploy 内容 SQLite（无构建发版时默认自动开启）
+#   SKIP_RELATIONS=1       跳过词典关系 import/validate（无构建发版时默认自动开启）
+#   SKIP_AUTH_SMOKE=1      跳过鉴权冒烟（无构建发版时默认自动开启）
 #
 # SW / TWA 立刻吃新包（本脚本 + Dockerfile + 客户端共同保证）：
 #   1) 构建把 public/sw.js 的 CACHE 重写为 presto-bible-${NEXT_PUBLIC_APP_VERSION}
@@ -444,6 +447,27 @@ build_targets=()
 [[ "$need_api" == "1" ]] && build_targets+=(api)
 [[ "$need_web" == "1" ]] && build_targets+=(web)
 
+# 无镜像构建：快路径（缩短健康等待，跳过内容数据/关系/鉴权冒烟）
+if [[ "$need_api" == "0" && "$need_web" == "0" ]]; then
+  SKIP_CONTENT_DATA="${SKIP_CONTENT_DATA:-1}"
+  SKIP_RELATIONS="${SKIP_RELATIONS:-1}"
+  SKIP_AUTH_SMOKE="${SKIP_AUTH_SMOKE:-1}"
+  API_HEALTH_MAX="${API_HEALTH_MAX:-15}"
+  WEB_HEALTH_MAX="${WEB_HEALTH_MAX:-15}"
+  WEB_CLEAN_MAX="${WEB_CLEAN_MAX:-8}"
+  APP_VERSION_WAIT_MAX="${APP_VERSION_WAIT_MAX:-10}"
+  log "无镜像构建：快路径（SKIP_CONTENT_DATA/SKIP_RELATIONS/SKIP_AUTH_SMOKE=1，健康等待≤${API_HEALTH_MAX}s）"
+else
+  SKIP_CONTENT_DATA="${SKIP_CONTENT_DATA:-0}"
+  SKIP_RELATIONS="${SKIP_RELATIONS:-0}"
+  SKIP_AUTH_SMOKE="${SKIP_AUTH_SMOKE:-0}"
+  API_HEALTH_MAX="${API_HEALTH_MAX:-45}"
+  WEB_HEALTH_MAX="${WEB_HEALTH_MAX:-60}"
+  WEB_CLEAN_MAX="${WEB_CLEAN_MAX:-20}"
+  APP_VERSION_WAIT_MAX="${APP_VERSION_WAIT_MAX:-45}"
+fi
+export SKIP_CONTENT_DATA SKIP_RELATIONS SKIP_AUTH_SMOKE
+
 if [[ ${#build_targets[@]} -eq 0 ]]; then
   log "无需构建镜像"
 else
@@ -472,12 +496,12 @@ fi
 
 log "容器完整性：web 启动命令与入口扫描"
 web_clean_ok=0
-for i in $(seq 1 20); do
+for i in $(seq 1 "$WEB_CLEAN_MAX"); do
   if assert_web_container_clean 2>/tmp/bible-web-clean.err; then
     web_clean_ok=1
     break
   fi
-  log "web 容器完整性未就绪 (${i}/20)…"
+  log "web 容器完整性未就绪 (${i}/${WEB_CLEAN_MAX})…"
   sleep 1
 done
 if [[ "$web_clean_ok" -ne 1 ]]; then
@@ -487,12 +511,12 @@ fi
 
 log "健康检查 API"
 api_ok=0
-for i in $(seq 1 45); do
+for i in $(seq 1 "$API_HEALTH_MAX"); do
   if curl -fsS --connect-timeout 2 --max-time 5 http://127.0.0.1:8011/health >/dev/null 2>&1; then
     api_ok=1
     break
   fi
-  [[ $((i % 5)) -eq 0 ]] && log "API /health 未就绪 (${i}/45)…"
+  [[ $((i % 5)) -eq 0 ]] && log "API /health 未就绪 (${i}/${API_HEALTH_MAX})…"
   sleep 1
 done
 if [[ "$api_ok" -ne 1 ]]; then
@@ -506,12 +530,15 @@ if ! SKIP_API_WAIT=1 bash "$APP_DIR/scripts/post_deploy.sh"; then
   die "post_deploy 失败（PG 迁移或 API 不可用）"
 fi
 
-# 词典关系：在 API 容器内再跑一遍，确保发版后图数据可解析且通过校验
-# （ensure_content_data.sh 已含同一步骤；此处显式门禁，失败则中止发版）
-log "词典关系：python scripts/import_relations.py && python scripts/validate_relations.py"
-if ! "${compose[@]}" exec -T api bash -lc \
-  'cd /app && python scripts/import_relations.py && python scripts/validate_relations.py'; then
-  die "词典关系导入/校验失败"
+# 词典关系：ensure_content_data.sh 已含同一步骤；此处显式门禁（无构建发版可 SKIP_RELATIONS=1）
+if [[ "${SKIP_RELATIONS:-0}" == "1" ]]; then
+  log "SKIP_RELATIONS=1，跳过词典关系 import/validate"
+else
+  log "词典关系：python scripts/import_relations.py && python scripts/validate_relations.py"
+  if ! "${compose[@]}" exec -T api bash -lc \
+    'cd /app && python scripts/import_relations.py && python scripts/validate_relations.py'; then
+    die "词典关系导入/校验失败"
+  fi
 fi
 
 log "校验圣经译本"
@@ -528,6 +555,9 @@ else
 fi
 
 # 鉴权冒烟：裸 User-Code 必须 401；持会话令牌必须 200（dry-run 不写点赞）
+if [[ "${SKIP_AUTH_SMOKE:-0}" == "1" ]]; then
+  log "SKIP_AUTH_SMOKE=1，跳过鉴权冒烟"
+else
 api_base_local="http://127.0.0.1:8011"
 SMOKE_USER_CODE="99990001"
 SMOKE_DEVICE_ID="release-smoke-fixed"
@@ -598,6 +628,7 @@ fi
 if [[ "$social_code" != "200" ]]; then
   die "社交 API（带会话）返回 HTTP $social_code（期望 200；401 请查 SESSION_TOKEN_SECRET）"
 fi
+fi
 
 pub_url=""
 PUBLIC_WEB_URL_HOST=""
@@ -610,7 +641,7 @@ export PUBLIC_WEB_URL_HOST
 
 log "健康检查 Web /（不跟随外域跳转）"
 web_ok=0
-for i in $(seq 1 60); do
+for i in $(seq 1 "$WEB_HEALTH_MAX"); do
   # --max-redirs 0：避免劫持 307 后目标站 200 被误判为健康
   code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 8 --max-redirs 0 \
     "http://127.0.0.1:${WEB_HOST_PORT}/" 2>/dev/null || echo "000")"
@@ -618,7 +649,7 @@ for i in $(seq 1 60); do
     web_ok=1
     break
   fi
-  [[ $((i % 5)) -eq 0 ]] && log "Web / 未就绪 code=${code} (${i}/60)…"
+  [[ $((i % 5)) -eq 0 ]] && log "Web / 未就绪 code=${code} (${i}/${WEB_HEALTH_MAX})…"
   sleep 1
 done
 if [[ "$web_ok" -ne 1 ]]; then
@@ -660,11 +691,11 @@ HOME_HTML_FILE=""
 SERVED_APP_VERSION_WAIT=""
 log "等待本机首页 app-version（避免 recreate 后立刻 curl 仍命中旧进程空窗）"
 if [[ "$need_web" == "1" ]]; then
-  if ! wait_local_app_version "$NEXT_PUBLIC_APP_VERSION" 45; then
-    die "本机首页在 45s 内未变为 app-version=$NEXT_PUBLIC_APP_VERSION（当前 ${SERVED_APP_VERSION_WAIT:-空}）。web 未换新镜像？试 WEB_BUILD_NO_CACHE=1 FORCE_FULL=1"
+  if ! wait_local_app_version "$NEXT_PUBLIC_APP_VERSION" "$APP_VERSION_WAIT_MAX"; then
+    die "本机首页在 ${APP_VERSION_WAIT_MAX}s 内未变为 app-version=$NEXT_PUBLIC_APP_VERSION（当前 ${SERVED_APP_VERSION_WAIT:-空}）。web 未换新镜像？试 WEB_BUILD_NO_CACHE=1 FORCE_FULL=1"
   fi
 else
-  wait_local_app_version "" 20 || true
+  wait_local_app_version "" "$APP_VERSION_WAIT_MAX" || true
 fi
 
 home_html=""
