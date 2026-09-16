@@ -36,6 +36,12 @@ class ShelfBookCard extends StatelessWidget {
     final ratio = progressRatio?.clamp(0.0, 1.0);
     final resolvedCover = (coverUrl ?? '').trim();
     final isCollection = book.bookType == 'collection';
+    final metaLine = isCollection
+        ? '合集 · ${book.sectionCount} 份'
+        : (book.author.isNotEmpty
+            ? book.author
+            : (book.subtitle.isNotEmpty ? book.subtitle : null));
+    final hasMeta = metaLine != null && metaLine.isNotEmpty;
 
     // 格子约束是 tight：必须 expand，否则空白区无命中、滚动易吞掉子树
     return Material(
@@ -122,54 +128,34 @@ class ShelfBookCard extends StatelessWidget {
               const SizedBox(height: 6),
               SizedBox(
                 height: _kTitleBlockHeight,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      book.title.isEmpty ? '未命名' : book.title,
-                      maxLines: isCollection ? 1 : 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        height: 1.35,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    if (isCollection)
+                child: ClipRect(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       Text(
-                        '合集 · ${book.sectionCount} 份',
-                        maxLines: 1,
+                        book.title.isEmpty ? '未命名' : book.title,
+                        maxLines: hasMeta ? 1 : 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          height: 1.3,
-                          color: AppColors.ink.withValues(alpha: 0.55),
-                        ),
-                      )
-                    else if (book.author.isNotEmpty)
-                      Text(
-                        book.author,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          height: 1.3,
-                          color: AppColors.ink.withValues(alpha: 0.55),
-                        ),
-                      )
-                    else if (book.subtitle.isNotEmpty)
-                      Text(
-                        book.subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          height: 1.3,
-                          color: AppColors.ink.withValues(alpha: 0.55),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.ink,
                         ),
                       ),
-                  ],
+                      if (hasMeta)
+                        Text(
+                          metaLine,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.3,
+                            color: AppColors.ink.withValues(alpha: 0.55),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ],

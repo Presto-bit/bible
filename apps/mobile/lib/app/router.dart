@@ -211,6 +211,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             sectionId: (section == null || section.isEmpty) ? null : section,
             pageIndex: int.tryParse(state.uri.queryParameters['page'] ?? ''),
             groupId: state.uri.queryParameters['group'],
+            openTocOnStart: state.uri.queryParameters['toc'] == '1',
           );
         },
       ),

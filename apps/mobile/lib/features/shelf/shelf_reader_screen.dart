@@ -37,12 +37,14 @@ class ShelfReaderScreen extends ConsumerStatefulWidget {
     this.sectionId,
     this.pageIndex,
     this.groupId,
+    this.openTocOnStart = false,
   });
 
   final String bookId;
   final String? sectionId;
   final int? pageIndex;
   final String? groupId;
+  final bool openTocOnStart;
 
   @override
   ConsumerState<ShelfReaderScreen> createState() => _ShelfReaderScreenState();
@@ -202,6 +204,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _loading = false;
       });
       if (pick != null) unawaited(_loadSection(pick));
+      if (widget.openTocOnStart) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_openToc());
+        });
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {

@@ -92,6 +92,8 @@ List<ShelfTocGroup> buildShelfTocGroups(ShelfBookToc toc, {String? bookType}) {
 
 String? resolveSectionId(ShelfTocItem item, List<ShelfSectionSummary> sections) {
   if (item.sectionId != null && item.sectionId!.isNotEmpty) return item.sectionId;
-  if (item.level == 1 && sections.length == 1) return sections.first.id;
+  for (final section in sections) {
+    if (section.title == item.title) return section.id;
+  }
   return null;
 }

@@ -278,6 +278,10 @@ export function touchShelfBookLastRead(bookId: string, at = Date.now()) {
   writeStore(store);
 }
 
+export function shelfBookReadTocHref(bookId: string): string {
+  return `/shelf/${encodeURIComponent(bookId)}/read?toc=1`;
+}
+
 export function shelfBookReadHref(bookId: string): string {
   const progress = loadShelfBookProgress(bookId);
   if (!progress) return `/shelf/${encodeURIComponent(bookId)}/read`;

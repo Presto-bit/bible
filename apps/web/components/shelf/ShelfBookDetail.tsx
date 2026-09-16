@@ -19,6 +19,8 @@ import {
   formatShelfCheckinLabel,
   rememberShelfRefLabel,
 } from '@/lib/shelf_checkin';
+import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
+import { shelfBookReadTocHref } from '@/lib/shelf_library';
 import {
   createShelfPost,
   deleteShelfPost,
@@ -123,18 +125,19 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
 
   const continueHref = readHref(bookId, progress?.sectionId, progress?.pageIndex);
   const coverUrl = book ? shelfCoverUrl(bookId, book.cover_storage_key) : null;
-  const tocPreview = useMemo(() => {
-    const sections = book?.sections ?? [];
-    if (sections.length > 0) return sections.slice(0, 5);
-    const body = book?.toc?.body ?? [];
-    return body.slice(0, 5).map((item) => ({
-      id: item.section_id || item.id,
-      title: item.title,
-    }));
+  const tocFlat = useMemo(() => {
+    if (!book) return [];
+    const sections = book.sections ?? [];
+    return buildShelfTocGroups(book.toc, book.book_type)
+      .flatMap((group) => group.items)
+      .map((item) => ({
+        id: resolveSectionId(item, sections) || item.section_id || item.id,
+        title: shelfTocDisplayTitle(item),
+      }))
+      .filter((item) => Boolean(item.id));
   }, [book]);
-  const totalSections =
-    (book?.sections?.length ?? 0) ||
-    (book?.toc?.body?.length ?? 0) + (book?.toc?.front?.length ?? 0);
+  const tocPreview = tocFlat.slice(0, 5);
+  const totalSections = tocFlat.length;
 
   useEdgeSwipeBack({ href: continueHref, preferHistoryBack: true });
 
@@ -281,7 +284,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
               className="shelf-detail-toc-more btn ghost"
               onClick={() => {
                 clearShelfBookFinished(bookId);
-                navigateAppHref(continueHref, router);
+                navigateAppHref(shelfBookReadTocHref(bookId), router);
               }}
             >
               查看全部目录

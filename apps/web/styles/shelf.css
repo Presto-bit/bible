@@ -211,6 +211,12 @@
   transition: width 0.2s ease;
 }
 
+.shelf-book-card-text {
+  height: 48px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
 .shelf-book-card-title {
   margin: 0;
   font-size: 12px;
@@ -221,8 +227,10 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 2.5em;
-  max-height: 2.5em;
+}
+
+.shelf-book-card-title.is-compact {
+  -webkit-line-clamp: 1;
 }
 
 .shelf-continue-bar {
@@ -328,6 +336,10 @@
   margin: 2px 0 0;
   font-size: 11px;
   line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .shelf-book-card.is-action-open {
@@ -3303,6 +3315,10 @@ mark.shelf-sel-pinned {
   margin: 0;
   font-size: 14px;
   line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .shelf-detail-blurb {

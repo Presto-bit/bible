@@ -68,6 +68,7 @@ type Props = {
   initialSectionId?: string | null;
   initialPageIndex?: number | null;
   presetGroupId?: string | null;
+  initialOpenToc?: boolean;
 };
 
 export default function ShelfReader({
@@ -75,6 +76,7 @@ export default function ShelfReader({
   initialSectionId,
   initialPageIndex,
   presetGroupId,
+  initialOpenToc = false,
 }: Props) {
   const router = useRouter();
   const flashToast = useToast();
@@ -88,7 +90,7 @@ export default function ShelfReader({
   const [err, setErr] = useState('');
   const [sectionErr, setSectionErr] = useState('');
   const [sectionReloadToken, setSectionReloadToken] = useState(0);
-  const [tocOpen, setTocOpen] = useState(false);
+  const [tocOpen, setTocOpen] = useState(initialOpenToc);
   const [appendOpen, setAppendOpen] = useState(false);
   const [canAppendLesson, setCanAppendLesson] = useState(false);
   const [tocSectionMenu, setTocSectionMenu] = useState<{

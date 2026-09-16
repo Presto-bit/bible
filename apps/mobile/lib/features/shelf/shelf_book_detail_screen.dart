@@ -17,6 +17,7 @@ import 'shelf_posts_repository.dart';
 import 'shelf_progress.dart';
 import 'shelf_reader_screen.dart';
 import 'shelf_repository.dart';
+import 'shelf_toc.dart';
 
 class ShelfBookDetailScreen extends ConsumerStatefulWidget {
   const ShelfBookDetailScreen({
@@ -130,16 +131,41 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   }
 
   List<ShelfSectionSummary> _tocPreview(ShelfBookDetail book) {
-    if (book.sections.isNotEmpty) return book.sections.take(5).toList();
-    return book.toc.body
-        .take(5)
+    final groups = buildShelfTocGroups(book.toc, bookType: book.bookType);
+    return groups
+        .expand((group) => group.items)
         .map(
           (item) => ShelfSectionSummary(
-            id: item.sectionId ?? item.id,
-            title: item.title,
+            id: resolveSectionId(item, book.sections) ?? item.sectionId ?? item.id,
+            title: shelfTocDisplayTitle(item),
           ),
         )
+        .where((section) => section.id.isNotEmpty)
+        .take(5)
         .toList();
+  }
+
+  int _tocTotalCount(ShelfBookDetail book) {
+    return buildShelfTocGroups(book.toc, bookType: book.bookType)
+        .fold(0, (count, group) => count + group.items.length);
+  }
+
+  Future<void> _openReadToc() async {
+    try {
+      ShelfProgressStore(ref.read(prefsProvider)).clearFinished(widget.bookId);
+      if (!mounted) return;
+      HapticFeedback.selectionClick();
+      await Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ShelfReaderScreen(
+            bookId: widget.bookId,
+            openTocOnStart: true,
+          ),
+        ),
+      );
+    } catch (e, st) {
+      debugPrint('[ShelfDetail] openReadToc failed $e\n$st');
+    }
   }
 
   Future<void> _openRead() async {
@@ -370,6 +396,8 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                               ),
                               child: Text(
                                 book.subtitle,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
                                 style: AppTypography.secondary.copyWith(height: 1.55, fontSize: 14),
                                 textAlign: TextAlign.center,
                               ),
@@ -440,9 +468,9 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                                   ),
                                 ),
                               ),
-                            if ((book.sections.length) > 5)
+                            if (_tocTotalCount(book) > 5)
                               TextButton(
-                                onPressed: () => unawaited(_openRead()),
+                                onPressed: () => unawaited(_openReadToc()),
                                 child: const Text('查看全部目录'),
                               ),
                           ],

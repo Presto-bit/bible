@@ -30,10 +30,12 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
   const href = shelfBookCardHref(book.id);
   const detailHref = shelfBookDetailHref(book.id);
   const progressRatio = shelfBookProgressRatio(book.id);
-  const metaLine =
-    book.book_type === 'collection'
-      ? null
-      : shelfBookCardMetaLine(book.id, book);
+  const isCollection = book.book_type === 'collection';
+  const metaLine = isCollection ? null : shelfBookCardMetaLine(book.id, book);
+  const metaText = isCollection
+    ? `合集 · ${book.section_count} 份`
+    : metaLine;
+  const hasMeta = Boolean(metaText);
 
   const clearTimer = useCallback(() => {
     if (longPressTimer.current) {
@@ -144,12 +146,10 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
           <span aria-hidden>i</span>
         </button>
       </div>
-      <p className="shelf-book-card-title">{book.title}</p>
-      {book.book_type === 'collection' ? (
-        <p className="shelf-book-card-meta muted">合集 · {book.section_count} 份</p>
-      ) : metaLine ? (
-        <p className="shelf-book-card-meta muted">{metaLine}</p>
-      ) : null}
+      <div className="shelf-book-card-text">
+        <p className={`shelf-book-card-title${hasMeta ? ' is-compact' : ''}`}>{book.title}</p>
+        {hasMeta ? <p className="shelf-book-card-meta muted">{metaText}</p> : null}
+      </div>
     </div>
   );
 }

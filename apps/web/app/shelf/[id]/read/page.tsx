@@ -31,12 +31,14 @@ function ShelfBookReadInner({ params }: { params: Promise<{ id: string }> }) {
   const group = search.get('group');
   const pageRaw = search.get('page');
   const initialPageIndex = pageRaw != null && pageRaw !== '' ? Number(pageRaw) : null;
+  const initialOpenToc = search.get('toc') === '1';
   return (
     <ShelfReader
       bookId={id}
       initialSectionId={section}
       initialPageIndex={Number.isFinite(initialPageIndex) ? initialPageIndex : null}
       presetGroupId={group}
+      initialOpenToc={initialOpenToc}
     />
   );
 }
