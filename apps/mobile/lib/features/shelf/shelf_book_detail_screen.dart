@@ -117,6 +117,31 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
     }
   }
 
+  Widget _buildCover(ShelfBookDetail book) {
+    final url = ref.read(shelfRepoProvider).coverUrl(book.id, book.coverStorageKey);
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const ShelfBrandCover(),
+      );
+    }
+    return const ShelfBrandCover();
+  }
+
+  List<ShelfSectionSummary> _tocPreview(ShelfBookDetail book) {
+    if (book.sections.isNotEmpty) return book.sections.take(5).toList();
+    return book.toc.body
+        .take(5)
+        .map(
+          (item) => ShelfSectionSummary(
+            id: item.sectionId ?? item.id,
+            title: item.title,
+          ),
+        )
+        .toList();
+  }
+
   Future<void> _openRead() async {
     // 根因：go_router 对 /shelf/:id → /shelf/:id/read 的 push 在部分栈态下会静默失败
     // （不抛异常 → try/catch 无效）。详情 CTA 改用根 Navigator 直推阅读器，深链仍走路由。
@@ -321,7 +346,7 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                             height: 176,
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(6),
-                              child: const ShelfBrandCover(),
+                              child: _buildCover(book),
                             ),
                           ),
                           const SizedBox(height: 14),
@@ -378,6 +403,52 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                         ],
                       ),
                     ),
+                    if (_tocPreview(book).isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('目录预览', style: AppTypography.title.copyWith(fontSize: 14)),
+                            const SizedBox(height: 8),
+                            for (final section in _tocPreview(book))
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Material(
+                                  color: AppColors.paper,
+                                  borderRadius: BorderRadius.circular(8),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: InkWell(
+                                    onTap: () => unawaited(
+                                      Navigator.of(context, rootNavigator: true).push<void>(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => ShelfReaderScreen(
+                                            bookId: widget.bookId,
+                                            sectionId: section.id,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      child: Text(
+                                        section.title,
+                                        style: AppTypography.secondary.copyWith(fontSize: 13),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if ((book.sections.length) > 5)
+                              TextButton(
+                                onPressed: () => unawaited(_openRead()),
+                                child: const Text('查看全部目录'),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                   ],
                   const SizedBox(height: 12),

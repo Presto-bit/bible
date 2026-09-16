@@ -45,6 +45,7 @@ class ShelfBookSummary {
     this.bookType = 'document',
     this.canDelete = false,
     this.canEdit = false,
+    this.coverStorageKey,
   });
 
   final String id;
@@ -57,6 +58,7 @@ class ShelfBookSummary {
   final String bookType;
   final bool canDelete;
   final bool canEdit;
+  final String? coverStorageKey;
 
   factory ShelfBookSummary.fromJson(Map<String, dynamic> j) => ShelfBookSummary(
         id: '${j['id'] ?? ''}',
@@ -69,6 +71,7 @@ class ShelfBookSummary {
         bookType: '${j['book_type'] ?? 'document'}',
         canDelete: j['can_delete'] == true,
         canEdit: j['can_edit'] == true,
+        coverStorageKey: j['cover_storage_key'] as String?,
       );
 }
 
@@ -225,6 +228,7 @@ class ShelfBookDetail extends ShelfBookSummary {
     super.bookType,
     super.canDelete,
     super.canEdit,
+    super.coverStorageKey,
     required this.toc,
     this.sections = const [],
   });
@@ -243,6 +247,7 @@ class ShelfBookDetail extends ShelfBookSummary {
         bookType: '${j['book_type'] ?? 'document'}',
         canDelete: j['can_delete'] == true,
         canEdit: j['can_edit'] == true,
+        coverStorageKey: j['cover_storage_key'] as String?,
         toc: ShelfBookToc.fromJson(j['toc'] as Map<String, dynamic>?),
         sections: (j['sections'] as List<dynamic>? ?? const [])
             .whereType<Map>()
@@ -413,6 +418,24 @@ class ShelfRepository {
   String assetUrl(String bookId, String storageKey) {
     final key = Uri.encodeComponent(storageKey.split('/').last);
     return '${AppConfig.baseUrl}/shelf/platform/${Uri.encodeComponent(bookId)}/files/$key';
+  }
+
+  String? coverUrl(String bookId, String? coverStorageKey) {
+    final key = (coverStorageKey ?? '').trim();
+    if (key.isEmpty) return null;
+    return assetUrl(bookId, key);
+  }
+
+  Future<Map<String, dynamic>> uploadBookCover(String bookId, String filePath, String filename) async {
+    final form = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath, filename: filename),
+    });
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/shelf/platform/books/${Uri.encodeComponent(bookId)}/cover',
+      data: form,
+    );
+    await _fetchListFresh(force: true);
+    return res.data ?? const {};
   }
 
   Future<Map<String, dynamic>> importBook(String filePath, String filename) async {

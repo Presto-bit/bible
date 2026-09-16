@@ -26,6 +26,7 @@ from .service import (
     list_platform_shelf,
     update_collection_section,
     update_platform_book,
+    upload_platform_book_cover,
 )
 
 
@@ -345,6 +346,36 @@ def shelf_platform_file(book_id: str) -> Response:
         content=data,
         media_type=mime,
         headers={"Content-Disposition": f'inline; filename="{fname}"'},
+    )
+
+
+@router.post("/platform/books/{book_id}/cover")
+async def shelf_platform_upload_cover(
+    book_id: str,
+    file: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """上传或替换书目封面（上传者或书柜管理员）。"""
+    is_admin = bool(
+        resolve_shelf_admin_actor(
+            authorization=authorization,
+            x_admin_token=x_admin_token,
+            x_user_id=x_user_id,
+            x_user_code=x_user_code,
+            cookie=cookie,
+        )
+    )
+    data = await file.read()
+    return upload_platform_book_cover(
+        book_id,
+        data,
+        actor_user_id=user_id,
+        is_shelf_admin=is_admin,
     )
 
 

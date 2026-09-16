@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS shelf_platform_book (
   sort_order INT NOT NULL DEFAULT 0,
   book_type TEXT NOT NULL DEFAULT 'document',
   uploaded_by UUID,
+  cover_storage_key TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -39,6 +40,10 @@ def ensure_shelf_schema(pool) -> None:
         conn.execute(
             "ALTER TABLE shelf_platform_book "
             "ADD COLUMN IF NOT EXISTS book_type TEXT NOT NULL DEFAULT 'document'"
+        )
+        conn.execute(
+            "ALTER TABLE shelf_platform_book "
+            "ADD COLUMN IF NOT EXISTS cover_storage_key TEXT"
         )
         conn.commit()
     logger.info("shelf schema ready")

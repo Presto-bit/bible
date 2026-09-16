@@ -11,10 +11,11 @@ import {
   getPlatformShelfBook,
   updateCollectionSection,
   updatePlatformShelfBook,
+  uploadPlatformBookCover,
   type ShelfBookDetail,
   type ShelfBookSummary,
 } from '@/lib/shelf_api';
-import { invalidateShelfBookCache } from '@/lib/shelf_cache';
+import { invalidateShelfBookCache, invalidateShelfListCache } from '@/lib/shelf_cache';
 import { shellTapProps } from '@/lib/shell_tap';
 
 const ShelfAppendLessonSheet = dynamic(
@@ -201,6 +202,31 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
             value={title}
             disabled={busy}
             onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
+        <label className="shelf-import-field">
+          <span className="muted">封面（可选，jpg/png/webp）</span>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            disabled={busy}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setBusy(true);
+              void uploadPlatformBookCover(book.id, file)
+                .then(() => {
+                  toast('封面已更新');
+                  invalidateShelfListCache();
+                  invalidateShelfBookCache(book.id);
+                  onChanged();
+                })
+                .catch((err) => toast(err instanceof Error ? err.message : '封面上传失败'))
+                .finally(() => {
+                  setBusy(false);
+                  e.target.value = '';
+                });
+            }}
           />
         </label>
         <label className="shelf-import-field">

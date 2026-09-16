@@ -9,6 +9,7 @@ import {
 } from '@/lib/shelf_library';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import ShelfBrandCover from '@/components/shelf/ShelfBrandCover';
+import { shelfBookProgressRatio, shelfBookCardMetaLine } from '@/lib/shelf_library';
 
 type Props = {
   book: ShelfBookSummary;
@@ -28,6 +29,11 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
 
   const href = shelfBookCardHref(book.id);
   const detailHref = shelfBookDetailHref(book.id);
+  const progressRatio = shelfBookProgressRatio(book.id);
+  const metaLine =
+    book.book_type === 'collection'
+      ? null
+      : shelfBookCardMetaLine(book.id, book);
 
   const clearTimer = useCallback(() => {
     if (longPressTimer.current) {
@@ -120,6 +126,14 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
         ) : (
           <ShelfBrandCover />
         )}
+        {progressRatio != null && progressRatio > 0 ? (
+          <div className="shelf-book-card-progress" aria-hidden>
+            <div
+              className="shelf-book-card-progress-fill"
+              style={{ width: `${Math.round(progressRatio * 100)}%` }}
+            />
+          </div>
+        ) : null}
         <button
           type="button"
           className="shelf-book-card-detail-btn"
@@ -133,6 +147,8 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
       <p className="shelf-book-card-title">{book.title}</p>
       {book.book_type === 'collection' ? (
         <p className="shelf-book-card-meta muted">合集 · {book.section_count} 份</p>
+      ) : metaLine ? (
+        <p className="shelf-book-card-meta muted">{metaLine}</p>
       ) : null}
     </div>
   );

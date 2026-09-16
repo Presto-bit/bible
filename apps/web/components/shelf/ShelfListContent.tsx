@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import ShelfBookCard from '@/components/shelf/ShelfBookCard';
+import ShelfContinueReadingBar from '@/components/shelf/ShelfContinueReadingBar';
 import ShelfLibraryHeader from '@/components/shelf/ShelfLibraryHeader';
 import ShelfLibraryTabs from '@/components/shelf/ShelfLibraryTabs';
 import ShelfManageSheet from '@/components/shelf/ShelfManageSheet';
@@ -15,6 +16,7 @@ import {
   deletePlatformShelfBook,
   invalidateShelfListCache,
   listPlatformShelfFull,
+  shelfCoverUrl,
   type ShelfBookSummary,
   type ShelfGroup,
 } from '@/lib/shelf_api';
@@ -172,6 +174,10 @@ export function ShelfListContent() {
       {loading ? <p className="muted shelf-library-status">加载中…</p> : null}
       {err ? <p className="muted shelf-library-status">{err}</p> : null}
 
+      {!loading && !err && activeTab.kind === 'last_read' && !searchQuery ? (
+        <ShelfContinueReadingBar items={items} />
+      ) : null}
+
       {!loading && !err && visibleBooks.length === 0 ? (
         <p className="muted shelf-library-status">
           {searchQuery
@@ -188,6 +194,7 @@ export function ShelfListContent() {
             <ShelfBookCard
               key={book.id}
               book={book}
+              coverUrl={shelfCoverUrl(book.id, book.cover_storage_key)}
               actionMenuOpen={bookActionMenu?.book.id === book.id}
               onActionMenu={(b, anchorEl) => setBookActionMenu({ book: b, anchorEl })}
             />

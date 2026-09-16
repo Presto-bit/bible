@@ -150,6 +150,25 @@ def import_platform_file(
         )
         conn.commit()
 
+    try:
+        from .cover_gen import ensure_book_cover
+
+        ensure_book_cover(
+            {
+                "id": book_id,
+                "title": book_title,
+                "subtitle": parsed.get("subtitle"),
+                "author": parsed.get("author"),
+                "mime": mime,
+                "storage_key": storage_key,
+                "book_type": "document",
+                "sections": sections,
+            },
+            persist=True,
+        )
+    except Exception:
+        pass
+
     return {
         "id": book_id,
         "title": book_title,

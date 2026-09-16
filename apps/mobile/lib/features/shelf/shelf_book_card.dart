@@ -146,6 +146,28 @@ class ShelfBookCard extends StatelessWidget {
                           height: 1.3,
                           color: AppColors.ink.withValues(alpha: 0.55),
                         ),
+                      )
+                    else if (book.author.isNotEmpty)
+                      Text(
+                        book.author,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.3,
+                          color: AppColors.ink.withValues(alpha: 0.55),
+                        ),
+                      )
+                    else if (book.subtitle.isNotEmpty)
+                      Text(
+                        book.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.3,
+                          color: AppColors.ink.withValues(alpha: 0.55),
+                        ),
                       ),
                   ],
                 ),

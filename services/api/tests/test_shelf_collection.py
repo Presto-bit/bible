@@ -56,6 +56,7 @@ def test_row_to_summary_collection_section_count():
         "collection",
         "user-a",
         None,
+        None,
     )
     summary = _row_to_summary(row)
     assert summary["book_type"] == "collection"

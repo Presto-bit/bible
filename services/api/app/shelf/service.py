@@ -1,6 +1,7 @@
 """书架业务：入库、列表、阅读。"""
 from __future__ import annotations
 
+import io
 import json
 import re
 import uuid
@@ -22,6 +23,12 @@ from .file_catalog import (
     save_catalog_document,
 )
 from .schema import ensure_shelf_schema
+from .cover_gen import (
+    ensure_book_cover,
+    refresh_book_cover,
+    resolve_existing_cover_key,
+    write_cover_bytes,
+)
 from .store import delete_shelf_file, read_shelf_bytes, shelf_dir, shelf_file_path
 
 # 书目章节内存索引，避免每次按 id 线性扫描全书 sections
@@ -184,6 +191,7 @@ def _list_from_file() -> list[dict[str, Any]]:
             "section_count": len(b.get("sections") or []),
             "book_type": b.get("book_type") or "document",
             "group_id": b.get("group_id") or "default",
+            "cover_storage_key": b.get("cover_storage_key"),
             "created_at": None,
             "source": "platform",
         }
@@ -206,6 +214,7 @@ def _row_to_summary(row: tuple) -> dict[str, Any]:
         sort_order,
         book_type,
         uploaded_by,
+        cover_storage_key,
         created_at,
     ) = row
     toc = toc_json if isinstance(toc_json, dict) else json.loads(toc_json or "{}")
@@ -233,9 +242,36 @@ def _row_to_summary(row: tuple) -> dict[str, Any]:
         "section_count": section_count,
         "book_type": bt,
         "uploaded_by": str(uploaded_by) if uploaded_by else None,
+        "cover_storage_key": cover_storage_key,
         "created_at": created_at.isoformat() if created_at else None,
         "source": "platform",
     }
+
+
+def _book_cover_context(item: dict[str, Any]) -> dict[str, Any]:
+    bid = str(item.get("id") or "")
+    ctx = dict(item)
+    fb = get_file_book(bid)
+    if fb:
+        ctx.setdefault("sections", fb.get("sections") or [])
+        ctx.setdefault("storage_key", fb.get("storage_key") or ctx.get("storage_key"))
+        ctx.setdefault("cover_storage_key", fb.get("cover_storage_key") or ctx.get("cover_storage_key"))
+        ctx.setdefault("mime", fb.get("mime") or ctx.get("mime"))
+        ctx.setdefault("book_type", fb.get("book_type") or ctx.get("book_type"))
+    return ctx
+
+
+def _attach_cover_fields(items: list[dict[str, Any]]) -> None:
+    for item in items:
+        if resolve_existing_cover_key(item):
+            item["cover_storage_key"] = resolve_existing_cover_key(item)
+            continue
+        try:
+            key = ensure_book_cover(_book_cover_context(item), persist=True)
+            if key:
+                item["cover_storage_key"] = key
+        except Exception:
+            continue
 
 
 def _merge_file_catalog(db_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -257,11 +293,13 @@ def list_platform_books(
 ) -> list[dict[str, Any]]:
     file_items = _list_from_file()
     if not _db_available():
-        return _annotate_books_permissions(
+        items = _annotate_books_permissions(
             file_items,
             actor_user_id=actor_user_id,
             is_shelf_admin=is_shelf_admin,
         )
+        _attach_cover_fields(items)
+        return items
     pool = get_pool()
     ensure_shelf_schema(pool)
     try:
@@ -269,7 +307,7 @@ def list_platform_books(
             cur = conn.execute(
                 """
                 SELECT id, title, subtitle, author, mime, file_size, toc_json, sections_json,
-                       status, sort_order, book_type, uploaded_by, created_at
+                       status, sort_order, book_type, uploaded_by, cover_storage_key, created_at
                 FROM shelf_platform_book
                 WHERE status = 'published'
                 ORDER BY sort_order DESC, created_at DESC
@@ -278,18 +316,22 @@ def list_platform_books(
             rows = cur.fetchall()
         if rows:
             merged = _merge_file_catalog([_row_to_summary(r) for r in rows])
-            return _annotate_books_permissions(
+            items = _annotate_books_permissions(
                 merged,
                 actor_user_id=actor_user_id,
                 is_shelf_admin=is_shelf_admin,
             )
+            _attach_cover_fields(items)
+            return items
     except Exception:
         pass
-    return _annotate_books_permissions(
+    items = _annotate_books_permissions(
         file_items,
         actor_user_id=actor_user_id,
         is_shelf_admin=is_shelf_admin,
     )
+    _attach_cover_fields(items)
+    return items
 
 
 def list_platform_groups() -> list[dict[str, Any]]:
@@ -306,6 +348,7 @@ def list_platform_shelf(
         is_shelf_admin=is_shelf_admin,
     )
     items.sort(key=lambda b: int(b.get("sort_order") or 0), reverse=True)
+    _attach_cover_fields(items)
     return {"groups": list_platform_groups(), "items": items}
 
 
@@ -383,6 +426,7 @@ def _book_detail_from_file(fb: dict[str, Any], *, include_sections: bool) -> dic
         "status": fb.get("status") or "published",
         "book_type": fb.get("book_type") or "document",
         "source": "platform",
+        "cover_storage_key": fb.get("cover_storage_key"),
         "created_at": None,
     }
     if include_sections:
@@ -398,6 +442,16 @@ def _book_detail_from_file(fb: dict[str, Any], *, include_sections: bool) -> dic
             }
             for s in (fb.get("sections") or [])
         ]
+    return _finalize_book_detail(out)
+
+
+def _finalize_book_detail(out: dict[str, Any]) -> dict[str, Any]:
+    try:
+        key = ensure_book_cover(_book_cover_context(out), persist=True)
+        if key:
+            out["cover_storage_key"] = key
+    except Exception:
+        pass
     return out
 
 
@@ -411,7 +465,8 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                 cur = conn.execute(
                     """
                     SELECT id, title, subtitle, author, mime, storage_key, file_size, file_sha256,
-                           toc_json, sections_json, status, sort_order, book_type, uploaded_by, created_at
+                           toc_json, sections_json, status, sort_order, book_type, uploaded_by,
+                           cover_storage_key, created_at
                     FROM shelf_platform_book
                     WHERE id = %s AND status = 'published'
                     """,
@@ -428,13 +483,15 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                     "subtitle": row[2] or "",
                     "author": row[3] or "",
                     "mime": row[4],
+                    "storage_key": row[5],
                     "file_size": int(row[6] or 0),
                     "file_sha256": row[7],
                     "toc": toc,
                     "status": row[10],
                     "book_type": db_book_type,
                     "source": "platform",
-                    "created_at": row[14].isoformat() if row[14] else None,
+                    "cover_storage_key": row[14],
+                    "created_at": row[15].isoformat() if row[15] else None,
                 }
                 if fb and fb.get("book_type") == "collection" and db_book_type != "collection":
                     return _book_detail_from_file(fb, include_sections=include_sections)
@@ -457,7 +514,7 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                     out["group_id"] = fb.get("group_id")
                     if db_book_type != "collection":
                         out["book_type"] = fb.get("book_type") or out["book_type"]
-                return out
+                return _finalize_book_detail(out)
         except Exception:
             pass
     if fb:
@@ -540,37 +597,47 @@ def get_platform_section(book_id: str, section_id: str) -> dict[str, Any]:
 def _book_asset_context(book_id: str) -> dict[str, Any]:
     fb = get_file_book(book_id)
     if fb and (fb.get("book_type") or "") == "collection":
-        return fb
+        out = dict(fb)
+        out["id"] = book_id
+        return out
     indexed = _load_book_sections(book_id)
     if indexed is None and not fb:
         raise HTTPException(status_code=404, detail="书目不存在")
     sections = list(indexed.values()) if indexed else (fb.get("sections") or [])
     book_type = (fb or {}).get("book_type") or "document"
     storage_key = (fb or {}).get("storage_key")
+    cover_key = (fb or {}).get("cover_storage_key")
     if _db_available():
         try:
             pool = get_pool()
             with pool.connection() as conn:
                 row = conn.execute(
-                    "SELECT book_type, storage_key FROM shelf_platform_book WHERE id = %s AND status = 'published'",
+                    """
+                    SELECT book_type, storage_key, cover_storage_key
+                    FROM shelf_platform_book WHERE id = %s AND status = 'published'
+                    """,
                     (book_id,),
                 ).fetchone()
             if row:
                 book_type = row[0] or book_type
                 storage_key = row[1] or storage_key
+                cover_key = row[2] or cover_key
         except Exception:
             pass
     return {
+        "id": book_id,
         "book_type": book_type,
         "storage_key": storage_key,
         "sections": sections,
+        "cover_storage_key": cover_key,
     }
 
 
 def get_platform_asset_path(book_id: str, storage_key: str):
     book_ctx = _book_asset_context(book_id)
+    book_ctx["id"] = book_id
     name = storage_key.split("/")[-1]
-    if not asset_allowed(book_ctx, name):
+    if not asset_allowed(book_ctx, name, book_id=book_id):
         raise HTTPException(status_code=404, detail="文件不存在")
     path = shelf_file_path(name)
     if not path.is_file():
@@ -1055,6 +1122,18 @@ def create_user_collection(
         )
         conn.commit()
 
+    out = {
+        "id": book_id,
+        "title": t,
+        "subtitle": sub or "",
+        "book_type": "collection",
+        "section_count": 0,
+        "sections": sections,
+    }
+    try:
+        ensure_book_cover(out, persist=True)
+    except Exception:
+        pass
     return {
         "id": book_id,
         "title": t,
@@ -1062,6 +1141,60 @@ def create_user_collection(
         "book_type": "collection",
         "section_count": 0,
     }
+
+
+def upload_platform_book_cover(
+    book_id: str,
+    data: bytes,
+    *,
+    actor_user_id: str | None,
+    is_shelf_admin: bool,
+) -> dict[str, Any]:
+    """上传/替换书目封面（上传者或书柜管理员）。"""
+    if len(data) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="封面过大（上限 2MB）")
+    if len(data) < 32:
+        raise HTTPException(status_code=400, detail="无效的图片")
+
+    try:
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(data))
+        img = img.convert("RGB")
+        buf = io.BytesIO()
+        img.save(buf, format="WEBP", quality=85, method=4)
+        data = buf.getvalue()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="无效的图片文件") from e
+
+    if not _db_available():
+        raise HTTPException(status_code=503, detail="暂不可用")
+    pool = get_pool()
+    ensure_shelf_schema(pool)
+    with pool.connection() as conn:
+        row = conn.execute(
+            """
+            SELECT uploaded_by FROM shelf_platform_book
+            WHERE id = %s AND status = 'published'
+            """,
+            (book_id,),
+        ).fetchone()
+    if not row:
+        fb = get_file_book(book_id)
+        if not fb or (fb.get("status") or "published") != "published":
+            raise HTTPException(status_code=404, detail="书目不存在")
+        if not is_shelf_admin:
+            uploaded_by = fb.get("uploaded_by")
+            if not uploaded_by or not actor_user_id or str(uploaded_by) != str(actor_user_id):
+                raise HTTPException(status_code=403, detail="无权编辑此书")
+    elif not is_shelf_admin and (
+        not row[0] or not actor_user_id or str(row[0]) != str(actor_user_id)
+    ):
+        raise HTTPException(status_code=403, detail="无权编辑此书")
+
+    key = write_cover_bytes(book_id, data)
+    _persist_cover_key({"id": book_id}, key)
+    return {"ok": True, "cover_storage_key": key}
 
 
 def collection_units(book_id: str) -> list[str]:
@@ -1269,6 +1402,14 @@ def append_collection_lesson(
             pass
         raise HTTPException(status_code=500, detail=f"保存合集失败：{e}") from e
     invalidate_shelf_section_cache(book_id)
+    try:
+        rec = _collection_book_record(book_id)
+        if rec:
+            refreshed, _, _ = rec
+            refreshed["id"] = book_id
+            refresh_book_cover(refreshed, force=True)
+    except Exception:
+        pass
     return {
         "ok": True,
         "book_id": book_id,

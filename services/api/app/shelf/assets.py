@@ -101,6 +101,9 @@ def infer_section_attachments(section: dict[str, Any]) -> list[dict[str, Any]]:
 
 def book_asset_keys(book: dict[str, Any]) -> set[str]:
     keys: set[str] = set()
+    cover = book.get("cover_storage_key")
+    if cover:
+        keys.add(str(cover))
     root = book.get("storage_key")
     if root:
         keys.add(str(root))
@@ -116,10 +119,16 @@ def book_asset_keys(book: dict[str, Any]) -> set[str]:
     return keys
 
 
-def asset_allowed(book: dict[str, Any], storage_key: str) -> bool:
+def asset_allowed(book: dict[str, Any], storage_key: str, *, book_id: str | None = None) -> bool:
     name = Path(storage_key).name
     if name in book_asset_keys(book):
         return True
+    bid = book_id or str(book.get("id") or "")
+    if bid and name.startswith("cover-") and shelf_file_path(name).is_file():
+        from .cover_gen import cover_storage_key_for_book
+
+        if name == cover_storage_key_for_book(bid):
+            return True
     if (book.get("book_type") or "") != "collection":
         return False
     for section in book.get("sections") or []:

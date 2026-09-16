@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'shelf_book_card.dart';
+import 'shelf_brand_cover.dart';
 import 'shelf_checkin_sheet.dart';
 import 'shelf_library_store.dart';
 import 'shelf_manage_sheet.dart';
@@ -543,6 +544,8 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
         loading: () => const Center(child: Text('加载中…', style: AppTypography.meta)),
         error: (_, __) => const Center(child: Text('暂时无法加载书架', style: AppTypography.meta)),
         data: (data) {
+          final repo = ref.read(shelfRepoProvider);
+          final progressStore = ShelfProgressStore(ref.read(prefsProvider));
           final showUngrouped = _library.ungroupedCount(data.items) > 0;
           final books = _library.filterAndSort(
             data.items,
@@ -602,8 +605,17 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                           ),
                       ],
                     ),
+                    ),
                   ),
-                ),
+                if (_tab.kind == ShelfLibraryTabKind.lastRead && _searchCtrl.text.trim().isEmpty)
+                  SliverToBoxAdapter(
+                    child: _ContinueReadingBar(
+                      items: data.items,
+                      progressStore: progressStore,
+                      coverUrlFor: (book) => repo.coverUrl(book.id, book.coverStorageKey),
+                      onContinue: (book) => _openBook(book),
+                    ),
+                  ),
                 if (_tab.kind == ShelfLibraryTabKind.progress)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -679,6 +691,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                           final book = books[i];
                           return ShelfBookCard(
                             book: book,
+                            coverUrl: repo.coverUrl(book.id, book.coverStorageKey),
                             progressRatio: _library.bookProgressRatio(book.id),
                             onTap: () => _openBook(book),
                             onDetailTap: () => _openBookDetail(book),
@@ -693,6 +706,109 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _ContinueReadingBar extends StatelessWidget {
+  const _ContinueReadingBar({
+    required this.items,
+    required this.progressStore,
+    required this.coverUrlFor,
+    required this.onContinue,
+  });
+
+  final List<ShelfBookSummary> items;
+  final ShelfProgressStore progressStore;
+  final String? Function(ShelfBookSummary book) coverUrlFor;
+  final void Function(ShelfBookSummary book) onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    final last = progressStore.loadLastRead();
+    if (last == null || last.bookId.isEmpty) return const SizedBox.shrink();
+    ShelfBookSummary? book;
+    for (final item in items) {
+      if (item.id == last.bookId) {
+        book = item;
+        break;
+      }
+    }
+    if (book == null) return const SizedBox.shrink();
+    final progress = progressStore.loadBook(book.id);
+    if (progress?.isFinished ?? false) return const SizedBox.shrink();
+
+    final coverUrl = coverUrlFor(book);
+    final sectionLabel = last.sectionTitle.trim().isNotEmpty ? last.sectionTitle.trim() : '继续上次位置';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => onContinue(book!),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 44,
+                  height: 58,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: coverUrl != null && coverUrl.isNotEmpty
+                        ? Image.network(
+                            coverUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const ShelfBrandCover(),
+                          )
+                        : const ShelfBrandCover(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '继续阅读',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.ink.withValues(alpha: 0.55),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        book.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        sectionLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.ink.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: AppColors.accentDeep),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

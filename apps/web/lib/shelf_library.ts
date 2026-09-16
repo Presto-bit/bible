@@ -308,3 +308,23 @@ export function shelfBookCardHref(bookId: string): string {
     ? shelfBookDetailHref(bookId)
     : shelfBookReadHref(bookId);
 }
+
+export function formatShelfLastReadAgo(at: number | null | undefined): string | null {
+  if (!at) return null;
+  const days = Math.floor((Date.now() - at) / 86_400_000);
+  if (days <= 0) return '今天读过';
+  if (days === 1) return '昨天读过';
+  if (days < 7) return `${days} 天前读过`;
+  if (days < 30) return `${Math.floor(days / 7)} 周前读过`;
+  return `${Math.floor(days / 30)} 月前读过`;
+}
+
+/** 卡片副信息：作者 > 副标题 > 上次阅读时间 */
+export function shelfBookCardMetaLine(bookId: string, book: ShelfBookSummary): string | null {
+  const author = book.author?.trim();
+  if (author) return author;
+  const sub = book.subtitle?.trim();
+  if (sub) return sub;
+  const meta = readStore().books[bookId];
+  return formatShelfLastReadAgo(meta?.lastReadAt ?? null);
+}

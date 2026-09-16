@@ -34,6 +34,7 @@ export type ShelfBookSummary = {
   uploaded_by?: string | null;
   can_delete?: boolean;
   can_edit?: boolean;
+  cover_storage_key?: string | null;
   source: 'platform' | 'local';
 };
 
@@ -90,6 +91,12 @@ export type ShelfSection = {
 export function shelfAssetUrl(bookId: string, storageKey: string): string {
   const key = encodeURIComponent(storageKey.split('/').pop() || storageKey);
   return `${API_BASE}/shelf/platform/${encodeURIComponent(bookId)}/files/${key}`;
+}
+
+export function shelfCoverUrl(bookId: string, coverStorageKey?: string | null): string | null {
+  const key = (coverStorageKey || '').trim();
+  if (!key) return null;
+  return shelfAssetUrl(bookId, key);
 }
 
 /** API 抽出的 Word 内嵌图 src 为 `/shelf/platform/...` 或裸文件名，补成绝对地址。 */
@@ -410,6 +417,31 @@ export async function updatePlatformShelfBook(
       /* ignore */
     }
     throw new Error(typeof detail === 'string' ? detail : '保存失败');
+  }
+  return res.json();
+}
+
+export async function uploadPlatformBookCover(
+  bookId: string,
+  file: File,
+): Promise<{ ok: boolean; cover_storage_key: string }> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(
+    `${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}/cover`,
+    { method: 'POST', headers: authHeaders(), body: form, cache: 'no-store' },
+  );
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权编辑');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '封面上传失败');
   }
   return res.json();
 }

@@ -7,7 +7,13 @@ import PageBackBar from '@/components/PageBackBar';
 import ShelfCoverPlate from '@/components/shelf/ShelfCoverPlate';
 import ShelfPostCard from '@/components/shelf/ShelfPostCard';
 import { useToast } from '@/components/ui/ToastProvider';
-import { getPlatformShelfBook, clearShelfBookFinished, loadShelfBookProgress, type ShelfBookDetail } from '@/lib/shelf_api';
+import {
+  getPlatformShelfBook,
+  clearShelfBookFinished,
+  loadShelfBookProgress,
+  shelfCoverUrl,
+  type ShelfBookDetail,
+} from '@/lib/shelf_api';
 import {
   buildShelfCheckinRef,
   formatShelfCheckinLabel,
@@ -116,6 +122,19 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   }, [book, reloadPosts]);
 
   const continueHref = readHref(bookId, progress?.sectionId, progress?.pageIndex);
+  const coverUrl = book ? shelfCoverUrl(bookId, book.cover_storage_key) : null;
+  const tocPreview = useMemo(() => {
+    const sections = book?.sections ?? [];
+    if (sections.length > 0) return sections.slice(0, 5);
+    const body = book?.toc?.body ?? [];
+    return body.slice(0, 5).map((item) => ({
+      id: item.section_id || item.id,
+      title: item.title,
+    }));
+  }, [book]);
+  const totalSections =
+    (book?.sections?.length ?? 0) ||
+    (book?.toc?.body?.length ?? 0) + (book?.toc?.front?.length ?? 0);
 
   useEdgeSwipeBack({ href: continueHref, preferHistoryBack: true });
 
@@ -200,7 +219,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
       ) : null}
 
       <section className="shelf-detail-hero">
-        <ShelfCoverPlate title={book?.title || ''} size="detail" />
+        <ShelfCoverPlate title={book?.title || ''} size="detail" coverUrl={coverUrl} />
         <h1 className="shelf-detail-title">{book?.title}</h1>
         {book?.author ? <p className="shelf-detail-author muted">{book.author}</p> : null}
         {book?.subtitle ? (
@@ -236,6 +255,40 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
           {stats.reviews} 篇书评 · {stats.notes} 条公开笔记
         </p>
       </section>
+
+      {tocPreview.length > 0 ? (
+        <section className="shelf-detail-toc" aria-label="目录预览">
+          <h2 className="shelf-detail-toc-title">目录预览</h2>
+          <ol className="shelf-detail-toc-list">
+            {tocPreview.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  className="shelf-detail-toc-item"
+                  onClick={() => {
+                    clearShelfBookFinished(bookId);
+                    navigateAppHref(readHref(bookId, item.id), router);
+                  }}
+                >
+                  {item.title}
+                </button>
+              </li>
+            ))}
+          </ol>
+          {totalSections > tocPreview.length ? (
+            <button
+              type="button"
+              className="shelf-detail-toc-more btn ghost"
+              onClick={() => {
+                clearShelfBookFinished(bookId);
+                navigateAppHref(continueHref, router);
+              }}
+            >
+              查看全部目录
+            </button>
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="shelf-detail-tabs" role="tablist">
         {(['reviews', 'notes', 'mine'] as Tab[]).map((t) => (
