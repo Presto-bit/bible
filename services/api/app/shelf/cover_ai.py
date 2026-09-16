@@ -7,6 +7,7 @@ from typing import Any
 
 from ..ai.zhipu_image import ZhipuImageError, generate_image_bytes, zhipu_image_configured
 from .cover_gen import _COVER_H, _COVER_W
+from .cover_overlay import cover_image_to_webp, overlay_poster_title_on_cover
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ _STYLE_TAIL = (
 
 
 def build_shelf_cover_prompt(book: dict[str, Any]) -> str:
-    """据书名/副标题/作者/类型拼出 CogView prompt（对齐 PRODUCT §19.14 纸感气质）。"""
+    """据书名/副标题/作者/类型拼出 CogView prompt（海报风：上留白给叠字）。"""
     title = (book.get("title") or "未命名").strip()
     subtitle = (book.get("subtitle") or "").strip()
     author = (book.get("author") or "").strip()
@@ -25,32 +26,32 @@ def build_shelf_cover_prompt(book: dict[str, Any]) -> str:
 
     if bt == "collection":
         subject = (
-            f"Christian reading collection titled 「{title}」"
+            f"Christian reading collection themed around 「{title}」"
             + (f", {subtitle}" if subtitle else "")
-            + "; gentle stack of papers, soft lamp light, curated spiritual materials"
+            + "; curated spiritual materials, calm symbolic still life"
         )
     else:
-        subject = f"book cover mood for 「{title}」"
+        subject = f"quiet Christian book poster mood inspired by 「{title}」"
         if subtitle:
-            subject += f", subtitle: {subtitle}"
+            subject += f", {subtitle}"
         if author:
             subject += f", by {author}"
-        subject += "; infer quiet Christian devotional or educational theme from the title"
 
     return (
-        f"Vertical portrait book cover illustration for a quiet Christian reading shelf app. "
+        "Vertical portrait poster-style book cover illustration for a quiet reading app. "
         f"{subject}. "
-        "Composition: centered symbolic scene or still life, generous margins, 3:4 portrait. "
+        "Composition: symbolic scene or still life in the lower two-thirds; "
+        "upper third kept calm, open, minimal detail for title overlay; "
+        "no faces close-up, no text in image. "
         "Quiet sacred paper-like flat illustration, muted warm gray and ochre, soft daylight, "
         "visible paper grain, layered flat shapes, low contrast. "
         "Not photorealistic cinematic, not sci-fi, not neon. "
-        "No human faces close-up. "
         f"{_STYLE_TAIL}"
     )
 
 
-def fit_cover_webp(raw: bytes) -> bytes:
-    """裁切/缩放为书架标准 400×533 WebP。"""
+def fit_cover_image(raw: bytes):
+    """裁切/缩放为书架标准 400×533 RGB。"""
     from PIL import Image
 
     img = Image.open(io.BytesIO(raw)).convert("RGB")
@@ -65,20 +66,25 @@ def fit_cover_webp(raw: bytes) -> bytes:
         new_h = int(w / target_ratio)
         top = (h - new_h) // 2
         img = img.crop((0, top, w, top + new_h))
-    img = img.resize((_COVER_W, _COVER_H), Image.Resampling.LANCZOS)
-    buf = io.BytesIO()
-    img.save(buf, format="WEBP", quality=82, method=4)
-    return buf.getvalue()
+    return img.resize((_COVER_W, _COVER_H), Image.Resampling.LANCZOS)
+
+
+def fit_cover_webp(raw: bytes) -> bytes:
+    """裁切/缩放为书架标准 400×533 WebP。"""
+    return cover_image_to_webp(fit_cover_image(raw))
 
 
 def render_ai_cover(book: dict[str, Any]) -> bytes | None:
-    """调用 CogView 生成封面 WebP；未配置密钥或失败时返回 None。"""
+    """CogView 出图 → 海报风叠书名 → WebP。"""
     if not zhipu_image_configured():
         return None
     prompt = build_shelf_cover_prompt(book)
+    title = (book.get("title") or "未命名").strip()
     try:
         raw = generate_image_bytes(prompt)
-        return fit_cover_webp(raw)
+        img = fit_cover_image(raw)
+        img = overlay_poster_title_on_cover(img, title)
+        return cover_image_to_webp(img)
     except ZhipuImageError as e:
         logger.warning("shelf ai cover failed for %s: %s", book.get("id"), e)
         return None

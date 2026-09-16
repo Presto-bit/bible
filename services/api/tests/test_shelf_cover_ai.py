@@ -10,6 +10,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.shelf.cover_ai import build_shelf_cover_prompt, fit_cover_webp  # noqa: E402
+from app.shelf.cover_overlay import overlay_poster_title_on_cover, poster_title_layout  # noqa: E402
 from app.shelf.cover_gen import (  # noqa: E402
     COVER_SOURCE_USER,
     CoverProtectedError,
@@ -25,6 +26,7 @@ def test_build_shelf_cover_prompt_includes_title_and_no_text():
     )
     assert "诗篇研经" in prompt
     assert "第一季" in prompt
+    assert "poster" in prompt.lower() or "upper third" in prompt.lower()
     assert "不要任何文字" in prompt or "no text" in prompt.lower() or "No" in prompt
 
 
@@ -66,6 +68,22 @@ def test_cover_version_for_key(tmp_path, monkeypatch):
     ver = cg.cover_version_for_key(key)
     assert ver is not None
     assert ver > 0
+
+
+def test_poster_title_layout_scales_with_length():
+    assert poster_title_layout("短书名")[0] >= poster_title_layout("这是一本名字比较长的书籍资料")[0]
+
+
+def test_overlay_poster_title_preserves_size():
+    from PIL import Image
+    import io
+
+    img = Image.new("RGB", (400, 533), (180, 170, 160))
+    out = overlay_poster_title_on_cover(img, "恩典的安慰")
+    assert out.size == (400, 533)
+    buf = io.BytesIO()
+    out.save(buf, format="PNG")
+    assert len(buf.getvalue()) > 500
 
 
 def test_fit_cover_webp_dimensions():
