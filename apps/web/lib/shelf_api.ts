@@ -71,6 +71,7 @@ export type ShelfBookDetail = ShelfBookSummary & {
     level?: number;
     kind?: string;
     unit?: string;
+    attachments?: ShelfAttachment[];
   }[];
 };
 
@@ -359,13 +360,16 @@ export async function listCollectionUnits(bookId: string): Promise<string[]> {
 export async function appendCollectionLesson(
   bookId: string,
   file: File,
-  opts?: { title?: string; unit?: string; zone?: string },
-): Promise<{ section?: { id: string; title: string } }> {
+  opts?: { title?: string; unit?: string; zone?: string; attachments?: File[] },
+): Promise<{ section?: { id: string; title: string; attachments?: ShelfAttachment[] } }> {
   const form = new FormData();
   form.append('file', file);
   if (opts?.title?.trim()) form.append('title', opts.title.trim());
   if (opts?.unit?.trim()) form.append('unit', opts.unit.trim());
   form.append('zone', opts?.zone?.trim() || 'body');
+  for (const att of opts?.attachments ?? []) {
+    form.append('attachments', att);
+  }
   const res = await fetch(
     `${API_BASE}/shelf/platform/collections/${encodeURIComponent(bookId)}/lessons`,
     { method: 'POST', headers: authHeaders(), body: form, cache: 'no-store' },
@@ -435,6 +439,58 @@ export async function updateCollectionSection(
       /* ignore */
     }
     throw new Error(typeof detail === 'string' ? detail : '保存失败');
+  }
+  return res.json();
+}
+
+export async function appendSectionAttachments(
+  bookId: string,
+  sectionId: string,
+  files: File[],
+): Promise<{ attachments?: ShelfAttachment[]; added?: ShelfAttachment[] }> {
+  const form = new FormData();
+  for (const file of files) {
+    form.append('attachments', file);
+  }
+  const res = await fetch(
+    `${API_BASE}/shelf/platform/collections/${encodeURIComponent(bookId)}/sections/${encodeURIComponent(sectionId)}/attachments`,
+    { method: 'POST', headers: authHeaders(), body: form, cache: 'no-store' },
+  );
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权编辑');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '上传失败');
+  }
+  return res.json();
+}
+
+export async function deleteSectionAttachment(
+  bookId: string,
+  sectionId: string,
+  attachmentId: string,
+): Promise<{ attachments?: ShelfAttachment[] }> {
+  const res = await fetch(
+    `${API_BASE}/shelf/platform/collections/${encodeURIComponent(bookId)}/sections/${encodeURIComponent(sectionId)}/attachments/${encodeURIComponent(attachmentId)}`,
+    { method: 'DELETE', headers: authHeaders(), cache: 'no-store' },
+  );
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权编辑');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '删除失败');
   }
   return res.json();
 }

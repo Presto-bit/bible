@@ -13,10 +13,12 @@ from .service import (
     _book_can_delete,
     _book_can_edit,
     append_collection_lesson,
+    append_section_attachments,
     collection_units,
     create_user_collection,
     delete_collection_section,
     delete_platform_book,
+    delete_section_attachment,
     get_platform_asset_path,
     get_platform_book,
     get_platform_file_bytes,
@@ -147,10 +149,20 @@ def shelf_platform_collection_units(
     return {"units": collection_units(book_id)}
 
 
+async def _read_upload_attachments(files: list[UploadFile] | None) -> list[tuple[bytes, str]]:
+    out: list[tuple[bytes, str]] = []
+    for item in files or []:
+        payload = await item.read()
+        if payload:
+            out.append((payload, item.filename or "attachment"))
+    return out
+
+
 @router.post("/platform/collections/{book_id}/lessons")
 async def shelf_platform_append_lesson(
     book_id: str,
     file: UploadFile = File(...),
+    attachments: list[UploadFile] = File(default=[]),
     title: str | None = Form(default=None),
     unit: str | None = Form(default=None),
     zone: str = Form(default="body"),
@@ -170,6 +182,7 @@ async def shelf_platform_append_lesson(
         cookie=cookie,
     )
     data = await file.read()
+    att_pairs = await _read_upload_attachments(attachments)
     return append_collection_lesson(
         book_id,
         data=data,
@@ -178,8 +191,65 @@ async def shelf_platform_append_lesson(
         unit=unit,
         zone=zone,
         after_section_id=after_section_id,
-        attachments=None,
+        attachments=att_pairs or None,
         content_type=file.content_type,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
+    )
+
+
+@router.post("/platform/collections/{book_id}/sections/{section_id}/attachments")
+async def shelf_platform_append_section_attachments(
+    book_id: str,
+    section_id: str,
+    attachments: list[UploadFile] = File(...),
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+) -> dict:
+    """向已有课节追加素材（图片/视频）。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    att_pairs = await _read_upload_attachments(attachments)
+    return append_section_attachments(
+        book_id,
+        section_id,
+        attachments=att_pairs,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
+    )
+
+
+@router.delete("/platform/collections/{book_id}/sections/{section_id}/attachments/{attachment_id}")
+def shelf_platform_delete_section_attachment(
+    book_id: str,
+    section_id: str,
+    attachment_id: str,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+) -> dict:
+    """删除课节内一份素材。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    return delete_section_attachment(
+        book_id,
+        section_id,
+        attachment_id,
         actor_user_id=actor_id,
         is_shelf_admin=is_admin,
     )

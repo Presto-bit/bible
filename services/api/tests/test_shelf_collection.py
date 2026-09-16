@@ -60,3 +60,28 @@ def test_row_to_summary_collection_section_count():
     summary = _row_to_summary(row)
     assert summary["book_type"] == "collection"
     assert summary["section_count"] == 2
+
+
+def test_save_lesson_attachments_png_and_mp4(tmp_path, monkeypatch):
+    from app.shelf import service as shelf_service
+
+    monkeypatch.setattr(shelf_service, "shelf_dir", lambda: tmp_path)
+    png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+    mp4 = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 32
+    att_list, total = shelf_service._save_lesson_attachments(
+        "cur-test-lesson",
+        [(png, "P1.png"), (mp4, "story.mp4")],
+    )
+    assert len(att_list) == 2
+    assert total == len(png) + len(mp4)
+    assert att_list[0]["kind"] == "image"
+    assert att_list[1]["kind"] == "video"
+    assert (tmp_path / att_list[0]["storage_key"]).is_file()
+    assert (tmp_path / att_list[1]["storage_key"]).is_file()
+
+
+def test_resolve_attachment_suffix_from_magic():
+    from app.shelf.service import _resolve_attachment_suffix
+
+    assert _resolve_attachment_suffix("x.png", b"\x89PNG\r\n\x1a\n\x00") == ".png"
+    assert _resolve_attachment_suffix("blob", b"\xff\xd8\xff\xe0") == ".jpg"

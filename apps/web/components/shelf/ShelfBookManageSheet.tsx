@@ -21,6 +21,10 @@ const ShelfAppendLessonSheet = dynamic(
   () => import('@/components/shelf/ShelfAppendLessonSheet'),
   { ssr: false },
 );
+const ShelfSectionAttachmentsSheet = dynamic(
+  () => import('@/components/shelf/ShelfSectionAttachmentsSheet'),
+  { ssr: false },
+);
 
 type Props = {
   book: ShelfBookSummary | null;
@@ -39,6 +43,11 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
   const [appendOpen, setAppendOpen] = useState(false);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [sectionTitle, setSectionTitle] = useState('');
+  const [attachmentsSection, setAttachmentsSection] = useState<{
+    id: string;
+    title: string;
+    attachments: NonNullable<ShelfBookDetail['sections']>[number]['attachments'];
+  } | null>(null);
 
   const isCollection = book?.book_type === 'collection';
 
@@ -256,8 +265,26 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
                       <div className="shelf-manage-section-main">
                         <span className="shelf-manage-section-title">{sec.title}</span>
                         {sec.unit ? <span className="muted shelf-manage-section-unit">{sec.unit}</span> : null}
+                        {(sec.attachments?.length ?? 0) > 0 ? (
+                          <span className="muted shelf-manage-section-unit">素材 {sec.attachments?.length} 项</span>
+                        ) : null}
                       </div>
                       <div className="shelf-manage-section-actions">
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          disabled={busy}
+                          {...shellTapProps({
+                            onTap: () =>
+                              setAttachmentsSection({
+                                id: sec.id,
+                                title: sec.title,
+                                attachments: sec.attachments ?? [],
+                              }),
+                          })}
+                        >
+                          素材
+                        </button>
                         <button type="button" className="btn ghost" disabled={busy} {...shellTapProps({ onTap: () => startEditSection(sec.id, sec.title) })}>
                           改名
                         </button>
@@ -289,6 +316,16 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
           bookTitle={title.trim() || book.title}
           onClose={() => setAppendOpen(false)}
           onAdded={() => void reloadDetail()}
+        />
+      ) : null}
+      {attachmentsSection ? (
+        <ShelfSectionAttachmentsSheet
+          bookId={book.id}
+          sectionId={attachmentsSection.id}
+          sectionTitle={attachmentsSection.title}
+          attachments={attachmentsSection.attachments ?? []}
+          onClose={() => setAttachmentsSection(null)}
+          onChanged={() => void reloadDetail()}
         />
       ) : null}
     </AppBodyPortal>

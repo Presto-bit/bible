@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
@@ -135,6 +136,7 @@ class ShelfSectionSummary {
     this.level,
     this.kind = 'html',
     this.unit,
+    this.attachments = const [],
   });
 
   final String id;
@@ -143,6 +145,7 @@ class ShelfSectionSummary {
   final int? level;
   final String kind;
   final String? unit;
+  final List<ShelfAttachment> attachments;
 
   factory ShelfSectionSummary.fromJson(Map<String, dynamic> j) =>
       ShelfSectionSummary(
@@ -152,6 +155,10 @@ class ShelfSectionSummary {
         level: (j['level'] as num?)?.toInt(),
         kind: '${j['kind'] ?? 'html'}',
         unit: j['unit'] as String?,
+        attachments: (j['attachments'] as List<dynamic>? ?? const [])
+            .whereType<Map>()
+            .map((e) => ShelfAttachment.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
       );
 }
 
@@ -555,6 +562,7 @@ class ShelfRepository {
     String? title,
     String? unit,
     String zone = 'body',
+    List<PlatformFile>? attachments,
   }) async {
     final MultipartFile filePart;
     if (filePath != null && filePath.isNotEmpty) {
@@ -570,10 +578,58 @@ class ShelfRepository {
     };
     if (title != null && title.trim().isNotEmpty) map['title'] = title.trim();
     if (unit != null && unit.trim().isNotEmpty) map['unit'] = unit.trim();
+    if (attachments != null && attachments.isNotEmpty) {
+      final parts = <MultipartFile>[];
+      for (final att in attachments) {
+        final name = att.name.trim().isEmpty ? 'attachment' : att.name;
+        if (att.path != null && att.path!.isNotEmpty) {
+          parts.add(await MultipartFile.fromFile(att.path!, filename: name));
+        } else if (att.bytes != null && att.bytes!.isNotEmpty) {
+          parts.add(MultipartFile.fromBytes(att.bytes!, filename: name));
+        }
+      }
+      if (parts.isNotEmpty) map['attachments'] = parts;
+    }
     final form = FormData.fromMap(map);
     final res = await _dio.post<Map<String, dynamic>>(
       '/shelf/platform/collections/$bookId/lessons',
       data: form,
+    );
+    await _fetchListFresh(force: true);
+    return res.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> appendSectionAttachments({
+    required String bookId,
+    required String sectionId,
+    required List<PlatformFile> files,
+  }) async {
+    final parts = <MultipartFile>[];
+    for (final att in files) {
+      final name = att.name.trim().isEmpty ? 'attachment' : att.name;
+      if (att.path != null && att.path!.isNotEmpty) {
+        parts.add(await MultipartFile.fromFile(att.path!, filename: name));
+      } else if (att.bytes != null && att.bytes!.isNotEmpty) {
+        parts.add(MultipartFile.fromBytes(att.bytes!, filename: name));
+      }
+    }
+    if (parts.isEmpty) throw StateError('缺少素材文件');
+    final form = FormData.fromMap({'attachments': parts});
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/shelf/platform/collections/$bookId/sections/$sectionId/attachments',
+      data: form,
+    );
+    await _fetchListFresh(force: true);
+    return res.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> deleteSectionAttachment(
+    String bookId,
+    String sectionId,
+    String attachmentId,
+  ) async {
+    final res = await _dio.delete<Map<String, dynamic>>(
+      '/shelf/platform/collections/$bookId/sections/$sectionId/attachments/$attachmentId',
     );
     await _fetchListFresh(force: true);
     return res.data ?? const {};

@@ -44,6 +44,8 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
   final _unitCtrl = TextEditingController();
   var _busy = false;
   List<String> _units = const [];
+  PlatformFile? _lessonFile;
+  List<PlatformFile> _mediaFiles = const [];
 
   @override
   void initState() {
@@ -63,7 +65,7 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
     if (mounted) setState(() => _units = units);
   }
 
-  Future<void> _pickAndUpload() async {
+  Future<void> _pickLesson() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['pdf', 'docx'],
@@ -72,17 +74,7 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
     );
     if (result == null || result.files.isEmpty) return;
     final file = result.files.single;
-    final path = file.path;
-    final bytes = file.bytes;
-    if ((path == null || path.isEmpty) && (bytes == null || bytes.isEmpty)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法读取所选文件，请换一个再试')),
-      );
-      return;
-    }
-    var filename = file.name.trim();
-    final lower = filename.toLowerCase();
+    final lower = file.name.toLowerCase();
     if (lower.endsWith('.doc') && !lower.endsWith('.docx')) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -90,16 +82,54 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
       );
       return;
     }
-    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx')) {
-      final base = filename.isEmpty ? 'lesson' : filename;
-      filename = '$base.docx';
-    }
     if ((file.size) > 50 * 1024 * 1024) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('单课不超过 50MB')),
       );
       return;
+    }
+    setState(() => _lessonFile = file);
+  }
+
+  Future<void> _pickMedia() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov'],
+      allowMultiple: true,
+      withData: true,
+      withReadStream: false,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final next = [..._mediaFiles];
+    for (final file in result.files) {
+      if (next.length >= 20) break;
+      if (file.size > 80 * 1024 * 1024) continue;
+      next.add(file);
+    }
+    setState(() => _mediaFiles = next);
+  }
+
+  Future<void> _upload() async {
+    final file = _lessonFile;
+    if (file == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先选择课节正文')),
+      );
+      return;
+    }
+    final path = file.path;
+    final bytes = file.bytes;
+    if ((path == null || path.isEmpty) && (bytes == null || bytes.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('无法读取所选文件，请换一个再试')),
+      );
+      return;
+    }
+    var filename = file.name.trim();
+    final lower = filename.toLowerCase();
+    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx')) {
+      filename = '$filename.docx';
     }
     setState(() => _busy = true);
     try {
@@ -110,13 +140,15 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
             filename: filename,
             title: _titleCtrl.text,
             unit: _unitCtrl.text,
+            attachments: _mediaFiles.isEmpty ? null : _mediaFiles,
           );
       if (!mounted) return;
       final title = '${(res['section'] as Map?)?['title'] ?? file.name}';
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context, true);
+      final mediaHint = _mediaFiles.isEmpty ? '' : '，含 ${_mediaFiles.length} 项素材';
       messenger.showSnackBar(
-        SnackBar(content: Text('上传成功：已加入「$title」')),
+        SnackBar(content: Text('上传成功：已加入「$title」$mediaHint')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -149,7 +181,7 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
             ],
           ),
           Text(
-            '向《${widget.bookTitle}》追加一课。请使用 .docx 或 PDF（旧版 .doc 需先另存为 docx）。',
+            '向《${widget.bookTitle}》追加一课。正文用 PDF 或 Word；视频/图卡加到本课素材。',
             style: AppTypography.meta,
           ),
           const SizedBox(height: 14),
@@ -181,10 +213,20 @@ class _AppendLessonBodyState extends ConsumerState<_AppendLessonBody> {
                     ),
             ),
           ),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: _busy ? null : _pickLesson,
+            child: Text(_lessonFile == null ? '选择课节正文（PDF / Word）' : '正文：${_lessonFile!.name}'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: _busy ? null : _pickMedia,
+            child: Text(_mediaFiles.isEmpty ? '添加本课素材（可选）' : '素材 ${_mediaFiles.length} 项'),
+          ),
           const SizedBox(height: 16),
           FilledButton(
-            onPressed: _busy ? null : _pickAndUpload,
-            child: Text(_busy ? '上传中…' : '选择 PDF / Word'),
+            onPressed: _busy || _lessonFile == null ? null : _upload,
+            child: Text(_busy ? '上传中…' : '上传课节'),
           ),
         ],
       ),

@@ -85,6 +85,8 @@ def _db_available() -> bool:
 
 
 _MAX_COLLECTION_LESSONS = 200
+_MAX_ATTACHMENT_BYTES = 80 * 1024 * 1024
+_MAX_ATTACHMENTS_PER_UPLOAD = 20
 
 
 def _book_can_delete(
@@ -392,6 +394,7 @@ def _book_detail_from_file(fb: dict[str, Any], *, include_sections: bool) -> dic
                 "level": s.get("level"),
                 "kind": s.get("kind") or "html",
                 "unit": s.get("unit"),
+                "attachments": s.get("attachments") or [],
             }
             for s in (fb.get("sections") or [])
         ]
@@ -444,6 +447,7 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                             "level": s.get("level"),
                             "kind": s.get("kind") or "html",
                             "unit": s.get("unit"),
+                            "attachments": s.get("attachments") or [],
                         }
                         for s in sections
                     ]
@@ -788,6 +792,8 @@ _LESSON_MIME = {
     ".mov": "video/quicktime",
 }
 
+_ATTACHMENT_SUFFIXES = frozenset(_LESSON_MIME) - {".pdf", ".docx"}
+
 _UNIT_DISPLAY = {
     "第一单元": "第一单元 · 创造与天地万物",
     "第二单元": "第二单元 · 奇妙的身体与家",
@@ -861,6 +867,89 @@ def _resolve_lesson_suffix(
         status_code=400,
         detail="课节正文仅支持 .pdf / .docx（请确认扩展名，或用 Word「另存为」docx）",
     )
+
+
+def _resolve_attachment_suffix(filename: str, data: bytes) -> str | None:
+    suffix = Path(filename or "").suffix.lower()
+    if suffix in _ATTACHMENT_SUFFIXES:
+        return suffix
+    head = data[:12] if data else b""
+    if head.startswith(b"\x89PNG"):
+        return ".png"
+    if head[:3] == b"\xff\xd8\xff":
+        return ".jpg"
+    if head[:4] == b"RIFF" and len(head) >= 12 and head[8:12] == b"WEBP":
+        return ".webp"
+    if head[:6] in {b"GIF87a", b"GIF89a"}:
+        return ".gif"
+    if len(head) >= 8 and head[4:8] == b"ftyp":
+        return ".mp4"
+    return None
+
+
+def _attachment_kind(suffix: str) -> str:
+    if suffix in {".mp4", ".webm", ".mov"}:
+        return "video"
+    return "image"
+
+
+def _save_lesson_attachments(
+    stem: str,
+    attachments: list[tuple[bytes, str]] | None,
+    *,
+    raise_on_invalid: bool = False,
+) -> tuple[list[dict[str, Any]], int]:
+    """写入课节素材文件，返回 (attachments 元数据, 总字节数)。"""
+    att_list: list[dict[str, Any]] = []
+    total_bytes = 0
+    for att_bytes, att_name in attachments or []:
+        if not att_bytes:
+            continue
+        if len(att_list) >= _MAX_ATTACHMENTS_PER_UPLOAD:
+            if raise_on_invalid:
+                raise HTTPException(status_code=400, detail="单次素材过多（上限 20 个）")
+            break
+        att_suffix = _resolve_attachment_suffix(att_name, att_bytes)
+        if not att_suffix:
+            if raise_on_invalid:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"不支持的素材格式：{Path(att_name or 'file').name}",
+                )
+            continue
+        if len(att_bytes) > _MAX_ATTACHMENT_BYTES:
+            if raise_on_invalid:
+                raise HTTPException(status_code=400, detail="单个素材过大（上限 80MB）")
+            continue
+        att_stem = f"{stem}-{_safe_cur_stem(Path(att_name).stem).removeprefix('cur-')}"
+        att_key = f"{att_stem}{att_suffix}"
+        att_path = shelf_dir() / att_key
+        if att_path.exists():
+            att_key = f"{att_stem}-{uuid.uuid4().hex[:4]}{att_suffix}"
+            att_path = shelf_dir() / att_key
+        try:
+            att_path.write_bytes(att_bytes)
+        except OSError as e:
+            if raise_on_invalid:
+                raise HTTPException(status_code=500, detail=f"写入素材失败：{e}") from e
+            continue
+        total_bytes += len(att_bytes)
+        att_list.append(
+            {
+                "id": f"att-{Path(att_key).stem}",
+                "title": Path(att_name).stem or Path(att_key).stem,
+                "kind": _attachment_kind(att_suffix),
+                "storage_key": att_key,
+                "mime": _LESSON_MIME.get(att_suffix, "application/octet-stream"),
+            }
+        )
+    return att_list, total_bytes
+
+
+def _section_primary_stem(section: dict[str, Any]) -> str:
+    primary = section.get("primary") or {}
+    sk = str(primary.get("storage_key") or "")
+    return Path(sk).stem if sk else ""
 
 
 def _collection_book_record(book_id: str) -> tuple[dict[str, Any], str, Any] | None:
@@ -1060,35 +1149,7 @@ def append_collection_lesson(
     if any(isinstance(s, dict) and str(s.get("id")) == sec_id for s in sections):
         sec_id = f"sec-{stem}-{uuid.uuid4().hex[:4]}"
 
-    att_list: list[dict[str, Any]] = []
-    for att_bytes, att_name in attachments or []:
-        if not att_bytes:
-            continue
-        att_suffix = Path(att_name or "").suffix.lower()
-        if att_suffix not in _LESSON_MIME:
-            continue
-        if len(att_bytes) > 80 * 1024 * 1024:
-            continue
-        att_stem = f"{stem}-{_safe_cur_stem(Path(att_name).stem).removeprefix('cur-')}"
-        att_key = f"{att_stem}{att_suffix}"
-        att_path = shelf_dir() / att_key
-        if att_path.exists():
-            att_key = f"{att_stem}-{uuid.uuid4().hex[:4]}{att_suffix}"
-            att_path = shelf_dir() / att_key
-        try:
-            att_path.write_bytes(att_bytes)
-        except OSError:
-            continue
-        kind = "video" if att_suffix in {".mp4", ".webm", ".mov"} else "image"
-        att_list.append(
-            {
-                "id": f"att-{Path(att_key).stem}",
-                "title": Path(att_name).stem or Path(att_key).stem,
-                "kind": kind,
-                "storage_key": att_key,
-                "mime": _LESSON_MIME.get(att_suffix, "application/octet-stream"),
-            }
-        )
+    att_list, att_bytes_total = _save_lesson_attachments(stem, attachments)
 
     primary_name = Path(filename or "").name
     if not primary_name or not Path(primary_name).suffix:
@@ -1378,6 +1439,148 @@ def update_platform_book(
         "id": book_id,
         "title": final_title,
         "subtitle": final_subtitle or "",
+    }
+
+
+def append_section_attachments(
+    book_id: str,
+    section_id: str,
+    *,
+    attachments: list[tuple[bytes, str]] | None = None,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
+) -> dict[str, Any]:
+    """向已有课节追加素材（图片/视频）。"""
+    if not attachments:
+        raise HTTPException(status_code=400, detail="请选择至少一个素材文件")
+
+    rec = _collection_book_record(book_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="合集不存在")
+    book, source, persist_handle = rec
+    _assert_collection_edit(
+        book,
+        source,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+    )
+    sections = book.get("sections") or []
+    target = None
+    for sec in sections:
+        if isinstance(sec, dict) and str(sec.get("id")) == section_id:
+            target = sec
+            break
+    if not target:
+        raise HTTPException(status_code=404, detail="资料不存在")
+
+    stem = _section_primary_stem(target) or f"sec-{section_id.removeprefix('sec-')}"
+    existing = list(target.get("attachments") or [])
+    if len(existing) >= _MAX_ATTACHMENTS_PER_UPLOAD:
+        raise HTTPException(status_code=400, detail="本课素材已达上限（20 个）")
+
+    att_list, att_bytes_total = _save_lesson_attachments(
+        stem,
+        attachments,
+        raise_on_invalid=True,
+    )
+    if not att_list:
+        raise HTTPException(status_code=400, detail="没有有效的素材文件")
+
+    remaining = _MAX_ATTACHMENTS_PER_UPLOAD - len(existing)
+    if len(att_list) > remaining:
+        for att in att_list[remaining:]:
+            delete_shelf_file(str(att.get("storage_key") or ""))
+        att_list = att_list[:remaining]
+        if not att_list:
+            raise HTTPException(status_code=400, detail="本课素材已达上限（20 个）")
+
+    existing.extend(att_list)
+    target["attachments"] = existing
+    book["file_size"] = int(book.get("file_size") or 0) + att_bytes_total
+
+    try:
+        _persist_collection_book(book_id, book, source, persist_handle)
+    except Exception as e:
+        for att in att_list:
+            delete_shelf_file(str(att.get("storage_key") or ""))
+        raise HTTPException(status_code=500, detail=f"保存失败：{e}") from e
+    invalidate_shelf_section_cache(book_id)
+    return {
+        "ok": True,
+        "book_id": book_id,
+        "section_id": section_id,
+        "attachments": existing,
+        "added": att_list,
+    }
+
+
+def delete_section_attachment(
+    book_id: str,
+    section_id: str,
+    attachment_id: str,
+    *,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
+) -> dict[str, Any]:
+    """删除课节内一份素材。"""
+    rec = _collection_book_record(book_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="合集不存在")
+    book, source, persist_handle = rec
+    _assert_collection_edit(
+        book,
+        source,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+    )
+    sections = book.get("sections") or []
+    target = None
+    for sec in sections:
+        if isinstance(sec, dict) and str(sec.get("id")) == section_id:
+            target = sec
+            break
+    if not target:
+        raise HTTPException(status_code=404, detail="资料不存在")
+
+    att_items = list(target.get("attachments") or [])
+    removed = None
+    kept: list[dict[str, Any]] = []
+    for att in att_items:
+        if not isinstance(att, dict):
+            continue
+        if str(att.get("id")) == attachment_id and removed is None:
+            removed = att
+        else:
+            kept.append(att)
+    if not removed:
+        raise HTTPException(status_code=404, detail="素材不存在")
+
+    sk = str(removed.get("storage_key") or "")
+    size_removed = 0
+    if sk:
+        try:
+            path = shelf_file_path(sk)
+            if path.is_file():
+                size_removed = path.stat().st_size
+        except OSError:
+            pass
+    file_removed = delete_shelf_file(sk) if sk else False
+    target["attachments"] = kept
+    if size_removed:
+        book["file_size"] = max(0, int(book.get("file_size") or 0) - size_removed)
+
+    try:
+        _persist_collection_book(book_id, book, source, persist_handle)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存失败：{e}") from e
+    invalidate_shelf_section_cache(book_id)
+    return {
+        "ok": True,
+        "book_id": book_id,
+        "section_id": section_id,
+        "attachment_id": attachment_id,
+        "attachments": kept,
+        "file_removed": file_removed,
     }
 
 

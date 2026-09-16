@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import 'shelf_append_lesson_sheet.dart';
 import 'shelf_repository.dart';
+import 'shelf_section_attachments_sheet.dart';
 
 Future<bool> showShelfUserManageSheet(
   BuildContext context,
@@ -283,18 +284,39 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         title: Text(sec.title),
-                        subtitle: sec.unit != null && sec.unit!.isNotEmpty
-                            ? Text(sec.unit!)
+                        subtitle: (sec.unit != null && sec.unit!.isNotEmpty) || sec.attachments.isNotEmpty
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (sec.unit != null && sec.unit!.isNotEmpty) Text(sec.unit!),
+                                  if (sec.attachments.isNotEmpty)
+                                    Text('素材 ${sec.attachments.length} 项', style: AppTypography.meta),
+                                ],
+                              )
                             : null,
                         trailing: PopupMenuButton<String>(
                           onSelected: (v) {
-                            if (v == 'rename') {
+                            if (v == 'media') {
+                              unawaited(
+                                showShelfSectionAttachmentsSheet(
+                                  context,
+                                  ref,
+                                  bookId: widget.book.id,
+                                  sectionId: sec.id,
+                                  sectionTitle: sec.title,
+                                  attachments: sec.attachments,
+                                ).then((changed) {
+                                  if (changed) unawaited(_loadDetail());
+                                }),
+                              );
+                            } else if (v == 'rename') {
                               unawaited(_renameSection(sec));
                             } else if (v == 'delete') {
                               unawaited(_deleteSection(sec));
                             }
                           },
                           itemBuilder: (_) => const [
+                            PopupMenuItem(value: 'media', child: Text('素材')),
                             PopupMenuItem(value: 'rename', child: Text('改名')),
                             PopupMenuItem(value: 'delete', child: Text('删除')),
                           ],

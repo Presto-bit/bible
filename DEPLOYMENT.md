@@ -21,6 +21,18 @@
 | FastAPI | 127.0.0.1:8011 | 经 Nginx |
 | Next.js | 127.0.0.1:3002 | **https://2sc.prestoai.cn** |
 
+### 书架用户上传（重要）
+
+用户自建合集（如儿主第三季度教案）的 **PDF/DOCX/素材** 写入 `data/shelf_uploads/`，元数据在 Postgres。
+
+`docker-compose.prod.yml` 已挂载：
+
+```yaml
+${SHELF_UPLOADS_HOST_DIR:-./data/shelf_uploads}:/app/data/shelf_uploads
+```
+
+**若未挂载**：发版 `release.sh` 重建 `bible-api` 容器后，磁盘上的课节文件会丢失，但 DB 里仍有目录条目 → 表现为「过一阵/open 失败、404」。修复后需 **重新上传** 或从备份恢复该目录。
+
 ---
 
 ## 一、DNS（域名控制台）

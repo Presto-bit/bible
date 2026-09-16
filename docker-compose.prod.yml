@@ -51,6 +51,8 @@ services:
       # RAG 源 md 与后台上传持久化（重建容器不丢资料）
       - bible_rag_content:/app/content/commentary
       - bible_rag_uploads:/app/data/rag/uploads
+      # 书架用户上传（合集课节 PDF/DOCX/素材）；未挂载则发版重建 api 容器后文件丢失
+      - ${SHELF_UPLOADS_HOST_DIR:-./data/shelf_uploads}:/app/data/shelf_uploads
     depends_on:
       postgres:
         condition: service_healthy
