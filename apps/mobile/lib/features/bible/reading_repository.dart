@@ -1,9 +1,11 @@
 /// 阅读进度（本地优先 + 同步）：记录“读到哪卷哪章”，供首页“继续阅读”。
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -28,6 +30,12 @@ const _chapterEventsKey = 'read_chapter_events';
 const _verseEventsKey = 'read_verse_events';
 const _firstTabHintKey = 'presto_reader_tab_hint_shown';
 const _tabEntryKey = 'reader_tab_entry';
+
+/// 快速翻页不计进度：与 Web reading.ts 对齐。
+const minChapterDwellSec = 20;
+const minChapterEngagedSec = 12;
+const minChapterScrollRatio = 0.25;
+const minChapterVerseRatio = 0.3;
 
 String _scopedLastVerseKey(String bookId, int chapter) =>
     'last_read_verse:${bookId.toUpperCase()}:$chapter';
@@ -75,12 +83,105 @@ class ReadingRepository {
   final dynamic _sync;
   final SharedPreferences _prefs;
 
-  Future<void> record(String book, int chapter, {int verse = 1}) async {
+  Timer? _pendingChapterLog;
+  String? _pendingChapterBook;
+  int? _pendingChapterNum;
+
+  void cancelPendingChapterLog() {
+    _pendingChapterLog?.cancel();
+    _pendingChapterLog = null;
+    _pendingChapterBook = null;
+    _pendingChapterNum = null;
+  }
+
+  /// 仅更新续读位置，不计入「读过本章」。
+  Future<void> updateLocation(String book, int chapter, {int verse = 1}) async {
     await _persistProgress(book, chapter, verse);
+    noteChapterVerseTouch(book, chapter, verse);
+  }
+
+  /// @deprecated 请用 [updateLocation] + [scheduleChapterLog]/[confirmChapterLog]。
+  Future<void> record(String book, int chapter, {int verse = 1}) async {
+    await updateLocation(book, chapter, verse: verse);
+  }
+
+  ChapterVerseRange? _todayChapterVerseRange(String bookId, int chapter) {
+    final raw = userPrefGetString(_prefs, _scopedChapterVerseRangeKey(bookId, chapter));
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final v = ChapterVerseRange.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      return v.date == _todayKey() ? v : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool isChapterEngaged(
+    String bookId,
+    int chapter, {
+    double scrollRatio = 0,
+    int verseCount = 0,
+  }) {
+    if (scrollRatio >= minChapterScrollRatio) return true;
+    final range = _todayChapterVerseRange(bookId, chapter);
+    if (range != null && verseCount > 0) {
+      final span = range.max - range.min + 1;
+      if (span / verseCount >= minChapterVerseRatio) return true;
+    }
+    return false;
+  }
+
+  void scheduleChapterLog(
+    String book,
+    int chapter, {
+    bool engaged = false,
+    int verseCount = 0,
+    VoidCallback? onLogged,
+  }) {
+    cancelPendingChapterLog();
+    final delay = Duration(
+      seconds: engaged ? minChapterEngagedSec : minChapterDwellSec,
+    );
+    _pendingChapterBook = book;
+    _pendingChapterNum = chapter;
+    _pendingChapterLog = Timer(delay, () {
+      _pendingChapterLog = null;
+      _pendingChapterBook = null;
+      _pendingChapterNum = null;
+      if (!isChapterEngaged(book, chapter, verseCount: verseCount)) return;
+      unawaited(_tryLogChapter(book, chapter, onLogged: onLogged));
+    });
+  }
+
+  void confirmChapterLog(
+    String book,
+    int chapter, {
+    double scrollRatio = 0,
+    int verseCount = 0,
+    VoidCallback? onLogged,
+  }) {
+    if (_pendingChapterBook != book || _pendingChapterNum != chapter) return;
+    if (!isChapterEngaged(
+      book,
+      chapter,
+      scrollRatio: scrollRatio,
+      verseCount: verseCount,
+    )) {
+      return;
+    }
+    cancelPendingChapterLog();
+    unawaited(_tryLogChapter(book, chapter, onLogged: onLogged));
+  }
+
+  Future<void> _tryLogChapter(
+    String book,
+    int chapter, {
+    VoidCallback? onLogged,
+  }) async {
     if (_logChapterDetail(book.toUpperCase(), chapter)) {
       await _bumpLog(chapters: 1);
     }
-    noteChapterVerseTouch(book, chapter, verse);
+    onLogged?.call();
   }
 
   /// 更新读到哪一节，不计入「完成章节」（划词/点选经节时用）。
@@ -338,6 +439,50 @@ class BookProgress {
   final int distinctChapters;
 }
 
+BookProgress computeBookProgressFromEvents(
+  String book,
+  int total,
+  List<Map<String, dynamic>> events,
+) {
+  if (total <= 0) return BookProgress(0, 0, 0);
+  final bookEvents = events
+      .where((e) => e['book'] == book)
+      .map((e) => (
+            ts: (e['ts'] as num).toInt(),
+            chapter: (e['chapter'] as num).toInt(),
+          ))
+      .toList()
+    ..sort((a, b) => a.ts.compareTo(b.ts));
+  if (bookEvents.isEmpty) return BookProgress(0, 0, 0);
+  var passes = 0;
+  final currentPass = <int>{};
+  for (final e in bookEvents) {
+    currentPass.add(e.chapter);
+    if (currentPass.length >= total) {
+      passes += 1;
+      currentPass.clear();
+    }
+  }
+  final distinctChapters = currentPass.length;
+  final remainderPct = (distinctChapters / total * 100).round();
+  return BookProgress(passes, remainderPct, distinctChapters);
+}
+
+String formatBookProgressLabel(BookProgress? p, int chapterCount) {
+  if (p == null || (p.passes == 0 && p.distinctChapters == 0)) {
+    return '$chapterCount 章';
+  }
+  if (p.passes >= 1 && p.distinctChapters == 0) {
+    return p.passes > 1 ? '✓ 通读 · ${p.passes}遍' : '✓ 通读';
+  }
+  if (p.passes >= 1 && p.distinctChapters > 0) {
+    return '${p.passes}+${p.remainderPct}%';
+  }
+  final pct =
+      chapterCount > 0 ? (p.distinctChapters / chapterCount * 100).round() : 0;
+  return '$pct%';
+}
+
 class ReviewData {
   ReviewData({
     required this.minutesByDay,
@@ -448,25 +593,13 @@ class ReviewData {
     int? startMs,
     int? endMs,
   }) {
-    final reads = <String, int>{};
-    final distinct = <String, Set<int>>{};
-    for (final e in chapterEvents) {
+    final filtered = chapterEvents.where((e) {
       final ts = (e['ts'] as num).toInt();
-      if (startMs != null && (ts < startMs || ts >= endMs!)) continue;
-      final b = e['book'] as String;
-      reads[b] = (reads[b] ?? 0) + 1;
-      (distinct[b] ??= <int>{}).add((e['chapter'] as num).toInt());
-    }
+      return startMs == null || (ts >= startMs && ts < endMs!);
+    }).toList();
     final out = <String, BookProgress>{};
     totals.forEach((book, total) {
-      final r = reads[book] ?? 0;
-      if (r == 0 || total <= 0) {
-        out[book] = BookProgress(0, 0, 0);
-        return;
-      }
-      final passes = r ~/ total;
-      final remainderPct = ((r % total) / total * 100).round();
-      out[book] = BookProgress(passes, remainderPct, distinct[book]?.length ?? 0);
+      out[book] = computeBookProgressFromEvents(book, total, filtered);
     });
     return out;
   }

@@ -1376,7 +1376,7 @@ class _VerseCardState extends ConsumerState<_VerseCard>
     if (book.isEmpty || ch < 1) return;
     final verse = widget.verseStart > 0 ? widget.verseStart : 1;
     // 先写入目标节，阅读页才会稳定地滚至并轻闪该节。
-    await ref.read(readingRepoProvider).record(book, ch, verse: verse);
+    await ref.read(readingRepoProvider).updateLocation(book, ch, verse: verse);
     if (!mounted) return;
     ref.read(readerJumpProvider.notifier).jump(book, ch, verse: verse);
     ref.read(navIndexProvider.notifier).set(1);

@@ -11,13 +11,14 @@ import 'models.dart';
 import 'reader_screen.dart' show bibleBookAbbr, readerJumpProvider;
 import 'reading_repository.dart';
 
-enum _BookState { done, reading, todo }
+enum _BookState { done, reading, reread, todo }
 
 _BookState _stateOf(BookProgress? p) {
   if (p == null || (p.passes == 0 && p.distinctChapters == 0)) {
     return _BookState.todo;
   }
-  if (p.passes >= 1) return _BookState.done;
+  if (p.passes >= 1 && p.distinctChapters == 0) return _BookState.done;
+  if (p.passes >= 1 && p.distinctChapters > 0) return _BookState.reread;
   if (p.distinctChapters > 0) return _BookState.reading;
   return _BookState.todo;
 }
@@ -235,29 +236,26 @@ class _CatalogSection extends StatelessWidget {
             final b = books[i];
             final p = progress[b.id];
             final st = _stateOf(p);
-            final pct = st == _BookState.done
-                ? 100
-                : (b.chapterCount > 0
-                    ? ((p?.distinctChapters ?? 0) / b.chapterCount * 100).round()
-                    : 0);
+            final displaySt =
+                st == _BookState.reread ? _BookState.reading : st;
             return GestureDetector(
               onTap: () => onTap(b),
               child: Container(
                 decoration: BoxDecoration(
-                  color: st == _BookState.done
+                  color: displaySt == _BookState.done
                       ? AppColors.accentWash
                       : AppColors.surface,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: st == _BookState.todo
+                    color: displaySt == _BookState.todo
                         ? AppColors.line
                         : AppColors.accentDeep,
-                    width: st == _BookState.todo ? 1 : 1.5,
+                    width: displaySt == _BookState.todo ? 1 : 1.5,
                   ),
                 ),
                 child: Stack(
                   children: [
-                    if (st != _BookState.todo)
+                    if (displaySt != _BookState.todo)
                       Positioned(
                         top: 6,
                         right: 6,
@@ -266,7 +264,7 @@ class _CatalogSection extends StatelessWidget {
                           height: 7,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: st == _BookState.done
+                            color: displaySt == _BookState.done
                                 ? AppColors.accentDeep
                                 : AppColors.accent,
                           ),
@@ -289,11 +287,7 @@ class _CatalogSection extends StatelessWidget {
                                 fontSize: 10, color: AppColors.inkSoft)),
                         const SizedBox(height: 1),
                         Text(
-                            st == _BookState.done
-                                ? '✓ 通读'
-                                : st == _BookState.reading
-                                    ? '$pct%'
-                                    : '${b.chapterCount} 章',
+                            formatBookProgressLabel(p, b.chapterCount),
                             style: const TextStyle(
                                 fontSize: 9, color: AppColors.inkFaint)),
                       ],

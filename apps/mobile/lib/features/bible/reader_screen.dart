@@ -645,7 +645,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                           _hasSelection = false;
                           _seeded = true;
                         });
-                        ref.read(readingRepoProvider).record(b.id, ch);
+                        ref.read(readingRepoProvider).updateLocation(b.id, ch);
                       },
                     ),
                   ),
@@ -730,7 +730,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                       );
                     },
                     onRead: (b, c) {
-                      ref.read(readingRepoProvider).record(b, c);
                       if (_compareVersionId != null) {
                         ref
                             .read(badgeStatsRecorderProvider)
@@ -1016,7 +1015,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             _chapter = ch.clamp(1, picked.chapterCount);
             _hasSelection = false;
           });
-          ref.read(readingRepoProvider).record(picked.id, _chapter);
+          ref.read(readingRepoProvider).updateLocation(picked.id, _chapter);
           await _syncListenAfterChapterChange();
         },
       );
@@ -1041,7 +1040,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       _chapter = chapter.clamp(1, b!.chapterCount);
       _hasSelection = false;
     });
-    ref.read(readingRepoProvider).record(b.id, _chapter);
+    ref.read(readingRepoProvider).updateLocation(b.id, _chapter);
     await _syncListenAfterChapterChange();
   }
 
@@ -1342,7 +1341,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       _hasSelection = false;
       _seeded = true;
     });
-    ref.read(readingRepoProvider).record(picked.book.id, _chapter);
+    ref.read(readingRepoProvider).updateLocation(picked.book.id, _chapter);
   }
 }
 

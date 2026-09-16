@@ -329,7 +329,27 @@ export function logVerseRead(ref: string, opts?: { auto?: boolean }) {
 
 /** 快速翻页不计进度：未滚动/停留不足时不记入章节进度。 */
 export const MIN_CHAPTER_DWELL_SEC = 20;
-export const MIN_CHAPTER_ENGAGED_SEC = 8;
+export const MIN_CHAPTER_ENGAGED_SEC = 12;
+/** 滚动深度或经节覆盖达此比例，才视为「读过」本章。 */
+export const MIN_CHAPTER_SCROLL_RATIO = 0.25;
+export const MIN_CHAPTER_VERSE_RATIO = 0.3;
+
+/** 本章是否达到有效阅读（滚动深度或经节覆盖，而非随便翻页）。 */
+export function isChapterEngaged(
+  bookId: string,
+  chapter: number,
+  opts?: { scrollRatio?: number; verseCount?: number },
+): boolean {
+  const scrollRatio = opts?.scrollRatio ?? 0;
+  if (scrollRatio >= MIN_CHAPTER_SCROLL_RATIO) return true;
+  const range = getChapterVerseRange(bookId, chapter);
+  const total = opts?.verseCount ?? 0;
+  if (range && total > 0) {
+    const span = range.max - range.min + 1;
+    if (span / total >= MIN_CHAPTER_VERSE_RATIO) return true;
+  }
+  return false;
+}
 
 let pendingChapterLog: {
   book: string;
@@ -342,30 +362,33 @@ export function cancelPendingChapterProgress() {
   pendingChapterLog = null;
 }
 
-/** 章节加载后延迟记入进度；已滚动阅读时缩短等待。 */
+/** 章节加载后延迟记入进度；超时仍须满足 isChapterEngaged。 */
 export function scheduleChapterProgress(
   book: string,
   chapter: number,
   engaged: boolean,
   onLogged?: () => void,
+  opts?: { scrollRatio?: number; verseCount?: number },
 ) {
   if (typeof window === 'undefined') return;
   cancelPendingChapterProgress();
   const delayMs = (engaged ? MIN_CHAPTER_ENGAGED_SEC : MIN_CHAPTER_DWELL_SEC) * 1000;
   const timer = setTimeout(() => {
+    pendingChapterLog = null;
+    if (!isChapterEngaged(book, chapter, opts)) return;
     logChapterRead();
     logChapterDetail(book, chapter);
-    pendingChapterLog = null;
     onLogged?.();
   }, delayMs);
   pendingChapterLog = { book, chapter, timer };
 }
 
-/** 滚动阅读后立即确认本章进度（仍受 logChapterDetail 去抖保护）。 */
+/** 滚动阅读后确认本章进度：须达有效阅读阈值，仍受 logChapterDetail 去抖保护。 */
 export function confirmChapterProgress(
   book: string,
   chapter: number,
   onLogged?: () => void,
+  opts?: { scrollRatio?: number; verseCount?: number },
 ) {
   if (typeof window === 'undefined') return;
   if (
@@ -375,6 +398,7 @@ export function confirmChapterProgress(
   ) {
     return;
   }
+  if (!isChapterEngaged(book, chapter, opts)) return;
   cancelPendingChapterProgress();
   logChapterRead();
   logChapterDetail(book, chapter);
@@ -486,35 +510,63 @@ export interface BookProgress {
   distinctChapters: number; // 不同章数（本年度/全部）
 }
 
+/** 从章节事件推算卷进度：一遍 = 该卷全部章各至少读过一次（去重），非「事件数/总章数」。 */
+export function computeBookProgressFromEvents(
+  book: string,
+  total: number,
+  events: ReadEvent[],
+): BookProgress {
+  if (total <= 0) return { passes: 0, remainderPct: 0, distinctChapters: 0 };
+  const bookEvents = events
+    .filter((e) => e.book === book)
+    .sort((a, b) => a.ts - b.ts);
+  if (bookEvents.length === 0) {
+    return { passes: 0, remainderPct: 0, distinctChapters: 0 };
+  }
+  let passes = 0;
+  const currentPass = new Set<number>();
+  for (const e of bookEvents) {
+    currentPass.add(e.chapter);
+    if (currentPass.size >= total) {
+      passes += 1;
+      currentPass.clear();
+    }
+  }
+  const distinctChapters = currentPass.size;
+  const remainderPct = Math.round((distinctChapters / total) * 100);
+  return { passes, remainderPct, distinctChapters };
+}
+
+/** 旅程目录卷卡文案（PRODUCT §1.7：`{遍数}+{进度%}` 或 `✓ 通读`）。 */
+export function formatBookProgressLabel(
+  p: BookProgress | undefined,
+  chapterCount: number,
+): string {
+  if (!p || (p.passes === 0 && p.distinctChapters === 0)) {
+    return `${chapterCount} 章`;
+  }
+  if (p.passes >= 1 && p.distinctChapters === 0) {
+    return p.passes > 1 ? `✓ 通读 · ${p.passes}遍` : '✓ 通读';
+  }
+  if (p.passes >= 1 && p.distinctChapters > 0) {
+    return `${p.passes}+${p.remainderPct}%`;
+  }
+  const pct =
+    chapterCount > 0 ? Math.round((p.distinctChapters / chapterCount) * 100) : 0;
+  return `${pct}%`;
+}
+
 export function bookProgressMap(
   totals: Record<string, number>,
   startMs?: number,
   endMs?: number,
 ): Record<string, BookProgress> {
-  const reads: Record<string, number> = {};
-  for (const e of readEvents()) {
-    if (startMs != null && (e.ts < startMs || e.ts >= endMs!)) continue;
-    reads[e.book] = (reads[e.book] || 0) + 1;
-  }
-  const distinct: Record<string, Set<number>> = {};
-  for (const e of readEvents()) {
-    if (startMs != null && (e.ts < startMs || e.ts >= endMs!)) continue;
-    (distinct[e.book] ||= new Set()).add(e.chapter);
-  }
+  const filtered = readEvents().filter(
+    (e) => startMs == null || (e.ts >= startMs && e.ts < endMs!),
+  );
   const out: Record<string, BookProgress> = {};
   for (const [book, total] of Object.entries(totals)) {
-    const r = reads[book] || 0;
-    if (r === 0 || total <= 0) {
-      out[book] = { passes: 0, remainderPct: 0, distinctChapters: 0 };
-      continue;
-    }
-    const passes = Math.floor(r / total);
-    const remainderPct = Math.round(((r % total) / total) * 100);
-    out[book] = {
-      passes,
-      remainderPct,
-      distinctChapters: distinct[book]?.size || 0,
-    };
+    out[book] = computeBookProgressFromEvents(book, total, filtered);
   }
   return out;
 }

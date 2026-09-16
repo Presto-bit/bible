@@ -706,12 +706,35 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       }
 
       final progressVerse = maxPassed > 0 ? maxPassed : bestVerse;
-      if (progressVerse == _lastProgressVerse) return;
-      _lastProgressVerse = progressVerse;
-      ref
-          .read(readingRepoProvider)
-          .noteChapterVerseTouch(widget.book.id, widget.chapter, progressVerse);
+      if (progressVerse != _lastProgressVerse) {
+        _lastProgressVerse = progressVerse;
+        ref
+            .read(readingRepoProvider)
+            .noteChapterVerseTouch(widget.book.id, widget.chapter, progressVerse);
+      }
+
+      final scrollMax = math.max(1.0, pos.maxScrollExtent);
+      final scrollRatio = pos.pixels / scrollMax;
+      ref.read(readingRepoProvider).confirmChapterLog(
+            widget.book.id,
+            widget.chapter,
+            scrollRatio: scrollRatio,
+            verseCount: verses.length,
+            onLogged: () => widget.onRead(widget.book.id, widget.chapter),
+          );
     });
+  }
+
+  void _beginChapterTracking({required int verseCount}) {
+    final repo = ref.read(readingRepoProvider);
+    repo.cancelPendingChapterLog();
+    unawaited(repo.updateLocation(widget.book.id, widget.chapter));
+    repo.scheduleChapterLog(
+      widget.book.id,
+      widget.chapter,
+      verseCount: verseCount,
+      onLogged: () => widget.onRead(widget.book.id, widget.chapter),
+    );
   }
 
   static const _pageAxisMinPx = 8.0;
@@ -813,6 +836,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         _selected.clear();
         _wordRange = null;
         _bookDone = false;
+        ref.read(readingRepoProvider).cancelPendingChapterLog();
         _guideTipVisible = false;
         _guideTipCompact = false;
         _resumeFlashVerse = null;
@@ -1067,6 +1091,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
 
   @override
   void dispose() {
+    ref.read(readingRepoProvider).cancelPendingChapterLog();
     _guideDwellTimer?.cancel();
     _scrollProgressTimer?.cancel();
     _pageTurnController.dispose();
@@ -2678,7 +2703,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
         );
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        widget.onRead(widget.book.id, widget.chapter);
+        _beginChapterTracking(verseCount: ch.verses.length);
         ref.read(readerAudioProvider.notifier).setChapterVerses(
           ch.verses.map((v) => {'verse': v.verse, 'text': v.text}).toList(),
         );

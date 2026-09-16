@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { api, type BibleBook } from '@/lib/api';
-import { bookProgressMap, lastChapterOf, type BookProgress } from '@/lib/reading';
+import {
+  bookProgressMap,
+  formatBookProgressLabel,
+  lastChapterOf,
+  type BookProgress,
+} from '@/lib/reading';
 import AppBodyPortal from '@/components/AppBodyPortal';
 
 const BOOK_ABBR: Record<string, string> = {
@@ -22,9 +27,10 @@ const BOOK_ABBR: Record<string, string> = {
 };
 const abbr = (name: string) => BOOK_ABBR[name] ?? name.slice(0, 1);
 
-function bookState(p: BookProgress | undefined): 'done' | 'reading' | 'todo' {
+function bookState(p: BookProgress | undefined): 'done' | 'reading' | 'reread' | 'todo' {
   if (!p || (p.passes === 0 && p.distinctChapters === 0)) return 'todo';
-  if (p.passes >= 1) return 'done';
+  if (p.passes >= 1 && p.distinctChapters === 0) return 'done';
+  if (p.passes >= 1 && p.distinctChapters > 0) return 'reread';
   if (p.distinctChapters > 0) return 'reading';
   return 'todo';
 }
@@ -94,19 +100,19 @@ export default function ReadingProgress({
         {list.map((b) => {
           const p = progress[b.id];
           const st = bookState(p);
-          const pct =
-            st === 'done'
-              ? 100
-              : b.chapter_count > 0
-                ? Math.round(((p?.distinctChapters || 0) / b.chapter_count) * 100)
-                : 0;
           return (
-            <a key={b.id} href={bookHref(b.id)} className={`catalog-card catalog-card-${st}`}>
-              {st !== 'todo' && <span className={`catalog-flag catalog-flag-${st}`} />}
+            <a
+              key={b.id}
+              href={bookHref(b.id)}
+              className={`catalog-card catalog-card-${st === 'reread' ? 'reading' : st}`}
+            >
+              {st !== 'todo' && (
+                <span className={`catalog-flag catalog-flag-${st === 'reread' ? 'reading' : st}`} />
+              )}
               <span className="catalog-abbr">{abbr(b.name)}</span>
               <span className="catalog-name">{b.name}</span>
               <span className="catalog-ch">
-                {st === 'done' ? '✓ 通读' : st === 'reading' ? `${pct}%` : `${b.chapter_count} 章`}
+                {formatBookProgressLabel(p, b.chapter_count)}
               </span>
             </a>
           );

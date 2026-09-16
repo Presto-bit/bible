@@ -1633,12 +1633,18 @@ export default function ReaderView({
     if (skipHydrate) {
       skipChapterHydrateRef.current = false;
       prefetchVicinity();
-      scheduleChapterProgress(book.id, chapter, false, () => {
-        maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
-        void import('@/lib/pwa_after_read').then((m) => {
-          m.maybePromptInstallAfterRead({ bookName: book.name, chapter });
-        });
-      });
+      scheduleChapterProgress(
+        book.id,
+        chapter,
+        false,
+        () => {
+          maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+          void import('@/lib/pwa_after_read').then((m) => {
+            m.maybePromptInstallAfterRead({ bookName: book.name, chapter });
+          });
+        },
+        { verseCount: cached?.length ?? 0 },
+      );
       setLastRead(book.id, chapter);
       return () => {
         cancelPendingChapterProgress();
@@ -1695,12 +1701,18 @@ export default function ReaderView({
           setVerses(chineseVerses);
         }
         setChapterLoading(false);
-        scheduleChapterProgress(book.id, chapter, false, () => {
-          maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
-          void import('@/lib/pwa_after_read').then((m) => {
-            m.maybePromptInstallAfterRead({ bookName: book.name, chapter });
-          });
-        });
+        scheduleChapterProgress(
+          book.id,
+          chapter,
+          false,
+          () => {
+            maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+            void import('@/lib/pwa_after_read').then((m) => {
+              m.maybePromptInstallAfterRead({ bookName: book.name, chapter });
+            });
+          },
+          { verseCount: chineseVerses?.length ?? 0 },
+        );
         setLastRead(book.id, chapter);
 
         requestAnimationFrame(() => {
@@ -1757,18 +1769,19 @@ export default function ReaderView({
         return;
       }
       const cur = el.scrollTop;
-      if (cur > lastScrollTop.current + 6) {
+      const scrollMax = Math.max(1, el.scrollHeight - el.clientHeight);
+      const scrollRatio = cur / scrollMax;
+      if (Math.abs(cur - lastScrollTop.current) > 6) {
         readingEngagedRef.current = true;
-        confirmChapterProgress(book.id, chapter, () => {
-          if (layout === 'parallel') recordParallelChapter();
-          maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
-        });
-      } else if (cur < lastScrollTop.current - 6) {
-        readingEngagedRef.current = true;
-        confirmChapterProgress(book.id, chapter, () => {
-          if (layout === 'parallel') recordParallelChapter();
-          maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
-        });
+        confirmChapterProgress(
+          book.id,
+          chapter,
+          () => {
+            if (layout === 'parallel') recordParallelChapter();
+            maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+          },
+          { scrollRatio, verseCount: verses.length },
+        );
       }
       lastScrollTop.current = cur;
 
