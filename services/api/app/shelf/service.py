@@ -24,7 +24,12 @@ from .file_catalog import (
 )
 from .schema import ensure_shelf_schema
 from .cover_gen import (
+    COVER_SOURCE_USER,
+    CoverProtectedError,
     ensure_book_cover,
+    generate_ai_book_cover,
+    persist_cover_meta,
+    read_cover_source,
     refresh_book_cover,
     resolve_existing_cover_key,
     write_cover_bytes,
@@ -192,6 +197,7 @@ def _list_from_file() -> list[dict[str, Any]]:
             "book_type": b.get("book_type") or "document",
             "group_id": b.get("group_id") or "default",
             "cover_storage_key": b.get("cover_storage_key"),
+            "cover_source": b.get("cover_source"),
             "created_at": None,
             "source": "platform",
         }
@@ -216,6 +222,7 @@ def _row_to_summary(row: tuple) -> dict[str, Any]:
         uploaded_by,
         cover_storage_key,
         created_at,
+        cover_source,
     ) = row
     toc = toc_json if isinstance(toc_json, dict) else json.loads(toc_json or "{}")
     sections = (
@@ -243,6 +250,7 @@ def _row_to_summary(row: tuple) -> dict[str, Any]:
         "book_type": bt,
         "uploaded_by": str(uploaded_by) if uploaded_by else None,
         "cover_storage_key": cover_storage_key,
+        "cover_source": cover_source,
         "created_at": created_at.isoformat() if created_at else None,
         "source": "platform",
     }
@@ -307,7 +315,8 @@ def list_platform_books(
             cur = conn.execute(
                 """
                 SELECT id, title, subtitle, author, mime, file_size, toc_json, sections_json,
-                       status, sort_order, book_type, uploaded_by, cover_storage_key, created_at
+                       status, sort_order, book_type, uploaded_by, cover_storage_key, created_at,
+                       cover_source
                 FROM shelf_platform_book
                 WHERE status = 'published'
                 ORDER BY sort_order DESC, created_at DESC
@@ -427,6 +436,7 @@ def _book_detail_from_file(fb: dict[str, Any], *, include_sections: bool) -> dic
         "book_type": fb.get("book_type") or "document",
         "source": "platform",
         "cover_storage_key": fb.get("cover_storage_key"),
+        "cover_source": fb.get("cover_source"),
         "created_at": None,
     }
     if include_sections:
@@ -466,7 +476,7 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                     """
                     SELECT id, title, subtitle, author, mime, storage_key, file_size, file_sha256,
                            toc_json, sections_json, status, sort_order, book_type, uploaded_by,
-                           cover_storage_key, created_at
+                           cover_storage_key, created_at, cover_source
                     FROM shelf_platform_book
                     WHERE id = %s AND status = 'published'
                     """,
@@ -492,6 +502,7 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                     "source": "platform",
                     "cover_storage_key": row[14],
                     "created_at": row[15].isoformat() if row[15] else None,
+                    "cover_source": row[16],
                 }
                 if fb and fb.get("book_type") == "collection" and db_book_type != "collection":
                     return _book_detail_from_file(fb, include_sections=include_sections)
@@ -1193,8 +1204,76 @@ def upload_platform_book_cover(
         raise HTTPException(status_code=403, detail="无权编辑此书")
 
     key = write_cover_bytes(book_id, data)
-    _persist_cover_key({"id": book_id}, key)
-    return {"ok": True, "cover_storage_key": key}
+    persist_cover_meta({"id": book_id}, key, COVER_SOURCE_USER)
+    return {"ok": True, "cover_storage_key": key, "cover_source": COVER_SOURCE_USER}
+
+
+def generate_platform_book_cover_ai(
+    book_id: str,
+    *,
+    actor_user_id: str | None,
+    is_shelf_admin: bool,
+    force: bool = False,
+) -> dict[str, Any]:
+    """CogView 生成/替换封面（用户上传封面不可替换）。"""
+    if not _db_available() and not get_file_book(book_id):
+        raise HTTPException(status_code=503, detail="暂不可用")
+
+    book_rec: dict[str, Any] | None = None
+    pool = get_pool() if _db_available() else None
+    if pool:
+        ensure_shelf_schema(pool)
+        try:
+            with pool.connection() as conn:
+                row = conn.execute(
+                    """
+                    SELECT id, title, subtitle, author, mime, storage_key, book_type, uploaded_by,
+                           cover_storage_key, cover_source
+                    FROM shelf_platform_book
+                    WHERE id = %s AND status = 'published'
+                    """,
+                    (book_id,),
+                ).fetchone()
+            if row:
+                book_rec = {
+                    "id": str(row[0]),
+                    "title": row[1],
+                    "subtitle": row[2] or "",
+                    "author": row[3] or "",
+                    "mime": row[4],
+                    "storage_key": row[5],
+                    "book_type": row[6] or "document",
+                    "uploaded_by": str(row[7]) if row[7] else None,
+                    "cover_storage_key": row[8],
+                    "cover_source": row[9],
+                }
+        except Exception:
+            pass
+
+    fb = get_file_book(book_id)
+    if not book_rec and not fb:
+        raise HTTPException(status_code=404, detail="书目不存在")
+    if not book_rec and fb:
+        book_rec = dict(fb)
+
+    if not is_shelf_admin:
+        uploaded_by = book_rec.get("uploaded_by") or (fb or {}).get("uploaded_by")
+        if not uploaded_by or not actor_user_id or str(uploaded_by) != str(actor_user_id):
+            raise HTTPException(status_code=403, detail="无权编辑此书")
+
+    ctx = _book_cover_context(book_rec)
+    try:
+        key = generate_ai_book_cover(ctx, persist=True, force=force)
+    except CoverProtectedError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+    return {
+        "ok": True,
+        "cover_storage_key": key,
+        "cover_source": "ai",
+    }
 
 
 def collection_units(book_id: str) -> list[str]:

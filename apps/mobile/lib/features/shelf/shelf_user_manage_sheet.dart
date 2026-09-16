@@ -5,6 +5,7 @@ import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme.dart';
 import 'shelf_append_lesson_sheet.dart';
@@ -43,6 +44,9 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
   ShelfBookDetail? _detail;
   var _loading = false;
   var _busy = false;
+  String? _coverKey;
+  String? _coverSource;
+  var _coverNonce = 0;
 
   bool get _isCollection => widget.book.bookType == 'collection';
 
@@ -51,6 +55,8 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
     super.initState();
     _title = TextEditingController(text: widget.book.title);
     _subtitle = TextEditingController(text: widget.book.subtitle);
+    _coverKey = widget.book.coverStorageKey;
+    _coverSource = widget.book.coverSource;
     if (_isCollection) unawaited(_loadDetail());
   }
 
@@ -174,6 +180,55 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
     }
   }
 
+  Future<void> _generateCover({required bool force}) async {
+    setState(() => _busy = true);
+    try {
+      final res = await ref.read(shelfRepoProvider).generateBookCover(widget.book.id, force: force);
+      if (mounted) {
+        setState(() {
+          _coverKey = res['cover_storage_key'] as String?;
+          _coverSource = (res['cover_source'] as String?) ?? 'ai';
+          _coverNonce++;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('封面已生成')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _uploadCover() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+    if (picked == null) return;
+    setState(() => _busy = true);
+    try {
+      final res = await ref.read(shelfRepoProvider).uploadBookCover(
+            widget.book.id,
+            picked.path,
+            picked.name,
+          );
+      if (mounted) {
+        setState(() {
+          _coverKey = res['cover_storage_key'] as String?;
+          _coverSource = (res['cover_source'] as String?) ?? 'user';
+          _coverNonce++;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('封面已更新')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _deleteSection(ShelfSectionSummary sec) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -210,6 +265,9 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
   @override
   Widget build(BuildContext context) {
     final sections = _detail?.sections ?? const <ShelfSectionSummary>[];
+    final repo = ref.read(shelfRepoProvider);
+    final coverUrl = repo.coverUrl(widget.book.id, _coverKey);
+    final coverUri = coverUrl == null ? null : Uri.parse('$coverUrl?v=$_coverNonce');
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
@@ -239,6 +297,47 @@ class _ShelfUserManageBodyState extends ConsumerState<_ShelfUserManageBody> {
                 controller: _subtitle,
                 maxLength: 160,
                 decoration: const InputDecoration(labelText: '副标题（可选）'),
+              ),
+              const SizedBox(height: 12),
+              Text('封面', style: AppTypography.meta),
+              const SizedBox(height: 8),
+              if (coverUri != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    coverUri.toString(),
+                    width: 96,
+                    height: 128,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 96,
+                      height: 128,
+                      color: AppColors.surfaceSunken,
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.menu_book_outlined, color: AppColors.inkSoft),
+                    ),
+                  ),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Text('暂无封面，可 AI 生成或上传图片', style: TextStyle(color: AppColors.inkSoft)),
+                ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (_coverSource != 'user')
+                    OutlinedButton(
+                      onPressed: _busy ? null : () => _generateCover(force: coverUri != null),
+                      child: Text(coverUri != null ? '重新 AI 生成' : 'AI 生成封面'),
+                    ),
+                  OutlinedButton(
+                    onPressed: _busy ? null : _uploadCover,
+                    child: const Text('上传替换'),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               FilledButton(

@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     # V4 默认 thinking 会先流 reasoning_content，首字延迟 20s+；释经场景必须关
     deepseek_disable_thinking: bool = True
 
+    # ── 智谱图像（书架封面 CogView-3-Flash）──
+    zhipu_api_key: str = ""
+    zhipu_image_base_url: str = "https://open.bigmodel.cn/api/paas/v4"
+    zhipu_image_model: str = "cogview-3-flash"
+    zhipu_image_size: str = "864x1152"  # 3:4 竖版，裁成 400×533
+    zhipu_image_watermark: bool = False
+
     # ── Embedding（DashScope，OpenAI 兼容）──
     rag_embedding_provider: str = "api"
     rag_embedding_api_key: str = ""

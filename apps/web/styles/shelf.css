@@ -607,6 +607,37 @@
   overflow: auto;
 }
 
+.shelf-manage-cover-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shelf-manage-cover-preview {
+  width: 96px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  background: var(--paper-muted, #f5f2ec);
+}
+
+.shelf-manage-cover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shelf-manage-cover-btn,
+.shelf-manage-cover-upload {
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.shelf-manage-cover-upload input {
+  display: none;
+}
+
 .shelf-manage-section-head {
   display: flex;
   align-items: center;

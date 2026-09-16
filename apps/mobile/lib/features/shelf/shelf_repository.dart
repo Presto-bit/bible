@@ -46,6 +46,7 @@ class ShelfBookSummary {
     this.canDelete = false,
     this.canEdit = false,
     this.coverStorageKey,
+    this.coverSource,
   });
 
   final String id;
@@ -59,6 +60,7 @@ class ShelfBookSummary {
   final bool canDelete;
   final bool canEdit;
   final String? coverStorageKey;
+  final String? coverSource;
 
   factory ShelfBookSummary.fromJson(Map<String, dynamic> j) => ShelfBookSummary(
         id: '${j['id'] ?? ''}',
@@ -72,6 +74,7 @@ class ShelfBookSummary {
         canDelete: j['can_delete'] == true,
         canEdit: j['can_edit'] == true,
         coverStorageKey: j['cover_storage_key'] as String?,
+        coverSource: j['cover_source'] as String?,
       );
 }
 
@@ -433,6 +436,15 @@ class ShelfRepository {
     final res = await _dio.post<Map<String, dynamic>>(
       '/shelf/platform/books/${Uri.encodeComponent(bookId)}/cover',
       data: form,
+    );
+    await _fetchListFresh(force: true);
+    return res.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> generateBookCover(String bookId, {bool force = false}) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/shelf/platform/books/${Uri.encodeComponent(bookId)}/cover/generate',
+      queryParameters: force ? {'force': 'true'} : null,
     );
     await _fetchListFresh(force: true);
     return res.data ?? const {};

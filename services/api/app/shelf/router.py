@@ -26,6 +26,7 @@ from .service import (
     list_platform_shelf,
     update_collection_section,
     update_platform_book,
+    generate_platform_book_cover_ai,
     upload_platform_book_cover,
 )
 
@@ -346,6 +347,35 @@ def shelf_platform_file(book_id: str) -> Response:
         content=data,
         media_type=mime,
         headers={"Content-Disposition": f'inline; filename="{fname}"'},
+    )
+
+
+@router.post("/platform/books/{book_id}/cover/generate")
+def shelf_platform_generate_cover(
+    book_id: str,
+    force: bool = False,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """CogView 生成封面（无封面时自动；force 可替换非用户上传封面）。"""
+    is_admin = bool(
+        resolve_shelf_admin_actor(
+            authorization=authorization,
+            x_admin_token=x_admin_token,
+            x_user_id=x_user_id,
+            x_user_code=x_user_code,
+            cookie=cookie,
+        )
+    )
+    return generate_platform_book_cover_ai(
+        book_id,
+        actor_user_id=user_id,
+        is_shelf_admin=is_admin,
+        force=force,
     )
 
 

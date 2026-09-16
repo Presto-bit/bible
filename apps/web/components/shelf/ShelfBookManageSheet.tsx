@@ -11,6 +11,8 @@ import {
   getPlatformShelfBook,
   updateCollectionSection,
   updatePlatformShelfBook,
+  generatePlatformBookCover,
+  shelfCoverUrl,
   uploadPlatformBookCover,
   type ShelfBookDetail,
   type ShelfBookSummary,
@@ -49,6 +51,9 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
     title: string;
     attachments: NonNullable<ShelfBookDetail['sections']>[number]['attachments'];
   } | null>(null);
+  const [coverKey, setCoverKey] = useState<string | null>(book?.cover_storage_key ?? null);
+  const [coverSource, setCoverSource] = useState<string | null>(book?.cover_source ?? null);
+  const [coverNonce, setCoverNonce] = useState(0);
 
   const isCollection = book?.book_type === 'collection';
 
@@ -59,6 +64,8 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
     }
     setTitle(book.title);
     setSubtitle(book.subtitle || '');
+    setCoverKey(book.cover_storage_key ?? null);
+    setCoverSource(book.cover_source ?? null);
     if (book.book_type !== 'collection') return;
     let cancelled = false;
     setLoading(true);
@@ -204,31 +211,75 @@ export default function ShelfBookManageSheet({ book, onClose, onChanged }: Props
             onChange={(e) => setTitle(e.target.value)}
           />
         </label>
-        <label className="shelf-import-field">
-          <span className="muted">封面（可选，jpg/png/webp）</span>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            disabled={busy}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              setBusy(true);
-              void uploadPlatformBookCover(book.id, file)
-                .then(() => {
-                  toast('封面已更新');
-                  invalidateShelfListCache();
-                  invalidateShelfBookCache(book.id);
-                  onChanged();
-                })
-                .catch((err) => toast(err instanceof Error ? err.message : '封面上传失败'))
-                .finally(() => {
-                  setBusy(false);
-                  e.target.value = '';
-                });
-            }}
-          />
-        </label>
+        <div className="shelf-import-field shelf-manage-cover-field">
+          <span className="muted">封面</span>
+          {coverKey ? (
+            <img
+              className="shelf-manage-cover-preview"
+              src={`${shelfCoverUrl(book.id, coverKey)}?v=${coverNonce}`}
+              alt=""
+            />
+          ) : (
+            <p className="muted shelf-import-hint">暂无封面，可 AI 生成或上传图片</p>
+          )}
+          <div className="shelf-manage-cover-actions">
+            {coverSource !== 'user' ? (
+              <button
+                type="button"
+                className={`btn ghost shelf-manage-cover-btn${busy ? ' is-disabled' : ''}`}
+                disabled={busy}
+                {...shellTapProps({
+                  onTap: () => {
+                    setBusy(true);
+                    void generatePlatformBookCover(book.id, { force: Boolean(coverKey) })
+                      .then((res) => {
+                        setCoverKey(res.cover_storage_key);
+                        setCoverSource(res.cover_source ?? 'ai');
+                        setCoverNonce((n) => n + 1);
+                        toast('封面已生成');
+                        invalidateShelfListCache();
+                        invalidateShelfBookCache(book.id);
+                        onChanged();
+                      })
+                      .catch((err) => toast(err instanceof Error ? err.message : 'AI 封面生成失败'))
+                      .finally(() => setBusy(false));
+                  },
+                })}
+              >
+                {coverKey ? '重新 AI 生成' : 'AI 生成封面'}
+              </button>
+            ) : null}
+            <label className={`btn ghost shelf-manage-cover-upload${busy ? ' is-disabled' : ''}`}>
+              上传替换
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                disabled={busy}
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setBusy(true);
+                  void uploadPlatformBookCover(book.id, file)
+                    .then((res) => {
+                      setCoverKey(res.cover_storage_key);
+                      setCoverSource(res.cover_source ?? 'user');
+                      setCoverNonce((n) => n + 1);
+                      toast('封面已更新');
+                      invalidateShelfListCache();
+                      invalidateShelfBookCache(book.id);
+                      onChanged();
+                    })
+                    .catch((err) => toast(err instanceof Error ? err.message : '封面上传失败'))
+                    .finally(() => {
+                      setBusy(false);
+                      e.target.value = '';
+                    });
+                }}
+              />
+            </label>
+          </div>
+        </div>
         <label className="shelf-import-field">
           <span className="muted">副标题（可选）</span>
           <input

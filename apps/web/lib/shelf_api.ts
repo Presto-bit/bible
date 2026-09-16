@@ -35,6 +35,7 @@ export type ShelfBookSummary = {
   can_delete?: boolean;
   can_edit?: boolean;
   cover_storage_key?: string | null;
+  cover_source?: 'user' | 'pdf' | 'ai' | 'typography' | string | null;
   source: 'platform' | 'local';
 };
 
@@ -421,10 +422,35 @@ export async function updatePlatformShelfBook(
   return res.json();
 }
 
+export async function generatePlatformBookCover(
+  bookId: string,
+  options?: { force?: boolean },
+): Promise<{ ok: boolean; cover_storage_key: string; cover_source?: string }> {
+  const qs = options?.force ? '?force=true' : '';
+  const res = await fetch(
+    `${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}/cover/generate${qs}`,
+    { method: 'POST', headers: authHeaders(), cache: 'no-store' },
+  );
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权编辑');
+  if (res.status === 409) throw new Error('用户上传的封面不可自动替换');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : 'AI 封面生成失败');
+  }
+  return res.json();
+}
+
 export async function uploadPlatformBookCover(
   bookId: string,
   file: File,
-): Promise<{ ok: boolean; cover_storage_key: string }> {
+): Promise<{ ok: boolean; cover_storage_key: string; cover_source?: string }> {
   const form = new FormData();
   form.append('file', file);
   const res = await fetch(

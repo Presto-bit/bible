@@ -1,15 +1,27 @@
-"""书架封面：PDF 首屏缩略 / 排版封面 / 合集模板。"""
+"""书架封面：PDF 首屏缩略 / CogView AI / 排版封面 / 合集模板。"""
 from __future__ import annotations
 
 import io
+import logging
 import re
 from pathlib import Path
 from typing import Any
 
 from .store import read_shelf_bytes, shelf_dir, shelf_file_path
 
+logger = logging.getLogger(__name__)
+
 _COVER_W = 400
 _COVER_H = 533  # 3:4
+
+COVER_SOURCE_USER = "user"
+COVER_SOURCE_PDF = "pdf"
+COVER_SOURCE_AI = "ai"
+COVER_SOURCE_TYPO = "typography"
+
+
+class CoverProtectedError(ValueError):
+    """用户上传封面不可自动替换。"""
 
 
 def cover_storage_key_for_book(book_id: str) -> str:
@@ -194,6 +206,95 @@ def resolve_existing_cover_key(book: dict[str, Any]) -> str | None:
     return None
 
 
+def read_cover_source(book: dict[str, Any]) -> str | None:
+    src = (book.get("cover_source") or "").strip()
+    if src:
+        return src
+    bid = str(book.get("id") or "")
+    if not bid:
+        return None
+    try:
+        from .file_catalog import get_file_book
+
+        fb = get_file_book(bid)
+        if fb:
+            fs = (fb.get("cover_source") or "").strip()
+            if fs:
+                return fs
+    except Exception:
+        pass
+    try:
+        from ..db import get_pool
+        from .schema import ensure_shelf_schema
+
+        pool = get_pool()
+        ensure_shelf_schema(pool)
+        with pool.connection() as conn:
+            row = conn.execute(
+                "SELECT cover_source FROM shelf_platform_book WHERE id = %s",
+                (bid,),
+            ).fetchone()
+        if row and row[0]:
+            return str(row[0]).strip()
+    except Exception:
+        pass
+    return None
+
+
+def persist_cover_meta(
+    book: dict[str, Any],
+    key: str,
+    cover_source: str | None = None,
+) -> None:
+    bid = str(book.get("id") or "")
+    if not bid:
+        return
+    if cover_source:
+        book["cover_source"] = cover_source
+    try:
+        from .file_catalog import get_file_book, load_catalog_document, save_catalog_document
+
+        if get_file_book(bid):
+            doc = load_catalog_document()
+            for item in doc.get("items") or []:
+                if isinstance(item, dict) and str(item.get("id")) == bid:
+                    item["cover_storage_key"] = key
+                    if cover_source:
+                        item["cover_source"] = cover_source
+                    save_catalog_document(doc)
+                    return
+    except Exception:
+        pass
+    try:
+        from ..db import get_pool
+        from .schema import ensure_shelf_schema
+
+        pool = get_pool()
+        ensure_shelf_schema(pool)
+        with pool.connection() as conn:
+            if cover_source:
+                conn.execute(
+                    """
+                    UPDATE shelf_platform_book
+                    SET cover_storage_key = %s, cover_source = %s, updated_at = now()
+                    WHERE id = %s
+                    """,
+                    (key, cover_source, bid),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE shelf_platform_book
+                    SET cover_storage_key = %s, updated_at = now()
+                    WHERE id = %s
+                    """,
+                    (key, bid),
+                )
+            conn.commit()
+    except Exception:
+        pass
+
+
 def _primary_bytes_for_cover(book: dict[str, Any]) -> tuple[bytes | None, str | None]:
     bt = (book.get("book_type") or "document").strip().lower()
     sections = book.get("sections") or []
@@ -220,21 +321,60 @@ def _primary_bytes_for_cover(book: dict[str, Any]) -> tuple[bytes | None, str | 
         return None, None
 
 
+def _delete_cover_file(book: dict[str, Any]) -> None:
+    existing = resolve_existing_cover_key(book)
+    if existing:
+        try:
+            shelf_file_path(existing).unlink(missing_ok=True)
+        except OSError:
+            pass
+    book["cover_storage_key"] = None
+
+
 def refresh_book_cover(book: dict[str, Any], *, force: bool = False, persist: bool = True) -> str | None:
     """强制重生成封面（合集追加 PDF 后刷新首屏缩略）。"""
     if force:
-        existing = resolve_existing_cover_key(book)
-        if existing:
-            try:
-                shelf_file_path(existing).unlink(missing_ok=True)
-            except OSError:
-                pass
-        book["cover_storage_key"] = None
+        if read_cover_source(book) == COVER_SOURCE_USER:
+            raise CoverProtectedError("用户上传封面不可自动替换")
+        _delete_cover_file(book)
     return ensure_book_cover(book, persist=persist)
 
 
+def generate_ai_book_cover(
+    book: dict[str, Any],
+    *,
+    persist: bool = True,
+    force: bool = False,
+) -> str:
+    """手动触发 CogView 封面；用户上传封面不可替换。"""
+    if read_cover_source(book) == COVER_SOURCE_USER:
+        raise CoverProtectedError("用户上传封面不可自动替换")
+
+    if not force:
+        existing = resolve_existing_cover_key(book)
+        if existing:
+            return existing
+
+    if force:
+        _delete_cover_file(book)
+
+    from .cover_ai import render_ai_cover
+
+    cover_bytes = render_ai_cover(book)
+    if not cover_bytes:
+        raise RuntimeError("AI 封面生成失败，请稍后重试")
+
+    bid = str(book.get("id") or "")
+    key = write_cover_bytes(bid, cover_bytes)
+    book["cover_storage_key"] = key
+    book["cover_source"] = COVER_SOURCE_AI
+    if persist:
+        persist_cover_meta(book, key, COVER_SOURCE_AI)
+    return key
+
+
 def ensure_book_cover(book: dict[str, Any], *, persist: bool = True) -> str | None:
-    """生成并落盘封面；返回 storage_key。"""
+    """生成并落盘封面；返回 storage_key。已有封面文件则跳过。"""
     existing = resolve_existing_cover_key(book)
     if existing:
         return existing
@@ -245,8 +385,20 @@ def ensure_book_cover(book: dict[str, Any], *, persist: bool = True) -> str | No
 
     data_bytes, kind = _primary_bytes_for_cover(book)
     cover_bytes: bytes | None = None
+    source = COVER_SOURCE_TYPO
+
     if kind == "pdf" and data_bytes:
         cover_bytes = render_pdf_first_page_webp(data_bytes)
+        if cover_bytes:
+            source = COVER_SOURCE_PDF
+
+    if not cover_bytes:
+        from .cover_ai import render_ai_cover
+
+        ai_bytes = render_ai_cover(book)
+        if ai_bytes:
+            cover_bytes = ai_bytes
+            source = COVER_SOURCE_AI
 
     if not cover_bytes:
         cover_bytes = render_typographic_cover(
@@ -255,41 +407,11 @@ def ensure_book_cover(book: dict[str, Any], *, persist: bool = True) -> str | No
             book_type=str(book.get("book_type") or "document"),
             author=(book.get("author") or None),
         )
+        source = COVER_SOURCE_TYPO
 
     key = write_cover_bytes(bid, cover_bytes)
     book["cover_storage_key"] = key
+    book["cover_source"] = source
     if persist:
-        _persist_cover_key(book, key)
+        persist_cover_meta(book, key, source)
     return key
-
-
-def _persist_cover_key(book: dict[str, Any], key: str) -> None:
-    bid = str(book.get("id") or "")
-    if not bid:
-        return
-    try:
-        from .file_catalog import get_file_book, load_catalog_document, save_catalog_document
-
-        if get_file_book(bid):
-            doc = load_catalog_document()
-            for item in doc.get("items") or []:
-                if isinstance(item, dict) and str(item.get("id")) == bid:
-                    item["cover_storage_key"] = key
-                    save_catalog_document(doc)
-                    return
-    except Exception:
-        pass
-    try:
-        from ..db import get_pool
-        from .schema import ensure_shelf_schema
-
-        pool = get_pool()
-        ensure_shelf_schema(pool)
-        with pool.connection() as conn:
-            conn.execute(
-                "UPDATE shelf_platform_book SET cover_storage_key = %s, updated_at = now() WHERE id = %s",
-                (key, bid),
-            )
-            conn.commit()
-    except Exception:
-        pass
