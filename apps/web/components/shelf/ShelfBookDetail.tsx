@@ -20,7 +20,11 @@ import {
   rememberShelfRefLabel,
 } from '@/lib/shelf_checkin';
 import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
-import { shelfBookReadTocHref } from '@/lib/shelf_library';
+import {
+  shelfBookProgressRatio,
+  shelfBookProgressSummary,
+  shelfBookTypeMeta,
+} from '@/lib/shelf_library';
 import {
   createShelfPost,
   deleteShelfPost,
@@ -93,6 +97,8 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [moveGroupOpen, setMoveGroupOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [tocExpanded, setTocExpanded] = useState(false);
+  const [blurbExpanded, setBlurbExpanded] = useState(false);
 
   const progress = useMemo(() => loadShelfBookProgress(bookId), [bookId]);
   const finishedCelebration = search.get('finished') === '1' || Boolean(progress?.finished);
@@ -140,21 +146,34 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
 
   const continueHref = readHref(bookId, progress?.sectionId, progress?.pageIndex);
   const coverUrl = book ? shelfCoverUrl(bookId, book.cover_storage_key) : null;
+  const tocGroups = useMemo(() => {
+    if (!book) return [];
+    return buildShelfTocGroups(book.toc, book.book_type);
+  }, [book]);
+
   const tocFlat = useMemo(() => {
     if (!book) return [];
     const sections = book.sections ?? [];
-    return buildShelfTocGroups(book.toc, book.book_type)
+    return tocGroups
       .flatMap((group) => group.items)
       .map((item) => ({
         id: resolveSectionId(item, sections) || item.section_id || item.id,
         title: shelfTocDisplayTitle(item),
+        level: item.level,
+        isUnit: item.level === 1 && !item.section_id,
       }))
-      .filter((item) => Boolean(item.id));
-  }, [book]);
-  const tocPreview = tocFlat.slice(0, 5);
-  const totalSections = tocFlat.length;
+      .filter((item) => Boolean(item.id) || item.isUnit);
+  }, [book, tocGroups]);
 
-  useEdgeSwipeBack({ href: continueHref, preferHistoryBack: true });
+  const tocPreview = tocFlat.filter((item) => !item.isUnit).slice(0, 5);
+  const totalSections = tocFlat.filter((item) => !item.isUnit).length;
+  const progressRatio = shelfBookProgressRatio(bookId);
+  const progressSummary = book
+    ? shelfBookProgressSummary(bookId, book.sections)
+    : null;
+  const typeMeta = book ? shelfBookTypeMeta(book) : null;
+
+  useEdgeSwipeBack({ href: '/shelf', preferHistoryBack: true });
 
   const onWriteReview = async () => {
     if (!(await requireLogin())) return;
@@ -193,7 +212,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   if (loading && !book) {
     return (
       <main className="shelf-detail-page">
-        <PageBackBar href="/shelf" ariaLabel="返回书架" />
+        <PageBackBar href="/shelf" label="书架" ariaLabel="返回书架" />
         <p className="muted shelf-detail-loading">加载中…</p>
       </main>
     );
@@ -202,7 +221,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   if (bookErr && !book) {
     return (
       <main className="shelf-detail-page">
-        <PageBackBar href="/shelf" ariaLabel="返回书架" />
+        <PageBackBar href="/shelf" label="书架" ariaLabel="返回书架" />
         <p className="muted shelf-detail-loading">{bookErr}</p>
       </main>
     );
@@ -210,7 +229,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
 
   return (
     <main className="shelf-detail-page">
-      <PageBackBar href="/shelf" ariaLabel="返回书架" />
+      <PageBackBar href="/shelf" label="书架" ariaLabel="返回书架" />
 
       {finishedCelebration ? (
         <section className="shelf-detail-finished-banner" aria-live="polite">
@@ -240,9 +259,31 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
         <ShelfCoverPlate title={book?.title || ''} size="detail" coverUrl={coverUrl} />
         <h1 className="shelf-detail-title">{book?.title}</h1>
         {book?.author ? <p className="shelf-detail-author muted">{book.author}</p> : null}
+        {typeMeta || progressSummary ? (
+          <p className="shelf-detail-meta muted">
+            {[typeMeta, progressSummary].filter(Boolean).join(' · ')}
+          </p>
+        ) : null}
+        {progressRatio != null && progressRatio > 0 && !progress?.finished ? (
+          <div className="shelf-detail-progress" aria-hidden>
+            <div
+              className="shelf-detail-progress-fill"
+              style={{ width: `${Math.round(progressRatio * 100)}%` }}
+            />
+          </div>
+        ) : null}
         {book?.subtitle ? (
-          <div className="shelf-detail-blurb">
+          <div className={`shelf-detail-blurb${blurbExpanded ? ' is-expanded' : ''}`}>
             <p className="shelf-detail-sub muted">{book.subtitle}</p>
+            {book.subtitle.length > 72 ? (
+              <button
+                type="button"
+                className="shelf-detail-blurb-toggle"
+                onClick={() => setBlurbExpanded((v) => !v)}
+              >
+                {blurbExpanded ? '收起' : '展开'}
+              </button>
+            ) : null}
           </div>
         ) : null}
         {book?.book_type === 'collection' && (book.section_count ?? 0) === 0 ? (
@@ -296,34 +337,74 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
       </section>
 
       {tocPreview.length > 0 ? (
-        <section className="shelf-detail-toc" aria-label="目录预览">
-          <h2 className="shelf-detail-toc-title">目录预览</h2>
-          <ol className="shelf-detail-toc-list">
-            {tocPreview.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className="shelf-detail-toc-item"
-                  onClick={() => {
-                    clearShelfBookFinished(bookId);
-                    navigateAppHref(readHref(bookId, item.id), router);
-                  }}
-                >
-                  {item.title}
-                </button>
-              </li>
-            ))}
-          </ol>
+        <section
+          className={`shelf-detail-toc${tocExpanded ? ' is-expanded' : ''}`}
+          aria-label="目录"
+        >
+          <h2 className="shelf-detail-toc-title">{tocExpanded ? '全部目录' : '目录预览'}</h2>
+          {tocExpanded ? (
+            <div className="shelf-detail-toc-groups">
+              {tocGroups.map((group) => (
+                <div key={group.key} className="shelf-detail-toc-group">
+                  {tocGroups.length > 1 && group.label ? (
+                    <p className="shelf-detail-toc-group-label">{group.label}</p>
+                  ) : null}
+                  <ol className="shelf-detail-toc-list">
+                    {group.items.map((item) => {
+                      const sections = book?.sections ?? [];
+                      const sid = resolveSectionId(item, sections) || item.section_id || item.id;
+                      if (item.level === 1 && !item.section_id) {
+                        return (
+                          <li key={item.id} className="shelf-detail-toc-unit">
+                            {shelfTocDisplayTitle(item)}
+                          </li>
+                        );
+                      }
+                      if (!sid) return null;
+                      return (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            className={`shelf-detail-toc-item level-${item.level}`}
+                            onClick={() => {
+                              clearShelfBookFinished(bookId);
+                              navigateAppHref(readHref(bookId, sid), router);
+                            }}
+                          >
+                            {shelfTocDisplayTitle(item)}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <ol className="shelf-detail-toc-list">
+              {tocPreview.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className="shelf-detail-toc-item"
+                    onClick={() => {
+                      clearShelfBookFinished(bookId);
+                      navigateAppHref(readHref(bookId, item.id), router);
+                    }}
+                  >
+                    {item.title}
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
           {totalSections > tocPreview.length ? (
             <button
               type="button"
               className="shelf-detail-toc-more btn ghost"
-              onClick={() => {
-                clearShelfBookFinished(bookId);
-                navigateAppHref(shelfBookReadTocHref(bookId), router);
-              }}
+              onClick={() => setTocExpanded((v) => !v)}
             >
-              查看全部目录
+              {tocExpanded ? '收起目录' : `查看全部目录（${totalSections} 节）`}
             </button>
           ) : null}
         </section>

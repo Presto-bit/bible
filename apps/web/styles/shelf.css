@@ -332,6 +332,72 @@
   width: 100%;
 }
 
+.shelf-detail-toc.is-expanded .shelf-detail-toc-groups {
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shelf-detail-toc-group + .shelf-detail-toc-group {
+  margin-top: 12px;
+}
+
+.shelf-detail-toc-group-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted, #5c6b63);
+}
+
+.shelf-detail-toc-unit {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted, #5c6b63);
+}
+
+.shelf-detail-toc-item.level-2 {
+  padding-left: 18px;
+}
+
+.shelf-detail-meta {
+  margin: 6px 0 0;
+  font-size: 13px;
+  text-align: center;
+}
+
+.shelf-detail-progress {
+  margin: 10px auto 0;
+  width: min(100%, 220px);
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line, #e8e2d8);
+  overflow: hidden;
+}
+
+.shelf-detail-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-deep, #4a6b52);
+}
+
+.shelf-detail-blurb-toggle {
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent-deep, #4a6b52);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.shelf-detail-blurb:not(.is-expanded) .shelf-detail-sub {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .shelf-book-card-meta {
   margin: 2px 0 0;
   font-size: 11px;
@@ -999,19 +1065,6 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   --shelf-line-height: 1.9;
   --shelf-text-width: min(100%, 42rem);
   font-family: var(--shelf-font-family, var(--font-reader, Georgia, 'Songti SC', 'STSong', serif));
-}
-
-.shelf-nav-back {
-  margin-left: -2px;
-  padding: 0 12px 0 2px;
-  min-width: 48px;
-  min-height: 48px;
-  color: var(--ink-muted, #5c6b63);
-}
-
-.shelf-nav-back .nav-back-chevron {
-  font-size: 32px;
-  font-weight: 400;
 }
 
 .shelf-reader-title-wrap {

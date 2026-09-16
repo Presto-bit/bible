@@ -47,6 +47,8 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
   String? _postsErr;
   List<ShelfPost> _posts = const [];
   var _stats = (reviews: 0, notes: 0);
+  var _tocExpanded = false;
+  var _blurbExpanded = false;
 
   @override
   void initState() {
@@ -191,22 +193,37 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
     );
   }
 
-  Future<void> _openReadToc() async {
-    try {
-      ShelfProgressStore(ref.read(prefsProvider)).clearFinished(widget.bookId);
-      if (!mounted) return;
-      HapticFeedback.selectionClick();
-      await Navigator.of(context, rootNavigator: true).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => ShelfReaderScreen(
-            bookId: widget.bookId,
-            openTocOnStart: true,
-          ),
-        ),
-      );
-    } catch (e, st) {
-      debugPrint('[ShelfDetail] openReadToc failed $e\n$st');
+  String? _progressSummary(ShelfBookDetail book) {
+    final store = ShelfProgressStore(ref.read(prefsProvider));
+    final p = store.loadBook(widget.bookId);
+    final ratio = ShelfLibraryStore(
+      ref.read(prefsProvider),
+      store,
+    ).bookProgressRatio(widget.bookId);
+    if (p == null && ratio == null) return null;
+    if (p?.isFinished == true) return '已读完';
+    final pct = ratio != null ? (ratio * 100).round() : null;
+    final sid = p?.sectionId.trim() ?? '';
+    String? sectionTitle;
+    if (sid.isNotEmpty) {
+      for (final s in book.sections) {
+        if (s.id == sid) {
+          sectionTitle = s.title;
+          break;
+        }
+      }
     }
+    if (sectionTitle != null && pct != null) return '读到 $pct% · $sectionTitle';
+    if (sectionTitle != null) return '读到 · $sectionTitle';
+    if (pct != null && pct > 0) return '读到 $pct%';
+    return sid.isNotEmpty ? '在读' : null;
+  }
+
+  String? _typeMeta(ShelfBookDetail book) {
+    if (book.bookType == 'collection') {
+      return '合集 · ${book.sectionCount} 份';
+    }
+    return null;
   }
 
   Future<void> _openRead() async {
@@ -300,7 +317,8 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
         backgroundColor: AppColors.paper,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          color: AppColors.accentDeep,
           onPressed: () => context.pop(),
         ),
         title: Text(book?.title ?? '书目', style: AppTypography.title, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -426,6 +444,43 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                             const SizedBox(height: 6),
                             Text(book.author, style: AppTypography.meta, textAlign: TextAlign.center),
                           ],
+                          if (_typeMeta(book) != null || _progressSummary(book) != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              [_typeMeta(book), _progressSummary(book)]
+                                  .whereType<String>()
+                                  .join(' · '),
+                              style: AppTypography.meta,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                          Builder(
+                            builder: (context) {
+                              final ratio = ShelfLibraryStore(
+                                ref.read(prefsProvider),
+                                ShelfProgressStore(ref.read(prefsProvider)),
+                              ).bookProgressRatio(widget.bookId);
+                              final finished = ShelfProgressStore(ref.read(prefsProvider))
+                                      .loadBook(widget.bookId)
+                                      ?.isFinished ==
+                                  true;
+                              if (ratio == null || ratio <= 0 || finished) {
+                                return const SizedBox.shrink();
+                              }
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(999),
+                                  child: LinearProgressIndicator(
+                                    value: ratio.clamp(0.0, 1.0),
+                                    minHeight: 4,
+                                    backgroundColor: AppColors.line,
+                                    color: AppColors.accentDeep,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                           if (book.subtitle.isNotEmpty) ...[
                             const SizedBox(height: 12),
                             Container(
@@ -435,12 +490,26 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                                 color: AppColors.paper,
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Text(
-                                book.subtitle,
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.secondary.copyWith(height: 1.55, fontSize: 14),
-                                textAlign: TextAlign.center,
+                              child: Column(
+                                children: [
+                                  Text(
+                                    book.subtitle,
+                                    maxLines: _blurbExpanded ? null : 3,
+                                    overflow: _blurbExpanded ? null : TextOverflow.ellipsis,
+                                    style: AppTypography.secondary.copyWith(height: 1.55, fontSize: 14),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  if (book.subtitle.length > 72)
+                                    TextButton(
+                                      onPressed: () => setState(() => _blurbExpanded = !_blurbExpanded),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      child: Text(_blurbExpanded ? '收起' : '展开'),
+                                    ),
+                                ],
                               ),
                             ),
                           ],
@@ -535,40 +604,125 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('目录预览', style: AppTypography.title.copyWith(fontSize: 14)),
+                            Text(
+                              _tocExpanded ? '全部目录' : '目录预览',
+                              style: AppTypography.title.copyWith(fontSize: 14),
+                            ),
                             const SizedBox(height: 8),
-                            for (final section in _tocPreview(book))
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Material(
-                                  color: AppColors.paper,
-                                  borderRadius: BorderRadius.circular(8),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: InkWell(
-                                    onTap: () => unawaited(
-                                      Navigator.of(context, rootNavigator: true).push<void>(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) => ShelfReaderScreen(
-                                            bookId: widget.bookId,
-                                            sectionId: section.id,
+                            if (_tocExpanded)
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight: MediaQuery.sizeOf(context).height * 0.45,
+                                ),
+                                child: ListView(
+                                  shrinkWrap: true,
+                                  children: [
+                                    for (final group in buildShelfTocGroups(
+                                      book.toc,
+                                      bookType: book.bookType,
+                                    )) ...[
+                                      if (buildShelfTocGroups(book.toc, bookType: book.bookType).length > 1 &&
+                                          group.label.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+                                          child: Text(
+                                            group.label,
+                                            style: AppTypography.meta.copyWith(fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      for (final item in group.items)
+                                        if (item.level == 1 && item.sectionId == null)
+                                          Padding(
+                                            padding: const EdgeInsets.fromLTRB(10, 6, 10, 2),
+                                            child: Text(
+                                              shelfTocDisplayTitle(item),
+                                              style: AppTypography.meta.copyWith(fontWeight: FontWeight.w600),
+                                            ),
+                                          )
+                                        else ...[
+                                          Builder(
+                                            builder: (context) {
+                                              final sid = resolveSectionId(item, book.sections) ??
+                                                  item.sectionId ??
+                                                  item.id;
+                                              if (sid.isEmpty) return const SizedBox.shrink();
+                                              return Padding(
+                                                padding: EdgeInsets.only(
+                                                  left: item.level > 1 ? 12 : 0,
+                                                  bottom: 4,
+                                                ),
+                                                child: Material(
+                                                  color: AppColors.paper,
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  clipBehavior: Clip.antiAlias,
+                                                  child: InkWell(
+                                                    onTap: () => unawaited(
+                                                      Navigator.of(context, rootNavigator: true).push<void>(
+                                                        MaterialPageRoute<void>(
+                                                          builder: (_) => ShelfReaderScreen(
+                                                            bookId: widget.bookId,
+                                                            sectionId: sid,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 8,
+                                                      ),
+                                                      child: Text(
+                                                        shelfTocDisplayTitle(item),
+                                                        style: AppTypography.secondary.copyWith(fontSize: 13),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                    ],
+                                  ],
+                                ),
+                              )
+                            else
+                              for (final section in _tocPreview(book))
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Material(
+                                    color: AppColors.paper,
+                                    borderRadius: BorderRadius.circular(8),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: InkWell(
+                                      onTap: () => unawaited(
+                                        Navigator.of(context, rootNavigator: true).push<void>(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => ShelfReaderScreen(
+                                              bookId: widget.bookId,
+                                              sectionId: section.id,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                      child: Text(
-                                        section.title,
-                                        style: AppTypography.secondary.copyWith(fontSize: 13),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        child: Text(
+                                          section.title,
+                                          style: AppTypography.secondary.copyWith(fontSize: 13),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
                             if (_tocTotalCount(book) > 5)
                               TextButton(
-                                onPressed: () => unawaited(_openReadToc()),
-                                child: const Text('查看全部目录'),
+                                onPressed: () => setState(() => _tocExpanded = !_tocExpanded),
+                                child: Text(
+                                  _tocExpanded
+                                      ? '收起目录'
+                                      : '查看全部目录（${_tocTotalCount(book)} 节）',
+                                ),
                               ),
                           ],
                         ),

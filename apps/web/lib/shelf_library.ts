@@ -326,18 +326,47 @@ export function formatShelfLastReadAgo(at: number | null | undefined): string | 
 
 /** 卡片副信息：作者 > 副标题 > 上次阅读时间 */
 /** 长按菜单：仅有管理/添加权限时弹出（P2）。 */
+/** 任意书目均可长按出操作菜单（读/详情/分组/分享；有权限再加管理）。 */
 export function shelfBookHasLongPressActions(
-  book: ShelfBookSummary,
-  opts: { canManage?: boolean; canAppendLesson?: boolean } = {},
+  _book: ShelfBookSummary,
+  _opts: { canManage?: boolean; canAppendLesson?: boolean } = {},
 ): boolean {
-  if (book.can_edit || opts.canManage) return true;
-  if (
-    opts.canAppendLesson &&
-    (book.book_type === 'collection' || shelfIsChildrenLessonBook(book))
-  ) {
-    return true;
+  return true;
+}
+
+export function shelfBookContinueLabel(bookId: string): string {
+  const progress = loadShelfBookProgress(bookId);
+  if (progress?.finished) return '重新阅读';
+  return progress?.sectionId ? '继续阅读' : '开始阅读';
+}
+
+export function shelfBookTypeMeta(book: ShelfBookSummary): string | null {
+  if (book.book_type === 'collection') {
+    return `合集 · ${book.section_count ?? 0} 份`;
   }
-  return false;
+  const mime = book.mime?.trim();
+  if (mime) {
+    if (mime.includes('pdf')) return 'PDF';
+    if (mime.includes('word') || mime.includes('docx')) return 'Word';
+  }
+  return null;
+}
+
+export function shelfBookProgressSummary(
+  bookId: string,
+  sections?: { id: string; title: string }[],
+): string | null {
+  const ratio = shelfBookProgressRatio(bookId);
+  const progress = loadShelfBookProgress(bookId);
+  if (!progress && ratio == null) return null;
+  if (progress?.finished || (ratio ?? 0) >= FINISH_RATIO) return '已读完';
+  const pct = ratio != null ? Math.round(ratio * 100) : null;
+  const sid = progress?.sectionId;
+  const sectionTitle = sid && sections?.find((s) => s.id === sid)?.title;
+  if (sectionTitle && pct != null) return `读到 ${pct}% · ${sectionTitle}`;
+  if (sectionTitle) return `读到 · ${sectionTitle}`;
+  if (pct != null && pct > 0) return `读到 ${pct}%`;
+  return progress?.sectionId ? '在读' : null;
 }
 
 export function shelfBookCardMetaLine(bookId: string, book: ShelfBookSummary): string | null {

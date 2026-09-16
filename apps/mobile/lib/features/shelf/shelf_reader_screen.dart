@@ -923,6 +923,14 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     );
   }
 
+  void _readerBack() {
+    if (Navigator.of(context).canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/shelf/${Uri.encodeComponent(widget.bookId)}');
+  }
+
   @override
   Widget build(BuildContext context) {
     final paper = context.peiaiPaper;
@@ -934,7 +942,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
             _ShelfReaderTopBar(
               paper: paper,
               title: '加载中…',
-              onBack: () => context.go('/shelf'),
+              onBack: _readerBack,
             ),
             const Expanded(child: Center(child: Text('加载中…', style: AppTypography.meta))),
           ],
@@ -1007,7 +1015,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                     paper: paper,
                     unit: section?.unit,
                     title: title,
-                    onBack: () => context.go('/shelf'),
+                    onBack: _readerBack,
                   )
                 else
                   SizedBox(height: MediaQuery.paddingOf(context).top),
@@ -1160,9 +1168,9 @@ class _ShelfReaderTopBar extends StatelessWidget {
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-                    color: AppColors.inkSoft,
+                    color: AppColors.accentDeep,
                     onPressed: onBack,
-                    tooltip: '返回书架',
+                    tooltip: '返回详情',
                   ),
                   Expanded(
                     child: Column(

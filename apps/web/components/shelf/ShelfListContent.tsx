@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import ShelfBookCard from '@/components/shelf/ShelfBookCard';
 import ShelfLibraryHeader from '@/components/shelf/ShelfLibraryHeader';
 import ShelfLibraryTabs from '@/components/shelf/ShelfLibraryTabs';
@@ -20,12 +21,14 @@ import {
   filterAndSortShelfBooks,
   listShelfUserGroups,
   SHELF_MAX_USER_GROUPS,
-  shelfBookHasLongPressActions,
+  shelfBookCardHref,
+  shelfBookDetailHref,
   shelfUngroupedCount,
   type ShelfLibraryTab,
   type ShelfUserGroup,
 } from '@/lib/shelf_library';
 import { peekShelfListCache } from '@/lib/shelf_cache';
+import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import '@/styles/shelf.css';
 
 const ShelfImportSheet = dynamic(() => import('@/components/shelf/ShelfImportSheet'), { ssr: false });
@@ -42,8 +45,13 @@ const ShelfBookManageSheet = dynamic(
   () => import('@/components/shelf/ShelfBookManageSheet'),
   { ssr: false },
 );
+const ShelfCheckinSheet = dynamic(
+  () => import('@/components/shelf/ShelfCheckinSheet'),
+  { ssr: false },
+);
 
 export function ShelfListContent() {
+  const router = useRouter();
   useEdgeSwipeBack({ href: '/profile' });
 
   const cached = peekShelfListCache(true);
@@ -68,6 +76,7 @@ export function ShelfListContent() {
     book: ShelfBookSummary;
     anchorEl: HTMLElement;
   } | null>(null);
+  const [shareBook, setShareBook] = useState<ShelfBookSummary | null>(null);
   const [libraryTick, setLibraryTick] = useState(0);
 
   const reload = useCallback((force = false) => {
@@ -164,14 +173,7 @@ export function ShelfListContent() {
               book={book}
               coverUrl={shelfCoverUrl(book.id, book.cover_storage_key)}
               actionMenuOpen={bookActionMenu?.book.id === book.id}
-              onActionMenu={
-                shelfBookHasLongPressActions(book, {
-                  canManage,
-                  canAppendLesson,
-                })
-                  ? (b, anchorEl) => setBookActionMenu({ book: b, anchorEl })
-                  : undefined
-              }
+              onActionMenu={(b, anchorEl) => setBookActionMenu({ book: b, anchorEl })}
             />
           ))}
         </div>
@@ -199,6 +201,30 @@ export function ShelfListContent() {
             setBookActionMenu(null);
             setUserManageBook(book);
           }}
+          onRead={(book) => {
+            setBookActionMenu(null);
+            navigateAppHref(shelfBookCardHref(book.id), router);
+          }}
+          onDetail={(book) => {
+            setBookActionMenu(null);
+            navigateAppHref(shelfBookDetailHref(book.id), router);
+          }}
+          onMoveGroup={(book) => {
+            setBookActionMenu(null);
+            setLibrarySheet({ mode: 'move_book', book });
+          }}
+          onShare={(book) => {
+            setBookActionMenu(null);
+            setShareBook(book);
+          }}
+        />
+      ) : null}
+
+      {shareBook ? (
+        <ShelfCheckinSheet
+          bookId={shareBook.id}
+          bookTitle={shareBook.title}
+          onClose={() => setShareBook(null)}
         />
       ) : null}
 

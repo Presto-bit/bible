@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import type { ShelfBookSummary } from '@/lib/shelf_api';
+import { shelfBookContinueLabel } from '@/lib/shelf_library';
 import { shellTapProps } from '@/lib/shell_tap';
 import { shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
 
@@ -20,6 +21,10 @@ type Props = {
   canManage?: boolean;
   canAppendLesson?: boolean;
   onClose: () => void;
+  onRead?: (book: ShelfBookSummary) => void;
+  onDetail?: (book: ShelfBookSummary) => void;
+  onMoveGroup?: (book: ShelfBookSummary) => void;
+  onShare?: (book: ShelfBookSummary) => void;
   onManage?: (book: ShelfBookSummary) => void;
   onUserManage?: (book: ShelfBookSummary) => void;
   onAppendLesson?: (book: ShelfBookSummary) => void;
@@ -32,31 +37,59 @@ function buildShelfBookActions(
   opts: {
     canManage?: boolean;
     canAppendLesson?: boolean;
+    onRead?: (book: ShelfBookSummary) => void;
+    onDetail?: (book: ShelfBookSummary) => void;
+    onMoveGroup?: (book: ShelfBookSummary) => void;
+    onShare?: (book: ShelfBookSummary) => void;
     onUserManage?: (book: ShelfBookSummary) => void;
     onManage?: (book: ShelfBookSummary) => void;
     onAppendLesson?: (book: ShelfBookSummary) => void;
   },
 ): ShelfBookAction[] {
-  const { canManage, canAppendLesson, onUserManage, onManage, onAppendLesson } = opts;
-  if (book.can_edit && onUserManage) {
-    return [{ id: 'manage', label: '管理', onClick: () => onUserManage(book) }];
+  const {
+    canManage,
+    canAppendLesson,
+    onRead,
+    onDetail,
+    onMoveGroup,
+    onShare,
+    onUserManage,
+    onManage,
+    onAppendLesson,
+  } = opts;
+  const actions: ShelfBookAction[] = [];
+  if (onRead) {
+    actions.push({
+      id: 'read',
+      label: shelfBookContinueLabel(book.id),
+      onClick: () => onRead(book),
+    });
   }
-  if (canManage && onManage) {
-    return [{ id: 'manage', label: '管理', onClick: () => onManage(book) }];
+  if (onDetail) {
+    actions.push({ id: 'detail', label: '详情', onClick: () => onDetail(book) });
+  }
+  if (onMoveGroup) {
+    actions.push({ id: 'move', label: '移到分组', onClick: () => onMoveGroup(book) });
+  }
+  if (onShare) {
+    actions.push({ id: 'share', label: '分享到群', onClick: () => onShare(book) });
+  }
+  if (book.can_edit && onUserManage) {
+    actions.push({ id: 'manage', label: '管理', onClick: () => onUserManage(book) });
+  } else if (canManage && onManage) {
+    actions.push({ id: 'manage', label: '管理', onClick: () => onManage(book) });
   }
   if (
     canAppendLesson &&
     onAppendLesson &&
     (book.book_type === 'collection' || shelfIsChildrenLessonBook(book))
   ) {
-    return [{ id: 'append', label: '添加资料', onClick: () => onAppendLesson(book) }];
+    actions.push({ id: 'append', label: '添加资料', onClick: () => onAppendLesson(book) });
   }
-  return [];
+  return actions;
 }
 
-/**
- * 书架长按：仅管理类操作（读/详情/分组/分享已移至点按与详情页）。
- */
+/** 书架长按：读/详情/分组/分享；有权限时追加管理/添加资料。 */
 export default function ShelfBookActionPopover({
   open,
   book,
@@ -64,6 +97,10 @@ export default function ShelfBookActionPopover({
   canManage,
   canAppendLesson,
   onClose,
+  onRead,
+  onDetail,
+  onMoveGroup,
+  onShare,
   onManage,
   onUserManage,
   onAppendLesson,
@@ -76,6 +113,10 @@ export default function ShelfBookActionPopover({
   const actions = buildShelfBookActions(book, {
     canManage,
     canAppendLesson,
+    onRead,
+    onDetail,
+    onMoveGroup,
+    onShare,
     onUserManage,
     onManage,
     onAppendLesson,

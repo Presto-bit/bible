@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import PageBackBar from '@/components/PageBackBar';
+import PageBackBar, { SheetCloseButton } from '@/components/PageBackBar';
 import { useToast } from '@/components/ui/ToastProvider';
 import {
   getPlatformShelfBook,
@@ -761,7 +761,11 @@ export default function ShelfReader({
   };
 
   const backBar = (
-    <PageBackBar href="/shelf" className="shelf-nav-back" ariaLabel="返回书架" />
+    <PageBackBar
+      href={`/shelf/${encodeURIComponent(bookId)}`}
+      label="详情"
+      ariaLabel="返回书目详情"
+    />
   );
 
   if (loading && !book) {
@@ -942,7 +946,7 @@ export default function ShelfReader({
           <div className="shelf-toc-panel" onClick={(e) => e.stopPropagation()}>
             <div className="shelf-toc-head">
               <strong>{book?.title}</strong>
-              <button type="button" className="icon-btn" aria-label="关闭" onClick={() => setTocOpen(false)}>✕</button>
+              <SheetCloseButton onClick={() => setTocOpen(false)} />
             </div>
             <div className="shelf-toc-list" ref={tocListRef}>
               {tocGroups.map((group) => (

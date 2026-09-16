@@ -411,17 +411,11 @@ class ShelfLibraryStore {
           : bookReadPath(bookId);
 }
 
-/// 长按菜单：仅有管理/添加权限时弹出（P2）。
+/// 任意书目均可长按出操作菜单。
 bool shelfBookHasLongPressActions(
   ShelfBookSummary book, {
   required bool canManage,
   required bool canAppendLesson,
 }) {
-  if (book.canEdit || canManage) return true;
-  if (canAppendLesson &&
-      (book.bookType == 'collection' ||
-          shelfIsChildrenLessonBook(id: book.id, title: book.title))) {
-    return true;
-  }
-  return false;
+  return true;
 }
