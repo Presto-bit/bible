@@ -11,6 +11,7 @@ import logging
 from datetime import date, datetime
 from typing import Any
 
+from ..content.moderation import ModerationError, moderate_sync_change
 from ..db import get_pool
 from .conflict import should_apply
 from .registry import REGISTRY, EntitySpec, get_spec
@@ -382,8 +383,17 @@ def push(user_id: str, changes: list[dict], device_id: str | None) -> dict:
                 if not should_apply(ex_ts, ex_ver, inc_ts, inc_ver):
                     skipped += 1
                     continue
+                moderate_sync_change(spec.entity, change)
                 _upsert(conn, spec, user_id, change, device_id)
                 applied += 1
+            except ModerationError as exc:
+                errors.append({
+                    "index": idx,
+                    "entity": change.get("entity"),
+                    "error": exc.reason,
+                    "code": "content_blocked",
+                    "category": exc.category,
+                })
             except Exception as exc:
                 logger.exception("push 失败 entity=%s", change.get("entity"))
                 errors.append({

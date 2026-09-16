@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from ..content.moderation import ModerationError, moderate_fields
 from .service import ensure_platform_book_row, platform_book_published
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,13 @@ def _serialize_reply(row, author: dict | None = None) -> dict:
         "created_at": row[4].isoformat() if row[4] else None,
         "author": author or {"id": str(row[2]), "name": "读者"},
     }
+
+
+def _moderate_ugc(*parts: str | None) -> None:
+    try:
+        moderate_fields(*parts)
+    except ModerationError as exc:
+        raise HTTPException(status_code=400, detail=exc.reason) from exc
 
 
 def _ensure_book(conn, book_id: str) -> None:
@@ -279,6 +287,7 @@ def create_post(
         raise HTTPException(status_code=400, detail=f"内容不超过 {MAX_BODY} 字")
     if read_status and read_status not in READ_STATUS:
         raise HTTPException(status_code=400, detail="无效阅读状态")
+    _moderate_ugc(body, abstract)
     with pool.connection() as conn:
         _ensure_book(conn, book_id)
         ensure_platform_book_row(conn, book_id)
@@ -367,6 +376,7 @@ def add_reply(
         raise HTTPException(status_code=400, detail="回复不能为空")
     if len(body) > MAX_REPLY:
         raise HTTPException(status_code=400, detail=f"回复不超过 {MAX_REPLY} 字")
+    _moderate_ugc(body)
     with pool.connection() as conn:
         row = conn.execute(
             "SELECT user_id, visibility FROM shelf_post WHERE id = %s AND book_id = %s",

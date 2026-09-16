@@ -24,6 +24,7 @@ from .local_session import (
     revoke_session_token,
 )
 from .rate_limit import enforce_rate_limit
+from ..content.moderation import ModerationError, moderate_text
 from .random_username import is_generated_username
 from .session import get_current_user, resolve_user_id
 from .user_code import is_user_code, pick_user_code, uuid_for_code as _uuid_for_code
@@ -331,6 +332,11 @@ def change_username(
         raise HTTPException(status_code=403, detail="身份不匹配")
     if not body.random and not (body.username or "").strip():
         raise HTTPException(status_code=400, detail="请输入用户名，或选择换一个")
+    if not body.random:
+        try:
+            moderate_text((body.username or "").strip())
+        except ModerationError as exc:
+            raise HTTPException(status_code=400, detail=exc.reason) from exc
     try:
         pool = get_pool()
         with pool.connection() as conn:
@@ -531,8 +537,14 @@ def register(
                     )
                 if existing and not owns:
                     raise HTTPException(status_code=403, detail="无权为此账号设置资料")
+                requested_name = (body.username or "").strip() or None
+                if requested_name:
+                    try:
+                        moderate_text(requested_name)
+                    except ModerationError as exc:
+                        raise HTTPException(status_code=400, detail=exc.reason) from exc
                 name = resolve_register_username(
-                    conn, user_code=code, requested=(body.username or "").strip() or None
+                    conn, user_code=code, requested=requested_name
                 )
                 conn.execute(
                     "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
