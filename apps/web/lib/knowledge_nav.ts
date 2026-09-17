@@ -254,3 +254,19 @@ export function consumeKnowledgeSoftReturn(): boolean {
 export function peekKnowledgeExpandOrigin(): KnowledgeExpandOrigin | null {
   return session?.origin || leaveOrigin || readPersistedOrigin();
 }
+
+/** 进场加载占位：读持久化封面，避免黑屏空等 */
+export function peekKnowledgeExpandCover(): string {
+  if (session?.cover) return session.cover;
+  try {
+    const raw = sessionStorage.getItem(EXPAND_SESSION_KEY);
+    if (raw) {
+      const data = JSON.parse(raw) as { cover?: string; origin?: { cover?: string } };
+      const c = (data.cover || data.origin?.cover || '').trim();
+      if (c) return c;
+    }
+  } catch {
+    /* ignore */
+  }
+  return (leaveOrigin?.cover || '').trim();
+}

@@ -1,12 +1,54 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { api, type KnowledgeLayout, type MapTour } from '@/lib/api';
 import { MapStoryMode } from '@/components/search/MapStoryMode';
 import { KnowledgeExplainerPage } from '@/components/knowledge/KnowledgeExplainerPage';
-import { isKnowledgeExpandActive } from '@/lib/knowledge_nav';
+import {
+  isKnowledgeExpandActive,
+  peekKnowledgeExpandCover,
+} from '@/lib/knowledge_nav';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
+
+function LoadingSilent({ tourId }: { tourId: string }) {
+  const cover = useMemo(() => {
+    const fromExpand = peekKnowledgeExpandCover();
+    if (fromExpand) return fromExpand;
+    // 列表轻量图优先；避免一上来抢 1MB comic 拉长黑屏
+    if (tourId === 'paul-first-journey') {
+      return '/knowledge/infographics/paul-first-journey.png';
+    }
+    if (tourId === 'exodus-wilderness') {
+      return '/knowledge/vignettes/wilderness/00_overview.png';
+    }
+    if (tourId === 'jesus-ministry-galilee') {
+      return '/knowledge/infographics/jesus-ministry-galilee-comic.png';
+    }
+    return '';
+  }, [tourId]);
+  const sources = cover ? knowledgeRasterSources(cover) : null;
+
+  return (
+    <div className="knowledge-expand-silent" aria-busy="true">
+      {sources ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          className="knowledge-expand-silent-cover"
+          src={sources.webp || sources.fallback}
+          alt=""
+          decoding="async"
+          onError={(e) => {
+            const img = e.currentTarget;
+            if (sources.fallback && img.src !== sources.fallback) {
+              img.src = sources.fallback;
+            }
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 function MapStoryPageContent() {
   const params = useParams();
@@ -31,18 +73,26 @@ function MapStoryPageContent() {
     setTour(null);
     setLayout(null);
 
-    const warm = knowledgeRasterSources(
-      `/knowledge/infographics/${encodeURIComponent(tourId)}-comic.png`,
-    );
-    if (warm.webp) {
+    // 仅预热列表轻量封面，勿抢拉整本 comic（进场黑屏主因）
+    const warmPath =
+      tourId === 'paul-first-journey'
+        ? '/knowledge/infographics/paul-first-journey.png'
+        : tourId === 'exodus-wilderness'
+          ? '/knowledge/vignettes/wilderness/00_overview.png'
+          : tourId === 'jesus-ministry-galilee'
+            ? '/knowledge/infographics/jesus-ministry-galilee-comic.png'
+            : '';
+    if (warmPath) {
+      const warm = knowledgeRasterSources(warmPath);
       const img = new Image();
       img.decoding = 'async';
-      img.src = warm.webp;
-    }
-    {
-      const img = new Image();
-      img.decoding = 'async';
-      img.src = warm.fallback;
+      img.src = warm.webp || warm.fallback;
+      img.onerror = () => {
+        if (warm.webp) {
+          const fb = new Image();
+          fb.src = warm.fallback;
+        }
+      };
     }
 
     void Promise.all([
@@ -62,9 +112,8 @@ function MapStoryPageContent() {
   }, [tourId]);
 
   if (loading) {
-    // 壳层 ExpandHost 盖住加载；无 expand 时静默占位，勿黑屏文案
-    if (openView || isKnowledgeExpandActive()) {
-      return <div className="knowledge-expand-silent" aria-busy="true" />;
+    if (openView || isKnowledgeExpandActive() || peekKnowledgeExpandCover()) {
+      return <LoadingSilent tourId={tourId} />;
     }
     return (
       <main className="container story-mode-page" aria-busy="true">

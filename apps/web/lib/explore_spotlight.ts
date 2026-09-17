@@ -39,7 +39,7 @@ function coverOf(row: KnowledgeLayoutSummary): string {
     return '/knowledge/vignettes/wilderness/00_overview.png';
   }
   if (id === 'jesus-ministry-galilee') {
-    return '/knowledge/infographics/_paper_texture.jpg';
+    return '/knowledge/infographics/jesus-ministry-galilee-comic.png';
   }
   if (row.cover_image) return row.cover_image;
   return '/knowledge/infographics/_paper_texture.jpg';

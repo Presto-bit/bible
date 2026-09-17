@@ -36,19 +36,24 @@ function ManuscriptRaster({
   eager?: boolean;
 }) {
   const { webp, fallback } = knowledgeRasterSources(path);
+  const [src, setSrc] = useState(webp || fallback);
+  useEffect(() => {
+    setSrc(webp || fallback);
+  }, [webp, fallback]);
   return (
-    <picture>
-      {webp ? <source type="image/webp" srcSet={webp} /> : null}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        className="knowledge-viewer-img"
-        src={fallback}
-        alt={alt}
-        draggable={false}
-        decoding="async"
-        loading={eager ? 'eager' : 'lazy'}
-      />
-    </picture>
+    // 不用 <picture>+缺失 webp：部分 WebView 不回退到 PNG，整页空白
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      className="knowledge-viewer-img"
+      src={src}
+      alt={alt}
+      draggable={false}
+      decoding="async"
+      loading={eager ? 'eager' : 'lazy'}
+      onError={() => {
+        if (src !== fallback) setSrc(fallback);
+      }}
+    />
   );
 }
 
@@ -310,8 +315,9 @@ export function KnowledgeManuscriptViewer({
       const p = pages[i];
       if (!p?.src) continue;
       const { webp, fallback } = knowledgeRasterSources(p.src);
-      if (webp) preloadSrc(webp);
+      // 先预热 PNG，避免缺失 webp 占满连接拖慢首屏
       preloadSrc(fallback);
+      if (webp) preloadSrc(webp);
     }
   }, [index, pages, total]);
 
@@ -379,11 +385,12 @@ export function KnowledgeManuscriptViewer({
     try {
       if (current.src) {
         const { webp, fallback } = knowledgeRasterSources(current.src);
-        const res = await fetch(webp || fallback);
+        let res = webp ? await fetch(webp) : null;
+        if (!res || !res.ok) res = await fetch(fallback);
         if (!res.ok) throw new Error('missing');
         const blob = await res.blob();
         const file = new File([blob], current.src.split('/').pop() || 'manuscript.png', {
-          type: 'image/png',
+          type: blob.type || 'image/png',
         });
         const result = await shareOutbound({
           title,

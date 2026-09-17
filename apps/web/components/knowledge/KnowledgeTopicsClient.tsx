@@ -31,7 +31,7 @@ function coverPath(row: KnowledgeLayoutSummary): string {
       return '/knowledge/vignettes/wilderness/00_overview.png';
     }
     if (id === 'jesus-ministry-galilee') {
-      return '/knowledge/infographics/_paper_texture.jpg';
+      return '/knowledge/infographics/jesus-ministry-galilee-comic.png';
     }
     return row.cover_image;
   }
@@ -43,7 +43,7 @@ function coverPath(row: KnowledgeLayoutSummary): string {
     return '/knowledge/infographics/paul-first-journey.png';
   }
   if (id === 'jesus-ministry-galilee') {
-    return '/knowledge/infographics/_paper_texture.jpg';
+    return '/knowledge/infographics/jesus-ministry-galilee-comic.png';
   }
   return '/knowledge/infographics/_paper_texture.jpg';
 }
@@ -137,7 +137,7 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
     for (const row of top) {
       preloadRaster(coverPath(row));
       const id = row.source?.id || row.id;
-      if (id === 'paul-first-journey' || id === 'exodus-wilderness') {
+      if (id === 'paul-first-journey' || id === 'exodus-wilderness' || id === 'jesus-ministry-galilee') {
         preloadRaster(`/knowledge/infographics/${id}-comic.png`);
       }
     }

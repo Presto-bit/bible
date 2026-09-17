@@ -155,7 +155,7 @@ CURATED: dict[str, dict] = {
     },
     "jesus-ministry-galilee": {
         "guide_one_liner": "从加利利起：呼召、教导与医治；权柄显明后，行程收束至耶路撒冷。",
-        "cover_image": "/knowledge/infographics/_paper_texture.jpg",
+        "cover_image": "/knowledge/infographics/jesus-ministry-galilee-comic.png",
         "density": "standard",
         "arc": [
             {"name": "呼召与起行", "stop_orders": [1, 2]},
