@@ -42,6 +42,7 @@ type PeiaiNativePayload =
     }
   | { type: 'cancel_reminder'; kind?: 'daily' | 'group' | string }
   | { type: 'set_theme'; theme?: string; app_theme?: string }
+  | { type: 'prayer_finish'; flow_id?: string; plan_id?: string }
   | { type: 'hard_reload' };
 
 declare global {
