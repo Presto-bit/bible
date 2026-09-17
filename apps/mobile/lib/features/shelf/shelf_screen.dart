@@ -656,7 +656,6 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                             ),
                             progressRatio: _library.bookProgressRatio(book.id),
                             onTap: () => _openBook(book),
-                            onDetailTap: () => _openBookDetail(book),
                             onLongPress: () => unawaited(_bookActions(book)),
                           );
                         },

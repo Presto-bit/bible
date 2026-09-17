@@ -6,7 +6,6 @@ import 'package:presto_bible/features/shelf/shelf_repository.dart';
 void main() {
   testWidgets('ShelfBookCard fires onTap inside scrollable grid', (tester) async {
     var taps = 0;
-    var details = 0;
     var longs = 0;
 
     await tester.pumpWidget(
@@ -31,7 +30,6 @@ void main() {
                           title: '测试书 $i',
                         ),
                         onTap: () => taps++,
-                        onDetailTap: () => details++,
                         onLongPress: () => longs++,
                       );
                     },

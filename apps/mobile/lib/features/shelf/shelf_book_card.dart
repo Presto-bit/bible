@@ -20,7 +20,6 @@ class ShelfBookCard extends StatelessWidget {
     this.coverUrl,
     this.progressRatio,
     this.onTap,
-    this.onDetailTap,
     this.onLongPress,
   });
 
@@ -28,7 +27,6 @@ class ShelfBookCard extends StatelessWidget {
   final String? coverUrl;
   final double? progressRatio;
   final VoidCallback? onTap;
-  final VoidCallback? onDetailTap;
   final VoidCallback? onLongPress;
 
   @override
@@ -86,35 +84,6 @@ class ShelfBookCard extends StatelessWidget {
                                   widthFactor: ratio,
                                   child: const ColoredBox(
                                     color: AppColors.accentDeep,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (onDetailTap != null)
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: Material(
-                            color: Colors.black38,
-                            shape: const CircleBorder(),
-                            clipBehavior: Clip.antiAlias,
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: onDetailTap,
-                              child: const SizedBox(
-                                width: 30,
-                                height: 30,
-                                child: Center(
-                                  child: Text(
-                                    'i',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      fontStyle: FontStyle.italic,
-                                    ),
                                   ),
                                 ),
                               ),

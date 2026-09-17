@@ -1,12 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useRef, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useRef } from 'react';
 import type { ShelfBookSummary } from '@/lib/shelf_api';
-import {
-  shelfBookCardHref,
-  shelfBookDetailHref,
-} from '@/lib/shelf_library';
+import { shelfBookCardHref } from '@/lib/shelf_library';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import ShelfBrandCover from '@/components/shelf/ShelfBrandCover';
 import { shelfBookProgressRatio, shelfBookCardMetaLine } from '@/lib/shelf_library';
@@ -28,7 +25,6 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
   const startXY = useRef<{ x: number; y: number } | null>(null);
 
   const href = shelfBookCardHref(book.id);
-  const detailHref = shelfBookDetailHref(book.id);
   const progressRatio = shelfBookProgressRatio(book.id);
   const isCollection = book.book_type === 'collection';
   const metaLine = isCollection ? null : shelfBookCardMetaLine(book.id, book);
@@ -68,12 +64,6 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
     },
     [clearTimer, onActionMenu, triggerLongPress],
   );
-
-  const openDetail = (e: MouseEvent | PointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigateAppHref(detailHref, router);
-  };
 
   const handleActivate = () => {
     if (longPressFired.current) {
@@ -136,15 +126,6 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
             />
           </div>
         ) : null}
-        <button
-          type="button"
-          className="shelf-book-card-detail-btn"
-          aria-label="书目详情"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={openDetail}
-        >
-          <span aria-hidden>i</span>
-        </button>
       </div>
       <div className="shelf-book-card-text">
         <p className={`shelf-book-card-title${hasMeta ? ' is-compact' : ''}`}>{book.title}</p>
