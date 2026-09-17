@@ -113,12 +113,24 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
         <PageBackBar onClick={goBack} label="首页" />
         <h2 className="page-head-title">探索</h2>
         {isAdmin ? (
-          <Link href="/knowledge/new" className="knowledge-topics-new">
-            新建
+          <Link
+            href="/knowledge/new"
+            className="knowledge-topics-new"
+            aria-label="新建手稿"
+            title="新建"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+              <path
+                fill="currentColor"
+                d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1Z"
+              />
+            </svg>
           </Link>
-        ) : null}
+        ) : (
+          <span className="knowledge-topics-new-spacer" aria-hidden />
+        )}
       </header>
-      <p className="knowledge-topics-lead">彼爱手稿 · 点开即读</p>
+      <p className="knowledge-topics-lead">点开即读</p>
 
       <div className="knowledge-topics-filters" role="tablist" aria-label="筛选">
         {(

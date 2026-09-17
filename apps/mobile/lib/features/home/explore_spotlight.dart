@@ -1,7 +1,9 @@
-/// 首页探索坑：按日稳定随机挑一个专题封面缩写（对齐 Web `explore_spotlight.ts`）。
+/// 首页探索坑：今日默认保罗首发（对齐 Web `explore_spotlight.ts`）。
 library;
 
 import '../../core/daily_clock.dart';
+
+const _paulId = 'paul-first-journey';
 
 class ExploreSpotlight {
   const ExploreSpotlight({
@@ -23,10 +25,10 @@ class ExploreSpotlight {
 }
 
 const defaultExploreSpotlight = ExploreSpotlight(
-  id: 'explore',
-  title: '探索手稿',
-  hook: '经文结构速览',
-  href: '/knowledge',
+  id: _paulId,
+  title: '保罗首发',
+  hook: '安提阿到加拉太',
+  href: '/search/map/$_paulId?view=1',
   coverUrl: '/knowledge/infographics/paul-first-journey-comic.png',
 );
 
@@ -78,15 +80,6 @@ class KnowledgeLayoutRow {
   }
 }
 
-int _hashDay(String seed) {
-  var h = 2166136261;
-  for (final c in seed.codeUnits) {
-    h ^= c;
-    h = (h * 16777619) & 0xFFFFFFFF;
-  }
-  return h;
-}
-
 String _shortTitle(String title) {
   final t = title.replaceAll(RegExp(r'\s+'), '').trim();
   if (t.length <= 8) return t;
@@ -106,7 +99,7 @@ String _coverOf(KnowledgeLayoutRow row) {
   if (row.id == 'exodus-wilderness') {
     return '/knowledge/vignettes/wilderness/00_overview.png';
   }
-  if (row.id == 'paul-first-journey') {
+  if (row.id == _paulId) {
     return '/knowledge/infographics/paul-first-journey-comic.png';
   }
   return '/knowledge/infographics/_paper_texture.jpg';
@@ -118,19 +111,19 @@ String? _mediaBadge(List<String> kinds) {
   return null;
 }
 
-ExploreSpotlight? pickExploreSpotlight(
-  List<KnowledgeLayoutRow> layouts, {
-  String? dayKey,
-}) {
-  if (layouts.isEmpty) return null;
-  final key = dayKey ?? chinaTodayYmd();
-  final i = _hashDay('explore:$key') % layouts.length;
-  final row = layouts[i];
-  final id = row.id.isEmpty ? 'topic-$i' : row.id;
+bool _isNote(KnowledgeLayoutRow row) {
+  final id = row.id;
+  return row.kind == 'note' || id.startsWith('note-');
+}
+
+bool _isPaul(KnowledgeLayoutRow row) {
+  return row.id == _paulId || (row.sourceId ?? '') == _paulId;
+}
+
+ExploreSpotlight _toSpotlight(KnowledgeLayoutRow row, {int fallbackIndex = 0}) {
+  final id = row.id.isEmpty ? 'topic-$fallbackIndex' : row.id;
   final sourceId = (row.sourceId ?? id).trim();
-  final isNote =
-      row.kind == 'note' || id.startsWith('note-');
-  final href = isNote
+  final href = _isNote(row)
       ? '/knowledge/${Uri.encodeComponent(sourceId)}?view=1'
       : '/search/map/${Uri.encodeComponent(sourceId)}?view=1';
   return ExploreSpotlight(
@@ -141,4 +134,22 @@ ExploreSpotlight? pickExploreSpotlight(
     coverUrl: _coverOf(row),
     mediaBadge: _mediaBadge(row.mediaKinds),
   );
+}
+
+/// 今日探索默认保罗首发；无保罗则回退首条行程。
+ExploreSpotlight? pickExploreSpotlight(
+  List<KnowledgeLayoutRow> layouts, {
+  String? dayKey,
+}) {
+  if (layouts.isEmpty) return null;
+  // dayKey 保留以兼容调用方（按日缓存等）
+  // ignore: unused_local_variable
+  final _ = dayKey ?? chinaTodayYmd();
+  for (final row in layouts) {
+    if (_isPaul(row)) return _toSpotlight(row);
+  }
+  for (final row in layouts) {
+    if (!_isNote(row)) return _toSpotlight(row);
+  }
+  return _toSpotlight(layouts.first);
 }

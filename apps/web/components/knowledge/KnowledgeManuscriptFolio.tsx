@@ -78,8 +78,15 @@ export function KnowledgeManuscriptFolio({ pages, onIndexChange }: Props) {
           <div key={p.key} className="knowledge-folio-page" aria-hidden={i !== index}>
             {p.text ? (
               <div className="knowledge-folio-text-leaf">
+                <p className="knowledge-folio-text-leaf-brand">彼爱 · 长文</p>
                 {p.text.title ? <h3>{p.text.title}</h3> : null}
-                <p>{p.text.body}</p>
+                {p.text.body
+                  .split(/\n\s*\n+/)
+                  .map((para) => para.trim())
+                  .filter(Boolean)
+                  .map((para, pi) => (
+                    <p key={pi}>{para}</p>
+                  ))}
               </div>
             ) : p.src ? (
               <>

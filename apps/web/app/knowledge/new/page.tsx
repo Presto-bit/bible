@@ -13,7 +13,7 @@ import {
 } from '@/lib/admin_rag';
 import { API_BASE } from '@/lib/api';
 import { knowledgeMediaUrl } from '@/lib/knowledge_media_url';
-import { renderNoteBodyPng, renderNoteCoverPng } from '@/lib/note_paper_render';
+import { renderNoteArticlePngs, splitNoteParagraphs } from '@/lib/note_paper_render';
 import { knowledgeNoteHref } from '@/lib/topic_routes';
 
 type CreateMode = 'text' | 'image' | 'audio' | 'video';
@@ -30,18 +30,14 @@ const MODE_META: Record<
   CreateMode,
   { label: string; hint: string; verb: string }
 > = {
-  text: { label: '写文字', hint: '分段成册，可生成纸页竖图', verb: '文字' },
+  text: { label: '写文字', hint: '长文排版成册页图，默认图片阅读', verb: '文字' },
   image: { label: '传图片', hint: '多图排成手稿册页', verb: '图片' },
   audio: { label: '传音频', hint: '听稿 · 封面 + 导语', verb: '音频' },
   video: { label: '传视频', hint: '看稿 · 封面 + 导语', verb: '视频' },
 };
 
 function previewParagraphs(body: string): string[] {
-  return body
-    .split(/\n\s*\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .slice(0, 12);
+  return splitNoteParagraphs(body).slice(0, 12);
 }
 
 function blobToFile(blob: Blob, name: string): File {
@@ -152,6 +148,17 @@ export default function KnowledgeNewNotePage() {
     setMode(m);
   };
 
+  // 进入图/音/视频后自动弹出系统文件选择（更像小红书）
+  useEffect(() => {
+    if (!mode || mode === 'text') return;
+    const t = window.setTimeout(() => {
+      if (mode === 'image') imagesInputRef.current?.click();
+      if (mode === 'audio') audioInputRef.current?.click();
+      if (mode === 'video') videoInputRef.current?.click();
+    }, 280);
+    return () => window.clearTimeout(t);
+  }, [mode]);
+
   const leaveMode = () => {
     resetForm();
     setMode(null);
@@ -245,6 +252,58 @@ export default function KnowledgeNewNotePage() {
     return undefined;
   };
 
+  /** 文字流：烘焙成长文纸页图（封面 + 自动分页正文） */
+  const bakeTextArticle = async (): Promise<Array<Record<string, unknown>>> => {
+    setBusyLabel('排版长文纸页…');
+    const { cover: coverBlob, bodies } = await renderNoteArticlePngs({
+      title: title.trim(),
+      body: body.trim(),
+    });
+
+    setBusyLabel('上传纸页图…');
+    const coverUrl = await uploadKnowledgeNoteMedia(
+      blobToFile(coverBlob, 'paper-cover.png'),
+      'cover',
+    );
+    const pageUrls: string[] = [];
+    for (let i = 0; i < bodies.length; i += 1) {
+      pageUrls.push(
+        await uploadKnowledgeNoteMedia(
+          blobToFile(bodies[i]!, `paper-p${i + 1}.png`),
+          'cover',
+        ),
+      );
+    }
+
+    const pages: Array<Record<string, unknown>> = [
+      {
+        key: 'cover',
+        type: 'image',
+        src: coverUrl,
+        alt: `${title.trim()} · 封面`,
+      },
+      ...pageUrls.map((src, i) => ({
+        key: `p${i + 1}`,
+        type: 'image',
+        src,
+        alt: `${title.trim()} · 第 ${i + 1} 页`,
+      })),
+    ];
+
+    setCover(coverUrl);
+    setFolioPages(pages);
+
+    setPaperPreviewUrls((prev) => {
+      for (const u of prev) URL.revokeObjectURL(u);
+      return [
+        URL.createObjectURL(coverBlob),
+        ...bodies.map((b) => URL.createObjectURL(b)),
+      ];
+    });
+
+    return pages;
+  };
+
   const bodyForSave = (): string => {
     if (mode === 'text') return body.trim();
     const g = guide.trim();
@@ -268,7 +327,11 @@ export default function KnowledgeNewNotePage() {
     setBusy(true);
     setBusyLabel(status === 'draft' ? '保存草稿…' : '发布中…');
     try {
-      const pages = buildFolioForSave();
+      let pages = buildFolioForSave();
+      // 文字默认出图：发布（及尚无纸页的草稿）自动排版上传
+      if (mode === 'text' && (status === 'published' || !pages?.length)) {
+        pages = await bakeTextArticle();
+      }
       const coverImage =
         cover.trim() ||
         imageUrls[0] ||
@@ -288,7 +351,7 @@ export default function KnowledgeNewNotePage() {
       if (pages) setFolioPages(pages);
       if (status === 'draft') {
         await refreshDrafts();
-        setOkHint('草稿已保存');
+        setOkHint(mode === 'text' ? '草稿已保存（已排版为图片）' : '草稿已保存');
         setBusyLabel('');
         setBusy(false);
         return;
@@ -308,68 +371,12 @@ export default function KnowledgeNewNotePage() {
     }
     setErr(null);
     setBusy(true);
-    setBusyLabel('生成纸页图…');
     try {
-      const paragraphs = previewParagraphs(body);
-      const coverBlob = await renderNoteCoverPng({
-        title: title.trim(),
-        guide: paragraphs[0] || '',
-      });
-      const bodyBlobs: Blob[] = [];
-      for (let i = 0; i < paragraphs.length; i += 1) {
-        bodyBlobs.push(
-          await renderNoteBodyPng({
-            title: title.trim(),
-            sectionLabel: paragraphs.length > 1 ? `第 ${i + 1} 段` : '正文',
-            body: paragraphs[i],
-            pageIndex: i + 1,
-            pageTotal: paragraphs.length,
-          }),
-        );
-      }
-
-      setBusyLabel('上传纸页图…');
-      const coverUrl = await uploadKnowledgeNoteMedia(
-        blobToFile(coverBlob, 'paper-cover.png'),
-        'cover',
-      );
-      const pageUrls: string[] = [];
-      for (let i = 0; i < bodyBlobs.length; i += 1) {
-        pageUrls.push(
-          await uploadKnowledgeNoteMedia(
-            blobToFile(bodyBlobs[i], `paper-p${i + 1}.png`),
-            'cover',
-          ),
-        );
-      }
-
-      const pages: Array<Record<string, unknown>> = [
-        {
-          key: 'cover',
-          type: 'image',
-          src: coverUrl,
-          alt: `${title.trim()} · 封面`,
-        },
-        ...pageUrls.map((src, i) => ({
-          key: `p${i + 1}`,
-          type: 'image',
-          src,
-          alt: `${title.trim()} · 第 ${i + 1} 段`,
-        })),
-      ];
-
-      setCover(coverUrl);
-      setFolioPages(pages);
-      setOkHint(`已生成 ${pages.length} 张纸页图`);
-
-      for (const u of paperPreviewUrls) URL.revokeObjectURL(u);
-      setPaperPreviewUrls([
-        URL.createObjectURL(coverBlob),
-        ...bodyBlobs.map((b) => URL.createObjectURL(b)),
-      ]);
+      const pages = await bakeTextArticle();
+      setOkHint(`已排版 ${pages.length} 页长文图`);
       setShowPreview(true);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : '生成纸页图失败');
+      setErr(e instanceof Error ? e.message : '排版失败');
     } finally {
       setBusy(false);
       setBusyLabel('');
@@ -504,55 +511,24 @@ export default function KnowledgeNewNotePage() {
   }
 
   const meta = MODE_META[mode];
+  const stepHint =
+    mode === 'text'
+      ? '① 写标题正文 → ② 发布时自动排成长文图 → ③ 图片阅读'
+      : mode === 'image'
+        ? '① 选图排序 → ② 写标题 → ③ 发布'
+        : '① 上传文件 → ② 封面与标题 → ③ 发布';
 
   return (
-    <main className="container knowledge-note-editor">
+    <main className="container knowledge-note-editor knowledge-note-editor--typed">
       <header className="page-head">
         <PageBackBar onClick={leaveMode} label="选择类型" />
         <h2 className="page-head-title">{meta.label}</h2>
       </header>
-      <p className="knowledge-note-editor-lead">{meta.hint}</p>
+      <p className="knowledge-note-steps">{stepHint}</p>
 
-      <label className="knowledge-note-field">
-        <span>标题</span>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={80}
-          placeholder="例如：安息日的安静"
-        />
-      </label>
-
-      {mode === 'text' ? (
-        <label className="knowledge-note-field">
-          <span>正文</span>
-          <textarea
-            value={body}
-            onChange={(e) => {
-              setBody(e.target.value);
-              setFolioPages(null);
-            }}
-            rows={10}
-            maxLength={12000}
-            placeholder="分段之间空一行；第一段会作为导语。"
-          />
-        </label>
-      ) : (
-        <label className="knowledge-note-field">
-          <span>导语（可选）</span>
-          <textarea
-            value={guide}
-            onChange={(e) => setGuide(e.target.value)}
-            rows={3}
-            maxLength={200}
-            placeholder="一句话说明这则手稿"
-          />
-        </label>
-      )}
-
+      {/* 媒体优先：图/音/视频先上传 */}
       {mode === 'image' ? (
         <div className="knowledge-note-field">
-          <span>图片册页（可多选，最多 12 张）</span>
           <input
             ref={imagesInputRef}
             type="file"
@@ -567,11 +543,12 @@ export default function KnowledgeNewNotePage() {
           />
           <button
             type="button"
-            className="btn"
+            className="knowledge-note-dropzone"
             disabled={busy}
             onClick={() => imagesInputRef.current?.click()}
           >
-            {imageUrls.length ? '继续添加' : '选择图片'}
+            <strong>{imageUrls.length ? '继续添加图片' : '点此选择图片'}</strong>
+            <span>可多选，最多 12 张 · 顺序即册页</span>
           </button>
           {imageUrls.length > 0 ? (
             <div className="knowledge-note-image-strip">
@@ -579,6 +556,7 @@ export default function KnowledgeNewNotePage() {
                 <div key={`${src}-${i}`} className="knowledge-note-image-thumb">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={knowledgeMediaUrl(src)} alt="" />
+                  <em>{i + 1}</em>
                   <button
                     type="button"
                     className="knowledge-note-image-remove"
@@ -599,102 +577,126 @@ export default function KnowledgeNewNotePage() {
 
       {mode === 'audio' ? (
         <div className="knowledge-note-field">
-          <span>音频</span>
-          <div className="knowledge-note-upload-row">
-            <input
-              value={audioUrl}
-              onChange={(e) => setAudioUrl(e.target.value)}
-              placeholder="已上传后显示地址"
-              readOnly
-            />
-            <input
-              ref={audioInputRef}
-              type="file"
-              accept="audio/mpeg,audio/mp4,audio/*,.mp3,.m4a,.aac,.wav,.ogg"
-              hidden
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = '';
-                if (f) void uploadFile(f, 'audio');
-              }}
-            />
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => audioInputRef.current?.click()}
-            >
-              上传
-            </button>
-          </div>
+          <input
+            ref={audioInputRef}
+            type="file"
+            accept="audio/mpeg,audio/mp4,audio/*,.mp3,.m4a,.aac,.wav,.ogg"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (f) void uploadFile(f, 'audio');
+            }}
+          />
+          <button
+            type="button"
+            className={`knowledge-note-dropzone${audioUrl ? ' is-done' : ''}`}
+            disabled={busy}
+            onClick={() => audioInputRef.current?.click()}
+          >
+            <strong>{audioUrl ? '已选音频 · 点此更换' : '点此选择音频'}</strong>
+            <span>mp3 / m4a / aac</span>
+          </button>
         </div>
       ) : null}
 
       {mode === 'video' ? (
         <div className="knowledge-note-field">
-          <span>视频</span>
-          <div className="knowledge-note-upload-row">
-            <input
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="已上传后显示地址"
-              readOnly
-            />
-            <input
-              ref={videoInputRef}
-              type="file"
-              accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
-              hidden
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = '';
-                if (f) void uploadFile(f, 'video');
-              }}
-            />
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => videoInputRef.current?.click()}
-            >
-              上传
-            </button>
-          </div>
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (f) void uploadFile(f, 'video');
+            }}
+          />
+          <button
+            type="button"
+            className={`knowledge-note-dropzone${videoUrl ? ' is-done' : ''}`}
+            disabled={busy}
+            onClick={() => videoInputRef.current?.click()}
+          >
+            <strong>{videoUrl ? '已选视频 · 点此更换' : '点此选择视频'}</strong>
+            <span>mp4 / webm</span>
+          </button>
         </div>
       ) : null}
+
+      <label className="knowledge-note-field">
+        <span>标题</span>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={80}
+          placeholder="例如：安息日的安静"
+          autoFocus={mode === 'text'}
+        />
+      </label>
+
+      {mode === 'text' ? (
+        <label className="knowledge-note-field">
+          <span>正文</span>
+          <textarea
+            value={body}
+            onChange={(e) => {
+              setBody(e.target.value);
+              setFolioPages(null);
+              setPaperPreviewUrls((prev) => {
+                for (const u of prev) URL.revokeObjectURL(u);
+                return [];
+              });
+            }}
+            rows={10}
+            maxLength={12000}
+            placeholder={'分段之间空一行。\n发布后自动排成小红书式长文纸页图。'}
+          />
+        </label>
+      ) : (
+        <label className="knowledge-note-field">
+          <span>导语（可选）</span>
+          <textarea
+            value={guide}
+            onChange={(e) => setGuide(e.target.value)}
+            rows={2}
+            maxLength={200}
+            placeholder="一句话说明这则手稿"
+          />
+        </label>
+      )}
 
       {(mode === 'audio' || mode === 'video' || mode === 'text') && (
         <div className="knowledge-note-field">
           <span>{mode === 'text' ? '封面（可选）' : '封面'}</span>
-          <div className="knowledge-note-upload-row">
-            <input
-              value={cover}
-              onChange={(e) => {
-                setCover(e.target.value);
-                setFolioPages(null);
-              }}
-              placeholder={mode === 'text' ? '可选上传或生成纸页' : '建议上传'}
-            />
-            <input
-              ref={coverInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              hidden
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = '';
-                if (f) void uploadFile(f, 'cover');
-              }}
-            />
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => coverInputRef.current?.click()}
-            >
-              上传
-            </button>
-          </div>
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (f) void uploadFile(f, 'cover');
+            }}
+          />
+          <button
+            type="button"
+            className={`knowledge-note-dropzone knowledge-note-dropzone--sm${cover ? ' is-done' : ''}`}
+            disabled={busy}
+            onClick={() => coverInputRef.current?.click()}
+          >
+            <strong>{cover ? '已选封面 · 点此更换' : '上传封面图'}</strong>
+            {cover ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className="knowledge-note-cover-preview"
+                src={knowledgeMediaUrl(cover)}
+                alt=""
+              />
+            ) : null}
+          </button>
         </div>
       )}
 
@@ -704,14 +706,14 @@ export default function KnowledgeNewNotePage() {
         <p className="knowledge-note-editor-busy">{busyLabel}</p>
       ) : null}
 
-      <div className="knowledge-note-editor-actions">
+      <div className="knowledge-note-editor-actions knowledge-note-editor-actions--sticky">
         <button
           type="button"
           className="btn"
           disabled={!canPublish()}
           onClick={() => setShowPreview((v) => !v)}
         >
-          {showPreview ? '收起预览' : '预览'}
+          {showPreview ? '收起' : '预览'}
         </button>
         {mode === 'text' ? (
           <button
@@ -720,7 +722,7 @@ export default function KnowledgeNewNotePage() {
             disabled={busy || !title.trim() || !body.trim()}
             onClick={() => void onGeneratePaper()}
           >
-            生成纸页图
+            预览排版
           </button>
         ) : null}
         <button
@@ -729,7 +731,7 @@ export default function KnowledgeNewNotePage() {
           disabled={busy || !canPublish()}
           onClick={() => void onSave('draft')}
         >
-          存草稿
+          草稿
         </button>
         <button
           type="button"
@@ -737,7 +739,7 @@ export default function KnowledgeNewNotePage() {
           disabled={busy || !canPublish()}
           onClick={() => void onSave('published')}
         >
-          {busy && busyLabel.includes('发布') ? '发布中…' : '发布到探索'}
+          {busy && busyLabel.includes('发布') ? '发布中…' : '发布'}
         </button>
       </div>
 

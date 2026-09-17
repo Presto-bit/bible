@@ -1,4 +1,4 @@
-/** 首页探索坑：按日稳定随机挑一个专题封面缩写 */
+/** 首页探索坑：按日稳定挑专题（今日默认保罗首发） */
 
 import type { KnowledgeLayoutSummary } from './api';
 import { chinaTodayYmd } from './daily_clock';
@@ -14,14 +14,7 @@ export type ExploreSpotlight = {
   mediaBadge?: string | null;
 };
 
-function hashDay(seed: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
+const PAUL_ID = 'paul-first-journey';
 
 function shortTitle(title: string): string {
   const t = title.replace(/\s+/g, '').trim();
@@ -39,7 +32,7 @@ function shortHook(guide?: string): string {
 function coverOf(row: KnowledgeLayoutSummary): string {
   if (row.cover_image) return row.cover_image;
   if (row.id === 'exodus-wilderness') return '/knowledge/vignettes/wilderness/00_overview.png';
-  if (row.id === 'paul-first-journey') {
+  if (row.id === PAUL_ID) {
     return '/knowledge/infographics/paul-first-journey-comic.png';
   }
   return '/knowledge/infographics/_paper_texture.jpg';
@@ -53,26 +46,14 @@ function isNoteRow(row: KnowledgeLayoutSummary): boolean {
   );
 }
 
-/** 从探索 href 解析手稿 id（行程 / 笔记） */
-export function manuscriptIdFromExploreHref(href: string): string {
-  const raw = (href || '').trim();
-  if (!raw) return '';
-  const note = raw.match(/\/knowledge\/([^/?#]+)/);
-  if (note?.[1]) return decodeURIComponent(note[1]);
-  const tour = raw.match(/\/search\/map\/([^/?#]+)/);
-  if (tour?.[1]) return decodeURIComponent(tour[1]);
-  return '';
+function isPaulRow(row: KnowledgeLayoutSummary): boolean {
+  const id = row.id || '';
+  const sid = row.source?.id || '';
+  return id === PAUL_ID || sid === PAUL_ID;
 }
 
-/** 按中国日历日从 layouts 中稳定抽取一条 */
-export function pickExploreSpotlight(
-  layouts: KnowledgeLayoutSummary[],
-  dayKey = chinaTodayYmd(),
-): ExploreSpotlight | null {
-  if (!layouts.length) return null;
-  const i = hashDay(`explore:${dayKey}`) % layouts.length;
-  const row = layouts[i]!;
-  const id = row.id || `topic-${i}`;
+function toSpotlight(row: KnowledgeLayoutSummary, fallbackIndex = 0): ExploreSpotlight {
+  const id = row.id || `topic-${fallbackIndex}`;
   const sourceId = row.source?.id || id;
   const href = isNoteRow(row)
     ? `/knowledge/${encodeURIComponent(sourceId)}?view=1`
@@ -88,11 +69,38 @@ export function pickExploreSpotlight(
   };
 }
 
+/** 从探索 href 解析手稿 id（行程 / 笔记） */
+export function manuscriptIdFromExploreHref(href: string): string {
+  const raw = (href || '').trim();
+  if (!raw) return '';
+  const note = raw.match(/\/knowledge\/([^/?#]+)/);
+  if (note?.[1]) return decodeURIComponent(note[1]);
+  const tour = raw.match(/\/search\/map\/([^/?#]+)/);
+  if (tour?.[1]) return decodeURIComponent(tour[1]);
+  return '';
+}
+
+/**
+ * 今日探索默认保罗首发；列表无保罗时回退到首条行程，再回退首条。
+ * dayKey 保留签名以兼容调用方。
+ */
+export function pickExploreSpotlight(
+  layouts: KnowledgeLayoutSummary[],
+  _dayKey = chinaTodayYmd(),
+): ExploreSpotlight | null {
+  if (!layouts.length) return null;
+  const paul = layouts.find(isPaulRow);
+  if (paul) return toSpotlight(paul);
+  const journey = layouts.find((r) => !isNoteRow(r));
+  if (journey) return toSpotlight(journey);
+  return toSpotlight(layouts[0]!, 0);
+}
+
 export const DEFAULT_EXPLORE_SPOTLIGHT: ExploreSpotlight = {
-  id: 'explore',
-  title: '探索手稿',
-  hook: '经文结构速览',
-  href: '/knowledge',
+  id: PAUL_ID,
+  title: '保罗首发',
+  hook: '安提阿到加拉太',
+  href: `/search/map/${PAUL_ID}?view=1`,
   coverUrl: '/knowledge/infographics/paul-first-journey-comic.png',
   mediaBadge: null,
 };

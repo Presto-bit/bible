@@ -9,10 +9,7 @@ import {
   type TouchEvent as ReactTouchEvent,
 } from 'react';
 import { knowledgeMediaUrl, knowledgeRasterSources } from '@/lib/knowledge_media_url';
-import {
-  readManuscriptPage,
-  writeManuscriptPage,
-} from '@/lib/manuscript_progress';
+import { writeManuscriptPage } from '@/lib/manuscript_progress';
 import { isShareAbortError, shareOutbound } from '@/lib/share_outbound';
 import type { ManuscriptFolioPage } from '@/components/knowledge/KnowledgeManuscriptFolio';
 
@@ -205,7 +202,7 @@ function preloadSrc(src: string) {
 
 /**
  * §19.14.17 小红书式全屏手稿查看：横滑翻页、双手缩放、返回、系统分享。
- * 第一页再向上一页方向滑 → 退出专题；记住页码下次续读。
+ * 打开默认第一页；轻点图片切换沉浸（藏顶栏）；第一页再滑退出专题。
  */
 export function KnowledgeManuscriptViewer({
   pages,
@@ -216,19 +213,21 @@ export function KnowledgeManuscriptViewer({
 }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const total = pages.length;
-  const restored = tourId ? readManuscriptPage(tourId, total) : 0;
-  const [index, setIndex] = useState(() => restored);
-  const indexRef = useRef(index);
+  const [index, setIndex] = useState(0);
+  const indexRef = useRef(0);
   const [shareBusy, setShareBusy] = useState(false);
   const [pageZoomed, setPageZoomed] = useState(false);
+  const [chromeHidden, setChromeHidden] = useState(false);
   const [loaded, setLoaded] = useState<Record<number, boolean>>(() => {
     const init: Record<number, boolean> = {};
-    for (let i = Math.max(0, restored - 1); i <= Math.min(total - 1, restored + 1); i++) {
+    for (let i = 0; i <= Math.min(total - 1, 1); i++) {
       init[i] = true;
     }
     return init;
   });
   const edgeSwipe = useRef<{ x: number; y: number; atStart: boolean } | null>(null);
+  const tapTrack = useRef<{ x: number; y: number; t: number } | null>(null);
+  const suppressClick = useRef(false);
   const didRestoreScroll = useRef(false);
   const current = pages[index] || pages[0];
   const pageMedia = current?.media;
@@ -247,19 +246,19 @@ export function KnowledgeManuscriptViewer({
     };
   }, []);
 
-  // 打开时滚到续读页
+  // 打开时滚到第一页
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el || didRestoreScroll.current) return;
     const jump = () => {
       if (!el.clientWidth) return;
       didRestoreScroll.current = true;
-      el.scrollLeft = restored * el.clientWidth;
-      setIndex(restored);
+      el.scrollLeft = 0;
+      setIndex(0);
     };
     jump();
     requestAnimationFrame(jump);
-  }, [restored, total]);
+  }, [total]);
 
   useEffect(() => {
     if (!tourId || total <= 0) return;
@@ -302,21 +301,39 @@ export function KnowledgeManuscriptViewer({
   const onScrollerTouchStart = (e: ReactTouchEvent) => {
     if (pageZoomed || e.touches.length !== 1) {
       edgeSwipe.current = null;
+      tapTrack.current = null;
       return;
     }
+    const t = e.touches[0];
     edgeSwipe.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
+      x: t.clientX,
+      y: t.clientY,
       atStart: indexRef.current === 0,
     };
+    tapTrack.current = { x: t.clientX, y: t.clientY, t: Date.now() };
   };
 
   const onScrollerTouchEnd = (e: ReactTouchEvent) => {
     const start = edgeSwipe.current;
+    const tap = tapTrack.current;
     edgeSwipe.current = null;
-    if (!start?.atStart || pageZoomed) return;
+    tapTrack.current = null;
     const t = e.changedTouches[0];
     if (!t) return;
+
+    // 轻点：切换沉浸全屏（藏顶栏 / 页点）
+    if (tap && !pageZoomed) {
+      const dx = t.clientX - tap.x;
+      const dy = t.clientY - tap.y;
+      const dt = Date.now() - tap.t;
+      if (dt < 350 && Math.hypot(dx, dy) < 12) {
+        suppressClick.current = true;
+        setChromeHidden((v) => !v);
+        return;
+      }
+    }
+
+    if (!start?.atStart || pageZoomed) return;
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     if (dx > 72 && Math.abs(dx) > Math.abs(dy) * 1.2) {
@@ -393,7 +410,12 @@ export function KnowledgeManuscriptViewer({
   };
 
   return (
-    <div className="knowledge-viewer" role="dialog" aria-modal="true" aria-label={title}>
+    <div
+      className={`knowledge-viewer${chromeHidden ? ' is-chrome-hidden' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
       <header className="knowledge-viewer-bar">
         <button
           type="button"
@@ -427,6 +449,15 @@ export function KnowledgeManuscriptViewer({
         className={`knowledge-viewer-scroller${pageZoomed ? ' is-zoom-locked' : ''}`}
         onTouchStart={onScrollerTouchStart}
         onTouchEnd={onScrollerTouchEnd}
+        onClick={(e) => {
+          if (suppressClick.current) {
+            suppressClick.current = false;
+            return;
+          }
+          if (pageZoomed) return;
+          if ((e.target as HTMLElement).closest('button, a, video, audio')) return;
+          setChromeHidden((v) => !v);
+        }}
       >
         {pages.map((p, i) => {
           const near = Math.abs(i - index) <= 1;
@@ -461,8 +492,15 @@ export function KnowledgeManuscriptViewer({
                     />
                   ) : p.text ? (
                     <article className="knowledge-viewer-text-leaf">
+                      <p className="knowledge-viewer-text-leaf-brand">彼爱 · 长文</p>
                       {p.text.title ? <h3>{p.text.title}</h3> : null}
-                      <p>{p.text.body}</p>
+                      {p.text.body
+                        .split(/\n\s*\n+/)
+                        .map((para) => para.trim())
+                        .filter(Boolean)
+                        .map((para, pi) => (
+                          <p key={pi}>{para}</p>
+                        ))}
                     </article>
                   ) : p.src ? (
                     <ManuscriptRaster
