@@ -46,7 +46,7 @@ const MODE_META: Record<
   { label: string; hint: string; verb: string; pageLabel: string }
 > = {
   image: { label: '图文', hint: '从相册选图，一页一图', verb: '图片', pageLabel: '图' },
-  text: { label: '文字', hint: '写长文，加页成册', verb: '文字', pageLabel: '文' },
+  text: { label: '文字', hint: '写长文，发布自动排版分页', verb: '文字', pageLabel: '文' },
   audio: { label: '音频', hint: '上传音频，可加页', verb: '音频', pageLabel: '听' },
   video: { label: '视频', hint: '上传视频，可加页', verb: '视频', pageLabel: '看' },
 };
@@ -87,7 +87,7 @@ function folioRawToDraftPages(
   cover: string,
 ): FolioDraftPage[] {
   if (Array.isArray(raw) && raw.length > 0) {
-    return raw.slice(0, MAX_PAGES).map((p) => {
+    const mapped = raw.slice(0, MAX_PAGES).map((p) => {
       const kind = inferKindFromFolioPage(p);
       const media = p.media as { type?: string; url?: string } | undefined;
       return {
@@ -99,6 +99,19 @@ function folioRawToDraftPages(
         note: typeof p.title === 'string' ? p.title : '',
       };
     });
+    // 纯文字草稿：合并为一篇，编辑态不要求手动分页
+    if (mapped.length && mapped.every((p) => p.kind === 'text')) {
+      return [
+        {
+          ...emptyPage('text'),
+          body: mapped
+            .map((p) => p.body.trim())
+            .filter(Boolean)
+            .join('\n\n'),
+        },
+      ];
+    }
+    return mapped;
   }
   if (fallbackBody.trim()) {
     const paras = fallbackBody
@@ -146,11 +159,17 @@ export default function KnowledgeNewNotePage() {
     setPickerNonce((n) => n + 1);
   };
 
+  // 等 accept 更新后再点选，避免 remount 抢掉 onChange
   useEffect(() => {
     if (!pickerNonce) return;
-    const t = window.setTimeout(() => fileInputRef.current?.click(), 40);
+    const t = window.setTimeout(() => {
+      const el = fileInputRef.current;
+      if (!el) return;
+      el.value = '';
+      el.click();
+    }, 80);
     return () => window.clearTimeout(t);
-  }, [pickerNonce, pendingUploadKind]);
+  }, [pickerNonce]);
 
   const current = pages[active] || null;
 
@@ -274,20 +293,46 @@ export default function KnowledgeNewNotePage() {
   };
 
   const onFilePicked = async (files: FileList | null) => {
-    if (!files?.length || !current) return;
+    const pageId = pages[active]?.id;
+    if (!files?.length) return;
+    if (!pageId) {
+      setErr('请先选择一页再上传');
+      return;
+    }
     const kind = pendingUploadKind;
     setErr(null);
+    setOkHint(null);
+
+    // 先本地预览，避免「上传后没反应」
+    if (kind === 'image' || kind === 'cover') {
+      const first = files[0];
+      if (first && first.type.startsWith('image/')) {
+        const localUrl = URL.createObjectURL(first);
+        setPages((prev) =>
+          prev.map((p) => (p.id === pageId ? { ...p, src: localUrl } : p)),
+        );
+      }
+    }
+
     setBusy(true);
     try {
       if (kind === 'image' || kind === 'cover') {
-        const list = Array.from(files).slice(0, Math.max(1, MAX_PAGES - pages.length + 1));
+        const list = Array.from(files).slice(
+          0,
+          Math.max(1, MAX_PAGES - pages.length + (kind === 'cover' ? 1 : 1)),
+        );
         if (kind === 'cover' || list.length === 1) {
           setBusyLabel('上传图片…');
           const url = await uploadKnowledgeNoteMedia(list[0]!, 'cover');
-          patchPage(current.id, { src: url });
-          setOkHint('图片已上传');
+          setPages((prev) =>
+            prev.map((p) => {
+              if (p.id !== pageId) return p;
+              if (p.src.startsWith('blob:')) URL.revokeObjectURL(p.src);
+              return { ...p, src: url, kind: kind === 'cover' ? p.kind : 'image' };
+            }),
+          );
+          setOkHint('图片已添加');
         } else {
-          // 多选：当前页用第一张，其余追加为图页
           const urls: string[] = [];
           for (let i = 0; i < list.length; i += 1) {
             setBusyLabel(`上传图片 ${i + 1}/${list.length}…`);
@@ -295,26 +340,40 @@ export default function KnowledgeNewNotePage() {
           }
           setPages((prev) => {
             const copy = [...prev];
-            const cur = copy[active];
-            if (cur) copy[active] = { ...cur, kind: 'image', src: urls[0]! };
+            const idx = copy.findIndex((p) => p.id === pageId);
+            const at = idx >= 0 ? idx : active;
+            const cur = copy[at];
+            if (cur) {
+              if (cur.src.startsWith('blob:')) URL.revokeObjectURL(cur.src);
+              copy[at] = { ...cur, kind: 'image', src: urls[0]! };
+            }
             const extras = urls.slice(1).map((src) => ({
               ...emptyPage('image'),
               src,
             }));
             return [...copy, ...extras].slice(0, MAX_PAGES);
           });
+          setActive((a) => a);
           setOkHint(`已添加 ${urls.length} 张图`);
         }
       } else if (kind === 'audio') {
         setBusyLabel('上传音频…');
         const url = await uploadKnowledgeNoteMedia(files[0]!, 'audio');
-        patchPage(current.id, { mediaUrl: url, kind: 'audio' });
-        setOkHint('音频已上传');
+        setPages((prev) =>
+          prev.map((p) =>
+            p.id === pageId ? { ...p, mediaUrl: url, kind: 'audio' } : p,
+          ),
+        );
+        setOkHint('音频已添加');
       } else {
         setBusyLabel('上传视频…');
         const url = await uploadKnowledgeNoteMedia(files[0]!, 'video');
-        patchPage(current.id, { mediaUrl: url, kind: 'video' });
-        setOkHint('视频已上传');
+        setPages((prev) =>
+          prev.map((p) =>
+            p.id === pageId ? { ...p, mediaUrl: url, kind: 'video' } : p,
+          ),
+        );
+        setOkHint('视频已添加');
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : '上传失败');
@@ -661,6 +720,9 @@ export default function KnowledgeNewNotePage() {
     );
   }
 
+  const isTextMode = seedKind === 'text';
+  const showStrip = !isTextMode;
+
   const openCurrentMedia = () => {
     if (!current) return;
     if (current.kind === 'image') openFilePicker('image');
@@ -668,14 +730,86 @@ export default function KnowledgeNewNotePage() {
     else if (current.kind === 'video') openFilePicker('video');
   };
 
+  const stripNav = showStrip ? (
+    <nav className="knowledge-compose-strip knowledge-compose-strip--top" aria-label="册页">
+      <div className="knowledge-compose-strip-scroll">
+        {pages.map((p, i) => (
+          <div
+            key={p.id}
+            className={`knowledge-compose-thumb${i === active ? ' is-on' : ''}${pageReady(p) ? '' : ' is-empty'}`}
+            draggable
+            onDragStart={() => setDragFrom(i)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => {
+              if (dragFrom != null) reorderPage(dragFrom, i);
+              setDragFrom(null);
+            }}
+            onDragEnd={() => setDragFrom(null)}
+          >
+            <button
+              type="button"
+              className="knowledge-compose-thumb-hit"
+              onClick={() => setActive(i)}
+              aria-label={`第 ${i + 1} 页`}
+              aria-current={i === active ? 'page' : undefined}
+            >
+              {p.src ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={knowledgeMediaUrl(p.src)} alt="" />
+              ) : (
+                <span className="knowledge-folio-thumb-fallback">
+                  {MODE_META[p.kind].pageLabel}
+                </span>
+              )}
+              <em>{i + 1}</em>
+            </button>
+            {i === active && pages.length > 1 ? (
+              <button
+                type="button"
+                className="knowledge-compose-thumb-del"
+                aria-label="删除本页"
+                onClick={() => removePage(i)}
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
+        ))}
+        <button
+          type="button"
+          className="knowledge-compose-add"
+          disabled={pages.length >= MAX_PAGES || busy}
+          onClick={quickAddPage}
+          aria-label="加一页"
+        >
+          ＋
+        </button>
+        <button
+          type="button"
+          className="knowledge-compose-add-more"
+          disabled={pages.length >= MAX_PAGES || busy}
+          onClick={() => setShowAddMenu(true)}
+          aria-label="选择页类型"
+        >
+          ···
+        </button>
+      </div>
+      <p className="knowledge-compose-strip-hint">
+        拖动排序 · ＋加同类型 · 点图可更换
+      </p>
+    </nav>
+  ) : null;
+
   return (
-    <main className="knowledge-note-compose">
+    <main className={`knowledge-note-compose${isTextMode ? ' is-text' : ''}`}>
       <header className="knowledge-compose-bar">
         <button type="button" className="knowledge-compose-cancel" onClick={leaveMode}>
           取消
         </button>
         <p className="knowledge-compose-meta" aria-live="polite">
-          {active + 1}/{pages.length}
+          {isTextMode
+            ? '文字 · 自动分页'
+            : `${active + 1}/${pages.length}`}
         </p>
         <div className="knowledge-compose-bar-actions">
           <button
@@ -697,8 +831,9 @@ export default function KnowledgeNewNotePage() {
         </div>
       </header>
 
+      {stripNav}
+
       <input
-        key={`pick-${pendingUploadKind}-${pickerNonce}`}
         ref={fileInputRef}
         type="file"
         accept={acceptForInput}
@@ -715,8 +850,8 @@ export default function KnowledgeNewNotePage() {
         {current && current.kind !== 'text' ? (
           <button
             type="button"
-            className={`knowledge-compose-hero${pageReady(current) ? ' has-media' : ''}`}
-            disabled={busy}
+            className={`knowledge-compose-hero${current.src ? ' has-media' : ' is-empty'}`}
+            disabled={false}
             onClick={openCurrentMedia}
             aria-label={
               current.kind === 'image'
@@ -725,8 +860,7 @@ export default function KnowledgeNewNotePage() {
                   : '添加图片'
                 : current.mediaUrl
                   ? `更换${current.kind === 'audio' ? '音频' : '视频'}`
-                  : `添加${current.kind === 'audio' ? '音频' : '视频'}`
-            }
+                  : `添加${current.kind === 'audio' ? '音频' : '视频'}`}
           >
             {current.src ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -741,13 +875,16 @@ export default function KnowledgeNewNotePage() {
                       ? '添加音频'
                       : '添加视频'}
                 </span>
-                <em>可多选图片一次加多页</em>
+                <em>{busy ? busyLabel || '处理中…' : '可多选图片'}</em>
               </span>
             )}
             {current.kind !== 'image' && current.mediaUrl ? (
               <span className="knowledge-compose-hero-badge">
                 {current.kind === 'audio' ? '听' : '看'} · 已选
               </span>
+            ) : null}
+            {busy && current.src ? (
+              <span className="knowledge-compose-hero-busy">{busyLabel || '上传中…'}</span>
             ) : null}
           </button>
         ) : null}
@@ -770,16 +907,16 @@ export default function KnowledgeNewNotePage() {
             onChange={(e) => setTitle(e.target.value)}
             maxLength={80}
             placeholder="添加标题"
-            autoFocus={seedKind === 'text'}
+            autoFocus={isTextMode}
           />
-          {current?.kind === 'text' ? (
+          {isTextMode && current ? (
             <textarea
               className="knowledge-compose-body"
               value={current.body}
               onChange={(e) => patchPage(current.id, { body: e.target.value })}
-              rows={12}
-              maxLength={4000}
-              placeholder="写正文，点底部 ＋ 可继续加页"
+              rows={14}
+              maxLength={12000}
+              placeholder={'写正文。分段空一行即可。\n发布时自动排版分页成册，无需手动加页。'}
             />
           ) : (
             <textarea
@@ -793,82 +930,18 @@ export default function KnowledgeNewNotePage() {
           )}
         </div>
 
+        {isTextMode ? (
+          <p className="knowledge-compose-auto-hint">
+            发布后将按版心自动分页为竖版纸页图
+          </p>
+        ) : null}
+
         {err ? <p className="knowledge-note-editor-err">{err}</p> : null}
-        {busy && busyLabel ? (
+        {busy && busyLabel && isTextMode ? (
           <p className="knowledge-note-editor-busy">{busyLabel}</p>
         ) : null}
         {okHint ? <p className="knowledge-note-editor-ok">{okHint}</p> : null}
       </div>
-
-      <nav className="knowledge-compose-strip" aria-label="册页">
-        <div className="knowledge-compose-strip-scroll">
-          {pages.map((p, i) => (
-            <div
-              key={p.id}
-              className={`knowledge-compose-thumb${i === active ? ' is-on' : ''}${pageReady(p) ? '' : ' is-empty'}`}
-              draggable
-              onDragStart={() => setDragFrom(i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (dragFrom != null) reorderPage(dragFrom, i);
-                setDragFrom(null);
-              }}
-              onDragEnd={() => setDragFrom(null)}
-            >
-              <button
-                type="button"
-                className="knowledge-compose-thumb-hit"
-                onClick={() => setActive(i)}
-                aria-label={`第 ${i + 1} 页`}
-                aria-current={i === active ? 'page' : undefined}
-              >
-                {p.src ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={knowledgeMediaUrl(p.src)} alt="" />
-                ) : (
-                  <span className="knowledge-folio-thumb-fallback">
-                    {MODE_META[p.kind].pageLabel}
-                  </span>
-                )}
-                <em>{i + 1}</em>
-              </button>
-              {i === active && pages.length > 1 ? (
-                <button
-                  type="button"
-                  className="knowledge-compose-thumb-del"
-                  aria-label="删除本页"
-                  onClick={() => removePage(i)}
-                >
-                  ×
-                </button>
-              ) : null}
-            </div>
-          ))}
-          <button
-            type="button"
-            className="knowledge-compose-add"
-            disabled={pages.length >= MAX_PAGES || busy}
-            onClick={quickAddPage}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setShowAddMenu(true);
-            }}
-            aria-label="加一页"
-          >
-            ＋
-          </button>
-          <button
-            type="button"
-            className="knowledge-compose-add-more"
-            disabled={pages.length >= MAX_PAGES || busy}
-            onClick={() => setShowAddMenu(true)}
-            aria-label="选择页类型"
-          >
-            ···
-          </button>
-        </div>
-        <p className="knowledge-compose-strip-hint">拖动缩略图可排序 · ＋加同类型页</p>
-      </nav>
 
       {showAddMenu ? (
         <div className="knowledge-compose-sheet" role="dialog" aria-label="添加一页">
@@ -881,7 +954,7 @@ export default function KnowledgeNewNotePage() {
           <div className="knowledge-compose-sheet-panel">
             <p className="knowledge-compose-sheet-title">添加一页</p>
             <div className="knowledge-compose-sheet-grid">
-              {CHOOSER_ORDER.map((k) => (
+              {CHOOSER_ORDER.filter((k) => k !== 'text').map((k) => (
                 <button key={k} type="button" onClick={() => addPage(k)}>
                   <em>{MODE_META[k].pageLabel}</em>
                   <strong>{MODE_META[k].label}</strong>
