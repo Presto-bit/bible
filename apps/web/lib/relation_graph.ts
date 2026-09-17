@@ -31,6 +31,34 @@ export function edgePeerId(edge: EntityRelation, nodeId: string): string {
   return edge.from === nodeId ? edge.to : edge.from;
 }
 
+const PARENT_CHILD_LABEL: Record<string, string> = { 父亲: '子女', 母亲: '子女' };
+const SPOUSE_PEER_LABEL: Record<string, string> = { 妻子: '丈夫', 丈夫: '妻子', 配偶: '配偶' };
+
+/** 从中心人物视角，返回对端（peer）的关系称谓。 */
+export function peerRelationLabel(edge: EntityRelation, centerId: string): string {
+  const raw = (edge.label || '').trim();
+  const typ = (edge.type || '').trim();
+  const direction = edge.from === centerId ? 'out' : 'in';
+
+  if (typ === 'parent') {
+    if (direction === 'in') return raw || '父亲';
+    return PARENT_CHILD_LABEL[raw] ?? '子女';
+  }
+  if (typ === 'spouse') {
+    if (direction === 'out') return raw || '配偶';
+    return SPOUSE_PEER_LABEL[raw] ?? '配偶';
+  }
+  if (typ === 'disciple') {
+    if (direction === 'in') return raw === '' || raw === '门徒' ? '导师' : raw;
+    return raw || '门徒';
+  }
+  if (typ === 'mentor') {
+    if (direction === 'in') return raw || '导师';
+    return raw || '属灵导师';
+  }
+  return raw || typ;
+}
+
 /** 与中心人物相连的一度边 */
 export function centerNeighborEdges(centerId: string, edges: EntityRelation[]): EntityRelation[] {
   return edges.filter((e) => e.from === centerId || e.to === centerId);

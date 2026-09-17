@@ -13,6 +13,12 @@ const _ntBooks = {
   '1JN', '2JN', '3JN', 'JUD', 'REV',
 };
 
+const _placeFavorBooks = {
+  'JOS', 'JDG', 'RUT', '1SA', '2SA', '1KI', '2KI', '1CH', '2CH', 'EZR', 'NEH', 'EZK', 'AMO',
+};
+
+const _genealogyFavorBooks = {'GEN', '1CH'};
+
 final _bookSenseHints = <String, RegExp>{
   'JHN': RegExp(r'使徒|所爱的门徒|福音作者|启示录'),
   '1JN': RegExp(r'使徒|所爱的门徒'),
@@ -175,6 +181,24 @@ int scoreEntityForContext(
   final entT = entity.testament?.toUpperCase();
   if (entT == ctxT) score += 40;
   if (entT == 'BOTH') score += 20;
+
+  if (entity.type == 'place' && _placeFavorBooks.contains(normalizedBook)) {
+    score += 55;
+  }
+  if (entity.type == 'person' && _genealogyFavorBooks.contains(normalizedBook)) {
+    score += 45;
+  }
+  final dis = entity.disambiguation?.trim() ?? '';
+  if (dis.isNotEmpty) {
+    if (RegExp(r'城|地|地区').hasMatch(dis) &&
+        _placeFavorBooks.contains(normalizedBook)) {
+      score += 35;
+    }
+    if (RegExp(r'之子|之祖|人物|门徒|丈夫|妻子|母亲|父亲').hasMatch(dis) &&
+        _genealogyFavorBooks.contains(normalizedBook)) {
+      score += 35;
+    }
+  }
 
   final scope = entity.scopeBooks.map((b) => b.toUpperCase()).toSet();
   if (scope.contains(normalizedBook)) score += 80;

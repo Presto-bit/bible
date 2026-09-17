@@ -100,6 +100,34 @@ List<GraphEdge> filterRelationEdges(
 String edgePeerId(GraphEdge edge, String nodeId) =>
     edge.from == nodeId ? edge.to : edge.from;
 
+const _parentChildLabel = {'父亲': '子女', '母亲': '子女'};
+const _spousePeerLabel = {'妻子': '丈夫', '丈夫': '妻子', '配偶': '配偶'};
+
+/// 从中心人物视角，返回对端（peer）的关系称谓。
+String peerRelationLabel(GraphEdge edge, String centerId) {
+  final raw = (edge.label ?? '').trim();
+  final typ = (edge.type ?? '').trim();
+  final direction = edge.from == centerId ? 'out' : 'in';
+
+  if (typ == 'parent') {
+    if (direction == 'in') return raw.isEmpty ? '父亲' : raw;
+    return _parentChildLabel[raw] ?? '子女';
+  }
+  if (typ == 'spouse') {
+    if (direction == 'out') return raw.isEmpty ? '配偶' : raw;
+    return _spousePeerLabel[raw] ?? '配偶';
+  }
+  if (typ == 'disciple') {
+    if (direction == 'in') return raw.isEmpty || raw == '门徒' ? '导师' : raw;
+    return raw.isEmpty ? '门徒' : raw;
+  }
+  if (typ == 'mentor') {
+    if (direction == 'in') return raw.isEmpty ? '导师' : raw;
+    return raw.isEmpty ? '属灵导师' : raw;
+  }
+  return raw.isEmpty ? typ : raw;
+}
+
 List<GraphEdge> centerNeighborEdges(String centerId, List<GraphEdge> edges) =>
     edges.where((e) => e.from == centerId || e.to == centerId).toList();
 
@@ -548,6 +576,7 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
         const SizedBox(height: 8),
         if (_selection != null)
           _DetailCard(
+            centerId: centerId,
             centerName: center.name,
             selectedEdge: selectedEdge,
             selectedNode: selectedNode,
@@ -814,7 +843,7 @@ class _RelationGraphPainter extends CustomPainter {
         canvas.drawLine(fromPos, toPos, paint);
       }
 
-      final label = (edge.label ?? '').trim();
+      final label = peerRelationLabel(edge, centerId);
       if (label.isNotEmpty && isCenterSpoke) {
         final mid = Offset(
           (fromPos.dx + toPos.dx) / 2,
@@ -860,6 +889,7 @@ class _RelationGraphPainter extends CustomPainter {
 
 class _DetailCard extends StatelessWidget {
   const _DetailCard({
+    required this.centerId,
     required this.centerName,
     required this.selectedEdge,
     required this.selectedNode,
@@ -871,6 +901,7 @@ class _DetailCard extends StatelessWidget {
     this.onOpenFullscreen,
   });
 
+  final String centerId;
   final String centerName;
   final GraphEdge? selectedEdge;
   final GraphNode? selectedNode;
@@ -900,7 +931,7 @@ class _DetailCard extends StatelessWidget {
               TextSpan(
                 children: [
                   TextSpan(
-                    text: selectedEdge!.label ?? selectedEdge!.type ?? '相关',
+                    text: peerRelationLabel(selectedEdge!, centerId),
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: AppColors.ink,
@@ -950,7 +981,7 @@ class _DetailCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
-                  '与$centerName：${selectedNodeEdge!.label ?? selectedNodeEdge!.type ?? '相关'}',
+                  '与$centerName：${peerRelationLabel(selectedNodeEdge!, centerId)}',
                   style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
                 ),
               ),

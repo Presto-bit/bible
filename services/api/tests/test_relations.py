@@ -11,7 +11,12 @@ sys.path.insert(0, str(SCRIPTS))
 
 from lib.entity_ids import EntityIndex  # noqa: E402
 from lib.relation_sources import candidate_errors, source_enabled  # noqa: E402
-from lib.relations import coverage_stats, merge_relations, validate_relations  # noqa: E402
+from lib.relations import (  # noqa: E402
+    coverage_stats,
+    merge_relations,
+    peer_relation_label,
+    validate_relations,
+)
 
 from app.content import loader  # noqa: E402
 
@@ -136,6 +141,60 @@ def test_core_topics_have_enough_edges():
             if rel["from"] in ids and rel["to"] in ids
         ]
         assert len(edges) >= 5, f"{tid} has {len(edges)} edges"
+
+
+def test_peer_relation_label_parent_from_center_perspective():
+    david_solomon = {
+        "from": "david",
+        "to": "solomon",
+        "type": "parent",
+        "label": "父亲",
+    }
+    solomon_rehoboam = {
+        "from": "solomon",
+        "to": "罗波安",
+        "type": "parent",
+        "label": "父亲",
+    }
+    bathsheba_solomon = {
+        "from": "bathsheba",
+        "to": "solomon",
+        "type": "parent",
+        "label": "母亲",
+    }
+    assert peer_relation_label(david_solomon, "solomon") == "父亲"
+    assert peer_relation_label(solomon_rehoboam, "solomon") == "子女"
+    assert peer_relation_label(bathsheba_solomon, "solomon") == "母亲"
+    assert peer_relation_label(bathsheba_solomon, "bathsheba") == "子女"
+
+
+def test_loader_solomon_graph_parent_child_labels():
+    graph = loader.relations_graph_for_entity("solomon")
+    labels = {
+        e["peer_id"]: e["label"]
+        for e in graph["edges"]
+        if e.get("type") == "parent"
+    }
+    assert labels.get("david") == "父亲"
+    assert labels.get("罗波安") == "子女"
+    assert labels.get("bathsheba") == "母亲"
+
+
+def test_joseph_son_single_father_entity():
+    graph = loader.relations_graph_for_entity("joseph_son")
+    fathers = [
+        e for e in graph["edges"]
+        if e.get("type") == "parent" and e.get("label") == "父亲"
+    ]
+    assert len(fathers) == 1
+    assert fathers[0]["peer_id"] == "jacob_patriarch"
+
+
+def test_aaron_family_edges_present():
+    graph = loader.relations_graph_for_entity("aaron")
+    peer_ids = {e["peer_id"] for e in graph["edges"]}
+    assert "amram" in peer_ids
+    assert "nadab-son-of-aaron" in peer_ids
 
 
 def test_homonyms_do_not_cross_testaments():

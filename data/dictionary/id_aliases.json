@@ -37,6 +37,23 @@
     "temple": "圣殿",
     "ark": "约柜",
     "ark-of-the-covenant": "约柜",
-    "passover": "逾越节"
+    "passover": "逾越节",
+    "以色列": "jacob_patriarch",
+    "israel": "jacob_patriarch",
+    "Israel": "jacob_patriarch",
+    "亚伯兰": "abraham",
+    "abram": "abraham",
+    "Abram": "abraham",
+    "rehoboam": "罗波安",
+    "Rehoboam": "罗波安",
+    "judah-son-of-israel": "judah_patriarch",
+    "joseph-son-of-israel": "joseph_son",
+    "amram-son-of-kohath": "amram",
+    "saul": "saul_king",
+    "Saul": "saul_king",
+    "Esau": "以扫",
+    "gideon": "基甸",
+    "Gideon": "基甸",
+    "amminadab-son-of-ram": "amminadab-son-of-ram"
   }
 }

@@ -2,63 +2,3473 @@
   "schema": "relations.curated@1",
   "source": "手工策划（可溯源经文）",
   "relations": [
-    {"from": "abraham", "to": "以撒", "type": "parent", "label": "父亲", "refs": ["GEN 22:2"], "source": "curated", "source_id": "curated:abraham-isaac", "confidence": "high"},
-    {"from": "以撒", "to": "jacob_patriarch", "type": "parent", "label": "父亲", "refs": ["GEN 25:26"], "source": "curated", "source_id": "curated:isaac-jacob", "confidence": "high"},
-    {"from": "jacob_patriarch", "to": "joseph_son", "type": "parent", "label": "父亲", "refs": ["GEN 37:3"], "source": "curated", "source_id": "curated:jacob-joseph", "confidence": "high"},
-    {"from": "moses", "to": "aaron", "type": "sibling", "label": "哥哥", "refs": ["EXO 4:14"], "source": "curated", "source_id": "curated:moses-aaron", "confidence": "high"},
-    {"from": "moses", "to": "红海", "type": "event", "label": "过红海", "refs": ["EXO 14:21"], "source": "curated", "source_id": "curated:moses-redsea", "confidence": "high"},
-    {"from": "moses", "to": "sinai", "type": "located_at", "label": "领受律法", "refs": ["EXO 19:20"], "source": "curated", "source_id": "curated:moses-sinai", "confidence": "high"},
-    {"from": "moses", "to": "会幕", "type": "event", "label": "建造会幕", "refs": ["EXO 40:17"], "source": "curated", "source_id": "curated:moses-tabernacle", "confidence": "high"},
-    {"from": "moses", "to": "约柜", "type": "event", "label": "法版约柜", "refs": ["EXO 25:10"], "source": "curated", "source_id": "curated:moses-ark", "confidence": "high"},
-    {"from": "david", "to": "solomon", "type": "parent", "label": "父亲", "refs": ["1KI 1:39"], "source": "curated", "source_id": "curated:david-solomon", "confidence": "high"},
-    {"from": "solomon", "to": "圣殿", "type": "event", "label": "建造圣殿", "refs": ["1KI 6:1"], "source": "curated", "source_id": "curated:solomon-temple", "confidence": "high"},
-    {"from": "jesus", "to": "peter", "type": "disciple", "label": "门徒", "refs": ["MAT 16:18"], "source": "curated", "source_id": "curated:jesus-peter", "confidence": "high"},
-    {"from": "jesus", "to": "thomas", "type": "disciple", "label": "门徒", "refs": ["JHN 20:27"], "source": "curated", "source_id": "curated:jesus-thomas", "confidence": "high"},
-    {"from": "peter", "to": "thomas", "type": "companion", "label": "同作门徒", "refs": ["JHN 21:2"], "source": "curated", "source_id": "curated:peter-thomas", "confidence": "high"},
-    {"from": "jesus", "to": "john_apostle", "type": "disciple", "label": "所爱的门徒", "refs": ["JHN 13:23"], "source": "curated", "source_id": "curated:jesus-john", "confidence": "high"},
-    {"from": "jesus", "to": "jerusalem", "type": "located_at", "label": "受难与复活", "refs": ["MAT 21:1"], "source": "curated", "source_id": "curated:jesus-jerusalem", "confidence": "high"},
-    {"from": "jesus", "to": "迦百农", "type": "located_at", "label": "事工中心", "refs": ["MAT 4:13"], "source": "curated", "source_id": "curated:jesus-capernaum", "confidence": "high"},
-    {"from": "paul", "to": "提摩太", "type": "mentor", "label": "属灵儿子", "refs": ["1TI 1:2"], "source": "curated", "source_id": "curated:paul-timothy", "confidence": "high"},
-    {"from": "paul", "to": "巴拿巴", "type": "companion", "label": "同工", "refs": ["ACT 13:2"], "source": "curated", "source_id": "curated:paul-barnabas", "confidence": "high"},
-    {"from": "elijah", "to": "以利沙", "type": "mentor", "label": "传承先知", "refs": ["2KI 2:9"], "source": "curated", "source_id": "curated:elijah-elisha", "confidence": "high"},
-    {"from": "ruth", "to": "波阿斯", "type": "spouse", "label": "丈夫", "refs": ["RUT 4:13"], "source": "curated", "source_id": "curated:ruth-boaz", "confidence": "high"},
-    {"from": "mary_mother", "to": "jesus", "type": "parent", "label": "母亲", "refs": ["LUK 1:31"], "source": "curated", "source_id": "curated:mary-jesus", "confidence": "high"},
-    {"from": "peter", "to": "迦百农", "type": "located_at", "label": "家乡附近", "refs": ["MRK 1:29"], "source": "curated", "source_id": "curated:peter-capernaum", "confidence": "high"},
-    {"from": "会幕", "to": "约柜", "type": "contains", "label": "至圣所内", "refs": ["EXO 26:34"], "source": "curated", "source_id": "curated:tabernacle-ark", "confidence": "high"},
-    {"from": "逾越节", "to": "egypt", "type": "event", "label": "出埃及", "refs": ["EXO 12:31"], "source": "curated", "source_id": "curated:passover-egypt", "confidence": "high"},
-    {"from": "jesus", "to": "安得烈", "type": "disciple", "label": "门徒", "refs": ["MAT 4:18"], "source": "curated", "source_id": "curated:jesus-andrew", "confidence": "high"},
-    {"from": "jesus", "to": "腓力", "type": "disciple", "label": "门徒", "refs": ["JHN 1:43"], "source": "curated", "source_id": "curated:jesus-philip", "confidence": "high"},
-    {"from": "jesus", "to": "巴多罗买", "type": "disciple", "label": "门徒", "refs": ["MAT 10:3"], "source": "curated", "source_id": "curated:jesus-bartholomew", "confidence": "high"},
-    {"from": "jesus", "to": "马太", "type": "disciple", "label": "门徒", "refs": ["MAT 9:9"], "source": "curated", "source_id": "curated:jesus-matthew", "confidence": "high"},
-    {"from": "jesus", "to": "james_apostle", "type": "disciple", "label": "门徒", "refs": ["MAT 4:21"], "source": "curated", "source_id": "curated:jesus-james", "confidence": "high"},
-    {"from": "paul", "to": "提多", "type": "companion", "label": "同工", "refs": ["TIT 1:4"], "source": "curated", "source_id": "curated:paul-titus", "confidence": "high"},
-    {"from": "paul", "to": "路加", "type": "companion", "label": "同工", "refs": ["COL 4:14"], "source": "curated", "source_id": "curated:paul-luke", "confidence": "high"},
-    {"from": "paul", "to": "马可", "type": "companion", "label": "同工", "refs": ["ACT 12:25"], "source": "curated", "source_id": "curated:paul-mark", "confidence": "high"},
-    {"from": "abraham", "to": "撒拉", "type": "spouse", "label": "妻子", "refs": ["GEN 11:29"], "source": "curated", "source_id": "curated:abraham-sarah", "confidence": "high"},
-    {"from": "以撒", "to": "利百加", "type": "spouse", "label": "妻子", "refs": ["GEN 24:67"], "source": "curated", "source_id": "curated:isaac-rebekah", "confidence": "high"},
-    {"from": "亚伯兰", "to": "撒拉", "type": "spouse", "label": "妻子", "refs": ["GEN 11:29"], "source": "curated", "source_id": "curated:abram-sarai", "confidence": "high"},
-    {"from": "以色列", "to": "joseph_son", "type": "parent", "label": "父亲", "refs": ["GEN 37:3"], "source": "curated", "source_id": "curated:israel-joseph", "confidence": "high"},
-    {"from": "nicodemus", "to": "jesus", "type": "disciple", "label": "暗中求问", "refs": ["JHN 3:1"], "source": "curated", "source_id": "curated:nicodemus-jesus", "confidence": "high"},
-    {"from": "mary_bethany", "to": "马大", "type": "sibling", "label": "姊妹", "refs": ["JHN 11:1"], "source": "curated", "source_id": "curated:mary-martha", "confidence": "high"},
-    {"from": "mary_bethany", "to": "拉撒路", "type": "sibling", "label": "兄弟", "refs": ["JHN 11:1"], "source": "curated", "source_id": "curated:mary-lazarus", "confidence": "high"},
-    {"from": "mary_magdalene", "to": "jesus", "type": "disciple", "label": "跟随者", "refs": ["LUK 8:2"], "source": "curated", "source_id": "curated:mary-magdalene-jesus", "confidence": "high"},
-    {"from": "daniel", "to": "babylon", "type": "located_at", "label": "被掳之地", "refs": ["DAN 1:1"], "source": "curated", "source_id": "curated:daniel-babylon", "confidence": "high"},
-    {"from": "joshua", "to": "moses", "type": "mentor", "label": "摩西的帮手", "refs": ["EXO 17:9"], "source": "curated", "source_id": "curated:joshua-moses", "confidence": "high"},
-    {"from": "stephen", "to": "jesus", "type": "disciple", "label": "为主作见证", "refs": ["ACT 7:55"], "source": "curated", "source_id": "curated:stephen-jesus", "confidence": "high"},
-    {"from": "约拿", "to": "尼尼微", "type": "located_at", "label": "奉差之地", "refs": ["JON 1:2"], "source": "curated", "source_id": "curated:jonah-nineveh", "confidence": "high"},
-    {"from": "以斯帖", "to": "末底改", "type": "companion", "label": "亲人同工", "refs": ["EST 2:7"], "source": "curated", "source_id": "curated:esther-mordecai", "confidence": "high"},
-    {"from": "以斯帖", "to": "ahasuerus", "type": "spouse", "label": "丈夫", "refs": ["EST 2:17"], "source": "curated", "source_id": "curated:esther-ahasuerus", "confidence": "high"},
-    {"from": "以斯拉", "to": "尼希米", "type": "companion", "label": "同工", "refs": ["NEH 8:9"], "source": "curated", "source_id": "curated:ezra-nehemiah", "confidence": "high"},
-    {"from": "耶利米", "to": "jerusalem", "type": "located_at", "label": "先知事奉", "refs": ["JER 1:1"], "source": "curated", "source_id": "curated:jeremiah-jerusalem", "confidence": "high"},
-    {"from": "以西结", "to": "babylon", "type": "located_at", "label": "被掳之地", "refs": ["EZK 1:1"], "source": "curated", "source_id": "curated:ezekiel-babylon", "confidence": "high"},
-    {"from": "希西家", "to": "isaiah", "type": "mentor", "label": "先知辅佐", "refs": ["ISA 37:1"], "source": "curated", "source_id": "curated:hezekiah-isaiah", "confidence": "high"},
-    {"from": "约西亚", "to": "圣殿", "type": "event", "label": "重修圣殿", "refs": ["2KI 22:3"], "source": "curated", "source_id": "curated:josiah-temple", "confidence": "high"},
-    {"from": "弥迦", "to": "jerusalem", "type": "located_at", "label": "先知事奉", "refs": ["MIC 1:1"], "source": "curated", "source_id": "curated:micah-jerusalem", "confidence": "high"},
-    {"from": "何西阿", "to": "samaria", "type": "located_at", "label": "北国先知", "refs": ["HOS 1:1"], "source": "curated", "source_id": "curated:hosea-samaria", "confidence": "high"},
-    {"from": "阿摩司", "to": "samaria", "type": "located_at", "label": "北国先知", "refs": ["AMO 1:1"], "source": "curated", "source_id": "curated:amos-samaria", "confidence": "high"},
-    {"from": "jacob_patriarch", "to": "judah_patriarch", "type": "parent", "label": "父亲", "refs": ["GEN 29:35"], "source": "curated", "source_id": "curated:jacob-judah", "confidence": "high"},
-    {"from": "saul_king", "to": "jonathan-son-of-saul", "type": "parent", "label": "父亲", "refs": ["1SA 14:1"], "source": "curated", "source_id": "curated:saul-jonathan", "confidence": "high"},
-    {"from": "joseph_husband", "to": "mary_mother", "type": "spouse", "label": "妻子", "refs": ["MAT 1:18"], "source": "curated", "source_id": "curated:joseph-mary", "confidence": "high"},
-    {"from": "zacharias", "to": "john_baptist", "type": "parent", "label": "父亲", "refs": ["LUK 1:13"], "source": "curated", "source_id": "curated:zacharias-john", "confidence": "high"}
+    {
+      "from": "abraham",
+      "to": "以撒",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 22:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:abraham-isaac",
+      "confidence": "high"
+    },
+    {
+      "from": "以撒",
+      "to": "jacob_patriarch",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 25:26"
+      ],
+      "source": "curated",
+      "source_id": "curated:isaac-jacob",
+      "confidence": "high"
+    },
+    {
+      "from": "jacob_patriarch",
+      "to": "joseph_son",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 37:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:jacob-joseph",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "aaron",
+      "type": "sibling",
+      "label": "哥哥",
+      "refs": [
+        "EXO 4:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-aaron",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "红海",
+      "type": "event",
+      "label": "过红海",
+      "refs": [
+        "EXO 14:21"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-redsea",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "sinai",
+      "type": "located_at",
+      "label": "领受律法",
+      "refs": [
+        "EXO 19:20"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-sinai",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "会幕",
+      "type": "event",
+      "label": "建造会幕",
+      "refs": [
+        "EXO 40:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-tabernacle",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "约柜",
+      "type": "event",
+      "label": "法版约柜",
+      "refs": [
+        "EXO 25:10"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-ark",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "solomon",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 1:39"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-solomon",
+      "confidence": "high"
+    },
+    {
+      "from": "solomon",
+      "to": "圣殿",
+      "type": "event",
+      "label": "建造圣殿",
+      "refs": [
+        "1KI 6:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:solomon-temple",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "peter",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 16:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-peter",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "thomas",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "JHN 20:27"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-thomas",
+      "confidence": "high"
+    },
+    {
+      "from": "peter",
+      "to": "thomas",
+      "type": "companion",
+      "label": "同作门徒",
+      "refs": [
+        "JHN 21:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:peter-thomas",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "john_apostle",
+      "type": "disciple",
+      "label": "所爱的门徒",
+      "refs": [
+        "JHN 13:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-john",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "受难与复活",
+      "refs": [
+        "MAT 21:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-jerusalem",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "迦百农",
+      "type": "located_at",
+      "label": "事工中心",
+      "refs": [
+        "MAT 4:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-capernaum",
+      "confidence": "high"
+    },
+    {
+      "from": "paul",
+      "to": "提摩太",
+      "type": "mentor",
+      "label": "属灵儿子",
+      "refs": [
+        "1TI 1:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:paul-timothy",
+      "confidence": "high"
+    },
+    {
+      "from": "paul",
+      "to": "巴拿巴",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "ACT 13:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:paul-barnabas",
+      "confidence": "high"
+    },
+    {
+      "from": "elijah",
+      "to": "以利沙",
+      "type": "mentor",
+      "label": "传承先知",
+      "refs": [
+        "2KI 2:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:elijah-elisha",
+      "confidence": "high"
+    },
+    {
+      "from": "ruth",
+      "to": "波阿斯",
+      "type": "spouse",
+      "label": "丈夫",
+      "refs": [
+        "RUT 4:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:ruth-boaz",
+      "confidence": "high"
+    },
+    {
+      "from": "mary_mother",
+      "to": "jesus",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "LUK 1:31"
+      ],
+      "source": "curated",
+      "source_id": "curated:mary-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "peter",
+      "to": "迦百农",
+      "type": "located_at",
+      "label": "家乡附近",
+      "refs": [
+        "MRK 1:29"
+      ],
+      "source": "curated",
+      "source_id": "curated:peter-capernaum",
+      "confidence": "high"
+    },
+    {
+      "from": "会幕",
+      "to": "约柜",
+      "type": "contains",
+      "label": "至圣所内",
+      "refs": [
+        "EXO 26:34"
+      ],
+      "source": "curated",
+      "source_id": "curated:tabernacle-ark",
+      "confidence": "high"
+    },
+    {
+      "from": "逾越节",
+      "to": "egypt",
+      "type": "event",
+      "label": "出埃及",
+      "refs": [
+        "EXO 12:31"
+      ],
+      "source": "curated",
+      "source_id": "curated:passover-egypt",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "安得烈",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 4:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-andrew",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "腓力",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "JHN 1:43"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-philip",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "巴多罗买",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 10:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-bartholomew",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "马太",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 9:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-matthew",
+      "confidence": "high"
+    },
+    {
+      "from": "jesus",
+      "to": "james_apostle",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 4:21"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesus-james",
+      "confidence": "high"
+    },
+    {
+      "from": "paul",
+      "to": "提多",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "TIT 1:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:paul-titus",
+      "confidence": "high"
+    },
+    {
+      "from": "paul",
+      "to": "路加",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "COL 4:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:paul-luke",
+      "confidence": "high"
+    },
+    {
+      "from": "paul",
+      "to": "马可",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "ACT 12:25"
+      ],
+      "source": "curated",
+      "source_id": "curated:paul-mark",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "撒拉",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "GEN 11:29"
+      ],
+      "source": "curated",
+      "source_id": "curated:abraham-sarah",
+      "confidence": "high"
+    },
+    {
+      "from": "以撒",
+      "to": "利百加",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "GEN 24:67"
+      ],
+      "source": "curated",
+      "source_id": "curated:isaac-rebekah",
+      "confidence": "high"
+    },
+    {
+      "from": "nicodemus",
+      "to": "jesus",
+      "type": "disciple",
+      "label": "暗中求问",
+      "refs": [
+        "JHN 3:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:nicodemus-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "mary_bethany",
+      "to": "马大",
+      "type": "sibling",
+      "label": "姊妹",
+      "refs": [
+        "JHN 11:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:mary-martha",
+      "confidence": "high"
+    },
+    {
+      "from": "mary_bethany",
+      "to": "拉撒路",
+      "type": "sibling",
+      "label": "兄弟",
+      "refs": [
+        "JHN 11:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:mary-lazarus",
+      "confidence": "high"
+    },
+    {
+      "from": "mary_magdalene",
+      "to": "jesus",
+      "type": "disciple",
+      "label": "跟随者",
+      "refs": [
+        "LUK 8:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:mary-magdalene-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "daniel",
+      "to": "babylon",
+      "type": "located_at",
+      "label": "被掳之地",
+      "refs": [
+        "DAN 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:daniel-babylon",
+      "confidence": "high"
+    },
+    {
+      "from": "joshua",
+      "to": "moses",
+      "type": "mentor",
+      "label": "摩西的帮手",
+      "refs": [
+        "EXO 17:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:joshua-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "stephen",
+      "to": "jesus",
+      "type": "disciple",
+      "label": "为主作见证",
+      "refs": [
+        "ACT 7:55"
+      ],
+      "source": "curated",
+      "source_id": "curated:stephen-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "约拿",
+      "to": "尼尼微",
+      "type": "located_at",
+      "label": "奉差之地",
+      "refs": [
+        "JON 1:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:jonah-nineveh",
+      "confidence": "high"
+    },
+    {
+      "from": "以斯帖",
+      "to": "末底改",
+      "type": "companion",
+      "label": "亲人同工",
+      "refs": [
+        "EST 2:7"
+      ],
+      "source": "curated",
+      "source_id": "curated:esther-mordecai",
+      "confidence": "high"
+    },
+    {
+      "from": "以斯帖",
+      "to": "ahasuerus",
+      "type": "spouse",
+      "label": "丈夫",
+      "refs": [
+        "EST 2:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:esther-ahasuerus",
+      "confidence": "high"
+    },
+    {
+      "from": "以斯拉",
+      "to": "尼希米",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "NEH 8:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:ezra-nehemiah",
+      "confidence": "high"
+    },
+    {
+      "from": "耶利米",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "先知事奉",
+      "refs": [
+        "JER 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:jeremiah-jerusalem",
+      "confidence": "high"
+    },
+    {
+      "from": "以西结",
+      "to": "babylon",
+      "type": "located_at",
+      "label": "被掳之地",
+      "refs": [
+        "EZK 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:ezekiel-babylon",
+      "confidence": "high"
+    },
+    {
+      "from": "希西家",
+      "to": "isaiah",
+      "type": "mentor",
+      "label": "先知辅佐",
+      "refs": [
+        "ISA 37:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:hezekiah-isaiah",
+      "confidence": "high"
+    },
+    {
+      "from": "约西亚",
+      "to": "圣殿",
+      "type": "event",
+      "label": "重修圣殿",
+      "refs": [
+        "2KI 22:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:josiah-temple",
+      "confidence": "high"
+    },
+    {
+      "from": "弥迦",
+      "to": "jerusalem",
+      "type": "located_at",
+      "label": "先知事奉",
+      "refs": [
+        "MIC 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:micah-jerusalem",
+      "confidence": "high"
+    },
+    {
+      "from": "何西阿",
+      "to": "samaria",
+      "type": "located_at",
+      "label": "北国先知",
+      "refs": [
+        "HOS 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:hosea-samaria",
+      "confidence": "high"
+    },
+    {
+      "from": "阿摩司",
+      "to": "samaria",
+      "type": "located_at",
+      "label": "北国先知",
+      "refs": [
+        "AMO 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:amos-samaria",
+      "confidence": "high"
+    },
+    {
+      "from": "jacob_patriarch",
+      "to": "judah_patriarch",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 29:35"
+      ],
+      "source": "curated",
+      "source_id": "curated:jacob-judah",
+      "confidence": "high"
+    },
+    {
+      "from": "saul_king",
+      "to": "jonathan-son-of-saul",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 14:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:saul-jonathan",
+      "confidence": "high"
+    },
+    {
+      "from": "joseph_husband",
+      "to": "mary_mother",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "MAT 1:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:joseph-mary",
+      "confidence": "high"
+    },
+    {
+      "from": "zacharias",
+      "to": "john_baptist",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "LUK 1:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:zacharias-john",
+      "confidence": "high"
+    },
+    {
+      "from": "amram",
+      "to": "aaron",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:20"
+      ],
+      "source": "curated",
+      "source_id": "curated:amram-aaron",
+      "confidence": "high"
+    },
+    {
+      "from": "amram",
+      "to": "moses",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:20"
+      ],
+      "source": "curated",
+      "source_id": "curated:amram-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "jochebed",
+      "to": "aaron",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "EXO 6:20"
+      ],
+      "source": "curated",
+      "source_id": "curated:jochebed-aaron",
+      "confidence": "high"
+    },
+    {
+      "from": "jochebed",
+      "to": "moses",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "EXO 6:20"
+      ],
+      "source": "curated",
+      "source_id": "curated:jochebed-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "aaron",
+      "to": "nadab-son-of-aaron",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:aaron-nadab",
+      "confidence": "high"
+    },
+    {
+      "from": "aaron",
+      "to": "abihu",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:aaron-abihu",
+      "confidence": "high"
+    },
+    {
+      "from": "aaron",
+      "to": "ithamar",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:aaron-ithamar",
+      "confidence": "high"
+    },
+    {
+      "from": "jesse",
+      "to": "david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 16:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:jesse-david",
+      "confidence": "high"
+    },
+    {
+      "from": "希律",
+      "to": "jesus",
+      "type": "event",
+      "label": "婴孩屠杀",
+      "refs": [
+        "MAT 2:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:herod-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "彼拉多",
+      "to": "jesus",
+      "type": "event",
+      "label": "审问受难",
+      "refs": [
+        "MAT 27:11"
+      ],
+      "source": "curated",
+      "source_id": "curated:pilate-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "撒该",
+      "to": "jesus",
+      "type": "event",
+      "label": "接待耶稣",
+      "refs": [
+        "LUK 19:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:zaccheus-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "哥尼流",
+      "to": "peter",
+      "type": "event",
+      "label": "蒙差见彼得",
+      "refs": [
+        "ACT 10:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:cornelius-peter",
+      "confidence": "high"
+    },
+    {
+      "from": "约伯",
+      "to": "god",
+      "type": "mentor",
+      "label": "义人受苦与对话",
+      "refs": [
+        "JOB 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:job-god",
+      "confidence": "high"
+    },
+    {
+      "from": "abner",
+      "to": "saul_king",
+      "type": "companion",
+      "label": "扫罗家臣",
+      "refs": [
+        "1SA 14:50"
+      ],
+      "source": "curated",
+      "source_id": "curated:abner-saul",
+      "confidence": "high"
+    },
+    {
+      "from": "abner",
+      "to": "david",
+      "type": "event",
+      "label": "争权与和议",
+      "refs": [
+        "2SA 3:12"
+      ],
+      "source": "curated",
+      "source_id": "curated:abner-david",
+      "confidence": "high"
+    },
+    {
+      "from": "balaam",
+      "to": "balak",
+      "type": "companion",
+      "label": "受雇咒诅",
+      "refs": [
+        "NUM 22:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:balaam-balak",
+      "confidence": "high"
+    },
+    {
+      "from": "balaam",
+      "to": "moses",
+      "type": "event",
+      "label": "神拦咒诅",
+      "refs": [
+        "NUM 22:12"
+      ],
+      "source": "curated",
+      "source_id": "curated:balaam-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "haman",
+      "to": "以斯帖",
+      "type": "event",
+      "label": "灭绝之谋",
+      "refs": [
+        "EST 3:6"
+      ],
+      "source": "curated",
+      "source_id": "curated:haman-esther",
+      "confidence": "high"
+    },
+    {
+      "from": "haman",
+      "to": "末底改",
+      "type": "event",
+      "label": "不跪拜之争",
+      "refs": [
+        "EST 3:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:haman-mordecai",
+      "confidence": "high"
+    },
+    {
+      "from": "nathan",
+      "to": "david",
+      "type": "mentor",
+      "label": "先知谏言",
+      "refs": [
+        "2SA 7:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:nathan-david",
+      "confidence": "high"
+    },
+    {
+      "from": "zerubbabel",
+      "to": "圣殿",
+      "type": "event",
+      "label": "重建圣殿",
+      "refs": [
+        "EZR 3:8"
+      ],
+      "source": "curated",
+      "source_id": "curated:zerubbabel-temple",
+      "confidence": "high"
+    },
+    {
+      "from": "korah-son-of-izhar",
+      "to": "moses",
+      "type": "event",
+      "label": "叛变受审",
+      "refs": [
+        "NUM 16:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:korah-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "goliath",
+      "to": "david",
+      "type": "event",
+      "label": "以弱胜强",
+      "refs": [
+        "1SA 17:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:goliath-david",
+      "confidence": "high"
+    },
+    {
+      "from": "jehu-son-of-jehoshaphat",
+      "to": "jezebel",
+      "type": "event",
+      "label": "除巴力家",
+      "refs": [
+        "2KI 9:30"
+      ],
+      "source": "curated",
+      "source_id": "curated:jehu-jezebel",
+      "confidence": "high"
+    },
+    {
+      "from": "jeroboam-son-of-nebat",
+      "to": "solomon",
+      "type": "event",
+      "label": "王国分裂",
+      "refs": [
+        "1KI 11:26"
+      ],
+      "source": "curated",
+      "source_id": "curated:jeroboam-solomon",
+      "confidence": "high"
+    },
+    {
+      "from": "hazael",
+      "to": "elijah",
+      "type": "event",
+      "label": "先知预言",
+      "refs": [
+        "1KI 19:15"
+      ],
+      "source": "curated",
+      "source_id": "curated:hazael-elijah",
+      "confidence": "high"
+    },
+    {
+      "from": "zadok-son-of-ahitub",
+      "to": "david",
+      "type": "companion",
+      "label": "大祭司",
+      "refs": [
+        "2SA 8:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:zadok-david",
+      "confidence": "high"
+    },
+    {
+      "from": "abishai",
+      "to": "david",
+      "type": "companion",
+      "label": "大卫勇士",
+      "refs": [
+        "1SA 26:6"
+      ],
+      "source": "curated",
+      "source_id": "curated:abishai-david",
+      "confidence": "high"
+    },
+    {
+      "from": "joab",
+      "to": "david",
+      "type": "companion",
+      "label": "元帅",
+      "refs": [
+        "2SA 8:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:joab-david",
+      "confidence": "high"
+    },
+    {
+      "from": "satan",
+      "to": "jesus",
+      "type": "event",
+      "label": "旷野试探",
+      "refs": [
+        "MAT 4:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:satan-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "holy-spirit",
+      "to": "jesus",
+      "type": "event",
+      "label": "受洗降临",
+      "refs": [
+        "MAT 3:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:spirit-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "simon-peter",
+      "to": "jesus",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 4:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:simon-peter-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "cyrus",
+      "to": "以斯拉",
+      "type": "event",
+      "label": "归回诏令",
+      "refs": [
+        "EZR 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:cyrus-ezra",
+      "confidence": "high"
+    },
+    {
+      "from": "jephthah",
+      "to": "god",
+      "type": "event",
+      "label": "许愿作战",
+      "refs": [
+        "JDG 11:30"
+      ],
+      "source": "curated",
+      "source_id": "curated:jephthah-vow",
+      "confidence": "high"
+    },
+    {
+      "from": "levi-son-of-israel",
+      "to": "kohath",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:levi-kohath",
+      "confidence": "high"
+    },
+    {
+      "from": "kohath",
+      "to": "amram",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:kohath-amram",
+      "confidence": "high"
+    },
+    {
+      "from": "terah",
+      "to": "abraham",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 11:26"
+      ],
+      "source": "curated",
+      "source_id": "curated:terah-abraham",
+      "confidence": "high"
+    },
+    {
+      "from": "terah",
+      "to": "haran-son-of-terah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 11:27"
+      ],
+      "source": "curated",
+      "source_id": "curated:terah-haran",
+      "confidence": "high"
+    },
+    {
+      "from": "elisheba",
+      "to": "aaron",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "EXO 6:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:elisheba-aaron",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "nathan-son-of-david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 5:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-nathan-son",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "japhia-son-of-david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 5:15"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-japhia",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "jerimoth-son-of-david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 5:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-jerimoth",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "eliada-son-of-david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 5:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-eliada",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "elishama-son-of-david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 5:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-elishama",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "nepheg-son-of-david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 5:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-nepheg",
+      "confidence": "high"
+    },
+    {
+      "from": "参孙",
+      "to": "delilah",
+      "type": "spouse",
+      "label": "同谋",
+      "refs": [
+        "JDG 16:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:samson-delilah",
+      "confidence": "high"
+    },
+    {
+      "from": "naaman",
+      "to": "以利沙",
+      "type": "event",
+      "label": "得洁净",
+      "refs": [
+        "2KI 5:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:naaman-elisha",
+      "confidence": "high"
+    },
+    {
+      "from": "rahab",
+      "to": "joshua",
+      "type": "event",
+      "label": "隐藏探子",
+      "refs": [
+        "JOS 2:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:rahab-joshua",
+      "confidence": "high"
+    },
+    {
+      "from": "lot",
+      "to": "abraham",
+      "type": "companion",
+      "label": "同往迦南",
+      "refs": [
+        "GEN 12:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:lot-abraham",
+      "confidence": "high"
+    },
+    {
+      "from": "laban",
+      "to": "jacob_patriarch",
+      "type": "companion",
+      "label": "舅舅",
+      "refs": [
+        "GEN 29:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:laban-jacob",
+      "confidence": "high"
+    },
+    {
+      "from": "jethro",
+      "to": "moses",
+      "type": "mentor",
+      "label": "岳父献策",
+      "refs": [
+        "EXO 18:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:jethro-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "baruch-son-of-neriah",
+      "to": "jeremiah",
+      "type": "companion",
+      "label": "书记",
+      "refs": [
+        "JER 36:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:baruch-jeremiah",
+      "confidence": "high"
+    },
+    {
+      "from": "hiram-son-of-huram",
+      "to": "solomon",
+      "type": "companion",
+      "label": "建殿同盟",
+      "refs": [
+        "1KI 5:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:hiram-solomon",
+      "confidence": "high"
+    },
+    {
+      "from": "caiaphas",
+      "to": "jesus",
+      "type": "event",
+      "label": "主审",
+      "refs": [
+        "MAT 26:57"
+      ],
+      "source": "curated",
+      "source_id": "curated:caiaphas-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "annas",
+      "to": "jesus",
+      "type": "event",
+      "label": "预审",
+      "refs": [
+        "JHN 18:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:annas-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "gamaliel-son-of-pedahzur",
+      "to": "peter",
+      "type": "event",
+      "label": "公议辩护",
+      "refs": [
+        "ACT 5:34"
+      ],
+      "source": "curated",
+      "source_id": "curated:gamaliel-peter",
+      "confidence": "high"
+    },
+    {
+      "from": "aquila",
+      "to": "paul",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "ACT 18:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:aquila-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "priscilla",
+      "to": "paul",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "ACT 18:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:priscilla-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "亚波罗",
+      "to": "paul",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "ACT 18:24"
+      ],
+      "source": "curated",
+      "source_id": "curated:apollos-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "silas",
+      "to": "paul",
+      "type": "companion",
+      "label": "同工",
+      "refs": [
+        "ACT 15:40"
+      ],
+      "source": "curated",
+      "source_id": "curated:silas-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "demas",
+      "to": "paul",
+      "type": "companion",
+      "label": "曾同工",
+      "refs": [
+        "COL 4:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:demas-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "achish",
+      "to": "david",
+      "type": "companion",
+      "label": "容身迦特",
+      "refs": [
+        "1SA 21:10"
+      ],
+      "source": "curated",
+      "source_id": "curated:achish-david",
+      "confidence": "high"
+    },
+    {
+      "from": "ahithophel",
+      "to": "david",
+      "type": "companion",
+      "label": "谋士",
+      "refs": [
+        "2SA 15:12"
+      ],
+      "source": "curated",
+      "source_id": "curated:ahithophel-david",
+      "confidence": "high"
+    },
+    {
+      "from": "ahithophel",
+      "to": "absalom",
+      "type": "companion",
+      "label": "叛附",
+      "refs": [
+        "2SA 17:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:ahithophel-absalom",
+      "confidence": "high"
+    },
+    {
+      "from": "achan",
+      "to": "joshua",
+      "type": "event",
+      "label": "取当灭物",
+      "refs": [
+        "JOS 7:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:achan-joshua",
+      "confidence": "high"
+    },
+    {
+      "from": "agag-1",
+      "to": "saul_king",
+      "type": "event",
+      "label": "未灭尽",
+      "refs": [
+        "1SA 15:8"
+      ],
+      "source": "curated",
+      "source_id": "curated:agag-saul",
+      "confidence": "high"
+    },
+    {
+      "from": "agrippa",
+      "to": "paul",
+      "type": "event",
+      "label": "听证",
+      "refs": [
+        "ACT 26:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:agrippa-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "ahijah",
+      "to": "jeroboam-son-of-nebat",
+      "type": "mentor",
+      "label": "预言分裂",
+      "refs": [
+        "1KI 11:29"
+      ],
+      "source": "curated",
+      "source_id": "curated:ahijah-jeroboam",
+      "confidence": "high"
+    },
+    {
+      "from": "alphaeus",
+      "to": "james-son-of-alphaeus",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "MAT 10:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:alphaeus-james",
+      "confidence": "high"
+    },
+    {
+      "from": "amalek",
+      "to": "moses",
+      "type": "event",
+      "label": "出埃及时击",
+      "refs": [
+        "EXO 17:8"
+      ],
+      "source": "curated",
+      "source_id": "curated:amalek-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "amorite",
+      "to": "abraham",
+      "type": "event",
+      "label": "背约受审",
+      "refs": [
+        "GEN 15:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:amorite-abraham",
+      "confidence": "high"
+    },
+    {
+      "from": "anak",
+      "to": "joshua",
+      "type": "event",
+      "label": "探子报告",
+      "refs": [
+        "NUM 13:33"
+      ],
+      "source": "curated",
+      "source_id": "curated:anak-joshua",
+      "confidence": "high"
+    },
+    {
+      "from": "ananias-1",
+      "to": "paul",
+      "type": "event",
+      "label": "按手复明",
+      "refs": [
+        "ACT 9:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:ananias-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "artaxerxes-longimanus",
+      "to": "尼希米",
+      "type": "companion",
+      "label": "差遣修墙",
+      "refs": [
+        "NEH 2:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:artaxerxes-nehemiah",
+      "confidence": "high"
+    },
+    {
+      "from": "asaph-son-of-berechiah",
+      "to": "david",
+      "type": "companion",
+      "label": "诗班首领",
+      "refs": [
+        "1CH 16:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:asaph-david",
+      "confidence": "high"
+    },
+    {
+      "from": "barabbas",
+      "to": "jesus",
+      "type": "event",
+      "label": "释囚替代",
+      "refs": [
+        "MAT 27:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:barabbas-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "barak",
+      "to": "底波拉",
+      "type": "companion",
+      "label": "联手作战",
+      "refs": [
+        "JDG 4:6"
+      ],
+      "source": "curated",
+      "source_id": "curated:barak-deborah",
+      "confidence": "high"
+    },
+    {
+      "from": "ben-hadad-son-of-tabrimon",
+      "to": "ahab-son-of-omri",
+      "type": "event",
+      "label": "叙军争战",
+      "refs": [
+        "1KI 20:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:benhadad-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "bildad",
+      "to": "约伯",
+      "type": "companion",
+      "label": "三友之一",
+      "refs": [
+        "JOB 2:11"
+      ],
+      "source": "curated",
+      "source_id": "curated:bildad-job",
+      "confidence": "high"
+    },
+    {
+      "from": "dagon",
+      "to": "参孙",
+      "type": "event",
+      "label": "庙倒仆",
+      "refs": [
+        "JDG 16:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:dagon-samson",
+      "confidence": "high"
+    },
+    {
+      "from": "darius",
+      "to": "daniel",
+      "type": "companion",
+      "label": "朝中重臣",
+      "refs": [
+        "DAN 6:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:darius-daniel",
+      "confidence": "high"
+    },
+    {
+      "from": "dorcas",
+      "to": "peter",
+      "type": "event",
+      "label": "复活",
+      "refs": [
+        "ACT 9:40"
+      ],
+      "source": "curated",
+      "source_id": "curated:dorcas-peter",
+      "confidence": "high"
+    },
+    {
+      "from": "ehud-son-of-gera",
+      "to": "moab",
+      "type": "event",
+      "label": "刺杀伊矶伦",
+      "refs": [
+        "JDG 3:15"
+      ],
+      "source": "curated",
+      "source_id": "curated:ehud-moab",
+      "confidence": "high"
+    },
+    {
+      "from": "eliakim-son-of-hilkiah",
+      "to": "希西家",
+      "type": "companion",
+      "label": "家宰",
+      "refs": [
+        "ISA 36:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:eliakim-hezekiah",
+      "confidence": "high"
+    },
+    {
+      "from": "elihu-son-of-barachel",
+      "to": "约伯",
+      "type": "companion",
+      "label": "长篇对话",
+      "refs": [
+        "JOB 32:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:elihu-job",
+      "confidence": "high"
+    },
+    {
+      "from": "felix",
+      "to": "paul",
+      "type": "event",
+      "label": "羁押拖延",
+      "refs": [
+        "ACT 24:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:felix-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "gabriel",
+      "to": "mary_mother",
+      "type": "event",
+      "label": "报喜",
+      "refs": [
+        "LUK 1:26"
+      ],
+      "source": "curated",
+      "source_id": "curated:gabriel-mary",
+      "confidence": "high"
+    },
+    {
+      "from": "gehazi",
+      "to": "以利沙",
+      "type": "companion",
+      "label": "仆人",
+      "refs": [
+        "2KI 4:12"
+      ],
+      "source": "curated",
+      "source_id": "curated:gehazi-elisha",
+      "confidence": "high"
+    },
+    {
+      "from": "gilead-son-of-machir",
+      "to": "manasseh-son-of-joseph",
+      "type": "parent",
+      "label": "后裔",
+      "refs": [
+        "NUM 26:29"
+      ],
+      "source": "curated",
+      "source_id": "curated:gilead-manasseh",
+      "confidence": "high"
+    },
+    {
+      "from": "haggai",
+      "to": "zerubbabel",
+      "type": "mentor",
+      "label": "劝建圣殿",
+      "refs": [
+        "HAG 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:haggai-zerubbabel",
+      "confidence": "high"
+    },
+    {
+      "from": "heber-son-of-beriah",
+      "to": "jael",
+      "type": "spouse",
+      "label": "夫妻",
+      "refs": [
+        "JDG 4:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:heber-jael",
+      "confidence": "high"
+    },
+    {
+      "from": "herodias",
+      "to": "john_baptist",
+      "type": "event",
+      "label": "促成斩首",
+      "refs": [
+        "MAT 14:8"
+      ],
+      "source": "curated",
+      "source_id": "curated:herodias-john",
+      "confidence": "high"
+    },
+    {
+      "from": "hur-son-of-caleb",
+      "to": "moses",
+      "type": "companion",
+      "label": "扶助手臂",
+      "refs": [
+        "EXO 17:12"
+      ],
+      "source": "curated",
+      "source_id": "curated:hur-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "hushai",
+      "to": "david",
+      "type": "companion",
+      "label": "挚友",
+      "refs": [
+        "2SA 15:32"
+      ],
+      "source": "curated",
+      "source_id": "curated:hushai-david",
+      "confidence": "high"
+    },
+    {
+      "from": "hushai",
+      "to": "absalom",
+      "type": "companion",
+      "label": "内置间谍",
+      "refs": [
+        "2SA 16:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:hushai-absalom",
+      "confidence": "high"
+    },
+    {
+      "from": "ishmael-son-of-nethaniah",
+      "to": "gedaliah",
+      "type": "event",
+      "label": "刺杀",
+      "refs": [
+        "2KI 25:25"
+      ],
+      "source": "curated",
+      "source_id": "curated:ishmael-gedaliah",
+      "confidence": "high"
+    },
+    {
+      "from": "jabin-1",
+      "to": "底波拉",
+      "type": "event",
+      "label": "被击败",
+      "refs": [
+        "JDG 4:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:jabin-deborah",
+      "confidence": "high"
+    },
+    {
+      "from": "jael",
+      "to": "底波拉",
+      "type": "companion",
+      "label": "击杀西西拉",
+      "refs": [
+        "JDG 4:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:jael-deborah",
+      "confidence": "high"
+    },
+    {
+      "from": "jason",
+      "to": "paul",
+      "type": "companion",
+      "label": "接待",
+      "refs": [
+        "ACT 17:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:jason-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "jehoiada-priest",
+      "to": "joash-son-of-ahaziah",
+      "type": "mentor",
+      "label": "辅政",
+      "refs": [
+        "2KI 11:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:jehoiada-joash",
+      "confidence": "high"
+    },
+    {
+      "from": "joash-son-of-jehoahaz",
+      "to": "以利沙",
+      "type": "mentor",
+      "label": "求助先知",
+      "refs": [
+        "2KI 13:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:joash-elisha",
+      "confidence": "high"
+    },
+    {
+      "from": "michael-4",
+      "to": "jesus",
+      "type": "event",
+      "label": "末后争战",
+      "refs": [
+        "REV 12:7"
+      ],
+      "source": "curated",
+      "source_id": "curated:michael-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "naboth",
+      "to": "ahab-son-of-omri",
+      "type": "event",
+      "label": "葡萄园冤案",
+      "refs": [
+        "1KI 21:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:naboth-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "nathanael",
+      "to": "jesus",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "JHN 1:47"
+      ],
+      "source": "curated",
+      "source_id": "curated:nathanael-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "obadiah",
+      "to": "ahab-son-of-omri",
+      "type": "mentor",
+      "label": "同期先知",
+      "refs": [
+        "1KI 18:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:obadiah-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "othniel",
+      "to": "迦勒",
+      "type": "companion",
+      "label": "侄婿",
+      "refs": [
+        "JDG 1:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:othniel-caleb",
+      "confidence": "high"
+    },
+    {
+      "from": "sheba-son-of-bichri",
+      "to": "david",
+      "type": "event",
+      "label": "叛变",
+      "refs": [
+        "2SA 20:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:sheba-david",
+      "confidence": "high"
+    },
+    {
+      "from": "shechem-son-of-hamor",
+      "to": "dinah",
+      "type": "event",
+      "label": "强娶",
+      "refs": [
+        "GEN 34:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:shechem-dinah",
+      "confidence": "high"
+    },
+    {
+      "from": "zephaniah-son-of-maaseiah",
+      "to": "耶利米",
+      "type": "companion",
+      "label": "同代先知",
+      "refs": [
+        "JER 29:25"
+      ],
+      "source": "curated",
+      "source_id": "curated:zephaniah-jeremiah",
+      "confidence": "high"
+    },
+    {
+      "from": "亚尼亚",
+      "to": "paul",
+      "type": "event",
+      "label": "按手复明",
+      "refs": [
+        "ACT 9:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:ananias-zh-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "吕底亚",
+      "to": "paul",
+      "type": "companion",
+      "label": "接待同工",
+      "refs": [
+        "ACT 16:14"
+      ],
+      "source": "curated",
+      "source_id": "curated:lydia-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "哈巴谷",
+      "to": "god",
+      "type": "mentor",
+      "label": "先知对话",
+      "refs": [
+        "HAB 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:habakkuk-god",
+      "confidence": "high"
+    },
+    {
+      "from": "底波拉",
+      "to": "barak",
+      "type": "companion",
+      "label": "召军作战",
+      "refs": [
+        "JDG 4:6"
+      ],
+      "source": "curated",
+      "source_id": "curated:deborah-barak",
+      "confidence": "high"
+    },
+    {
+      "from": "拿俄米",
+      "to": "ruth",
+      "type": "parent",
+      "label": "婆孙",
+      "refs": [
+        "RUT 1:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:naomi-ruth",
+      "confidence": "high"
+    },
+    {
+      "from": "法老",
+      "to": "moses",
+      "type": "event",
+      "label": "出埃及对峙",
+      "refs": [
+        "EXO 5:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:pharaoh-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "玛拉基",
+      "to": "圣殿",
+      "type": "event",
+      "label": "末代预言",
+      "refs": [
+        "MAL 3:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:malachi-temple",
+      "confidence": "high"
+    },
+    {
+      "from": "该撒",
+      "to": "paul",
+      "type": "event",
+      "label": "上诉",
+      "refs": [
+        "ACT 25:11"
+      ],
+      "source": "curated",
+      "source_id": "curated:caesar-paul",
+      "confidence": "high"
+    },
+    {
+      "from": "迦勒",
+      "to": "joshua",
+      "type": "companion",
+      "label": "同探迦南",
+      "refs": [
+        "NUM 14:6"
+      ],
+      "source": "curated",
+      "source_id": "curated:caleb-joshua",
+      "confidence": "high"
+    },
+    {
+      "from": "马加比",
+      "to": "该撒",
+      "type": "event",
+      "label": "抗希律纪事",
+      "refs": [
+        "1MA 8:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:maccabee-caesar",
+      "confidence": "medium"
+    },
+    {
+      "from": "david",
+      "to": "daniel-son-of-david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1CH 3:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-daniel-son",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "shephatiah-son-of-david",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 3:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-shephatiah",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "ithream",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 3:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-ithream",
+      "confidence": "high"
+    },
+    {
+      "from": "kohath",
+      "to": "uzziel-son-of-kohath",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:kohath-uzziel",
+      "confidence": "high"
+    },
+    {
+      "from": "利亚",
+      "to": "zilpah",
+      "type": "companion",
+      "label": "婢女",
+      "refs": [
+        "GEN 29:24"
+      ],
+      "source": "curated",
+      "source_id": "curated:leah-zilpah",
+      "confidence": "high"
+    },
+    {
+      "from": "jacob_patriarch",
+      "to": "zilpah",
+      "type": "spouse",
+      "label": "妾",
+      "refs": [
+        "GEN 30:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:jacob-zilpah",
+      "confidence": "high"
+    },
+    {
+      "from": "波阿斯",
+      "to": "obed-son-of-boaz",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "RUT 4:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:boaz-obed",
+      "confidence": "high"
+    },
+    {
+      "from": "ruth",
+      "to": "obed-son-of-boaz",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "RUT 4:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:ruth-obed",
+      "confidence": "high"
+    },
+    {
+      "from": "jehoshabeath",
+      "to": "joash-son-of-ahaziah",
+      "type": "companion",
+      "label": "藏养",
+      "refs": [
+        "2KI 11:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:jehoshabeath-joash",
+      "confidence": "high"
+    },
+    {
+      "from": "uriah",
+      "to": "david",
+      "type": "companion",
+      "label": "赫人勇士",
+      "refs": [
+        "2SA 23:39"
+      ],
+      "source": "curated",
+      "source_id": "curated:uriah-david",
+      "confidence": "high"
+    },
+    {
+      "from": "uriah",
+      "to": "bathsheba",
+      "type": "spouse",
+      "label": "丈夫",
+      "refs": [
+        "2SA 11:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:uriah-bathsheba",
+      "confidence": "high"
+    },
+    {
+      "from": "abiathar",
+      "to": "david",
+      "type": "companion",
+      "label": "流亡祭司",
+      "refs": [
+        "1SA 22:20"
+      ],
+      "source": "curated",
+      "source_id": "curated:abiathar-david",
+      "confidence": "high"
+    },
+    {
+      "from": "eli",
+      "to": "撒母耳",
+      "type": "mentor",
+      "label": "示罗师傅",
+      "refs": [
+        "1SA 3:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:eli-samuel",
+      "confidence": "high"
+    },
+    {
+      "from": "eli",
+      "to": "hophni",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 1:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:eli-hophni",
+      "confidence": "high"
+    },
+    {
+      "from": "nebuchadnezzar",
+      "to": "daniel",
+      "type": "event",
+      "label": "寝宫异梦",
+      "refs": [
+        "DAN 2:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:nebuchadnezzar-daniel",
+      "confidence": "high"
+    },
+    {
+      "from": "hazael",
+      "to": "以利沙",
+      "type": "event",
+      "label": "预言作王",
+      "refs": [
+        "2KI 8:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:hazael-elisha",
+      "confidence": "high"
+    },
+    {
+      "from": "hazael",
+      "to": "ben-hadad-son-of-tabrimon",
+      "type": "event",
+      "label": "篡位",
+      "refs": [
+        "2KI 8:15"
+      ],
+      "source": "curated",
+      "source_id": "curated:hazael-benhadad",
+      "confidence": "high"
+    },
+    {
+      "from": "nabal",
+      "to": "abigail",
+      "type": "spouse",
+      "label": "丈夫",
+      "refs": [
+        "1SA 25:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:nabal-abigail",
+      "confidence": "high"
+    },
+    {
+      "from": "nabal",
+      "to": "david",
+      "type": "event",
+      "label": "愚妄激怒",
+      "refs": [
+        "1SA 25:10"
+      ],
+      "source": "curated",
+      "source_id": "curated:nabal-david",
+      "confidence": "high"
+    },
+    {
+      "from": "mephibosheth-son-of-jonathan",
+      "to": "david",
+      "type": "companion",
+      "label": "恩待",
+      "refs": [
+        "2SA 9:7"
+      ],
+      "source": "curated",
+      "source_id": "curated:mephibosheth-david",
+      "confidence": "high"
+    },
+    {
+      "from": "jehoshaphat-son-of-asa",
+      "to": "ahab-son-of-omri",
+      "type": "companion",
+      "label": "联姻结盟",
+      "refs": [
+        "1KI 22:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:jehoshaphat-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "uzziah-son-of-amaziah",
+      "to": "jotham-son-of-uzziah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2KI 15:7"
+      ],
+      "source": "curated",
+      "source_id": "curated:uzziah-jotham",
+      "confidence": "high"
+    },
+    {
+      "from": "amoz",
+      "to": "isaiah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "ISA 1:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:amoz-isaiah",
+      "confidence": "high"
+    },
+    {
+      "from": "phinehas-son-of-eleazar",
+      "to": "eleazar-son-of-aaron",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:25"
+      ],
+      "source": "curated",
+      "source_id": "curated:phinehas-eleazar",
+      "confidence": "high"
+    },
+    {
+      "from": "ahasuerus",
+      "to": "以斯帖",
+      "type": "companion",
+      "label": "波斯王后",
+      "refs": [
+        "EST 2:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:ahasuerus-esther",
+      "confidence": "high"
+    },
+    {
+      "from": "omri",
+      "to": "ahab-son-of-omri",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 16:28"
+      ],
+      "source": "curated",
+      "source_id": "curated:omri-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "jehoiakim",
+      "to": "耶利米",
+      "type": "event",
+      "label": "焚书卷",
+      "refs": [
+        "JER 36:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:jehoiakim-jeremiah",
+      "confidence": "high"
+    },
+    {
+      "from": "zedekiah-son-of-josiah",
+      "to": "耶利米",
+      "type": "mentor",
+      "label": "拒听劝降",
+      "refs": [
+        "JER 38:17"
+      ],
+      "source": "curated",
+      "source_id": "curated:zedekiah-jeremiah",
+      "confidence": "high"
+    },
+    {
+      "from": "abimelech-son-of-gideon",
+      "to": "基甸",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "JDG 9:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:abimelech-gideon",
+      "confidence": "high"
+    },
+    {
+      "from": "ahimelech-son-of-ahitub",
+      "to": "abiathar",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 22:20"
+      ],
+      "source": "curated",
+      "source_id": "curated:ahimelech-abiathar",
+      "confidence": "high"
+    },
+    {
+      "from": "gabriel",
+      "to": "zacharias",
+      "type": "event",
+      "label": "报约翰降生",
+      "refs": [
+        "LUK 1:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:gabriel-zacharias",
+      "confidence": "high"
+    },
+    {
+      "from": "hagar",
+      "to": "abraham",
+      "type": "companion",
+      "label": "妾",
+      "refs": [
+        "GEN 16:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:hagar-abraham",
+      "confidence": "high"
+    },
+    {
+      "from": "hagar",
+      "to": "ishmael-son-of-abraham",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 16:15"
+      ],
+      "source": "curated",
+      "source_id": "curated:hagar-ishmael",
+      "confidence": "high"
+    },
+    {
+      "from": "asenath",
+      "to": "joseph_son",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "GEN 41:45"
+      ],
+      "source": "curated",
+      "source_id": "curated:asenath-joseph",
+      "confidence": "high"
+    },
+    {
+      "from": "bethuel",
+      "to": "laban",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 28:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:bethuel-laban",
+      "confidence": "high"
+    },
+    {
+      "from": "bethuel",
+      "to": "利百加",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 22:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:bethuel-rebekah",
+      "confidence": "high"
+    },
+    {
+      "from": "拉结",
+      "to": "bilhah",
+      "type": "companion",
+      "label": "婢女",
+      "refs": [
+        "GEN 29:29"
+      ],
+      "source": "curated",
+      "source_id": "curated:rachel-bilhah",
+      "confidence": "high"
+    },
+    {
+      "from": "levi-son-of-israel",
+      "to": "gershon",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:levi-gershon",
+      "confidence": "high"
+    },
+    {
+      "from": "levi-son-of-israel",
+      "to": "merari",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:16"
+      ],
+      "source": "curated",
+      "source_id": "curated:levi-merari",
+      "confidence": "high"
+    },
+    {
+      "from": "moses",
+      "to": "gershom-son-of-moses",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 2:22"
+      ],
+      "source": "curated",
+      "source_id": "curated:moses-gershom",
+      "confidence": "high"
+    },
+    {
+      "from": "kish-son-of-abiel",
+      "to": "saul_king",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 9:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:kish-saul",
+      "confidence": "high"
+    },
+    {
+      "from": "saul_king",
+      "to": "ish-bosheth",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2SA 2:8"
+      ],
+      "source": "curated",
+      "source_id": "curated:saul-ishbosheth",
+      "confidence": "high"
+    },
+    {
+      "from": "zeruiah",
+      "to": "joab",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "2SA 2:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:zeruiah-joab",
+      "confidence": "high"
+    },
+    {
+      "from": "zeruiah",
+      "to": "abishai",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "2SA 2:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:zeruiah-abishai",
+      "confidence": "high"
+    },
+    {
+      "from": "zeruiah",
+      "to": "asahel",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "2SA 2:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:zeruiah-asahel",
+      "confidence": "high"
+    },
+    {
+      "from": "jehoshaphat-son-of-asa",
+      "to": "jehoram-son-of-jehoshaphat",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 22:50"
+      ],
+      "source": "curated",
+      "source_id": "curated:jehoshaphat-jehoram",
+      "confidence": "high"
+    },
+    {
+      "from": "ahab-son-of-omri",
+      "to": "ahaziah-son-of-ahab",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 22:51"
+      ],
+      "source": "curated",
+      "source_id": "curated:ahab-ahaziah",
+      "confidence": "high"
+    },
+    {
+      "from": "cyrus",
+      "to": "daniel",
+      "type": "companion",
+      "label": "御前侍立",
+      "refs": [
+        "DAN 6:28"
+      ],
+      "source": "curated",
+      "source_id": "curated:cyrus-daniel",
+      "confidence": "high"
+    },
+    {
+      "from": "belshazzar",
+      "to": "daniel",
+      "type": "event",
+      "label": "指写解读",
+      "refs": [
+        "DAN 5:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:belshazzar-daniel",
+      "confidence": "high"
+    },
+    {
+      "from": "midian",
+      "to": "moses",
+      "type": "event",
+      "label": "苇花烧却不灭",
+      "refs": [
+        "EXO 3:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:midian-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "hiram-son-of-huram",
+      "to": "david",
+      "type": "companion",
+      "label": "推罗同盟",
+      "refs": [
+        "2SA 5:11"
+      ],
+      "source": "curated",
+      "source_id": "curated:hiram-david",
+      "confidence": "high"
+    },
+    {
+      "from": "haman",
+      "to": "ahasuerus",
+      "type": "companion",
+      "label": "御前宰相",
+      "refs": [
+        "EST 3:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:haman-ahasuerus",
+      "confidence": "high"
+    },
+    {
+      "from": "abner",
+      "to": "joab",
+      "type": "event",
+      "label": "被刺杀",
+      "refs": [
+        "2SA 3:27"
+      ],
+      "source": "curated",
+      "source_id": "curated:abner-joab",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "keturah",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "GEN 25:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:abraham-keturah",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "haggith",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "2SA 3:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-haggith",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "ahinoam",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "1SA 25:43"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-ahinoam",
+      "confidence": "high"
+    },
+    {
+      "from": "haran-son-of-terah",
+      "to": "milcah-son-of-haran",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 11:29"
+      ],
+      "source": "curated",
+      "source_id": "curated:haran-milcah",
+      "confidence": "high"
+    },
+    {
+      "from": "nahor-son-of-terah",
+      "to": "milcah-son-of-haran",
+      "type": "spouse",
+      "label": "妻子",
+      "refs": [
+        "GEN 11:29"
+      ],
+      "source": "curated",
+      "source_id": "curated:nahor-milcah",
+      "confidence": "high"
+    },
+    {
+      "from": "以扫",
+      "to": "eliphaz-son-of-esau",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 36:4"
+      ],
+      "source": "curated",
+      "source_id": "curated:esau-eliphaz",
+      "confidence": "high"
+    },
+    {
+      "from": "ner",
+      "to": "kish-son-of-abiel",
+      "type": "sibling",
+      "label": "兄弟",
+      "refs": [
+        "1SA 14:51"
+      ],
+      "source": "curated",
+      "source_id": "curated:ner-kish",
+      "confidence": "high"
+    },
+    {
+      "from": "ner",
+      "to": "abner",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 14:51"
+      ],
+      "source": "curated",
+      "source_id": "curated:ner-abner",
+      "confidence": "high"
+    },
+    {
+      "from": "nathan",
+      "to": "solomon",
+      "type": "mentor",
+      "label": "预言命名",
+      "refs": [
+        "1CH 22:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:nathan-solomon",
+      "confidence": "high"
+    },
+    {
+      "from": "zadok-son-of-ahitub",
+      "to": "solomon",
+      "type": "companion",
+      "label": "受立大祭司",
+      "refs": [
+        "1KI 1:39"
+      ],
+      "source": "curated",
+      "source_id": "curated:zadok-solomon",
+      "confidence": "high"
+    },
+    {
+      "from": "abiathar",
+      "to": "solomon",
+      "type": "event",
+      "label": "革职流放",
+      "refs": [
+        "1KI 2:26"
+      ],
+      "source": "curated",
+      "source_id": "curated:abiathar-solomon",
+      "confidence": "high"
+    },
+    {
+      "from": "jehu-son-of-jehoshaphat",
+      "to": "ahab-son-of-omri",
+      "type": "event",
+      "label": "除灭亚哈家",
+      "refs": [
+        "2KI 9:7"
+      ],
+      "source": "curated",
+      "source_id": "curated:jehu-ahab",
+      "confidence": "high"
+    },
+    {
+      "from": "phinehas-son-of-eleazar",
+      "to": "moses",
+      "type": "event",
+      "label": "止息瘟疫",
+      "refs": [
+        "NUM 25:7"
+      ],
+      "source": "curated",
+      "source_id": "curated:phinehas-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "haggai",
+      "to": "zechariah-prophet",
+      "type": "companion",
+      "label": "同代先知",
+      "refs": [
+        "EZR 5:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:haggai-zechariah",
+      "confidence": "high"
+    },
+    {
+      "from": "lebbaeus",
+      "to": "jesus",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 10:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:lebbaeus-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "alphaeus",
+      "to": "lebbaeus",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "MAT 10:3"
+      ],
+      "source": "curated",
+      "source_id": "curated:alphaeus-lebbaeus",
+      "confidence": "high"
+    },
+    {
+      "from": "abijah-son-of-zechariah",
+      "to": "jeroboam-son-of-nebat",
+      "type": "mentor",
+      "label": "预言分裂",
+      "refs": [
+        "1KI 14:7"
+      ],
+      "source": "curated",
+      "source_id": "curated:abijah-jeroboam",
+      "confidence": "high"
+    },
+    {
+      "from": "罗波安",
+      "to": "abijah-son-of-rehoboam",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 15:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:rehoboam-abijah",
+      "confidence": "high"
+    },
+    {
+      "from": "abijah-son-of-rehoboam",
+      "to": "asa-son-of-abijah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1KI 15:8"
+      ],
+      "source": "curated",
+      "source_id": "curated:abijah-asa",
+      "confidence": "high"
+    },
+    {
+      "from": "amaziah-son-of-joash",
+      "to": "uzziah-son-of-amaziah",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "2KI 15:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:amaziah-uzziah",
+      "confidence": "high"
+    },
+    {
+      "from": "zibiah",
+      "to": "joash-son-of-ahaziah",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "2KI 12:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:zibiah-joash",
+      "confidence": "high"
+    },
+    {
+      "from": "jedidah",
+      "to": "josiah",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "2KI 22:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:jedidah-josiah",
+      "confidence": "high"
+    },
+    {
+      "from": "haggith",
+      "to": "adonijah-son-of-david",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "1KI 1:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:haggith-adonijah",
+      "confidence": "high"
+    },
+    {
+      "from": "david",
+      "to": "uriah",
+      "type": "event",
+      "label": "设计害死",
+      "refs": [
+        "2SA 11:15"
+      ],
+      "source": "curated",
+      "source_id": "curated:david-uriah",
+      "confidence": "high"
+    },
+    {
+      "from": "izhar",
+      "to": "korah-son-of-izhar",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:izhar-korah",
+      "confidence": "high"
+    },
+    {
+      "from": "kohath",
+      "to": "izhar",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "EXO 6:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:kohath-izhar",
+      "confidence": "high"
+    },
+    {
+      "from": "zechariah-prophet",
+      "to": "zerubbabel",
+      "type": "companion",
+      "label": "同劝建殿",
+      "refs": [
+        "ZEC 4:9"
+      ],
+      "source": "curated",
+      "source_id": "curated:zechariah-zerubbabel",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "jokshan",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 25:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:abraham-jokshan",
+      "confidence": "high"
+    },
+    {
+      "from": "keturah",
+      "to": "jokshan",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "GEN 25:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:keturah-jokshan",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "zimran",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 25:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:abraham-zimran",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "medan",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 25:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:abraham-medan",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "ishbak",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 25:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:abraham-ishbak",
+      "confidence": "high"
+    },
+    {
+      "from": "abraham",
+      "to": "shuah-son-of-abraham",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 25:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:abraham-shuah",
+      "confidence": "high"
+    },
+    {
+      "from": "eliphaz-son-of-esau",
+      "to": "kenaz-son-of-eliphaz",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 36:11"
+      ],
+      "source": "curated",
+      "source_id": "curated:eliphaz-kenaz",
+      "confidence": "high"
+    },
+    {
+      "from": "eliphaz-son-of-esau",
+      "to": "teman-son-of-eliphaz",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 36:11"
+      ],
+      "source": "curated",
+      "source_id": "curated:eliphaz-teman",
+      "confidence": "high"
+    },
+    {
+      "from": "eliphaz-son-of-esau",
+      "to": "omar",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 36:11"
+      ],
+      "source": "curated",
+      "source_id": "curated:eliphaz-omar",
+      "confidence": "high"
+    },
+    {
+      "from": "eliab-son-of-pallu",
+      "to": "abiram-son-of-eliab",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "NUM 16:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:eliab-abiram",
+      "confidence": "high"
+    },
+    {
+      "from": "abiel-son-of-zeror",
+      "to": "kish-son-of-abiel",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 9:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:abiel-kish",
+      "confidence": "high"
+    },
+    {
+      "from": "abiel-son-of-zeror",
+      "to": "ner",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "1SA 14:51"
+      ],
+      "source": "curated",
+      "source_id": "curated:abiel-ner",
+      "confidence": "high"
+    },
+    {
+      "from": "machir-son-of-manasseh",
+      "to": "gilead-son-of-machir",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "NUM 26:29"
+      ],
+      "source": "curated",
+      "source_id": "curated:machir-gilead",
+      "confidence": "high"
+    },
+    {
+      "from": "manasseh-son-of-joseph",
+      "to": "machir-son-of-manasseh",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 50:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:manasseh-machir",
+      "confidence": "high"
+    },
+    {
+      "from": "基甸",
+      "to": "jotham-son-of-gideon",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "JDG 9:5"
+      ],
+      "source": "curated",
+      "source_id": "curated:gideon-jotham",
+      "confidence": "high"
+    },
+    {
+      "from": "maachah-son-of-uriel",
+      "to": "abijah-son-of-rehoboam",
+      "type": "parent",
+      "label": "母亲",
+      "refs": [
+        "2CH 13:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:maachah-abijah",
+      "confidence": "high"
+    },
+    {
+      "from": "jared",
+      "to": "enoch-son-of-jared",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "GEN 5:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:jared-enoch",
+      "confidence": "high"
+    },
+    {
+      "from": "asaph-son-of-berechiah",
+      "to": "solomon",
+      "type": "companion",
+      "label": "殿中诗班",
+      "refs": [
+        "2CH 5:12"
+      ],
+      "source": "curated",
+      "source_id": "curated:asaph-solomon",
+      "confidence": "high"
+    },
+    {
+      "from": "asaph-son-of-berechiah",
+      "to": "希西家",
+      "type": "companion",
+      "label": "复兴敬拜",
+      "refs": [
+        "2CH 29:30"
+      ],
+      "source": "curated",
+      "source_id": "curated:asaph-hezekiah",
+      "confidence": "high"
+    },
+    {
+      "from": "zebedee",
+      "to": "james_apostle",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "MAT 4:21"
+      ],
+      "source": "curated",
+      "source_id": "curated:zebedee-james",
+      "confidence": "high"
+    },
+    {
+      "from": "zebedee",
+      "to": "john_apostle",
+      "type": "parent",
+      "label": "父亲",
+      "refs": [
+        "MAT 4:21"
+      ],
+      "source": "curated",
+      "source_id": "curated:zebedee-john",
+      "confidence": "high"
+    },
+    {
+      "from": "andrew",
+      "to": "simon-peter",
+      "type": "sibling",
+      "label": "兄弟",
+      "refs": [
+        "MAT 4:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:andrew-peter",
+      "confidence": "high"
+    },
+    {
+      "from": "andrew",
+      "to": "jesus",
+      "type": "disciple",
+      "label": "门徒",
+      "refs": [
+        "MAT 4:19"
+      ],
+      "source": "curated",
+      "source_id": "curated:andrew-jesus",
+      "confidence": "high"
+    },
+    {
+      "from": "naboth",
+      "to": "jezebel",
+      "type": "event",
+      "label": "陷害夺园",
+      "refs": [
+        "1KI 21:7"
+      ],
+      "source": "curated",
+      "source_id": "curated:naboth-jezebel",
+      "confidence": "high"
+    },
+    {
+      "from": "artaxerxes-longimanus",
+      "to": "以斯拉",
+      "type": "companion",
+      "label": "归回诏令",
+      "refs": [
+        "EZR 7:11"
+      ],
+      "source": "curated",
+      "source_id": "curated:artaxerxes-ezra",
+      "confidence": "high"
+    },
+    {
+      "from": "dathan",
+      "to": "korah-son-of-izhar",
+      "type": "companion",
+      "label": "同党",
+      "refs": [
+        "NUM 16:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:dathan-korah",
+      "confidence": "high"
+    },
+    {
+      "from": "dathan",
+      "to": "moses",
+      "type": "event",
+      "label": "地开口吞灭",
+      "refs": [
+        "NUM 16:32"
+      ],
+      "source": "curated",
+      "source_id": "curated:dathan-moses",
+      "confidence": "high"
+    },
+    {
+      "from": "baruch-son-of-neriah",
+      "to": "jehoiakim",
+      "type": "event",
+      "label": "书卷被焚",
+      "refs": [
+        "JER 36:23"
+      ],
+      "source": "curated",
+      "source_id": "curated:baruch-jehoiakim",
+      "confidence": "high"
+    },
+    {
+      "from": "shechem-son-of-hamor",
+      "to": "jacob_patriarch",
+      "type": "event",
+      "label": "强娶底拿",
+      "refs": [
+        "GEN 34:2"
+      ],
+      "source": "curated",
+      "source_id": "curated:shechem-jacob",
+      "confidence": "high"
+    },
+    {
+      "from": "caiaphas",
+      "to": "annas",
+      "type": "companion",
+      "label": "岳父",
+      "refs": [
+        "JHN 18:13"
+      ],
+      "source": "curated",
+      "source_id": "curated:caiaphas-annas",
+      "confidence": "high"
+    },
+    {
+      "from": "joash-son-of-jehoahaz",
+      "to": "jehu-son-of-jehoshaphat",
+      "type": "companion",
+      "label": "接续作王",
+      "refs": [
+        "2KI 13:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:joash-jehu",
+      "confidence": "high"
+    },
+    {
+      "from": "jephthah",
+      "to": "基甸",
+      "type": "companion",
+      "label": "士师时代",
+      "refs": [
+        "JDG 11:1"
+      ],
+      "source": "curated",
+      "source_id": "curated:jephthah-gideon-era",
+      "confidence": "medium"
+    },
+    {
+      "from": "holy-spirit",
+      "to": "mary_mother",
+      "type": "event",
+      "label": "成孕",
+      "refs": [
+        "MAT 1:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:spirit-mary",
+      "confidence": "high"
+    },
+    {
+      "from": "simon-peter",
+      "to": "andrew",
+      "type": "sibling",
+      "label": "兄弟",
+      "refs": [
+        "MAT 4:18"
+      ],
+      "source": "curated",
+      "source_id": "curated:peter-andrew",
+      "confidence": "high"
+    }
   ]
 }

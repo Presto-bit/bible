@@ -12,6 +12,7 @@ import {
   centerNeighborEdges,
   computeRelationLayout,
   filterRelationEdges,
+  peerRelationLabel,
   relationCategory,
   secondHopEdges,
   type RelationFilterKey,
@@ -106,6 +107,11 @@ export function LocalRelationGraph({
   useEffect(() => {
     setSelection(null);
   }, [centerId, edgeFilter]);
+
+  const edgeLabel = useCallback(
+    (edge: EntityRelation) => peerRelationLabel(edge, centerId),
+    [centerId],
+  );
 
   const selectedEdge = selection?.kind === 'edge'
     ? filteredEdges[selection.index] ?? null
@@ -293,7 +299,7 @@ export function LocalRelationGraph({
                     selectEdge(index);
                   }}
                 />
-                {edge.label && isCenterSpoke ? (
+                {isCenterSpoke && edgeLabel(edge) ? (
                   <text
                     x={(fromPos.x + toPos.x) / 2}
                     y={(fromPos.y + toPos.y) / 2 - 4}
@@ -306,7 +312,10 @@ export function LocalRelationGraph({
                       selectEdge(index);
                     }}
                   >
-                    {edge.label.length > 10 ? `${edge.label.slice(0, 10)}…` : edge.label}
+                    {(() => {
+                      const text = edgeLabel(edge);
+                      return text.length > 10 ? `${text.slice(0, 10)}…` : text;
+                    })()}
                   </text>
                 ) : null}
               </g>
@@ -369,7 +378,7 @@ export function LocalRelationGraph({
         <div className="local-relation-graph-detail card card-2">
           {selectedEdge ? (
             <>
-              <strong>{selectedEdge.label}</strong>
+              <strong>{edgeLabel(selectedEdge)}</strong>
               <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
                 {RELATION_FILTERS.find((f) => f.key === relationCategory(selectedEdge.type))?.label
                   ?? selectedEdge.type}
@@ -407,7 +416,7 @@ export function LocalRelationGraph({
               ) : null}
               {selectedNodeEdge ? (
                 <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
-                  与{center.name}：{selectedNodeEdge.label}
+                  与{center.name}：{edgeLabel(selectedNodeEdge)}
                 </p>
               ) : null}
               {extraHops.length > 0 ? (

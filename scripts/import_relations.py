@@ -359,6 +359,10 @@ def gnosis_family_edges(people: list[dict], index: EntityIndex, review: list[dic
             if ta in {"OT", "NT"} and tb in {"OT", "NT"} and ta != tb:
                 return
             rel = _gnosis_edge(frm, to, typ, label, refs, source_id)
+            if rel.get("source_id") in {
+                "gnosis:canaan->amorite",
+            }:
+                return
             if endpoint_type_error(rel, index.by_id):
                 return
             if not rel["refs"]:
@@ -582,9 +586,14 @@ def main() -> int:
         "count": len(candidates),
         "candidates": candidates,
     }
+    merged_aliases = dict(CURATED_ALIASES)
+    if ALIASES_OUT.exists():
+        existing = _load_json(ALIASES_OUT).get("aliases") or {}
+        merged_aliases.update({str(k): str(v) for k, v in existing.items() if k and v})
+    merged_aliases.update(dict(CURATED_ALIASES))
     aliases_payload = {
         "schema": "entity_id_aliases@1",
-        "aliases": dict(CURATED_ALIASES),
+        "aliases": merged_aliases,
     }
     # 去重审核记录
     uniq_review = []

@@ -10,6 +10,7 @@ from pathlib import Path
 from ..bible import reader
 from ..bible.refs import parse_ref
 from ..config import get_settings
+from .relation_display import peer_relation_label
 
 # 读经计划元信息（CSV）
 READING_PLANS = {
@@ -553,6 +554,10 @@ def knowledge_layouts() -> list[dict]:
                 "beat_count": len(row.get("beats") or []),
                 "generated_at": row.get("generated_at"),
                 "cover_image": row.get("cover_image"),
+                "kind": row.get("kind") or (
+                    "note" if (row.get("source") or {}).get("kind") == "note" else "journey"
+                ),
+                "media_kinds": row.get("media_kinds") or ["image"],
             }
         )
     return out
@@ -744,7 +749,25 @@ def _entity_label(entity_id: str) -> str:
     return entity_id
 
 
-def relations_graph_for_entity(entity_id: str, *, limit: int = 12) -> dict:
+def _relation_edge_priority(rel: dict, center_id: str) -> tuple[int, int, str]:
+    """家族优先，其次手工边，再按类型与对端 id 稳定排序。"""
+    type_rank = {
+        "parent": 0,
+        "spouse": 1,
+        "sibling": 2,
+        "disciple": 3,
+        "mentor": 4,
+        "companion": 5,
+        "event": 6,
+        "located_at": 7,
+        "contains": 8,
+    }.get(str(rel.get("type") or ""), 9)
+    source_rank = 0 if rel.get("source") == "curated" else 1
+    other = rel["to"] if rel.get("from") == center_id else rel["from"]
+    return (type_rank, source_rank, str(other))
+
+
+def relations_graph_for_entity(entity_id: str, *, limit: int = 20) -> dict:
     """关系子图：中心实体 + 邻接边（含对端名称）。"""
     center = entity_by_id(entity_id)
     if center is None:
@@ -752,7 +775,11 @@ def relations_graph_for_entity(entity_id: str, *, limit: int = 12) -> dict:
     eid = center.get("id") or entity_id
     edges: list[dict] = []
     node_ids: set[str] = {eid}
-    for rel in relations_for_entity(eid):
+    ranked = sorted(
+        relations_for_entity(eid),
+        key=lambda rel: _relation_edge_priority(rel, eid),
+    )
+    for rel in ranked:
         other = rel["to"] if rel.get("from") == eid else rel["from"]
         node_ids.add(other)
         edges.append({
@@ -760,6 +787,7 @@ def relations_graph_for_entity(entity_id: str, *, limit: int = 12) -> dict:
             "peer_id": other,
             "peer_name": _entity_label(other),
             "direction": "out" if rel.get("from") == eid else "in",
+            "label": peer_relation_label(rel, eid),
         })
         if len(edges) >= limit:
             break
@@ -779,7 +807,7 @@ def relations_graph_for_entity(entity_id: str, *, limit: int = 12) -> dict:
     }
 
 
-def entity_knowledge(entity_id: str, *, graph_limit: int = 12) -> dict | None:
+def entity_knowledge(entity_id: str, *, graph_limit: int = 20) -> dict | None:
     center = entity_by_id(entity_id)
     if center is None:
         return None

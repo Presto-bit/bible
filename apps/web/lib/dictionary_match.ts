@@ -104,6 +104,12 @@ export function buildDictIndex(entities: DictEntity[]): Map<string, DictEntity[]
   return m;
 }
 
+/** 人地同名：历史/地理书卷优先地点，族谱书卷优先人物 */
+const PLACE_FAVOR_BOOKS = new Set([
+  'JOS', 'JDG', 'RUT', '1SA', '2SA', '1KI', '2KI', '1CH', '2CH', 'EZR', 'NEH', 'EZK', 'AMO',
+]);
+const GENEALOGY_FAVOR_BOOKS = new Set(['GEN', '1CH']);
+
 /** 书卷语境下的义项偏好（如约翰福音 → 使徒约翰） */
 const BOOK_SENSE_HINTS: Record<string, RegExp> = {
   JHN: /使徒|所爱的门徒|福音作者|启示录/,
@@ -123,6 +129,16 @@ function scoreEntity(e: DictEntity, ctx: DictContext): number {
   const ctxT = testament(bookId);
   if (e.testament === ctxT) score += 40;
   if (e.testament === 'BOTH') score += 20;
+
+  if (e.type === 'place' && PLACE_FAVOR_BOOKS.has(bookId)) score += 55;
+  if (e.type === 'person' && GENEALOGY_FAVOR_BOOKS.has(bookId)) score += 45;
+  const dis = e.disambiguation?.trim() ?? '';
+  if (dis && /城|地|地区| kingdom|place/i.test(dis) && PLACE_FAVOR_BOOKS.has(bookId)) {
+    score += 35;
+  }
+  if (dis && /之子|之祖|人物|门徒|丈夫|妻子|母亲|父亲/.test(dis) && GENEALOGY_FAVOR_BOOKS.has(bookId)) {
+    score += 35;
+  }
 
   const scope = new Set((e.scope_books ?? []).map((b) => b.toUpperCase()));
   if (scope.has(bookId)) score += 80;

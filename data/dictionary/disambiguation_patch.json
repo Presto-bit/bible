@@ -30,6 +30,40 @@
       "match": {"id": "paul"},
       "disambiguation": "使徒保罗（原名扫罗）",
       "aliases_add": ["扫罗"]
+    },
+    {
+      "match": {"id": "迦南"},
+      "disambiguation": "应许之地（非人物迦南）"
+    },
+    {
+      "match": {"id": "canaan"},
+      "disambiguation": "含的儿子，迦南地之名由来"
+    },
+    {
+      "match": {"id": "haran"},
+      "disambiguation": "美索不达米亚城邑（非他拉之子哈兰）"
+    },
+    {
+      "match": {"id": "haran-son-of-terah"},
+      "disambiguation": "他拉之子，罗得之父"
+    },
+    {
+      "match": {"id": "shechem"},
+      "disambiguation": "撒冷北方城邑"
+    },
+    {
+      "match": {"id": "shechem-son-of-hamor"},
+      "disambiguation": "哈摩利族长，强娶底拿"
+    },
+    {
+      "match": {"id": "jacob_patriarch"},
+      "disambiguation": "以撒之子，后改名以色列",
+      "aliases_add": ["以色列"]
+    },
+    {
+      "match": {"id": "abraham"},
+      "disambiguation": "信心之父（原名亚伯兰）",
+      "aliases_add": ["亚伯兰"]
     }
   ]
 }
