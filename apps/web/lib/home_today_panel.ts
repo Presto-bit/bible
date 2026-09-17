@@ -342,23 +342,32 @@ function groupSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   };
 }
 
-/** [4] 探索（随机专题封面缩写） */
+/** [4] 探索：固定插图底；文案=专题短名+导语；点进专题详情 */
 function exploreSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   const e = input.explore || DEFAULT_EXPLORE_SPOTLIGHT;
   const manuscriptId = manuscriptIdFromExploreHref(e.href || '');
   const resume = manuscriptId ? readManuscriptPage(manuscriptId) : 0;
   const media = (e.mediaBadge || '').trim();
+  // 角标只放短信息；长导语走 sub，避免小徽章挤字
   let badge: string | undefined;
   if (resume > 0) badge = `续 · ${resume + 1}`;
   else if (media) badge = media;
-  else if (e.hook) badge = e.hook;
+
+  const hrefRaw = (e.href || '/knowledge').trim();
+  const href =
+    hrefRaw.includes('from=')
+      ? hrefRaw
+      : hrefRaw.includes('?')
+        ? `${hrefRaw}&from=home`
+        : `${hrefRaw}?from=home`;
+
   return {
     id: 'explore',
     tag: '探索',
     title: trimRailTitle(e.title || '探索手稿', SIDE_TITLE_MAX),
-    sub: '',
-    href: e.href || '/knowledge',
-    coverUrl: e.coverUrl,
+    sub: trimRailSub(e.hook || '彼爱手稿'),
+    href,
+    // 不用随机封面：固定 growth_theme 插图
     icon: 'discover',
     cta: resume > 0 ? '续读' : '去看看',
     badge,

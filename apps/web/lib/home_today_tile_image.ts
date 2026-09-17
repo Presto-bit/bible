@@ -54,6 +54,10 @@ export function resolveTodayTileKind(slot: HomeTodayPanelSlot): HomeTodayTileKin
 }
 
 export function resolveTodayTileImage(slot: HomeTodayPanelSlot): string {
+  // 探索坑：始终用固定插图（growth_theme），忽略运营随机封面
+  if (slot.id === 'explore' || slot.tag === '探索') {
+    return clientAssetUrl(HOME_TILES.explore);
+  }
   if (slot.coverUrl) {
     if (slot.coverUrl.startsWith('http') || slot.coverUrl.startsWith('blob:')) {
       return slot.coverUrl;
@@ -61,7 +65,7 @@ export function resolveTodayTileImage(slot: HomeTodayPanelSlot): string {
     if (slot.coverUrl.startsWith('/content/')) {
       return knowledgeMediaUrl(slot.coverUrl);
     }
-    if (slot.id === 'explore' || slot.tag === '探索' || slot.id.startsWith('campaign-')) {
+    if (slot.id.startsWith('campaign-')) {
       const custom = resolveCampaignCoverUrl(slot.coverUrl);
       if (custom) return custom;
       return clientAssetUrl(slot.coverUrl);

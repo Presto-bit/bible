@@ -315,16 +315,20 @@ HomeTodaySlot _groupSlot(HomeTodayInput input) {
 HomeTodaySlot _exploreSlot(HomeTodayInput input) {
   final e = input.explore ?? defaultExploreSpotlight;
   final media = (e.mediaBadge ?? '').trim();
-  final badge = media.isNotEmpty
-      ? media
-      : (e.hook.isEmpty ? null : e.hook);
+  final badge = media.isNotEmpty ? media : null;
+  final hrefRaw = e.href.isEmpty ? '/knowledge' : e.href;
+  final href = hrefRaw.contains('from=')
+      ? hrefRaw
+      : hrefRaw.contains('?')
+          ? '$hrefRaw&from=home'
+          : '$hrefRaw?from=home';
   return HomeTodaySlot(
     id: 'explore',
     tag: '探索',
     title: _trimSide(e.title.isEmpty ? '探索手稿' : e.title),
-    sub: '',
-    href: e.href.isEmpty ? '/knowledge' : e.href,
-    coverUrl: e.coverUrl,
+    sub: e.hook.isEmpty ? '彼爱手稿' : e.hook,
+    href: href,
+    // 固定插图 growth_theme，不用随机封面
     cta: '去看看',
     badge: badge,
   );

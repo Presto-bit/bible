@@ -117,8 +117,7 @@ String? _homeTileFile(HomeTodaySlot slot) {
 }
 
 String _homeTileImage(HomeTodaySlot slot) {
-  if ((slot.id == 'explore' || slot.tag == '探索' || slot.id.startsWith('campaign-')) &&
-      slot.coverUrl != null) {
+  if (slot.id.startsWith('campaign-') && slot.coverUrl != null) {
     final resolved = resolveCampaignCoverUrl(slot.coverUrl);
     if (resolved != null) return resolved;
   }
@@ -128,9 +127,9 @@ String _homeTileImage(HomeTodaySlot slot) {
 }
 
 String? _networkCoverForSlot(HomeTodaySlot slot) {
-  if (slot.id == 'explore' ||
-      slot.tag == '探索' ||
-      slot.id.startsWith('campaign-')) {
+  // 探索坑用固定插图，不跟随机专题封面
+  if (slot.id == 'explore' || slot.tag == '探索') return null;
+  if (slot.id.startsWith('campaign-')) {
     return resolveCampaignCoverUrl(slot.coverUrl);
   }
   return null;

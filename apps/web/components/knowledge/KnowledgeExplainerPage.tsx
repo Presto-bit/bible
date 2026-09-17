@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { type KnowledgeLayout, type MapTour } from '@/lib/api';
 import { recordMapTour } from '@/lib/badge_events';
 import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import { knowledgeMediaUrl } from '@/lib/knowledge_media_url';
 import { readManuscriptPage } from '@/lib/manuscript_progress';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { manuscriptFolioPages } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
 
@@ -28,16 +29,25 @@ export function KnowledgeExplainerPage({
   backLabel = '地图故事',
   autoOpen = false,
 }: Props) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const openFromQuery = searchParams.get('view') === '1';
+  const fromHome = searchParams.get('from') === 'home';
   const shouldAutoOpen = autoOpen || openFromQuery;
-  const goBack = useFlowBack(backHref);
+  const flowBack = useFlowBack(fromHome ? '/knowledge' : backHref);
+  const goTopics = useCallback(() => {
+    markRouteNavigation();
+    router.replace('/knowledge');
+  }, [router]);
+  /** 首页探索进入：关手稿/返回 → 专题列表，不回首页 */
+  const leave = fromHome ? goTopics : flowBack;
   const [viewerOpen, setViewerOpen] = useState(shouldAutoOpen);
   const [resumePage, setResumePage] = useState(0);
 
   const title = layout.title || tour.title;
   const guide = layout.guide_one_liner || tour.subtitle || '';
   const beats = layout.beats || [];
+  const headerBackLabel = fromHome ? '知识专题' : backLabel;
 
   const pages = useMemo(
     () =>
@@ -68,7 +78,7 @@ export function KnowledgeExplainerPage({
   const closeViewer = () => {
     setResumePage(readManuscriptPage(tour.id, pages.length));
     if (shouldAutoOpen) {
-      goBack();
+      leave();
       return;
     }
     setViewerOpen(false);
@@ -84,7 +94,7 @@ export function KnowledgeExplainerPage({
       {!viewerOpen ? (
         <>
           <header className="page-head story-mode-head">
-            <PageBackBar onClick={goBack} label={backLabel} />
+            <PageBackBar onClick={leave} label={headerBackLabel} />
             <h2 className="page-head-title">{title}</h2>
           </header>
 
@@ -124,7 +134,7 @@ export function KnowledgeExplainerPage({
           title={title}
           tourId={tour.id}
           onClose={closeViewer}
-          onExitTopic={goBack}
+          onExitTopic={leave}
         />
       ) : null}
     </div>

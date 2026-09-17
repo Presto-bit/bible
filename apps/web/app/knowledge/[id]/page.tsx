@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { api, type KnowledgeLayout } from '@/lib/api';
 import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
@@ -9,14 +9,22 @@ import { manuscriptPagesFromLayout } from '@/components/knowledge/KnowledgeManus
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
 import { knowledgeMediaUrl } from '@/lib/knowledge_media_url';
 import { readManuscriptPage } from '@/lib/manuscript_progress';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 /** 运营笔记手稿：无地图 tour，直接读 layout */
 export default function KnowledgeNotePage() {
+  const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const noteId = decodeURIComponent(String(params.id || ''));
   const openFromQuery = searchParams.get('view') === '1';
-  const goBack = useFlowBack('/knowledge');
+  const fromHome = searchParams.get('from') === 'home';
+  const flowBack = useFlowBack('/knowledge');
+  const goTopics = useCallback(() => {
+    markRouteNavigation();
+    router.replace('/knowledge');
+  }, [router]);
+  const leave = fromHome ? goTopics : flowBack;
 
   const [layout, setLayout] = useState<KnowledgeLayout | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,7 +87,7 @@ export default function KnowledgeNotePage() {
   if (failed || !layout) {
     return (
       <main className="container">
-        <PageBackBar onClick={goBack} label="探索" />
+        <PageBackBar onClick={leave} label="探索" />
         <p className="muted">未找到该手稿</p>
       </main>
     );
@@ -90,7 +98,7 @@ export default function KnowledgeNotePage() {
   const closeViewer = () => {
     setResumePage(readManuscriptPage(noteId, pages.length || undefined));
     if (openFromQuery) {
-      goBack();
+      leave();
       return;
     }
     setViewerOpen(false);
@@ -102,7 +110,7 @@ export default function KnowledgeNotePage() {
         {!viewerOpen ? (
           <>
             <header className="page-head story-mode-head">
-              <PageBackBar onClick={goBack} label="探索" />
+              <PageBackBar onClick={leave} label="探索" />
               <h2 className="page-head-title">{title}</h2>
             </header>
             <button
@@ -138,7 +146,7 @@ export default function KnowledgeNotePage() {
             title={title}
             tourId={noteId}
             onClose={closeViewer}
-            onExitTopic={goBack}
+            onExitTopic={leave}
           />
         ) : null}
       </div>
