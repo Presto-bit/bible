@@ -7,10 +7,9 @@ import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import { manuscriptPagesFromLayout } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
+import { markKnowledgeSoftReturn, markKnowledgeExpandOrigin } from '@/lib/knowledge_nav';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
-import { readManuscriptPage } from '@/lib/manuscript_progress';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
-import { markKnowledgeSoftReturn } from '@/lib/knowledge_nav';
 
 /** 运营笔记手稿：无地图 tour，直接读 layout */
 export default function KnowledgeNotePage() {
@@ -36,7 +35,6 @@ export default function KnowledgeNotePage() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(openFromQuery);
-  const [resumePage, setResumePage] = useState(0);
 
   useEffect(() => {
     if (!noteId) {
@@ -74,11 +72,6 @@ export default function KnowledgeNotePage() {
   }, [layout, pages]);
 
   useEffect(() => {
-    if (!noteId) return;
-    setResumePage(readManuscriptPage(noteId, pages.length || undefined));
-  }, [noteId, pages.length]);
-
-  useEffect(() => {
     if (openFromQuery) setViewerOpen(true);
   }, [openFromQuery, noteId]);
 
@@ -102,7 +95,6 @@ export default function KnowledgeNotePage() {
   const title = layout.title || noteId;
   const guide = layout.guide_one_liner || '';
   const closeViewer = () => {
-    setResumePage(readManuscriptPage(noteId, pages.length || undefined));
     if (openFromQuery) {
       exitToList();
       return;
@@ -122,12 +114,11 @@ export default function KnowledgeNotePage() {
             <button
               type="button"
               className="knowledge-cover-card"
-              onClick={() => setViewerOpen(true)}
-              aria-label={
-                resumePage > 0
-                  ? `续读「${title}」，第 ${resumePage + 1} 页`
-                  : `打开「${title}」手稿`
-              }
+              onClick={(e) => {
+                markKnowledgeExpandOrigin(e.currentTarget);
+                setViewerOpen(true);
+              }}
+              aria-label={`打开「${title}」手稿`}
             >
               <picture>
                 {coverSources.webp ? (
@@ -146,9 +137,7 @@ export default function KnowledgeNotePage() {
                 <span className="knowledge-cover-card-title">{title}</span>
                 {guide ? <span className="knowledge-cover-card-guide">{guide}</span> : null}
                 <span className="knowledge-cover-card-cta">
-                  {resumePage > 0
-                    ? `续读第 ${resumePage + 1} 页 · 共 ${pages.length} 页`
-                    : `共 ${pages.length} 页 · 左右滑动`}
+                  共 {pages.length} 页 · 左右滑动
                 </span>
               </span>
             </button>

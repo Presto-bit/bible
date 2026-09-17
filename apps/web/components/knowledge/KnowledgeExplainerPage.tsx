@@ -7,9 +7,8 @@ import { recordMapTour } from '@/lib/badge_events';
 import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
-import { readManuscriptPage } from '@/lib/manuscript_progress';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
-import { markKnowledgeSoftReturn } from '@/lib/knowledge_nav';
+import { markKnowledgeSoftReturn, markKnowledgeExpandOrigin } from '@/lib/knowledge_nav';
 import { manuscriptFolioPages } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
 
@@ -48,7 +47,6 @@ export function KnowledgeExplainerPage({
   }, [flowBack]);
   const leaveFromViewer = shouldAutoOpen || fromHome ? goTopics : leave;
   const [viewerOpen, setViewerOpen] = useState(shouldAutoOpen);
-  const [resumePage, setResumePage] = useState(0);
 
   const title = layout.title || tour.title;
   const guide = layout.guide_one_liner || tour.subtitle || '';
@@ -75,26 +73,16 @@ export function KnowledgeExplainerPage({
   }, [tour.id]);
 
   useEffect(() => {
-    setResumePage(readManuscriptPage(tour.id, pages.length));
-  }, [tour.id, pages.length]);
-
-  useEffect(() => {
     if (shouldAutoOpen) setViewerOpen(true);
   }, [shouldAutoOpen, tour.id]);
 
   const closeViewer = () => {
-    setResumePage(readManuscriptPage(tour.id, pages.length));
     if (shouldAutoOpen) {
       leaveFromViewer();
       return;
     }
     setViewerOpen(false);
   };
-
-  const resumeHint =
-    resumePage > 0 && pages.length > 1
-      ? `续读第 ${resumePage + 1} 页 · 共 ${pages.length} 页`
-      : `共 ${pages.length} 页 · 左右滑动`;
 
   return (
     <div className="knowledge-explainer knowledge-explainer--cover">
@@ -108,12 +96,11 @@ export function KnowledgeExplainerPage({
           <button
             type="button"
             className="knowledge-cover-card"
-            onClick={() => setViewerOpen(true)}
-            aria-label={
-              resumePage > 0
-                ? `续读「${title}」手稿，第 ${resumePage + 1} 页`
-                : `查看「${title}」手稿`
-            }
+            onClick={(e) => {
+              markKnowledgeExpandOrigin(e.currentTarget);
+              setViewerOpen(true);
+            }}
+            aria-label={`查看「${title}」手稿`}
           >
             <span className="knowledge-cover-card-media" aria-hidden>
               <picture>
@@ -129,14 +116,16 @@ export function KnowledgeExplainerPage({
               </picture>
               <span className="knowledge-cover-card-veil" />
               <span className="knowledge-cover-card-play">
-                {resumePage > 0 ? '继续阅读' : '打开手稿'}
+                打开手稿
               </span>
             </span>
             <span className="knowledge-cover-card-body">
               <span className="knowledge-cover-card-badge">彼爱手稿</span>
               <span className="knowledge-cover-card-title">{title}</span>
               {guide ? <span className="knowledge-cover-card-guide">{guide}</span> : null}
-              <span className="knowledge-cover-card-cta">{resumeHint}</span>
+              <span className="knowledge-cover-card-cta">
+                共 {pages.length} 页 · 左右滑动
+              </span>
             </span>
           </button>
 

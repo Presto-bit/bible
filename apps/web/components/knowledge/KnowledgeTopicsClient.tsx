@@ -7,8 +7,7 @@ import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import type { KnowledgeLayoutSummary } from '@/lib/api';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import { knowledgeLayoutViewHref } from '@/lib/topic_routes';
-import { readManuscriptPage } from '@/lib/manuscript_progress';
-import { consumeKnowledgeSoftReturn } from '@/lib/knowledge_nav';
+import { consumeKnowledgeSoftReturn, markKnowledgeExpandOrigin } from '@/lib/knowledge_nav';
 import {
   knowledgeKindLabel,
   knowledgeMediaBadge,
@@ -91,7 +90,6 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
   const goBack = useFlowBack('/');
   const [rows, setRows] = useState(initialLayouts);
   const [filter, setFilter] = useState<FilterId>('all');
-  const [resumeById, setResumeById] = useState<Record<string, number>>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [softReturn, setSoftReturn] = useState(false);
@@ -121,20 +119,6 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
       void adminCheck().then(setIsAdmin).catch(() => setIsAdmin(false));
     });
   }, []);
-
-  useEffect(() => {
-    return scheduleIdle(() => {
-      const map: Record<string, number> = {};
-      for (const row of rows) {
-        const id = row.source?.id || row.id;
-        if (!id) continue;
-        const pageCount = row.beat_count ? row.beat_count + 1 : undefined;
-        const page = readManuscriptPage(id, pageCount);
-        if (page > 0) map[id] = page;
-      }
-      setResumeById(map);
-    });
-  }, [rows]);
 
   const visible = useMemo(() => {
     if (filter === 'all') return rows;
@@ -221,7 +205,6 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
         <div className="knowledge-topics-grid">
           {visible.map((row, i) => {
             const sourceId = row.source?.id || row.id;
-            const resume = sourceId ? resumeById[sourceId] : undefined;
             const meta = resolveKnowledgeTopicMeta(row);
             const mediaBadge = knowledgeMediaBadge(meta.media);
             const note = isNoteRow(row);
@@ -233,12 +216,11 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
                   href={knowledgeLayoutViewHref(row)}
                   prefetch
                   className="knowledge-topic-card"
-                  aria-label={
-                    resume
-                      ? `${row.title || row.id}，续读第 ${resume + 1} 页`
-                      : `${row.title || row.id}，打开手稿`
-                  }
+                  aria-label={`${row.title || row.id}，打开手稿`}
                   style={{ ['--stagger' as string]: stagger }}
+                  onClick={(e) => {
+                    markKnowledgeExpandOrigin(e.currentTarget);
+                  }}
                 >
                   <span className="knowledge-topic-card-media" aria-hidden>
                     <picture>
@@ -262,9 +244,7 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
                     {mediaBadge ? (
                       <span className="knowledge-topic-card-media-badge">{mediaBadge}</span>
                     ) : null}
-                    {resume ? (
-                      <span className="knowledge-topic-card-resume">续 · {resume + 1}</span>
-                    ) : row.beat_count ? (
+                    {row.beat_count ? (
                       <span className="knowledge-topic-card-count">{row.beat_count} 页</span>
                     ) : null}
                     <span className="knowledge-topic-card-caption">

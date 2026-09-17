@@ -12,6 +12,12 @@ import { knowledgeMediaUrl, knowledgeRasterSources } from '@/lib/knowledge_media
 import { writeManuscriptPage } from '@/lib/manuscript_progress';
 import { isShareAbortError, shareOutbound } from '@/lib/share_outbound';
 import type { ManuscriptFolioPage } from '@/components/knowledge/KnowledgeManuscriptFolio';
+import {
+  clearKnowledgeExpandOrigin,
+  peekKnowledgeExpandOrigin,
+  type KnowledgeExpandOrigin,
+} from '@/lib/knowledge_nav';
+import type { CSSProperties } from 'react';
 
 type Props = {
   pages: ManuscriptFolioPage[];
@@ -22,6 +28,19 @@ type Props = {
   /** 第一页再向「上一页」方向滑：退出专题 */
   onExitTopic: () => void;
 };
+
+function expandStyleVars(origin: KnowledgeExpandOrigin): CSSProperties {
+  if (typeof window === 'undefined') return {};
+  const vw = Math.max(window.innerWidth, 1);
+  const vh = Math.max(window.innerHeight, 1);
+  return {
+    ['--kx' as string]: `${origin.x}px`,
+    ['--ky' as string]: `${origin.y}px`,
+    ['--ksx' as string]: String(origin.w / vw),
+    ['--ksy' as string]: String(origin.h / vh),
+    ['--kr' as string]: `${origin.radius || 16}px`,
+  };
+}
 
 function ManuscriptRaster({
   path,
@@ -220,6 +239,9 @@ export function KnowledgeManuscriptViewer({
   const [chromeHidden, setChromeHidden] = useState(false);
   const [motionPhase, setMotionPhase] = useState<'enter' | 'ready' | 'leave'>('enter');
   const leavingRef = useRef(false);
+  const [expandOrigin] = useState<KnowledgeExpandOrigin | null>(() =>
+    peekKnowledgeExpandOrigin(),
+  );
   const [loaded, setLoaded] = useState<Record<number, boolean>>(() => {
     const init: Record<number, boolean> = {};
     for (let i = 0; i <= Math.min(total - 1, 1); i++) {
@@ -233,6 +255,7 @@ export function KnowledgeManuscriptViewer({
   const didRestoreScroll = useRef(false);
   const current = pages[index] || pages[0];
   const pageMedia = current?.media;
+  const hasExpand = Boolean(expandOrigin);
 
   useEffect(() => {
     indexRef.current = index;
@@ -248,10 +271,22 @@ export function KnowledgeManuscriptViewer({
     };
   }, []);
 
-  // 进入：首帧即可见，避免「黑屏再淡入」加重卡顿感
+  // 小红书式：从卡片矩形放大到全屏；无原点则直接就绪
   useEffect(() => {
-    setMotionPhase('ready');
-  }, []);
+    clearKnowledgeExpandOrigin();
+    if (typeof window === 'undefined') return;
+    if (
+      !expandOrigin ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      setMotionPhase('ready');
+      return;
+    }
+    const id = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setMotionPhase('ready'));
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [expandOrigin]);
 
   const softLeave = useCallback(
     (done: () => void) => {
@@ -265,9 +300,9 @@ export function KnowledgeManuscriptViewer({
         return;
       }
       setMotionPhase('leave');
-      window.setTimeout(done, 140);
+      window.setTimeout(done, hasExpand ? 300 : 160);
     },
-    [],
+    [hasExpand],
   );
 
   const handleClose = useCallback(() => softLeave(onClose), [softLeave, onClose]);
@@ -444,12 +479,15 @@ export function KnowledgeManuscriptViewer({
       className={[
         'knowledge-viewer',
         chromeHidden ? 'is-chrome-hidden' : '',
-        motionPhase === 'enter' ? 'is-enter' : '',
+        hasExpand ? 'is-expand' : '',
+        motionPhase === 'enter' && hasExpand ? 'is-expand-from' : '',
         motionPhase === 'ready' ? 'is-ready' : '',
         motionPhase === 'leave' ? 'is-leave' : '',
+        motionPhase === 'leave' && hasExpand ? 'is-expand-to' : '',
       ]
         .filter(Boolean)
         .join(' ')}
+      style={expandOrigin ? expandStyleVars(expandOrigin) : undefined}
       role="dialog"
       aria-modal="true"
       aria-label={title}
