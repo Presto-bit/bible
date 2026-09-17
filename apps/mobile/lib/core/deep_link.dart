@@ -65,6 +65,11 @@ class DeepLink {
       return _h5(uri.replace(path: path));
     }
 
+    // 圣经知识专题列表 / 手稿：H5
+    if (path == '/knowledge' || path.startsWith('/knowledge/')) {
+      return _h5(uri.replace(path: path));
+    }
+
     // 知识探索（除 series）：Flutter 原生
     if (path == '/search' ||
         (path.startsWith('/search/') && !path.startsWith('/search/series'))) {

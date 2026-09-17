@@ -34,6 +34,11 @@ export const H5_WHITELIST: readonly H5WhitelistEntry[] = [
   },
   {
     surface: 'story_series',
+    pathPrefix: '/knowledge',
+    note: '圣经知识专题列表与手稿',
+  },
+  {
+    surface: 'story_series',
     pathPrefix: '/search/map',
     note: '地图故事',
   },

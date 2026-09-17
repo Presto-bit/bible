@@ -574,6 +574,8 @@ export interface KnowledgeLayout {
   id: string;
   title?: string;
   guide_one_liner?: string;
+  generated_at?: string;
+  cover_image?: string;
   density?: 'concise' | 'standard' | 'detailed';
   source: { kind: string; id: string };
   template: string;
@@ -586,9 +588,13 @@ export interface KnowledgeLayout {
 export interface KnowledgeLayoutSummary {
   id: string;
   title?: string;
+  guide_one_liner?: string;
   template?: string;
   source?: { kind: string; id: string };
   beat_count?: number;
+  /** ISO 时间；列表按此降序 */
+  generated_at?: string;
+  cover_image?: string;
 }
 
 export interface TimelineTourEvent {

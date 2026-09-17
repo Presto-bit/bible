@@ -798,14 +798,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     0;
                                 return HomeGrowthFeatureInput(
                                   title: '探索经文主题',
-                                  detail: n > 0 ? '$n 个主题 · 去搜索' : '按主题找经文',
-                                  href: '/search',
+                                  detail: n > 0 ? '$n 个专题 · 去看看' : '圣经知识专题',
+                                  href: '/knowledge',
                                 );
                               }(),
                             ),
                             onReport: () => openH5IfAllowed(context, '/report'),
                             onPlan: planOnTap ?? () => context.push('/plans'),
-                            onTheme: () => context.push('/search'),
+                            onTheme: () => openH5IfAllowed(context, '/knowledge'),
                             onPrayer: () => openH5IfAllowed(context, '/pray'),
                           ),
                           const SizedBox(height: 12),

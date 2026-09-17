@@ -547,9 +547,12 @@ def knowledge_layouts() -> list[dict]:
             {
                 "id": row.get("id"),
                 "title": row.get("title"),
+                "guide_one_liner": row.get("guide_one_liner"),
                 "template": row.get("template"),
                 "source": row.get("source"),
                 "beat_count": len(row.get("beats") or []),
+                "generated_at": row.get("generated_at"),
+                "cover_image": row.get("cover_image"),
             }
         )
     return out

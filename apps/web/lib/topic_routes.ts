@@ -17,6 +17,11 @@ export function mapStoryHref(tourId?: string) {
   return `/search/map/${encodeURIComponent(tourId || FEATURED_MAP_TOUR)}`;
 }
 
+/** 圣经知识专题列表 */
+export function knowledgeTopicsHref() {
+  return '/knowledge';
+}
+
 export function timelineStoryHref(tourId?: string) {
   return `/search/timeline/${encodeURIComponent(tourId || FEATURED_TIMELINE_TOUR)}`;
 }

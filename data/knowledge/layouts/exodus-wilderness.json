@@ -3,6 +3,8 @@
   "id": "exodus-wilderness",
   "title": "出埃及 · 旷野行程",
   "guide_one_liner": "从埃及到西奈：离开、过海、旷野供应与试炼，最终在山下安营。",
+  "generated_at": "2026-09-16T08:00:00Z",
+  "cover_image": "/knowledge/vignettes/wilderness/00_overview.png",
   "density": "standard",
   "source": {
     "kind": "map_tour",

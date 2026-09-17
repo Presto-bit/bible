@@ -67,8 +67,8 @@ function MapStoryPageContent() {
         <KnowledgeExplainerPage
           tour={tour}
           layout={layout}
-          backHref="/search/map"
-          backLabel="地图故事"
+          backHref="/knowledge"
+          backLabel="知识专题"
         />
       ) : (
         <MapStoryMode tourId={tourId} backHref="/search/map" backLabel="地图故事" />

@@ -442,9 +442,9 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         title: '探索经文主题',
         detail:
           idx.themes.length > 0
-            ? `${idx.themes.length} 个主题 · 去搜索`
-            : '按主题找经文',
-        href: '/search',
+            ? `${idx.themes.length} 个专题 · 去看看`
+            : '圣经知识专题',
+        href: '/knowledge',
       };
       themeFeatureRef.current = next;
       setThemeFeature(next);

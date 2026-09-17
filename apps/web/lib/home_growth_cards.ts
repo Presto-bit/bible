@@ -68,7 +68,7 @@ function pushCard(cards: HomeGrowthCard[], card: HomeGrowthCard) {
 }
 
 /**
- * 顺序：摘要 → 读经计划 → 主题探索 → 祷告（跳过今日推荐已有的）。
+ * 顺序：摘要 → 读经计划 → 祷告 → 主题探索（跳过今日推荐已有的）。
  */
 export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthModel {
   const report = buildReport();
@@ -127,23 +127,7 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
     }
   }
 
-  // 2. 主题探索
-  {
-    const theme = opts?.theme;
-    pushCard(cards, {
-      id: 'feature-theme',
-      kind: 'feature',
-      tag: '主题',
-      title: theme?.title || '探索经文主题',
-      detail: theme?.detail || '按主题找经文',
-      href: theme?.href || '/search',
-      mediaTone: 'theme',
-      icon: homeMediaIconForTone('theme'),
-      imageUrl: homeGrowthCardImageUrl('feature-theme'),
-    });
-  }
-
-  // 3. 祷告
+  // 2. 祷告（原主题位）
   if (!occupied.prayer) {
     const prayer = opts?.prayer;
     if (prayer) {
@@ -171,6 +155,22 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
         imageUrl: homeGrowthCardImageUrl('feature-prayer'),
       });
     }
+  }
+
+  // 3. 主题探索 → 圣经知识专题
+  {
+    const theme = opts?.theme;
+    pushCard(cards, {
+      id: 'feature-theme',
+      kind: 'feature',
+      tag: '主题',
+      title: theme?.title || '探索经文主题',
+      detail: theme?.detail || '圣经知识专题',
+      href: theme?.href || '/knowledge',
+      mediaTone: 'theme',
+      icon: homeMediaIconForTone('theme'),
+      imageUrl: homeGrowthCardImageUrl('feature-theme'),
+    });
   }
 
   return { cards };

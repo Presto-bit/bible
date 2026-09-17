@@ -83,7 +83,7 @@ String? _growthImageFile(String id) {
   return null;
 }
 
-/// 顺序：摘要 → 读经计划 → 主题探索 → 祷告（跳过今日推荐已有的）。
+/// 顺序：摘要 → 读经计划 → 祷告 → 主题探索（跳过今日推荐已有的）。
 HomeGrowthModel buildHomeGrowthModel({
   int todayMin = 0,
   int monthDays = 0,
@@ -135,20 +135,6 @@ HomeGrowthModel buildHomeGrowthModel({
     ));
   }
 
-  push(HomeGrowthCard(
-    id: 'theme',
-    tag: '主题',
-    title: (theme?.title ?? '').trim().isEmpty
-        ? '探索经文主题'
-        : theme!.title.trim(),
-    detail: (theme?.detail ?? '').trim().isEmpty
-        ? '按主题找经文'
-        : theme!.detail!.trim(),
-    href: theme?.href ?? '/search',
-    iconName: 'explore',
-    imageFile: _growthImageFile('theme'),
-  ));
-
   if (!occupied.prayer) {
     push(HomeGrowthCard(
       id: 'prayer',
@@ -164,6 +150,20 @@ HomeGrowthModel buildHomeGrowthModel({
       imageFile: _growthImageFile('prayer'),
     ));
   }
+
+  push(HomeGrowthCard(
+    id: 'theme',
+    tag: '主题',
+    title: (theme?.title ?? '').trim().isEmpty
+        ? '探索经文主题'
+        : theme!.title.trim(),
+    detail: (theme?.detail ?? '').trim().isEmpty
+        ? '圣经知识专题'
+        : theme!.detail!.trim(),
+    href: theme?.href ?? '/knowledge',
+    iconName: 'explore',
+    imageFile: _growthImageFile('theme'),
+  ));
 
   return HomeGrowthModel(cards: cards);
 }
