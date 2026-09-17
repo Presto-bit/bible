@@ -354,8 +354,16 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       return null;
     }
   });
-  const [themeFeature, setThemeFeature] = useState<HomeGrowthFeatureInput | null>(null);
-  const themeFeatureRef = useRef<HomeGrowthFeatureInput | null>(null);
+  const [themeFeature, setThemeFeature] = useState<HomeGrowthFeatureInput | null>(() => ({
+    title: '探索经文主题',
+    detail: '圣经知识专题',
+    href: '/knowledge',
+  }));
+  const themeFeatureRef = useRef<HomeGrowthFeatureInput | null>({
+    title: '探索经文主题',
+    detail: '圣经知识专题',
+    href: '/knowledge',
+  });
   const [ptrToast, setPtrToast] = useState<string | null>(null);
   const [userName, setUserName] = useState('');
   const [greeting, setGreeting] = useState(() =>
