@@ -8,11 +8,35 @@ export const SYNC_PULL_ENTITIES = contract.entities as string[];
 
 export type DayLogMerge = { minutes: number; chapters: number };
 
+export type ActivityDayMerge = {
+  prayers: number;
+  listen_minutes: number;
+  shelf_checkins: number;
+  shelf_posts: number;
+  visual_cards: number;
+  knowledge_steps: number;
+};
+
 /** reading_log：按日取 minutes/chapters 较大值 */
 export function mergeReadingLogDay(a: DayLogMerge, b: DayLogMerge): DayLogMerge {
   return {
     minutes: Math.max(a.minutes || 0, b.minutes || 0),
     chapters: Math.max(a.chapters || 0, b.chapters || 0),
+  };
+}
+
+/** activity_log：按日各计数取较大值 */
+export function mergeActivityLogDay(
+  a: ActivityDayMerge,
+  b: Partial<ActivityDayMerge>,
+): ActivityDayMerge {
+  return {
+    prayers: Math.max(a.prayers || 0, b.prayers || 0),
+    listen_minutes: Math.max(a.listen_minutes || 0, b.listen_minutes || 0),
+    shelf_checkins: Math.max(a.shelf_checkins || 0, b.shelf_checkins || 0),
+    shelf_posts: Math.max(a.shelf_posts || 0, b.shelf_posts || 0),
+    visual_cards: Math.max(a.visual_cards || 0, b.visual_cards || 0),
+    knowledge_steps: Math.max(a.knowledge_steps || 0, b.knowledge_steps || 0),
   };
 }
 

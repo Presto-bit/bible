@@ -4,10 +4,11 @@ library;
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/activity_log.dart';
 import '../../core/api_client.dart';
 
 final shelfPostsRepoProvider = Provider<ShelfPostsRepository>((ref) {
-  return ShelfPostsRepository(ref.watch(dioProvider));
+  return ShelfPostsRepository(ref.watch(dioProvider), ref);
 });
 
 /// 阅读器底栏评论角标：0 不展示，≥999 显示 999+。
@@ -174,9 +175,10 @@ String formatShelfPostTime(String? iso) {
 }
 
 class ShelfPostsRepository {
-  ShelfPostsRepository(this._dio);
+  ShelfPostsRepository(this._dio, this._ref);
 
   final Dio _dio;
+  final Ref _ref;
 
   String _bookPath(String bookId) =>
       '/shelf/platform/${Uri.encodeComponent(bookId)}';
@@ -264,7 +266,13 @@ class ShelfPostsRepository {
         if (readStatus != null) 'read_status': readStatus,
       },
     );
-    return ShelfPost.fromJson(res.data ?? const {});
+    final post = ShelfPost.fromJson(res.data ?? const {});
+    await logShelfPost(
+      _ref,
+      bookId,
+      kind == ShelfPostKind.review ? 'review' : 'note',
+    );
+    return post;
   }
 
   Future<ShelfPostReply> replyPost(String bookId, String postId, String body) async {

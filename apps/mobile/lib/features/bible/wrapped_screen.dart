@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api_client.dart' show prefsProvider;
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/database/app_database.dart' show Note, Bookmark;
 import '../../core/home_day_wallpaper_cache.dart';
@@ -61,6 +62,7 @@ final wrappedStatsProvider = FutureProvider.family<WrappedStats, String>((
     favoritesCount: bookmarks.length,
     marksCount: highlights.length,
     highlightColors: colorByRef,
+    prefs: ref.read(prefsProvider),
   );
 
   Future<String?> fetchVerseText(String refKey) async {

@@ -24,6 +24,7 @@ const userScopedPrefBases = <String>[
   'verse_thoughts_v1',
   'mark_note_links_v1',
   'prayer_log',
+  'presto_activity_log',
   'onboarding_name',
   'profile_bio',
   'profile_avatar',

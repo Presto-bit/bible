@@ -154,7 +154,10 @@ export function createShelfPost(
   return authed<ShelfPost>(
     `/shelf/platform/${encodeURIComponent(bookId)}/posts`,
     { method: 'POST', body },
-  );
+  ).then((post) => {
+    void import('./activity_log').then((m) => m.logShelfPost(bookId, body.kind));
+    return post;
+  });
 }
 
 export function replyShelfPost(

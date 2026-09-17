@@ -1,14 +1,18 @@
 /// 预置静态结构参考卡（对齐 PWA `StructureAssetCard.tsx`）。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/activity_log.dart';
 import '../../core/theme.dart';
 import 'assistant_blocks.dart';
 import 'timeline_rail.dart';
 
-class StructureAssetCard extends StatelessWidget {
+class StructureAssetCard extends ConsumerWidget {
   const StructureAssetCard({super.key, required this.asset});
 
   final StructureAsset asset;
@@ -25,7 +29,7 @@ class StructureAssetCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
@@ -70,7 +74,10 @@ class StructureAssetCard extends StatelessWidget {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              onPressed: () => context.push(asset.href!),
+              onPressed: () {
+                unawaited(logVisualCardView(ref, asset.id));
+                context.push(asset.href!);
+              },
               child: Text('查看完整$_kindLabel ›'),
             ),
         ],

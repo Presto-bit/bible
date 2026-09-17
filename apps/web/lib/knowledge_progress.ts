@@ -49,6 +49,7 @@ export function saveKnowledgeProgress(
 ) {
   const all = readAll();
   const key = progressKey(kind, id);
+  const prev = all[key];
   all[key] = {
     step: Math.max(0, opts.step),
     total: Math.max(1, opts.total),
@@ -56,6 +57,11 @@ export function saveKnowledgeProgress(
     updatedAt: Date.now(),
   };
   writeAll(all);
+  if (!prev || prev.step !== opts.step || prev.completed !== Boolean(opts.completed)) {
+    void import('./activity_log').then((m) =>
+      m.logKnowledgeStep(kind, id, opts.step, opts.total),
+    );
+  }
 }
 
 /** 有未完成进度时返回应续看的 step；已完成或无记录返回 null */

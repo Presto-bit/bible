@@ -1,5 +1,6 @@
 /** 首次将本机阅读/成就数据并入账号云同步 */
 
+import { bulkPushLocalActivityLogs } from './activity_log_sync';
 import { bulkPushLocalReadingLogs } from './reading_log_sync';
 import { bulkPushLocalReadEvents } from './read_event_sync';
 import { bulkPushLocalBadgeUnlocks } from './badge_unlock_sync';
@@ -45,6 +46,7 @@ export function markSyncMigrated() {
 /** 本机阅读日志、章节明细、已解锁成就 → outbox */
 export function enqueueLocalReadingMigration() {
   bulkPushLocalReadingLogs();
+  bulkPushLocalActivityLogs();
   bulkPushLocalReadEvents();
   const stats = loadBadgeStats();
   const items = Object.entries(stats.unlocked_at).map(([id, unlockedAt]) => ({

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/app_shell.dart' show navIndexProvider;
+import '../../core/activity_log.dart';
 import '../../core/badge_stats.dart';
 import '../../core/theme.dart';
 import '../social/social_repository.dart';
@@ -122,6 +123,11 @@ class _ShelfCheckinBodyState extends ConsumerState<_ShelfCheckinBody> {
             body: _normalizeBody(_body.text, bookShare: _bookShare),
           );
       ref.read(badgeStatsRecorderProvider).recordGroupCheckin(groupId: gid);
+      await logShelfCheckin(
+        ref,
+        widget.bookId,
+        sectionId: widget.sectionId,
+      );
       if (!mounted) return;
       setState(() => _submitted = true);
       ref.invalidate(myGroupsProvider);

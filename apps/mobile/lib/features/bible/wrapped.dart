@@ -1,6 +1,8 @@
 /// 月/年度读经回顾（对齐 Web wrapped.ts）。
 library;
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/gamification.dart';
 import '../../core/mark_ref.dart';
 import '../../core/ref_label.dart';
@@ -321,9 +323,10 @@ WrappedStats buildWrapped({
   required int favoritesCount,
   required int marksCount,
   Map<String, String>? highlightColors,
+  SharedPreferences? prefs,
 }) {
   final range = _periodRange(period);
-  final stats = review.rangeStats(range.start, range.end);
+  final stats = review.rangeStats(range.start, range.end, prefs);
   final streak = readingStreak(review);
   final topFromRead = stats.topBooks.isEmpty ? null : stats.topBooks.first.key;
   final topBookId = topFromRead;
@@ -464,17 +467,28 @@ WrappedStats buildWrapped({
     );
   }
 
-  if (marksCount > 0 || notesCount > 0) {
+  if (
+    marksCount > 0 ||
+    notesCount > 0 ||
+    stats.prayers > 0 ||
+    stats.listenMinutes > 0
+  ) {
     final bodyParts = <String>[
       if (marksCount > 0) '$marksCount 处划线',
       if (notesCount > 0) '$notesCount 条笔记',
       if (favoritesCount > 0) '$favoritesCount 处收藏',
+      if (stats.listenMinutes > 0) '听读 ${stats.listenMinutes} 分钟',
+      if (stats.prayers > 0) '${stats.prayers} 次祷告',
     ];
     slides.add(
       WrappedSlide(
         kind: WrappedSlideKind.marks,
         kicker: '留下的痕迹',
-        title: marksCount > 0 || notesCount > 0 ? '你把感动记了下来' : '祷告也算在足迹里',
+        title: marksCount > 0 || notesCount > 0
+            ? '你把感动记了下来'
+            : stats.listenMinutes > 0
+                ? '听读与祷告也算在足迹里'
+                : '祷告也算在足迹里',
         body: bodyParts.join(' · '),
         metrics: [
           ('$marksCount', '划线'),

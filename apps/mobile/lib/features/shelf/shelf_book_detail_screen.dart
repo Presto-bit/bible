@@ -9,7 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api_client.dart';
+import '../../core/activity_log.dart';
+import '../../core/api_client.dart' show prefsProvider;
 import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
 import 'shelf_checkin_sheet.dart';
@@ -60,6 +61,18 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
     };
     _loadBook();
     _loadPosts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final progress =
+          ShelfProgressStore(ref.read(prefsProvider)).loadBook(widget.bookId);
+      unawaited(
+        logShelfOpen(
+          ref,
+          widget.bookId,
+          progress != null &&
+              (progress.finished || progress.sectionId.isNotEmpty),
+        ),
+      );
+    });
   }
 
   Future<void> _loadBook() async {

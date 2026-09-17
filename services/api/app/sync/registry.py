@@ -51,6 +51,21 @@ REGISTRY: dict[str, EntitySpec] = {
         "reading_log", "reading_log", ("user_id", "date"), ("date",),
         ("minutes", "chapters"), False,
     ),
+    "activity_log": EntitySpec(
+        "activity_log",
+        "activity_log",
+        ("user_id", "date"),
+        ("date",),
+        (
+            "prayers",
+            "listen_minutes",
+            "shelf_checkins",
+            "shelf_posts",
+            "visual_cards",
+            "knowledge_steps",
+        ),
+        False,
+    ),
     "plan_progress": EntitySpec(
         "plan_progress", "plan_progress", ("user_id", "plan_id"), ("plan_id",),
         ("day", "status", "session"), False, json_cols=frozenset({"session"}),

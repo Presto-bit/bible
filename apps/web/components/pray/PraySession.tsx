@@ -137,6 +137,9 @@ export default function PraySession() {
     if (!loggedRef.current) {
       loggedRef.current = true;
       logPrayer();
+      void import('@/lib/flutter_h5_bridge').then((m) =>
+        m.peiaiOpenNative({ type: 'prayer_finish' }),
+      );
       toast('今日祷告已完成');
     }
   }, [toast]);

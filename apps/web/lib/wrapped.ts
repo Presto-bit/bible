@@ -338,15 +338,26 @@ export function buildWrapped(period: WrappedPeriod): WrappedStats {
     });
   }
 
-  if (marksCount > 0 || notesCount > 0 || stats.prayers > 0) {
+  if (
+    marksCount > 0 ||
+    notesCount > 0 ||
+    stats.prayers > 0 ||
+    stats.listenMinutes > 0
+  ) {
     slides.push({
       kind: 'marks',
       kicker: '留下的痕迹',
-      title: marksCount > 0 || notesCount > 0 ? '你把感动记了下来' : '祷告也算在足迹里',
+      title:
+        marksCount > 0 || notesCount > 0
+          ? '你把感动记了下来'
+          : stats.listenMinutes > 0
+            ? '听读与祷告也算在足迹里'
+            : '祷告也算在足迹里',
       body: [
         marksCount > 0 ? `${marksCount} 处划线` : null,
         notesCount > 0 ? `${notesCount} 条笔记` : null,
         favoritesCount > 0 ? `${favoritesCount} 处收藏` : null,
+        stats.listenMinutes > 0 ? `听读 ${stats.listenMinutes} 分钟` : null,
         stats.prayers > 0 ? `${stats.prayers} 次祷告` : null,
       ]
         .filter(Boolean)

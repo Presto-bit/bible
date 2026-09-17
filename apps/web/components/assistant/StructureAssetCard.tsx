@@ -26,7 +26,15 @@ export default function StructureAssetCard({ asset }: Props) {
         <TimelineRail nodes={nodes} preset />
       ) : null}
       {asset.href ? (
-        <Link href={asset.href} className="structure-asset-link text-link">
+        <Link
+          href={asset.href}
+          className="structure-asset-link text-link"
+          onClick={() => {
+            void import('@/lib/activity_log').then((m) =>
+              m.logVisualCardView(asset.id || asset.label, 'link'),
+            );
+          }}
+        >
           查看完整{kindLabel} ›
         </Link>
       ) : null}

@@ -15,6 +15,7 @@ import '../features/assistant/assistant_seed.dart';
 import '../features/bible/offline_download_sheet.dart';
 import 'app_update.dart';
 import 'app_update_dialog.dart';
+import 'activity_log.dart';
 import 'campaign_nav.dart';
 import 'notifications.dart';
 import 'app_theme.dart';
@@ -237,6 +238,18 @@ void attachPeiaiJsChannel(
           Future.microtask(() {
             if (!context.mounted) return;
             showOfflineDownloadSheet(context, ref);
+          });
+        } else if (type == 'prayer_finish') {
+          Future.microtask(() async {
+            await logActivityPrayer(
+              ref,
+              flowId: '${data['flow_id'] ?? ''}'.trim().isEmpty
+                  ? null
+                  : '${data['flow_id']}',
+              planId: '${data['plan_id'] ?? ''}'.trim().isEmpty
+                  ? null
+                  : '${data['plan_id']}',
+            );
           });
         } else if (type == 'hard_reload') {
           Future.microtask(() async {

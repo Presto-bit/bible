@@ -104,9 +104,12 @@ export function markPlanDayCompleted(planId: string, day: number) {
     setSkippedPlanDays(planId, Array.from(skipped));
   }
   if (!already) {
+    const active = getActivePlan();
+    const meta = getCachedPlanMeta(planId);
+    const kind = active?.planId === planId ? active.kind : meta?.kind;
     void import('./product_events').then((m) =>
       m.trackProductEvent('plan_day_done', {
-        props: { plan_id: planId, day },
+        props: { plan_id: planId, day, kind: kind ?? 'reading' },
         oncePerDay: true,
         onceSalt: `${planId}:${day}`,
       }),

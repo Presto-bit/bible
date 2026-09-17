@@ -5,8 +5,8 @@ from app.analytics.product_events import (
 )
 
 
-def test_twelve_product_events():
-    assert len(PRODUCT_EVENT_NAMES) == 12
+def test_product_events_catalog():
+    assert len(PRODUCT_EVENT_NAMES) == 20
     assert set(EVENT_LABELS) == PRODUCT_EVENT_NAMES
 
 

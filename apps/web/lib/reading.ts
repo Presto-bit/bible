@@ -12,6 +12,7 @@ import {
   readingLogStorageKey,
   verseEventsStorageKey,
 } from './reading_storage';
+import { activityTotalsInRange } from './activity_log';
 import { collectGoldenVerseScores } from './golden_verses';
 import { userLsGet, userLsSet } from './user_storage';
 
@@ -68,6 +69,13 @@ function addDwellSeconds(sec: number) {
   buffers[day] = totalSec % 60;
   localStorage.setItem(readSecBufferStorageKey(), JSON.stringify(buffers));
   if (addMin <= 0) return;
+  bumpReadingMinutes(addMin);
+}
+
+/** 直接累加当日阅读分钟（听读结束等场景）。 */
+export function bumpReadingMinutes(addMin: number) {
+  if (addMin <= 0 || typeof window === 'undefined') return;
+  const day = ymd(new Date());
   const logs = read();
   const cur = logs[day] || { minutes: 0, chapters: 0 };
   logs[day] = { ...cur, minutes: cur.minutes + addMin };
@@ -426,6 +434,10 @@ export interface RangeStats {
   chapters: number;
   days: number;
   prayers: number;
+  listenMinutes: number;
+  shelfCheckins: number;
+  visualCards: number;
+  knowledgeSteps: number;
   topBooks: RankItem[];
   topChapters: RankItem[];
   topVerses: RankItem[];
@@ -478,11 +490,27 @@ export function rangeStats(startMs: number, endMs: number): RangeStats {
       .filter((x) => x.count > 0)
       .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key))
       .slice(0, n);
+  const activity =
+    typeof window !== 'undefined'
+      ? activityTotalsInRange(startMs, endMs)
+      : {
+          prayers: 0,
+          listen_minutes: 0,
+          shelf_checkins: 0,
+          shelf_posts: 0,
+          visual_cards: 0,
+          knowledge_steps: 0,
+        };
+
   return {
     minutes,
     chapters,
     days,
     prayers: prayersInRange(startMs, endMs),
+    listenMinutes: activity.listen_minutes,
+    shelfCheckins: activity.shelf_checkins,
+    visualCards: activity.visual_cards,
+    knowledgeSteps: activity.knowledge_steps,
     topBooks: rank(bookCount, 5),
     topChapters: rank(chapCount, 5),
     topVerses: rankVerses(verseCount, 5),
@@ -537,7 +565,7 @@ export function computeBookProgressFromEvents(
   return { passes, remainderPct, distinctChapters };
 }
 
-/** 旅程目录卷卡文案（PRODUCT §1.7：`{遍数}+{进度%}` 或 `✓ 通读`）。 */
+/** 旅程目录卷卡文案（PRODUCT §1.7：`{遍数}+{进度%}` 或 `通读`）。 */
 export function formatBookProgressLabel(
   p: BookProgress | undefined,
   chapterCount: number,
@@ -546,7 +574,7 @@ export function formatBookProgressLabel(
     return `${chapterCount} 章`;
   }
   if (p.passes >= 1 && p.distinctChapters === 0) {
-    return p.passes > 1 ? `✓ 通读 · ${p.passes}遍` : '✓ 通读';
+    return p.passes > 1 ? `通读 · ${p.passes}遍` : '通读';
   }
   if (p.passes >= 1 && p.distinctChapters > 0) {
     return `${p.passes}+${p.remainderPct}%`;
@@ -583,12 +611,13 @@ function readPrayer(): Record<string, number> {
 }
 
 // 祷告打卡：当日计数 +1。供报告统计「本月祷告次数」。
-export function logPrayer() {
+export function logPrayer(opts?: { flow_id?: string; plan_id?: string }) {
   if (typeof window === 'undefined') return;
   const logs = readPrayer();
   const k = ymd(new Date());
   logs[k] = (logs[k] || 0) + 1;
   userLsSet(PRAYER_KEY, JSON.stringify(logs));
+  void import('./activity_log').then((m) => m.logActivityPrayer(opts));
 }
 
 export function prayedToday(): boolean {

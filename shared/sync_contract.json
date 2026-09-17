@@ -9,6 +9,7 @@
     "plan_progress",
     "reading_progress",
     "reading_log",
+    "activity_log",
     "read_event",
     "badge_unlock",
     "user_profile"
@@ -18,6 +19,18 @@
       "strategy": "per_day_max",
       "keys": ["date"],
       "fields": { "minutes": "max", "chapters": "max" }
+    },
+    "activity_log": {
+      "strategy": "per_day_max",
+      "keys": ["date"],
+      "fields": {
+        "prayers": "max",
+        "listen_minutes": "max",
+        "shelf_checkins": "max",
+        "shelf_posts": "max",
+        "visual_cards": "max",
+        "knowledge_steps": "max"
+      }
     },
     "reading_progress": {
       "strategy": "lww",

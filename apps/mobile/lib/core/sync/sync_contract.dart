@@ -13,6 +13,7 @@ class SyncContract {
     'plan_progress',
     'reading_progress',
     'reading_log',
+    'activity_log',
     'read_event',
     'badge_unlock',
     'user_profile',
@@ -23,6 +24,8 @@ class SyncContract {
   static int mergeMinutes(int a, int b) => a > b ? a : b;
 
   static int mergeChapters(int a, int b) => a > b ? a : b;
+
+  static int mergeCount(int a, int b) => a > b ? a : b;
 
   /// 每用户每天每卷每章至多一条
   static String readEventSyncId(String book, int chapter, int tsMs) {

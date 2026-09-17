@@ -13,6 +13,7 @@ import '../../core/api_client.dart' show prefsProvider;
 import '../../core/database/app_database.dart';
 import '../../core/sync/sync_contract.dart';
 import '../notes/notes_repository.dart' show dbProvider, syncEngineProvider;
+import '../../core/activity_log.dart';
 import '../../core/user_storage.dart';
 
 final readingProgressStreamProvider =
@@ -420,6 +421,11 @@ class RangeStats {
     required this.minutes,
     required this.days,
     required this.chapters,
+    this.prayers = 0,
+    this.listenMinutes = 0,
+    this.shelfCheckins = 0,
+    this.visualCards = 0,
+    this.knowledgeSteps = 0,
     required this.topBooks,
     required this.topChapters,
     required this.topVerses,
@@ -427,9 +433,30 @@ class RangeStats {
   final int minutes;
   final int days;
   final int chapters;
+  final int prayers;
+  final int listenMinutes;
+  final int shelfCheckins;
+  final int visualCards;
+  final int knowledgeSteps;
   final List<RankItem> topBooks; // key = book id
   final List<RankItem> topChapters; // key = book.chapter
   final List<RankItem> topVerses; // key = book.chapter.verse
+}
+
+int _prayersInRange(SharedPreferences prefs, int startMs, int endMs) {
+  var n = 0;
+  final raw = userPrefGetString(prefs, 'prayer_log');
+  if (raw == null || raw.isEmpty) return 0;
+  try {
+    final log = jsonDecode(raw) as Map<String, dynamic>;
+    for (final e in log.entries) {
+      final t = DateTime.tryParse('${e.key}T00:00:00')?.millisecondsSinceEpoch;
+      if (t != null && t >= startMs && t < endMs) {
+        n += ((e.value ?? 0) as num).toInt();
+      }
+    }
+  } catch (_) {}
+  return n;
 }
 
 class BookProgress {
@@ -473,7 +500,7 @@ String formatBookProgressLabel(BookProgress? p, int chapterCount) {
     return '$chapterCount 章';
   }
   if (p.passes >= 1 && p.distinctChapters == 0) {
-    return p.passes > 1 ? '✓ 通读 · ${p.passes}遍' : '✓ 通读';
+    return p.passes > 1 ? '通读 · ${p.passes}遍' : '通读';
   }
   if (p.passes >= 1 && p.distinctChapters > 0) {
     return '${p.passes}+${p.remainderPct}%';
@@ -504,7 +531,7 @@ class ReviewData {
     return total;
   }
 
-  RangeStats rangeStats(int startMs, int endMs) {
+  RangeStats rangeStats(int startMs, int endMs, [SharedPreferences? prefs]) {
     var minutes = 0, days = 0;
     minutesByDay.forEach((date, mins) {
       final t = DateTime.tryParse('${date}T00:00:00')?.millisecondsSinceEpoch;
@@ -543,10 +570,29 @@ class ReviewData {
       return list.take(n).toList();
     }
 
+    var prayers = 0,
+        listenMinutes = 0,
+        shelfCheckins = 0,
+        visualCards = 0,
+        knowledgeSteps = 0;
+    if (prefs != null) {
+      final activity = activityTotalsInRange(prefs, startMs, endMs);
+      prayers = _prayersInRange(prefs, startMs, endMs);
+      listenMinutes = activity.listenMinutes;
+      shelfCheckins = activity.shelfCheckins;
+      visualCards = activity.visualCards;
+      knowledgeSteps = activity.knowledgeSteps;
+    }
+
     return RangeStats(
       minutes: minutes,
       days: days,
       chapters: chapters,
+      prayers: prayers,
+      listenMinutes: listenMinutes,
+      shelfCheckins: shelfCheckins,
+      visualCards: visualCards,
+      knowledgeSteps: knowledgeSteps,
       topBooks: rank(bookCount, 5),
       topChapters: rank(chapCount, 5),
       topVerses: rank(verseCount, 3),

@@ -97,6 +97,7 @@ export function useBibleListen(opts: {
   const prefetchRef = useRef<string | null>(null);
   /** 章末续听等「听读驱动」换章：允许关面也跟听；首页/阅读自行换章则不跟。 */
   const followChapterRef = useRef(false);
+  const sessionStartedAtRef = useRef<number | null>(null);
   const optsRef = useRef(opts);
   const settingsRef = useRef(settings);
   optsRef.current = opts;
@@ -154,7 +155,12 @@ export function useBibleListen(opts: {
       }
     };
     const onMeta = () => setDurationSec(el.duration || 0);
-    const onPlay = () => setUi('playing');
+    const onPlay = () => {
+      if (sessionStartedAtRef.current == null) {
+        sessionStartedAtRef.current = Date.now();
+      }
+      setUi('playing');
+    };
     const onPause = () => {
       if (!preparingRef.current) setUi((u) => (u === 'preparing' ? u : 'paused'));
     };
@@ -250,10 +256,25 @@ export function useBibleListen(opts: {
   );
 
   const stopSession = useCallback(() => {
+    const el = audioRef.current;
+    const m = metaRef.current;
+    const started = sessionStartedAtRef.current;
+    sessionStartedAtRef.current = null;
+    if (m && started != null) {
+      const playedSec = Math.max(0, Math.floor((Date.now() - started) / 1000));
+      const minutes = Math.max(1, Math.round(playedSec / 60));
+      void import('@/lib/activity_log').then((mod) =>
+        mod.logListenSessionEnd({
+          book: m.book,
+          chapter: m.chapter,
+          minutes,
+          completed: Boolean(el?.ended),
+        }),
+      );
+    }
     abortRef.current?.abort();
     preparingRef.current = false;
     clearSleep();
-    const el = audioRef.current;
     if (el) {
       el.pause();
       el.removeAttribute('src');
@@ -350,6 +371,9 @@ export function useBibleListen(opts: {
 
   const openSheet = useCallback(() => {
     setSheetOpen(true);
+    void import('@/lib/activity_log').then((m) =>
+      m.logListenOpen(opts.bookId, opts.chapter),
+    );
     try {
       if (!localStorage.getItem(TIP_KEY)) {
         localStorage.setItem(TIP_KEY, '1');

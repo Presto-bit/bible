@@ -51,6 +51,7 @@ def test_registry_specs_consistent():
 
 def test_registry_includes_reading_telemetry():
     assert "reading_log" in REGISTRY
+    assert "activity_log" in REGISTRY
     assert "read_event" in REGISTRY
     assert "badge_unlock" in REGISTRY
 

@@ -92,6 +92,9 @@ export default function ShelfCheckinSheet({
         ref,
         body: normalizeCheckinBody(body),
       });
+      void import('@/lib/activity_log').then((m) =>
+        m.logShelfCheckin(bookId, sectionId ?? undefined),
+      );
       recordGroupCheckin(gid);
       setSubmitted(true);
       requestInviteNudge(1600);

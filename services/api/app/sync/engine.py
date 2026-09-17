@@ -102,6 +102,7 @@ def reading_state(user_id: str) -> dict:
     """按用户一次性返回读经相关全量（不走增量分页，专供重装/换端恢复）。"""
     pool = get_pool()
     logs: list = []
+    activity: list = []
     progress = None
     events: list = []
     with pool.connection() as conn:
@@ -112,6 +113,20 @@ def reading_state(user_id: str) -> dict:
             ).fetchall()
         except Exception as exc:
             logger.exception("reading_state reading_log 失败: %s", exc)
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        try:
+            activity = conn.execute(
+                """
+                SELECT date, prayers, listen_minutes, shelf_checkins, shelf_posts, visual_cards, knowledge_steps
+                FROM activity_log WHERE user_id = %s ORDER BY date
+                """,
+                (user_id,),
+            ).fetchall()
+        except Exception as exc:
+            logger.exception("reading_state activity_log 失败（可能未建表）: %s", exc)
             try:
                 conn.rollback()
             except Exception:
@@ -151,6 +166,18 @@ def reading_state(user_id: str) -> dict:
                 "chapters": int(r[2] or 0),
             }
             for r in logs
+        ],
+        "activity_log": [
+            {
+                "date": _jsonable(r[0]),
+                "prayers": int(r[1] or 0),
+                "listen_minutes": int(r[2] or 0),
+                "shelf_checkins": int(r[3] or 0),
+                "shelf_posts": int(r[4] or 0),
+                "visual_cards": int(r[5] or 0),
+                "knowledge_steps": int(r[6] or 0),
+            }
+            for r in activity
         ],
         "reading_progress": (
             {
@@ -265,6 +292,56 @@ def _upsert(conn, spec: EntitySpec, user_id: str, change: dict, device_id: str |
     conn.execute(sql, tuple(vals))
 
 
+def _activity_fields(data: dict) -> dict[str, int]:
+    return {
+        "prayers": int(data.get("prayers") or 0),
+        "listen_minutes": int(data.get("listen_minutes") or 0),
+        "shelf_checkins": int(data.get("shelf_checkins") or 0),
+        "shelf_posts": int(data.get("shelf_posts") or 0),
+        "visual_cards": int(data.get("visual_cards") or 0),
+        "knowledge_steps": int(data.get("knowledge_steps") or 0),
+    }
+
+
+def _merge_activity_log_change(
+    conn,
+    user_id: str,
+    change: dict,
+) -> tuple[dict, bool]:
+    """activity_log 按日合并：各计数取较大值。"""
+    keys = change.get("keys") or {}
+    date = keys.get("date")
+    if not date:
+        return change, True
+    row = conn.execute(
+        """
+        SELECT prayers, listen_minutes, shelf_checkins, shelf_posts, visual_cards, knowledge_steps, client_ts
+        FROM activity_log WHERE user_id = %s AND date = %s
+        """,
+        (user_id, date),
+    ).fetchone()
+    inc = _activity_fields(change.get("data") or {})
+    if not row:
+        return {**change, "data": inc}, True
+    ex = _activity_fields(
+        {
+            "prayers": row[0],
+            "listen_minutes": row[1],
+            "shelf_checkins": row[2],
+            "shelf_posts": row[3],
+            "visual_cards": row[4],
+            "knowledge_steps": row[5],
+        }
+    )
+    merged = {k: max(ex[k], inc[k]) for k in ex}
+    if any(merged[k] > ex[k] for k in ex):
+        return {**change, "data": merged}, True
+    inc_ts = _parse_ts(change.get("client_ts"))
+    if not should_apply(row[6], None, inc_ts, None):
+        return {**change, "data": merged}, False
+    return {**change, "data": merged}, True
+
+
 def _merge_reading_log_change(
     conn,
     user_id: str,
@@ -365,6 +442,11 @@ def push(user_id: str, changes: list[dict], device_id: str | None) -> dict:
                 keyvals = _keyvals(spec, change)
                 if spec.entity == "reading_log":
                     change, apply = _merge_reading_log_change(conn, user_id, change)
+                    if not apply:
+                        skipped += 1
+                        continue
+                elif spec.entity == "activity_log":
+                    change, apply = _merge_activity_log_change(conn, user_id, change)
                     if not apply:
                         skipped += 1
                         continue

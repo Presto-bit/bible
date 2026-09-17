@@ -16,6 +16,14 @@ export const PRODUCT_EVENTS = [
   'warmup_finish',
   'discover_open',
   'share_out',
+  'listen_open',
+  'listen_session_end',
+  'prayer_finish',
+  'shelf_open',
+  'shelf_checkin',
+  'shelf_post',
+  'visual_card_view',
+  'knowledge_step',
 ] as const;
 
 export type ProductEventName = (typeof PRODUCT_EVENTS)[number];

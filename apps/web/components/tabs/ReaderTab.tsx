@@ -279,7 +279,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
       const sec = Math.max(1, Math.round((Date.now() - openedAt) / 1000));
       void import('@/lib/product_events').then((m) =>
         m.trackProductEvent('reader_session_end', {
-          props: { book: bookId, chapter: ch, duration_sec: sec },
+          props: { book: bookId, chapter: ch, duration_sec: sec, source: 'read' },
         }),
       );
     };

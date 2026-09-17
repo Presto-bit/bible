@@ -9,7 +9,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# 固定 12 个产品事件（与客户端 track 对齐）
+# 固定 20 个产品事件（与客户端 track 对齐）
 PRODUCT_EVENT_NAMES = frozenset(
     {
         "app_open",
@@ -24,6 +24,14 @@ PRODUCT_EVENT_NAMES = frozenset(
         "warmup_finish",
         "discover_open",
         "share_out",
+        "listen_open",
+        "listen_session_end",
+        "prayer_finish",
+        "shelf_open",
+        "shelf_checkin",
+        "shelf_post",
+        "visual_card_view",
+        "knowledge_step",
     }
 )
 
@@ -40,6 +48,14 @@ EVENT_LABELS: dict[str, str] = {
     "warmup_finish": "完成今日温习",
     "discover_open": "打开发现",
     "share_out": "外部分享",
+    "listen_open": "打开听读",
+    "listen_session_end": "听读结束",
+    "prayer_finish": "完成祷告",
+    "shelf_open": "打开书架书",
+    "shelf_checkin": "书架打卡",
+    "shelf_post": "书架发帖",
+    "visual_card_view": "查看示意卡",
+    "knowledge_step": "知识库进度",
 }
 
 _schema_lock = threading.Lock()
@@ -234,7 +250,7 @@ def feature_usage_ranking(conn, start: date, end: date) -> list[dict]:
     ).fetchall()
     known = {r[0]: r for r in rows}
     out: list[dict] = []
-    # 固定 12 项全量展示，无数据的补 0
+    # 固定 20 项全量展示，无数据的补 0
     ranked = sorted(
         PRODUCT_EVENT_NAMES,
         key=lambda n: (-int(known[n][1]) if n in known else 0, n),

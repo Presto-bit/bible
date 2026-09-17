@@ -2,13 +2,16 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/activity_log.dart';
 import '../../core/api_client.dart';
 import '../../core/peiai_haptics.dart';
+import 'reading_repository.dart';
 import 'bible_listen_api.dart';
 import 'reader_audio_handler.dart';
 
@@ -162,6 +165,7 @@ class BibleListenController extends Notifier<BibleListenSession> {
   List<({int verse, String text})> _verses = const [];
   void Function(String book, int chapter)? onContinuousNext;
   String? _prefetchKey;
+  int? _sessionStartedAtMs;
 
   @override
   BibleListenSession build() {
@@ -217,6 +221,7 @@ class BibleListenController extends Notifier<BibleListenSession> {
       state = state.copyWith(ui: BibleListenUi.paused);
       return;
     }
+    unawaited(logListenOpen(ref, bookId, chapter));
     // 不阻塞听读面弹出：准备/开播在后台进行
     unawaited(
       prepareAndPlay(
@@ -333,7 +338,6 @@ class BibleListenController extends Notifier<BibleListenSession> {
     });
     _playerStateSub = player.playerStateStream.listen((ps) {
       if (!ref.mounted) return;
-      if (state.ui == BibleListenUi.preparing) return;
       if (ps.processingState == ProcessingState.completed) {
         final m = state.meta;
         if (state.settings.continuousChapter &&
@@ -346,9 +350,16 @@ class BibleListenController extends Notifier<BibleListenSession> {
         state = state.copyWith(ui: BibleListenUi.paused);
         return;
       }
+      // 对齐 PWA：play 事件一律切 playing（含 preparing 刚开播）；preparing 期间忽略 pause
       if (ps.playing) {
-        state = state.copyWith(ui: BibleListenUi.playing);
-      } else if (state.ui == BibleListenUi.playing) {
+        _sessionStartedAtMs ??= DateTime.now().millisecondsSinceEpoch;
+        if (state.ui != BibleListenUi.error && state.ui != BibleListenUi.idle) {
+          state = state.copyWith(ui: BibleListenUi.playing);
+        }
+        return;
+      }
+      if (state.ui == BibleListenUi.preparing) return;
+      if (state.ui == BibleListenUi.playing) {
         state = state.copyWith(ui: BibleListenUi.paused);
       }
     });
@@ -511,6 +522,27 @@ class BibleListenController extends Notifier<BibleListenSession> {
   }
 
   Future<void> stopSession() async {
+    final bookId = state.bookId;
+    final chapter = state.chapter;
+    final started = _sessionStartedAtMs;
+    _sessionStartedAtMs = null;
+    final player = ReaderAudioHandler.instance?.player;
+    final completed =
+        player?.processingState == ProcessingState.completed;
+    if (bookId != null && chapter != null && started != null) {
+      final playedSec = ((DateTime.now().millisecondsSinceEpoch - started) / 1000)
+          .floor()
+          .clamp(0, 86400);
+      final minutes = playedSec <= 0 ? 0 : math.max(1, (playedSec / 60).round());
+      await logListenSessionEnd(
+        ref,
+        book: bookId,
+        chapter: chapter,
+        minutes: minutes,
+        completed: completed,
+        bumpReadingMinutes: (m) => ref.read(readingRepoProvider).addMinutes(m),
+      );
+    }
     _gen++;
     _clearSleepTimers(restoreVolume: true);
     await ReaderAudioHandler.instance?.stop();

@@ -104,6 +104,12 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
   const finishedCelebration = search.get('finished') === '1' || Boolean(progress?.finished);
 
   useEffect(() => {
+    void import('@/lib/activity_log').then((m) =>
+      m.logShelfOpen(bookId, Boolean(progress?.lastSectionId || progress?.finished)),
+    );
+  }, [bookId, progress?.lastSectionId, progress?.finished]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setBookErr('');

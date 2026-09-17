@@ -120,6 +120,30 @@ class SyncEngine {
         'data': {'minutes': r.minutes, 'chapters': r.chapters},
       });
 
+  Future<void> enqueueActivityLog({
+    required String date,
+    required int prayers,
+    required int listenMinutes,
+    required int shelfCheckins,
+    required int shelfPosts,
+    required int visualCards,
+    required int knowledgeSteps,
+  }) =>
+      _enqueue('activity_log', {
+        'entity': 'activity_log',
+        'op': 'update',
+        'keys': {'date': date},
+        'client_ts': _iso(DateTime.now().millisecondsSinceEpoch),
+        'data': {
+          'prayers': prayers,
+          'listen_minutes': listenMinutes,
+          'shelf_checkins': shelfCheckins,
+          'shelf_posts': shelfPosts,
+          'visual_cards': visualCards,
+          'knowledge_steps': knowledgeSteps,
+        },
+      });
+
   Future<void> enqueueReadEvent({
     required String id,
     required int ts,
@@ -238,6 +262,8 @@ class SyncEngine {
         return _applyAiSession(c);
       case 'reading_log':
         return _applyReadingLog(c);
+      case 'activity_log':
+        return _applyActivityLog(c);
       case 'read_event':
         return _applyReadEvent(c);
       case 'badge_unlock':
@@ -376,6 +402,70 @@ class SyncEngine {
         Map<String, dynamic>.from(sessionRaw),
       );
     }
+    return true;
+  }
+
+  Future<bool> _applyActivityLog(Map<String, dynamic> c) async {
+    if (_prefs == null) return false;
+    final keys = (c['keys'] ?? const {}) as Map<String, dynamic>;
+    final date = keys['date'] as String?;
+    if (date == null) return false;
+    if (c['op'] == 'delete') return false;
+    final data = (c['data'] ?? const {}) as Map<String, dynamic>;
+    const storageKey = 'presto_activity_log';
+    final raw = userPrefGetString(_prefs!, storageKey);
+    final all = <String, Map<String, int>>{};
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final j = jsonDecode(raw) as Map<String, dynamic>;
+        for (final e in j.entries) {
+          final m = e.value as Map<String, dynamic>;
+          all[e.key] = {
+            'prayers': (m['prayers'] as num?)?.toInt() ?? 0,
+            'listen_minutes': (m['listen_minutes'] as num?)?.toInt() ?? 0,
+            'shelf_checkins': (m['shelf_checkins'] as num?)?.toInt() ?? 0,
+            'shelf_posts': (m['shelf_posts'] as num?)?.toInt() ?? 0,
+            'visual_cards': (m['visual_cards'] as num?)?.toInt() ?? 0,
+            'knowledge_steps': (m['knowledge_steps'] as num?)?.toInt() ?? 0,
+          };
+        }
+      } catch (_) {}
+    }
+    final cur = all[date] ??
+        {
+          'prayers': 0,
+          'listen_minutes': 0,
+          'shelf_checkins': 0,
+          'shelf_posts': 0,
+          'visual_cards': 0,
+          'knowledge_steps': 0,
+        };
+    final merged = {
+      'prayers': SyncContract.mergeCount(cur['prayers'] ?? 0, (data['prayers'] as num?)?.toInt() ?? 0),
+      'listen_minutes': SyncContract.mergeCount(
+        cur['listen_minutes'] ?? 0,
+        (data['listen_minutes'] as num?)?.toInt() ?? 0,
+      ),
+      'shelf_checkins': SyncContract.mergeCount(
+        cur['shelf_checkins'] ?? 0,
+        (data['shelf_checkins'] as num?)?.toInt() ?? 0,
+      ),
+      'shelf_posts': SyncContract.mergeCount(
+        cur['shelf_posts'] ?? 0,
+        (data['shelf_posts'] as num?)?.toInt() ?? 0,
+      ),
+      'visual_cards': SyncContract.mergeCount(
+        cur['visual_cards'] ?? 0,
+        (data['visual_cards'] as num?)?.toInt() ?? 0,
+      ),
+      'knowledge_steps': SyncContract.mergeCount(
+        cur['knowledge_steps'] ?? 0,
+        (data['knowledge_steps'] as num?)?.toInt() ?? 0,
+      ),
+    };
+    if (merged.entries.every((e) => e.value == (cur[e.key] ?? 0))) return false;
+    all[date] = merged;
+    await userPrefSetString(_prefs!, storageKey, jsonEncode(all));
     return true;
   }
 

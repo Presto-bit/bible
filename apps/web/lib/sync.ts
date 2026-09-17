@@ -25,6 +25,7 @@ import {
 } from './ai_session_sync';
 import { applyRemoteReadingProgress } from './reading_progress_sync';
 import { applyRemoteProfile } from './profile_sync';
+import { mergeRemoteActivityLog } from './activity_log_sync';
 import { mergeRemoteReadingLog } from './reading_log_sync';
 import { mergeRemoteReadEvent } from './read_event_sync';
 import { applyRemoteBadgeUnlock } from './badge_unlock_sync';
@@ -431,6 +432,9 @@ function applyPullChanges(changes: PullChange[]): number {
     if (c.entity === 'reading_log' && c.op === 'update' && c.keys?.date) {
       mergeRemoteReadingLog(c.keys.date, c.data);
     }
+    if (c.entity === 'activity_log' && c.op === 'update' && c.keys?.date) {
+      mergeRemoteActivityLog(c.keys.date, c.data as Partial<import('./activity_log').ActivityDay>);
+    }
     if (c.entity === 'read_event' && c.op === 'update' && c.id) {
       mergeRemoteReadEvent({ id: c.id, ...c.data });
     }
@@ -566,6 +570,15 @@ export async function syncPullFirst(): Promise<SyncResult> {
 
 type ReadingStatePayload = {
   reading_log?: Array<{ date?: string; minutes?: number; chapters?: number }>;
+  activity_log?: Array<{
+    date?: string;
+    prayers?: number;
+    listen_minutes?: number;
+    shelf_checkins?: number;
+    shelf_posts?: number;
+    visual_cards?: number;
+    knowledge_steps?: number;
+  }>;
   reading_progress?: {
     book?: string;
     chapter?: number;
@@ -602,6 +615,11 @@ export async function pullReadingStateByUser(): Promise<{
       chapters: row.chapters ?? 0,
     });
   }
+  const activityRows = data.activity_log ?? [];
+  for (const row of activityRows) {
+    if (!row?.date) continue;
+    mergeRemoteActivityLog(row.date, row);
+  }
   let events = 0;
   for (const ev of data.read_events ?? []) {
     if (mergeRemoteReadEvent(ev)) events += 1;
@@ -613,7 +631,7 @@ export async function pullReadingStateByUser(): Promise<{
       prog.updated_at,
     );
   }
-  if (logRows.length > 0 || events > 0 || prog?.book) {
+  if (logRows.length > 0 || activityRows.length > 0 || events > 0 || prog?.book) {
     notifyLocalDataChanged('reading-state');
     void import('./reading_durable').then((m) => m.scheduleReadingSnapshotBackup());
   }

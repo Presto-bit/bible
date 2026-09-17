@@ -7,6 +7,7 @@ import { useSettleSoftSecondaryNav } from '@/lib/use_settle_soft_secondary_nav';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import { api, type BibleBook } from '@/lib/api';
+import { pickReportFourthTile } from '@/lib/activity_log';
 import { dailyMinutes, rangeStats, type RangeStats } from '@/lib/reading';
 import { registrationYear } from '@/lib/api';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
@@ -341,14 +342,31 @@ function ReportInner() {
         <Tile value={stats.minutes} unit="分钟" label="阅读时长" />
         <Tile value={stats.days} unit="天" label="阅读天数" />
         <Tile value={stats.chapters} unit="章" label="完成章节" />
-        {stats.prayers > 0 ? (
-          <Tile value={stats.prayers} unit="次" label="祷告打卡" />
-        ) : (
-          <Link href="/pray" className="report-tile report-tile-link" onClick={() => markRouteNavigation()}>
-            <strong>去祷告</strong>
-            <span className="muted">开始第一次</span>
-          </Link>
-        )}
+        {(() => {
+          const fourth = pickReportFourthTile({
+            prayers: stats.prayers,
+            listen_minutes: stats.listenMinutes,
+            shelf_checkins: stats.shelfCheckins,
+            shelf_posts: 0,
+            visual_cards: stats.visualCards,
+            knowledge_steps: stats.knowledgeSteps,
+          });
+          if (fourth.kind === 'metric') {
+            return (
+              <Tile value={fourth.value} unit={fourth.unit} label={fourth.label} />
+            );
+          }
+          return (
+            <Link
+              href={fourth.href}
+              className="report-tile report-tile-link"
+              onClick={() => markRouteNavigation()}
+            >
+              <strong>{fourth.title}</strong>
+              <span className="muted">{fourth.sub}</span>
+            </Link>
+          );
+        })()}
       </div>
       <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
         {stats.minutes === 0 && stats.chapters === 0

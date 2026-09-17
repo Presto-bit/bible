@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/app_shell.dart' show navIndexProvider;
+import '../../core/activity_log.dart';
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
@@ -169,7 +170,18 @@ class _ReadingReportScreenState extends ConsumerState<ReadingReportScreen> {
           final statStart = _sel?.start ?? windowStart;
           final statEnd = _sel?.end ?? windowEnd;
           final statLabel = _sel?.label ?? grid.label;
-          final stats = data.rangeStats(statStart, statEnd);
+          final stats = data.rangeStats(
+            statStart,
+            statEnd,
+            ref.read(prefsProvider),
+          );
+          final fourth = pickReportFourthTile(
+            prayers: stats.prayers,
+            listenMinutes: stats.listenMinutes,
+            shelfCheckins: stats.shelfCheckins,
+            visualCards: stats.visualCards,
+            knowledgeSteps: stats.knowledgeSteps,
+          );
           final maxMin = cells.fold<int>(1, (m, c) => c.minutes > m ? c.minutes : m);
           final isCalendar = _mode == _Mode.day;
           final cols = _mode == _Mode.day ? 7 : (_mode == _Mode.week ? 3 : 4);
@@ -315,6 +327,21 @@ class _ReadingReportScreenState extends ConsumerState<ReadingReportScreen> {
                   _Tile(value: '${stats.days}', unit: '天', label: '阅读天数'),
                   const SizedBox(width: 10),
                   _Tile(value: '${stats.chapters}', unit: '章', label: '完成章节'),
+                  const SizedBox(width: 10),
+                  if (fourth is ReportFourthMetric)
+                    _Tile(
+                      value: '${fourth.value}',
+                      unit: fourth.unit,
+                      label: fourth.label,
+                    )
+                  else
+                    Expanded(
+                      child: _CtaTile(
+                        title: (fourth as ReportFourthCta).title,
+                        sub: fourth.sub,
+                        onTap: () => context.push(fourth.href),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -658,6 +685,51 @@ class _Tile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(label,
                 style: const TextStyle(color: AppColors.inkSoft, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CtaTile extends StatelessWidget {
+  const _CtaTile({
+    required this.title,
+    required this.sub,
+    required this.onTap,
+  });
+
+  final String title;
+  final String sub;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+        decoration: BoxDecoration(
+          color: AppColors.accentWash,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.accentDeep,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              sub,
+              style: const TextStyle(color: AppColors.inkFaint, fontSize: 12),
+            ),
           ],
         ),
       ),
