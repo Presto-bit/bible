@@ -105,9 +105,9 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
 
   useEffect(() => {
     void import('@/lib/activity_log').then((m) =>
-      m.logShelfOpen(bookId, Boolean(progress?.lastSectionId || progress?.finished)),
+      m.logShelfOpen(bookId, Boolean(progress?.sectionId || progress?.finished)),
     );
-  }, [bookId, progress?.lastSectionId, progress?.finished]);
+  }, [bookId, progress?.sectionId, progress?.finished]);
 
   useEffect(() => {
     let cancelled = false;
