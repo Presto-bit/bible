@@ -14,9 +14,6 @@ import { isShareAbortError, shareOutbound } from '@/lib/share_outbound';
 import type { ManuscriptFolioPage } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import {
   beginKnowledgeCollapse,
-  getKnowledgeExpandSession,
-  revealKnowledgeExpand,
-  subscribeKnowledgeExpand,
 } from '@/lib/knowledge_nav';
 
 type Props = {
@@ -254,27 +251,9 @@ export function KnowledgeManuscriptViewer({
     };
   }, []);
 
-  // 壳层 Host 负责进场；等 hold（或无会话）后再 reveal，避免掐断放大
+  // 进场直接最终态，无封面放大垫场
   useEffect(() => {
     setMotionPhase('ready');
-    let revealed = false;
-    const tryReveal = () => {
-      if (revealed) return;
-      const s = getKnowledgeExpandSession();
-      if (s && (s.phase === 'enter')) return;
-      revealed = true;
-      revealKnowledgeExpand();
-    };
-    const unsub = subscribeKnowledgeExpand(tryReveal);
-    tryReveal();
-    const fallback = window.setTimeout(() => {
-      revealed = true;
-      revealKnowledgeExpand();
-    }, 420);
-    return () => {
-      unsub();
-      window.clearTimeout(fallback);
-    };
   }, []);
 
   const softLeave = useCallback((done: () => void) => {

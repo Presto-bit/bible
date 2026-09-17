@@ -144,7 +144,7 @@ export type StartKnowledgeExpandArgs = {
   topicId?: string;
 };
 
-/** 点击卡片：点火壳层进场，与路由导航并行 */
+/** 点击卡片：只记缩回原点，进场不再播封面放大（直接出最终手稿态） */
 export function startKnowledgeExpand(args: StartKnowledgeExpandArgs): boolean {
   if (typeof window === 'undefined') return false;
   const origin = args.el ? rectFromEl(args.el) : null;
@@ -152,14 +152,15 @@ export function startKnowledgeExpand(args: StartKnowledgeExpandArgs): boolean {
   const cover = (args.cover || '').trim();
   origin.cover = cover || undefined;
   leaveOrigin = { ...origin };
-  session = {
-    phase: 'enter',
+  // 不进入 enter/hold：进场由 Viewer 直接展示最终态；Host 仅负责 leave 缩回
+  session = null;
+  persistSession({
+    phase: 'idle',
     origin,
     cover,
     href: args.href,
     topicId: args.topicId,
-  };
-  persistSession(session);
+  });
   emit();
   return true;
 }
