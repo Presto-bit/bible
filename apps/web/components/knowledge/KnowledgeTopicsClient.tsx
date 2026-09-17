@@ -18,7 +18,7 @@ import {
   knowledgeMediaBadge,
   resolveKnowledgeTopicMeta,
 } from '@/lib/knowledge_topic_meta';
-import { adminCheck, deleteKnowledgeNote } from '@/lib/admin_rag';
+import { adminCheck } from '@/lib/admin_rag';
 
 function coverPath(row: KnowledgeLayoutSummary): string {
   if (row.cover_image) return row.cover_image;
@@ -96,7 +96,6 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
   const [rows, setRows] = useState(initialLayouts);
   const [filter, setFilter] = useState<FilterId>('all');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [softReturn, setSoftReturn] = useState(false);
 
   useEffect(() => {
@@ -141,21 +140,6 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
     return rows.filter((r) => !isNoteRow(r));
   }, [rows, filter]);
 
-  const onUnpublish = async (row: KnowledgeLayoutSummary) => {
-    const id = row.id || '';
-    if (!isNoteRow(row) || !id) return;
-    if (!window.confirm(`下架「${row.title || id}」？列表将不再显示。`)) return;
-    setBusyId(id);
-    try {
-      await deleteKnowledgeNote(id);
-      setRows((prev) => prev.filter((r) => r.id !== id));
-    } catch (e) {
-      window.alert(e instanceof Error ? e.message : '下架失败');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   return (
     <main
       className={`container knowledge-topics-page${softReturn ? ' is-soft-return' : ''}`}
@@ -164,7 +148,14 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
         <PageBackBar onClick={goBack} label="首页" />
         <h2 className="page-head-title">探索</h2>
         {isAdmin ? (
-          <div className="page-head-actions">
+          <div className="page-head-actions knowledge-topics-admin-actions">
+            <Link
+              href="/knowledge/manage"
+              className="knowledge-topics-manage"
+              aria-label="管理专题"
+            >
+              管理
+            </Link>
             <Link
               href="/knowledge/new"
               className="icon-btn knowledge-topics-new"
@@ -224,7 +215,6 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
             const sourceId = row.source?.id || row.id;
             const meta = resolveKnowledgeTopicMeta(row);
             const mediaBadge = knowledgeMediaBadge(meta.media);
-            const note = isNoteRow(row);
             const cover = knowledgeRasterSources(coverPath(row));
             const stagger = Math.min(i, 5);
             const href = knowledgeLayoutViewHref(row);
@@ -283,16 +273,6 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
                     </span>
                   </span>
                 </Link>
-                {isAdmin && note ? (
-                  <button
-                    type="button"
-                    className="knowledge-topic-card-unpub"
-                    disabled={busyId === row.id}
-                    onClick={() => void onUnpublish(row)}
-                  >
-                    {busyId === row.id ? '…' : '下架'}
-                  </button>
-                ) : null}
               </div>
             );
           })}
