@@ -32,6 +32,8 @@ type FolioDraftPage = {
   previewUrl: string;
   /** 音/视频地址 */
   mediaUrl: string;
+  /** 原始文件名（音视频预览用） */
+  fileName: string;
   /** 可选页注 */
   note: string;
 };
@@ -92,7 +94,16 @@ function newId(): string {
 }
 
 function emptyPage(kind: PageKind): FolioDraftPage {
-  return { id: newId(), kind, body: '', src: '', previewUrl: '', mediaUrl: '', note: '' };
+  return {
+    id: newId(),
+    kind,
+    body: '',
+    src: '',
+    previewUrl: '',
+    mediaUrl: '',
+    fileName: '',
+    note: '',
+  };
 }
 
 function blobToFile(blob: Blob, name: string): File {
@@ -139,6 +150,7 @@ function folioRawToDraftPages(
         src: typeof p.src === 'string' ? p.src : cover || '',
         previewUrl: '',
         mediaUrl: media?.url || '',
+        fileName: '',
         note: typeof p.title === 'string' ? p.title : '',
       };
     });
@@ -204,11 +216,18 @@ export default function KnowledgeNewNotePage() {
       pagesRef.current[0]?.id ||
       null;
     uploadTargetIdRef.current = target;
+    const sameAccept = pendingUploadKind === kind;
     setPendingUploadKind(kind);
+    // accept 未变时可同步 click，保留用户手势（iOS 延时 click 常丢 onChange）
+    if (sameAccept && fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+      return;
+    }
     setPickerNonce((n) => n + 1);
   };
 
-  // 等 accept 更新后再点选
+  // accept 刚切换时再点选
   useEffect(() => {
     if (!pickerNonce) return;
     const t = window.setTimeout(() => {
@@ -216,7 +235,7 @@ export default function KnowledgeNewNotePage() {
       if (!el) return;
       el.value = '';
       el.click();
-    }, 50);
+    }, 30);
     return () => window.clearTimeout(t);
   }, [pickerNonce]);
 
@@ -274,23 +293,18 @@ export default function KnowledgeNewNotePage() {
     setSeedKind(seed);
     if (seed === 'av') {
       setPages([emptyPage('audio')]);
+      setPendingUploadKind('av');
+    } else if (seed === 'image') {
+      setPages([emptyPage('image')]);
+      setPendingUploadKind('image');
     } else {
-      setPages([emptyPage(seed)]);
+      setPages([emptyPage('text')]);
     }
     setActive(0);
   };
 
-  // 进入图文/音视频后自动弹选文件
-  useEffect(() => {
-    if (!seedKind || seedKind === 'text') return;
-    if (!pages[0] || pageReady(pages[0])) return;
-    const t = window.setTimeout(() => {
-      openFilePicker(seedKind === 'image' ? 'image' : 'av', pages[0]?.id);
-    }, 280);
-    return () => window.clearTimeout(t);
-    // 仅在刚进入类型时触发
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seedKind]);
+  // 进入图文/音视频后勿自动弹系统相册：延时 click 会打断手势，导致选了文件却无预览
+  // 由空态「点此添加」label 直接触发选文件
 
   const leaveMode = () => {
     resetForm();
@@ -387,6 +401,7 @@ export default function KnowledgeNewNotePage() {
               ...p,
               previewUrl: localUrl,
               src: localUrl,
+              fileName: file.name || '',
               kind: kind === 'cover' ? p.kind : 'image',
             };
           });
@@ -398,6 +413,7 @@ export default function KnowledgeNewNotePage() {
             ...p,
             previewUrl: localUrl,
             src: localUrl,
+            fileName: file.name || '',
             kind: kind === 'cover' ? p.kind : 'image',
           };
         });
@@ -419,6 +435,7 @@ export default function KnowledgeNewNotePage() {
             ...p,
             kind: as,
             mediaUrl: localUrl,
+            fileName: file.name || (as === 'audio' ? '音频' : '视频'),
           };
           if (as === 'video') {
             revokeIfBlob(p.previewUrl);
@@ -428,6 +445,10 @@ export default function KnowledgeNewNotePage() {
           return next;
         }),
       );
+      setActive((a) => {
+        const idx = pagesRef.current.findIndex((p) => p.id === pageId);
+        return idx >= 0 ? idx : a;
+      });
     };
 
     // 先本地预览进册页条，再后台上传
@@ -951,10 +972,28 @@ export default function KnowledgeNewNotePage() {
 
   const thumbPreview = (p: FolioDraftPage) => {
     const display = pageDisplaySrc(p);
-    if (display) {
+    if (display && p.kind !== 'audio') {
+      if (p.kind === 'video' && (display.startsWith('blob:') || /\.(mp4|webm|mov)/i.test(display))) {
+        return (
+          <video
+            className="knowledge-compose-thumb-video"
+            src={knowledgeMediaUrl(display)}
+            muted
+            playsInline
+            preload="metadata"
+          />
+        );
+      }
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={display} src={knowledgeMediaUrl(display)} alt="" />
+      );
+    }
+    if (p.kind === 'audio' && p.mediaUrl) {
+      return (
+        <span className="knowledge-compose-thumb-audio" aria-hidden>
+          ♪
+        </span>
       );
     }
     if (p.kind === 'video' && p.mediaUrl) {
@@ -1083,87 +1122,117 @@ export default function KnowledgeNewNotePage() {
       {stripNav}
 
       <input
+        id="knowledge-compose-file"
         ref={fileInputRef}
         type="file"
         accept={acceptForInput}
         multiple={pendingUploadKind === 'image'}
-        hidden
+        className="knowledge-compose-file-input"
         onChange={(e) => {
           const files = e.target.files;
-          e.target.value = '';
+          // 先读文件再清空，避免部分 WebView 丢 FileList
           void onFilePicked(files);
+          e.target.value = '';
         }}
       />
 
       <div className="knowledge-compose-scroll">
         {current && current.kind !== 'text' ? (
-          <button
-            type="button"
-            className={`knowledge-compose-hero${pageDisplaySrc(current) || (current.kind === 'video' && current.mediaUrl) ? ' has-media' : ' is-empty'}`}
-            disabled={false}
-            onClick={openCurrentMedia}
-            aria-label={
-              current.kind === 'image'
-                ? pageDisplaySrc(current)
-                  ? '更换图片'
-                  : '添加图片'
-                : current.mediaUrl
-                  ? '更换音视频'
-                  : '添加音频或视频'
-            }
+          <div
+            className={`knowledge-compose-preview${
+              pageDisplaySrc(current) || current.mediaUrl ? ' has-media' : ' is-empty'
+            }`}
           >
-            {pageDisplaySrc(current) ? (
+            {current.kind === 'image' && pageDisplaySrc(current) ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={pageDisplaySrc(current)}
+                className="knowledge-compose-preview-img"
                 src={knowledgeMediaUrl(pageDisplaySrc(current))}
-                alt=""
+                alt={current.fileName || '预览'}
               />
-            ) : current.kind === 'video' && current.mediaUrl ? (
+            ) : null}
+
+            {current.kind === 'video' && current.mediaUrl ? (
               <video
-                className="knowledge-compose-hero-video"
+                key={current.mediaUrl}
+                className="knowledge-compose-preview-video"
                 src={knowledgeMediaUrl(current.mediaUrl)}
-                muted
-                playsInline
                 controls
+                playsInline
                 preload="metadata"
               />
-            ) : (
-              <span className="knowledge-compose-hero-empty">
+            ) : null}
+
+            {current.kind === 'audio' && current.mediaUrl ? (
+              <div className="knowledge-compose-preview-audio">
+                {pageDisplaySrc(current) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="knowledge-compose-preview-audio-cover"
+                    src={knowledgeMediaUrl(pageDisplaySrc(current))}
+                    alt=""
+                  />
+                ) : (
+                  <span className="knowledge-compose-preview-audio-glyph" aria-hidden>
+                    ♪
+                  </span>
+                )}
+                <p className="knowledge-compose-preview-audio-name">
+                  {current.fileName || '已选音频'}
+                </p>
+                <audio
+                  key={current.mediaUrl}
+                  className="knowledge-compose-preview-audio-el"
+                  src={knowledgeMediaUrl(current.mediaUrl)}
+                  controls
+                  preload="metadata"
+                />
+              </div>
+            ) : null}
+
+            {!pageDisplaySrc(current) && !current.mediaUrl ? (
+              <label
+                htmlFor="knowledge-compose-file"
+                className="knowledge-compose-preview-add"
+                onClick={() => {
+                  uploadTargetIdRef.current = current.id;
+                  const want: UploadKind =
+                    current.kind === 'image' ? 'image' : 'av';
+                  if (pendingUploadKind !== want) setPendingUploadKind(want);
+                }}
+              >
                 <strong>＋</strong>
                 <span>
-                  {current.kind === 'image'
-                    ? '添加图片'
-                    : '添加音频或视频'}
+                  {current.kind === 'image' ? '添加图片' : '添加音频或视频'}
                 </span>
-                <em>{busy ? busyLabel || '处理中…' : '预览在上方册页条'}</em>
-              </span>
+                <em>选完即可在上方与此处预览</em>
+              </label>
+            ) : (
+              <div className="knowledge-compose-preview-actions">
+                <button
+                  type="button"
+                  className="knowledge-compose-preview-change"
+                  onClick={() => openCurrentMedia()}
+                >
+                  更换
+                </button>
+                {current.kind === 'audio' || current.kind === 'video' ? (
+                  <button
+                    type="button"
+                    className="knowledge-compose-preview-change"
+                    onClick={() => openFilePicker('cover', current.id)}
+                  >
+                    {pageDisplaySrc(current) ? '换封面' : '加封面'}
+                  </button>
+                ) : null}
+              </div>
             )}
-            {(current.kind === 'audio' || current.kind === 'video') &&
-            current.mediaUrl ? (
-              <span className="knowledge-compose-hero-badge">
-                {current.kind === 'audio' ? '听' : '看'} · 已选
-              </span>
-            ) : null}
-            {busy && (pageDisplaySrc(current) || current.mediaUrl) ? (
+
+            {busy ? (
               <span className="knowledge-compose-hero-busy">{busyLabel || '上传中…'}</span>
             ) : null}
-          </button>
-        ) : null}
-
-        {current && (current.kind === 'audio' || current.kind === 'video') ? (
-          <button
-            type="button"
-            className="knowledge-compose-cover-link"
-            disabled={busy}
-            onClick={() => openFilePicker('cover', current.id)}
-          >
-            {pageDisplaySrc(current) && !pageDisplaySrc(current).startsWith('blob:')
-              ? '更换封面'
-              : pageDisplaySrc(current)
-                ? '确认封面（可再换）'
-                : '添加封面图（可选）'}
-          </button>
+          </div>
         ) : null}
 
         <div className="knowledge-compose-copy">

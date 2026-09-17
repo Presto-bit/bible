@@ -548,6 +548,16 @@ html.pwa-standalone select:focus {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #8fa88a) 45%, transparent);
 }
 
+/* 发手稿标题/正文：激活时不要框体，直接输入 */
+html.pwa-standalone .knowledge-compose-title:focus,
+html.pwa-standalone .knowledge-compose-body:focus,
+.knowledge-compose-title:focus,
+.knowledge-compose-body:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
 .container {
   max-width: min(720px, 100%);
   width: 100%;
@@ -4445,6 +4455,21 @@ button.rail-card {
   margin-bottom: 0;
   animation: sheetSlideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
+}
+
+.reading-journey-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+  overflow: hidden;
+  padding-top: 12px;
+}
+
+.reading-journey-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sync-migrate-sheet h2 {

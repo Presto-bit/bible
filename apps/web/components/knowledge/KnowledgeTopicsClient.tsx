@@ -29,6 +29,19 @@ function coverPath(row: KnowledgeLayoutSummary): string {
   return '/knowledge/infographics/_paper_texture.jpg';
 }
 
+function preloadRaster(path: string) {
+  if (typeof window === 'undefined') return;
+  const { webp, fallback } = knowledgeRasterSources(path);
+  if (webp) {
+    const a = new Image();
+    a.decoding = 'async';
+    a.src = webp;
+  }
+  const b = new Image();
+  b.decoding = 'async';
+  b.src = fallback;
+}
+
 function shortTitle(title: string): string {
   const t = title.trim();
   // 两列卡可排约 2–3 行；勿在「保罗第一次宣教旅程」这类完整题名上硬截半截
@@ -90,6 +103,18 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
   useEffect(() => {
     setSoftReturn(consumeKnowledgeSoftReturn());
   }, []);
+
+  // 首屏可见卡封面 + 已知手稿首页预热，减轻点开卡顿
+  useEffect(() => {
+    const top = rows.slice(0, 4);
+    for (const row of top) {
+      preloadRaster(coverPath(row));
+      const id = row.source?.id || row.id;
+      if (id === 'paul-first-journey' || id === 'exodus-wilderness') {
+        preloadRaster(`/knowledge/infographics/${id}-comic.png`);
+      }
+    }
+  }, [rows]);
 
   useEffect(() => {
     return scheduleIdle(() => {

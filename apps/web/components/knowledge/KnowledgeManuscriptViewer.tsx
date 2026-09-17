@@ -248,17 +248,9 @@ export function KnowledgeManuscriptViewer({
     };
   }, []);
 
-  // 进入淡入（仅 opacity，避免布局抖动）
+  // 进入：首帧即可见，避免「黑屏再淡入」加重卡顿感
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setMotionPhase('ready');
-      return;
-    }
-    const id = window.requestAnimationFrame(() => {
-      setMotionPhase('ready');
-    });
-    return () => window.cancelAnimationFrame(id);
+    setMotionPhase('ready');
   }, []);
 
   const softLeave = useCallback(
@@ -273,7 +265,7 @@ export function KnowledgeManuscriptViewer({
         return;
       }
       setMotionPhase('leave');
-      window.setTimeout(done, 180);
+      window.setTimeout(done, 140);
     },
     [],
   );
