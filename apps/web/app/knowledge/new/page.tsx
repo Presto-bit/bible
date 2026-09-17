@@ -17,13 +17,16 @@ import { renderNoteArticlePngs, renderNoteBodyPng, renderNoteCoverPng } from '@/
 import { knowledgeNoteHref } from '@/lib/topic_routes';
 
 type PageKind = 'text' | 'image' | 'audio' | 'video';
+/** 发稿入口：听 + 视频合成「音视频」 */
+type SeedKind = 'image' | 'text' | 'av';
+type UploadKind = 'image' | 'audio' | 'video' | 'cover' | 'av';
 
 type FolioDraftPage = {
   id: string;
   kind: PageKind;
   /** 文页正文 */
   body: string;
-  /** 图页 / 听看页封面 */
+  /** 图页 / 音视频页封面 */
   src: string;
   /** 音/视频地址 */
   mediaUrl: string;
@@ -47,11 +50,40 @@ const MODE_META: Record<
 > = {
   image: { label: '图文', hint: '从相册选图，一页一图', verb: '图片', pageLabel: '图' },
   text: { label: '文字', hint: '写长文，发布自动排版分页', verb: '文字', pageLabel: '文' },
-  audio: { label: '音频', hint: '上传音频，可加页', verb: '音频', pageLabel: '听' },
-  video: { label: '视频', hint: '上传视频，可加页', verb: '视频', pageLabel: '看' },
+  audio: { label: '音视频', hint: '上传音频或视频', verb: '音频', pageLabel: '听' },
+  video: { label: '音视频', hint: '上传音频或视频', verb: '视频', pageLabel: '看' },
 };
 
-const CHOOSER_ORDER: PageKind[] = ['image', 'text', 'audio', 'video'];
+const CHOOSER: Array<{
+  seed: SeedKind;
+  label: string;
+  hint: string;
+  glyph: string;
+}> = [
+  { seed: 'image', label: '图文', hint: '从相册选图，一页一图', glyph: '图' },
+  { seed: 'text', label: '文字', hint: '写长文，发布自动排版分页', glyph: '文' },
+  { seed: 'av', label: '音视频', hint: '音频与视频同一入口', glyph: '音' },
+];
+
+function looksLikeVideo(file: File): boolean {
+  const t = (file.type || '').toLowerCase();
+  if (t.startsWith('video/')) return true;
+  return /\.(mp4|webm|mov|m4v)$/i.test(file.name || '');
+}
+
+function looksLikeAudio(file: File): boolean {
+  const t = (file.type || '').toLowerCase();
+  if (t.startsWith('audio/')) return true;
+  return /\.(mp3|m4a|aac|wav|ogg|flac)$/i.test(file.name || '');
+}
+
+function looksLikeImage(file: File): boolean {
+  const t = (file.type || '').toLowerCase();
+  if (t.startsWith('image/')) return true;
+  // iOS 相册常给空 MIME
+  if (!t) return true;
+  return /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name || '');
+}
 
 function newId(): string {
   return `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
@@ -134,7 +166,7 @@ export default function KnowledgeNewNotePage() {
   const router = useRouter();
   const goBack = useFlowBack('/knowledge');
   const [allowed, setAllowed] = useState<boolean | null>(null);
-  const [seedKind, setSeedKind] = useState<PageKind | null>(null);
+  const [seedKind, setSeedKind] = useState<SeedKind | null>(null);
   const [title, setTitle] = useState('');
   const [guide, setGuide] = useState('');
   const [pages, setPages] = useState<FolioDraftPage[]>([]);
@@ -147,14 +179,14 @@ export default function KnowledgeNewNotePage() {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [paperPreviewUrls, setPaperPreviewUrls] = useState<string[]>([]);
-  const [pendingUploadKind, setPendingUploadKind] = useState<
-    'image' | 'audio' | 'video' | 'cover'
-  >('image');
+  const [pendingUploadKind, setPendingUploadKind] = useState<UploadKind>('image');
   const [pickerNonce, setPickerNonce] = useState(0);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetIdRef = useRef<string | null>(null);
 
-  const openFilePicker = (kind: 'image' | 'audio' | 'video' | 'cover') => {
+  const openFilePicker = (kind: UploadKind, pageId?: string) => {
+    uploadTargetIdRef.current = pageId || pages[active]?.id || null;
     setPendingUploadKind(kind);
     setPickerNonce((n) => n + 1);
   };
@@ -214,21 +246,23 @@ export default function KnowledgeNewNotePage() {
     });
   };
 
-  const enterMode = (kind: PageKind) => {
+  const enterMode = (seed: SeedKind) => {
     resetForm();
-    setSeedKind(kind);
-    setPages([emptyPage(kind)]);
+    setSeedKind(seed);
+    if (seed === 'av') {
+      setPages([emptyPage('audio')]);
+    } else {
+      setPages([emptyPage(seed)]);
+    }
     setActive(0);
   };
 
-  // 进入图/音/视频后自动弹选文件
+  // 进入图文/音视频后自动弹选文件
   useEffect(() => {
     if (!seedKind || seedKind === 'text') return;
     if (!pages[0] || pageReady(pages[0])) return;
     const t = window.setTimeout(() => {
-      openFilePicker(
-        seedKind === 'image' ? 'image' : seedKind === 'audio' ? 'audio' : 'video',
-      );
+      openFilePicker(seedKind === 'image' ? 'image' : 'av', pages[0]?.id);
     }, 280);
     return () => window.clearTimeout(t);
     // 仅在刚进入类型时触发
@@ -240,29 +274,31 @@ export default function KnowledgeNewNotePage() {
     setSeedKind(null);
   };
 
-  const addPage = (kind: PageKind) => {
+  const addPage = (kind: PageKind | 'av') => {
     if (pages.length >= MAX_PAGES) {
       setErr(`最多 ${MAX_PAGES} 页`);
       return;
     }
     setShowAddMenu(false);
     setErr(null);
-    const next = emptyPage(kind);
+    const pageKind: PageKind = kind === 'av' ? 'audio' : kind;
+    const next = emptyPage(pageKind);
     setPages((prev) => [...prev, next]);
     setActive(pages.length);
     if (kind !== 'text') {
       window.setTimeout(() => {
-        openFilePicker(
-          kind === 'image' ? 'image' : kind === 'audio' ? 'audio' : 'video',
-        );
+        openFilePicker(kind === 'image' ? 'image' : 'av', next.id);
       }, 120);
     }
   };
 
-  /** ＋ 默认加同类型页（小红书式）；长按/展开再选其它 */
+  /** ＋ 默认加同类型页（小红书式）；··· 再选图文/音视频 */
   const quickAddPage = () => {
-    const kind = current?.kind || seedKind || 'image';
-    addPage(kind);
+    if (seedKind === 'av' || current?.kind === 'audio' || current?.kind === 'video') {
+      addPage('av');
+      return;
+    }
+    addPage(current?.kind || 'image');
   };
 
   const removePage = (index: number) => {
@@ -293,8 +329,9 @@ export default function KnowledgeNewNotePage() {
   };
 
   const onFilePicked = async (files: FileList | null) => {
-    const pageId = pages[active]?.id;
     if (!files?.length) return;
+    const pageId =
+      uploadTargetIdRef.current || pages[active]?.id || null;
     if (!pageId) {
       setErr('请先选择一页再上传');
       return;
@@ -303,24 +340,67 @@ export default function KnowledgeNewNotePage() {
     setErr(null);
     setOkHint(null);
 
-    // 先本地预览，避免「上传后没反应」
+    const applyLocalSrc = (file: File) => {
+      const localUrl = URL.createObjectURL(file);
+      setPages((prev) =>
+        prev.map((p) => {
+          if (p.id !== pageId) return p;
+          if (p.src.startsWith('blob:')) URL.revokeObjectURL(p.src);
+          return { ...p, src: localUrl, kind: kind === 'cover' ? p.kind : 'image' };
+        }),
+      );
+    };
+
+    const applyLocalMedia = (file: File, as: 'audio' | 'video') => {
+      const localUrl = URL.createObjectURL(file);
+      setPages((prev) =>
+        prev.map((p) => {
+          if (p.id !== pageId) return p;
+          if (p.mediaUrl.startsWith('blob:')) URL.revokeObjectURL(p.mediaUrl);
+          let nextSrc = p.src;
+          if (as === 'video') {
+            // 无封面时用视频 blob 进册页条即时预览
+            if (!p.src || p.src.startsWith('blob:')) {
+              if (p.src.startsWith('blob:') && p.src !== localUrl) {
+                URL.revokeObjectURL(p.src);
+              }
+              nextSrc = localUrl;
+            }
+          }
+          return { ...p, kind: as, mediaUrl: localUrl, src: nextSrc };
+        }),
+      );
+    };
+
+    // 先本地预览进册页条，再后台上传
     if (kind === 'image' || kind === 'cover') {
       const first = files[0];
-      if (first && first.type.startsWith('image/')) {
-        const localUrl = URL.createObjectURL(first);
-        setPages((prev) =>
-          prev.map((p) => (p.id === pageId ? { ...p, src: localUrl } : p)),
-        );
+      if (first && looksLikeImage(first)) applyLocalSrc(first);
+    } else if (kind === 'av') {
+      const first = files[0];
+      if (first) {
+        if (looksLikeVideo(first)) applyLocalMedia(first, 'video');
+        else if (looksLikeAudio(first)) applyLocalMedia(first, 'audio');
+        else {
+          setErr('请选择音频或视频文件');
+          return;
+        }
       }
+    } else if (kind === 'audio') {
+      const first = files[0];
+      if (first) applyLocalMedia(first, 'audio');
+    } else if (kind === 'video') {
+      const first = files[0];
+      if (first) applyLocalMedia(first, 'video');
     }
 
     setBusy(true);
     try {
       if (kind === 'image' || kind === 'cover') {
-        const list = Array.from(files).slice(
-          0,
-          Math.max(1, MAX_PAGES - pages.length + (kind === 'cover' ? 1 : 1)),
-        );
+        const list = Array.from(files)
+          .filter(looksLikeImage)
+          .slice(0, Math.max(1, MAX_PAGES - pages.length + 1));
+        if (!list.length) throw new Error('未识别到图片文件');
         if (kind === 'cover' || list.length === 1) {
           setBusyLabel('上传图片…');
           const url = await uploadKnowledgeNoteMedia(list[0]!, 'cover');
@@ -353,27 +433,44 @@ export default function KnowledgeNewNotePage() {
             }));
             return [...copy, ...extras].slice(0, MAX_PAGES);
           });
-          setActive((a) => a);
           setOkHint(`已添加 ${urls.length} 张图`);
         }
-      } else if (kind === 'audio') {
-        setBusyLabel('上传音频…');
-        const url = await uploadKnowledgeNoteMedia(files[0]!, 'audio');
-        setPages((prev) =>
-          prev.map((p) =>
-            p.id === pageId ? { ...p, mediaUrl: url, kind: 'audio' } : p,
-          ),
+      } else if (kind === 'av' || kind === 'audio' || kind === 'video') {
+        const file = files[0]!;
+        const asVideo =
+          kind === 'video' || (kind === 'av' && looksLikeVideo(file));
+        const asAudio =
+          kind === 'audio' || (kind === 'av' && looksLikeAudio(file));
+        if (!asVideo && !asAudio) throw new Error('请选择音频或视频文件');
+        setBusyLabel(asVideo ? '上传视频…' : '上传音频…');
+        const url = await uploadKnowledgeNoteMedia(
+          file,
+          asVideo ? 'video' : 'audio',
         );
-        setOkHint('音频已添加');
-      } else {
-        setBusyLabel('上传视频…');
-        const url = await uploadKnowledgeNoteMedia(files[0]!, 'video');
         setPages((prev) =>
-          prev.map((p) =>
-            p.id === pageId ? { ...p, mediaUrl: url, kind: 'video' } : p,
-          ),
+          prev.map((p) => {
+            if (p.id !== pageId) return p;
+            if (p.mediaUrl.startsWith('blob:')) URL.revokeObjectURL(p.mediaUrl);
+            const keepCover =
+              p.src && !p.src.startsWith('blob:')
+                ? p.src
+                : asVideo
+                  ? url
+                  : p.src.startsWith('blob:')
+                    ? ''
+                    : p.src;
+            if (p.src.startsWith('blob:') && keepCover !== p.src) {
+              URL.revokeObjectURL(p.src);
+            }
+            return {
+              ...p,
+              kind: asVideo ? 'video' : 'audio',
+              mediaUrl: url,
+              src: keepCover,
+            };
+          }),
         );
-        setOkHint('视频已添加');
+        setOkHint(asVideo ? '视频已添加' : '音频已添加');
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : '上传失败');
@@ -626,7 +723,9 @@ export default function KnowledgeNewNotePage() {
         layout.cover_image || '',
       );
       const primary = draftPages[0]?.kind || 'text';
-      setSeedKind(primary);
+      const seed: SeedKind =
+        primary === 'audio' || primary === 'video' ? 'av' : primary === 'image' ? 'image' : 'text';
+      setSeedKind(seed);
       setNoteId(layout.id);
       setTitle(layout.title || '');
       setGuide(layout.guide_one_liner || '');
@@ -642,11 +741,13 @@ export default function KnowledgeNewNotePage() {
   };
 
   const acceptForInput =
-    pendingUploadKind === 'audio'
-      ? 'audio/mpeg,audio/mp4,audio/*,.mp3,.m4a,.aac,.wav,.ogg'
-      : pendingUploadKind === 'video'
-        ? 'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov'
-        : 'image/jpeg,image/png,image/webp';
+    pendingUploadKind === 'av'
+      ? 'audio/mpeg,audio/mp4,audio/*,video/mp4,video/webm,video/quicktime,.mp3,.m4a,.aac,.wav,.ogg,.mp4,.webm,.mov'
+      : pendingUploadKind === 'audio'
+        ? 'audio/mpeg,audio/mp4,audio/*,.mp3,.m4a,.aac,.wav,.ogg'
+        : pendingUploadKind === 'video'
+          ? 'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov'
+          : 'image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic';
 
   if (allowed === null) {
     return (
@@ -700,19 +801,19 @@ export default function KnowledgeNewNotePage() {
         ) : null}
 
         <div className="knowledge-note-chooser" role="list">
-          {CHOOSER_ORDER.map((m) => (
+          {CHOOSER.map((m) => (
             <button
-              key={m}
+              key={m.seed}
               type="button"
               className="knowledge-note-chooser-card"
               role="listitem"
-              onClick={() => enterMode(m)}
+              onClick={() => enterMode(m.seed)}
             >
               <em className="knowledge-note-chooser-glyph" aria-hidden>
-                {MODE_META[m].pageLabel}
+                {m.glyph}
               </em>
-              <strong>{MODE_META[m].label}</strong>
-              <span>{MODE_META[m].hint}</span>
+              <strong>{m.label}</strong>
+              <span>{m.hint}</span>
             </button>
           ))}
         </div>
@@ -725,18 +826,42 @@ export default function KnowledgeNewNotePage() {
 
   const openCurrentMedia = () => {
     if (!current) return;
-    if (current.kind === 'image') openFilePicker('image');
-    else if (current.kind === 'audio') openFilePicker('audio');
-    else if (current.kind === 'video') openFilePicker('video');
+    if (current.kind === 'image') openFilePicker('image', current.id);
+    else openFilePicker('av', current.id);
+  };
+
+  const thumbPreview = (p: FolioDraftPage) => {
+    if (p.src) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={knowledgeMediaUrl(p.src)} alt="" />
+      );
+    }
+    if (p.kind === 'video' && p.mediaUrl) {
+      return (
+        <video
+          className="knowledge-compose-thumb-video"
+          src={knowledgeMediaUrl(p.mediaUrl)}
+          muted
+          playsInline
+          preload="metadata"
+        />
+      );
+    }
+    return (
+      <span className="knowledge-folio-thumb-fallback">
+        {MODE_META[p.kind].pageLabel}
+      </span>
+    );
   };
 
   const stripNav = showStrip ? (
-    <nav className="knowledge-compose-strip knowledge-compose-strip--top" aria-label="册页">
+    <nav className="knowledge-compose-strip knowledge-compose-strip--top" aria-label="册页预览">
       <div className="knowledge-compose-strip-scroll">
         {pages.map((p, i) => (
           <div
             key={p.id}
-            className={`knowledge-compose-thumb${i === active ? ' is-on' : ''}${pageReady(p) ? '' : ' is-empty'}`}
+            className={`knowledge-compose-thumb${i === active ? ' is-on' : ''}${pageReady(p) ? '' : ' is-empty'}${p.src || (p.kind === 'video' && p.mediaUrl) ? ' has-preview' : ''}`}
             draggable
             onDragStart={() => setDragFrom(i)}
             onDragOver={(e) => e.preventDefault()}
@@ -749,19 +874,36 @@ export default function KnowledgeNewNotePage() {
             <button
               type="button"
               className="knowledge-compose-thumb-hit"
-              onClick={() => setActive(i)}
-              aria-label={`第 ${i + 1} 页`}
+              onClick={() => {
+                setActive(i);
+                if (!pageReady(p) || p.kind === 'image') {
+                  // 空页或图页：点缩略图即可换图/补传
+                  if (!pageReady(p)) {
+                    openFilePicker(
+                      p.kind === 'image' ? 'image' : 'av',
+                      p.id,
+                    );
+                  }
+                }
+              }}
+              onDoubleClick={() => {
+                openFilePicker(p.kind === 'image' ? 'image' : 'av', p.id);
+              }}
+              aria-label={
+                p.src || p.mediaUrl
+                  ? `第 ${i + 1} 页，点击选中，双击更换`
+                  : `第 ${i + 1} 页，添加内容`
+              }
               aria-current={i === active ? 'page' : undefined}
             >
-              {p.src ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={knowledgeMediaUrl(p.src)} alt="" />
-              ) : (
-                <span className="knowledge-folio-thumb-fallback">
-                  {MODE_META[p.kind].pageLabel}
-                </span>
-              )}
+              {thumbPreview(p)}
               <em>{i + 1}</em>
+              {p.kind === 'audio' && p.mediaUrl ? (
+                <span className="knowledge-compose-thumb-tag">听</span>
+              ) : null}
+              {p.kind === 'video' && p.mediaUrl ? (
+                <span className="knowledge-compose-thumb-tag">看</span>
+              ) : null}
             </button>
             {i === active && pages.length > 1 ? (
               <button
@@ -795,7 +937,9 @@ export default function KnowledgeNewNotePage() {
         </button>
       </div>
       <p className="knowledge-compose-strip-hint">
-        拖动排序 · ＋加同类型 · 点图可更换
+        {busy && busyLabel
+          ? busyLabel
+          : '上方预览 · 拖动排序 · 点空页添加 · 双击更换'}
       </p>
     </nav>
   ) : null;
@@ -850,7 +994,7 @@ export default function KnowledgeNewNotePage() {
         {current && current.kind !== 'text' ? (
           <button
             type="button"
-            className={`knowledge-compose-hero${current.src ? ' has-media' : ' is-empty'}`}
+            className={`knowledge-compose-hero${current.src || (current.kind === 'video' && current.mediaUrl) ? ' has-media' : ' is-empty'}`}
             disabled={false}
             onClick={openCurrentMedia}
             aria-label={
@@ -859,31 +1003,40 @@ export default function KnowledgeNewNotePage() {
                   ? '更换图片'
                   : '添加图片'
                 : current.mediaUrl
-                  ? `更换${current.kind === 'audio' ? '音频' : '视频'}`
-                  : `添加${current.kind === 'audio' ? '音频' : '视频'}`}
+                  ? '更换音视频'
+                  : '添加音频或视频'
+            }
           >
             {current.src ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={knowledgeMediaUrl(current.src)} alt="" />
+            ) : current.kind === 'video' && current.mediaUrl ? (
+              <video
+                className="knowledge-compose-hero-video"
+                src={knowledgeMediaUrl(current.mediaUrl)}
+                muted
+                playsInline
+                controls
+                preload="metadata"
+              />
             ) : (
               <span className="knowledge-compose-hero-empty">
                 <strong>＋</strong>
                 <span>
                   {current.kind === 'image'
                     ? '添加图片'
-                    : current.kind === 'audio'
-                      ? '添加音频'
-                      : '添加视频'}
+                    : '添加音频或视频'}
                 </span>
-                <em>{busy ? busyLabel || '处理中…' : '可多选图片'}</em>
+                <em>{busy ? busyLabel || '处理中…' : '预览在上方册页条'}</em>
               </span>
             )}
-            {current.kind !== 'image' && current.mediaUrl ? (
+            {(current.kind === 'audio' || current.kind === 'video') &&
+            current.mediaUrl ? (
               <span className="knowledge-compose-hero-badge">
                 {current.kind === 'audio' ? '听' : '看'} · 已选
               </span>
             ) : null}
-            {busy && current.src ? (
+            {busy && (current.src || current.mediaUrl) ? (
               <span className="knowledge-compose-hero-busy">{busyLabel || '上传中…'}</span>
             ) : null}
           </button>
@@ -894,9 +1047,13 @@ export default function KnowledgeNewNotePage() {
             type="button"
             className="knowledge-compose-cover-link"
             disabled={busy}
-            onClick={() => openFilePicker('cover')}
+            onClick={() => openFilePicker('cover', current.id)}
           >
-            {current.src ? '更换封面' : '添加封面图（可选）'}
+            {current.src && !current.src.startsWith('blob:')
+              ? '更换封面'
+              : current.src
+                ? '上传封面图（可选）'
+                : '添加封面图（可选）'}
           </button>
         ) : null}
 
@@ -954,12 +1111,14 @@ export default function KnowledgeNewNotePage() {
           <div className="knowledge-compose-sheet-panel">
             <p className="knowledge-compose-sheet-title">添加一页</p>
             <div className="knowledge-compose-sheet-grid">
-              {CHOOSER_ORDER.filter((k) => k !== 'text').map((k) => (
-                <button key={k} type="button" onClick={() => addPage(k)}>
-                  <em>{MODE_META[k].pageLabel}</em>
-                  <strong>{MODE_META[k].label}</strong>
-                </button>
-              ))}
+              <button type="button" onClick={() => addPage('image')}>
+                <em>图</em>
+                <strong>图文</strong>
+              </button>
+              <button type="button" onClick={() => addPage('av')}>
+                <em>听</em>
+                <strong>音视频</strong>
+              </button>
             </div>
             <button
               type="button"
