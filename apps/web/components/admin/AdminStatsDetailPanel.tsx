@@ -42,6 +42,48 @@ const RANGE_OPTIONS: RangeOption[] = [
   { preset: '30d', label: '30 日' },
 ];
 
+const PRODUCT_RANK_GROUPS: { id: string; label: string }[] = [
+  { id: 'all', label: '全部' },
+  { id: 'reading', label: '读经' },
+  { id: 'spiritual', label: '灵修' },
+  { id: 'content', label: '内容' },
+  { id: 'growth', label: '增长与社交' },
+];
+
+function ProductFeatureRankSection({ section }: { section: AdminStatsSection }) {
+  const [group, setGroup] = useState('all');
+  const filtered = useMemo(() => {
+    if (group === 'all') return section.items;
+    return section.items.filter((row) => row.group === group);
+  }, [group, section.items]);
+  const visible = filtered.filter((row) => group === 'all' || (row.events as number) > 0);
+  const rows = group === 'all' ? filtered : visible.length > 0 ? visible : filtered;
+
+  return (
+    <div className="admin-stats-table-wrap card card-2">
+      <p className="settings-title" style={{ margin: '0 0 8px' }}>{section.title}</p>
+      <div className="admin-stats-range-presets" style={{ marginBottom: 10 }}>
+        {PRODUCT_RANK_GROUPS.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            className={`admin-stats-range-btn${group === g.id ? ' is-active' : ''}`}
+            onClick={() => setGroup(g.id)}
+          >
+            {g.label}
+          </button>
+        ))}
+      </div>
+      <StatsTable
+        section={{
+          ...section,
+          items: rows,
+        }}
+      />
+    </div>
+  );
+}
+
 function MiniBarChart({
   title,
   points,
@@ -102,11 +144,13 @@ function formatCell(value: string | number | boolean | null | undefined): string
   return String(value);
 }
 
-function StatsTable({ section }: { section: AdminStatsSection }) {
+function StatsTable({ section, bare }: { section: AdminStatsSection; bare?: boolean }) {
   if (!section.items.length) return null;
   return (
-    <div className="admin-stats-table-wrap card card-2">
-      <p className="settings-title" style={{ margin: '0 0 8px' }}>{section.title}</p>
+    <div className={bare ? '' : 'admin-stats-table-wrap card card-2'}>
+      {!bare ? (
+        <p className="settings-title" style={{ margin: '0 0 8px' }}>{section.title}</p>
+      ) : null}
       <div className="admin-stats-table-scroll">
         <table className="admin-stats-table">
           <thead>
@@ -266,9 +310,13 @@ export default function AdminStatsDetailPanel({ metric }: { metric: AdminStatsSe
         <MiniBarChart title={`${title}趋势`} points={detail.series} rangeLabel={rangeLabel} />
       ) : null}
 
-      {detail?.sections?.map((section) => (
-        <StatsTable key={section.key} section={section} />
-      ))}
+      {detail?.sections?.map((section) =>
+        section.key === 'feature_rank' && metric === 'product' ? (
+          <ProductFeatureRankSection key={section.key} section={section} />
+        ) : (
+          <StatsTable key={section.key} section={section} />
+        ),
+      )}
 
       {isRag && detail?.items?.length ? (
         <div className="admin-stats-table-wrap card card-2">

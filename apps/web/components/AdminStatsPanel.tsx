@@ -39,7 +39,7 @@ const METRICS: MetricDef[] = [
     key: 'product',
     label: '功能事件',
     total: (t) => t.product_events_today ?? 0,
-    hint: () => '12 项产品事件 · 排行与漏斗',
+    hint: () => '20 项产品事件 · 分组排行与漏斗',
     dodKey: 'product_events_today',
     dodLabel: '较昨日',
     seriesKey: 'product',
@@ -238,6 +238,13 @@ export default function AdminStatsPanel() {
       list.push({
         label: '今日尚无 AI 请求',
         href: '/admin/stats/ai_requests',
+        tone: 'muted',
+      });
+    }
+    if ((t.product_events_today ?? 0) === 0) {
+      list.push({
+        label: '今日尚无产品事件',
+        href: '/admin/stats/product',
         tone: 'muted',
       });
     }

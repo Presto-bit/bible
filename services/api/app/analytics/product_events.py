@@ -35,6 +35,54 @@ PRODUCT_EVENT_NAMES = frozenset(
     }
 )
 
+# 管理台功能排行分组
+EVENT_GROUPS: dict[str, tuple[str, ...]] = {
+    "reading": (
+        "reader_open",
+        "reader_session_end",
+        "listen_open",
+        "listen_session_end",
+        "plan_start",
+        "plan_day_done",
+    ),
+    "spiritual": ("prayer_finish", "warmup_finish", "reminder_enable"),
+    "content": (
+        "shelf_open",
+        "shelf_checkin",
+        "shelf_post",
+        "visual_card_view",
+        "knowledge_step",
+    ),
+    "growth": (
+        "app_open",
+        "daily_verse_view",
+        "daily_verse_like",
+        "discover_open",
+        "share_out",
+        "ai_ask",
+    ),
+}
+
+EVENT_GROUP_LABELS: dict[str, str] = {
+    "reading": "读经",
+    "spiritual": "灵修",
+    "content": "内容",
+    "growth": "增长与社交",
+}
+
+NEW_FEATURE_EVENTS: frozenset[str] = frozenset(
+    {
+        "listen_open",
+        "listen_session_end",
+        "prayer_finish",
+        "shelf_open",
+        "shelf_checkin",
+        "shelf_post",
+        "visual_card_view",
+        "knowledge_step",
+    }
+)
+
 EVENT_LABELS: dict[str, str] = {
     "app_open": "打开 App",
     "daily_verse_view": "看今日经文",
@@ -233,6 +281,18 @@ def product_events_series_between(conn, start: date, end: date) -> list[dict]:
     return out
 
 
+def event_group(event_name: str) -> str:
+    for group, names in EVENT_GROUPS.items():
+        if event_name in names:
+            return group
+    return "growth"
+
+
+def _sum_rank_events(ranking: list[dict], names: frozenset[str] | set[str]) -> int:
+    wanted = set(names)
+    return sum(int(r.get("events") or 0) for r in ranking if r.get("event") in wanted)
+
+
 def feature_usage_ranking(conn, start: date, end: date) -> list[dict]:
     """功能使用排行：事件次数 + 去重用户。"""
     ensure_product_events_schema(conn)
@@ -257,14 +317,180 @@ def feature_usage_ranking(conn, start: date, end: date) -> list[dict]:
     )
     for name in ranked:
         r = known.get(name)
+        group = event_group(name)
         out.append(
             {
                 "event": name,
                 "label": EVENT_LABELS.get(name, name),
                 "events": int(r[1]) if r else 0,
                 "users": int(r[2] or 0) if r else 0,
+                "group": group,
+                "group_label": EVENT_GROUP_LABELS.get(group, group),
             }
         )
+    return out
+
+
+def activation_deep_funnel(conn, start: date, end: date, *, within_days: int = 7) -> list[dict]:
+    """新用户深度激活：阅读/听读 → 习惯 → 深度内容（注册后 within_days 日内）。"""
+    ensure_product_events_schema(conn)
+    window = max(1, min(int(within_days or 7), 30))
+    cohort = conn.execute(
+        """
+        SELECT DISTINCT
+          COALESCE(a.user_code, up.user_code) AS user_code,
+          (timezone('Asia/Shanghai', u.created_at))::date AS reg_day
+        FROM users u
+        LEFT JOIN accounts a ON a.user_id = u.id
+        LEFT JOIN user_profile up ON up.user_id = u.id
+        WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
+          AND COALESCE(a.user_code, up.user_code) IS NOT NULL
+          AND trim(COALESCE(a.user_code, up.user_code)) <> ''
+        """,
+        (start, end),
+    ).fetchall()
+    pairs = [(str(r[0]), r[1]) for r in cohort if r and r[0] and r[1]]
+    registered = len({p[0] for p in pairs})
+    if not pairs:
+        return [
+            {"step": "registered", "label": "新注册", "users": 0},
+            {"step": "read_listen", "label": f"阅读或听读（{window} 日内）", "users": 0},
+            {"step": "habit", "label": f"祷告或计划/温习（{window} 日内）", "users": 0},
+            {"step": "depth", "label": f"书架/示意卡/知识库（{window} 日内）", "users": 0},
+        ]
+
+    codes = [p[0] for p in pairs]
+    reg_days = [p[1] for p in pairs]
+
+    def _count(names: tuple[str, ...]) -> int:
+        row = conn.execute(
+            """
+            WITH cohort AS (
+              SELECT * FROM unnest(%s::text[], %s::date[]) AS c(user_code, reg_day)
+            )
+            SELECT count(DISTINCT c.user_code)
+            FROM cohort c
+            WHERE EXISTS (
+              SELECT 1 FROM product_events pe
+              WHERE pe.user_code = c.user_code
+                AND pe.event_name = ANY(%s)
+                AND (timezone('Asia/Shanghai', pe.created_at))::date >= c.reg_day
+                AND (timezone('Asia/Shanghai', pe.created_at))::date
+                    <= c.reg_day + %s::int
+            )
+            """,
+            (codes, reg_days, list(names), window - 1),
+        ).fetchone()
+        return int(row[0] or 0) if row else 0
+
+    return [
+        {"step": "registered", "label": "新注册", "users": registered},
+        {
+            "step": "read_listen",
+            "label": f"阅读或听读（{window} 日内）",
+            "users": _count(("reader_open", "listen_open")),
+        },
+        {
+            "step": "habit",
+            "label": f"祷告或计划/温习（{window} 日内）",
+            "users": _count(
+                ("prayer_finish", "plan_day_done", "warmup_finish", "reminder_enable")
+            ),
+        },
+        {
+            "step": "depth",
+            "label": f"书架/示意卡/知识库（{window} 日内）",
+            "users": _count(
+                ("shelf_checkin", "shelf_post", "visual_card_view", "knowledge_step")
+            ),
+        },
+    ]
+
+
+def product_props_breakdowns(conn, start: date, end: date) -> dict[str, list[dict]]:
+    """product_events props 维度：阅读来源、计划类型、听读分钟档。"""
+    ensure_product_events_schema(conn)
+    out: dict[str, list[dict]] = {
+        "reader_session_source": [],
+        "plan_day_kind": [],
+        "listen_minutes": [],
+    }
+
+    rows = conn.execute(
+        """
+        SELECT COALESCE(NULLIF(trim(props->>'source'), ''), 'unknown') AS dim,
+               count(*) AS events,
+               count(DISTINCT NULLIF(trim(user_code), '')) AS users
+        FROM product_events
+        WHERE event_name = 'reader_session_end'
+          AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
+        GROUP BY 1
+        ORDER BY events DESC, dim
+        """,
+        (start, end),
+    ).fetchall()
+    out["reader_session_source"] = [
+        {
+            "label": "阅读" if r[0] == "read" else ("听读" if r[0] == "listen" else str(r[0])),
+            "source": str(r[0]),
+            "events": int(r[1] or 0),
+            "users": int(r[2] or 0),
+        }
+        for r in rows
+    ]
+
+    rows = conn.execute(
+        """
+        SELECT COALESCE(NULLIF(trim(props->>'kind'), ''), 'unknown') AS dim,
+               count(*) AS events,
+               count(DISTINCT NULLIF(trim(user_code), '')) AS users
+        FROM product_events
+        WHERE event_name = 'plan_day_done'
+          AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
+        GROUP BY 1
+        ORDER BY events DESC, dim
+        """,
+        (start, end),
+    ).fetchall()
+    kind_labels = {"reading": "读经计划", "prayer": "祷告计划", "unknown": "未标注"}
+    out["plan_day_kind"] = [
+        {
+            "label": kind_labels.get(str(r[0]), str(r[0])),
+            "kind": str(r[0]),
+            "events": int(r[1] or 0),
+            "users": int(r[2] or 0),
+        }
+        for r in rows
+    ]
+
+    rows = conn.execute(
+        """
+        SELECT
+          CASE
+            WHEN COALESCE((props->>'minutes')::int, 0) <= 0 THEN '0 分钟'
+            WHEN COALESCE((props->>'minutes')::int, 0) <= 5 THEN '1–5 分钟'
+            WHEN COALESCE((props->>'minutes')::int, 0) <= 15 THEN '6–15 分钟'
+            ELSE '15 分钟以上'
+          END AS bucket,
+               count(*) AS events,
+               count(DISTINCT NULLIF(trim(user_code), '')) AS users
+        FROM product_events
+        WHERE event_name = 'listen_session_end'
+          AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
+        GROUP BY 1
+        ORDER BY min(COALESCE((props->>'minutes')::int, 0))
+        """,
+        (start, end),
+    ).fetchall()
+    out["listen_minutes"] = [
+        {
+            "label": str(r[0]),
+            "bucket": str(r[0]),
+            "events": int(r[1] or 0),
+            "users": int(r[2] or 0),
+        }
+        for r in rows
+    ]
     return out
 
 

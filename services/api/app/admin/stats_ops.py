@@ -27,13 +27,17 @@ from ..analytics.uv_stats import (
     uv_series_deduped_sql,
 )
 from ..analytics.product_events import (
+    NEW_FEATURE_EVENTS,
+    _sum_rank_events,
     acquisition_source_breakdown,
+    activation_deep_funnel,
     activation_funnel,
     d1_retention,
     feature_usage_ranking,
     product_events_series,
     product_events_series_between,
     product_events_today_count,
+    product_props_breakdowns,
 )
 
 STATS_DETAIL_METRICS = frozenset(
@@ -1852,11 +1856,25 @@ def fetch_admin_stats_detail(
         elif metric == "product":
             ranking = feature_usage_ranking(conn, start, end)
             funnel = activation_funnel(conn, start, end)
+            deep_funnel = activation_deep_funnel(conn, start, end)
+            props = product_props_breakdowns(conn, start, end)
             d1 = d1_retention(conn, start, end)
             total_events = sum(int(r["events"]) for r in ranking)
             top = ranking[0] if ranking else None
+            new_touch = _sum_rank_events(ranking, NEW_FEATURE_EVENTS)
+            listen_open_n = _sum_rank_events(ranking, frozenset({"listen_open"}))
+            listen_end_n = _sum_rank_events(ranking, frozenset({"listen_session_end"}))
+            prayer_n = _sum_rank_events(ranking, frozenset({"prayer_finish"}))
+            shelf_n = _sum_rank_events(
+                ranking, frozenset({"shelf_checkin", "shelf_post"})
+            )
             insights = [
-                _insight("区间事件", total_events, "12 项产品事件合计"),
+                _insight("区间事件", total_events, "20 项产品事件合计"),
+                _insight(
+                    "新功能触达",
+                    new_touch,
+                    f"听读 {listen_end_n} · 祷告 {prayer_n} · 书架 {shelf_n}",
+                ),
                 _insight(
                     "Top 功能",
                     (top or {}).get("label") or "—",
@@ -1870,11 +1888,20 @@ def fetch_admin_stats_detail(
                     f"回访 {d1.get('returned', 0)}/{d1.get('cohort', 0)}",
                 ),
             ]
+            if listen_open_n > 0 and listen_end_n == 0:
+                insights.append(
+                    _insight(
+                        "听读上报",
+                        "异常",
+                        "有打开听读但无结束事件，请检查客户端 stopSession",
+                    )
+                )
             sections.append(
                 _section(
                     "feature_rank",
                     "功能使用排行",
                     [
+                        _col("group_label", "分组"),
                         _col("label", "功能"),
                         _col("events", "次数"),
                         _col("users", "去重用户"),
@@ -1908,6 +1935,70 @@ def fetch_admin_stats_detail(
                     funnel_rows,
                 )
             )
+            deep_cohort = deep_funnel[0]["users"] if deep_funnel else 0
+            deep_rows = []
+            for step in deep_funnel:
+                n = int(step["users"])
+                pct = round(n / deep_cohort * 100, 1) if deep_cohort else 0.0
+                deep_rows.append(
+                    {
+                        "label": step["label"],
+                        "users": n,
+                        "pct": f"{pct}%",
+                        "step": step["step"],
+                    }
+                )
+            sections.append(
+                _section(
+                    "activation_deep_funnel",
+                    "深度激活漏斗",
+                    [
+                        _col("label", "步骤"),
+                        _col("users", "人数"),
+                        _col("pct", "占注册"),
+                    ],
+                    deep_rows,
+                )
+            )
+            if props.get("reader_session_source"):
+                sections.append(
+                    _section(
+                        "reader_session_source",
+                        "阅读会话来源",
+                        [
+                            _col("label", "来源"),
+                            _col("events", "次数"),
+                            _col("users", "去重用户"),
+                        ],
+                        props["reader_session_source"],
+                    )
+                )
+            if props.get("plan_day_kind"):
+                sections.append(
+                    _section(
+                        "plan_day_kind",
+                        "计划完成类型",
+                        [
+                            _col("label", "类型"),
+                            _col("events", "次数"),
+                            _col("users", "去重用户"),
+                        ],
+                        props["plan_day_kind"],
+                    )
+                )
+            if props.get("listen_minutes"):
+                sections.append(
+                    _section(
+                        "listen_minutes",
+                        "听读时长分布",
+                        [
+                            _col("label", "时长档"),
+                            _col("events", "次数"),
+                            _col("users", "去重用户"),
+                        ],
+                        props["listen_minutes"],
+                    )
+                )
             try:
                 src = acquisition_source_breakdown(conn, start, end)
                 sections.append(
