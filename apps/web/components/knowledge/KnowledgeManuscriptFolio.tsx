@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { knowledgeMediaUrl } from '@/lib/knowledge_media_url';
+import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 
 export type ManuscriptFolioPage = {
   key: string;
@@ -83,15 +83,23 @@ export function KnowledgeManuscriptFolio({ pages, onIndexChange }: Props) {
               </div>
             ) : p.src ? (
               <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  className="knowledge-folio-img"
-                  src={knowledgeMediaUrl(p.src)}
-                  alt={p.alt}
-                  draggable={false}
-                  onLoad={() => setReady((m) => ({ ...m, [p.key]: true }))}
-                  onError={() => setReady((m) => ({ ...m, [p.key]: false }))}
-                />
+                {(() => {
+                  const { webp, fallback } = knowledgeRasterSources(p.src);
+                  return (
+                    <picture>
+                      {webp ? <source type="image/webp" srcSet={webp} /> : null}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        className="knowledge-folio-img"
+                        src={fallback}
+                        alt={p.alt}
+                        draggable={false}
+                        onLoad={() => setReady((m) => ({ ...m, [p.key]: true }))}
+                        onError={() => setReady((m) => ({ ...m, [p.key]: false }))}
+                      />
+                    </picture>
+                  );
+                })()}
                 {ready[p.key] === false ? (
                   <p className="muted knowledge-folio-missing">本页手稿暂缺</p>
                 ) : null}

@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type TouchEvent as ReactTouchEvent,
 } from 'react';
-import { knowledgeMediaUrl } from '@/lib/knowledge_media_url';
+import { knowledgeMediaUrl, knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import {
   readManuscriptPage,
   writeManuscriptPage,
@@ -25,6 +25,32 @@ type Props = {
   /** 第一页再向「上一页」方向滑：退出专题 */
   onExitTopic: () => void;
 };
+
+function ManuscriptRaster({
+  path,
+  alt,
+  eager,
+}: {
+  path: string;
+  alt: string;
+  eager?: boolean;
+}) {
+  const { webp, fallback } = knowledgeRasterSources(path);
+  return (
+    <picture>
+      {webp ? <source type="image/webp" srcSet={webp} /> : null}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        className="knowledge-viewer-img"
+        src={fallback}
+        alt={alt}
+        draggable={false}
+        decoding="async"
+        loading={eager ? 'eager' : 'lazy'}
+      />
+    </picture>
+  );
+}
 
 function ShareGlyph() {
   return (
@@ -251,7 +277,10 @@ export function KnowledgeManuscriptViewer({
     });
     for (let i = Math.max(0, index - 1); i <= Math.min(total - 1, index + 1); i++) {
       const p = pages[i];
-      if (p?.src) preloadSrc(knowledgeMediaUrl(p.src));
+      if (!p?.src) continue;
+      const { webp, fallback } = knowledgeRasterSources(p.src);
+      if (webp) preloadSrc(webp);
+      preloadSrc(fallback);
     }
   }, [index, pages, total]);
 
@@ -300,7 +329,8 @@ export function KnowledgeManuscriptViewer({
     setShareBusy(true);
     try {
       if (current.src) {
-        const res = await fetch(knowledgeMediaUrl(current.src));
+        const { webp, fallback } = knowledgeRasterSources(current.src);
+        const res = await fetch(webp || fallback);
         if (!res.ok) throw new Error('missing');
         const blob = await res.blob();
         const file = new File([blob], current.src.split('/').pop() || 'manuscript.png', {
@@ -399,51 +429,52 @@ export function KnowledgeManuscriptViewer({
         onTouchEnd={onScrollerTouchEnd}
       >
         {pages.map((p, i) => {
-          const show = Boolean(loaded[i]);
+          const near = Math.abs(i - index) <= 1;
+          const show = near && Boolean(loaded[i]);
           const isVideoPage = p.media?.type === 'video' && Boolean(p.media.url);
           return (
             <div key={p.key} className="knowledge-viewer-page">
-              <PinchZoomPane
-                enabled={i === index && Boolean(p.src) && !p.text && !isVideoPage}
-                onZoomChange={(zoomed) => {
-                  if (i === index) setPageZoomed(zoomed);
-                }}
-              >
-                {!show ? (
-                  <span className="knowledge-viewer-img-placeholder" aria-hidden />
-                ) : isVideoPage ? (
-                  // eslint-disable-next-line jsx-a11y/media-has-caption
-                  <video
-                    ref={i === index ? videoRef : undefined}
-                    className="knowledge-viewer-video-inline"
-                    src={knowledgeMediaUrl(p.media!.url)}
-                    playsInline
-                    controls
-                    preload={i === index ? 'metadata' : 'none'}
-                    poster={p.src ? knowledgeMediaUrl(p.src) : undefined}
-                    onEnded={() => setMediaPlaying(false)}
-                    onPause={() => setMediaPlaying(false)}
-                    onPlay={() => setMediaPlaying(true)}
-                  />
-                ) : p.text ? (
-                  <article className="knowledge-viewer-text-leaf">
-                    {p.text.title ? <h3>{p.text.title}</h3> : null}
-                    <p>{p.text.body}</p>
-                  </article>
-                ) : p.src ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    className="knowledge-viewer-img"
-                    src={knowledgeMediaUrl(p.src)}
-                    alt={p.alt}
-                    draggable={false}
-                    decoding="async"
-                    loading={i === index ? 'eager' : 'lazy'}
-                  />
-                ) : (
-                  <span className="knowledge-viewer-img-placeholder" aria-hidden />
-                )}
-              </PinchZoomPane>
+              {!near ? (
+                <span className="knowledge-viewer-img-placeholder" aria-hidden />
+              ) : (
+                <PinchZoomPane
+                  enabled={i === index && Boolean(p.src) && !p.text && !isVideoPage}
+                  onZoomChange={(zoomed) => {
+                    if (i === index) setPageZoomed(zoomed);
+                  }}
+                >
+                  {!show ? (
+                    <span className="knowledge-viewer-img-placeholder" aria-hidden />
+                  ) : isVideoPage ? (
+                    // eslint-disable-next-line jsx-a11y/media-has-caption
+                    <video
+                      ref={i === index ? videoRef : undefined}
+                      className="knowledge-viewer-video-inline"
+                      src={knowledgeMediaUrl(p.media!.url)}
+                      playsInline
+                      controls
+                      preload={i === index ? 'metadata' : 'none'}
+                      poster={p.src ? knowledgeRasterSources(p.src).fallback : undefined}
+                      onEnded={() => setMediaPlaying(false)}
+                      onPause={() => setMediaPlaying(false)}
+                      onPlay={() => setMediaPlaying(true)}
+                    />
+                  ) : p.text ? (
+                    <article className="knowledge-viewer-text-leaf">
+                      {p.text.title ? <h3>{p.text.title}</h3> : null}
+                      <p>{p.text.body}</p>
+                    </article>
+                  ) : p.src ? (
+                    <ManuscriptRaster
+                      path={p.src}
+                      alt={p.alt}
+                      eager={i === index}
+                    />
+                  ) : (
+                    <span className="knowledge-viewer-img-placeholder" aria-hidden />
+                  )}
+                </PinchZoomPane>
+              )}
             </div>
           );
         })}

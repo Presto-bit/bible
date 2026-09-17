@@ -60,8 +60,10 @@ class DeepLink {
         return '/notes';
     }
 
-    // 故事图册：H5（Flutter 暂无原生实现）
-    if (path.startsWith('/search/series')) {
+    // 故事图册 / 地图手稿册：H5（与 iOS 同套 KnowledgeManuscriptViewer）
+    if (path.startsWith('/search/series') ||
+        path == '/search/map' ||
+        path.startsWith('/search/map/')) {
       return _h5(uri.replace(path: path));
     }
 
@@ -70,9 +72,11 @@ class DeepLink {
       return _h5(uri.replace(path: path));
     }
 
-    // 知识探索（除 series）：Flutter 原生
+    // 知识探索（除 series / map）：Flutter 原生
     if (path == '/search' ||
-        (path.startsWith('/search/') && !path.startsWith('/search/series'))) {
+        (path.startsWith('/search/') &&
+            !path.startsWith('/search/series') &&
+            !path.startsWith('/search/map'))) {
       return uri.hasQuery ? '$path?${uri.query}' : path;
     }
 

@@ -22,7 +22,8 @@ function coverFor(row: KnowledgeLayoutSummary): string {
     return knowledgeMediaUrl('/knowledge/vignettes/wilderness/00_overview.png');
   }
   if (id === 'paul-first-journey') {
-    return knowledgeMediaUrl('/knowledge/infographics/paul-first-journey-comic.png');
+    // 列表用轻量脊图，勿用 1080×1920 comic
+    return knowledgeMediaUrl('/knowledge/infographics/paul-first-journey.png');
   }
   return knowledgeMediaUrl('/knowledge/infographics/_paper_texture.jpg');
 }

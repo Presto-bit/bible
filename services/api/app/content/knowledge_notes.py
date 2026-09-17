@@ -62,8 +62,12 @@ def build_note_layout(
     if not title_s:
         raise ValueError("标题不能为空")
     paragraphs = _split_body(body)
+    # 图/音/视频流可仅有短导语；无正文时用标题顶上
     if not paragraphs:
-        raise ValueError("正文不能为空")
+        if folio_pages or (cover_image or "").strip() or (audio_url or "").strip() or (video_url or "").strip():
+            paragraphs = [title_s]
+        else:
+            raise ValueError("正文不能为空")
 
     st = (status or "published").strip().lower()
     if st not in ("draft", "published"):

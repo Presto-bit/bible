@@ -18,3 +18,24 @@ export function knowledgeMediaUrl(path: string | undefined | null): string {
   }
   return clientWithBasePath(raw);
 }
+
+/**
+ * 手稿栅格图：同路径优先 WebP（体积约 PNG 的 1/10），PNG 作回退。
+ */
+export function knowledgeRasterSources(path: string | undefined | null): {
+  webp?: string;
+  fallback: string;
+} {
+  const raw = (path || '').trim();
+  const fallback = knowledgeMediaUrl(raw);
+  if (!raw || /^https?:\/\//i.test(raw) || raw.startsWith('data:') || raw.startsWith('blob:')) {
+    return { fallback };
+  }
+  if (raw.startsWith('/knowledge/') && /\.png$/i.test(raw)) {
+    return {
+      webp: knowledgeMediaUrl(raw.replace(/\.png$/i, '.webp')),
+      fallback,
+    };
+  }
+  return { fallback };
+}

@@ -671,7 +671,8 @@ def knowledge_layout_from_scripture(body: KnowledgeLayoutFromScriptureBody) -> d
 
 class KnowledgeNoteCreateBody(BaseModel):
     title: str = Field(..., min_length=1, max_length=80)
-    body: str = Field(..., min_length=4, max_length=12000)
+    # 图/音/视频流可用短导语；纯文字流仍建议写满
+    body: str = Field(..., min_length=1, max_length=12000)
     cover_image: str | None = Field(default=None, max_length=500)
     audio_url: str | None = Field(default=None, max_length=500)
     video_url: str | None = Field(default=None, max_length=500)

@@ -6,7 +6,7 @@ import { type KnowledgeLayout, type MapTour } from '@/lib/api';
 import { recordMapTour } from '@/lib/badge_events';
 import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
-import { knowledgeMediaUrl } from '@/lib/knowledge_media_url';
+import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import { readManuscriptPage } from '@/lib/manuscript_progress';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { manuscriptFolioPages } from '@/components/knowledge/KnowledgeManuscriptFolio';
@@ -59,9 +59,10 @@ export function KnowledgeExplainerPage({
     [tour.id, title, beats],
   );
 
-  const coverSrc = pages[0]?.src
-    ? knowledgeMediaUrl(pages[0].src)
-    : knowledgeMediaUrl(`/knowledge/infographics/${encodeURIComponent(tour.id)}-comic.png`);
+  const coverSources = knowledgeRasterSources(
+    pages[0]?.src ||
+      `/knowledge/infographics/${encodeURIComponent(tour.id)}-comic.png`,
+  );
 
   useEffect(() => {
     recordMapTour(tour.id);
@@ -109,8 +110,17 @@ export function KnowledgeExplainerPage({
             }
           >
             <span className="knowledge-cover-card-media" aria-hidden>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="knowledge-cover-card-photo" src={coverSrc} alt="" />
+              <picture>
+                {coverSources.webp ? (
+                  <source type="image/webp" srcSet={coverSources.webp} />
+                ) : null}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className="knowledge-cover-card-photo"
+                  src={coverSources.fallback}
+                  alt=""
+                />
+              </picture>
               <span className="knowledge-cover-card-veil" />
               <span className="knowledge-cover-card-play">
                 {resumePage > 0 ? '继续阅读' : '打开手稿'}

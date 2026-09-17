@@ -52,11 +52,19 @@ bool openH5IfAllowed(BuildContext context, String href, {String? title}) {
     return true;
   }
 
-  // 知识探索（除故事系列）：Flutter 原生页（地图/时间线/图鉴/关系图）
+  // 知识探索：地图手稿册 / 时间线等走 H5（与 iOS 同套）；其余 /search 仍原生
   if (pathOnly == '/search' ||
       (pathOnly.startsWith('/search/') &&
-          !pathOnly.startsWith('/search/series'))) {
+          !pathOnly.startsWith('/search/series') &&
+          !pathOnly.startsWith('/search/map'))) {
     context.push(pathAndQuery);
+    return true;
+  }
+
+  // 地图专题手稿（含 ?view=1）：叠层 H5，勿进原生旧地图详情
+  if (pathOnly == '/search/map' || pathOnly.startsWith('/search/map/')) {
+    if (!H5Whitelist.allows(pathOnly)) return false;
+    openOverlayH5(context, pathAndQuery, title: title);
     return true;
   }
 
