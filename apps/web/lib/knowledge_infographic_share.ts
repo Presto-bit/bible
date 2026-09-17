@@ -14,6 +14,8 @@ export type InfographicShareBeat = {
   order: number;
   label: string;
   happen?: string;
+  /** 与上一站/整弧的关系（故事脊第二行） */
+  link?: string;
   ref?: string;
 };
 
@@ -99,7 +101,9 @@ export async function renderKnowledgeInfographicPng(
   const titleLines = wrapLines(measure, input.title, W - pad * 2, 2);
   measure.font = '400 28px "PingFang SC", "Noto Sans SC", system-ui, sans-serif';
   const guideLines = wrapLines(measure, input.guide || '', W - pad * 2, 3);
-  const beatBlock = beats.length * 56;
+  // 故事脊行：编号 + 站名 + happen + 可选 link
+  const beatRowH = 72;
+  const beatBlock = beats.length * beatRowH;
   const panelH =
     pad +
     titleLines.length * 52 +
@@ -171,7 +175,7 @@ export async function renderKnowledgeInfographicPng(
 
   ctx.fillStyle = '#8a8278';
   ctx.font = '500 22px "PingFang SC", system-ui, sans-serif';
-  ctx.fillText('站序事实', pad, y);
+  ctx.fillText('故事脊', pad, y);
   y += 28;
 
   for (const b of beats) {
@@ -188,14 +192,23 @@ export async function renderKnowledgeInfographicPng(
 
     ctx.fillStyle = '#2c2825';
     ctx.font = '600 26px "PingFang SC", system-ui, sans-serif';
-    ctx.fillText(b.label, pad + 40, y);
+    const labelLine = wrapLines(ctx, b.label, W - pad * 2 - 40, 1)[0] || b.label;
+    ctx.fillText(labelLine, pad + 40, y);
+    let rowY = y + 28;
     if (b.happen) {
-      ctx.fillStyle = '#6e675f';
+      ctx.fillStyle = '#3a3632';
       ctx.font = '400 24px "PingFang SC", system-ui, sans-serif';
       const hp = wrapLines(ctx, b.happen, W - pad * 2 - 40, 1)[0] || b.happen;
-      ctx.fillText(hp, pad + 40, y + 28);
+      ctx.fillText(hp, pad + 40, rowY);
+      rowY += 26;
     }
-    y += 56;
+    if (b.link) {
+      ctx.fillStyle = '#8a8278';
+      ctx.font = '400 22px "PingFang SC", system-ui, sans-serif';
+      const lk = wrapLines(ctx, b.link, W - pad * 2 - 40, 1)[0] || b.link;
+      ctx.fillText(lk, pad + 40, rowY);
+    }
+    y += beatRowH;
   }
 
   y = Math.max(y + 12, H - 56);

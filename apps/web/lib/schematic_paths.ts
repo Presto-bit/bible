@@ -91,7 +91,9 @@ export const SCHEMATIC_PATHS: Record<SchematicLayoutId, SchematicPathDef> = {
       'antioch-syria': '/knowledge/vignettes/paul/01_antioch_send.png',
       cyprus: '/knowledge/vignettes/paul/02_cyprus.png',
       'antioch-pisidia': '/knowledge/vignettes/paul/03_pisidian_antioch.png',
+      iconium: '/knowledge/vignettes/paul/05_iconium.png',
       lystra: '/knowledge/vignettes/paul/04_lystra.png',
+      derbe: '/knowledge/vignettes/paul/06_derbe.png',
     },
     happenByPlaceId: {
       'antioch-syria': '禁食祷告按手差遣 / 回报开了信道的门',

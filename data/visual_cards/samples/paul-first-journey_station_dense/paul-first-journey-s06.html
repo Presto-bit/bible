@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<style>
+  @font-face {
+    font-family: "Noto Sans SC";
+    src: local("PingFang SC"), local("Noto Sans SC"), local("Heiti SC"), local("Microsoft YaHei");
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1080px; height: 1920px; overflow: hidden;
+    font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+    color: #2c2825;
+    background-color: #efe2c6;
+    background-image: url("file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/infographics/_paper_texture.jpg");
+    background-size: cover;
+  }
+  .page {
+    width: 1080px; height: 1920px;
+    padding: 36px 40px 32px;
+    display: flex; flex-direction: column; gap: 14px;
+    position: relative;
+  }
+  .page::before {
+    content: "";
+    pointer-events: none;
+    position: absolute; inset: 12px;
+    border: 2.5px solid rgba(59,47,36,.55);
+    border-radius: 6px;
+  }
+  .seal {
+    position: absolute; top: 24px; right: 24px; z-index: 5;
+    width: 72px; height: 72px; border-radius: 50%;
+    border: 3px solid #a65a3a; color: #a65a3a;
+    background: rgba(255,248,232,.92);
+    box-shadow: 0 0 0 2px rgba(166,90,58,.22) inset;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; transform: rotate(8deg); line-height: 1.15;
+  }
+  .seal::before {
+    content: ""; position: absolute; inset: 5px; border-radius: 50%;
+    border: 1.5px dashed rgba(166,90,58,.55);
+  }
+  .seal .seal-brand { font-size: 15px; font-weight: 900; letter-spacing: 0.12em; }
+  .seal .seal-sub { margin-top: 2px; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; }
+  .eyebrow {
+    font-size: 18px; font-weight: 800; color: #a65a3a;
+    letter-spacing: 0.06em; padding-right: 88px;
+  }
+  h1 {
+    font-size: 42px; font-weight: 900; line-height: 1.15;
+    padding-right: 88px; margin-top: 2px;
+  }
+  .refspan { margin-top: 6px; font-size: 22px; color: #785035; font-weight: 800; }
+  .path { margin-top: 4px; }
+  .art {
+    flex: 0 0 auto; height: 760px; border-radius: 12px; overflow: hidden;
+    border: 2.8px solid #3b2f24; margin-top: 4px;
+  }
+  .art img {
+    width: 100%; height: 100%; object-fit: cover; object-position: center 35%;
+    filter: sepia(.18) contrast(1.03);
+  }
+  .art-fallback { width: 100%; height: 100%; background: #d9c9a8; }
+  .blocks {
+    flex: 1; display: flex; flex-direction: column; gap: 14px;
+    min-height: 0; padding-top: 4px;
+  }
+  .block {
+    border: 2px solid rgba(59,47,36,.45);
+    border-radius: 12px;
+    background: rgba(255,248,232,.72);
+    padding: 14px 16px 12px;
+  }
+  .block .k {
+    font-size: 14px; font-weight: 900; color: #a65a3a;
+    letter-spacing: 0.08em; margin-bottom: 6px;
+  }
+  .block .v {
+    font-size: 26px; font-weight: 800; line-height: 1.35;
+  }
+  .block.note .v { font-size: 24px; font-weight: 700; line-height: 1.42; }
+  .block.verse {
+    border-style: dashed;
+    background: rgba(255,248,232,.55);
+  }
+  .block.verse .v { font-size: 22px; font-weight: 700; color: #4a3f34; }
+  .footer {
+    font-size: 14px; color: #6b5a48; font-weight: 700;
+    display: flex; justify-content: space-between; margin-top: auto;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="seal" aria-label="彼爱手稿">
+      <span class="seal-brand">彼爱</span>
+      <span class="seal-sub">手稿</span>
+    </div>
+    <div class="eyebrow">6 / 7 · 站手稿</div>
+    <h1>特庇</h1>
+    <div class="refspan">使徒行传 14:20</div>
+    <div class="path"><svg viewBox="0 0 1000 52" width="100%" height="52" aria-hidden="true"><path d="M36 26 Q500.0 16 964 26" fill="none" stroke="#3b2f24" stroke-width="2.4" stroke-dasharray="6 5"/><circle cx="36.0" cy="26" r="12" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="36.0" y="31" text-anchor="middle" font-size="13" font-weight="800" fill="#3b2f24">1</text><circle cx="190.7" cy="26" r="12" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="190.7" y="31" text-anchor="middle" font-size="13" font-weight="800" fill="#3b2f24">2</text><circle cx="345.3" cy="26" r="12" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="345.3" y="31" text-anchor="middle" font-size="13" font-weight="800" fill="#3b2f24">3</text><circle cx="500.0" cy="26" r="12" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="500.0" y="31" text-anchor="middle" font-size="13" font-weight="800" fill="#3b2f24">4</text><circle cx="654.7" cy="26" r="12" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="654.7" y="31" text-anchor="middle" font-size="13" font-weight="800" fill="#3b2f24">5</text><circle cx="809.3" cy="26" r="15" fill="#a65a3a" stroke="#a65a3a" stroke-width="3"/><text x="809.3" y="31" text-anchor="middle" font-size="13" font-weight="800" fill="#fff8e8">6</text><circle cx="964.0" cy="26" r="12" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="964.0" y="31" text-anchor="middle" font-size="13" font-weight="800" fill="#3b2f24">7</text></svg></div>
+    <div class="art"><img src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/06_derbe.png" alt="" /></div>
+    <div class="blocks">
+      <div class="block">
+        <div class="k">发生</div>
+        <div class="v">传福音、坚固门徒，再原路回访</div>
+      </div>
+      <div class="block">
+        <div class="k">脉络</div>
+        <div class="v">建立教会后不丢下他们</div>
+      </div>
+      <div class="block note">
+        <div class="k">多懂一点</div>
+        <div class="v">在特庇传福音并教导门徒后，他们原路回访路司得、以哥念与安提阿，坚固门徒、选立长老，显出牧养不只停留在起步。</div>
+      </div>
+      <div class="block verse"><div class="k">经文</div><div class="v">第二天，他同巴拿巴往特庇去，对那城里的人传了福音，使好些人作门徒。</div></div>
+    </div>
+    <div class="footer">
+      <span>释义说明，仅供参考</span>
+      <span>保罗第一次宣教旅程</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1080px; height: 1920px; overflow: hidden;
+    font-family: "PingFang SC", "Hiragino Sans GB", "Songti SC", "Noto Serif SC", serif;
+    color: #3b2f24;
+  }
+  .page {
+    width: 1080px; height: 1920px;
+    padding: 16px 18px 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    background-color: #efe2c6;
+    background-image: url('file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/infographics/_paper_texture.jpg');
+    background-size: cover;
+    position: relative;
+  }
+  .page::before {
+    content: "";
+    pointer-events: none;
+    position: absolute; inset: 10px;
+    border: 2.5px solid rgba(59,47,36,.55);
+    border-radius: 6px;
+  }
+  .doodle { position: absolute; width: 60px; height: 60px; opacity: .7; z-index: 2; }
+  .doodle.tl { top: 10px; left: 10px; }
+  .doodle.br { bottom: 10px; right: 10px; }
+  .topbar {
+    display: flex; justify-content: flex-end; align-items: flex-start;
+    min-height: 0; margin-bottom: -4px;
+  }
+  .seal {
+    position: absolute;
+    top: 22px;
+    right: 22px;
+    z-index: 5;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 3px solid #a65a3a;
+    color: #a65a3a;
+    background: rgba(255,248,232,.92);
+    box-shadow:
+      0 0 0 2px rgba(166,90,58,.22) inset,
+      2px 2px 0 rgba(59,47,36,.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transform: rotate(8deg);
+    line-height: 1.15;
+    pointer-events: none;
+  }
+  .seal .seal-brand {
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+  }
+  .seal .seal-sub {
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+  }
+  .seal::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(166,90,58,.55);
+  }
+  h1 { font-size: 40px; font-weight: 900; line-height: 1.08; padding-right: 92px; }
+  .head-row { display: block; }
+  .head-copy { min-width: 0; }
+  .refspan { margin-top: 6px; font-size: 22px; color: #a65a3a; font-weight: 800; }
+  .hero {
+    position: relative; height: 176px; border-radius: 10px; overflow: hidden;
+    border: 2.8px solid #3b2f24; flex-shrink: 0;
+  }
+  .hero img {
+    width: 100%; height: 100%; object-fit: cover; object-position: center 35%;
+    filter: sepia(.2) contrast(1.03);
+  }
+  .hero-cap {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 12px 14px;
+    background: linear-gradient(transparent, rgba(35,26,18,.88));
+    color: #fff8e8;
+  }
+  .hero-cap strong { font-size: 22px; font-weight: 800; }
+  .path-wrap {
+    border: 2.2px solid #3b2f24;
+    border-radius: 12px 3px 12px 3px;
+    background: rgba(255,248,232,.85);
+    padding: 4px 6px 2px; flex-shrink: 0;
+  }
+  .panels {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .panel {
+    min-height: 0;
+    border: 2.5px solid #3b2f24;
+    border-radius: 14px 5px 14px 5px;
+    padding: 7px 8px 8px;
+    display: flex; flex-direction: column; gap: 6px;
+    background: rgba(255,248,232,.8);
+  }
+  .tone-a { flex: 1.2; }
+  .tone-b { flex: 1.9; }
+  .tone-c { flex: 0.95; }
+  .panel-head { display: flex; align-items: baseline; gap: 8px; }
+  .panel-idx { font-size: 20px; font-weight: 900; color: #2f6f6a; }
+  .panel-head h3 { font-size: 22px; font-weight: 900; }
+  .cards { flex: 1; min-height: 0; display: grid; gap: 7px; }
+  .grid-1 { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .card {
+    border: 2.2px solid #3b2f24;
+    border-radius: 12px 4px 12px 4px;
+    overflow: hidden; background: #fffaf0;
+    display: flex; min-height: 0;
+  }
+  .wide { flex-direction: row; align-items: stretch; }
+  .art-wrap { position: relative; background: #e5d5b8; }
+  .wide .art-wrap { width: 72%; flex: 0 0 72%; min-height: 100%; }
+  .grid-2 .wide .art-wrap { width: 70%; flex: 0 0 70%; }
+  .art {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    filter: sepia(.16) contrast(1.02);
+  }
+  .art.empty {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 34px; font-weight: 900; color: #a65a3a; height: 100%;
+  }
+  .badge {
+    position: absolute; left: 7px; top: 7px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #3b2f24; color: #efe2c6;
+    font-size: 14px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #efe2c6;
+  }
+  .sref {
+    position: absolute; left: 40px; top: 10px;
+    background: rgba(255,248,232,.94);
+    border: 1.5px solid #3b2f24; border-radius: 6px;
+    padding: 1px 7px; font-size: 13px; font-weight: 900; color: #a65a3a;
+  }
+  .mark {
+    position: absolute; right: 7px; top: 7px;
+    width: 24px; height: 24px; border-radius: 6px;
+    background: #2f6f6a; color: #fff8e8;
+    font-size: 12px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .txt {
+    flex: 1; width: 0;
+    padding: 8px 10px;
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  }
+  .txt h4 { font-size: 18px; font-weight: 900; line-height: 1.2; }
+  .hp { font-size: 14px; line-height: 1.32; font-weight: 700; }
+  .grid-2 .txt { padding: 7px 8px; }
+  .grid-2 .txt h4 { font-size: 15px; }
+  .grid-2 .hp { font-size: 12px; }
+  .grid-1 .wide .txt h4 { font-size: 20px; }
+  .grid-1 .wide .hp { font-size: 15px; }
+  .footer {
+    font-size: 13px; color: #6b5a48; font-weight: 700;
+    display: flex; justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <svg class="doodle tl" viewBox="0 0 80 80" aria-hidden="true">
+          <path d="M8 55 C10 20 20 8 55 8" fill="none" stroke="#3b2f24" stroke-width="2.4"/>
+          <path d="M14 48 C16 28 28 16 48 14" fill="none" stroke="#2f6f6a" stroke-width="1.6"/>
+          <circle cx="22" cy="22" r="3" fill="#a65a3a"/>
+        </svg>
+    <div class="seal" aria-label="彼爱手稿">
+      <span class="seal-brand">彼爱</span>
+      <span class="seal-sub">手稿</span>
+    </div>
+    <div class="head-row">
+      <div class="head-copy">
+        <h1>保罗第一次宣教旅程</h1>
+        <div class="refspan">使徒行传 13–14</div>
+      </div>
+    </div>
+    
+        <div class="hero">
+          <img src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/00_overview.png" alt="" />
+          <div class="hero-cap"><strong>差遣 → 跨海 → 会堂 → 逼迫与医治 → 回报</strong></div>
+        </div>
+        
+    <div class="path-wrap"><svg class="path-strip" viewBox="0 0 1000 56" width="100%"><polyline points="30.0,25 186.7,31 343.3,25 500.0,31 656.7,25 813.3,31 970.0,25" fill="none" stroke="#2f6f6a" stroke-width="3.2" stroke-linecap="round"/><circle cx="30.0" cy="28" r="13" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="30.0" y="33" text-anchor="middle" font-size="14" font-weight="800" fill="#3b2f24">1</text><circle cx="186.7" cy="28" r="13" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="186.7" y="33" text-anchor="middle" font-size="14" font-weight="800" fill="#3b2f24">2</text><circle cx="343.3" cy="28" r="13" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="343.3" y="33" text-anchor="middle" font-size="14" font-weight="800" fill="#3b2f24">3</text><circle cx="500.0" cy="28" r="13" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="500.0" y="33" text-anchor="middle" font-size="14" font-weight="800" fill="#3b2f24">4</text><circle cx="656.7" cy="28" r="13" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="656.7" y="33" text-anchor="middle" font-size="14" font-weight="800" fill="#3b2f24">5</text><circle cx="813.3" cy="28" r="13" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="813.3" y="33" text-anchor="middle" font-size="14" font-weight="800" fill="#3b2f24">6</text><circle cx="970.0" cy="28" r="13" fill="#efe2c6" stroke="#3b2f24" stroke-width="3"/><text x="970.0" y="33" text-anchor="middle" font-size="14" font-weight="800" fill="#3b2f24">7</text></svg></div>
+    <div class="panels">
+            <section class="panel tone-a">
+              <header class="panel-head">
+                <span class="panel-idx">01</span>
+                <h3>差遣与启程</h3>
+              </header>
+              <div class="cards grid-1">
+    <article class="card wide">
+      <div class="art-wrap"><img class="art" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/01_antioch_send.png" alt="" />
+        <span class="badge">1</span>
+        <span class="sref">13:1</span>
+        <span class="mark">差</span>
+      </div>
+      <div class="txt">
+        <h4>安提阿（叙利亚）</h4>
+        <p class="hp">教会禁食祷告，按手差遣保罗与巴拿巴</p>
+      </div>
+    </article>
+    
+    <article class="card wide">
+      <div class="art-wrap"><img class="art" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/02_cyprus.png" alt="" />
+        <span class="badge">2</span>
+        <span class="sref">13:4</span>
+        <span class="mark">海</span>
+      </div>
+      <div class="txt">
+        <h4>塞浦路斯</h4>
+        <p class="hp">坐船过海，在塞浦路斯会堂传道</p>
+      </div>
+    </article>
+    </div>
+            </section>
+            
+            <section class="panel tone-b">
+              <header class="panel-head">
+                <span class="panel-idx">02</span>
+                <h3>小亚细亚内陆</h3>
+              </header>
+              <div class="cards grid-2">
+    <article class="card wide">
+      <div class="art-wrap"><img class="art" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/03_pisidian_antioch.png" alt="" />
+        <span class="badge">3</span>
+        <span class="sref">13:14</span>
+        <span class="mark">堂</span>
+      </div>
+      <div class="txt">
+        <h4>彼西底的安提阿</h4>
+        <p class="hp">安息日进会堂，讲耶稣与赦罪</p>
+      </div>
+    </article>
+    
+    <article class="card wide">
+      <div class="art-wrap"><img class="art" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/05_iconium.png" alt="" />
+        <span class="badge">4</span>
+        <span class="sref">14:1</span>
+        <span class="mark">逼</span>
+      </div>
+      <div class="txt">
+        <h4>以哥念</h4>
+        <p class="hp">许多人信了，也有人起来逼迫</p>
+      </div>
+    </article>
+    
+    <article class="card wide">
+      <div class="art-wrap"><img class="art" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/04_lystra.png" alt="" />
+        <span class="badge">5</span>
+        <span class="sref">14:8</span>
+        <span class="mark">治</span>
+      </div>
+      <div class="txt">
+        <h4>路司得</h4>
+        <p class="hp">医好瘸子，众人却想拜他们为神</p>
+      </div>
+    </article>
+    
+    <article class="card wide">
+      <div class="art-wrap"><img class="art" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/06_derbe.png" alt="" />
+        <span class="badge">6</span>
+        <span class="sref">14:20</span>
+        <span class="mark">徒</span>
+      </div>
+      <div class="txt">
+        <h4>特庇</h4>
+        <p class="hp">传福音、坚固门徒，再原路回访</p>
+      </div>
+    </article>
+    </div>
+            </section>
+            
+            <section class="panel tone-c">
+              <header class="panel-head">
+                <span class="panel-idx">03</span>
+                <h3>回程与汇报</h3>
+              </header>
+              <div class="cards grid-1">
+    <article class="card wide">
+      <div class="art-wrap"><img class="art" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/01_antioch_send.png" alt="" />
+        <span class="badge">7</span>
+        <span class="sref">14:26</span>
+        <span class="mark">报</span>
+      </div>
+      <div class="txt">
+        <h4>回报安提阿</h4>
+        <p class="hp">回到安提阿，述说外邦信道的门开了</p>
+      </div>
+    </article>
+    </div>
+            </section>
+            </div>
+    <div class="footer">
+      <span>释义说明，仅供参考</span>
+      <span>安静读经，在话语中相遇</span>
+    </div>
+  </div>
+</body>
+</html>

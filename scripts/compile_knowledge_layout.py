@@ -83,7 +83,8 @@ CURATED: dict[str, dict] = {
         },
     },
     "paul-first-journey": {
-        "guide_one_liner": "圣灵差遣保罗与巴拿巴：跨海、会堂讲道、外邦回应，再回到差遣教会回报。",
+        # happen/link：遮掉图也能扫读「差遣→跨海→会堂→逼迫与医治→回报」
+        "guide_one_liner": "使徒行传 13–14：差遣、跨海、会堂、逼迫与医治，再回报差遣教会。",
         "density": "standard",
         "arc": [
             {"name": "差遣与启程", "stop_orders": [1, 2]},
@@ -92,51 +93,52 @@ CURATED: dict[str, dict] = {
         ],
         "beats": {
             "antioch-syria": {
-                "happen": "禁食祷告按手差遣",
-                "link": "宣教从差遣教会出发",
+                "happen": "教会禁食祷告，按手差遣保罗与巴拿巴",
+                "link": "整段旅程从这里出发",
                 "chips": ["差遣", "祷告"],
                 "must_see": ["室内窗光", "按手圈", "远景背影"],
                 "vignette": "/knowledge/vignettes/paul/01_antioch_send.png",
-                # order 7 回程单独覆盖
             },
             "cyprus": {
-                "happen": "坐船往塞浦路斯传道",
-                "link": "福音跨海进入岛屿",
+                "happen": "坐船过海，在塞浦路斯会堂传道",
+                "link": "福音第一次跨出海",
                 "chips": ["海船", "会堂"],
                 "must_see": ["古帆船", "岛屿岸线", "柱廊"],
                 "vignette": "/knowledge/vignettes/paul/02_cyprus.png",
             },
             "antioch-pisidia": {
-                "happen": "安息日在会堂讲道",
-                "link": "深入内陆会堂",
+                "happen": "安息日进会堂，讲耶稣与赦罪",
+                "link": "上岸后深入内陆会堂",
                 "chips": ["会堂", "讲道"],
                 "must_see": ["讲台", "听者背影", "经卷"],
                 "vignette": "/knowledge/vignettes/paul/03_pisidian_antioch.png",
             },
             "iconium": {
-                "happen": "多人信主也遇逼迫",
-                "link": "福音双刃回应",
+                "happen": "许多人信了，也有人起来逼迫",
+                "link": "同一信息，回应开始分裂",
                 "chips": ["信主", "逼迫"],
                 "must_see": ["会堂外景", "人群分阵", "行囊起行"],
+                "vignette": "/knowledge/vignettes/paul/05_iconium.png",
             },
             "lystra": {
-                "happen": "医治后被人当作神",
-                "link": "外邦城市的复杂",
+                "happen": "医好瘸子，众人却想拜他们为神",
+                "link": "权能显明，外邦却误会",
                 "chips": ["医治", "误会"],
                 "must_see": ["柱廊", "站起姿态", "举手人群"],
                 "vignette": "/knowledge/vignettes/paul/04_lystra.png",
             },
             "derbe": {
-                "happen": "传福音并坚固门徒",
-                "link": "建立后仍回访",
+                "happen": "传福音、坚固门徒，再原路回访",
+                "link": "建立教会后不丢下他们",
                 "chips": ["门徒", "回访"],
                 "must_see": ["城门口", "教导圈", "归途"],
+                "vignette": "/knowledge/vignettes/paul/06_derbe.png",
             },
         },
         "beat_overrides_by_order": {
             "7": {
-                "happen": "回报外邦信道的门开了",
-                "link": "向差遣教会述说神所行的事",
+                "happen": "回到安提阿，述说外邦信道的门开了",
+                "link": "向差遣他们的教会回报",
                 "chips": ["回报", "外邦"],
                 "vignette": "/knowledge/vignettes/paul/01_antioch_send.png",
             }

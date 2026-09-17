@@ -556,6 +556,8 @@ export interface KnowledgeLayoutBeat {
   chips?: string[];
   must_see?: string[];
   note?: string;
+  /** 站手稿可选短摘（§19.14.17） */
+  verse_excerpt?: string;
   ask_seed?: string;
   vignette?: string;
 }

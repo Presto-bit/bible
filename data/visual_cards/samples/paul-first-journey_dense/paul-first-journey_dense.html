@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1080px;
+    height: 1920px;
+    overflow: hidden;
+    background: #f7f3ec;
+    font-family: "PingFang SC", "Hiragino Sans GB", "Heiti SC", "Noto Sans SC", sans-serif;
+    color: #2c2825;
+  }
+  .page {
+    width: 1080px;
+    height: 1920px;
+    padding: 40px 44px 36px;
+    border-top: 6px solid #785035;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .seal {
+    position: absolute;
+    top: 28px;
+    right: 28px;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 3px solid #a65a3a;
+    color: #a65a3a;
+    background: rgba(255,248,232,.94);
+    box-shadow: 0 0 0 2px rgba(166,90,58,.22) inset;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transform: rotate(8deg);
+    line-height: 1.15;
+    z-index: 2;
+  }
+  .seal::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(166,90,58,.55);
+  }
+  .seal .seal-brand { font-size: 15px; font-weight: 900; letter-spacing: 0.12em; }
+  .seal .seal-sub { margin-top: 2px; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; }
+  h1 {
+    font-size: 44px;
+    font-weight: 600;
+    line-height: 1.25;
+    margin-bottom: 10px;
+    padding-right: 88px;
+  }
+  .refspan { font-size: 22px; color: #6e675f; margin-bottom: 12px; }
+  .guide {
+    font-size: 26px;
+    line-height: 1.4;
+    color: #3a3632;
+    margin-bottom: 16px;
+  }
+  .arcs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+  .arc {
+    border: 1px solid #e5ddd0;
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 20px;
+    color: #5b6b4f;
+  }
+  .spine-label {
+    font-size: 22px;
+    font-weight: 600;
+    color: #785035;
+    margin-bottom: 12px;
+  }
+  .beats {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+  }
+  .beat {
+    flex: 1;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: #fffcf7;
+    border: 1px solid #e8dfd2;
+    border-radius: 12px;
+    padding: 12px 14px;
+    min-height: 0;
+  }
+  .n {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #785035;
+    color: #f7f3ec;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 36px;
+    text-align: center;
+  }
+  .thumb {
+    flex: 0 0 72px;
+    width: 72px;
+    height: 72px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid #e5ddd0;
+    background: #efe8dc;
+  }
+  .thumb.empty { display: block; }
+  .body { flex: 1; min-width: 0; }
+  .label { font-size: 26px; font-weight: 600; line-height: 1.25; }
+  .happen { font-size: 22px; line-height: 1.35; color: #3a3632; margin-top: 4px; }
+  .link { font-size: 18px; color: #8a8278; margin-top: 2px; }
+  .ref { font-size: 16px; color: #9a9186; margin-top: 2px; }
+  .footer {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #e5ddd0;
+    font-size: 18px;
+    color: #9a9186;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="seal" aria-label="彼爱手稿">
+      <span class="seal-brand">彼爱</span>
+      <span class="seal-sub">手稿</span>
+    </div>
+    <h1>保罗第一次宣教旅程</h1>
+    <div class="refspan">使徒行传 13–14</div>
+    <div class="guide">使徒行传 13–14：差遣、跨海、会堂、逼迫与医治，再回报差遣教会。</div>
+    <div class="arcs"><span class="arc">差遣与启程</span><span class="arc">小亚细亚内陆</span><span class="arc">回程与汇报</span></div>
+    <div class="spine-label">故事脊 · 7站</div>
+    <div class="beats">
+      
+            <div class="beat">
+              <div class="n">1</div>
+              <img class="thumb" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/01_antioch_send.png" alt="" />
+              <div class="body">
+                <div class="label">安提阿（叙利亚）</div>
+                <div class="happen">教会禁食祷告，按手差遣保罗与巴拿巴</div>
+                <div class="link">整段旅程从这里出发</div>
+                <div class="ref">使徒行传 13:1</div>
+              </div>
+            </div>
+            
+            <div class="beat">
+              <div class="n">2</div>
+              <img class="thumb" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/02_cyprus.png" alt="" />
+              <div class="body">
+                <div class="label">塞浦路斯</div>
+                <div class="happen">坐船过海，在塞浦路斯会堂传道</div>
+                <div class="link">福音第一次跨出海</div>
+                <div class="ref">使徒行传 13:4</div>
+              </div>
+            </div>
+            
+            <div class="beat">
+              <div class="n">3</div>
+              <img class="thumb" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/03_pisidian_antioch.png" alt="" />
+              <div class="body">
+                <div class="label">彼西底的安提阿</div>
+                <div class="happen">安息日进会堂，讲耶稣与赦罪</div>
+                <div class="link">上岸后深入内陆会堂</div>
+                <div class="ref">使徒行传 13:14</div>
+              </div>
+            </div>
+            
+            <div class="beat">
+              <div class="n">4</div>
+              <img class="thumb" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/05_iconium.png" alt="" />
+              <div class="body">
+                <div class="label">以哥念</div>
+                <div class="happen">许多人信了，也有人起来逼迫</div>
+                <div class="link">同一信息，回应开始分裂</div>
+                <div class="ref">使徒行传 14:1</div>
+              </div>
+            </div>
+            
+            <div class="beat">
+              <div class="n">5</div>
+              <img class="thumb" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/04_lystra.png" alt="" />
+              <div class="body">
+                <div class="label">路司得</div>
+                <div class="happen">医好瘸子，众人却想拜他们为神</div>
+                <div class="link">权能显明，外邦却误会</div>
+                <div class="ref">使徒行传 14:8</div>
+              </div>
+            </div>
+            
+            <div class="beat">
+              <div class="n">6</div>
+              <img class="thumb" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/06_derbe.png" alt="" />
+              <div class="body">
+                <div class="label">特庇</div>
+                <div class="happen">传福音、坚固门徒，再原路回访</div>
+                <div class="link">建立教会后不丢下他们</div>
+                <div class="ref">使徒行传 14:20</div>
+              </div>
+            </div>
+            
+            <div class="beat">
+              <div class="n">7</div>
+              <img class="thumb" src="file:///Users/mark/Desktop/PRO/Bible/apps/web/public/knowledge/vignettes/paul/01_antioch_send.png" alt="" />
+              <div class="body">
+                <div class="label">安提阿（叙利亚）</div>
+                <div class="happen">回到安提阿，述说外邦信道的门开了</div>
+                <div class="link">向差遣他们的教会回报</div>
+                <div class="ref">使徒行传 14:26</div>
+              </div>
+            </div>
+            
+    </div>
+    <div class="footer">释义说明，仅供参考 · 安静读经，在话语中相遇</div>
+  </div>
+</body>
+</html>

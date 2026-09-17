@@ -564,4 +564,352 @@
   font-size: 13px;
 }
 
+/* —— NotebookLM 式一页看懂 · 故事脊（§19.14.14） —— */
+
+.knowledge-explainer {
+  max-width: 520px;
+  margin: 0 auto;
+  padding-bottom: 28px;
+}
+
+.knowledge-explainer-refbar {
+  margin: 4px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.knowledge-explainer-guide {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink, #1a1a1a);
+}
+
+.knowledge-explainer-arc {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.knowledge-explainer-arc li {
+  flex: 1 1 100px;
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 10px;
+  background: #fffcf7;
+  padding: 8px 10px;
+}
+
+.knowledge-explainer-arc strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink, #1a1a1a);
+}
+
+.knowledge-explainer-arc span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.knowledge-explainer-spine {
+  margin-top: 18px;
+}
+
+.knowledge-spine-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  overflow: hidden;
+}
+
+.knowledge-spine-list > li {
+  border-bottom: 1px solid var(--line, #f0e4dc);
+}
+
+.knowledge-spine-list > li:last-child {
+  border-bottom: 0;
+}
+
+.knowledge-spine-list > li.is-open {
+  background: #fffcf7;
+}
+
+.knowledge-spine-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  padding: 12px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.knowledge-spine-n {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--accent-deep, #4a6b52);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 22px;
+  text-align: center;
+}
+
+.knowledge-spine-thumb {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #e8e0d4 center / cover no-repeat;
+  border: 1px solid var(--line, #f0e4dc);
+}
+
+.knowledge-spine-thumb.is-empty {
+  background: #efe8dc;
+}
+
+.knowledge-spine-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.knowledge-spine-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink, #1a1a1a);
+}
+
+.knowledge-spine-happen {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink, #2c2825);
+}
+
+.knowledge-spine-link {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.knowledge-spine-ref {
+  font-size: 11px;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.knowledge-spine-detail {
+  padding: 0 12px 12px 44px;
+}
+
+.knowledge-spine-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink, #2c2825);
+}
+
+.knowledge-spine-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.knowledge-explainer-path {
+  margin-top: 16px;
+}
+
+.knowledge-explainer-path-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 12px;
+  background: #fffcf7;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.knowledge-explainer-path-toggle strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.knowledge-explainer-path-toggle span {
+  font-size: 12px;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.knowledge-explainer-path .story-mode-map {
+  margin-top: 8px;
+}
+
+.knowledge-explainer-path-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+}
+
+.knowledge-explainer-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.knowledge-explainer-tour-link {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.knowledge-explainer-disclaimer {
+  margin: 14px 0 0;
+  font-size: 11px;
+  color: var(--ink-faint, #8e8e93);
+}
+
+.knowledge-story-share-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+/* —— §19.14.15 密图主交付 —— */
+
+.knowledge-dense-hero {
+  margin-top: 12px;
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f7f3ec;
+}
+
+.knowledge-dense-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+}
+
+.knowledge-dense-loading {
+  margin: 0;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.knowledge-explainer--dense .knowledge-explainer-footer {
+  margin-top: 14px;
+}
+
+.knowledge-explainer-footer--secondary {
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.knowledge-explainer--dense .knowledge-explainer-path-toggle {
+  margin-top: 14px;
+}
+
+.knowledge-explainer--dense .knowledge-explainer-spine {
+  margin-top: 8px;
+}
+
+/* —— §19.14.17 手稿册横滑 —— */
+
+.knowledge-explainer--folio .knowledge-explainer-footer {
+  margin-top: 12px;
+}
+
+.knowledge-folio {
+  margin-top: 10px;
+}
+
+.knowledge-folio-scroller {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  border: 1px solid var(--line, #f0e4dc);
+  border-radius: 14px;
+  background: #f7f3ec;
+  scrollbar-width: none;
+}
+
+.knowledge-folio-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.knowledge-folio-page {
+  position: relative;
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.knowledge-folio-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.knowledge-folio-missing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  background: #f7f3ec;
+}
+
+.knowledge-folio-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+  min-height: 8px;
+}
+
+.knowledge-folio-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink, #2c2825) 18%, transparent);
+}
+
+.knowledge-folio-dots span.is-on {
+  background: color-mix(in srgb, var(--accent-deep, #a65a3a) 85%, #2c2825);
+  width: 14px;
+  border-radius: 999px;
+}
+
 

@@ -1,0 +1,33 @@
+{
+  "schema": "illustration_scheme@1",
+  "updated": "2026-09-17",
+  "schemes": {
+    "paul-first-journey": {
+      "topic": "宣教行程",
+      "ink": { "paper": "#efe2c6", "ink": "#3b2f24", "accent": "#2f6f6a", "warm": "#a65a3a" },
+      "cast": ["walker-a", "walker-b"],
+      "props": ["sail", "synagogue", "road"],
+      "border": "ink_wobble",
+      "seal": "彼爱手稿",
+      "prompt_suffix": "hand-drawn ink on parchment, vintage manuscript illustration, soft watercolor wash, no photorealism, no modern UI, no Chinese text in image"
+    },
+    "exodus-wilderness": {
+      "topic": "旷野行程",
+      "ink": { "paper": "#f0e4c8", "ink": "#3a3428", "accent": "#1e3a5f", "warm": "#c4a35a" },
+      "cast": ["moses-staff"],
+      "props": ["pillar-cloud", "pillar-fire", "camp"],
+      "border": "scroll_edge",
+      "seal": "彼爱手稿",
+      "prompt_suffix": "desert parchment map doodle, ink and gold sand tones, no Chinese text in image"
+    },
+    "tabernacle": {
+      "topic": "器物/会幕",
+      "ink": { "paper": "#f5eede", "ink": "#2c241c", "accent": "#6b4a8a", "warm": "#c9a227" },
+      "cast": ["priest-silhouette"],
+      "props": ["ark", "lampstand", "altar"],
+      "border": "curtain_frame",
+      "seal": "彼爱手稿",
+      "prompt_suffix": "sacred geometry diagram on parchment, gold and purple ink, no Chinese text in image"
+    }
+  }
+}

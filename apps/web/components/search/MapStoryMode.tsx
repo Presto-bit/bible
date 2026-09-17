@@ -414,6 +414,7 @@ export function MapStoryMode({
                     order: b.order,
                     label: b.label,
                     happen: b.happen,
+                    link: b.link,
                     ref: b.ref,
                   })),
                 }

@@ -33,7 +33,13 @@ type Props = {
       guide?: string;
       vignetteUrl?: string | null;
       arcNames?: string[];
-      beats: Array<{ order: number; label: string; happen?: string; ref?: string }>;
+      beats: Array<{
+        order: number;
+        label: string;
+        happen?: string;
+        link?: string;
+        ref?: string;
+      }>;
     } | null;
   };
 };
