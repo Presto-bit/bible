@@ -1,6 +1,9 @@
 /** §19.14.12/13 · 示意路径图布局（非精确地理） */
 
-export type SchematicLayoutId = 'exodus-wilderness' | 'paul-first-journey';
+export type SchematicLayoutId =
+  | 'exodus-wilderness'
+  | 'paul-first-journey'
+  | 'jesus-ministry-galilee';
 
 export type SchematicStopLayout = {
   placeId: string;
@@ -42,7 +45,6 @@ export const SCHEMATIC_PATHS: Record<SchematicLayoutId, SchematicPathDef> = {
       { placeId: 'mount-sinai', x: 308, y: 155 },
     ],
     vignettes: {
-      egypt: '/knowledge/vignettes/wilderness/00_overview.png',
       'red-sea': '/knowledge/vignettes/wilderness/01_red_sea.png',
       marah: '/knowledge/vignettes/wilderness/02_marah.png',
       elim: '/knowledge/vignettes/wilderness/03_elim.png',
@@ -112,8 +114,50 @@ export const SCHEMATIC_PATHS: Record<SchematicLayoutId, SchematicPathDef> = {
       derbe: ['门徒', '回访'],
     },
   },
+  'jesus-ministry-galilee': {
+    id: 'jesus-ministry-galilee',
+    viewBox: '0 0 380 200',
+    /* 湖区在北，南下耶路撒冷：示意非精确地理 */
+    sea: 'M168 42 C210 28 268 38 278 78 C270 108 220 118 178 108 C148 98 140 62 168 42 Z',
+    land: [
+      'M40 48 C95 38 140 55 165 78 L175 175 L48 175 Z',
+      'M278 70 C320 55 350 78 348 120 L290 140 Z',
+      'M175 120 C220 128 260 145 275 175 L175 175 Z',
+    ],
+    stops: [
+      { placeId: 'nazareth', x: 118, y: 95 },
+      { placeId: 'capernaum', x: 188, y: 72 },
+      { placeId: 'sea-of-galilee', x: 218, y: 88 },
+      { placeId: 'bethsaida', x: 248, y: 68 },
+      { placeId: 'caesarea-philippi', x: 298, y: 48 },
+      { placeId: 'mount-of-olives-2', x: 235, y: 148 },
+      { placeId: 'jerusalem', x: 248, y: 168 },
+    ],
+    happenByPlaceId: {
+      nazareth: '家乡会堂宣告恩年',
+      capernaum: '以湖城为事工中心',
+      'sea-of-galilee': '海边呼召得人的渔夫',
+      bethsaida: '五饼二鱼喂饱众人',
+      'caesarea-philippi': '彼得认祂为基督',
+      'mount-of-olives-2': '面向圣城讲论末后',
+      jerusalem: '荣入圣城走向十架',
+    },
+    chipsByPlaceId: {
+      nazareth: ['会堂', '被拒'],
+      capernaum: ['教导', '医治'],
+      'sea-of-galilee': ['呼召', '渔夫'],
+      bethsaida: ['供应', '怜悯'],
+      'caesarea-philippi': ['认信', '受难'],
+      'mount-of-olives-2': ['儆醒', '末后'],
+      jerusalem: ['入城', '受难'],
+    },
+  },
 };
 
 export function isSchematicTour(id: string): id is SchematicLayoutId {
-  return id === 'exodus-wilderness' || id === 'paul-first-journey';
+  return (
+    id === 'exodus-wilderness' ||
+    id === 'paul-first-journey' ||
+    id === 'jesus-ministry-galilee'
+  );
 }

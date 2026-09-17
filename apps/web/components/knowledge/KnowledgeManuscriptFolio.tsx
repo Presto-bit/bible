@@ -163,6 +163,44 @@ type FolioPageRaw = {
   media?: ManuscriptFolioPage['media'];
 };
 
+type JourneyLayoutInput = {
+  id?: string;
+  title?: string;
+  cover_image?: string;
+  folio_pages?: FolioPageRaw[];
+  source?: { kind?: string; id?: string };
+  beats?: Array<{
+    order?: number;
+    label?: string;
+    note?: string;
+    happen?: string;
+    vignette?: string;
+    media?: ManuscriptFolioPage['media'];
+  }>;
+};
+
+/**
+ * 行程手稿册组装：
+ * 1) 显式 folio_pages
+ * 2) cover 含 -comic → 密图总图 + sNN（保罗）
+ * 3) 否则封面 + vignette / 文本叶（旷野 / 加利利）
+ */
+export function manuscriptJourneyPages(layout: JourneyLayoutInput): ManuscriptFolioPage[] {
+  const title = layout.title || layout.id || '彼爱手稿';
+  if (Array.isArray(layout.folio_pages) && layout.folio_pages.length > 0) {
+    return manuscriptPagesFromLayout(layout);
+  }
+  const cover = (layout.cover_image || '').trim();
+  const tourId = layout.source?.id || layout.id || '';
+  const beatOrders = (layout.beats || [])
+    .map((b) => b.order)
+    .filter((n): n is number => typeof n === 'number' && n > 0);
+  if (cover.includes('-comic') && tourId && beatOrders.length > 0) {
+    return manuscriptFolioPages({ tourId, title, beatOrders });
+  }
+  return manuscriptPagesFromLayout(layout);
+}
+
 /** 运营笔记 / 带 folio_pages 的 layout → 手稿页 */
 export function manuscriptPagesFromLayout(layout: {
   id?: string;

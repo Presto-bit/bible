@@ -12,7 +12,11 @@ export type KnowledgeTopicMeta = {
   media: KnowledgeMediaKind[];
 };
 
-const JOURNEY_IDS = new Set(['paul-first-journey', 'exodus-wilderness']);
+const JOURNEY_IDS = new Set([
+  'paul-first-journey',
+  'exodus-wilderness',
+  'jesus-ministry-galilee',
+]);
 
 export function resolveKnowledgeTopicMeta(
   row: KnowledgeLayoutSummary & {

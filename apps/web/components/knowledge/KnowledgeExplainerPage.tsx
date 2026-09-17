@@ -12,7 +12,7 @@ import {
   markKnowledgeSoftReturn,
   startKnowledgeExpand,
 } from '@/lib/knowledge_nav';
-import { manuscriptFolioPages } from '@/components/knowledge/KnowledgeManuscriptFolio';
+import { manuscriptJourneyPages } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
 
 type Props = {
@@ -53,20 +53,12 @@ export function KnowledgeExplainerPage({
 
   const title = layout.title || tour.title;
   const guide = layout.guide_one_liner || tour.subtitle || '';
-  const beats = layout.beats || [];
   const headerBackLabel = fromHome ? '知识专题' : backLabel;
 
-  const pages = useMemo(
-    () =>
-      manuscriptFolioPages({
-        tourId: tour.id,
-        title,
-        beatOrders: beats.map((b) => b.order),
-      }),
-    [tour.id, title, beats],
-  );
+  const pages = useMemo(() => manuscriptJourneyPages(layout), [layout]);
 
   const coverPath =
+    layout.cover_image ||
     pages[0]?.src ||
     `/knowledge/infographics/${encodeURIComponent(tour.id)}-comic.png`;
   const coverSources = knowledgeRasterSources(coverPath);

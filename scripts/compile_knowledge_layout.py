@@ -30,6 +30,7 @@ TEMPLATE_MAP = {
 CURATED: dict[str, dict] = {
     "exodus-wilderness": {
         "guide_one_liner": "从埃及到西奈：离开、过海、旷野供应与试炼，最终在山下安营。",
+        "cover_image": "/knowledge/infographics/exodus-wilderness-comic.png",
         "density": "standard",
         "arc": [
             {"name": "离开", "stop_orders": [1]},
@@ -38,18 +39,21 @@ CURATED: dict[str, dict] = {
             {"name": "朝见预备", "stop_orders": [6]},
         ],
         "beats": {
+            # 埃及站不占总览图；密图册走 comic/sNN，vignette 仅供示意/兜底
             "egypt": {
                 "happen": "百姓在苦役中，行程将启",
                 "link": "奴役之地被抛在身后",
                 "chips": ["为奴", "起行"],
                 "must_see": ["泥砖城邑", "行进队伍", "旷野边缘"],
-                "vignette": "/knowledge/vignettes/wilderness/00_overview.png",
+                "verse_excerpt": "以色列人因作苦工，就叹息哀求，他们的哀声达于神。",
+                "vignette": "",
             },
             "red-sea": {
                 "happen": "水分开，百姓走干地",
                 "link": "神开路拯救",
                 "chips": ["水墙", "干地", "行进"],
                 "must_see": ["左右海水墙", "干海床", "远景队伍"],
+                "verse_excerpt": "摩西向海伸杖，耶和华便用大东风使海水一夜退去，水便分开，海就成了干地。",
                 "vignette": "/knowledge/vignettes/wilderness/01_red_sea.png",
             },
             "marah": {
@@ -57,6 +61,7 @@ CURATED: dict[str, dict] = {
                 "link": "刚得救仍遇试炼",
                 "chips": ["苦泉", "变甜"],
                 "must_see": ["泉旁", "枯枝", "营地远景"],
+                "verse_excerpt": "摩西呼求耶和华，耶和华指示他一棵树。他把树丢在水里，水就变甜了。",
                 "vignette": "/knowledge/vignettes/wilderness/02_marah.png",
             },
             "elim": {
@@ -64,6 +69,7 @@ CURATED: dict[str, dict] = {
                 "link": "苦后有供应之地",
                 "chips": ["棕树", "泉源"],
                 "must_see": ["棕树", "多泉", "帐篷"],
+                "verse_excerpt": "他们到了以琳，在那里有十二股水泉，七十棵棕树；他们就在那里的水边安营。",
                 "vignette": "/knowledge/vignettes/wilderness/03_elim.png",
             },
             "rephidim": {
@@ -71,6 +77,7 @@ CURATED: dict[str, dict] = {
                 "link": "再次经历缺水被供应",
                 "chips": ["磐石", "出水"],
                 "must_see": ["裂石", "流水", "杖剪影"],
+                "verse_excerpt": "你要击打磐石，从磐石里必有水流出来，使百姓可以喝。",
                 "vignette": "/knowledge/vignettes/wilderness/05_rephidim.png",
             },
             "mount-sinai": {
@@ -78,6 +85,7 @@ CURATED: dict[str, dict] = {
                 "link": "行程收束到朝见",
                 "chips": ["山下", "安营"],
                 "must_see": ["山体", "云雾", "环山帐篷"],
+                "verse_excerpt": "耶和华降临在西奈山顶上，耶和华召摩西上山顶，摩西就上去。",
                 "vignette": "/knowledge/vignettes/wilderness/06_sinai.png",
             },
         },
@@ -85,6 +93,7 @@ CURATED: dict[str, dict] = {
     "paul-first-journey": {
         # happen/link：遮掉图也能扫读「差遣→跨海→会堂→逼迫与医治→回报」
         "guide_one_liner": "使徒行传 13–14：差遣、跨海、会堂、逼迫与医治，再回报差遣教会。",
+        "cover_image": "/knowledge/infographics/paul-first-journey-comic.png",
         "density": "standard",
         "arc": [
             {"name": "差遣与启程", "stop_orders": [1, 2]},
@@ -145,13 +154,72 @@ CURATED: dict[str, dict] = {
         },
     },
     "jesus-ministry-galilee": {
-        "guide_one_liner": "加利利：呼召、教导、医治与权柄显明，行程环绕湖区展开。",
+        "guide_one_liner": "从加利利起：呼召、教导与医治；权柄显明后，行程收束至耶路撒冷。",
+        "cover_image": "/knowledge/infographics/_paper_texture.jpg",
         "density": "standard",
         "arc": [
             {"name": "呼召与起行", "stop_orders": [1, 2]},
             {"name": "教导与医治", "stop_orders": [3, 4, 5]},
             {"name": "权柄与回应", "stop_orders": [6, 7]},
         ],
+        "beats": {
+            "nazareth": {
+                "happen": "家乡会堂宣告恩年",
+                "link": "加利利事工从这里起行",
+                "chips": ["会堂", "被拒"],
+                "must_see": ["会堂卷轴", "乡邻围观", "起身离城"],
+                "verse_excerpt": "主的灵在我身上，因为他用膏膏我，叫我传福音给贫穷的人。",
+                "vignette": "",
+            },
+            "capernaum": {
+                "happen": "以湖城为事工中心",
+                "link": "教导与医治从此展开",
+                "chips": ["教导", "医治"],
+                "must_see": ["湖岸民居", "会堂门廊", "病患走近"],
+                "verse_excerpt": "又离开拿撒勒，往迦百农去，就住在那里。",
+                "vignette": "",
+            },
+            "sea-of-galilee": {
+                "happen": "海边呼召得人的渔夫",
+                "link": "门徒训练在湖畔起步",
+                "chips": ["呼召", "渔夫"],
+                "must_see": ["渔网船舷", "岸边脚印", "跟随背影"],
+                "verse_excerpt": "来跟从我，我要叫你们得人如得鱼一样。",
+                "vignette": "",
+            },
+            "bethsaida": {
+                "happen": "五饼二鱼喂饱众人",
+                "link": "怜悯显出供应的权柄",
+                "chips": ["供应", "怜悯"],
+                "must_see": ["碎饼篮筐", "坐地人群", "青草坡地"],
+                "verse_excerpt": "你们给他们吃吧。……他们就都吃，并且吃饱了。",
+                "vignette": "",
+            },
+            "caesarea-philippi": {
+                "happen": "彼得认祂为基督",
+                "link": "认信之后听见受难之路",
+                "chips": ["认信", "受难"],
+                "must_see": ["山麓磐石", "门徒围圈", "远望北方"],
+                "verse_excerpt": "西门彼得回答说：「你是基督，是永生神的儿子。」",
+                "vignette": "",
+            },
+            "mount-of-olives-2": {
+                "happen": "面向圣城讲论末后",
+                "link": "加利利之后逼近耶路撒冷",
+                "chips": ["儆醒", "末后"],
+                "must_see": ["橄榄山脊", "圣城轮廓", "门徒侧听"],
+                "verse_excerpt": "你们要谨慎，儆醒祈祷，因为你们不晓得那日期几时来到。",
+                "vignette": "",
+            },
+            "jerusalem": {
+                "happen": "荣入圣城走向十架",
+                "link": "行程收束在救恩高峰",
+                "chips": ["入城", "受难"],
+                "must_see": ["城门棕枝", "圣殿远景", "窄路上行"],
+                "verse_excerpt": "要对锡安的居民说：看哪，你的王来到你这里，是温柔的，又骑着驴。",
+                "vignette": "",
+            },
+        },
     },
 }
 
@@ -203,6 +271,7 @@ def compile_tour(tour: dict) -> dict:
                 "must_see": c.get("must_see") or [],
                 "note": stop.get("note") or "",
                 "ask_seed": stop.get("ask_seed") or "",
+                "verse_excerpt": c.get("verse_excerpt") or "",
                 "vignette": c.get("vignette") or "",
             }
         )
@@ -216,7 +285,7 @@ def compile_tour(tour: dict) -> dict:
         },
     ]
 
-    return {
+    out = {
         "schema": "knowledge_layout@1",
         "id": tid,
         "title": tour.get("title") or tid,
@@ -235,6 +304,10 @@ def compile_tour(tour: dict) -> dict:
             "policy": "AI 只填 vignette 无字母题；中文 happen/站名由 UI/SVG；禁止烤底栏",
         },
     }
+    cover = (curated.get("cover_image") or "").strip()
+    if cover:
+        out["cover_image"] = cover
+    return out
 
 
 def main() -> None:

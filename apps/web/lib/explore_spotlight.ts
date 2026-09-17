@@ -30,12 +30,18 @@ function shortHook(guide?: string): string {
 }
 
 function coverOf(row: KnowledgeLayoutSummary): string {
-  if (row.cover_image) return row.cover_image;
-  if (row.id === 'exodus-wilderness') return '/knowledge/vignettes/wilderness/00_overview.png';
-  if (row.id === PAUL_ID) {
-    // 首页坑用轻量脊图，勿用 1080×1920 comic
+  const id = row.id || '';
+  // 首页坑用轻量图，勿用 comic 密图
+  if (id === PAUL_ID) {
     return '/knowledge/infographics/paul-first-journey.png';
   }
+  if (id === 'exodus-wilderness') {
+    return '/knowledge/vignettes/wilderness/00_overview.png';
+  }
+  if (id === 'jesus-ministry-galilee') {
+    return '/knowledge/infographics/_paper_texture.jpg';
+  }
+  if (row.cover_image) return row.cover_image;
   return '/knowledge/infographics/_paper_texture.jpg';
 }
 

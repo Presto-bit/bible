@@ -3,8 +3,6 @@
   "id": "exodus-wilderness",
   "title": "出埃及 · 旷野行程",
   "guide_one_liner": "从埃及到西奈：离开、过海、旷野供应与试炼，最终在山下安营。",
-  "generated_at": "2026-09-16T08:00:00Z",
-  "cover_image": "/knowledge/vignettes/wilderness/00_overview.png",
   "density": "standard",
   "source": {
     "kind": "map_tour",
@@ -79,7 +77,8 @@
       ],
       "note": "百姓在法老的苦役下呻吟，神听见他们的哀声，开始拯救的故事。",
       "ask_seed": "以色列人为何在埃及为奴？神如何预备拯救？",
-      "vignette": "/knowledge/vignettes/wilderness/00_overview.png"
+      "verse_excerpt": "以色列人因作苦工，就叹息哀求，他们的哀声达于神。",
+      "vignette": ""
     },
     {
       "order": 2,
@@ -100,6 +99,7 @@
       ],
       "note": "前有大海、后有追兵，神分开海水，让百姓走干地过去——这是出埃及的标志性神迹。",
       "ask_seed": "过红海这件事，在后来的圣经里常如何被记念？",
+      "verse_excerpt": "摩西向海伸杖，耶和华便用大东风使海水一夜退去，水便分开，海就成了干地。",
       "vignette": "/knowledge/vignettes/wilderness/01_red_sea.png"
     },
     {
@@ -120,6 +120,7 @@
       ],
       "note": "三日行路后水苦不能喝；神指示摩西把树丢在水里，水就变甜，也立下顺服的试验。",
       "ask_seed": "玛拉苦水变甜说明神怎样对待抱怨中的百姓？",
+      "verse_excerpt": "摩西呼求耶和华，耶和华指示他一棵树。他把树丢在水里，水就变甜了。",
       "vignette": "/knowledge/vignettes/wilderness/02_marah.png"
     },
     {
@@ -140,6 +141,7 @@
       ],
       "note": "十二股水泉、七十棵棕树：苦水之后，神也赐下休息与供应的绿洲。",
       "ask_seed": "以琳的水泉与棕树，在叙事里起什么作用？",
+      "verse_excerpt": "他们到了以琳，在那里有十二股水泉，七十棵棕树；他们就在那里的水边安营。",
       "vignette": "/knowledge/vignettes/wilderness/03_elim.png"
     },
     {
@@ -160,6 +162,7 @@
       ],
       "note": "百姓又缺水争闹；神吩咐摩西击打磐石，水就流出。随后也在此抵挡亚玛力人。",
       "ask_seed": "利非订的磐石出水与争战，显明神怎样与百姓同在？",
+      "verse_excerpt": "你要击打磐石，从磐石里必有水流出来，使百姓可以喝。",
       "vignette": "/knowledge/vignettes/wilderness/05_rephidim.png"
     },
     {
@@ -180,11 +183,13 @@
       ],
       "note": "耶和华降临在山上，颁布十诫与约法；百姓自此成为「祭司的国度」。随后神也启示建造会幕。",
       "ask_seed": "西奈之约与后来的会幕敬拜有何关系？",
+      "verse_excerpt": "耶和华降临在西奈山顶上，耶和华召摩西上山顶，摩西就上去。",
       "vignette": "/knowledge/vignettes/wilderness/06_sinai.png"
     }
   ],
   "fill": {
     "engine_default": "none",
     "policy": "AI 只填 vignette 无字母题；中文 happen/站名由 UI/SVG；禁止烤底栏"
-  }
+  },
+  "cover_image": "/knowledge/infographics/exodus-wilderness-comic.png"
 }

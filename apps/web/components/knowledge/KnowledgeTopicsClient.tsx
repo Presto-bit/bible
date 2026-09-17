@@ -21,14 +21,29 @@ import {
 import { adminCheck } from '@/lib/admin_rag';
 
 function coverPath(row: KnowledgeLayoutSummary): string {
-  if (row.cover_image) return row.cover_image;
+  if (row.cover_image) {
+    const id = row.id || '';
+    // 列表用轻量图：comic 密图仅给手稿册
+    if (id === 'paul-first-journey') {
+      return '/knowledge/infographics/paul-first-journey.png';
+    }
+    if (id === 'exodus-wilderness') {
+      return '/knowledge/vignettes/wilderness/00_overview.png';
+    }
+    if (id === 'jesus-ministry-galilee') {
+      return '/knowledge/infographics/_paper_texture.jpg';
+    }
+    return row.cover_image;
+  }
   const id = row.id || '';
   if (id === 'exodus-wilderness') {
     return '/knowledge/vignettes/wilderness/00_overview.png';
   }
   if (id === 'paul-first-journey') {
-    // 列表用轻量脊图，勿用 1080×1920 comic
     return '/knowledge/infographics/paul-first-journey.png';
+  }
+  if (id === 'jesus-ministry-galilee') {
+    return '/knowledge/infographics/_paper_texture.jpg';
   }
   return '/knowledge/infographics/_paper_texture.jpg';
 }

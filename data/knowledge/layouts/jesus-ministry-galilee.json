@@ -2,8 +2,7 @@
   "schema": "knowledge_layout@1",
   "id": "jesus-ministry-galilee",
   "title": "耶稣加利利事工",
-  "guide_one_liner": "加利利：呼召、教导、医治与权柄显明，行程环绕湖区展开。",
-  "generated_at": "2026-09-16T12:00:00Z",
+  "guide_one_liner": "从加利利起：呼召、教导与医治；权柄显明后，行程收束至耶路撒冷。",
   "density": "standard",
   "source": {
     "kind": "map_tour",
@@ -61,12 +60,20 @@
       "place_id": "nazareth",
       "label": "拿撒勒",
       "ref": "LUK 4:16",
-      "happen": "在家乡会堂读以赛亚书，宣告恩年已到，…",
-      "link": "",
-      "chips": [],
-      "must_see": [],
+      "happen": "家乡会堂宣告恩年",
+      "link": "加利利事工从这里起行",
+      "chips": [
+        "会堂",
+        "被拒"
+      ],
+      "must_see": [
+        "会堂卷轴",
+        "乡邻围观",
+        "起身离城"
+      ],
       "note": "在家乡会堂读以赛亚书，宣告恩年已到，却也被拒绝。",
       "ask_seed": "耶稣在拿撒勒被弃对理解祂的使命有何意义？",
+      "verse_excerpt": "主的灵在我身上，因为他用膏膏我，叫我传福音给贫穷的人。",
       "vignette": ""
     },
     {
@@ -74,12 +81,20 @@
       "place_id": "capernaum",
       "label": "迦百农",
       "ref": "MAT 4:13",
-      "happen": "以迦百农为加利利事工中心，多方教导与…",
-      "link": "",
-      "chips": [],
-      "must_see": [],
+      "happen": "以湖城为事工中心",
+      "link": "教导与医治从此展开",
+      "chips": [
+        "教导",
+        "医治"
+      ],
+      "must_see": [
+        "湖岸民居",
+        "会堂门廊",
+        "病患走近"
+      ],
       "note": "以迦百农为加利利事工中心，多方教导与医治。",
       "ask_seed": "为何福音书特别强调迦百农？",
+      "verse_excerpt": "又离开拿撒勒，往迦百农去，就住在那里。",
       "vignette": ""
     },
     {
@@ -87,12 +102,20 @@
       "place_id": "sea-of-galilee",
       "label": "加利利海",
       "ref": "MAT 4:18",
-      "happen": "在海边呼召渔夫作得人的渔夫，门徒训练…",
-      "link": "",
-      "chips": [],
-      "must_see": [],
+      "happen": "海边呼召得人的渔夫",
+      "link": "门徒训练在湖畔起步",
+      "chips": [
+        "呼召",
+        "渔夫"
+      ],
+      "must_see": [
+        "渔网船舷",
+        "岸边脚印",
+        "跟随背影"
+      ],
       "note": "在海边呼召渔夫作得人的渔夫，门徒训练由此展开。",
       "ask_seed": "呼召渔夫作门徒说明天国优先怎样的人？",
+      "verse_excerpt": "来跟从我，我要叫你们得人如得鱼一样。",
       "vignette": ""
     },
     {
@@ -100,12 +123,20 @@
       "place_id": "bethsaida",
       "label": "伯赛大",
       "ref": "LUK 9:10",
-      "happen": "五饼二鱼喂饱众人，显明供应与怜悯",
-      "link": "",
-      "chips": [],
-      "must_see": [],
+      "happen": "五饼二鱼喂饱众人",
+      "link": "怜悯显出供应的权柄",
+      "chips": [
+        "供应",
+        "怜悯"
+      ],
+      "must_see": [
+        "碎饼篮筐",
+        "坐地人群",
+        "青草坡地"
+      ],
       "note": "五饼二鱼喂饱众人，显明供应与怜悯。",
       "ask_seed": "五饼二鱼神迹主要启示什么？",
+      "verse_excerpt": "你们给他们吃吧。……他们就都吃，并且吃饱了。",
       "vignette": ""
     },
     {
@@ -113,12 +144,20 @@
       "place_id": "caesarea-philippi",
       "label": "该撒利亚腓立比",
       "ref": "MAT 16:13",
-      "happen": "彼得认耶稣为基督，也首次清楚听见受难…",
-      "link": "",
-      "chips": [],
-      "must_see": [],
+      "happen": "彼得认祂为基督",
+      "link": "认信之后听见受难之路",
+      "chips": [
+        "认信",
+        "受难"
+      ],
+      "must_see": [
+        "山麓磐石",
+        "门徒围圈",
+        "远望北方"
+      ],
       "note": "彼得认耶稣为基督，也首次清楚听见受难预言。",
       "ask_seed": "彼得的认信与随后的受难宣告如何并列？",
+      "verse_excerpt": "西门彼得回答说：「你是基督，是永生神的儿子。」",
       "vignette": ""
     },
     {
@@ -126,12 +165,20 @@
       "place_id": "mount-of-olives-2",
       "label": "橄榄山",
       "ref": "MAT 24:3",
-      "happen": "面向圣城讲论末后的事，提醒门徒儆醒等…",
-      "link": "",
-      "chips": [],
-      "must_see": [],
+      "happen": "面向圣城讲论末后",
+      "link": "加利利之后逼近耶路撒冷",
+      "chips": [
+        "儆醒",
+        "末后"
+      ],
+      "must_see": [
+        "橄榄山脊",
+        "圣城轮廓",
+        "门徒侧听"
+      ],
       "note": "面向圣城讲论末后的事，提醒门徒儆醒等候。",
       "ask_seed": "橄榄山讲论对今日信徒的核心劝勉是什么？",
+      "verse_excerpt": "你们要谨慎，儆醒祈祷，因为你们不晓得那日期几时来到。",
       "vignette": ""
     },
     {
@@ -139,17 +186,26 @@
       "place_id": "jerusalem",
       "label": "耶路撒冷",
       "ref": "MAT 21:1",
-      "happen": "荣入圣城，走向受难与复活",
-      "link": "",
-      "chips": [],
-      "must_see": [],
+      "happen": "荣入圣城走向十架",
+      "link": "行程收束在救恩高峰",
+      "chips": [
+        "入城",
+        "受难"
+      ],
+      "must_see": [
+        "城门棕枝",
+        "圣殿远景",
+        "窄路上行"
+      ],
       "note": "荣入圣城，走向受难与复活——救恩故事的高峰。",
       "ask_seed": "从加利利到耶路撒冷，事工重心如何转移？",
+      "verse_excerpt": "要对锡安的居民说：看哪，你的王来到你这里，是温柔的，又骑着驴。",
       "vignette": ""
     }
   ],
   "fill": {
     "engine_default": "none",
     "policy": "AI 只填 vignette 无字母题；中文 happen/站名由 UI/SVG；禁止烤底栏"
-  }
+  },
+  "cover_image": "/knowledge/infographics/_paper_texture.jpg"
 }
