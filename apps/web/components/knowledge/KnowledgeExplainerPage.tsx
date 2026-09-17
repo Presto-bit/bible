@@ -97,7 +97,10 @@ export function KnowledgeExplainerPage({
             type="button"
             className="knowledge-cover-card"
             onClick={(e) => {
-              markKnowledgeExpandOrigin(e.currentTarget);
+              markKnowledgeExpandOrigin(
+                e.currentTarget,
+                coverSources.webp || coverSources.fallback,
+              );
               setViewerOpen(true);
             }}
             aria-label={`查看「${title}」手稿`}

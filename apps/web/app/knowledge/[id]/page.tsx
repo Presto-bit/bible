@@ -7,6 +7,7 @@ import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import { manuscriptPagesFromLayout } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
+import { KnowledgeExpandBoot } from '@/components/knowledge/KnowledgeExpandBoot';
 import { markKnowledgeSoftReturn, markKnowledgeExpandOrigin } from '@/lib/knowledge_nav';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
@@ -76,6 +77,18 @@ export default function KnowledgeNotePage() {
   }, [openFromQuery, noteId]);
 
   if (loading) {
+    if (openFromQuery) {
+      return (
+        <KnowledgeExpandBoot
+          fallbackCover={
+            noteId
+              ? `/knowledge/infographics/${encodeURIComponent(noteId)}.png`
+              : undefined
+          }
+          label="打开手稿…"
+        />
+      );
+    }
     return (
       <main className="container">
         <p className="muted">正在载入…</p>
@@ -115,7 +128,10 @@ export default function KnowledgeNotePage() {
               type="button"
               className="knowledge-cover-card"
               onClick={(e) => {
-                markKnowledgeExpandOrigin(e.currentTarget);
+                markKnowledgeExpandOrigin(
+                  e.currentTarget,
+                  coverSources.webp || coverSources.fallback,
+                );
                 setViewerOpen(true);
               }}
               aria-label={`打开「${title}」手稿`}

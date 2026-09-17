@@ -14,7 +14,7 @@ import { isShareAbortError, shareOutbound } from '@/lib/share_outbound';
 import type { ManuscriptFolioPage } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import {
   clearKnowledgeExpandOrigin,
-  peekKnowledgeExpandOrigin,
+  peekKnowledgeExpandOriginForViewer,
   type KnowledgeExpandOrigin,
 } from '@/lib/knowledge_nav';
 import type { CSSProperties } from 'react';
@@ -240,7 +240,7 @@ export function KnowledgeManuscriptViewer({
   const [motionPhase, setMotionPhase] = useState<'enter' | 'ready' | 'leave'>('enter');
   const leavingRef = useRef(false);
   const [expandOrigin] = useState<KnowledgeExpandOrigin | null>(() =>
-    peekKnowledgeExpandOrigin(),
+    peekKnowledgeExpandOriginForViewer(),
   );
   const [loaded, setLoaded] = useState<Record<number, boolean>>(() => {
     const init: Record<number, boolean> = {};
@@ -271,7 +271,7 @@ export function KnowledgeManuscriptViewer({
     };
   }, []);
 
-  // 小红书式：从卡片矩形放大到全屏；无原点则直接就绪
+  // 同页封面打开可放大；列表跳转时 Boot 已播过，此处直接就绪
   useEffect(() => {
     clearKnowledgeExpandOrigin();
     if (typeof window === 'undefined') return;

@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { api, type KnowledgeLayout, type MapTour } from '@/lib/api';
 import { MapStoryMode } from '@/components/search/MapStoryMode';
 import { KnowledgeExplainerPage } from '@/components/knowledge/KnowledgeExplainerPage';
+import { KnowledgeExpandBoot } from '@/components/knowledge/KnowledgeExpandBoot';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 
 function MapStoryPageContent() {
@@ -30,7 +31,6 @@ function MapStoryPageContent() {
     setTour(null);
     setLayout(null);
 
-    // 预热首屏手稿图，与 API 并行，减少打开后空白
     const warm = knowledgeRasterSources(
       `/knowledge/infographics/${encodeURIComponent(tourId)}-comic.png`,
     );
@@ -62,14 +62,18 @@ function MapStoryPageContent() {
   }, [tourId]);
 
   if (loading) {
+    if (openView) {
+      const fallback =
+        tourId === 'exodus-wilderness'
+          ? '/knowledge/vignettes/wilderness/00_overview.png'
+          : `/knowledge/infographics/${encodeURIComponent(tourId)}.png`;
+      return (
+        <KnowledgeExpandBoot fallbackCover={fallback} label="打开手稿…" />
+      );
+    }
     return (
-      <main
-        className={`container story-mode-page${openView ? ' knowledge-viewer-boot' : ''}`}
-        aria-busy="true"
-      >
-        <p className="muted knowledge-viewer-boot-msg">
-          {openView ? '打开手稿…' : '正在载入…'}
-        </p>
+      <main className="container story-mode-page" aria-busy="true">
+        <p className="muted">正在载入…</p>
       </main>
     );
   }
@@ -104,9 +108,12 @@ export default function MapStoryPage() {
   return (
     <Suspense
       fallback={
-        <main className="container">
-          <p className="muted">正在载入…</p>
-        </main>
+        <div
+          className="knowledge-expand-boot is-ready"
+          role="status"
+          aria-busy="true"
+          aria-label="打开手稿…"
+        />
       }
     >
       <MapStoryPageContent />

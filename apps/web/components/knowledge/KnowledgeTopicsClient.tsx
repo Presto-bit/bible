@@ -219,7 +219,7 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
                   aria-label={`${row.title || row.id}，打开手稿`}
                   style={{ ['--stagger' as string]: stagger }}
                   onClick={(e) => {
-                    markKnowledgeExpandOrigin(e.currentTarget);
+                    markKnowledgeExpandOrigin(e.currentTarget, coverPath(row));
                   }}
                 >
                   <span className="knowledge-topic-card-media" aria-hidden>
