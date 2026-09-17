@@ -4,181 +4,6 @@
   "count": 448,
   "entities": [
     {
-      "id": "eliada-son-of-david",
-      "name": "Eliada",
-      "type": "person",
-      "summary": "大卫之子，生于耶路撒冷。",
-      "refs": [
-        "2SAM 5 16",
-        "1CHR 3 8",
-        "1CHR 14 7"
-      ],
-      "aliases": [],
-      "scope_books": [
-        "1CHR",
-        "2SAM"
-      ],
-      "testament": "OT",
-      "disambiguation": "大卫之子",
-      "source": "gnosis"
-    },
-    {
-      "id": "elishama-son-of-david",
-      "name": "Elishama",
-      "type": "person",
-      "summary": "大卫之子，生于耶路撒冷。",
-      "refs": [
-        "2SAM 5 16",
-        "1CHR 14 7"
-      ],
-      "aliases": [],
-      "scope_books": [
-        "1CHR",
-        "2SAM"
-      ],
-      "testament": "OT",
-      "disambiguation": "大卫之子",
-      "source": "gnosis"
-    },
-    {
-      "id": "japhia-son-of-david",
-      "name": "Japhia",
-      "type": "person",
-      "summary": "大卫之子，生于耶路撒冷。",
-      "refs": [
-        "2SAM 5 15",
-        "1CHR 3 7",
-        "1CHR 14 6"
-      ],
-      "aliases": [],
-      "scope_books": [
-        "1CHR",
-        "2SAM"
-      ],
-      "testament": "OT",
-      "disambiguation": "大卫之子",
-      "source": "gnosis"
-    },
-    {
-      "id": "jerimoth-son-of-david",
-      "name": "Jerimoth",
-      "type": "person",
-      "summary": "大卫之子，生于耶路撒冷。",
-      "refs": [
-        "2CHR 11 18"
-      ],
-      "aliases": [],
-      "scope_books": [
-        "2CHR"
-      ],
-      "testament": "OT",
-      "disambiguation": "大卫之子",
-      "source": "gnosis"
-    },
-    {
-      "id": "nahor-son-of-terah",
-      "name": "Nahor",
-      "type": "person",
-      "summary": "他拉之子，亚伯拉罕之兄。",
-      "refs": [
-        "GEN 11 26",
-        "GEN 11 27",
-        "GEN 11 29",
-        "GEN 22 20",
-        "GEN 22 23",
-        "GEN 24 15",
-        "GEN 24 24",
-        "GEN 24 47"
-      ],
-      "aliases": [],
-      "scope_books": [
-        "GEN"
-      ],
-      "testament": "OT",
-      "disambiguation": "",
-      "source": "gnosis"
-    },
-    {
-      "id": "nepheg-son-of-david",
-      "name": "Nepheg",
-      "type": "person",
-      "summary": "大卫之子，生于耶路撒冷。",
-      "refs": [
-        "2SAM 5 15",
-        "1CHR 3 7",
-        "1CHR 14 6"
-      ],
-      "aliases": [],
-      "scope_books": [
-        "1CHR",
-        "2SAM"
-      ],
-      "testament": "OT",
-      "disambiguation": "大卫之子",
-      "source": "gnosis"
-    },
-    {
-      "id": "shammua-son-of-david",
-      "name": "Shammua",
-      "type": "person",
-      "summary": "大卫之子，生于耶路撒冷。",
-      "refs": [
-        "2SAM 5 14",
-        "1CHR 3 5",
-        "1CHR 14 4"
-      ],
-      "aliases": [],
-      "scope_books": [
-        "1CHR",
-        "2SAM"
-      ],
-      "testament": "OT",
-      "disambiguation": "大卫之子",
-      "source": "gnosis"
-    },
-    {
-      "id": "shobab-son-of-david",
-      "name": "Shobab",
-      "type": "person",
-      "summary": "大卫之子，生于耶路撒冷。",
-      "refs": [
-        "2SAM 5 14",
-        "1CHR 3 5",
-        "1CHR 14 4"
-      ],
-      "aliases": [],
-      "scope_books": [
-        "1CHR",
-        "2SAM"
-      ],
-      "testament": "OT",
-      "disambiguation": "大卫之子",
-      "source": "gnosis"
-    },
-    {
-      "id": "tamar-son-of-david",
-      "name": "Tamar",
-      "type": "person",
-      "summary": "大卫之女，被暗嫩玷辱，押沙龙为之复仇。",
-      "refs": [
-        "2SAM 13 1",
-        "2SAM 13 2",
-        "2SAM 13 4",
-        "2SAM 13 5",
-        "2SAM 13 6",
-        "2SAM 13 7",
-        "2SAM 13 8",
-        "2SAM 13 10"
-      ],
-      "aliases": [],
-      "scope_books": [
-        "2SAM"
-      ],
-      "testament": "OT",
-      "disambiguation": "大卫之子",
-      "source": "gnosis"
-    },
-    {
       "id": "naaman",
       "name": "乃缦",
       "type": "person",
@@ -249,7 +74,7 @@
       "id": "uzziel-son-of-kohath",
       "name": "乌薛",
       "type": "person",
-      "summary": "Levi 后裔， Moses 的叔父辈，可拉之父。",
+      "summary": "利未后裔，摩西的叔父辈，可拉之父。",
       "refs": [
         "EXOD 6 18",
         "EXOD 6 22",
@@ -372,7 +197,7 @@
       "id": "amon-son-of-manasseh",
       "name": "亚们",
       "type": "person",
-      "summary": "犹大王，行父 Manasseh 之恶。",
+      "summary": "犹大王，行父玛拿西之恶。",
       "refs": [
         "2KI 21:18",
         "2KI 21:19",
@@ -1177,7 +1002,7 @@
       "id": "asahel",
       "name": "亚撒黑",
       "type": "person",
-      "summary": "约押之弟，追杀亚比ner 时被杀。",
+      "summary": "约押之弟，追杀押尼珥时被杀。",
       "refs": [
         "2SAM 2 18",
         "2SAM 2 19",
@@ -1781,7 +1606,7 @@
       "id": "terah",
       "name": "他拉",
       "type": "person",
-      "summary": "他拉，亚伯拉罕之父，由 Ur 往 Haran。",
+      "summary": "他拉，亚伯拉罕之父，由吾珥往哈兰。",
       "refs": [
         "GEN 11 24",
         "GEN 11 25",
@@ -1799,6 +1624,29 @@
       ],
       "testament": "OT",
       "disambiguation": "亚伯拉罕之父",
+      "source": "gnosis"
+    },
+    {
+      "id": "tamar-son-of-david",
+      "name": "他玛",
+      "type": "person",
+      "summary": "大卫之女，被暗嫩玷辱，押沙龙为之复仇。",
+      "refs": [
+        "2SAM 13 1",
+        "2SAM 13 2",
+        "2SAM 13 4",
+        "2SAM 13 5",
+        "2SAM 13 6",
+        "2SAM 13 7",
+        "2SAM 13 8",
+        "2SAM 13 10"
+      ],
+      "aliases": [],
+      "scope_books": [
+        "2SAM"
+      ],
+      "testament": "OT",
+      "disambiguation": "大卫之子",
       "source": "gnosis"
     },
     {
@@ -1824,7 +1672,7 @@
       "id": "eli",
       "name": "以利",
       "type": "person",
-      "summary": "示罗祭司， Samuel 的师傅，二子作恶。",
+      "summary": "示罗祭司，撒母耳的师傅，二子作恶。",
       "refs": [
         "1SA 1:3",
         "1SA 1:9",
@@ -1898,7 +1746,7 @@
       "id": "eleazar-son-of-aaron",
       "name": "以利亚撒",
       "type": "person",
-      "summary": "Aaron 承嗣之子，继父作大祭司。",
+      "summary": "亚伦承嗣之子，继父作大祭司。",
       "refs": [
         "EXO 6:23",
         "EXO 6:25",
@@ -1967,7 +1815,7 @@
       "id": "eliezer-son-of-moses",
       "name": "以利以谢",
       "type": "person",
-      "summary": "摩西与 Zipporah 之子，名意「我的神是帮助」。",
+      "summary": "摩西与西坡拉之子，名意「我的神是帮助」。",
       "refs": [
         "EXO 18:4",
         "1CH 23:15",
@@ -2090,6 +1938,24 @@
       "source": "gnosis"
     },
     {
+      "id": "elishama-son-of-david",
+      "name": "以利沙玛",
+      "type": "person",
+      "summary": "大卫之子，生于耶路撒冷。",
+      "refs": [
+        "2SAM 5 16",
+        "1CHR 14 7"
+      ],
+      "aliases": [],
+      "scope_books": [
+        "1CHR",
+        "2SAM"
+      ],
+      "testament": "OT",
+      "disambiguation": "大卫之子",
+      "source": "gnosis"
+    },
+    {
       "id": "eliphaz-son-of-esau",
       "name": "以利法",
       "type": "person",
@@ -2119,7 +1985,7 @@
       "id": "eliphalet",
       "name": "以利法列",
       "type": "person",
-      "summary": "David 之子，与 Elpalet 为同一人异译。",
+      "summary": "大卫之子，与以利法列为同一人异译。",
       "refs": [
         "2SAM 5 16",
         "1CHR 3 8",
@@ -2138,7 +2004,7 @@
       "id": "elpalet",
       "name": "以利法列",
       "type": "person",
-      "summary": "David 之子，与 Eliphalet 为同一人异译。",
+      "summary": "大卫之子，与以利法列为同一人异译。",
       "refs": [
         "1CHR 3 6",
         "1CHR 14 5"
@@ -2149,6 +2015,25 @@
       ],
       "testament": "OT",
       "disambiguation": "",
+      "source": "gnosis"
+    },
+    {
+      "id": "eliada-son-of-david",
+      "name": "以利雅大",
+      "type": "person",
+      "summary": "大卫之子，生于耶路撒冷。",
+      "refs": [
+        "2SAM 5 16",
+        "1CHR 3 8",
+        "1CHR 14 7"
+      ],
+      "aliases": [],
+      "scope_books": [
+        "1CHR",
+        "2SAM"
+      ],
+      "testament": "OT",
+      "disambiguation": "大卫之子",
       "source": "gnosis"
     },
     {
@@ -2289,7 +2174,7 @@
       "id": "ephraim",
       "name": "以法莲",
       "type": "person",
-      "summary": "Joseph 之子，以法莲支派之祖，Jacob 赐福居上。",
+      "summary": "约瑟之子，以法莲支派之祖，雅各赐福居上。",
       "refs": [
         "GEN 41:52",
         "GEN 46:20",
@@ -2336,7 +2221,7 @@
       "id": "ithream",
       "name": "以特念",
       "type": "person",
-      "summary": "大卫之子，以 Eglah 所生。",
+      "summary": "大卫之子，以爱甲所生。",
       "refs": [
         "2SAM 3 5",
         "1CHR 3 3"
@@ -2381,7 +2266,7 @@
       "id": "issachar-son-of-israel",
       "name": "以萨迦",
       "type": "person",
-      "summary": "Jacob 之子， issachar 支派之祖。",
+      "summary": "雅各之子，以萨迦支派之祖。",
       "refs": [
         "GEN 30:18",
         "GEN 35:23",
@@ -2584,7 +2469,7 @@
       "id": "dan",
       "name": "但",
       "type": "person",
-      "summary": "Jacob 之子，但支派之祖。",
+      "summary": "雅各之子，但支派之祖。",
       "refs": [
         "GEN 30:6",
         "GEN 35:25",
@@ -2741,7 +2626,7 @@
       "id": "benjamin-son-of-israel",
       "name": "便雅悯",
       "type": "person",
-      "summary": "Jacob 幼子， Benjamin 支派之祖， Rachel 所产。",
+      "summary": "雅各幼子，便雅悯支派之祖，拉结所产。",
       "refs": [
         "GEN 35:18",
         "GEN 35:24",
@@ -2788,7 +2673,7 @@
       "id": "obed-son-of-boaz",
       "name": "俄备得",
       "type": "person",
-      "summary": "Boaz 与 Ruth 之子， Jesse 之父， David 之祖。",
+      "summary": "波阿斯与路得之子，耶西之父，大卫之祖。",
       "refs": [
         "RUTH 4 17",
         "RUTH 4 21",
@@ -2916,7 +2801,7 @@
       "id": "levi-son-of-israel",
       "name": "利未",
       "type": "person",
-      "summary": "Jacob 之子， Levi 支派之祖，祭司支派来源。",
+      "summary": "雅各之子，利未支派之祖，祭司支派来源。",
       "refs": [
         "GEN 29:34",
         "GEN 34:25",
@@ -3042,7 +2927,7 @@
       "id": "cush",
       "name": "古实",
       "type": "person",
-      "summary": "Ham 之子，古实人之祖。",
+      "summary": "含之子，古实人之祖。",
       "refs": [
         "GEN 10:6",
         "GEN 10:7",
@@ -3171,7 +3056,7 @@
       "id": "ham",
       "name": "含",
       "type": "person",
-      "summary": "Noah 之子，含的后裔多居南方。",
+      "summary": "挪亚之子，含的后裔多居南方。",
       "refs": [
         "GEN 5:32",
         "GEN 6:10",
@@ -3203,7 +3088,7 @@
       "id": "haran-son-of-terah",
       "name": "哈兰",
       "type": "person",
-      "summary": "他拉之子， Lot 之父，早卒于 Ur。",
+      "summary": "他拉之子，罗得之父，早卒于吾珥。",
       "refs": [
         "GEN 11:26",
         "GEN 11:27",
@@ -3671,7 +3556,7 @@
       "id": "seth",
       "name": "塞特",
       "type": "person",
-      "summary": "Adam 与 Eve 第三子， Enosh 之父，敬虔谱系之始。",
+      "summary": "亚当与夏娃第三子，以挪士之父，敬虔谱系之始。",
       "refs": [
         "GEN 4:25",
         "GEN 4:26",
@@ -3716,7 +3601,7 @@
       "id": "hagar",
       "name": "夏甲",
       "type": "person",
-      "summary": "Sarah 的埃及婢女， Ishmael 之母。",
+      "summary": "撒拉的埃及婢女，以实玛利之母。",
       "refs": [
         "GEN 16:1",
         "GEN 16:3",
@@ -3991,7 +3876,7 @@
       "id": "nebuchadnezzar",
       "name": "尼布甲尼撒",
       "type": "person",
-      "summary": "巴比伦王，灭 Judah、掳 Daniel，后见证神主权。",
+      "summary": "巴比伦王，灭犹大、掳但以理，后见证神主权。",
       "refs": [
         "2KI 24:1",
         "2KI 24:10",
@@ -4071,6 +3956,25 @@
       ],
       "testament": "OT",
       "disambiguation": "",
+      "source": "gnosis"
+    },
+    {
+      "id": "nepheg-son-of-david",
+      "name": "尼珥格",
+      "type": "person",
+      "summary": "大卫之子，生于耶路撒冷。",
+      "refs": [
+        "2SAM 5 15",
+        "1CHR 3 7",
+        "1CHR 14 6"
+      ],
+      "aliases": [],
+      "scope_books": [
+        "1CHR",
+        "2SAM"
+      ],
+      "testament": "OT",
+      "disambiguation": "大卫之子",
       "source": "gnosis"
     },
     {
@@ -4352,7 +4256,7 @@
       "id": "hebron-son-of-kohath",
       "name": "希伯仑",
       "type": "person",
-      "summary": "Levi 后裔 Kohath 之子， Moses 的同族长辈。",
+      "summary": "利未后裔哥辖之子，摩西的同族长辈。",
       "refs": [
         "EXO 6:18",
         "NUM 3:19",
@@ -4634,7 +4538,7 @@
       "id": "zilpah",
       "name": "悉帕",
       "type": "person",
-      "summary": "Leah 的婢女， Gad 与 Asher 之母。",
+      "summary": "利亚的婢女，迦得与亚设之母。",
       "refs": [
         "GEN 29 24",
         "GEN 30 9",
@@ -4658,7 +4562,7 @@
       "id": "hur-son-of-caleb",
       "name": "户珥",
       "type": "person",
-      "summary": "与 Aaron 同扶摩西手臂，助以色列胜战。",
+      "summary": "与亚伦同扶摩西手臂，助以色列胜战。",
       "refs": [
         "EXO 17:10",
         "EXO 17:12",
@@ -5163,7 +5067,7 @@
       "id": "naphtali",
       "name": "拿弗他利",
       "type": "person",
-      "summary": "Jacob 之子， Naphtali 支派之祖。",
+      "summary": "雅各之子，拿弗他利支派之祖。",
       "refs": [
         "GEN 30:8",
         "GEN 35:25",
@@ -5225,6 +5129,29 @@
       "testament": "OT",
       "disambiguation": "亚伦长子",
       "source": "curated"
+    },
+    {
+      "id": "nahor-son-of-terah",
+      "name": "拿鹤",
+      "type": "person",
+      "summary": "他拉之子，亚伯拉罕之兄。",
+      "refs": [
+        "GEN 11 26",
+        "GEN 11 27",
+        "GEN 11 29",
+        "GEN 22 20",
+        "GEN 22 23",
+        "GEN 24 15",
+        "GEN 24 24",
+        "GEN 24 47"
+      ],
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": "",
+      "source": "gnosis"
     },
     {
       "id": "挪亚",
@@ -5518,7 +5445,7 @@
       "id": "zacharias",
       "name": "撒迦利亚",
       "type": "person",
-      "summary": "撒迦利亚，施洗 John 之父，在圣殿见 Gabriel。",
+      "summary": "撒迦利亚，施洗约翰之父，在圣殿见加百列。",
       "refs": [
         "LUK 1:5",
         "LUK 1:12",
@@ -5613,7 +5540,7 @@
       "id": "omri",
       "name": "暗利",
       "type": "person",
-      "summary": "Israel 王，建 Samaria，亚哈之父。",
+      "summary": "以色列王，建撒玛利亚，亚哈之父。",
       "refs": [
         "1KI 16:16",
         "1KI 16:17",
@@ -5679,6 +5606,25 @@
       "testament": "OT"
     },
     {
+      "id": "shobab-son-of-david",
+      "name": "朔罢",
+      "type": "person",
+      "summary": "大卫之子，生于耶路撒冷。",
+      "refs": [
+        "2SAM 5 14",
+        "1CHR 3 5",
+        "1CHR 14 4"
+      ],
+      "aliases": [],
+      "scope_books": [
+        "1CHR",
+        "2SAM"
+      ],
+      "testament": "OT",
+      "disambiguation": "大卫之子",
+      "source": "gnosis"
+    },
+    {
       "id": "末底改",
       "name": "末底改",
       "type": "person",
@@ -5740,10 +5686,29 @@
       "testament": "OT"
     },
     {
+      "id": "shammua-son-of-david",
+      "name": "沙母亚",
+      "type": "person",
+      "summary": "大卫之子，生于耶路撒冷。",
+      "refs": [
+        "2SAM 5 14",
+        "1CHR 3 5",
+        "1CHR 14 4"
+      ],
+      "aliases": [],
+      "scope_books": [
+        "1CHR",
+        "2SAM"
+      ],
+      "testament": "OT",
+      "disambiguation": "大卫之子",
+      "source": "gnosis"
+    },
+    {
       "id": "shephatiah-son-of-david",
       "name": "沙法提雅",
       "type": "person",
-      "summary": "大卫之子，名列 Jerusalem 诸子。",
+      "summary": "大卫之子，名列耶路撒冷诸子。",
       "refs": [
         "2SAM 3 4",
         "1CHR 3 3"
@@ -5821,7 +5786,7 @@
       "id": "reuben",
       "name": "流便",
       "type": "person",
-      "summary": "Jacob 长子，失长子名分。",
+      "summary": "雅各长子，失长子名分。",
       "refs": [
         "GEN 29:32",
         "GEN 30:14",
@@ -5914,7 +5879,7 @@
       "id": "methuselah",
       "name": "玛土撒拉",
       "type": "person",
-      "summary": "Enoch 之子，圣经记载最长寿者。",
+      "summary": "以诺之子，圣经记载最长寿者。",
       "refs": [
         "GEN 5:21",
         "GEN 5:22",
@@ -5954,7 +5919,7 @@
       "id": "manasseh-son-of-joseph",
       "name": "玛拿西",
       "type": "person",
-      "summary": "Joseph 长子，与 Ephraim 同得 Jacob 祝福。",
+      "summary": "约瑟长子，与以法莲同得雅各祝福。",
       "refs": [
         "GEN 41:51",
         "GEN 46:20",
@@ -6198,7 +6163,7 @@
       "id": "miriam-son-of-amram",
       "name": "米利暗",
       "type": "person",
-      "summary": "Aaron 与 Moses 之姊，曾击 Red Sea 凯歌，后因毁谤受罚。",
+      "summary": "亚伦与摩西之姊，过红海凯歌，后因毁谤受罚。",
       "refs": [
         "EXO 15:20",
         "EXO 15:21",
@@ -6356,7 +6321,7 @@
       "id": "michael-4",
       "name": "米迦勒",
       "type": "person",
-      "summary": "天使长 Michael，守护 Israel，末后争战撒但。",
+      "summary": "天使长米迦勒，守护以色列，末后争战撒但。",
       "refs": [
         "DAN 10:13",
         "DAN 10:21",
@@ -6379,7 +6344,7 @@
       "id": "mephibosheth-son-of-jonathan",
       "name": "米非波设",
       "type": "person",
-      "summary": "约拿单之子，大卫因 Jonathan 之恩恩待。",
+      "summary": "约拿单之子，大卫因约拿单之恩恩待。",
       "refs": [
         "2SA 4:4",
         "2SA 9:6",
@@ -6647,7 +6612,7 @@
       "id": "jonathan-son-of-saul",
       "name": "约拿单",
       "type": "person",
-      "summary": "Saul 之子，David 挚友，保护 David 免 Saul 害。",
+      "summary": "扫罗之子，大卫挚友，保护大卫免扫罗害。",
       "refs": [
         "1SA 13:2",
         "1SA 13:3",
@@ -6686,7 +6651,7 @@
       "id": "jehoshaphat-son-of-asa",
       "name": "约沙法",
       "type": "person",
-      "summary": "犹大王，与 Ahab 联姻，行正但 alliance 有失。",
+      "summary": "犹大王，与亚哈联姻，行正但联盟有失。",
       "refs": [
         "1KI 15:24",
         "1KI 22:2",
@@ -6748,7 +6713,7 @@
       "id": "joel-son-of-samuel",
       "name": "约珥",
       "type": "person",
-      "summary": "Samuel 之子，作士师但贪财不公。",
+      "summary": "撒母耳之子，作士师但贪财不公。",
       "refs": [
         "1SA 8:2",
         "1CH 6:28",
@@ -6809,7 +6774,7 @@
       "id": "jehoshabeath",
       "name": "约示巴",
       "type": "person",
-      "summary": "Jehoiada 之妻，藏 Joash 免 Athaliah 害。",
+      "summary": "耶何耶大之妻，藏约阿施免亚他利雅害。",
       "refs": [
         "2KGS 11 2",
         "2CHR 22 11"
@@ -6909,7 +6874,7 @@
       "id": "joash-son-of-ahaziah",
       "name": "约阿施",
       "type": "person",
-      "summary": "犹大王约阿施，婴时被 Jehoida 藏养，复兴圣殿。",
+      "summary": "犹大王约阿施，婴时被耶何耶大藏养，复兴圣殿。",
       "refs": [
         "2KGS 11 2",
         "2KGS 11 21",
@@ -6934,7 +6899,7 @@
       "id": "jehoiakim",
       "name": "约雅敬",
       "type": "person",
-      "summary": "犹大王，焚 Jeremiah 书卷，终被掳。",
+      "summary": "犹大王，焚耶利米书卷，终被掳。",
       "refs": [
         "2KI 23:34",
         "2KI 23:35",
@@ -7064,6 +7029,22 @@
       "testament": "OT"
     },
     {
+      "id": "jerimoth-son-of-david",
+      "name": "耶利摩",
+      "type": "person",
+      "summary": "大卫之子，生于耶路撒冷。",
+      "refs": [
+        "2CHR 11 18"
+      ],
+      "aliases": [],
+      "scope_books": [
+        "2CHR"
+      ],
+      "testament": "OT",
+      "disambiguation": "大卫之子",
+      "source": "gnosis"
+    },
+    {
       "id": "耶利米",
       "name": "耶利米",
       "type": "person",
@@ -7083,7 +7064,7 @@
       "id": "jason",
       "name": "耶孙",
       "type": "person",
-      "summary": "帖撒罗尼迦的 Jason，曾接待保罗。",
+      "summary": "帖撒罗尼迦的耶孙，曾接待保罗。",
       "refs": [
         "ACT 17:5",
         "ACT 17:6",
@@ -7430,7 +7411,7 @@
       "id": "zebulun",
       "name": "西布伦",
       "type": "person",
-      "summary": "Jacob 之子， Zebulun 支派之祖。",
+      "summary": "雅各之子，西布伦支派之祖。",
       "refs": [
         "GEN 30:20",
         "GEN 35:23",
@@ -7477,7 +7458,7 @@
       "id": "zebedee",
       "name": "西庇太",
       "type": "person",
-      "summary": "James 与 John 之父，加利利渔夫。",
+      "summary": "雅各与约翰之父，加利利渔夫。",
       "refs": [
         "MAT 4:21",
         "MAT 10:2",
@@ -7507,7 +7488,7 @@
       "id": "zedekiah-son-of-josiah",
       "name": "西底家",
       "type": "person",
-      "summary": "Judah 末王，拒 Jeremiah 劝降，眼被挖。",
+      "summary": "犹末王，拒耶利米劝降，眼被挖。",
       "refs": [
         "2KI 24:17",
         "2KI 24:18",
@@ -7626,7 +7607,7 @@
       "id": "simeon-son-of-israel",
       "name": "西缅",
       "type": "person",
-      "summary": "Jacob 次子， Simeon 支派之祖。",
+      "summary": "雅各次子，西缅支派之祖。",
       "refs": [
         "GEN 29:33",
         "GEN 34:25",
@@ -7901,7 +7882,7 @@
       "id": "gad-son-of-israel",
       "name": "迦得",
       "type": "person",
-      "summary": "Jacob 之子， Gad 支派之祖。",
+      "summary": "雅各之子，迦得支派之祖。",
       "refs": [
         "GEN 30:11",
         "GEN 35:26",
@@ -7967,7 +7948,7 @@
       "id": "shem",
       "name": "闪",
       "type": "person",
-      "summary": "Noah 之子，闪族之祖，与 Japheth 为 Noah 遮羞。",
+      "summary": "挪亚之子，闪族之祖，与雅弗为挪亚遮羞。",
       "refs": [
         "GEN 5:32",
         "GEN 6:10",
@@ -8116,7 +8097,7 @@
       "id": "james-son-of-alphaeus",
       "name": "雅各（亚勒腓之子）",
       "type": "person",
-      "summary": "亚勒腓之子雅各，十二门徒之一（非 Zebedee 之子）。",
+      "summary": "亚勒腓之子雅各，十二门徒之一（非西庇太之子）。",
       "refs": [
         "MATT 10 3",
         "MARK 3 18",
@@ -8141,7 +8122,7 @@
       "id": "japheth",
       "name": "雅弗",
       "type": "person",
-      "summary": "Noah 之子，多数欧洲/亚洲民族谱系所自。",
+      "summary": "挪亚之子，多数民族谱系所自。",
       "refs": [
         "GEN 5:32",
         "GEN 6:10",
@@ -8166,10 +8147,29 @@
       "testament": "OT"
     },
     {
+      "id": "japhia-son-of-david",
+      "name": "雅排",
+      "type": "person",
+      "summary": "大卫之子，生于耶路撒冷。",
+      "refs": [
+        "2SAM 5 15",
+        "1CHR 3 7",
+        "1CHR 14 6"
+      ],
+      "aliases": [],
+      "scope_books": [
+        "1CHR",
+        "2SAM"
+      ],
+      "testament": "OT",
+      "disambiguation": "大卫之子",
+      "source": "gnosis"
+    },
+    {
       "id": "phinehas-son-of-eleazar",
       "name": "非尼哈",
       "type": "person",
-      "summary": "祭司，因 zeal 止息瘟疫，承祭司约。",
+      "summary": "祭司，因热心止息瘟疫，承祭司约。",
       "refs": [
         "EXO 6:25",
         "NUM 25:7",
@@ -9393,7 +9393,7 @@
       "id": "ethiopia",
       "name": "埃塞俄比亚",
       "type": "place",
-      "summary": "圣经中的地点「埃塞俄比亚」（地区（Country））。",
+      "summary": "古实地区，圣经中常指非洲东北部。",
       "refs": [
         "EST 1:1",
         "EST 8:9",
@@ -9844,7 +9844,7 @@
       "id": "greece",
       "name": "希腊",
       "type": "place",
-      "summary": "圣经中的地点「希腊」（地区（Country））。",
+      "summary": "希腊，新约时代保罗宣教所及之地。",
       "refs": [
         "DAN 8:21",
         "DAN 10:20",
@@ -10360,7 +10360,7 @@
       "id": "media",
       "name": "玛代",
       "type": "place",
-      "summary": "圣经中的地点「玛代」（地区（Country））。",
+      "summary": "玛代，与波斯并提的古代王国。",
       "refs": [
         "EZR 6:2",
         "EST 1:3",

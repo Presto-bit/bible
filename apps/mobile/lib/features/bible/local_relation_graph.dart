@@ -444,22 +444,24 @@ class _LocalRelationGraphState extends State<LocalRelationGraph> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                '拖动画布 · 双指缩放 · 点节点/连线看详情',
-                style: TextStyle(fontSize: 11, color: AppColors.inkFaint),
+        if (!_isFullscreen) ...[
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '拖动画布 · 双指缩放 · 点节点/连线看详情',
+                  style: TextStyle(fontSize: 11, color: AppColors.inkFaint),
+                ),
               ),
-            ),
-            _ZoomPill(label: '−', onTap: () => _zoomBy(-0.2)),
-            const SizedBox(width: 4),
-            _ZoomPill(label: '1×', onTap: _resetView),
-            const SizedBox(width: 4),
-            _ZoomPill(label: '+', onTap: () => _zoomBy(0.2)),
-          ],
-        ),
-        const SizedBox(height: 8),
+              _ZoomPill(label: '−', onTap: () => _zoomBy(-0.2)),
+              const SizedBox(width: 4),
+              _ZoomPill(label: '1×', onTap: _resetView),
+              const SizedBox(width: 4),
+              _ZoomPill(label: '+', onTap: () => _zoomBy(0.2)),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
         Wrap(
           spacing: 6,
           runSpacing: 6,

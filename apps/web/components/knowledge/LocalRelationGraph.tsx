@@ -225,14 +225,16 @@ export function LocalRelationGraph({
 
   return (
     <div className={`local-relation-graph${isFullscreen ? ' local-relation-graph--fullscreen' : ''}`}>
-      <div className="local-relation-graph-toolbar">
-        <span className="muted" style={{ fontSize: 11 }}>拖动画布 · 双指/滚轮缩放 · 点节点/连线看详情</span>
-        <div className="local-relation-graph-zoom">
-          <button type="button" className="font-pill" aria-label="缩小" onClick={() => zoomBy(-0.2)}>−</button>
-          <button type="button" className="font-pill" aria-label="重置" onClick={resetView}>1×</button>
-          <button type="button" className="font-pill" aria-label="放大" onClick={() => zoomBy(0.2)}>+</button>
+      {!isFullscreen ? (
+        <div className="local-relation-graph-toolbar">
+          <span className="muted" style={{ fontSize: 11 }}>拖动画布 · 双指/滚轮缩放 · 点节点/连线看详情</span>
+          <div className="local-relation-graph-zoom">
+            <button type="button" className="font-pill" aria-label="缩小" onClick={() => zoomBy(-0.2)}>−</button>
+            <button type="button" className="font-pill" aria-label="重置" onClick={resetView}>1×</button>
+            <button type="button" className="font-pill" aria-label="放大" onClick={() => zoomBy(0.2)}>+</button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="local-relation-graph-filters" role="tablist" aria-label="关系筛选">
         {RELATION_FILTERS.map((f) => {
