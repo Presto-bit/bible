@@ -14,6 +14,7 @@ import {
 } from '@/lib/knowledge_nav';
 import { manuscriptJourneyPages } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
+import { journeyManuscriptCover } from '@/lib/journey_covers';
 
 type Props = {
   tour: MapTour;
@@ -58,9 +59,9 @@ export function KnowledgeExplainerPage({
   const pages = useMemo(() => manuscriptJourneyPages(layout), [layout]);
 
   const coverPath =
-    layout.cover_image ||
     pages[0]?.src ||
-    `/knowledge/infographics/${encodeURIComponent(tour.id)}-comic.png`;
+    layout.cover_image ||
+    journeyManuscriptCover(tour.id);
   const coverSources = knowledgeRasterSources(coverPath);
 
   useEffect(() => {

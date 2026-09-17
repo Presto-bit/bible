@@ -1121,8 +1121,10 @@ html.knowledge-viewer-lock body {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  opacity: 0.92;
+  /* 与 .knowledge-viewer-img 一致，避免占位裁切 ≠ 终稿 contain */
+  object-fit: contain;
+  background: #1f1a16;
+  opacity: 1;
 }
 
 /* 软回列表：缩回期间藏起原卡片，避免双影 */

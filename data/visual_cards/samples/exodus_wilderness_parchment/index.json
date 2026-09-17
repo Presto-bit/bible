@@ -1,0 +1,38 @@
+{
+  "id": "exodus_wilderness_parchment",
+  "tour_id": "exodus-wilderness",
+  "style": "hand-drawn parchment §19.14.16",
+  "model": "cogview-3-flash",
+  "jobs": [
+    {
+      "id": "egypt",
+      "path": "data/visual_cards/samples/exodus_wilderness_parchment/egypt.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/20260917234102050a8223d3624093_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ShwKIC5DKBC4xXmw%2FY%2FCD%2BZoqxc%3D&Expires=1790264474"
+    },
+    {
+      "id": "red_sea",
+      "path": "data/visual_cards/samples/exodus_wilderness_parchment/01_red_sea.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/2026091723411521c36421f6b64f22_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=x6PnoIBjYMws%2FH1h0LSgX%2B5JT5c%3D&Expires=1790264487"
+    },
+    {
+      "id": "marah",
+      "path": "data/visual_cards/samples/exodus_wilderness_parchment/02_marah.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/202609172341295c96baeda6bd4f91_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5EpQEL21DHl09n7OIFouqLMQghc%3D&Expires=1790264498"
+    },
+    {
+      "id": "elim",
+      "path": "data/visual_cards/samples/exodus_wilderness_parchment/03_elim.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/202609172341398471d400db69456e_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=v%2BjdP95PFkXvwNUYR%2FMelO6P2Ug%3D&Expires=1790264511"
+    },
+    {
+      "id": "rephidim",
+      "path": "data/visual_cards/samples/exodus_wilderness_parchment/05_rephidim.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/2026091723415275dac230a4d745a3_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=AnKmbnOxH%2BhWqKG82C7ESKl9tAg%3D&Expires=1790264522"
+    },
+    {
+      "id": "sinai",
+      "path": "data/visual_cards/samples/exodus_wilderness_parchment/06_sinai.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/20260917234203290ab90a250546c7_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=sIb3bRRb1sG8VsX7t9tqgHn3Q9U%3D&Expires=1790264533"
+    }
+  ]
+}

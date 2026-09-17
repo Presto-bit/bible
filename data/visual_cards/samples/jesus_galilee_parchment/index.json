@@ -1,0 +1,43 @@
+{
+  "id": "jesus_galilee_parchment",
+  "tour_id": "jesus-ministry-galilee",
+  "style": "hand-drawn parchment §19.14.16",
+  "model": "cogview-3-flash",
+  "jobs": [
+    {
+      "id": "nazareth",
+      "path": "data/visual_cards/samples/jesus_galilee_parchment/01_nazareth.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/20260917234313499eca2e84fc4a1a_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2OGqt8OiXZ6GN6hBZ0y3M2aLF48%3D&Expires=1790264603"
+    },
+    {
+      "id": "capernaum",
+      "path": "data/visual_cards/samples/jesus_galilee_parchment/02_capernaum.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/20260917234324348f9246007d488f_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=fwbVwUKVn2C%2BwMVxaDGOFqP0gSo%3D&Expires=1790264614"
+    },
+    {
+      "id": "sea_of_galilee",
+      "path": "data/visual_cards/samples/jesus_galilee_parchment/03_sea_of_galilee.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/20260917234335eeb48e5f6dec4c56_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Tm%2Fdedtiyd%2F5njuzGgIkx5DMbCo%3D&Expires=1790264624"
+    },
+    {
+      "id": "bethsaida",
+      "path": "data/visual_cards/samples/jesus_galilee_parchment/04_bethsaida.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/2026091723434559701666a5074f08_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Tx%2Bl0tpLuh6tJsHne5iRI2miDtA%3D&Expires=1790264634"
+    },
+    {
+      "id": "caesarea_philippi",
+      "path": "data/visual_cards/samples/jesus_galilee_parchment/05_caesarea_philippi.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/20260917234355396b38eac2f64400_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Ro4a2t6Xjw9nEvHGF8Tm6QAu2P0%3D&Expires=1790264648"
+    },
+    {
+      "id": "olives",
+      "path": "data/visual_cards/samples/jesus_galilee_parchment/06_olives.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/20260917234409368c126d87d94081_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=mP52%2FTGZQLYDZtH1pjLmMc9XvPI%3D&Expires=1790264663"
+    },
+    {
+      "id": "jerusalem",
+      "path": "data/visual_cards/samples/jesus_galilee_parchment/07_jerusalem.png",
+      "url": "https://maas-watermark-prod-new.cn-wlcb.ufileos.com/20260917234424f35a7a80331d4407_watermark.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=lrGimJVqZqe6OH3I7JsWRhGW%2BBc%3D&Expires=1790264673"
+    }
+  ]
+}

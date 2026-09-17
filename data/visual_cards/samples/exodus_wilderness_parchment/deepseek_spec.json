@@ -1,0 +1,293 @@
+{
+  "title_zh": "出埃及 · 旷野行程 · 手绘纸稿",
+  "guide_one_liner": "从埃及苦役起行，经红海、玛拉、以琳、利非订，直到西奈山下安营；以羊皮纸墨线小景呈现，总览交给 SVG 示意图。",
+  "era_geo": "Late Bronze Age Egypt and Sinai wilderness; mudbrick store cities, Reed Sea shore, desert oasis palms, rocky wadis, Mount Sinai massif; Israelite traveler cloaks, staffs, tents — no modern objects",
+  "skip_overview_bitmap": true,
+  "overview_note": "path overview uses SVG schematic; no bitmap prompt",
+  "details": [
+    {
+      "id": "brick_pits",
+      "label": "泥砖苦役与叹息",
+      "ref": "出埃及记 1:11-14；2:23-25",
+      "happen": "泥砖苦役中叹息哀求",
+      "beat_chips": [
+        "泥砖",
+        "草秸",
+        "叹息"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "以色列人因作苦工，就叹息哀求。",
+          "visual": "distant Hebrew laborer silhouettes bending under brick loads, one pausing with hand to brow"
+        },
+        {
+          "quote": "使他们因作苦工觉得命苦……和作各样的工。",
+          "visual": "mudbrick pit, straw, clay, wooden carrying frames, low unfinished store-city wall"
+        }
+      ],
+      "inferences": [
+        "Late Bronze Age Egyptian taskmaster in knee-length kilt, Levantine wrapped cloaks — costume detail only, not stated in verse（推断非原文）",
+        "mudbrick kiln and straw-mixing pit — common ancient Egyptian brickmaking practice（推断非原文）"
+      ],
+      "prompt_en": "Composed from the Exodus brick-labor and groaning passages: Israelite laborers making mudbrick store-city works, sighing under hard service. Quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon, muted warm gray and ochre, soft side light from upper left. Wide distant view, no facial close-up. A low mudbrick wall under construction; rectangular bricks laid in courses; straw and clay mixed in a shallow pit; wooden carrying frames; a brick kiln with faint smoke; a distant Egyptian taskmaster silhouette in a knee-length kilt holding a staff; Hebrew laborers shown only as small silhouettes in long wrapped cloaks, bending, carrying straw bundles and bricks, one figure pausing with hand to brow in weariness. Palm-scrub horizon and dusty ground. No modern objects, no wheels or machines. Parchment fibers visible at edges; ink hatching for shadow. Keep horizon low, leave calm empty sky and margin space for later overlay. All human figures far away or from behind, no faces. No divine figure. No text, letters, numbers, watermark, title bar.",
+      "negative": "modern clothes, jeans, sneakers, text, letters, numbers, watermark, title bar, map labels, facial close-up, God anthropomorphic, blood, gore, photorealistic cinematic, sci-fi, national flags, modern political borders, contemporary East Asian indoor fellowship aesthetic",
+      "checklist": [
+        "mudbrick wall",
+        "straw and clay pit",
+        "distant bent silhouettes",
+        "taskmaster staff silhouette"
+      ],
+      "overlays": [
+        {
+          "label": "泥砖苦役",
+          "hint": "lower-left margin"
+        },
+        {
+          "label": "叹息哀求",
+          "hint": "upper-right sky margin"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留形制动词（担草、砌砖、叹息），弱化埃及专名"
+    },
+    {
+      "id": "egypt",
+      "label": "埃及起行",
+      "ref": "出埃及记 1:11",
+      "happen": "在苦役中起行离开",
+      "beat_chips": [
+        "苦役",
+        "泥砖城",
+        "起行"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "以色列人因作苦工，就叹息哀求。",
+          "visual": "Distant Israelite silhouettes sighing and crying out amid mudbrick construction; no faces visible."
+        },
+        {
+          "quote": "作苦工",
+          "visual": "Tiny laborers at brick molds and construction ramps, then a file of travelers leaving the city edge."
+        }
+      ],
+      "inferences": [
+        "Late Bronze Age Egyptian mudbrick store-city architecture and New Kingdom-era Levantine work-cloaks — inferred from era/geography, not stated in verse",
+        "Flat desert horizon and Nile Delta edge — geographic common sense, not verse detail"
+      ],
+      "prompt_en": "A quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon, muted warm gray and ochre, soft side light, not photorealistic cinematic. Built from Exodus action: the Israelites groan and cry out under hard labor, then set out from the land of Egypt. In the distance show low mudbrick store-city walls and blocky granaries, rectangular brick molds, and construction ramps; nearer, a long file of Israelite traveler silhouettes in Late Bronze Age Levantine cloaks, carrying bundles and staffs, moving away from the city edge toward a flat desert horizon. Include a few taskmasters as tiny distant silhouettes with staffs, no faces. The procession is small against wide parchment ground, ink contour light and sketchy. Foreground shows cracked earth and a few desert thorn bushes, with a single fallen brick and a discarded tool to imply forced labor without graphic detail. Use no text, no letters, no numbers, no map labels, no watermark; any Chinese title is added later. Keep the tone sorrowful but restrained, no gore, no blood. Costume and mudbrick architecture are inferred from era/geography, not specified in verse. Palette limited to warm gray, faded ochre, pale sand, a faint teal only if water appears. All figures distant or from behind. No close-up faces, no God figure, no modern objects, no photorealistic texture.",
+      "negative": "modern clothes, jeans, sneakers, text, letters, numbers, watermark, title bar, map labels, facial close-up, God anthropomorphic, blood, gore, photorealistic cinematic, sci-fi, flags, modern political borders, contemporary East Asian indoor fellowship aesthetic, pharaoh caricature throne comedy, anime characters, gore",
+      "checklist": [
+        "mudbrick store-city blocks",
+        "construction ramps and brick molds",
+        "departing traveler silhouettes with bundles",
+        "desert edge and cracked earth"
+      ],
+      "overlays": [
+        {
+          "label": "埃及起行",
+          "hint": "lower-left parchment margin"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留「作苦工、起行」形制动词，弱化埃及专名，避免现代劳工场景。"
+    },
+    {
+      "id": "red_sea",
+      "label": "红海",
+      "ref": "出埃及记 14:21",
+      "happen": "水分开百姓走干地",
+      "beat_chips": [
+        "伸杖",
+        "水分开",
+        "干地"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "耶和华吩咐摩西向海伸杖，水便分开，海就成了干地。",
+          "visual": "A distant robed figure extends a staff over the sea; waters part into two upright standing walls with a dry seabed path between them."
+        },
+        {
+          "quote": "水便分开",
+          "visual": "Two vertical curtains of water stand left and right, open sky above, flat dry path below."
+        }
+      ],
+      "inferences": [
+        "Late Bronze Age staff and traveler cloaks — costume/prop inference, not in verse",
+        "Reed Sea shore reeds and shallow coastal geography — inferred, not explicit in the quoted line"
+      ],
+      "prompt_en": "A quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon, muted warm gray and ochre with a restrained teal water accent, soft side light, not photorealistic cinematic. Driven by Exodus action: Moses stretches out his staff over the sea, the waters are divided, and the sea becomes dry ground. Show a distant robed figure with an outstretched staff on the shore; before him the sea opens into two upright standing curtains of water on left and right, not a roofed tunnel and not a rocky canyon. Between them lies a flat dry seabed path with faint wet-sand streaks. A long line of tiny Israelite traveler silhouettes crosses the path, seen from behind, carrying bundles and staffs; no faces visible. Keep open sky above the parted waters, parchment grain visible, ink lines light. Reeds at the shore edge suggest the Reed Sea setting. The scale is panoramic but quiet; human figures are small. No text, no letters, no numbers, no map labels, no watermark; Chinese labels are post-processing only. Costumes and staff are Late Bronze Age Levantine inferences, not verse details. No blood, no gore, no God anthropomorphic, no modern clothes, no photorealistic cinematic texture, no sci-fi water-tunnel.",
+      "negative": "modern clothes, jeans, sneakers, text, letters, numbers, watermark, title bar, map labels, facial close-up, God anthropomorphic, blood, gore, photorealistic cinematic, sci-fi, flags, modern political borders, contemporary East Asian indoor fellowship aesthetic, pharaoh caricature throne comedy, anime characters, roofed water tunnel, rock canyon walls",
+      "checklist": [
+        "outstretched staff silhouette",
+        "two upright standing water walls",
+        "dry seabed path with traveler line",
+        "open sky and shore reeds"
+      ],
+      "overlays": [
+        {
+          "label": "红海",
+          "hint": "center-bottom parchment margin"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留「伸杖、水分开、走干地」，弱化「红海」专名；明确不是水顶隧道或岩壁峡谷。"
+    },
+    {
+      "id": "marah",
+      "label": "玛拉",
+      "ref": "出埃及记 15:23",
+      "happen": "苦水变甜",
+      "beat_chips": [
+        "苦泉",
+        "投树",
+        "变甜"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "到了玛拉，不能喝那里的水，因为水是苦的",
+          "visual": "A bitter spring pool in desert, people at a distance unable to drink."
+        },
+        {
+          "quote": "耶和华指示一棵树，丢在水里，水就变甜了",
+          "visual": "A tree or branch is cast into the pool; ripples and clearing water suggest sweetness."
+        }
+      ],
+      "inferences": [
+        "Desert spring with tamarisk-like tree — botanical inference, not verse",
+        "Late Bronze Age Levantine robes — costume only, not stated in verse"
+      ],
+      "prompt_en": "A quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon, muted warm gray and ochre with a faint teal water accent, soft side light, not photorealistic cinematic. From Exodus action: at Marah the people cannot drink the water because it is bitter; the LORD shows Moses a tree, and he casts it into the water, and the water becomes sweet. Show a small desert spring pool surrounded by cracked earth and a few thorn bushes; the pool surface is slightly murky at first, then clearing where a cut branch or small tree lies half-submerged. Ripples and a subtle change in water tone suggest bitterness turning sweet. In the middle distance, a few Israelite traveler silhouettes and their animals wait beside tents, seen from behind; no faces. A distant robed figure stands near the pool with a staff, not in close-up. No text, no letters, no numbers, no map labels, no watermark; Chinese labels are added later. Botanical form and Levantine cloaks are inferred from desert geography and era, not stated in verse. Keep the mood quiet and hopeful; no blood, no gore, no God anthropomorphic, no modern objects, no photorealistic cinematic. The scene should feel like a small manuscript vignette, with light ink hatching and visible parchment grain.",
+      "negative": "modern clothes, jeans, sneakers, text, letters, numbers, watermark, title bar, map labels, facial close-up, God anthropomorphic, blood, gore, photorealistic cinematic, sci-fi, flags, modern political borders, contemporary East Asian indoor fellowship aesthetic, pharaoh caricature throne comedy, anime characters",
+      "checklist": [
+        "bitter spring pool",
+        "tree or branch cast into water",
+        "clearing ripples and water tone",
+        "distant waiting camp silhouettes"
+      ],
+      "overlays": [
+        {
+          "label": "玛拉",
+          "hint": "right side parchment margin"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留「苦水、投树、变甜」，弱化「玛拉」专名，避免魔法特效。"
+    },
+    {
+      "id": "elim",
+      "label": "以琳",
+      "ref": "出埃及记 15:27",
+      "happen": "十二泉七十棕树歇息",
+      "beat_chips": [
+        "水泉",
+        "棕树",
+        "安营"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "到了以琳，在那里有十二股水泉，七十棵棕树",
+          "visual": "An oasis with multiple springs and many palm trees."
+        },
+        {
+          "quote": "他们就在那里的水边安营",
+          "visual": "Tents pitched beside water; distant silhouettes resting."
+        }
+      ],
+      "inferences": [
+        "Palm oasis in Sinai — geographic inference, not verse",
+        "Late Bronze Age goat-hair tents — inferred, not detailed in verse"
+      ],
+      "prompt_en": "A quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon, muted warm gray and ochre with soft teal water accents, soft side light, not photorealistic cinematic. From Exodus action: at Elim there are twelve springs of water and seventy palm trees, and the people camp beside the waters. Show an oasis with several clear spring pools linked by small channels, surrounded by many stylized palm trees with feathery fronds, their trunks drawn with light ink hatching. In the lower middle distance, low goat-hair tents are pitched near the water, with tiny Israelite silhouettes resting, drawing water, or leading animals, all distant or from behind; no faces. Keep a wide parchment ground, warm gray shadows, and ochre sand. The numbers of springs and palms can be suggested by repeated motifs without literal counting labels. No text, no letters, no numbers, no map labels, no watermark; Chinese labels are post-processing overlays only. Palm oasis and Late Bronze Age tents are inferred from era/geography, not detailed in verse. No blood, no gore, no God anthropomorphic, no modern clothes, no photorealistic cinematic texture. The composition should be calm and restful, with many small palm shapes and a few visible water pools.",
+      "negative": "modern clothes, jeans, sneakers, text, letters, numbers, watermark, title bar, map labels, facial close-up, God anthropomorphic, blood, gore, photorealistic cinematic, sci-fi, flags, modern political borders, contemporary East Asian indoor fellowship aesthetic, pharaoh caricature throne comedy, anime characters",
+      "checklist": [
+        "multiple spring pools",
+        "many stylized palm trees",
+        "tents pitched by water",
+        "resting traveler silhouettes"
+      ],
+      "overlays": [
+        {
+          "label": "以琳",
+          "hint": "upper-right parchment margin"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留「水泉、棕树、安营」，弱化数字精确性，用重复母题暗示十二与七十。"
+    },
+    {
+      "id": "rephidim",
+      "label": "利非订",
+      "ref": "出埃及记 17:6",
+      "happen": "击打磐石水流出",
+      "beat_chips": [
+        "磐石",
+        "击打",
+        "流水"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "百姓在利非订没有水喝",
+          "visual": "Dry wadi at Rephidim; distant thirsty people and animals."
+        },
+        {
+          "quote": "你要击打磐石，从磐石里必有水流出来",
+          "visual": "A distant figure strikes a large rock with a staff; water gushes out."
+        }
+      ],
+      "inferences": [
+        "Large limestone or granite rock face in Sinai wadi — geological inference, not verse",
+        "Robed figure with staff — costume/prop inference, not detailed in verse"
+      ],
+      "prompt_en": "A quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon, muted warm gray and ochre with a modest teal water accent, soft side light, not photorealistic cinematic. From Exodus action: at Rephidim the people have no water to drink; Moses is told to strike the rock, and water comes out of the rock. Show a dry wadi with gravel, cracked earth, and a large rock face. A distant robed figure with a raised staff strikes the rock; from the cleft, a stream of water flows out and runs down into a small channel. In the middle distance, tiny Israelite traveler silhouettes and animals gather toward the water, seen from behind; no faces. Keep the rock geological and heavy, with light ink hatching, not a fantasy portal. No text, no letters, no numbers, no map labels, no watermark; Chinese labels are added later. The geology, staff, and Levantine robes are inferred from Sinai geography and era, not stated in verse. No blood, no gore, no God anthropomorphic, no modern clothes, no photorealistic cinematic, no sci-fi effects. The water should read as a real spring from a struck rock, restrained and natural, with visible stream lines and small pools forming in the dry wadi.",
+      "negative": "modern clothes, jeans, sneakers, text, letters, numbers, watermark, title bar, map labels, facial close-up, God anthropomorphic, blood, gore, photorealistic cinematic, sci-fi, flags, modern political borders, contemporary East Asian indoor fellowship aesthetic, pharaoh caricature throne comedy, anime characters, magical portal",
+      "checklist": [
+        "dry wadi and cracked earth",
+        "large rock face",
+        "distant figure with raised staff",
+        "water flowing from rock"
+      ],
+      "overlays": [
+        {
+          "label": "利非订",
+          "hint": "lower-right parchment margin"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留「击打磐石、水流出」，弱化「利非订」专名，避免爆炸或魔法光效。"
+    },
+    {
+      "id": "sinai",
+      "label": "西奈山",
+      "ref": "出埃及记 19:20",
+      "happen": "在西奈山下安营",
+      "beat_chips": [
+        "西奈",
+        "云雾",
+        "环营"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "他们出埃及地以后，满了三个月的那一天，就来到西奈的旷野，在山下安营",
+          "visual": "A ring of tents at the base of a great mountain massif; distant assembled people facing the mountain."
+        },
+        {
+          "quote": "在山下安营",
+          "visual": "Tents arranged in a wide ring on the plain below the mountain."
+        }
+      ],
+      "inferences": [
+        "Cloud or haze on the summit is inferred from the broader Sinai context, not from the quoted line alone",
+        "Late Bronze Age Levantine robes and goat-hair tents — costume and camp inference, not detailed in verse"
+      ],
+      "prompt_en": "A quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon, muted warm gray and ochre, soft side light, not photorealistic cinematic. From Exodus action: after three months from Egypt, the Israelites come to the wilderness of Sinai and camp before the mountain. Show a large rocky mountain massif rising in the background, its summit softened by a light cloud or haze—an inferred detail from the broader Sinai context, not in the quoted line. At the base, a wide ring of small goat-hair tents is pitched in a desert plain; tiny Israelite silhouettes face the mountain from a distance, all seen from behind or as small shapes; no faces. Keep the composition quiet and spacious, with parchment grain, light ink contours, and restrained ochre and warm gray. The mountain should read as a real Sinai massif, not a fantasy tower. No text, no letters, no numbers, no map labels, no watermark; any Chinese title is post-processed later. Late Bronze Age Levantine robes and tents are inferred, not detailed in verse. No blood, no gore, no God anthropomorphic, no modern clothes, no photorealistic cinematic, no sci-fi glow. The camp should feel ordered and waiting, with the mountain dominating the upper half of the scene.",
+      "negative": "modern clothes, jeans, sneakers, text, letters, numbers, watermark, title bar, map labels, facial close-up, God anthropomorphic, blood, gore, photorealistic cinematic, sci-fi, flags, modern political borders, contemporary East Asian indoor fellowship aesthetic, pharaoh caricature throne comedy, anime characters, fantasy tower",
+      "checklist": [
+        "rocky mountain massif",
+        "summit cloud or haze",
+        "ring of tents",
+        "distant assembled silhouettes"
+      ],
+      "overlays": [
+        {
+          "label": "西奈山",
+          "hint": "upper-center parchment margin"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留「三个月、西奈旷野、山下安营」，弱化神显现细节，避免拟人化。"
+    }
+  ]
+}

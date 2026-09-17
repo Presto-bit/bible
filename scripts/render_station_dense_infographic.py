@@ -34,11 +34,31 @@ CHROME_CANDIDATES = [
     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
 ]
 
-VIGNETTE_FALLBACK = {
+VIGNETTE_DIR = {
+    "paul-first-journey": "paul",
+    "exodus-wilderness": "wilderness",
+    "jesus-ministry-galilee": "galilee",
+}
+
+PAUL_VIGNETTE_FALLBACK = {
     4: "/knowledge/vignettes/paul/05_iconium.png",
     6: "/knowledge/vignettes/paul/06_derbe.png",
 }
-OVERVIEW = "/knowledge/vignettes/paul/00_overview.png"
+
+
+def tour_overview_path(layout_id: str) -> str:
+    folder = VIGNETTE_DIR.get(layout_id, layout_id)
+    return f"/knowledge/vignettes/{folder}/00_overview.png"
+
+
+def vignette_for(b: dict, layout_id: str = "paul-first-journey") -> str | None:
+    order = b.get("order") or 0
+    raw = (b.get("vignette") or "").strip()
+    if not raw and layout_id == "paul-first-journey":
+        raw = PAUL_VIGNETTE_FALLBACK.get(order) or ""
+    if not raw:
+        raw = tour_overview_path(layout_id)
+    return resolve_uri(raw)
 
 
 def find_chrome() -> str | None:
@@ -87,12 +107,6 @@ def resolve_uri(v: str | None) -> str | None:
     return p.as_uri() if p.is_file() else None
 
 
-def vignette_for(b: dict) -> str | None:
-    order = b.get("order") or 0
-    raw = (b.get("vignette") or "").strip() or VIGNETTE_FALLBACK.get(order) or OVERVIEW
-    return resolve_uri(raw)
-
-
 def format_ref(ref: str | None) -> str:
     if not ref:
         return ""
@@ -136,6 +150,7 @@ def path_strip_svg(beats: list[dict], active: int) -> str:
 
 def build_station_html(layout: dict, beat: dict, beats: list[dict]) -> str:
     title = layout.get("title") or "彼爱手稿"
+    layout_id = layout.get("id") or ""
     total = len(beats)
     order = int(beat.get("order") or 1)
     label = beat.get("label") or f"第{order}站"
@@ -144,7 +159,7 @@ def build_station_html(layout: dict, beat: dict, beats: list[dict]) -> str:
     note = (beat.get("note") or "").strip()
     excerpt = (beat.get("verse_excerpt") or "").strip()
     ref_label = format_ref(beat.get("ref"))
-    vignette = vignette_for(beat)
+    vignette = vignette_for(beat, layout_id)
     paper = ensure_paper_texture()
     paper_bg = f'url("{paper}")' if paper else "none"
     img = (

@@ -74,7 +74,7 @@
       "note": "在家乡会堂读以赛亚书，宣告恩年已到，却也被拒绝。",
       "ask_seed": "耶稣在拿撒勒被弃对理解祂的使命有何意义？",
       "verse_excerpt": "主的灵在我身上，因为他用膏膏我，叫我传福音给贫穷的人。",
-      "vignette": ""
+      "vignette": "/knowledge/vignettes/galilee/01_nazareth.png"
     },
     {
       "order": 2,
@@ -95,7 +95,7 @@
       "note": "以迦百农为加利利事工中心，多方教导与医治。",
       "ask_seed": "为何福音书特别强调迦百农？",
       "verse_excerpt": "又离开拿撒勒，往迦百农去，就住在那里。",
-      "vignette": ""
+      "vignette": "/knowledge/vignettes/galilee/02_capernaum.png"
     },
     {
       "order": 3,
@@ -116,7 +116,7 @@
       "note": "在海边呼召渔夫作得人的渔夫，门徒训练由此展开。",
       "ask_seed": "呼召渔夫作门徒说明天国优先怎样的人？",
       "verse_excerpt": "来跟从我，我要叫你们得人如得鱼一样。",
-      "vignette": ""
+      "vignette": "/knowledge/vignettes/galilee/03_sea_of_galilee.png"
     },
     {
       "order": 4,
@@ -137,7 +137,7 @@
       "note": "五饼二鱼喂饱众人，显明供应与怜悯。",
       "ask_seed": "五饼二鱼神迹主要启示什么？",
       "verse_excerpt": "你们给他们吃吧。……他们就都吃，并且吃饱了。",
-      "vignette": ""
+      "vignette": "/knowledge/vignettes/galilee/04_bethsaida.png"
     },
     {
       "order": 5,
@@ -158,7 +158,7 @@
       "note": "彼得认耶稣为基督，也首次清楚听见受难预言。",
       "ask_seed": "彼得的认信与随后的受难宣告如何并列？",
       "verse_excerpt": "西门彼得回答说：「你是基督，是永生神的儿子。」",
-      "vignette": ""
+      "vignette": "/knowledge/vignettes/galilee/05_caesarea_philippi.png"
     },
     {
       "order": 6,
@@ -179,7 +179,7 @@
       "note": "面向圣城讲论末后的事，提醒门徒儆醒等候。",
       "ask_seed": "橄榄山讲论对今日信徒的核心劝勉是什么？",
       "verse_excerpt": "你们要谨慎，儆醒祈祷，因为你们不晓得那日期几时来到。",
-      "vignette": ""
+      "vignette": "/knowledge/vignettes/galilee/06_olives.png"
     },
     {
       "order": 7,
@@ -200,7 +200,7 @@
       "note": "荣入圣城，走向受难与复活——救恩故事的高峰。",
       "ask_seed": "从加利利到耶路撒冷，事工重心如何转移？",
       "verse_excerpt": "要对锡安的居民说：看哪，你的王来到你这里，是温柔的，又骑着驴。",
-      "vignette": ""
+      "vignette": "/knowledge/vignettes/galilee/07_jerusalem.png"
     }
   ],
   "fill": {

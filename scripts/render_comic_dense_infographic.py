@@ -37,12 +37,40 @@ CHROME_CANDIDATES = [
     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
 ]
 
-VIGNETTE_FALLBACK = {
+VIGNETTE_DIR = {
+    "paul-first-journey": "paul",
+    "exodus-wilderness": "wilderness",
+    "jesus-ministry-galilee": "galilee",
+}
+
+# 保罗缺图兜底（历史站序）
+PAUL_VIGNETTE_FALLBACK = {
     4: "/knowledge/vignettes/paul/05_iconium.png",
     6: "/knowledge/vignettes/paul/06_derbe.png",
 }
-OVERVIEW = "/knowledge/vignettes/paul/00_overview.png"
-BEAT_MARK = {1: "差", 2: "海", 3: "堂", 4: "逼", 5: "治", 6: "徒", 7: "报"}
+
+
+def tour_overview_path(layout_id: str) -> str:
+    folder = VIGNETTE_DIR.get(layout_id, layout_id)
+    return f"/knowledge/vignettes/{folder}/00_overview.png"
+
+
+def vignette_for(b: dict, layout_id: str = "paul-first-journey") -> str | None:
+    order = b.get("order") or 0
+    raw = (b.get("vignette") or "").strip()
+    if not raw and layout_id == "paul-first-journey":
+        raw = PAUL_VIGNETTE_FALLBACK.get(order) or ""
+    if not raw:
+        raw = tour_overview_path(layout_id)
+    return resolve_uri(raw)
+
+
+def beat_mark(b: dict) -> str:
+    chips = b.get("chips") or []
+    if chips and isinstance(chips[0], str) and chips[0].strip():
+        return chips[0].strip()[:1]
+    happen = (b.get("happen") or "").strip()
+    return happen[:1] if happen else "·"
 
 
 def short_ref(ref: str | None) -> str:
@@ -61,12 +89,6 @@ def resolve_uri(v: str | None) -> str | None:
         return None
     p = PUBLIC / v.lstrip("/")
     return p.as_uri() if p.is_file() else None
-
-
-def vignette_for(b: dict) -> str | None:
-    order = b.get("order") or 0
-    raw = (b.get("vignette") or "").strip() or VIGNETTE_FALLBACK.get(order) or OVERVIEW
-    return resolve_uri(raw)
 
 
 def find_chrome() -> str | None:
@@ -156,16 +178,16 @@ def path_strip_svg(beats: list[dict]) -> str:
     return f'<svg class="path-strip" viewBox="0 0 {width} 56" width="100%">{line}{"".join(dots)}</svg>'
 
 
-def beat_card(b: dict, *, wide: bool = False) -> str:
+def beat_card(b: dict, *, layout_id: str, wide: bool = False) -> str:
     order = b.get("order", 0)
     label = b.get("label") or ""
-    if order == 7 and "安提阿" in label:
+    if layout_id == "paul-first-journey" and order == 7 and "安提阿" in label:
         label = "回报安提阿"
     label = escape(label)
     happen = escape(b.get("happen") or "")
     sref = escape(short_ref(b.get("ref")))
-    mark = BEAT_MARK.get(order, "·")
-    vuri = vignette_for(b)
+    mark = beat_mark(b)
+    vuri = vignette_for(b, layout_id)
     img = f'<img class="art" src="{vuri}" alt="" />' if vuri else f'<div class="art empty">{mark}</div>'
     cls = "card wide" if wide else "card"
     return f"""
@@ -185,11 +207,16 @@ def beat_card(b: dict, *, wide: bool = False) -> str:
 
 def build_comic_html(layout: dict) -> str:
     title = layout.get("title") or "经文信息图"
+    layout_id = layout.get("id") or ""
     arcs = layout.get("arc") or []
     beats = layout.get("beats") or []
     by_order = {b.get("order"): b for b in beats}
-    ref_span = "使徒行传 13–14"
-    overview_uri = resolve_uri(OVERVIEW)
+    guide = (layout.get("guide_one_liner") or "").strip()
+    if arcs:
+        ref_span = " → ".join(str(a.get("name") or "") for a in arcs if a.get("name"))
+    else:
+        ref_span = guide or title
+    overview_uri = resolve_uri(tour_overview_path(layout_id))
     paper_uri = ensure_paper_texture()
     paper_bg = f"url('{paper_uri}')" if paper_uri else "#efe2c6"
 
@@ -199,7 +226,7 @@ def build_comic_html(layout: dict) -> str:
         name = arc.get("name") or f"段落 {i + 1}"
         orders = arc.get("stop_orders") or []
         arc_beats = [by_order[o] for o in orders if o in by_order]
-        cards = "".join(beat_card(b, wide=True) for b in arc_beats)
+        cards = "".join(beat_card(b, layout_id=layout_id, wide=True) for b in arc_beats)
         grid = "grid-2" if len(arc_beats) >= 3 else "grid-1"
         panels.append(
             f"""
@@ -215,10 +242,11 @@ def build_comic_html(layout: dict) -> str:
 
     hero = ""
     if overview_uri:
+        hero_cap = escape(guide or ref_span)
         hero = f"""
         <div class="hero">
           <img src="{overview_uri}" alt="" />
-          <div class="hero-cap"><strong>差遣 → 跨海 → 会堂 → 逼迫与医治 → 回报</strong></div>
+          <div class="hero-cap"><strong>{hero_cap}</strong></div>
         </div>
         """
 

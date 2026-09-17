@@ -10,22 +10,18 @@ import {
   peekKnowledgeExpandCover,
 } from '@/lib/knowledge_nav';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
+import {
+  isJourneyManuscriptId,
+  journeyManuscriptCover,
+} from '@/lib/journey_covers';
 
 function LoadingSilent({ tourId }: { tourId: string }) {
   const cover = useMemo(() => {
-    const fromExpand = peekKnowledgeExpandCover();
-    if (fromExpand) return fromExpand;
-    // 列表轻量图优先；避免一上来抢 1MB comic 拉长黑屏
-    if (tourId === 'paul-first-journey') {
-      return '/knowledge/infographics/paul-first-journey.png';
+    // 必须与手稿第 1 页一致，避免「占位图 ≠ 最终图」
+    if (tourId && isJourneyManuscriptId(tourId)) {
+      return journeyManuscriptCover(tourId);
     }
-    if (tourId === 'exodus-wilderness') {
-      return '/knowledge/vignettes/wilderness/00_overview.png';
-    }
-    if (tourId === 'jesus-ministry-galilee') {
-      return '/knowledge/infographics/jesus-ministry-galilee-comic.png';
-    }
-    return '';
+    return peekKnowledgeExpandCover();
   }, [tourId]);
   const sources = cover ? knowledgeRasterSources(cover) : null;
 
@@ -73,17 +69,9 @@ function MapStoryPageContent() {
     setTour(null);
     setLayout(null);
 
-    // 仅预热列表轻量封面，勿抢拉整本 comic（进场黑屏主因）
-    const warmPath =
-      tourId === 'paul-first-journey'
-        ? '/knowledge/infographics/paul-first-journey.png'
-        : tourId === 'exodus-wilderness'
-          ? '/knowledge/vignettes/wilderness/00_overview.png'
-          : tourId === 'jesus-ministry-galilee'
-            ? '/knowledge/infographics/jesus-ministry-galilee-comic.png'
-            : '';
-    if (warmPath) {
-      const warm = knowledgeRasterSources(warmPath);
+    // 预热手稿总图（与第 1 页 / 占位同一张）
+    if (isJourneyManuscriptId(tourId)) {
+      const warm = knowledgeRasterSources(journeyManuscriptCover(tourId));
       const img = new Image();
       img.decoding = 'async';
       img.src = warm.webp || warm.fallback;
@@ -112,7 +100,12 @@ function MapStoryPageContent() {
   }, [tourId]);
 
   if (loading) {
-    if (openView || isKnowledgeExpandActive() || peekKnowledgeExpandCover()) {
+    if (
+      openView ||
+      isKnowledgeExpandActive() ||
+      peekKnowledgeExpandCover() ||
+      isJourneyManuscriptId(tourId)
+    ) {
       return <LoadingSilent tourId={tourId} />;
     }
     return (

@@ -46,7 +46,7 @@ CURATED: dict[str, dict] = {
                 "chips": ["为奴", "起行"],
                 "must_see": ["泥砖城邑", "行进队伍", "旷野边缘"],
                 "verse_excerpt": "以色列人因作苦工，就叹息哀求，他们的哀声达于神。",
-                "vignette": "",
+                "vignette": "/knowledge/vignettes/wilderness/egypt.png",
             },
             "red-sea": {
                 "happen": "水分开，百姓走干地",
@@ -169,7 +169,7 @@ CURATED: dict[str, dict] = {
                 "chips": ["会堂", "被拒"],
                 "must_see": ["会堂卷轴", "乡邻围观", "起身离城"],
                 "verse_excerpt": "主的灵在我身上，因为他用膏膏我，叫我传福音给贫穷的人。",
-                "vignette": "",
+                "vignette": "/knowledge/vignettes/galilee/01_nazareth.png",
             },
             "capernaum": {
                 "happen": "以湖城为事工中心",
@@ -177,7 +177,7 @@ CURATED: dict[str, dict] = {
                 "chips": ["教导", "医治"],
                 "must_see": ["湖岸民居", "会堂门廊", "病患走近"],
                 "verse_excerpt": "又离开拿撒勒，往迦百农去，就住在那里。",
-                "vignette": "",
+                "vignette": "/knowledge/vignettes/galilee/02_capernaum.png",
             },
             "sea-of-galilee": {
                 "happen": "海边呼召得人的渔夫",
@@ -185,7 +185,7 @@ CURATED: dict[str, dict] = {
                 "chips": ["呼召", "渔夫"],
                 "must_see": ["渔网船舷", "岸边脚印", "跟随背影"],
                 "verse_excerpt": "来跟从我，我要叫你们得人如得鱼一样。",
-                "vignette": "",
+                "vignette": "/knowledge/vignettes/galilee/03_sea_of_galilee.png",
             },
             "bethsaida": {
                 "happen": "五饼二鱼喂饱众人",
@@ -193,7 +193,7 @@ CURATED: dict[str, dict] = {
                 "chips": ["供应", "怜悯"],
                 "must_see": ["碎饼篮筐", "坐地人群", "青草坡地"],
                 "verse_excerpt": "你们给他们吃吧。……他们就都吃，并且吃饱了。",
-                "vignette": "",
+                "vignette": "/knowledge/vignettes/galilee/04_bethsaida.png",
             },
             "caesarea-philippi": {
                 "happen": "彼得认祂为基督",
@@ -201,7 +201,7 @@ CURATED: dict[str, dict] = {
                 "chips": ["认信", "受难"],
                 "must_see": ["山麓磐石", "门徒围圈", "远望北方"],
                 "verse_excerpt": "西门彼得回答说：「你是基督，是永生神的儿子。」",
-                "vignette": "",
+                "vignette": "/knowledge/vignettes/galilee/05_caesarea_philippi.png",
             },
             "mount-of-olives-2": {
                 "happen": "面向圣城讲论末后",
@@ -209,7 +209,7 @@ CURATED: dict[str, dict] = {
                 "chips": ["儆醒", "末后"],
                 "must_see": ["橄榄山脊", "圣城轮廓", "门徒侧听"],
                 "verse_excerpt": "你们要谨慎，儆醒祈祷，因为你们不晓得那日期几时来到。",
-                "vignette": "",
+                "vignette": "/knowledge/vignettes/galilee/06_olives.png",
             },
             "jerusalem": {
                 "happen": "荣入圣城走向十架",
@@ -217,7 +217,7 @@ CURATED: dict[str, dict] = {
                 "chips": ["入城", "受难"],
                 "must_see": ["城门棕枝", "圣殿远景", "窄路上行"],
                 "verse_excerpt": "要对锡安的居民说：看哪，你的王来到你这里，是温柔的，又骑着驴。",
-                "vignette": "",
+                "vignette": "/knowledge/vignettes/galilee/07_jerusalem.png",
             },
         },
     },

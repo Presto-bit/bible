@@ -31,12 +31,12 @@ function shortHook(guide?: string): string {
 
 function coverOf(row: KnowledgeLayoutSummary): string {
   const id = row.id || '';
-  // 首页坑用轻量图，勿用 comic 密图
+  // 首页坑用轻量脊图；手稿进场另走 comic
   if (id === PAUL_ID) {
     return '/knowledge/infographics/paul-first-journey.png';
   }
   if (id === 'exodus-wilderness') {
-    return '/knowledge/vignettes/wilderness/00_overview.png';
+    return '/knowledge/infographics/exodus-wilderness.png';
   }
   if (id === 'jesus-ministry-galilee') {
     return '/knowledge/infographics/jesus-ministry-galilee-comic.png';

@@ -1,0 +1,296 @@
+{
+  "title_zh": "耶稣加利利事工 · 手绘纸稿",
+  "guide_one_liner": "从拿撒勒会堂到耶路撒冷城门，跟随福音书行程的墨线小图。",
+  "era_geo": "1st century Galilee and Judea; Nazareth hillside town, Capernaum lakeside, Sea of Galilee fishing boats, Bethsaida shore, Caesarea Philippi rocky foothills, Mount of Olives overlooking Jerusalem — Levantine robes, no modern objects",
+  "skip_overview_bitmap": true,
+  "overview_note": "path overview uses SVG schematic; no bitmap prompt",
+  "details": [
+    {
+      "id": "nazareth_synagogue",
+      "label": "拿撒勒会堂诵读",
+      "ref": "路加福音 4:16-17",
+      "happen": "在安息日进会堂站起念经",
+      "beat_chips": [
+        "安息日",
+        "会堂",
+        "念经"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "耶稣来到拿撒勒，在安息日进了会堂，站起来要念圣经。",
+          "visual": "Jesus stands among seated silhouettes in a stone synagogue, unrolling a scroll."
+        }
+      ],
+      "inferences": [
+        "1st-century Galilean synagogue with stone benches and Torah scroll — 推断非原文",
+        "Levantine robes and head coverings — 推断非原文"
+      ],
+      "prompt_en": "This illustration is composed from the scripture action: Jesus came to Nazareth, entered the synagogue on the Sabbath, and stood up to read. In a quiet hand-drawn ink style on parchment, show a modest 1st-century Galilean synagogue interior: rough stone walls, a simple raised platform, and rows of seated figures in muted robes, all rendered as distant silhouettes or backs of heads, never facial close-ups. In the mid-ground, a solitary figure stands upright beside a wooden reading stand, unrolling a long parchment scroll with both hands. No text or letters appear on the scroll; it is a blank unrolled shape. Soft side light enters from a high window, casting gentle shadows across warm stone. The palette is muted warm gray and ochre, with touches of olive green in the robes and a faint cool shadow. The scene is quiet, paper-like flat illustration, not photorealistic or cinematic. No modern clothing, no modern objects. The congregation remains anonymous and distant, reinforcing the solemnity of the Sabbath reading. The scroll’s shape and the standing posture are the key visual motifs. Atmosphere: reverent, still, early morning light. Avoid any halo or glowing divine figure; keep Jesus as a distant robed silhouette with face turned away or obscured by shadow.",
+      "negative": "modern clothes, text, letters, numbers, watermarks, titles, map labels, facial close-up, halo photoreal Jesus portrait, God anthropomorphic, blood, gore, copyrighted anime characters, Western cathedral interior, sci-fi, modern objects",
+      "checklist": [
+        "standing figure with scroll",
+        "seated silhouettes",
+        "stone synagogue interior"
+      ],
+      "overlays": [
+        {
+          "label": "安息日诵读",
+          "hint": "top-left corner"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留形制动词，弱化专名"
+    },
+    {
+      "id": "nazareth",
+      "label": "拿撒勒",
+      "ref": "路加福音 4:16",
+      "happen": "家乡会堂宣告恩年",
+      "beat_chips": [
+        "会堂卷轴",
+        "乡邻剪影",
+        "起身离城"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "耶稣来到拿撒勒，在安息日进了会堂，站起来要念圣经。",
+          "visual": "Jesus stands in a 1st-century Galilean synagogue, unrolling a Torah scroll before seated villagers."
+        }
+      ],
+      "inferences": [
+        "1st-century Galilean synagogue with stone benches and Torah scroll — architectural inference, not in verse",
+        "Levantine ankle-length tunics and head cloths — costume inference, not stated",
+        "Parchment paper texture and sepia ink line — stylistic, not in text"
+      ],
+      "prompt_en": "This scene visualizes Luke 4:16: Jesus enters the Nazareth synagogue on the Sabbath and stands to read from the scroll. Composition: a quiet paper-like flat illustration in hand-drawn ink on parchment, vintage manuscript cartoon style. Muted warm gray and ochre palette, soft side light. In the foreground, a small group of villagers sits on stone benches, depicted as distant silhouettes in ankle-length Levantine robes, heads turned toward a standing figure who unrolls a long scroll. The standing figure is shown from behind or in far silhouette, no facial close-up. The synagogue interior is suggested with simple stone walls, wooden beams, and a raised reading platform. Behind, through an open doorway, the hillside town of Nazareth is hinted with a few flat-roofed stone houses. To the right, a path leads out of town, indicating departure after the reading. Ensure three motifs: a Torah scroll clearly unrolled, a circle of seated villagers in silhouette, and a path leading away from the synagogue. No text, no letters, no numbers, no watermarks. No modern clothing, no photorealistic cinematic look, no sci-fi elements, no God anthropomorphic figure. Style must remain hand-drawn ink on parchment with vintage manuscript cartoon feel, lake teal and olive green accents only subtly in landscape.",
+      "negative": "modern clothes, text in pixels, map labels, facial close-up of Jesus, halo photoreal Jesus portrait, God anthropomorphic, blood, gore, copyrighted anime characters, Western cathedral interior, contemporary East Asian indoor fellowship aesthetic, national flags, modern political borders, jeans, sneakers, sci-fi, photorealistic cinematic",
+      "checklist": [
+        "会堂卷轴",
+        "乡邻剪影",
+        "起身离城"
+      ],
+      "overlays": [
+        {
+          "label": "拿撒勒会堂",
+          "hint": "top-left corner"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留会堂与卷轴形制，弱化拿撒勒专名"
+    },
+    {
+      "id": "capernaum",
+      "label": "迦百农",
+      "ref": "马太福音 4:13",
+      "happen": "以湖城为事工中心",
+      "beat_chips": [
+        "湖岸石屋",
+        "会堂门廊",
+        "病患远景"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "又离开拿撒勒，往迦百农去，就住在那里。",
+          "visual": "Jesus walks toward the lakeside town of Capernaum and settles by the shore; stone houses and a synagogue portico overlook the water."
+        }
+      ],
+      "inferences": [
+        "1st-century Capernaum stone houses with flat roofs and a lakeside synagogue — architectural inference",
+        "Fishing boats and nets on the shore — period detail, not explicitly in verse",
+        "Levantine robes and head coverings — costume inference"
+      ],
+      "prompt_en": "This scene visualizes Matthew 4:13: Jesus leaves Nazareth and goes to live in Capernaum by the Sea of Galilee. Quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon style. Muted warm gray and ochre palette with subtle lake teal and olive green, soft side light. In the foreground, a lakeside town of low stone houses with flat roofs clusters near the water. A synagogue with a simple portico stands slightly elevated. A small boat with fishing nets rests on the shore. A distant figure in ankle-length Levantine robes walks toward the town, seen from behind, no facial close-up. In the background, the Sea of Galilee stretches out with gentle ink lines for water. On the right edge, a few sick or seeking people appear as indistinct far silhouettes moving toward the town, indicating the ministry center that will draw crowds. Must_see motifs: lakeside stone houses, synagogue portico, and distant sick people approaching. No text, no letters, no numbers. No modern objects, no photorealistic cinematic look, no sci-fi, no God anthropomorphic figure. Keep all human figures as distant silhouettes or back views.",
+      "negative": "modern clothes, text in pixels, map labels, facial close-up of Jesus, halo photoreal Jesus portrait, God anthropomorphic, blood, gore, copyrighted anime characters, Western cathedral interior, contemporary East Asian indoor fellowship aesthetic, national flags, modern political borders, sci-fi, photorealistic cinematic",
+      "checklist": [
+        "湖岸石屋",
+        "会堂门廊",
+        "病患远景"
+      ],
+      "overlays": [
+        {
+          "label": "迦百农",
+          "hint": "bottom-right corner"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留湖岸与会堂门廊形制，弱化迦百农专名"
+    },
+    {
+      "id": "sea_of_galilee",
+      "label": "加利利海",
+      "ref": "马太福音 4:18",
+      "happen": "海边呼召得人的渔夫",
+      "beat_chips": [
+        "渔网船舷",
+        "岸边脚印",
+        "跟随背影"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "耶稣在加利利海边行走，看见西门和安德烈，就说：来跟从我，我要叫你们得人如得鱼一样。",
+          "visual": "Jesus walks along the Sea of Galilee shore, sees Simon and Andrew casting nets, and calls them; the two fishermen leave their nets and follow him."
+        }
+      ],
+      "inferences": [
+        "1st-century Galilean fishing boat and cast net — period detail, not fully described",
+        "Levantine tunics with short mantles for fishermen — costume inference",
+        "Shoreline with pebbles and gentle waves — geographical inference"
+      ],
+      "prompt_en": "This scene visualizes Matthew 4:18–19: Jesus walks by the Sea of Galilee, sees Simon and Andrew casting a net, and calls them to follow, promising to make them fishers of men. Quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon style. Muted warm gray and ochre palette, soft side light, subtle lake teal for water and olive green for shore grass. Composition: a curving lakeshore in the foreground. Two fishermen in ankle-length Levantine robes stand by a small wooden boat, holding a cast net that spreads over the water; they are shown as distant silhouettes, no facial close-up. A third figure walks along the shore, seen from behind, gesturing toward them. Footprints mark the sandy shore. The boat has a simple wooden hull, ropes, and a folded net. In the background, gentle hills of Galilee meet the lake. The two fishermen are beginning to turn from their nets, leaving them behind as they step toward the walking figure. Must_see motifs: fishing net over the boat, footprints on the shore, and the two fishermen following in silhouette. No text, no letters, no numbers, no watermarks. No modern clothes, no sci-fi, no photorealistic cinematic, no God anthropomorphic figure.",
+      "negative": "modern clothes, text in pixels, map labels, facial close-up of Jesus, halo photoreal Jesus portrait, God anthropomorphic, blood, gore, copyrighted anime characters, Western cathedral interior, contemporary East Asian indoor fellowship aesthetic, national flags, modern political borders, sci-fi, photorealistic cinematic",
+      "checklist": [
+        "渔网船舷",
+        "岸边脚印",
+        "跟随背影"
+      ],
+      "overlays": [
+        {
+          "label": "加利利海",
+          "hint": "center-right"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留渔网与跟随动作，弱化西门安德烈专名"
+    },
+    {
+      "id": "bethsaida",
+      "label": "伯赛大",
+      "ref": "路加福音 9:10",
+      "happen": "五饼二鱼喂饱众人",
+      "beat_chips": [
+        "碎饼篮筐",
+        "坐地人群",
+        "青草坡地"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "你们给他们吃吧；他们就都吃，并且吃饱了。",
+          "visual": "A crowd sits on green grass in groups of fifty; baskets of broken bread and fish are distributed until all are satisfied."
+        }
+      ],
+      "inferences": [
+        "1st-century Levantine crowd dress — tunics and head cloths, costume inference",
+        "Baskets and loaves of barley bread, fish — details from the narrative but exact form inferred",
+        "Grassy hillside near Bethsaida — geographical inference"
+      ],
+      "prompt_en": "This scene visualizes Luke 9:13,17: Jesus tells the disciples, 'You give them something to eat,' and the crowd eats and is satisfied. Quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon style. Muted warm gray and ochre palette, soft side light, with olive green grass and warm stone tones. Composition: a grassy hillside near Bethsaida. In the foreground, groups of people sit on the green grass, arranged in clusters of fifty as distant silhouettes in ankle-length Levantine robes. Baskets of broken bread and a few fish are being passed among them. A central figure, seen from behind or in far silhouette, gestures toward the crowd; no facial close-up. The disciples move among the groups with baskets. In the background, the shore of the Sea of Galilee and gentle hills. The mood is one of quiet abundance and satisfaction. Must_see motifs: baskets with broken bread, seated crowd on green grass, and a grassy hillside slope. No text, no letters, no numbers, no watermarks. No modern clothes, no sci-fi, no photorealistic cinematic, no God anthropomorphic figure, no blood or gore.",
+      "negative": "modern clothes, text in pixels, map labels, facial close-up of Jesus, halo photoreal Jesus portrait, God anthropomorphic, blood, gore, copyrighted anime characters, Western cathedral interior, contemporary East Asian indoor fellowship aesthetic, national flags, modern political borders, sci-fi, photorealistic cinematic",
+      "checklist": [
+        "碎饼篮筐",
+        "坐地人群",
+        "青草坡地"
+      ],
+      "overlays": [
+        {
+          "label": "伯赛大",
+          "hint": "bottom-left corner"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留篮筐与坐地人群，弱化伯赛大专名"
+    },
+    {
+      "id": "caesarea_philippi",
+      "label": "该撒利亚腓立比",
+      "ref": "马太福音 16:13",
+      "happen": "彼得认祂为基督",
+      "beat_chips": [
+        "山麓磐石",
+        "门徒围圈",
+        "远望北方"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "西门彼得回答说：你是基督，是永生神的儿子。",
+          "visual": "Peter speaks among the disciples at the rocky foothills of Caesarea Philippi; Jesus stands in the circle, seen from behind."
+        }
+      ],
+      "inferences": [
+        "Rocky foothills with a spring or cliff face — geographical inference from the region",
+        "1st-century Levantine robes — costume inference",
+        "Disciples gathered in a loose circle — composition inference"
+      ],
+      "prompt_en": "This scene visualizes Matthew 16:16: Simon Peter answers, 'You are the Christ, the Son of the living God.' Quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon style. Muted warm gray and ochre palette, soft side light, with warm stone and olive green accents. Composition: the rocky foothills of Caesarea Philippi. A large rock face or cliff rises in the background, with a small spring or cave opening suggested by ink lines. In the foreground, a group of disciples stands in a loose circle on a rocky terrace. All figures are distant silhouettes in ankle-length Levantine robes; one figure (Peter) gestures as if speaking, while the central figure (Jesus) stands with his back to the viewer, no facial close-up. Beyond the rock, the landscape opens toward the north with distant hills and a hint of a pagan shrine or Roman-style stonework, kept minimal and unlabelled. Must_see motifs: rocky foothills, disciples in a circle, and a northward gaze. No text, no letters, no numbers, no watermarks. No modern clothes, no sci-fi, no photorealistic cinematic, no God anthropomorphic figure.",
+      "negative": "modern clothes, text in pixels, map labels, facial close-up of Jesus, halo photoreal Jesus portrait, God anthropomorphic, blood, gore, copyrighted anime characters, Western cathedral interior, contemporary East Asian indoor fellowship aesthetic, national flags, modern political borders, sci-fi, photorealistic cinematic",
+      "checklist": [
+        "山麓磐石",
+        "门徒围圈",
+        "远望北方"
+      ],
+      "overlays": [
+        {
+          "label": "该撒利亚腓立比",
+          "hint": "top-right corner"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留磐石与围圈动作，弱化该撒利亚腓立比专名"
+    },
+    {
+      "id": "olives",
+      "label": "橄榄山",
+      "ref": "马太福音 24:3",
+      "happen": "面向圣城讲论末后",
+      "beat_chips": [
+        "橄榄山脊",
+        "圣城轮廓",
+        "门徒侧听"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "耶稣在橄榄山上，门徒暗暗地来说：请告诉我们，什么时候有这些事。",
+          "visual": "Jesus sits on the Mount of Olives with disciples gathered privately; the city of Jerusalem is visible across the valley."
+        }
+      ],
+      "inferences": [
+        "Olive trees on the mount — geographical inference",
+        "1st-century Jerusalem skyline with temple mount — architectural inference",
+        "Levantine robes for seated figures — costume inference"
+      ],
+      "prompt_en": "This scene visualizes Matthew 24:3: Jesus sits on the Mount of Olives, and the disciples come to him privately, asking about the end times. Quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon style. Muted warm gray and ochre palette, soft side light, with olive green trees and warm stone tones. Composition: the ridge of the Mount of Olives in the foreground, with several olive trees rendered in simple ink lines. A small group of disciples sits in a loose arc around a central figure, all seen as distant silhouettes or from behind, no facial close-up. The central figure gestures toward the city across the valley. In the background, the skyline of Jerusalem is suggested with flat-roofed buildings and the temple mount, no labels or text. The Kidron Valley lies between. The mood is intimate and serious. Must_see motifs: olive trees on the ridge, Jerusalem city outline in the distance, and disciples listening in a side arc. No text, no letters, no numbers, no watermarks. No modern clothes, no sci-fi, no photorealistic cinematic, no God anthropomorphic figure.",
+      "negative": "modern clothes, text in pixels, map labels, facial close-up of Jesus, halo photoreal Jesus portrait, God anthropomorphic, blood, gore, copyrighted anime characters, Western cathedral interior, contemporary East Asian indoor fellowship aesthetic, national flags, modern political borders, sci-fi, photorealistic cinematic",
+      "checklist": [
+        "橄榄山脊",
+        "圣城轮廓",
+        "门徒侧听"
+      ],
+      "overlays": [
+        {
+          "label": "橄榄山",
+          "hint": "middle-left"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留橄榄树与圣城轮廓，弱化橄榄山专名"
+    },
+    {
+      "id": "jerusalem",
+      "label": "耶路撒冷",
+      "ref": "马太福音 21:1",
+      "happen": "荣入圣城走向十架",
+      "beat_chips": [
+        "城门棕枝",
+        "圣殿远景",
+        "窄路上行"
+      ],
+      "verse_anchors": [
+        {
+          "quote": "要对锡安的居民说：看哪，你的王来到你这里，是温柔的，又骑着驴。",
+          "visual": "Jesus rides a donkey up the narrow path toward Jerusalem's gate; people wave palm branches and lay cloaks on the road."
+        }
+      ],
+      "inferences": [
+        "1st-century Jerusalem gate and temple mount — architectural inference",
+        "Palm branches and cloaks on the road — from narrative but exact arrangement inferred",
+        "Levantine robes and donkey — costume and period detail inferred"
+      ],
+      "prompt_en": "This scene visualizes Matthew 21:5: 'Say to the daughter of Zion, Behold, your king is coming to you, humble, and mounted on a donkey.' Quiet paper-like flat illustration, hand-drawn ink on parchment, vintage manuscript cartoon style. Muted warm gray and ochre palette, soft side light, with olive green palm fronds and warm stone tones. Composition: a narrow uphill path leading to a city gate of Jerusalem. In the foreground, a figure rides a donkey, seen from behind or in far silhouette, no facial close-up. Around him, people in ankle-length Levantine robes wave palm branches and spread cloaks on the road. All figures are distant silhouettes. In the background, the city wall and gate rise, with the temple mount suggested beyond, no labels or text. The path is flanked by rocky slopes and a few olive trees. The mood is humble and expectant, moving toward the cross. Must_see motifs: palm branches, city gate, and narrow uphill path. No text, no letters, no numbers, no watermarks. No modern clothes, no sci-fi, no photorealistic cinematic, no God anthropomorphic figure, no blood or gore.",
+      "negative": "modern clothes, text in pixels, map labels, facial close-up of Jesus, halo photoreal Jesus portrait, God anthropomorphic, blood, gore, copyrighted anime characters, Western cathedral interior, contemporary East Asian indoor fellowship aesthetic, national flags, modern political borders, sci-fi, photorealistic cinematic",
+      "checklist": [
+        "城门棕枝",
+        "圣殿远景",
+        "窄路上行"
+      ],
+      "overlays": [
+        {
+          "label": "耶路撒冷",
+          "hint": "top-center"
+        }
+      ],
+      "risk_notes": "若智谱1301：保留棕枝与窄路形制，弱化耶路撒冷专名"
+    }
+  ]
+}

@@ -19,33 +19,15 @@ import {
   resolveKnowledgeTopicMeta,
 } from '@/lib/knowledge_topic_meta';
 import { adminCheck } from '@/lib/admin_rag';
+import {
+  isJourneyManuscriptId,
+  journeyListCover,
+  journeyManuscriptCover,
+} from '@/lib/journey_covers';
 
 function coverPath(row: KnowledgeLayoutSummary): string {
-  if (row.cover_image) {
-    const id = row.id || '';
-    // 列表用轻量图：comic 密图仅给手稿册
-    if (id === 'paul-first-journey') {
-      return '/knowledge/infographics/paul-first-journey.png';
-    }
-    if (id === 'exodus-wilderness') {
-      return '/knowledge/vignettes/wilderness/00_overview.png';
-    }
-    if (id === 'jesus-ministry-galilee') {
-      return '/knowledge/infographics/jesus-ministry-galilee-comic.png';
-    }
-    return row.cover_image;
-  }
   const id = row.id || '';
-  if (id === 'exodus-wilderness') {
-    return '/knowledge/vignettes/wilderness/00_overview.png';
-  }
-  if (id === 'paul-first-journey') {
-    return '/knowledge/infographics/paul-first-journey.png';
-  }
-  if (id === 'jesus-ministry-galilee') {
-    return '/knowledge/infographics/jesus-ministry-galilee-comic.png';
-  }
-  return '/knowledge/infographics/_paper_texture.jpg';
+  return journeyListCover(id, row.cover_image);
 }
 
 function preloadRaster(path: string) {
@@ -137,8 +119,9 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
     for (const row of top) {
       preloadRaster(coverPath(row));
       const id = row.source?.id || row.id;
-      if (id === 'paul-first-journey' || id === 'exodus-wilderness' || id === 'jesus-ministry-galilee') {
-        preloadRaster(`/knowledge/infographics/${id}-comic.png`);
+      if (id && isJourneyManuscriptId(id)) {
+        // 预热手稿总图（与进场占位/第 1 页一致），减轻点开后换图感
+        preloadRaster(journeyManuscriptCover(id));
       }
     }
   }, [rows]);
@@ -242,13 +225,17 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
                   aria-label={`${row.title || row.id}，打开手稿`}
                   style={{ ['--stagger' as string]: stagger }}
                   onClick={(e) => {
+                    const manuscriptCover =
+                      sourceId && isJourneyManuscriptId(sourceId)
+                        ? journeyManuscriptCover(sourceId)
+                        : coverPath(row);
                     startKnowledgeExpand({
                       el: e.currentTarget,
-                      cover: coverPath(row),
+                      cover: manuscriptCover,
                       href,
                       topicId: sourceId,
                     });
-                    preloadRaster(coverPath(row));
+                    preloadRaster(manuscriptCover);
                   }}
                 >
                   <span className="knowledge-topic-card-media" aria-hidden>

@@ -45,6 +45,7 @@ export const SCHEMATIC_PATHS: Record<SchematicLayoutId, SchematicPathDef> = {
       { placeId: 'mount-sinai', x: 308, y: 155 },
     ],
     vignettes: {
+      egypt: '/knowledge/vignettes/wilderness/egypt.png',
       'red-sea': '/knowledge/vignettes/wilderness/01_red_sea.png',
       marah: '/knowledge/vignettes/wilderness/02_marah.png',
       elim: '/knowledge/vignettes/wilderness/03_elim.png',
@@ -133,6 +134,15 @@ export const SCHEMATIC_PATHS: Record<SchematicLayoutId, SchematicPathDef> = {
       { placeId: 'mount-of-olives-2', x: 235, y: 148 },
       { placeId: 'jerusalem', x: 248, y: 168 },
     ],
+    vignettes: {
+      nazareth: '/knowledge/vignettes/galilee/01_nazareth.png',
+      capernaum: '/knowledge/vignettes/galilee/02_capernaum.png',
+      'sea-of-galilee': '/knowledge/vignettes/galilee/03_sea_of_galilee.png',
+      bethsaida: '/knowledge/vignettes/galilee/04_bethsaida.png',
+      'caesarea-philippi': '/knowledge/vignettes/galilee/05_caesarea_philippi.png',
+      'mount-of-olives-2': '/knowledge/vignettes/galilee/06_olives.png',
+      jerusalem: '/knowledge/vignettes/galilee/07_jerusalem.png',
+    },
     happenByPlaceId: {
       nazareth: '家乡会堂宣告恩年',
       capernaum: '以湖城为事工中心',
