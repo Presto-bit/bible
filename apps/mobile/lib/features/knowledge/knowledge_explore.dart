@@ -44,6 +44,11 @@ class KnowledgeHub extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final items = <(String, IconData, VoidCallback)>[
       (
+        '探索专题',
+        Icons.collections_bookmark_outlined,
+        () => openH5IfAllowed(context, '/knowledge'),
+      ),
+      (
         '出埃及故事',
         Icons.auto_stories_outlined,
         () => openH5IfAllowed(context, '/search/series/exodus'),
@@ -51,7 +56,7 @@ class KnowledgeHub extends ConsumerWidget {
       (
         '地图故事',
         Icons.map_outlined,
-        () => context.push('/search/map/exodus-wilderness'),
+        () => openH5IfAllowed(context, '/search/map/exodus-wilderness?view=1'),
       ),
       (
         '历史时间线',

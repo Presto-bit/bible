@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/badge_stats.dart';
 import '../../core/config.dart';
+import '../../core/open_h5.dart';
 import '../../core/ref_label.dart';
 import '../../core/theme.dart';
 import '../assistant/assistant_seed.dart';
@@ -309,6 +310,81 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
               color: AppColors.inkSoft,
             ),
           ),
+          if (mapTours.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text(
+              '相关专题',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.inkFaint,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (final tour in mapTours.take(2))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Material(
+                  color: AppColors.surfaceSunken,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => openH5IfAllowed(
+                      context,
+                      '/search/map/${tour.id}?view=1',
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentDeep.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              '行程',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.accentDeep,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              tour.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          ),
+                          const Text(
+                            '›',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppColors.inkFaint,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
           if (tabs.length > 1) ...[
             const SizedBox(height: 12),
             Wrap(
@@ -452,7 +528,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                     padding: const EdgeInsets.only(top: 4, bottom: 4),
                     alignment: Alignment.centerLeft,
                   ),
-                  onPressed: () => context.push('/search/map/${tour.id}'),
+                  onPressed: () => openH5IfAllowed(
+                    context,
+                    '/search/map/${tour.id}?view=1',
+                  ),
                   child: Text('${tour.title} ›'),
                 ),
             ],

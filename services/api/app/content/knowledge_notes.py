@@ -160,7 +160,8 @@ def _rewrite_public_index() -> None:
             row = json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             continue
-        if row.get("status") == "draft":
+        status = str(row.get("status") or "").lower()
+        if status in ("draft", "unpublished"):
             continue
         names.append(path.name)
     # 保留策展行程顺序：先读旧 index 中仍存在的，再补新的
@@ -184,6 +185,13 @@ def _rewrite_public_index() -> None:
     }
     index_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     loader.knowledge_layouts_index.cache_clear()
+
+
+def _safe_layout_id(layout_id: str) -> str:
+    lid = (layout_id or "").strip().replace("..", "").replace("/", "").replace("\\", "")
+    if not lid or lid in ("index", "schema"):
+        raise ValueError("无效专题 id")
+    return lid
 
 
 def persist_note_layout(layout: dict) -> dict:
@@ -221,15 +229,39 @@ def list_note_drafts() -> list[dict]:
     return out
 
 
-def delete_note_layout(note_id: str) -> None:
-    lid = (note_id or "").strip().replace("..", "").replace("/", "").replace("\\", "")
-    if not lid.startswith("note-"):
-        raise ValueError("只能下架运营笔记（note-*）")
+def unpublish_layout(layout_id: str) -> None:
+    """下架：标记 unpublished，移出公开列表（文件保留）。"""
+    lid = _safe_layout_id(layout_id)
+    path = _layouts_dir() / f"{lid}.json"
+    if not path.is_file():
+        raise FileNotFoundError(lid)
+    try:
+        row = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise ValueError(f"手稿损坏：{lid}") from e
+    if not isinstance(row, dict):
+        raise ValueError(f"手稿损坏：{lid}")
+    row["status"] = "unpublished"
+    path.write_text(json.dumps(row, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    _rewrite_public_index()
+
+
+def delete_layout(layout_id: str) -> None:
+    """删除：移除版式 JSON 并更新公开索引（笔记 / 行程均可）。"""
+    lid = _safe_layout_id(layout_id)
     path = _layouts_dir() / f"{lid}.json"
     if not path.is_file():
         raise FileNotFoundError(lid)
     path.unlink()
     _rewrite_public_index()
+
+
+def delete_note_layout(note_id: str) -> None:
+    """兼容旧调用：仅允许 note-*。"""
+    lid = _safe_layout_id(note_id)
+    if not lid.startswith("note-"):
+        raise ValueError("只能下架运营笔记（note-*）")
+    delete_layout(lid)
 
 
 async def save_note_media(file: UploadFile, kind: str) -> dict[str, str]:

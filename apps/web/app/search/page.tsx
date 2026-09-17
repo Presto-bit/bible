@@ -24,6 +24,7 @@ import {
   FEATURED_TIMELINE_TOUR,
   graphTopicHref,
   mapStoryHref,
+  knowledgeTopicsHref,
   SEARCH_HOT_KEYWORDS,
   timelineStoryHref,
 } from '@/lib/topic_routes';
@@ -510,11 +511,26 @@ export default function SearchPage() {
         <section className="story-card-rail" style={{ marginTop: 14 }}>
           <div className="section-row" style={{ marginBottom: 8 }}>
             <span>圣经知识</span>
-            <Link href="/search/map" className="text-link" style={{ fontSize: 13 }}>
-              全部 ›
+            <Link href={knowledgeTopicsHref()} className="text-link" style={{ fontSize: 13 }}>
+              探索专题 ›
             </Link>
           </div>
           <div className="story-entry-scroll rail">
+            <TopicNavCard
+              href={knowledgeTopicsHref()}
+              className="rail-card card card-2 story-tour-card story-entry-card"
+              ariaLabel="探索专题手稿"
+            >
+              <KnowledgeTopicCardBody
+                badge="探索专题"
+                badgeClassName="story-tour-badge-series"
+                title="手稿封面流"
+                hook="行程与笔记，点开即读"
+                meta="地图 · 笔记"
+                cta="去看看 ›"
+              />
+            </TopicNavCard>
+
             <TopicNavCard
               href={seriesHref}
               className="rail-card card card-2 story-tour-card story-entry-card story-series-card"

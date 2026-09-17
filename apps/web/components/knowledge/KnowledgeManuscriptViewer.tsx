@@ -220,7 +220,7 @@ export function KnowledgeManuscriptViewer({
   const indexRef = useRef(0);
   const [shareBusy, setShareBusy] = useState(false);
   const [pageZoomed, setPageZoomed] = useState(false);
-  const [chromeHidden, setChromeHidden] = useState(false);
+  const [chromeHidden, setChromeHidden] = useState(true);
   const [motionPhase, setMotionPhase] = useState<'enter' | 'ready' | 'leave'>('enter');
   const leavingRef = useRef(false);
   const [loaded, setLoaded] = useState<Record<number, boolean>>(() => {

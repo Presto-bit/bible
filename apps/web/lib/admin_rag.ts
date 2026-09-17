@@ -221,10 +221,32 @@ export async function listKnowledgeNoteDrafts(): Promise<
   return Array.isArray(data.drafts) ? data.drafts : [];
 }
 
-/** 管理员下架运营笔记 */
+/** 管理员下架运营笔记（兼容；等同硬删） */
 export async function deleteKnowledgeNote(noteId: string): Promise<void> {
+  return deleteKnowledgeLayout(noteId);
+}
+
+/** 管理员下架专题（笔记 / 行程）：移出公开列表 */
+export async function unpublishKnowledgeLayout(layoutId: string): Promise<void> {
   const res = await fetch(
-    `${API_BASE}/content/knowledge-layouts/notes/${encodeURIComponent(noteId)}`,
+    `${API_BASE}/content/knowledge-layouts/${encodeURIComponent(layoutId)}/unpublish`,
+    {
+      method: 'POST',
+      headers: {
+        ...adminHeaders(),
+        Accept: 'application/json',
+      },
+    },
+  );
+  if (!res.ok) {
+    throw new Error(await readApiError(res, '下架失败'));
+  }
+}
+
+/** 管理员删除专题版式（笔记 / 行程） */
+export async function deleteKnowledgeLayout(layoutId: string): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/content/knowledge-layouts/${encodeURIComponent(layoutId)}`,
     {
       method: 'DELETE',
       headers: {
@@ -234,7 +256,7 @@ export async function deleteKnowledgeNote(noteId: string): Promise<void> {
     },
   );
   if (!res.ok) {
-    throw new Error(await readApiError(res, '下架失败'));
+    throw new Error(await readApiError(res, '删除失败'));
   }
 }
 

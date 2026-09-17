@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
@@ -11,22 +11,15 @@ import {
   resolveKnowledgeTopicMeta,
 } from '@/lib/knowledge_topic_meta';
 import { knowledgeLayoutViewHref } from '@/lib/topic_routes';
-import { adminCheck, deleteKnowledgeNote } from '@/lib/admin_rag';
+import {
+  adminCheck,
+  deleteKnowledgeLayout,
+  unpublishKnowledgeLayout,
+} from '@/lib/admin_rag';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
-
-function isNoteRow(row: KnowledgeLayoutSummary): boolean {
-  return (
-    row.kind === 'note' ||
-    row.source?.kind === 'note' ||
-    (row.id || '').startsWith('note-')
-  );
-}
 
 function sortLayouts(rows: KnowledgeLayoutSummary[]) {
   return [...rows].sort((a, b) => {
-    const na = isNoteRow(a) ? 0 : 1;
-    const nb = isNoteRow(b) ? 0 : 1;
-    if (na !== nb) return na - nb;
     const ta = Date.parse(a.generated_at || '') || 0;
     const tb = Date.parse(b.generated_at || '') || 0;
     if (tb !== ta) return tb - ta;
@@ -34,7 +27,7 @@ function sortLayouts(rows: KnowledgeLayoutSummary[]) {
   });
 }
 
-/** 管理员：专题下架管理（与浏览列表分离） */
+/** 管理员：专题下架 / 删除（笔记与行程） */
 export default function KnowledgeManagePage() {
   const router = useRouter();
   const goBack = useFlowBack('/knowledge');
@@ -82,15 +75,12 @@ export default function KnowledgeManagePage() {
     void reload();
   }, [isAdmin, reload]);
 
-  const notes = useMemo(() => rows.filter(isNoteRow), [rows]);
-  const systemRows = useMemo(() => rows.filter((r) => !isNoteRow(r)), [rows]);
-
   const onUnpublish = async (row: KnowledgeLayoutSummary) => {
     const id = row.id || '';
-    if (!isNoteRow(row) || !id) return;
+    if (!id) return;
     const ok = await confirm({
-      title: '下架手稿？',
-      message: `「${row.title || id}」将从探索列表移除。`,
+      title: '下架专题？',
+      message: `「${row.title || id}」将从探索列表移除（文件保留，可再上架）。`,
       confirmLabel: '下架',
       cancelLabel: '取消',
       danger: true,
@@ -98,10 +88,32 @@ export default function KnowledgeManagePage() {
     if (!ok) return;
     setBusyId(id);
     try {
-      await deleteKnowledgeNote(id);
+      await unpublishKnowledgeLayout(id);
       setRows((prev) => prev.filter((r) => r.id !== id));
     } catch (e) {
       window.alert(e instanceof Error ? e.message : '下架失败');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const onDelete = async (row: KnowledgeLayoutSummary) => {
+    const id = row.id || '';
+    if (!id) return;
+    const ok = await confirm({
+      title: '删除专题？',
+      message: `将永久删除「${row.title || id}」的版式文件，不可恢复。`,
+      confirmLabel: '删除',
+      cancelLabel: '取消',
+      danger: true,
+    });
+    if (!ok) return;
+    setBusyId(id);
+    try {
+      await deleteKnowledgeLayout(id);
+      setRows((prev) => prev.filter((r) => r.id !== id));
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : '删除失败');
     } finally {
       setBusyId(null);
     }
@@ -142,89 +154,61 @@ export default function KnowledgeManagePage() {
       </header>
 
       <p className="knowledge-manage-lead muted">
-        运营笔记可下架；系统行程专题不可删。
+        下架：移出列表；删除：永久移除版式。笔记与行程均可操作。
       </p>
 
       {loading ? (
         <p className="muted">正在载入…</p>
+      ) : rows.length === 0 ? (
+        <p className="muted knowledge-manage-empty">暂无已发布专题</p>
       ) : (
-        <>
-          <section className="knowledge-manage-section" aria-labelledby="km-notes">
-            <h3 id="km-notes" className="knowledge-manage-section-title">
-              运营笔记
-              <span className="knowledge-manage-count">{notes.length}</span>
-            </h3>
-            {notes.length === 0 ? (
-              <p className="muted knowledge-manage-empty">暂无运营笔记</p>
-            ) : (
-              <ul className="knowledge-manage-list">
-                {notes.map((row) => {
-                  const meta = resolveKnowledgeTopicMeta(row);
-                  const href = knowledgeLayoutViewHref(row);
-                  const busy = busyId === row.id;
-                  return (
-                    <li key={row.id} className="knowledge-manage-row">
-                      <div className="knowledge-manage-row-main">
-                        <Link href={href} className="knowledge-manage-row-title">
-                          {row.title || row.id}
-                        </Link>
-                        <p className="knowledge-manage-row-meta muted">
-                          {knowledgeKindLabel(meta.kind)}
-                          {row.beat_count ? ` · ${row.beat_count} 页` : ''}
-                        </p>
-                      </div>
-                      <div className="knowledge-manage-row-actions">
-                        <Link href={href} className="knowledge-manage-btn">
-                          查看
-                        </Link>
-                        <button
-                          type="button"
-                          className="knowledge-manage-btn is-danger"
-                          disabled={busy}
-                          onClick={() => void onUnpublish(row)}
-                        >
-                          {busy ? '…' : '下架'}
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
-          {systemRows.length > 0 ? (
-            <section className="knowledge-manage-section" aria-labelledby="km-system">
-              <h3 id="km-system" className="knowledge-manage-section-title">
-                系统专题
-                <span className="knowledge-manage-count">{systemRows.length}</span>
-              </h3>
-              <ul className="knowledge-manage-list">
-                {systemRows.map((row) => {
-                  const meta = resolveKnowledgeTopicMeta(row);
-                  const href = knowledgeLayoutViewHref(row);
-                  return (
-                    <li key={row.id} className="knowledge-manage-row">
-                      <div className="knowledge-manage-row-main">
-                        <Link href={href} className="knowledge-manage-row-title">
-                          {row.title || row.id}
-                        </Link>
-                        <p className="knowledge-manage-row-meta muted">
-                          {knowledgeKindLabel(meta.kind)} · 不可下架
-                        </p>
-                      </div>
-                      <div className="knowledge-manage-row-actions">
-                        <Link href={href} className="knowledge-manage-btn">
-                          查看
-                        </Link>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ) : null}
-        </>
+        <section className="knowledge-manage-section" aria-labelledby="km-all">
+          <h3 id="km-all" className="knowledge-manage-section-title">
+            全部专题
+            <span className="knowledge-manage-count">{rows.length}</span>
+          </h3>
+          <ul className="knowledge-manage-list">
+            {rows.map((row) => {
+              const meta = resolveKnowledgeTopicMeta(row);
+              const href = knowledgeLayoutViewHref(row);
+              const busy = busyId === row.id;
+              return (
+                <li key={row.id} className="knowledge-manage-row">
+                  <div className="knowledge-manage-row-main">
+                    <Link href={href} className="knowledge-manage-row-title">
+                      {row.title || row.id}
+                    </Link>
+                    <p className="knowledge-manage-row-meta muted">
+                      {knowledgeKindLabel(meta.kind)}
+                      {row.beat_count ? ` · ${row.beat_count} 页` : ''}
+                    </p>
+                  </div>
+                  <div className="knowledge-manage-row-actions">
+                    <Link href={href} className="knowledge-manage-btn">
+                      查看
+                    </Link>
+                    <button
+                      type="button"
+                      className="knowledge-manage-btn"
+                      disabled={busy}
+                      onClick={() => void onUnpublish(row)}
+                    >
+                      {busy ? '…' : '下架'}
+                    </button>
+                    <button
+                      type="button"
+                      className="knowledge-manage-btn is-danger"
+                      disabled={busy}
+                      onClick={() => void onDelete(row)}
+                    >
+                      {busy ? '…' : '删除'}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
     </main>
   );

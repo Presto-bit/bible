@@ -18,6 +18,7 @@ import type { EntityKnowledgeTab } from '@/lib/entity_knowledge';
 import { EntityKnowledgeHeader, EntityKnowledgePanel } from '@/components/knowledge/EntityKnowledgePanel';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { formatGroupRefLabel } from '@/lib/ref_label';
+import { graphTopicHref } from '@/lib/topic_routes';
 
 export function EntityKnowledgePage({
   entityId,
@@ -167,7 +168,7 @@ export function EntityKnowledgePage({
         </button>
         {graphTopicId ? (
           <Link
-            href={`/search/graph?topic=${encodeURIComponent(graphTopicId)}`}
+            href={graphTopicHref(graphTopicId)}
             className="btn"
             style={{ flex: 1, textAlign: 'center' }}
           >

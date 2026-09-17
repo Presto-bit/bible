@@ -13,7 +13,7 @@ import {
   type EntityKnowledgeFrom,
   type EntityKnowledgeTab,
 } from '@/lib/entity_knowledge';
-import { mapStoryHref } from '@/lib/topic_routes';
+import { mapStoryHref, graphTopicHref } from '@/lib/topic_routes';
 import { DiagramViewer } from './DiagramViewer';
 
 const LocalRelationGraph = dynamic(
@@ -56,10 +56,45 @@ export function EntityKnowledgePanel({
   from?: EntityKnowledgeFrom;
 }) {
   const mapPlaces = knowledge?.place ? [knowledge.place] : [];
+  const mapTours = knowledge?.map_tours ?? [];
+  const hasRelatedTopics = Boolean(graphTopicId) || mapTours.length > 0;
 
   return (
     <>
       <p className="entity-knowledge-summary">{entitySummaryText(entity)}</p>
+
+      {!loading && hasRelatedTopics ? (
+        <div className="entity-knowledge-related" aria-label="相关专题">
+          <p className="entity-knowledge-related-label">相关专题</p>
+          <div className="entity-knowledge-related-list">
+            {mapTours.slice(0, 2).map((tour) => (
+              <Link
+                key={tour.id}
+                href={`${mapStoryHref(tour.id)}?view=1`}
+                className="entity-knowledge-topic-cta"
+              >
+                <span className="entity-knowledge-topic-cta-kind">行程</span>
+                <span className="entity-knowledge-topic-cta-title">{tour.title}</span>
+                <span className="entity-knowledge-topic-cta-go" aria-hidden>
+                  ›
+                </span>
+              </Link>
+            ))}
+            {graphTopicId ? (
+              <Link
+                href={graphTopicHref(graphTopicId)}
+                className="entity-knowledge-topic-cta"
+              >
+                <span className="entity-knowledge-topic-cta-kind">关系</span>
+                <span className="entity-knowledge-topic-cta-title">查看关系专题</span>
+                <span className="entity-knowledge-topic-cta-go" aria-hidden>
+                  ›
+                </span>
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {tabs.length > 1 ? (
         <div className="entity-knowledge-tabs" role="tablist">
@@ -95,10 +130,10 @@ export function EntityKnowledgePanel({
                 </Link>
                 {graphTopicId ? (
                   <Link
-                    href={`/search/graph?topic=${encodeURIComponent(graphTopicId)}`}
+                    href={graphTopicHref(graphTopicId)}
                     className="entity-knowledge-tour-link"
                   >
-                    查看关系专题 ›
+                    打开关系专题 ›
                   </Link>
                 ) : null}
               </div>
@@ -142,18 +177,24 @@ export function EntityKnowledgePanel({
               ) : (
                 <p className="muted" style={{ fontSize: 13 }}>暂无地图坐标</p>
               )}
-              {(knowledge?.map_tours ?? []).length > 0 ? (
-                <div style={{ marginTop: 10 }}>
-                  <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>所属路线</p>
-                  {knowledge!.map_tours.map((tour) => (
-                    <Link
-                      key={tour.id}
-                      href={mapStoryHref(tour.id)}
-                      className="entity-knowledge-tour-link"
-                    >
-                      {tour.title} ›
-                    </Link>
-                  ))}
+              {mapTours.length > 0 ? (
+                <div className="entity-knowledge-related" style={{ marginTop: 12 }}>
+                  <p className="entity-knowledge-related-label">所属路线</p>
+                  <div className="entity-knowledge-related-list">
+                    {mapTours.map((tour) => (
+                      <Link
+                        key={tour.id}
+                        href={`${mapStoryHref(tour.id)}?view=1`}
+                        className="entity-knowledge-topic-cta"
+                      >
+                        <span className="entity-knowledge-topic-cta-kind">行程</span>
+                        <span className="entity-knowledge-topic-cta-title">{tour.title}</span>
+                        <span className="entity-knowledge-topic-cta-go" aria-hidden>
+                          ›
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </div>

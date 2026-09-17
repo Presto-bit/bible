@@ -89,9 +89,13 @@ function isDiscoverImThreadPath(pathname: string): boolean {
   return p.startsWith('/discover/dm/') || p.startsWith('/discover/group/');
 }
 
-/** 搜索主页：本地壳 + 轻路由，直接打开勿挡进度条与过渡壳 */
+/** 搜索主页 / 知识专题手稿：直接打开，勿挡进度条与纸面过渡壳 */
 function isInstantSecondaryPath(pathname: string): boolean {
-  return normalizeAppPath(pathname) === '/search';
+  const p = normalizeAppPath(pathname);
+  if (p === '/search') return true;
+  if (p === '/knowledge' || p.startsWith('/knowledge/')) return true;
+  if (p.startsWith('/search/map/')) return true;
+  return false;
 }
 
 /** 常用二级页：保留 SoftNavTransitionShell 乐观壳，但跳过顶栏进度条 */

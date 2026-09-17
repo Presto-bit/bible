@@ -1107,12 +1107,12 @@ html.knowledge-viewer-lock body {
   }
 }
 
-/* 目标页加载占位：透明，由壳层封面盖住 */
+/* 目标页加载占位：与手稿同色，避免进场白闪 */
 .knowledge-expand-silent {
   position: fixed;
   inset: 0;
-  z-index: 1;
-  background: transparent;
+  z-index: 1190;
+  background: #1f1a16;
   pointer-events: none;
 }
 

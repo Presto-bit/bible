@@ -771,11 +771,11 @@ def knowledge_layout_delete_note(
     note_id: str,
     _phone: str = Depends(require_admin),
 ) -> dict:
-    """管理员下架运营笔记（仅 note-*）。"""
-    from .knowledge_notes import delete_note_layout
+    """管理员删除运营笔记（兼容旧路径）。"""
+    from .knowledge_notes import delete_layout
 
     try:
-        delete_note_layout(note_id)
+        delete_layout(note_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except FileNotFoundError:
@@ -784,6 +784,46 @@ def knowledge_layout_delete_note(
         logger.exception("knowledge_note_delete failed")
         raise HTTPException(status_code=500, detail=f"删除失败：{e}") from e
     return {"ok": True, "id": note_id}
+
+
+@router.post("/knowledge-layouts/{layout_id}/unpublish")
+def knowledge_layout_unpublish(
+    layout_id: str,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """管理员下架专题（笔记 / 行程）：移出公开列表，文件保留。"""
+    from .knowledge_notes import unpublish_layout
+
+    try:
+        unpublish_layout(layout_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="专题不存在") from None
+    except Exception as e:
+        logger.exception("knowledge_layout_unpublish failed")
+        raise HTTPException(status_code=500, detail=f"下架失败：{e}") from e
+    return {"ok": True, "id": layout_id, "status": "unpublished"}
+
+
+@router.delete("/knowledge-layouts/{layout_id}")
+def knowledge_layout_delete(
+    layout_id: str,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """管理员删除专题版式（笔记 / 行程均可）。"""
+    from .knowledge_notes import delete_layout
+
+    try:
+        delete_layout(layout_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="专题不存在") from None
+    except Exception as e:
+        logger.exception("knowledge_layout_delete failed")
+        raise HTTPException(status_code=500, detail=f"删除失败：{e}") from e
+    return {"ok": True, "id": layout_id}
 
 
 @router.get("/knowledge-layouts/{layout_id}")
@@ -795,8 +835,8 @@ def knowledge_layout_detail(
     row = loader.knowledge_layout(layout_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"无知识版式：{layout_id}")
-    # 草稿仅管理员可读（避免未发布手稿被直链打开）
-    if str(row.get("status") or "").lower() == "draft":
+    # 草稿 / 已下架仅管理员可读
+    if str(row.get("status") or "").lower() in ("draft", "unpublished"):
         from ..admin.auth import verify_admin_token
 
         token = None
