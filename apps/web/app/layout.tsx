@@ -20,6 +20,7 @@ import SoftNavProgress from '@/components/shell/SoftNavProgress';
 import SoftNavTransitionShell from '@/components/shell/SoftNavTransitionShell';
 import BrandSplash from '@/components/shell/BrandSplash';
 import ShellNavBridge from '@/components/ShellNavBridge';
+import KnowledgeExpandHost from '@/components/knowledge/KnowledgeExpandHost';
 
 import { BASE_PATH } from '@/lib/basePath';
 import { BRAND_FULL } from '@/lib/brand';
@@ -177,6 +178,7 @@ export default function RootLayout({
               <OfflineBar />
               <SoftNavProgress />
               <SoftNavTransitionShell />
+              <KnowledgeExpandHost />
               <BrandSplash />
               <div className="app-body">
                 <ShellSplashReady />

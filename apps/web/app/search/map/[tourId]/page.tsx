@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { api, type KnowledgeLayout, type MapTour } from '@/lib/api';
 import { MapStoryMode } from '@/components/search/MapStoryMode';
 import { KnowledgeExplainerPage } from '@/components/knowledge/KnowledgeExplainerPage';
-import { KnowledgeExpandBoot } from '@/components/knowledge/KnowledgeExpandBoot';
+import { isKnowledgeExpandActive } from '@/lib/knowledge_nav';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 
 function MapStoryPageContent() {
@@ -62,14 +62,9 @@ function MapStoryPageContent() {
   }, [tourId]);
 
   if (loading) {
-    if (openView) {
-      const fallback =
-        tourId === 'exodus-wilderness'
-          ? '/knowledge/vignettes/wilderness/00_overview.png'
-          : `/knowledge/infographics/${encodeURIComponent(tourId)}.png`;
-      return (
-        <KnowledgeExpandBoot fallbackCover={fallback} label="打开手稿…" />
-      );
+    // 壳层 ExpandHost 盖住加载；无 expand 时静默占位，勿黑屏文案
+    if (openView || isKnowledgeExpandActive()) {
+      return <div className="knowledge-expand-silent" aria-busy="true" />;
     }
     return (
       <main className="container story-mode-page" aria-busy="true">
@@ -106,16 +101,7 @@ function MapStoryPageContent() {
 
 export default function MapStoryPage() {
   return (
-    <Suspense
-      fallback={
-        <div
-          className="knowledge-expand-boot is-ready"
-          role="status"
-          aria-busy="true"
-          aria-label="打开手稿…"
-        />
-      }
-    >
+    <Suspense fallback={<div className="knowledge-expand-silent" aria-busy="true" />}>
       <MapStoryPageContent />
     </Suspense>
   );

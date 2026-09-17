@@ -8,7 +8,10 @@ import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
-import { markKnowledgeSoftReturn, markKnowledgeExpandOrigin } from '@/lib/knowledge_nav';
+import {
+  markKnowledgeSoftReturn,
+  startKnowledgeExpand,
+} from '@/lib/knowledge_nav';
 import { manuscriptFolioPages } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
 
@@ -63,10 +66,10 @@ export function KnowledgeExplainerPage({
     [tour.id, title, beats],
   );
 
-  const coverSources = knowledgeRasterSources(
+  const coverPath =
     pages[0]?.src ||
-      `/knowledge/infographics/${encodeURIComponent(tour.id)}-comic.png`,
-  );
+    `/knowledge/infographics/${encodeURIComponent(tour.id)}-comic.png`;
+  const coverSources = knowledgeRasterSources(coverPath);
 
   useEffect(() => {
     recordMapTour(tour.id);
@@ -97,10 +100,11 @@ export function KnowledgeExplainerPage({
             type="button"
             className="knowledge-cover-card"
             onClick={(e) => {
-              markKnowledgeExpandOrigin(
-                e.currentTarget,
-                coverSources.webp || coverSources.fallback,
-              );
+              startKnowledgeExpand({
+                el: e.currentTarget,
+                cover: coverPath,
+                topicId: tour.id,
+              });
               setViewerOpen(true);
             }}
             aria-label={`查看「${title}」手稿`}

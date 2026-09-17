@@ -13,11 +13,11 @@ import { writeManuscriptPage } from '@/lib/manuscript_progress';
 import { isShareAbortError, shareOutbound } from '@/lib/share_outbound';
 import type { ManuscriptFolioPage } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import {
-  clearKnowledgeExpandOrigin,
-  peekKnowledgeExpandOriginForViewer,
-  type KnowledgeExpandOrigin,
+  beginKnowledgeCollapse,
+  getKnowledgeExpandSession,
+  revealKnowledgeExpand,
+  subscribeKnowledgeExpand,
 } from '@/lib/knowledge_nav';
-import type { CSSProperties } from 'react';
 
 type Props = {
   pages: ManuscriptFolioPage[];
@@ -28,19 +28,6 @@ type Props = {
   /** 第一页再向「上一页」方向滑：退出专题 */
   onExitTopic: () => void;
 };
-
-function expandStyleVars(origin: KnowledgeExpandOrigin): CSSProperties {
-  if (typeof window === 'undefined') return {};
-  const vw = Math.max(window.innerWidth, 1);
-  const vh = Math.max(window.innerHeight, 1);
-  return {
-    ['--kx' as string]: `${origin.x}px`,
-    ['--ky' as string]: `${origin.y}px`,
-    ['--ksx' as string]: String(origin.w / vw),
-    ['--ksy' as string]: String(origin.h / vh),
-    ['--kr' as string]: `${origin.radius || 16}px`,
-  };
-}
 
 function ManuscriptRaster({
   path,
@@ -239,9 +226,6 @@ export function KnowledgeManuscriptViewer({
   const [chromeHidden, setChromeHidden] = useState(false);
   const [motionPhase, setMotionPhase] = useState<'enter' | 'ready' | 'leave'>('enter');
   const leavingRef = useRef(false);
-  const [expandOrigin] = useState<KnowledgeExpandOrigin | null>(() =>
-    peekKnowledgeExpandOriginForViewer(),
-  );
   const [loaded, setLoaded] = useState<Record<number, boolean>>(() => {
     const init: Record<number, boolean> = {};
     for (let i = 0; i <= Math.min(total - 1, 1); i++) {
@@ -255,7 +239,6 @@ export function KnowledgeManuscriptViewer({
   const didRestoreScroll = useRef(false);
   const current = pages[index] || pages[0];
   const pageMedia = current?.media;
-  const hasExpand = Boolean(expandOrigin);
 
   useEffect(() => {
     indexRef.current = index;
@@ -271,39 +254,44 @@ export function KnowledgeManuscriptViewer({
     };
   }, []);
 
-  // 同页封面打开可放大；列表跳转时 Boot 已播过，此处直接就绪
+  // 壳层 Host 负责进场；等 hold（或无会话）后再 reveal，避免掐断放大
   useEffect(() => {
-    clearKnowledgeExpandOrigin();
-    if (typeof window === 'undefined') return;
-    if (
-      !expandOrigin ||
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      setMotionPhase('ready');
+    setMotionPhase('ready');
+    let revealed = false;
+    const tryReveal = () => {
+      if (revealed) return;
+      const s = getKnowledgeExpandSession();
+      if (s && (s.phase === 'enter')) return;
+      revealed = true;
+      revealKnowledgeExpand();
+    };
+    const unsub = subscribeKnowledgeExpand(tryReveal);
+    tryReveal();
+    const fallback = window.setTimeout(() => {
+      revealed = true;
+      revealKnowledgeExpand();
+    }, 420);
+    return () => {
+      unsub();
+      window.clearTimeout(fallback);
+    };
+  }, []);
+
+  const softLeave = useCallback((done: () => void) => {
+    if (leavingRef.current) return;
+    leavingRef.current = true;
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const collapsing = beginKnowledgeCollapse();
+    if (reduced) {
+      done();
       return;
     }
-    const id = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => setMotionPhase('ready'));
-    });
-    return () => window.cancelAnimationFrame(id);
-  }, [expandOrigin]);
-
-  const softLeave = useCallback(
-    (done: () => void) => {
-      if (leavingRef.current) return;
-      leavingRef.current = true;
-      if (
-        typeof window !== 'undefined' &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      ) {
-        done();
-        return;
-      }
-      setMotionPhase('leave');
-      window.setTimeout(done, hasExpand ? 300 : 160);
-    },
-    [hasExpand],
-  );
+    setMotionPhase('leave');
+    // 立刻回列表，由 Host 缩回盖住过渡（勿等满 300ms 再导航）
+    window.setTimeout(done, collapsing ? 40 : 160);
+  }, []);
 
   const handleClose = useCallback(() => softLeave(onClose), [softLeave, onClose]);
   const handleExitTopic = useCallback(
@@ -479,15 +467,11 @@ export function KnowledgeManuscriptViewer({
       className={[
         'knowledge-viewer',
         chromeHidden ? 'is-chrome-hidden' : '',
-        hasExpand ? 'is-expand' : '',
-        motionPhase === 'enter' && hasExpand ? 'is-expand-from' : '',
         motionPhase === 'ready' ? 'is-ready' : '',
         motionPhase === 'leave' ? 'is-leave' : '',
-        motionPhase === 'leave' && hasExpand ? 'is-expand-to' : '',
       ]
         .filter(Boolean)
         .join(' ')}
-      style={expandOrigin ? expandStyleVars(expandOrigin) : undefined}
       role="dialog"
       aria-modal="true"
       aria-label={title}

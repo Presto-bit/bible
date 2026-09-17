@@ -7,7 +7,12 @@ import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import type { KnowledgeLayoutSummary } from '@/lib/api';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import { knowledgeLayoutViewHref } from '@/lib/topic_routes';
-import { consumeKnowledgeSoftReturn, markKnowledgeExpandOrigin } from '@/lib/knowledge_nav';
+import {
+  consumeKnowledgeSoftReturn,
+  getKnowledgeExpandSession,
+  startKnowledgeExpand,
+  subscribeKnowledgeExpand,
+} from '@/lib/knowledge_nav';
 import {
   knowledgeKindLabel,
   knowledgeMediaBadge,
@@ -99,7 +104,17 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
   }, [initialLayouts]);
 
   useEffect(() => {
-    setSoftReturn(consumeKnowledgeSoftReturn());
+    const soft = consumeKnowledgeSoftReturn();
+    if (!soft) return;
+    setSoftReturn(true);
+    const unsub = subscribeKnowledgeExpand(() => {
+      if (!getKnowledgeExpandSession()) setSoftReturn(false);
+    });
+    const t = window.setTimeout(() => setSoftReturn(false), 420);
+    return () => {
+      unsub();
+      window.clearTimeout(t);
+    };
   }, []);
 
   // 首屏可见卡封面 + 已知手稿首页预热，减轻点开卡顿
@@ -202,7 +217,9 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
           {rows.length === 0 ? '暂无专题，稍后再来看看。' : '此分类暂无内容。'}
         </p>
       ) : (
-        <div className="knowledge-topics-grid">
+        <div
+          className={`knowledge-topics-grid${softReturn ? ' is-expand-return' : ''}`}
+        >
           {visible.map((row, i) => {
             const sourceId = row.source?.id || row.id;
             const meta = resolveKnowledgeTopicMeta(row);
@@ -210,16 +227,23 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
             const note = isNoteRow(row);
             const cover = knowledgeRasterSources(coverPath(row));
             const stagger = Math.min(i, 5);
+            const href = knowledgeLayoutViewHref(row);
             return (
               <div key={row.id} className="knowledge-topic-card-wrap">
                 <Link
-                  href={knowledgeLayoutViewHref(row)}
+                  href={href}
                   prefetch
                   className="knowledge-topic-card"
                   aria-label={`${row.title || row.id}，打开手稿`}
                   style={{ ['--stagger' as string]: stagger }}
                   onClick={(e) => {
-                    markKnowledgeExpandOrigin(e.currentTarget, coverPath(row));
+                    startKnowledgeExpand({
+                      el: e.currentTarget,
+                      cover: coverPath(row),
+                      href,
+                      topicId: sourceId,
+                    });
+                    preloadRaster(coverPath(row));
                   }}
                 >
                   <span className="knowledge-topic-card-media" aria-hidden>

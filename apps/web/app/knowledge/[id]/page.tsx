@@ -7,8 +7,11 @@ import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import { manuscriptPagesFromLayout } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
-import { KnowledgeExpandBoot } from '@/components/knowledge/KnowledgeExpandBoot';
-import { markKnowledgeSoftReturn, markKnowledgeExpandOrigin } from '@/lib/knowledge_nav';
+import {
+  isKnowledgeExpandActive,
+  markKnowledgeSoftReturn,
+  startKnowledgeExpand,
+} from '@/lib/knowledge_nav';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
@@ -60,34 +63,27 @@ export default function KnowledgeNotePage() {
     [layout],
   );
 
-  const coverSources = useMemo(() => {
-    if (!layout) {
-      return knowledgeRasterSources('/knowledge/infographics/_paper_texture.jpg');
-    }
-    const fromPage = pages[0]?.src;
-    return knowledgeRasterSources(
-      fromPage ||
-        layout.cover_image ||
-        '/knowledge/infographics/_paper_texture.jpg',
+  const coverPath = useMemo(() => {
+    if (!layout) return '/knowledge/infographics/_paper_texture.jpg';
+    return (
+      pages[0]?.src ||
+      layout.cover_image ||
+      '/knowledge/infographics/_paper_texture.jpg'
     );
   }, [layout, pages]);
+
+  const coverSources = useMemo(
+    () => knowledgeRasterSources(coverPath),
+    [coverPath],
+  );
 
   useEffect(() => {
     if (openFromQuery) setViewerOpen(true);
   }, [openFromQuery, noteId]);
 
   if (loading) {
-    if (openFromQuery) {
-      return (
-        <KnowledgeExpandBoot
-          fallbackCover={
-            noteId
-              ? `/knowledge/infographics/${encodeURIComponent(noteId)}.png`
-              : undefined
-          }
-          label="打开手稿…"
-        />
-      );
+    if (openFromQuery || isKnowledgeExpandActive()) {
+      return <div className="knowledge-expand-silent" aria-busy="true" />;
     }
     return (
       <main className="container">
@@ -128,10 +124,11 @@ export default function KnowledgeNotePage() {
               type="button"
               className="knowledge-cover-card"
               onClick={(e) => {
-                markKnowledgeExpandOrigin(
-                  e.currentTarget,
-                  coverSources.webp || coverSources.fallback,
-                );
+                startKnowledgeExpand({
+                  el: e.currentTarget,
+                  cover: coverPath,
+                  topicId: noteId,
+                });
                 setViewerOpen(true);
               }}
               aria-label={`打开「${title}」手稿`}

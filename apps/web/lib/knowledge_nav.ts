@@ -1,6 +1,8 @@
-/** 探索专题：退出手稿回列表时跳过重播入场动画；卡片放大过渡原点 */
+/** 探索专题：软回列表 + 壳层小红书式封面放大/缩回 */
 
 const SOFT_RETURN_KEY = 'beiai_knowledge_soft_return';
+const EXPAND_SESSION_KEY = 'beiai_knowledge_expand_session';
+/** @deprecated 旧 key，读取时兼容 */
 const EXPAND_ORIGIN_KEY = 'beiai_knowledge_expand_origin';
 
 export type KnowledgeExpandOrigin = {
@@ -9,13 +11,223 @@ export type KnowledgeExpandOrigin = {
   w: number;
   h: number;
   radius: number;
-  /** 卡片封面，载入期放大层用 */
   cover?: string;
 };
 
-/** 同一次导航里 Suspense → loading 可能挂两次 Boot，只让第一次播放大 */
-let expandBootClaimed = false;
-let expandOriginMemory: KnowledgeExpandOrigin | null = null;
+export type KnowledgeExpandPhase = 'idle' | 'enter' | 'hold' | 'leave';
+
+export type KnowledgeExpandSession = {
+  phase: KnowledgeExpandPhase;
+  origin: KnowledgeExpandOrigin;
+  cover: string;
+  href?: string;
+  topicId?: string;
+};
+
+type Listener = () => void;
+
+let session: KnowledgeExpandSession | null = null;
+/** reveal 后仍保留 origin，供 leave 缩回；phase 可为 idle 但 leaveOrigin 仍在 */
+let leaveOrigin: KnowledgeExpandOrigin | null = null;
+const listeners = new Set<Listener>();
+
+function emit(): void {
+  listeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+function persistSession(s: KnowledgeExpandSession | null): void {
+  try {
+    if (!s) {
+      sessionStorage.removeItem(EXPAND_SESSION_KEY);
+      sessionStorage.removeItem(EXPAND_ORIGIN_KEY);
+      return;
+    }
+    sessionStorage.setItem(
+      EXPAND_SESSION_KEY,
+      JSON.stringify({
+        origin: s.origin,
+        cover: s.cover,
+        href: s.href,
+        topicId: s.topicId,
+      }),
+    );
+  } catch {
+    /* private mode */
+  }
+}
+
+function parseOrigin(o: unknown): KnowledgeExpandOrigin | null {
+  if (!o || typeof o !== 'object') return null;
+  const r = o as KnowledgeExpandOrigin;
+  if (
+    typeof r.x !== 'number' ||
+    typeof r.y !== 'number' ||
+    typeof r.w !== 'number' ||
+    typeof r.h !== 'number'
+  ) {
+    return null;
+  }
+  return {
+    x: r.x,
+    y: r.y,
+    w: r.w,
+    h: r.h,
+    radius: typeof r.radius === 'number' ? r.radius : 16,
+    cover: typeof r.cover === 'string' ? r.cover : undefined,
+  };
+}
+
+function readPersistedOrigin(): KnowledgeExpandOrigin | null {
+  try {
+    const raw = sessionStorage.getItem(EXPAND_SESSION_KEY);
+    if (raw) {
+      const data = JSON.parse(raw) as {
+        origin?: unknown;
+        cover?: string;
+      };
+      const origin = parseOrigin(data.origin);
+      if (origin) {
+        if (data.cover && !origin.cover) origin.cover = data.cover;
+        return origin;
+      }
+    }
+    const legacy = sessionStorage.getItem(EXPAND_ORIGIN_KEY);
+    if (legacy) return parseOrigin(JSON.parse(legacy));
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function subscribeKnowledgeExpand(listener: Listener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function getKnowledgeExpandSession(): KnowledgeExpandSession | null {
+  return session;
+}
+
+export function getKnowledgeExpandLeaveOrigin(): KnowledgeExpandOrigin | null {
+  return leaveOrigin || session?.origin || null;
+}
+
+export function isKnowledgeExpandActive(): boolean {
+  const p = session?.phase;
+  return p === 'enter' || p === 'hold' || p === 'leave';
+}
+
+function rectFromEl(el: HTMLElement): KnowledgeExpandOrigin | null {
+  const r = el.getBoundingClientRect();
+  if (r.width < 8 || r.height < 8) return null;
+  return {
+    x: r.left,
+    y: r.top,
+    w: r.width,
+    h: r.height,
+    radius: 16,
+  };
+}
+
+export type StartKnowledgeExpandArgs = {
+  el: HTMLElement | null;
+  cover?: string;
+  href?: string;
+  topicId?: string;
+};
+
+/** 点击卡片：点火壳层进场，与路由导航并行 */
+export function startKnowledgeExpand(args: StartKnowledgeExpandArgs): boolean {
+  if (typeof window === 'undefined') return false;
+  const origin = args.el ? rectFromEl(args.el) : null;
+  if (!origin) return false;
+  const cover = (args.cover || '').trim();
+  origin.cover = cover || undefined;
+  leaveOrigin = { ...origin };
+  session = {
+    phase: 'enter',
+    origin,
+    cover,
+    href: args.href,
+    topicId: args.topicId,
+  };
+  persistSession(session);
+  emit();
+  return true;
+}
+
+/** 兼容旧调用：只记原点（同页封面打开也可走 start） */
+export function markKnowledgeExpandOrigin(
+  el: HTMLElement | null,
+  cover?: string,
+): void {
+  startKnowledgeExpand({ el, cover });
+}
+
+/** 进场 FLIP 结束 → 全屏封面垫住加载 */
+export function holdKnowledgeExpand(): void {
+  if (!session || session.phase !== 'enter') return;
+  session = { ...session, phase: 'hold' };
+  emit();
+}
+
+/**
+ * 手稿 Viewer 已可展示 → Host 淡出封面层。
+ * phase=idle 仅作淡出信号；淡出结束后 Host 调 dismissKnowledgeExpandLayer。
+ * leaveOrigin 一直保留到 finishKnowledgeCollapse。
+ */
+export function revealKnowledgeExpand(): void {
+  if (!session) return;
+  if (session.phase !== 'enter' && session.phase !== 'hold') return;
+  session = { ...session, phase: 'idle' };
+  emit();
+}
+
+/** Host：reveal 淡出结束后卸图层，保留 leaveOrigin */
+export function dismissKnowledgeExpandLayer(): void {
+  session = null;
+  emit();
+}
+
+/** Viewer 关闭：壳层缩回卡片 */
+export function beginKnowledgeCollapse(): boolean {
+  const origin = leaveOrigin || session?.origin || readPersistedOrigin();
+  if (!origin) return false;
+  const cover = origin.cover || session?.cover || '';
+  leaveOrigin = origin;
+  session = {
+    phase: 'leave',
+    origin,
+    cover,
+    href: session?.href,
+    topicId: session?.topicId,
+  };
+  emit();
+  return true;
+}
+
+/** 退场动画结束，清会话 */
+export function finishKnowledgeCollapse(): void {
+  session = null;
+  leaveOrigin = null;
+  persistSession(null);
+  emit();
+}
+
+export function clearKnowledgeExpandOrigin(): void {
+  session = null;
+  leaveOrigin = null;
+  persistSession(null);
+  emit();
+}
 
 export function markKnowledgeSoftReturn(): void {
   try {
@@ -37,84 +249,7 @@ export function consumeKnowledgeSoftReturn(): boolean {
   return false;
 }
 
-/** 点击卡片时记下屏幕矩形 + 封面，供载入期做小红书式放大 */
-export function markKnowledgeExpandOrigin(
-  el: HTMLElement | null,
-  cover?: string,
-): void {
-  if (!el || typeof window === 'undefined') return;
-  try {
-    const r = el.getBoundingClientRect();
-    if (r.width < 8 || r.height < 8) return;
-    const payload: KnowledgeExpandOrigin = {
-      x: r.left,
-      y: r.top,
-      w: r.width,
-      h: r.height,
-      radius: 16,
-      cover: (cover || '').trim() || undefined,
-    };
-    expandOriginMemory = payload;
-    expandBootClaimed = false;
-    sessionStorage.setItem(EXPAND_ORIGIN_KEY, JSON.stringify(payload));
-  } catch {
-    /* ignore */
-  }
-}
-
-function parseExpandOrigin(raw: string): KnowledgeExpandOrigin | null {
-  try {
-    const o = JSON.parse(raw) as KnowledgeExpandOrigin;
-    if (
-      typeof o?.x !== 'number' ||
-      typeof o?.y !== 'number' ||
-      typeof o?.w !== 'number' ||
-      typeof o?.h !== 'number'
-    ) {
-      return null;
-    }
-    return o;
-  } catch {
-    return null;
-  }
-}
-
+/** Host：hydrate 冷启动时若有持久化原点（少见），不自动进场 */
 export function peekKnowledgeExpandOrigin(): KnowledgeExpandOrigin | null {
-  if (expandOriginMemory) return expandOriginMemory;
-  try {
-    const raw = sessionStorage.getItem(EXPAND_ORIGIN_KEY);
-    if (!raw) return null;
-    const o = parseExpandOrigin(raw);
-    if (o) expandOriginMemory = o;
-    return o;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 载入期 Boot 领取放大动画（只领一次）。
- * 不清除原点，后续 Boot 仍可用封面垫场；手稿 Viewer 见 claimed 则不再放大。
- */
-export function claimKnowledgeExpandForBoot(): KnowledgeExpandOrigin | null {
-  const o = peekKnowledgeExpandOrigin();
-  if (!o || expandBootClaimed) return null;
-  expandBootClaimed = true;
-  return o;
-}
-
-/** 手稿层：Boot 已播过则不再放大；同页封面打开仍可放大 */
-export function peekKnowledgeExpandOriginForViewer(): KnowledgeExpandOrigin | null {
-  if (expandBootClaimed) return null;
-  return peekKnowledgeExpandOrigin();
-}
-
-export function clearKnowledgeExpandOrigin(): void {
-  expandOriginMemory = null;
-  expandBootClaimed = false;
-  try {
-    sessionStorage.removeItem(EXPAND_ORIGIN_KEY);
-  } catch {
-    /* ignore */
-  }
+  return session?.origin || leaveOrigin || readPersistedOrigin();
 }
