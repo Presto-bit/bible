@@ -5,9 +5,10 @@ import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import type { KnowledgeLayoutSummary } from '@/lib/api';
-import { knowledgeMediaUrl } from '@/lib/knowledge_media_url';
+import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import { knowledgeLayoutViewHref } from '@/lib/topic_routes';
 import { readManuscriptPage } from '@/lib/manuscript_progress';
+import { consumeKnowledgeSoftReturn } from '@/lib/knowledge_nav';
 import {
   knowledgeKindLabel,
   knowledgeMediaBadge,
@@ -15,17 +16,17 @@ import {
 } from '@/lib/knowledge_topic_meta';
 import { adminCheck, deleteKnowledgeNote } from '@/lib/admin_rag';
 
-function coverFor(row: KnowledgeLayoutSummary): string {
-  if (row.cover_image) return knowledgeMediaUrl(row.cover_image);
+function coverPath(row: KnowledgeLayoutSummary): string {
+  if (row.cover_image) return row.cover_image;
   const id = row.id || '';
   if (id === 'exodus-wilderness') {
-    return knowledgeMediaUrl('/knowledge/vignettes/wilderness/00_overview.png');
+    return '/knowledge/vignettes/wilderness/00_overview.png';
   }
   if (id === 'paul-first-journey') {
     // 列表用轻量脊图，勿用 1080×1920 comic
-    return knowledgeMediaUrl('/knowledge/infographics/paul-first-journey.png');
+    return '/knowledge/infographics/paul-first-journey.png';
   }
-  return knowledgeMediaUrl('/knowledge/infographics/_paper_texture.jpg');
+  return '/knowledge/infographics/_paper_texture.jpg';
 }
 
 function shortTitle(title: string): string {
@@ -50,6 +51,20 @@ function isNoteRow(row: KnowledgeLayoutSummary): boolean {
   );
 }
 
+function scheduleIdle(fn: () => void, timeout = 900): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const w = window as Window & {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (typeof w.requestIdleCallback === 'function') {
+    const id = w.requestIdleCallback(fn, { timeout });
+    return () => w.cancelIdleCallback?.(id);
+  }
+  const t = window.setTimeout(fn, 120);
+  return () => window.clearTimeout(t);
+}
+
 type FilterId = 'all' | 'journey' | 'note';
 
 type Props = {
@@ -66,25 +81,34 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
   const [resumeById, setResumeById] = useState<Record<string, number>>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [softReturn, setSoftReturn] = useState(false);
 
   useEffect(() => {
     setRows(initialLayouts);
   }, [initialLayouts]);
 
   useEffect(() => {
-    void adminCheck().then(setIsAdmin).catch(() => setIsAdmin(false));
+    setSoftReturn(consumeKnowledgeSoftReturn());
   }, []);
 
   useEffect(() => {
-    const map: Record<string, number> = {};
-    for (const row of rows) {
-      const id = row.source?.id || row.id;
-      if (!id) continue;
-      const pageCount = row.beat_count ? row.beat_count + 1 : undefined;
-      const page = readManuscriptPage(id, pageCount);
-      if (page > 0) map[id] = page;
-    }
-    setResumeById(map);
+    return scheduleIdle(() => {
+      void adminCheck().then(setIsAdmin).catch(() => setIsAdmin(false));
+    });
+  }, []);
+
+  useEffect(() => {
+    return scheduleIdle(() => {
+      const map: Record<string, number> = {};
+      for (const row of rows) {
+        const id = row.source?.id || row.id;
+        if (!id) continue;
+        const pageCount = row.beat_count ? row.beat_count + 1 : undefined;
+        const page = readManuscriptPage(id, pageCount);
+        if (page > 0) map[id] = page;
+      }
+      setResumeById(map);
+    });
   }, [rows]);
 
   const visible = useMemo(() => {
@@ -109,7 +133,9 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
   };
 
   return (
-    <main className="container knowledge-topics-page">
+    <main
+      className={`container knowledge-topics-page${softReturn ? ' is-soft-return' : ''}`}
+    >
       <header className="page-head knowledge-topics-head">
         <PageBackBar onClick={goBack} label="首页" />
         <h2 className="page-head-title">探索</h2>
@@ -174,27 +200,36 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
             const meta = resolveKnowledgeTopicMeta(row);
             const mediaBadge = knowledgeMediaBadge(meta.media);
             const note = isNoteRow(row);
+            const cover = knowledgeRasterSources(coverPath(row));
+            const stagger = Math.min(i, 5);
             return (
               <div key={row.id} className="knowledge-topic-card-wrap">
                 <Link
                   href={knowledgeLayoutViewHref(row)}
+                  prefetch
                   className="knowledge-topic-card"
                   aria-label={
                     resume
                       ? `${row.title || row.id}，续读第 ${resume + 1} 页`
                       : `${row.title || row.id}，打开手稿`
                   }
-                  style={{ ['--stagger' as string]: i }}
+                  style={{ ['--stagger' as string]: stagger }}
                 >
                   <span className="knowledge-topic-card-media" aria-hidden>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      className="knowledge-topic-card-photo"
-                      src={coverFor(row)}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                    />
+                    <picture>
+                      {cover.webp ? (
+                        <source type="image/webp" srcSet={cover.webp} />
+                      ) : null}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        className="knowledge-topic-card-photo"
+                        src={cover.fallback}
+                        alt=""
+                        loading={i < 4 ? 'eager' : 'lazy'}
+                        decoding="async"
+                        fetchPriority={i < 2 ? 'high' : 'auto'}
+                      />
+                    </picture>
                     <span className="knowledge-topic-card-veil" />
                     <span className="knowledge-topic-card-seal">
                       {knowledgeKindLabel(meta.kind)}

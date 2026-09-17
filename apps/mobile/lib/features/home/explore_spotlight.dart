@@ -29,7 +29,7 @@ const defaultExploreSpotlight = ExploreSpotlight(
   title: '保罗首发',
   hook: '安提阿到加拉太',
   href: '/search/map/$_paulId?view=1',
-  coverUrl: '/knowledge/infographics/paul-first-journey-comic.png',
+  coverUrl: '/knowledge/infographics/paul-first-journey.png',
 );
 
 class KnowledgeLayoutRow {
@@ -100,7 +100,7 @@ String _coverOf(KnowledgeLayoutRow row) {
     return '/knowledge/vignettes/wilderness/00_overview.png';
   }
   if (row.id == _paulId) {
-    return '/knowledge/infographics/paul-first-journey-comic.png';
+    return '/knowledge/infographics/paul-first-journey.png';
   }
   return '/knowledge/infographics/_paper_texture.jpg';
 }

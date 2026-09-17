@@ -9,6 +9,7 @@ import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import { readManuscriptPage } from '@/lib/manuscript_progress';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { markKnowledgeSoftReturn } from '@/lib/knowledge_nav';
 import { manuscriptFolioPages } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
 
@@ -36,11 +37,16 @@ export function KnowledgeExplainerPage({
   const shouldAutoOpen = autoOpen || openFromQuery;
   const flowBack = useFlowBack(fromHome ? '/knowledge' : backHref);
   const goTopics = useCallback(() => {
+    markKnowledgeSoftReturn();
     markRouteNavigation();
     router.replace('/knowledge');
   }, [router]);
   /** 首页探索进入：关手稿/返回 → 专题列表，不回首页 */
-  const leave = fromHome ? goTopics : flowBack;
+  const leave = useCallback(() => {
+    markKnowledgeSoftReturn();
+    flowBack();
+  }, [flowBack]);
+  const leaveFromViewer = shouldAutoOpen || fromHome ? goTopics : leave;
   const [viewerOpen, setViewerOpen] = useState(shouldAutoOpen);
   const [resumePage, setResumePage] = useState(0);
 
@@ -79,7 +85,7 @@ export function KnowledgeExplainerPage({
   const closeViewer = () => {
     setResumePage(readManuscriptPage(tour.id, pages.length));
     if (shouldAutoOpen) {
-      leave();
+      leaveFromViewer();
       return;
     }
     setViewerOpen(false);
@@ -95,7 +101,7 @@ export function KnowledgeExplainerPage({
       {!viewerOpen ? (
         <>
           <header className="page-head story-mode-head">
-            <PageBackBar onClick={leave} label={headerBackLabel} />
+            <PageBackBar onClick={leaveFromViewer} label={headerBackLabel} />
             <h2 className="page-head-title">{title}</h2>
           </header>
 
@@ -144,7 +150,7 @@ export function KnowledgeExplainerPage({
           title={title}
           tourId={tour.id}
           onClose={closeViewer}
-          onExitTopic={leave}
+          onExitTopic={leaveFromViewer}
         />
       ) : null}
     </div>

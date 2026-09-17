@@ -1,13 +1,13 @@
 import { KnowledgeTopicsClient } from '@/components/knowledge/KnowledgeTopicsClient';
 import type { KnowledgeLayoutSummary } from '@/lib/api';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 async function loadLayouts(): Promise<KnowledgeLayoutSummary[]> {
   const base = (process.env.NEXT_PUBLIC_API_BASE || 'https://2sc.prestoai.cn').replace(/\/$/, '');
   try {
     const res = await fetch(`${base}/content/knowledge-layouts`, {
-      cache: 'no-store',
+      next: { revalidate: 60 },
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) return [];

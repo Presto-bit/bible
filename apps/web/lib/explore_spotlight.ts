@@ -33,7 +33,8 @@ function coverOf(row: KnowledgeLayoutSummary): string {
   if (row.cover_image) return row.cover_image;
   if (row.id === 'exodus-wilderness') return '/knowledge/vignettes/wilderness/00_overview.png';
   if (row.id === PAUL_ID) {
-    return '/knowledge/infographics/paul-first-journey-comic.png';
+    // 首页坑用轻量脊图，勿用 1080×1920 comic
+    return '/knowledge/infographics/paul-first-journey.png';
   }
   return '/knowledge/infographics/_paper_texture.jpg';
 }
@@ -101,6 +102,6 @@ export const DEFAULT_EXPLORE_SPOTLIGHT: ExploreSpotlight = {
   title: '保罗首发',
   hook: '安提阿到加拉太',
   href: `/search/map/${PAUL_ID}?view=1`,
-  coverUrl: '/knowledge/infographics/paul-first-journey-comic.png',
+  coverUrl: '/knowledge/infographics/paul-first-journey.png',
   mediaBadge: null,
 };

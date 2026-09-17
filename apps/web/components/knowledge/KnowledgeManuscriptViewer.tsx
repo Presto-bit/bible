@@ -218,6 +218,8 @@ export function KnowledgeManuscriptViewer({
   const [shareBusy, setShareBusy] = useState(false);
   const [pageZoomed, setPageZoomed] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
+  const [motionPhase, setMotionPhase] = useState<'enter' | 'ready' | 'leave'>('enter');
+  const leavingRef = useRef(false);
   const [loaded, setLoaded] = useState<Record<number, boolean>>(() => {
     const init: Record<number, boolean> = {};
     for (let i = 0; i <= Math.min(total - 1, 1); i++) {
@@ -245,6 +247,42 @@ export function KnowledgeManuscriptViewer({
       document.documentElement.style.overflow = prev;
     };
   }, []);
+
+  // 进入淡入（仅 opacity，避免布局抖动）
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setMotionPhase('ready');
+      return;
+    }
+    const id = window.requestAnimationFrame(() => {
+      setMotionPhase('ready');
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, []);
+
+  const softLeave = useCallback(
+    (done: () => void) => {
+      if (leavingRef.current) return;
+      leavingRef.current = true;
+      if (
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        done();
+        return;
+      }
+      setMotionPhase('leave');
+      window.setTimeout(done, 180);
+    },
+    [],
+  );
+
+  const handleClose = useCallback(() => softLeave(onClose), [softLeave, onClose]);
+  const handleExitTopic = useCallback(
+    () => softLeave(onExitTopic),
+    [softLeave, onExitTopic],
+  );
 
   // 打开时滚到第一页
   useEffect(() => {
@@ -337,7 +375,7 @@ export function KnowledgeManuscriptViewer({
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     if (dx > 72 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-      onExitTopic();
+      handleExitTopic();
     }
   };
 
@@ -411,7 +449,15 @@ export function KnowledgeManuscriptViewer({
 
   return (
     <div
-      className={`knowledge-viewer${chromeHidden ? ' is-chrome-hidden' : ''}`}
+      className={[
+        'knowledge-viewer',
+        chromeHidden ? 'is-chrome-hidden' : '',
+        motionPhase === 'enter' ? 'is-enter' : '',
+        motionPhase === 'ready' ? 'is-ready' : '',
+        motionPhase === 'leave' ? 'is-leave' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -421,7 +467,7 @@ export function KnowledgeManuscriptViewer({
           type="button"
           className="knowledge-viewer-icon-btn"
           aria-label="返回"
-          onClick={onClose}
+          onClick={handleClose}
         >
           <BackGlyph />
         </button>

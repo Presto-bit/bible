@@ -7,9 +7,10 @@ import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import { manuscriptPagesFromLayout } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
-import { knowledgeMediaUrl } from '@/lib/knowledge_media_url';
+import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import { readManuscriptPage } from '@/lib/manuscript_progress';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { markKnowledgeSoftReturn } from '@/lib/knowledge_nav';
 
 /** 运营笔记手稿：无地图 tour，直接读 layout */
 export default function KnowledgeNotePage() {
@@ -21,10 +22,15 @@ export default function KnowledgeNotePage() {
   const fromHome = searchParams.get('from') === 'home';
   const flowBack = useFlowBack('/knowledge');
   const goTopics = useCallback(() => {
+    markKnowledgeSoftReturn();
     markRouteNavigation();
     router.replace('/knowledge');
   }, [router]);
-  const leave = fromHome ? goTopics : flowBack;
+  const leave = useCallback(() => {
+    markKnowledgeSoftReturn();
+    flowBack();
+  }, [flowBack]);
+  const exitToList = fromHome ? goTopics : leave;
 
   const [layout, setLayout] = useState<KnowledgeLayout | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,12 +61,12 @@ export default function KnowledgeNotePage() {
     [layout],
   );
 
-  const coverSrc = useMemo(() => {
+  const coverSources = useMemo(() => {
     if (!layout) {
-      return knowledgeMediaUrl('/knowledge/infographics/_paper_texture.jpg');
+      return knowledgeRasterSources('/knowledge/infographics/_paper_texture.jpg');
     }
     const fromPage = pages[0]?.src;
-    return knowledgeMediaUrl(
+    return knowledgeRasterSources(
       fromPage ||
         layout.cover_image ||
         '/knowledge/infographics/_paper_texture.jpg',
@@ -87,7 +93,7 @@ export default function KnowledgeNotePage() {
   if (failed || !layout) {
     return (
       <main className="container">
-        <PageBackBar onClick={leave} label="探索" />
+        <PageBackBar onClick={exitToList} label="探索" />
         <p className="muted">未找到该手稿</p>
       </main>
     );
@@ -98,7 +104,7 @@ export default function KnowledgeNotePage() {
   const closeViewer = () => {
     setResumePage(readManuscriptPage(noteId, pages.length || undefined));
     if (openFromQuery) {
-      leave();
+      exitToList();
       return;
     }
     setViewerOpen(false);
@@ -110,7 +116,7 @@ export default function KnowledgeNotePage() {
         {!viewerOpen ? (
           <>
             <header className="page-head story-mode-head">
-              <PageBackBar onClick={leave} label="探索" />
+              <PageBackBar onClick={exitToList} label="探索" />
               <h2 className="page-head-title">{title}</h2>
             </header>
             <button
@@ -123,8 +129,18 @@ export default function KnowledgeNotePage() {
                   : `打开「${title}」手稿`
               }
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="knowledge-cover-card-photo" src={coverSrc} alt="" />
+              <picture>
+                {coverSources.webp ? (
+                  <source type="image/webp" srcSet={coverSources.webp} />
+                ) : null}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className="knowledge-cover-card-photo"
+                  src={coverSources.fallback}
+                  alt=""
+                  decoding="async"
+                />
+              </picture>
               <span className="knowledge-cover-card-body">
                 <span className="knowledge-cover-card-badge">彼爱手稿 · 笔记</span>
                 <span className="knowledge-cover-card-title">{title}</span>
@@ -146,7 +162,7 @@ export default function KnowledgeNotePage() {
             title={title}
             tourId={noteId}
             onClose={closeViewer}
-            onExitTopic={leave}
+            onExitTopic={exitToList}
           />
         ) : null}
       </div>
