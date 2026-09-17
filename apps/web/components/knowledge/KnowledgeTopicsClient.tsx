@@ -30,15 +30,16 @@ function coverFor(row: KnowledgeLayoutSummary): string {
 
 function shortTitle(title: string): string {
   const t = title.trim();
-  if (t.length <= 12) return t;
-  return `${t.slice(0, 11)}…`;
+  // 两列卡可排约 2–3 行；勿在「保罗第一次宣教旅程」这类完整题名上硬截半截
+  if (t.length <= 18) return t;
+  return `${t.slice(0, 17)}…`;
 }
 
 function shortHook(guide?: string): string {
   const g = (guide || '').trim();
   if (!g) return '';
-  if (g.length <= 28) return g;
-  return `${g.slice(0, 27)}…`;
+  if (g.length <= 42) return g;
+  return `${g.slice(0, 41)}…`;
 }
 
 function isNoteRow(row: KnowledgeLayoutSummary): boolean {
