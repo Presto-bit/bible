@@ -142,6 +142,102 @@ export function adminHeaders(): HeadersInit {
   };
 }
 
+/** 管理员新建运营笔记手稿 */
+export async function createKnowledgeNote(body: {
+  title: string;
+  body: string;
+  cover_image?: string;
+  audio_url?: string;
+  video_url?: string;
+  status?: 'draft' | 'published';
+  note_id?: string;
+  folio_pages?: Array<Record<string, unknown>>;
+}): Promise<{ id: string; title?: string; status?: string }> {
+  const res = await fetch(`${API_BASE}/content/knowledge-layouts/notes`, {
+    method: 'POST',
+    headers: {
+      ...adminHeaders(),
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(await readApiError(res, '新建手稿失败'));
+  }
+  const data = (await res.json()) as {
+    layout?: { id?: string; title?: string; status?: string };
+  };
+  const id = data.layout?.id;
+  if (!id) throw new Error('新建成功但未返回 id');
+  return { id, title: data.layout?.title, status: data.layout?.status };
+}
+
+/** 管理员上传笔记媒体 */
+export async function uploadKnowledgeNoteMedia(
+  file: File,
+  kind: 'cover' | 'audio' | 'video',
+): Promise<string> {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('kind', kind);
+  const res = await fetch(`${API_BASE}/content/knowledge-layouts/notes/upload`, {
+    method: 'POST',
+    headers: {
+      ...adminHeaders(),
+      Accept: 'application/json',
+    },
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(await readApiError(res, '上传失败'));
+  }
+  const data = (await res.json()) as { url?: string };
+  if (!data.url) throw new Error('上传成功但未返回地址');
+  return data.url;
+}
+
+/** 管理员草稿列表 */
+export async function listKnowledgeNoteDrafts(): Promise<
+  Array<{
+    id: string;
+    title?: string;
+    guide_one_liner?: string;
+    generated_at?: string;
+    cover_image?: string;
+  }>
+> {
+  const res = await fetch(`${API_BASE}/content/knowledge-layouts/notes/drafts`, {
+    headers: {
+      ...adminHeaders(),
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    throw new Error(await readApiError(res, '加载草稿失败'));
+  }
+  const data = (await res.json()) as { drafts?: Array<{ id: string; title?: string }> };
+  return Array.isArray(data.drafts) ? data.drafts : [];
+}
+
+/** 管理员下架运营笔记 */
+export async function deleteKnowledgeNote(noteId: string): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/content/knowledge-layouts/notes/${encodeURIComponent(noteId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        ...adminHeaders(),
+        Accept: 'application/json',
+      },
+    },
+  );
+  if (!res.ok) {
+    throw new Error(await readApiError(res, '下架失败'));
+  }
+}
+
 function apiErrorMessage(data: unknown, fallback: string): string {
   if (!data || typeof data !== 'object') return fallback;
   const detail = (data as { detail?: unknown; error?: unknown }).detail

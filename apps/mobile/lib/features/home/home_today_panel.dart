@@ -45,22 +45,22 @@ class HomeTodayPanel extends StatelessWidget {
     required this.activity,
     required this.read,
     required this.group,
-    required this.prayer,
+    required this.explore,
     required this.onActivity,
     required this.onRead,
     required this.onGroup,
-    required this.onPrayer,
+    required this.onExplore,
     this.groupFlash = false,
   });
 
   final HomeTodaySlot activity;
   final HomeTodaySlot read;
   final HomeTodaySlot group;
-  final HomeTodaySlot prayer;
+  final HomeTodaySlot explore;
   final VoidCallback onActivity;
   final VoidCallback onRead;
   final VoidCallback onGroup;
-  final VoidCallback onPrayer;
+  final VoidCallback onExplore;
   final bool groupFlash;
 
   @override
@@ -97,7 +97,7 @@ class HomeTodayPanel extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: _TileCard(slot: prayer, onTap: onPrayer),
+              child: _TileCard(slot: explore, onTap: onExplore),
             ),
           ],
         ),
@@ -110,19 +110,30 @@ String? _homeTileFile(HomeTodaySlot slot) {
   if (slot.id.startsWith('campaign-')) return 'tile_activity.jpg';
   if (slot.id == 'shelf') return 'tile_shelf.jpg';
   if (slot.id == 'group' || slot.tag == '共读') return 'tile_fellowship.jpg';
+  if (slot.id == 'explore' || slot.tag == '探索') return 'growth_theme.jpg';
   if (slot.id == 'prayer' || slot.tag == '祷告') return 'tile_prayer.jpg';
   if (slot.id == 'suggest' || slot.id == 'resume') return 'tile_read.jpg';
   return null;
 }
 
 String _homeTileImage(HomeTodaySlot slot) {
-  if (slot.id.startsWith('campaign-') && slot.coverUrl != null) {
+  if ((slot.id == 'explore' || slot.tag == '探索' || slot.id.startsWith('campaign-')) &&
+      slot.coverUrl != null) {
     final resolved = resolveCampaignCoverUrl(slot.coverUrl);
     if (resolved != null) return resolved;
   }
   final file = _homeTileFile(slot);
   if (file != null) return homeIllustration(file).url;
   return homeIllustration('tile_read.jpg').url;
+}
+
+String? _networkCoverForSlot(HomeTodaySlot slot) {
+  if (slot.id == 'explore' ||
+      slot.tag == '探索' ||
+      slot.id.startsWith('campaign-')) {
+    return resolveCampaignCoverUrl(slot.coverUrl);
+  }
+  return null;
 }
 
 
@@ -185,9 +196,7 @@ class _TileCardState extends State<_TileCard> {
     final slot = widget.slot;
     final flash = widget.flash;
     final tileFile = _homeTileFile(slot);
-    final campaignCover = slot.id.startsWith('campaign-')
-        ? resolveCampaignCoverUrl(slot.coverUrl)
-        : null;
+    final networkCover = _networkCoverForSlot(slot);
     final borderColor = slot.pending
         ? AppColors.accentDeep.withValues(alpha: 0.55)
         : AppColors.ink.withValues(alpha: 0.07);
@@ -213,9 +222,9 @@ class _TileCardState extends State<_TileCard> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        campaignCover != null
+                        networkCover != null
                             ? HomeDayNetworkImage(
-                                url: campaignCover,
+                                url: networkCover,
                                 fit: BoxFit.cover,
                                 cacheWidth: 480,
                                 cacheHeight: 260,

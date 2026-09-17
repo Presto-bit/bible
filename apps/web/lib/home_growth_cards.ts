@@ -33,6 +33,7 @@ export type HomeGrowthModel = {
 export type HomeGrowthOccupied = {
   plan: boolean;
   prayer: boolean;
+  theme?: boolean;
 };
 
 export type HomeGrowthFeatureInput = {
@@ -51,14 +52,16 @@ export type BuildHomeGrowthOpts = {
   theme?: HomeGrowthFeatureInput | null;
 };
 
-/** 从今日推荐四坑提取已占用功能（计划仅在成长区；祷告占 [4]）。 */
+/** 从今日推荐四坑提取已占用功能（计划仅在成长区；探索占 [4] 后成长区不再出主题）。 */
 export function occupiedFromTodayPanel(
   panel: HomeTodayPanelModel | null | undefined,
 ): HomeGrowthOccupied {
-  if (!panel) return { plan: false, prayer: false };
+  if (!panel) return { plan: false, prayer: false, theme: false };
+  const fourth = panel.explore || panel.prayer;
   return {
     plan: false,
-    prayer: panel.prayer.id === 'prayer',
+    prayer: fourth?.id === 'prayer',
+    theme: fourth?.id === 'explore',
   };
 }
 
@@ -68,14 +71,14 @@ function pushCard(cards: HomeGrowthCard[], card: HomeGrowthCard) {
 }
 
 /**
- * 顺序：摘要 → 读经计划 → 祷告 → 主题探索（跳过今日推荐已有的）。
+ * 顺序：摘要 → 读经计划 → 祷告；主题探索已上移今日推荐则跳过。
  */
 export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthModel {
   const report = buildReport();
   const todayMin = opts?.todayMin ?? todayMinutes();
   const monthDays = opts?.monthDays ?? report.monthDays;
   const now = new Date();
-  const occupied = opts?.occupied ?? { plan: false, prayer: false };
+  const occupied = opts?.occupied ?? { plan: false, prayer: false, theme: false };
 
   const cards: HomeGrowthCard[] = [];
 
@@ -127,7 +130,7 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
     }
   }
 
-  // 2. 祷告（原主题位）
+  // 2. 祷告（从今日推荐下移）
   if (!occupied.prayer) {
     const prayer = opts?.prayer;
     if (prayer) {
@@ -157,8 +160,8 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
     }
   }
 
-  // 3. 主题探索 → 圣经知识专题
-  {
+  // 3. 主题探索：仅当今日推荐未占用时才出现（兼容旧布局）
+  if (!occupied.theme) {
     const theme = opts?.theme;
     pushCard(cards, {
       id: 'feature-theme',

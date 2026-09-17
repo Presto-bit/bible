@@ -45,6 +45,11 @@ import {
   type HomeTodayPanelModel,
 } from '@/lib/home_today_panel';
 import {
+  DEFAULT_EXPLORE_SPOTLIGHT,
+  pickExploreSpotlight,
+  type ExploreSpotlight,
+} from '@/lib/explore_spotlight';
+import {
   mapApiCampaignsToHomeInput,
   readCachedHomeCampaigns,
   writeCachedHomeCampaigns,
@@ -84,7 +89,6 @@ import {
 } from '@/lib/home_growth_cards';
 import { formatDailyVerseQuote, dailyVerseReaderHref } from '@/lib/daily_verse_display';
 import { HomeGrowthStack } from '@/components/home/HomeGrowthStack';
-import { loadDailyThemes } from '@/lib/daily_themes';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
 import { bookIdToChineseName } from '@/lib/ref_label';
 import { timedPerf } from '@/lib/perf_rum';
@@ -439,24 +443,34 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const lastGroupInputRef = useRef<HomeTodayPanelInput['group']>(undefined);
   const lastHadGroupsRef = useRef(false);
   const bibleWarmupOnceRef = useRef(false);
+  const exploreSpotlightRef = useRef<ExploreSpotlight>(DEFAULT_EXPLORE_SPOTLIGHT);
+  const [exploreSpotlight, setExploreSpotlight] = useState<ExploreSpotlight>(
+    DEFAULT_EXPLORE_SPOTLIGHT,
+  );
 
   useEffect(() => {
     themeFeatureRef.current = themeFeature;
   }, [themeFeature]);
 
   useEffect(() => {
-    void loadDailyThemes().then((idx) => {
-      const next: HomeGrowthFeatureInput = {
-        title: '探索经文主题',
-        detail:
-          idx.themes.length > 0
-            ? `${idx.themes.length} 个专题 · 去看看`
-            : '圣经知识专题',
-        href: '/knowledge',
-      };
-      themeFeatureRef.current = next;
-      setThemeFeature(next);
-    });
+    void api
+      .knowledgeLayouts()
+      .then((res) => {
+        const picked =
+          pickExploreSpotlight(res.layouts || []) || DEFAULT_EXPLORE_SPOTLIGHT;
+        exploreSpotlightRef.current = picked;
+        setExploreSpotlight(picked);
+        const next: HomeGrowthFeatureInput = {
+          title: picked.title,
+          detail: picked.hook,
+          href: picked.href,
+        };
+        themeFeatureRef.current = next;
+        setThemeFeature(next);
+      })
+      .catch(() => {
+        exploreSpotlightRef.current = DEFAULT_EXPLORE_SPOTLIGHT;
+      });
   }, []);
 
   useEffect(() => {
@@ -569,6 +583,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         resume: resumeCard,
         group: localGroup,
         prayer: prayerCard,
+        explore: exploreSpotlightRef.current,
         suggest: suggestInput,
         shelf: shelfTile,
         campaigns: cachedCampaigns,
@@ -669,6 +684,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         resume: resumeCard,
         group: groupCard,
         prayer: prayerCard,
+        explore: exploreSpotlightRef.current,
         campaigns: nextCampaigns,
         suggest: suggestInput,
         shelf: shelfTile,
@@ -701,6 +717,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       window.setTimeout(() => setSummaryFlash(false), 420);
     });
   }, [panelLiveness]);
+
+  useEffect(() => {
+    exploreSpotlightRef.current = exploreSpotlight;
+    void refreshRail({ fetchRemote: false });
+  }, [exploreSpotlight, refreshRail]);
 
   useEffect(() => {
     applyCachedCampaignsPaintRef.current = () => {

@@ -27,7 +27,7 @@ function navigate(href: string, router: ReturnType<typeof useRouter>) {
   navigateAppHref(internal, router);
 }
 
-/** 今日推荐：2×2 固定四坑（活动/书架 · 继续阅读 · 共读 · 祷告） */
+/** 今日推荐：2×2 固定四坑（活动/书架 · 继续阅读 · 共读 · 探索） */
 export function HomeTodayPanel({
   panel,
   groupFlash = false,
@@ -35,7 +35,7 @@ export function HomeTodayPanel({
   staggerIndex = 1,
 }: Props) {
   const router = useRouter();
-  const [activity, read, group, prayer] = homeTodayPanelSlots(panel);
+  const [activity, read, group, explore] = homeTodayPanelSlots(panel);
 
   useEffect(() => {
     void import('@/lib/home_tile_image_cache').then(({ ensureHomeTileImages }) => {
@@ -70,7 +70,7 @@ export function HomeTodayPanel({
           flash={groupFlash}
           onClick={() => navigate(group.href, router)}
         />
-        <HomeTodayTile slot={prayer} onClick={() => navigate(prayer.href, router)} />
+        <HomeTodayTile slot={explore} onClick={() => navigate(explore.href, router)} />
       </div>
     </section>
   );

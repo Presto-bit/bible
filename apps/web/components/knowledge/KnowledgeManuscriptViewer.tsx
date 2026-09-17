@@ -8,13 +8,19 @@ import {
   type ReactNode,
   type TouchEvent as ReactTouchEvent,
 } from 'react';
-import { clientWithBasePath } from '@/lib/basePath';
+import { knowledgeMediaUrl } from '@/lib/knowledge_media_url';
+import {
+  readManuscriptPage,
+  writeManuscriptPage,
+} from '@/lib/manuscript_progress';
 import { isShareAbortError, shareOutbound } from '@/lib/share_outbound';
 import type { ManuscriptFolioPage } from '@/components/knowledge/KnowledgeManuscriptFolio';
 
 type Props = {
   pages: ManuscriptFolioPage[];
   title: string;
+  /** 专题 id，用于本机续读 */
+  tourId?: string;
   onClose: () => void;
   /** 第一页再向「上一页」方向滑：退出专题 */
   onExitTopic: () => void;
@@ -164,24 +170,42 @@ function PinchZoomPane({
   );
 }
 
+function preloadSrc(src: string) {
+  if (typeof window === 'undefined' || !src) return;
+  const img = new Image();
+  img.decoding = 'async';
+  img.src = src;
+}
+
 /**
  * §19.14.17 小红书式全屏手稿查看：横滑翻页、双手缩放、返回、系统分享。
- * 第一页再向上一页方向滑 → 退出专题。
+ * 第一页再向上一页方向滑 → 退出专题；记住页码下次续读。
  */
 export function KnowledgeManuscriptViewer({
   pages,
   title,
+  tourId,
   onClose,
   onExitTopic,
 }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const [index, setIndex] = useState(0);
-  const indexRef = useRef(0);
+  const total = pages.length;
+  const restored = tourId ? readManuscriptPage(tourId, total) : 0;
+  const [index, setIndex] = useState(() => restored);
+  const indexRef = useRef(index);
   const [shareBusy, setShareBusy] = useState(false);
   const [pageZoomed, setPageZoomed] = useState(false);
+  const [loaded, setLoaded] = useState<Record<number, boolean>>(() => {
+    const init: Record<number, boolean> = {};
+    for (let i = Math.max(0, restored - 1); i <= Math.min(total - 1, restored + 1); i++) {
+      init[i] = true;
+    }
+    return init;
+  });
   const edgeSwipe = useRef<{ x: number; y: number; atStart: boolean } | null>(null);
-  const total = pages.length;
+  const didRestoreScroll = useRef(false);
   const current = pages[index] || pages[0];
+  const pageMedia = current?.media;
 
   useEffect(() => {
     indexRef.current = index;
@@ -196,6 +220,40 @@ export function KnowledgeManuscriptViewer({
       document.documentElement.style.overflow = prev;
     };
   }, []);
+
+  // 打开时滚到续读页
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || didRestoreScroll.current) return;
+    const jump = () => {
+      if (!el.clientWidth) return;
+      didRestoreScroll.current = true;
+      el.scrollLeft = restored * el.clientWidth;
+      setIndex(restored);
+    };
+    jump();
+    requestAnimationFrame(jump);
+  }, [restored, total]);
+
+  useEffect(() => {
+    if (!tourId || total <= 0) return;
+    writeManuscriptPage(tourId, index);
+  }, [tourId, index, total]);
+
+  // 邻页懒加载 + 预取
+  useEffect(() => {
+    setLoaded((prev) => {
+      const next = { ...prev };
+      for (let i = Math.max(0, index - 1); i <= Math.min(total - 1, index + 1); i++) {
+        next[i] = true;
+      }
+      return next;
+    });
+    for (let i = Math.max(0, index - 1); i <= Math.min(total - 1, index + 1); i++) {
+      const p = pages[i];
+      if (p?.src) preloadSrc(knowledgeMediaUrl(p.src));
+    }
+  }, [index, pages, total]);
 
   const syncIndex = useCallback(() => {
     const el = scrollerRef.current;
@@ -232,7 +290,6 @@ export function KnowledgeManuscriptViewer({
     if (!t) return;
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
-    // 第一页：手指右滑（回到更早）→ 退出专题（小红书首图再滑返回）
     if (dx > 72 && Math.abs(dx) > Math.abs(dy) * 1.2) {
       onExitTopic();
     }
@@ -242,24 +299,66 @@ export function KnowledgeManuscriptViewer({
     if (shareBusy || !current) return;
     setShareBusy(true);
     try {
-      const res = await fetch(clientWithBasePath(current.src));
-      if (!res.ok) throw new Error('missing');
-      const blob = await res.blob();
-      const file = new File([blob], current.src.split('/').pop() || 'manuscript.png', {
-        type: 'image/png',
-      });
-      const result = await shareOutbound({
-        title,
-        text: `${title} · 彼爱手稿`,
-        url: typeof window !== 'undefined' ? window.location.href : '',
-        file,
-        allowDownload: true,
-      });
-      if (result === 'cancelled') return;
+      if (current.src) {
+        const res = await fetch(knowledgeMediaUrl(current.src));
+        if (!res.ok) throw new Error('missing');
+        const blob = await res.blob();
+        const file = new File([blob], current.src.split('/').pop() || 'manuscript.png', {
+          type: 'image/png',
+        });
+        const result = await shareOutbound({
+          title,
+          text: `${title} · 彼爱手稿`,
+          url: typeof window !== 'undefined' ? window.location.href : '',
+          file,
+          allowDownload: true,
+        });
+        if (result === 'cancelled') return;
+      } else {
+        const result = await shareOutbound({
+          title,
+          text: `${title} · ${current.text?.body?.slice(0, 80) || '彼爱手稿'}`,
+          url: typeof window !== 'undefined' ? window.location.href : '',
+        });
+        if (result === 'cancelled') return;
+      }
     } catch (e) {
       if (isShareAbortError(e)) return;
     } finally {
       setShareBusy(false);
+    }
+  };
+
+  const [mediaPlaying, setMediaPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    setMediaPlaying(false);
+    audioRef.current?.pause();
+    videoRef.current?.pause();
+  }, [index, pageMedia?.url]);
+
+  const toggleMedia = () => {
+    if (!pageMedia) return;
+    if (pageMedia.type === 'video') {
+      const el = videoRef.current;
+      if (!el) return;
+      if (el.paused) {
+        void el.play().then(() => setMediaPlaying(true)).catch(() => setMediaPlaying(false));
+      } else {
+        el.pause();
+        setMediaPlaying(false);
+      }
+      return;
+    }
+    const el = audioRef.current;
+    if (!el) return;
+    if (el.paused) {
+      void el.play().then(() => setMediaPlaying(true)).catch(() => setMediaPlaying(false));
+    } else {
+      el.pause();
+      setMediaPlaying(false);
     }
   };
 
@@ -274,7 +373,14 @@ export function KnowledgeManuscriptViewer({
         >
           <BackGlyph />
         </button>
-        <p className="knowledge-viewer-title">{title}</p>
+        <div className="knowledge-viewer-head">
+          <p className="knowledge-viewer-title">{title}</p>
+          {total > 1 ? (
+            <p className="knowledge-viewer-page-meta" aria-live="polite">
+              第 {index + 1} / {total}
+            </p>
+          ) : null}
+        </div>
         <button
           type="button"
           className="knowledge-viewer-icon-btn"
@@ -292,24 +398,55 @@ export function KnowledgeManuscriptViewer({
         onTouchStart={onScrollerTouchStart}
         onTouchEnd={onScrollerTouchEnd}
       >
-        {pages.map((p, i) => (
-          <div key={p.key} className="knowledge-viewer-page">
-            <PinchZoomPane
-              enabled={i === index}
-              onZoomChange={(zoomed) => {
-                if (i === index) setPageZoomed(zoomed);
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="knowledge-viewer-img"
-                src={clientWithBasePath(p.src)}
-                alt={p.alt}
-                draggable={false}
-              />
-            </PinchZoomPane>
-          </div>
-        ))}
+        {pages.map((p, i) => {
+          const show = Boolean(loaded[i]);
+          const isVideoPage = p.media?.type === 'video' && Boolean(p.media.url);
+          return (
+            <div key={p.key} className="knowledge-viewer-page">
+              <PinchZoomPane
+                enabled={i === index && Boolean(p.src) && !p.text && !isVideoPage}
+                onZoomChange={(zoomed) => {
+                  if (i === index) setPageZoomed(zoomed);
+                }}
+              >
+                {!show ? (
+                  <span className="knowledge-viewer-img-placeholder" aria-hidden />
+                ) : isVideoPage ? (
+                  // eslint-disable-next-line jsx-a11y/media-has-caption
+                  <video
+                    ref={i === index ? videoRef : undefined}
+                    className="knowledge-viewer-video-inline"
+                    src={knowledgeMediaUrl(p.media!.url)}
+                    playsInline
+                    controls
+                    preload={i === index ? 'metadata' : 'none'}
+                    poster={p.src ? knowledgeMediaUrl(p.src) : undefined}
+                    onEnded={() => setMediaPlaying(false)}
+                    onPause={() => setMediaPlaying(false)}
+                    onPlay={() => setMediaPlaying(true)}
+                  />
+                ) : p.text ? (
+                  <article className="knowledge-viewer-text-leaf">
+                    {p.text.title ? <h3>{p.text.title}</h3> : null}
+                    <p>{p.text.body}</p>
+                  </article>
+                ) : p.src ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="knowledge-viewer-img"
+                    src={knowledgeMediaUrl(p.src)}
+                    alt={p.alt}
+                    draggable={false}
+                    decoding="async"
+                    loading={i === index ? 'eager' : 'lazy'}
+                  />
+                ) : (
+                  <span className="knowledge-viewer-img-placeholder" aria-hidden />
+                )}
+              </PinchZoomPane>
+            </div>
+          );
+        })}
       </div>
 
       {total > 1 ? (
@@ -317,6 +454,31 @@ export function KnowledgeManuscriptViewer({
           {pages.map((p, i) => (
             <span key={p.key} className={i === index ? 'is-on' : undefined} />
           ))}
+        </div>
+      ) : null}
+
+      {pageMedia?.type === 'audio' ? (
+        <div className="knowledge-viewer-media-dock">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <audio
+            ref={audioRef}
+            src={knowledgeMediaUrl(pageMedia.url)}
+            preload="metadata"
+            onEnded={() => setMediaPlaying(false)}
+            onPause={() => setMediaPlaying(false)}
+            onPlay={() => setMediaPlaying(true)}
+          />
+          <button
+            type="button"
+            className="knowledge-viewer-media-btn"
+            aria-label={mediaPlaying ? '暂停' : '播放音频'}
+            onClick={toggleMedia}
+          >
+            {mediaPlaying ? '‖' : '听'}
+          </button>
+          <span className="knowledge-viewer-media-label">
+            {pageMedia.label || '本页音频'}
+          </span>
         </div>
       ) : null}
     </div>

@@ -6,9 +6,14 @@ import 'home_illustrations.dart';
 const homeGrowthMaxCards = 5;
 
 class HomeGrowthOccupied {
-  const HomeGrowthOccupied({this.plan = false, this.prayer = false});
+  const HomeGrowthOccupied({
+    this.plan = false,
+    this.prayer = false,
+    this.theme = false,
+  });
   final bool plan;
   final bool prayer;
+  final bool theme;
 }
 
 class HomeGrowthFeatureInput {
@@ -72,6 +77,7 @@ HomeGrowthOccupied occupiedFromIds(Iterable<String> ids) {
   return HomeGrowthOccupied(
     plan: set.contains('plan'),
     prayer: set.contains('prayer'),
+    theme: set.contains('explore') || set.contains('theme'),
   );
 }
 
@@ -83,7 +89,7 @@ String? _growthImageFile(String id) {
   return null;
 }
 
-/// 顺序：摘要 → 读经计划 → 祷告 → 主题探索（跳过今日推荐已有的）。
+/// 顺序：摘要 → 读经计划 → 祷告；主题探索已上移今日推荐则跳过。
 HomeGrowthModel buildHomeGrowthModel({
   int todayMin = 0,
   int monthDays = 0,
@@ -151,19 +157,21 @@ HomeGrowthModel buildHomeGrowthModel({
     ));
   }
 
-  push(HomeGrowthCard(
-    id: 'theme',
-    tag: '主题',
-    title: (theme?.title ?? '').trim().isEmpty
-        ? '探索经文主题'
-        : theme!.title.trim(),
-    detail: (theme?.detail ?? '').trim().isEmpty
-        ? '圣经知识专题'
-        : theme!.detail!.trim(),
-    href: theme?.href ?? '/knowledge',
-    iconName: 'explore',
-    imageFile: _growthImageFile('theme'),
-  ));
+  if (!occupied.theme) {
+    push(HomeGrowthCard(
+      id: 'theme',
+      tag: '主题',
+      title: (theme?.title ?? '').trim().isEmpty
+          ? '探索经文主题'
+          : theme!.title.trim(),
+      detail: (theme?.detail ?? '').trim().isEmpty
+          ? '圣经知识专题'
+          : theme!.detail!.trim(),
+      href: theme?.href ?? '/knowledge',
+      iconName: 'explore',
+      imageFile: _growthImageFile('theme'),
+    ));
+  }
 
   return HomeGrowthModel(cards: cards);
 }

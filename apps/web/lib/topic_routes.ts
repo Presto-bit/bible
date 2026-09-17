@@ -17,6 +17,26 @@ export function mapStoryHref(tourId?: string) {
   return `/search/map/${encodeURIComponent(tourId || FEATURED_MAP_TOUR)}`;
 }
 
+/** 运营笔记手稿 */
+export function knowledgeNoteHref(noteId: string) {
+  return `/knowledge/${encodeURIComponent(noteId)}`;
+}
+
+/** 列表进全屏：行程走地图专题，笔记走 /knowledge/[id] */
+export function knowledgeLayoutViewHref(row: {
+  id?: string;
+  kind?: string;
+  source?: { kind?: string; id?: string };
+}): string {
+  const id = row.source?.id || row.id || '';
+  const isNote =
+    row.kind === 'note' ||
+    row.source?.kind === 'note' ||
+    (row.id || '').startsWith('note-');
+  if (isNote) return `${knowledgeNoteHref(id)}?view=1`;
+  return `${mapStoryHref(id)}?view=1`;
+}
+
 /** 圣经知识专题列表 */
 export function knowledgeTopicsHref() {
   return '/knowledge';

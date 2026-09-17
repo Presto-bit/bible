@@ -560,6 +560,7 @@ export interface KnowledgeLayoutBeat {
   verse_excerpt?: string;
   ask_seed?: string;
   vignette?: string;
+  media?: { type: 'audio' | 'video'; url: string; label?: string };
 }
 
 export interface KnowledgeLayoutBlock {
@@ -577,12 +578,24 @@ export interface KnowledgeLayout {
   generated_at?: string;
   cover_image?: string;
   density?: 'concise' | 'standard' | 'detailed';
+  kind?: 'journey' | 'note' | string;
+  media_kinds?: Array<'image' | 'audio' | 'video' | string>;
   source: { kind: string; id: string };
   template: string;
   blocks: KnowledgeLayoutBlock[];
   arc?: { name: string; stop_orders: number[] }[];
   beats: KnowledgeLayoutBeat[];
   fill?: { engine_default?: string; policy?: string };
+  /** 运营笔记等显式册页 */
+  folio_pages?: Array<{
+    key?: string;
+    type?: string;
+    src?: string;
+    title?: string;
+    body?: string;
+    alt?: string;
+    media?: { type: 'audio' | 'video'; url: string; label?: string };
+  }>;
 }
 
 export interface KnowledgeLayoutSummary {
@@ -595,6 +608,10 @@ export interface KnowledgeLayoutSummary {
   /** ISO 时间；列表按此降序 */
   generated_at?: string;
   cover_image?: string;
+  /** 行程密图 / 运营笔记（可选） */
+  kind?: 'journey' | 'note' | string;
+  /** 介质种类；有 audio/video 时列表出「听/看」角标 */
+  media_kinds?: Array<'image' | 'audio' | 'video' | string>;
 }
 
 export interface TimelineTourEvent {

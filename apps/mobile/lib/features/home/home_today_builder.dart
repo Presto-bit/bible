@@ -1,6 +1,7 @@
 /// 首页「今日推荐」数据构造 —— 对齐 Web `home_today_panel.ts`。
 library;
 
+import 'explore_spotlight.dart';
 import 'home_today_panel.dart';
 
 class HomeTodayCampaign {
@@ -58,6 +59,7 @@ class HomeTodayInput {
     this.planBookId,
     this.planChapter,
     this.prayerTitle,
+    this.explore,
     this.groupTitle,
     this.groupSub,
     this.groupHref,
@@ -79,6 +81,7 @@ class HomeTodayInput {
   final String? planBookId;
   final int? planChapter;
   final String? prayerTitle;
+  final ExploreSpotlight? explore;
   final String? groupTitle;
   final String? groupSub;
   final String? groupHref;
@@ -95,13 +98,16 @@ class HomeTodayPanelResult {
     required this.activity,
     required this.read,
     required this.group,
-    required this.prayer,
+    required this.explore,
   });
 
   final HomeTodaySlot activity;
   final HomeTodaySlot read;
   final HomeTodaySlot group;
-  final HomeTodaySlot prayer;
+  final HomeTodaySlot explore;
+
+  /// 兼容旧调用，等同 [explore]
+  HomeTodaySlot get prayer => explore;
 }
 
 String _trimTitle(String text, [int max = 24]) {
@@ -306,34 +312,31 @@ HomeTodaySlot _groupSlot(HomeTodayInput input) {
   );
 }
 
-HomeTodaySlot _prayerSlot(HomeTodayInput input) {
-  final day = (input.prayerTitle ?? '').trim();
-  if (day.isEmpty) {
-    return const HomeTodaySlot(
-      id: 'prayer',
-      tag: '祷告',
-      title: '开始祷告',
-      sub: '',
-      href: '/pray',
-      cta: '去祷告',
-    );
-  }
+HomeTodaySlot _exploreSlot(HomeTodayInput input) {
+  final e = input.explore ?? defaultExploreSpotlight;
+  final media = (e.mediaBadge ?? '').trim();
+  final badge = media.isNotEmpty
+      ? media
+      : (e.hook.isEmpty ? null : e.hook);
   return HomeTodaySlot(
-    id: 'prayer',
-    tag: '祷告',
-    title: _trimSide(day),
+    id: 'explore',
+    tag: '探索',
+    title: _trimSide(e.title.isEmpty ? '探索手稿' : e.title),
     sub: '',
-    href: '/pray',
-    cta: '去祷告',
+    href: e.href.isEmpty ? '/knowledge' : e.href,
+    coverUrl: e.coverUrl,
+    cta: '去看看',
+    badge: badge,
   );
 }
 
-/// 固定四坑：[1] 活动/书架 · [2] 继续阅读 · [3] 共读 · [4] 祷告
+/// 固定四坑：[1] 活动/书架 · [2] 继续阅读 · [3] 共读 · [4] 探索
 HomeTodayPanelResult buildHomeTodayPanel(HomeTodayInput input) {
+  final explore = _exploreSlot(input);
   return HomeTodayPanelResult(
     activity: _activitySlot(input),
     read: _readSlot(input),
     group: _groupSlot(input),
-    prayer: _prayerSlot(input),
+    explore: explore,
   );
 }

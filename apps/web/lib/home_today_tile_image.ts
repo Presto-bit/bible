@@ -2,6 +2,7 @@
 
 import { clientAssetUrl } from './basePath';
 import { resolveCampaignCoverUrl } from './daily_verse_wallpaper';
+import { knowledgeMediaUrl } from './knowledge_media_url';
 import type { HomeTodayPanelSlot } from './home_today_panel';
 
 export type HomeTodayTileKind =
@@ -9,12 +10,14 @@ export type HomeTodayTileKind =
   | 'shelf'
   | 'read'
   | 'fellowship'
-  | 'prayer';
+  | 'prayer'
+  | 'explore';
 
 const HOME_TILES: Record<HomeTodayTileKind, string> = {
   read: '/illustrations/home/tile_read.jpg',
   fellowship: '/illustrations/home/tile_fellowship.jpg',
   prayer: '/illustrations/home/tile_prayer.jpg',
+  explore: '/illustrations/home/growth_theme.jpg',
   activity: '/illustrations/home/tile_activity.jpg',
   shelf: '/illustrations/home/tile_shelf.jpg',
 };
@@ -22,7 +25,6 @@ const HOME_TILES: Record<HomeTodayTileKind, string> = {
 const HOME_GROWTH_PATHS = [
   '/illustrations/home/growth_summary.jpg',
   '/illustrations/home/growth_plan.jpg',
-  '/illustrations/home/growth_theme.jpg',
   '/illustrations/home/growth_prayer.jpg',
 ] as const;
 
@@ -39,20 +41,31 @@ const TILE_OBJECT_POSITION: Record<HomeTodayTileKind, string> = {
   read: 'center 55%',
   fellowship: 'center 45%',
   prayer: 'center 50%',
+  explore: 'center top',
 };
 
 export function resolveTodayTileKind(slot: HomeTodayPanelSlot): HomeTodayTileKind {
   if (slot.id.startsWith('campaign-')) return 'activity';
   if (slot.id === 'shelf') return 'shelf';
+  if (slot.id === 'explore' || slot.tag === '探索') return 'explore';
   if (slot.icon === 'group' || slot.tag === '共读') return 'fellowship';
   if (slot.icon === 'prayer' || slot.tag === '祷告') return 'prayer';
   return 'read';
 }
 
 export function resolveTodayTileImage(slot: HomeTodayPanelSlot): string {
-  if (slot.id.startsWith('campaign-') && slot.coverUrl) {
-    const custom = resolveCampaignCoverUrl(slot.coverUrl);
-    if (custom) return custom;
+  if (slot.coverUrl) {
+    if (slot.coverUrl.startsWith('http') || slot.coverUrl.startsWith('blob:')) {
+      return slot.coverUrl;
+    }
+    if (slot.coverUrl.startsWith('/content/')) {
+      return knowledgeMediaUrl(slot.coverUrl);
+    }
+    if (slot.id === 'explore' || slot.tag === '探索' || slot.id.startsWith('campaign-')) {
+      const custom = resolveCampaignCoverUrl(slot.coverUrl);
+      if (custom) return custom;
+      return clientAssetUrl(slot.coverUrl);
+    }
   }
 
   return clientAssetUrl(HOME_TILES[resolveTodayTileKind(slot)]);

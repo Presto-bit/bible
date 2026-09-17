@@ -12,7 +12,6 @@ import 'package:go_router/go_router.dart';
 import '../../app/app_shell.dart';
 import '../../core/api_client.dart';
 import '../../core/daily_clock.dart';
-import '../../core/daily_themes.dart';
 import '../../core/daily_verse_engagement.dart';
 import '../../core/daily_verse_share.dart';
 import '../../core/daily_verse_wallpaper.dart';
@@ -39,6 +38,7 @@ import '../bible/reading_repository.dart';
 import '../bible/reader_screen.dart' show readerJumpProvider;
 import 'daily_verse_react_sheet.dart';
 import 'daily_verse_wallpaper_screen.dart';
+import 'explore_spotlight.dart';
 import 'hero_b_campaign.dart';
 import 'home_growth_cards.dart';
 import 'home_illustrations.dart';
@@ -288,6 +288,28 @@ final prayerTodayProvider = FutureProvider<PrayerToday>((ref) async {
   return PrayerToday.fromJson(res.data as Map<String, dynamic>);
 });
 
+final exploreSpotlightProvider = FutureProvider<ExploreSpotlight>((ref) async {
+  final Dio dio = ref.watch(dioProvider);
+  try {
+    final res = await dio.get('/content/knowledge-layouts');
+    final data = res.data is Map
+        ? Map<String, dynamic>.from(res.data as Map)
+        : <String, dynamic>{};
+    final raw = data['layouts'];
+    final rows = <KnowledgeLayoutRow>[];
+    if (raw is List) {
+      for (final e in raw) {
+        if (e is Map) {
+          rows.add(KnowledgeLayoutRow.fromJson(Map<String, dynamic>.from(e)));
+        }
+      }
+    }
+    return pickExploreSpotlight(rows) ?? defaultExploreSpotlight;
+  } catch (_) {
+    return defaultExploreSpotlight;
+  }
+});
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -489,6 +511,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       orElse: () => const <HomeTodayCampaign>[],
     );
 
+    final explore = ref.watch(exploreSpotlightProvider).maybeWhen(
+          data: (e) => e,
+          orElse: () => defaultExploreSpotlight,
+        );
+
     final panel = buildHomeTodayPanel(
       HomeTodayInput(
         resumeTitle: resumeTitle,
@@ -501,6 +528,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         planBookId: planId,
         planChapter: planDay,
         prayerTitle: prayerTitle,
+        explore: explore,
         groupTitle: groupTitle,
         groupSub: groupSub,
         groupHref: groupHref,
@@ -544,6 +572,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
         return;
       }
+      if (s.id == 'explore' ||
+          href.startsWith('/knowledge') ||
+          href.startsWith('/search/map')) {
+        openH5IfAllowed(context, href.startsWith('/') ? href : '/$href');
+        return;
+      }
       if (s.id == 'prayer' || href.startsWith('/pray')) {
         openH5IfAllowed(context, '/pray');
         return;
@@ -585,6 +619,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ref.read(_homeBootstrapForceProvider.notifier).set(true);
                 ref.invalidate(homeBootstrapProvider);
                 ref.invalidate(prayerTodayProvider);
+                ref.invalidate(exploreSpotlightProvider);
                 ref.invalidate(myGroupsProvider);
                 try {
                   await ref.read(homeBootstrapProvider.future);
@@ -744,12 +779,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             activity: panel.activity,
                             read: panel.read,
                             group: panel.group,
-                            prayer: panel.prayer,
+                            explore: panel.explore,
                             groupFlash: _groupFlash,
                             onActivity: () => openSlot(panel.activity),
                             onRead: () => openSlot(panel.read),
                             onGroup: () => openSlot(panel.group),
-                            onPrayer: () => openSlot(panel.prayer),
+                            onExplore: () => openSlot(panel.explore),
                           ),
                         ),
                       ],
@@ -771,7 +806,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               monthDays: monthDays,
                               occupied: occupiedFromIds([
                                 panel.read.id,
-                                panel.prayer.id,
+                                panel.explore.id,
                               ]),
                               plan: HomeGrowthFeatureInput(
                                 title: planTitle ?? '选一个读经计划',
@@ -785,27 +820,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 detail: '安静片刻，向神说话',
                                 href: '/pray',
                               ),
-                              theme: () {
-                                final themes = ref
-                                    .watch(dailyThemesProvider)
-                                    .maybeWhen(
-                                      data: (d) => d,
-                                      orElse: () => null,
-                                    );
-                                final n =
-                                    themes?.count ??
-                                    themes?.themes.length ??
-                                    0;
-                                return HomeGrowthFeatureInput(
-                                  title: '探索经文主题',
-                                  detail: n > 0 ? '$n 个专题 · 去看看' : '圣经知识专题',
-                                  href: '/knowledge',
-                                );
-                              }(),
+                              theme: HomeGrowthFeatureInput(
+                                title: explore.title,
+                                detail: explore.hook,
+                                href: explore.href,
+                              ),
                             ),
                             onReport: () => openH5IfAllowed(context, '/report'),
                             onPlan: planOnTap ?? () => context.push('/plans'),
-                            onTheme: () => openH5IfAllowed(context, '/knowledge'),
+                            onTheme: () => openH5IfAllowed(
+                              context,
+                              explore.href,
+                            ),
                             onPrayer: () => openH5IfAllowed(context, '/pray'),
                           ),
                           const SizedBox(height: 12),

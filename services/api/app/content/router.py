@@ -5,13 +5,14 @@ import logging
 import re
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from ..auth.session import get_current_user
 from ..auth.user_code import is_user_code
 from ..auth.local_session import make_media_asset_sig, verify_media_asset_sig
+from ..admin.auth import require_admin
 from ..db import get_pool
 from . import loader
 from .daily_clock import china_today, verse_day_for_date
@@ -668,11 +669,142 @@ def knowledge_layout_from_scripture(body: KnowledgeLayoutFromScriptureBody) -> d
     return {"layout": layout, "persisted": False}
 
 
+class KnowledgeNoteCreateBody(BaseModel):
+    title: str = Field(..., min_length=1, max_length=80)
+    body: str = Field(..., min_length=4, max_length=12000)
+    cover_image: str | None = Field(default=None, max_length=500)
+    audio_url: str | None = Field(default=None, max_length=500)
+    video_url: str | None = Field(default=None, max_length=500)
+    status: str | None = Field(default="published", max_length=20)
+    note_id: str | None = Field(default=None, max_length=80)
+    folio_pages: list[dict] | None = None
+
+
+@router.post("/knowledge-layouts/notes")
+def knowledge_layout_create_note(
+    body: KnowledgeNoteCreateBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """管理员新建/更新运营笔记手稿（落盘；draft 不进公开列表）。"""
+    from .knowledge_notes import build_note_layout, persist_note_layout
+
+    try:
+        layout = build_note_layout(
+            title=body.title,
+            body=body.body,
+            cover_image=body.cover_image,
+            audio_url=body.audio_url,
+            video_url=body.video_url,
+            note_id=body.note_id,
+            status=body.status or "published",
+            folio_pages=body.folio_pages,
+        )
+        saved = persist_note_layout(layout)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.exception("knowledge_note_create failed")
+        raise HTTPException(status_code=500, detail=f"保存失败：{e}") from e
+    return {"layout": saved, "persisted": True}
+
+
+@router.get("/knowledge-layouts/notes/drafts")
+def knowledge_layout_list_drafts(_phone: str = Depends(require_admin)) -> dict:
+    from .knowledge_notes import list_note_drafts
+
+    return {"drafts": list_note_drafts()}
+
+
+@router.post("/knowledge-layouts/notes/upload")
+async def knowledge_layout_upload_media(
+    file: UploadFile = File(...),
+    kind: str = Form("cover"),
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """管理员上传笔记封面 / 音频 / 视频。"""
+    from .knowledge_notes import save_note_media
+
+    try:
+        return await save_note_media(file, kind)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("knowledge_note_upload failed")
+        raise HTTPException(status_code=500, detail=f"上传失败：{e}") from e
+
+
+@router.get("/knowledge-note-media/{filename}")
+def knowledge_note_media(filename: str):
+    from .knowledge_notes import resolve_note_media_path
+
+    path = resolve_note_media_path(filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    suffix = path.suffix.lower()
+    media = "application/octet-stream"
+    if suffix in (".jpg", ".jpeg"):
+        media = "image/jpeg"
+    elif suffix == ".png":
+        media = "image/png"
+    elif suffix == ".webp":
+        media = "image/webp"
+    elif suffix == ".mp3":
+        media = "audio/mpeg"
+    elif suffix in (".m4a", ".aac"):
+        media = "audio/mp4"
+    elif suffix == ".wav":
+        media = "audio/wav"
+    elif suffix == ".ogg":
+        media = "audio/ogg"
+    elif suffix == ".mp4":
+        media = "video/mp4"
+    elif suffix == ".webm":
+        media = "video/webm"
+    elif suffix == ".mov":
+        media = "video/quicktime"
+    return FileResponse(path, media_type=media)
+
+
+@router.delete("/knowledge-layouts/notes/{note_id}")
+def knowledge_layout_delete_note(
+    note_id: str,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """管理员下架运营笔记（仅 note-*）。"""
+    from .knowledge_notes import delete_note_layout
+
+    try:
+        delete_note_layout(note_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="手稿不存在") from None
+    except Exception as e:
+        logger.exception("knowledge_note_delete failed")
+        raise HTTPException(status_code=500, detail=f"删除失败：{e}") from e
+    return {"ok": True, "id": note_id}
+
+
 @router.get("/knowledge-layouts/{layout_id}")
-def knowledge_layout_detail(layout_id: str) -> dict:
+def knowledge_layout_detail(
+    layout_id: str,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict:
     row = loader.knowledge_layout(layout_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"无知识版式：{layout_id}")
+    # 草稿仅管理员可读（避免未发布手稿被直链打开）
+    if str(row.get("status") or "").lower() == "draft":
+        from ..admin.auth import verify_admin_token
+
+        token = None
+        if authorization and authorization.lower().startswith("bearer "):
+            token = authorization[7:].strip()
+        elif x_admin_token:
+            token = x_admin_token.strip()
+        if not verify_admin_token(token):
+            raise HTTPException(status_code=404, detail=f"无知识版式：{layout_id}")
     return {"layout": row}
 
 

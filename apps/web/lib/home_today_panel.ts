@@ -1,9 +1,15 @@
-/** 首页「今日推荐」：固定四坑 2×2 —— 活动/书架 · 继续阅读 · 共读 · 祷告 */
+/** 首页「今日推荐」：固定四坑 2×2 —— 活动/书架 · 继续阅读 · 共读 · 探索 */
 
 import type { RailIconId } from './home_rail';
 import { bookIdFromReaderHref } from './book_cover';
 import { trimRailSub, trimRailTitle } from './home_rail';
 import { shelfBookCardHref } from './shelf_library';
+import {
+  DEFAULT_EXPLORE_SPOTLIGHT,
+  manuscriptIdFromExploreHref,
+  type ExploreSpotlight,
+} from './explore_spotlight';
+import { readManuscriptPage } from './manuscript_progress';
 
 /** 侧卡标题宜短，便于窄栏扫读 */
 const SIDE_TITLE_MAX = 10;
@@ -30,16 +36,19 @@ export type HomeTodayPanelSlot = {
   progressPct?: number;
 };
 
-/** 固定四坑：[1] 活动/书架 [2] 继续阅读 [3] 共读 [4] 祷告 */
+/** 固定四坑：[1] 活动/书架 [2] 继续阅读 [3] 共读 [4] 探索 */
 export type HomeTodayPanelModel = {
   activity: HomeTodayPanelSlot;
   read: HomeTodayPanelSlot;
   group: HomeTodayPanelSlot;
+  /** 第 4 坑：探索（原祷告） */
+  explore: HomeTodayPanelSlot;
+  /** @deprecated 兼容旧调用，等同 explore */
   prayer: HomeTodayPanelSlot;
 };
 
 export function homeTodayPanelSlots(model: HomeTodayPanelModel): HomeTodayPanelSlot[] {
-  return [model.activity, model.read, model.group, model.prayer];
+  return [model.activity, model.read, model.group, model.explore];
 }
 
 export type HomeTodayCampaignInput = {
@@ -79,6 +88,8 @@ export type HomeTodayPanelInput = {
     chapter?: number;
   };
   prayer?: { title: string; sub: string; href: string };
+  /** 第 4 坑探索（随机专题缩写）；缺省用默认探索入口 */
+  explore?: ExploreSpotlight;
   group?: {
     title: string;
     sub: string;
@@ -331,42 +342,41 @@ function groupSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   };
 }
 
-/** [4] 祷告 */
-function prayerSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
-  const p = input.prayer;
-  if (!p) {
-    return {
-      id: 'prayer',
-      tag: '祷告',
-      title: '开始祷告',
-      sub: '',
-      href: '/pray',
-      icon: 'prayer',
-      cta: '去祷告',
-    };
-  }
-  const day = (p.title || '').trim();
+/** [4] 探索（随机专题封面缩写） */
+function exploreSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
+  const e = input.explore || DEFAULT_EXPLORE_SPOTLIGHT;
+  const manuscriptId = manuscriptIdFromExploreHref(e.href || '');
+  const resume = manuscriptId ? readManuscriptPage(manuscriptId) : 0;
+  const media = (e.mediaBadge || '').trim();
+  let badge: string | undefined;
+  if (resume > 0) badge = `续 · ${resume + 1}`;
+  else if (media) badge = media;
+  else if (e.hook) badge = e.hook;
   return {
-    id: 'prayer',
-    tag: '祷告',
-    title: trimRailTitle(day || '今日祷告', SIDE_TITLE_MAX),
+    id: 'explore',
+    tag: '探索',
+    title: trimRailTitle(e.title || '探索手稿', SIDE_TITLE_MAX),
     sub: '',
-    href: '/pray',
-    icon: 'prayer',
-    cta: '去祷告',
+    href: e.href || '/knowledge',
+    coverUrl: e.coverUrl,
+    icon: 'discover',
+    cta: resume > 0 ? '续读' : '去看看',
+    badge,
   };
 }
 
 /**
  * 固定四坑 2×2：
- * [1] 活动（无则书架）· [2] 继续阅读 · [3] 共读 · [4] 祷告
+ * [1] 活动（无则书架）· [2] 继续阅读 · [3] 共读 · [4] 探索
  */
 export function buildHomeTodayPanel(input: HomeTodayPanelInput): HomeTodayPanelModel {
+  const explore = exploreSlot(input);
   return {
     activity: activitySlot(input),
     read: readSlot(input),
     group: groupSlot(input),
-    prayer: prayerSlot(input),
+    explore,
+    prayer: explore,
   };
 }
 

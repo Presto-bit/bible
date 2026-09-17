@@ -52,7 +52,7 @@ String dailyVerseWallpaperUrl(int day) {
   return '$base/daily-wallpapers/${_wallpaperFile(day)}';
 }
 
-/// 活动主卡 coverUrl → 可展示 URL。
+/// 活动主卡 / 探索封面 coverUrl → 可展示 URL。
 String? resolveCampaignCoverUrl(String? coverUrl) {
   final raw = (coverUrl ?? '').trim();
   if (raw.isEmpty) return null;
@@ -61,8 +61,13 @@ String? resolveCampaignCoverUrl(String? coverUrl) {
       raw.startsWith('data:')) {
     return raw;
   }
-  final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
   final path = raw.startsWith('/') ? raw : '/$raw';
+  // 上传媒体走 API（debug 时与 H5 origin 可能不同）
+  if (path.startsWith('/content/')) {
+    final api = AppConfig.baseUrl.replaceAll(RegExp(r'/+$'), '');
+    return '$api$path';
+  }
+  final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
   if (path.contains('/daily-wallpapers/') || path.startsWith('/rail-scenes/')) {
     return '$base$path';
   }
