@@ -6,10 +6,8 @@ import { recordMapTour } from '@/lib/badge_events';
 import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import { clientWithBasePath } from '@/lib/basePath';
-import {
-  KnowledgeManuscriptFolio,
-  manuscriptFolioPages,
-} from '@/components/knowledge/KnowledgeManuscriptFolio';
+import { manuscriptFolioPages } from '@/components/knowledge/KnowledgeManuscriptFolio';
+import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManuscriptViewer';
 
 type Props = {
   tour: MapTour;
@@ -18,7 +16,7 @@ type Props = {
   backLabel?: string;
 };
 
-/** §19.14.17 手稿册专题页：总手稿 + 站手稿横滑；页面简洁 */
+/** §19.14.17 专题封面卡 → 全屏手稿册查看 */
 export function KnowledgeExplainerPage({
   tour,
   layout,
@@ -26,11 +24,10 @@ export function KnowledgeExplainerPage({
   backLabel = '地图故事',
 }: Props) {
   const goBack = useFlowBack(backHref);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [shareBusy, setShareBusy] = useState(false);
-  const [shareHint, setShareHint] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const title = layout.title || tour.title;
+  const guide = layout.guide_one_liner || tour.subtitle || '';
   const beats = layout.beats || [];
 
   const pages = useMemo(
@@ -43,98 +40,50 @@ export function KnowledgeExplainerPage({
     [tour.id, title, beats],
   );
 
-  const current = pages[pageIndex] || pages[0];
+  const coverSrc = pages[0]?.src
+    ? clientWithBasePath(pages[0].src)
+    : clientWithBasePath(`/knowledge/infographics/${encodeURIComponent(tour.id)}-comic.png`);
 
   useEffect(() => {
     recordMapTour(tour.id);
   }, [tour.id]);
 
-  const onSave = async () => {
-    if (shareBusy || !current) return;
-    setShareBusy(true);
-    setShareHint(null);
-    try {
-      const res = await fetch(clientWithBasePath(current.src));
-      if (!res.ok) throw new Error('missing');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = current.src.split('/').pop() || `${tour.id}-manuscript.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setShareHint('已保存手稿');
-    } catch {
-      setShareHint('保存失败，可稍后重试');
-    } finally {
-      setShareBusy(false);
-    }
-  };
-
-  const onShare = async () => {
-    if (shareBusy || !current) return;
-    setShareBusy(true);
-    setShareHint(null);
-    try {
-      const res = await fetch(clientWithBasePath(current.src));
-      if (!res.ok) throw new Error('missing');
-      const blob = await res.blob();
-      const file = new File([blob], current.src.split('/').pop() || 'manuscript.png', {
-        type: 'image/png',
-      });
-      if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title });
-        setShareHint('已调起分享');
-        return;
-      }
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({ title, text: title, url: window.location.href });
-        setShareHint('已调起分享');
-        return;
-      }
-      await onSave();
-    } catch (e) {
-      if ((e as Error)?.name === 'AbortError') return;
-      setShareHint('分享未完成，可稍后重试');
-    } finally {
-      setShareBusy(false);
-    }
-  };
-
   return (
-    <div className="knowledge-explainer knowledge-explainer--folio">
+    <div className="knowledge-explainer knowledge-explainer--cover">
       <header className="page-head story-mode-head">
         <PageBackBar onClick={goBack} label={backLabel} />
         <h2 className="page-head-title">{title}</h2>
       </header>
 
-      <KnowledgeManuscriptFolio pages={pages} onIndexChange={setPageIndex} />
+      <button
+        type="button"
+        className="knowledge-cover-card"
+        onClick={() => setViewerOpen(true)}
+        aria-label={`查看「${title}」手稿`}
+      >
+        <span className="knowledge-cover-card-media" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="knowledge-cover-card-photo" src={coverSrc} alt="" />
+          <span className="knowledge-cover-card-veil" />
+        </span>
+        <span className="knowledge-cover-card-body">
+          <span className="knowledge-cover-card-badge">彼爱手稿</span>
+          <span className="knowledge-cover-card-title">{title}</span>
+          {guide ? <span className="knowledge-cover-card-guide">{guide}</span> : null}
+          <span className="knowledge-cover-card-cta">点击查看 · 共 {pages.length} 页</span>
+        </span>
+      </button>
 
-      <div className="knowledge-explainer-footer">
-        <button
-          type="button"
-          className="font-pill accent"
-          disabled={shareBusy}
-          onClick={() => void onShare()}
-        >
-          {shareBusy ? '准备中…' : '分享本页'}
-        </button>
-        <button
-          type="button"
-          className="font-pill"
-          disabled={shareBusy}
-          onClick={() => void onSave()}
-        >
-          保存本页
-        </button>
-      </div>
-      {shareHint ? (
-        <p className="muted knowledge-story-share-hint" role="status">
-          {shareHint}
-        </p>
+      <p className="knowledge-explainer-disclaimer">释义说明，仅供参考</p>
+
+      {viewerOpen ? (
+        <KnowledgeManuscriptViewer
+          pages={pages}
+          title={title}
+          onClose={() => setViewerOpen(false)}
+          onExitTopic={goBack}
+        />
       ) : null}
-
-      <p className="knowledge-explainer-disclaimer">释义说明，仅供参考 · 左右滑动翻页</p>
     </div>
   );
 }
