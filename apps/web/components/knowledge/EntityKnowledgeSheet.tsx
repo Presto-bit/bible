@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { SheetCloseButton } from '@/components/PageBackBar';
-import { api, type DictEntity, type EntityKnowledge } from '@/lib/api';
+import { api, type DictEntity, type EntityKnowledge, type GraphTopic, type KnowledgeRelatedRef } from '@/lib/api';
 import {
   entitySenseLabel,
   hasAlternateSenses,
@@ -26,7 +26,7 @@ import { unlockReaderSurface } from '@/lib/reader_chrome';
 
 /** 打开词典时复用，避免反复打 knowledge / graphTopics */
 const knowledgeCache = new Map<string, EntityKnowledge>();
-let graphTopicsPromise: Promise<{ id: string; entity_ids?: string[] }[] | null> | null = null;
+let graphTopicsPromise: Promise<GraphTopic[] | null> | null = null;
 
 function loadGraphTopics() {
   if (!graphTopicsPromise) {
@@ -63,7 +63,7 @@ export function EntityKnowledgeSheet({
   const entityId = entity.id ?? entity.name;
   const cached = knowledgeCache.get(entityId) ?? null;
   const [knowledge, setKnowledge] = useState<EntityKnowledge | null>(cached);
-  const [graphTopicId, setGraphTopicId] = useState<string | null>(null);
+  const [relatedFromGraph, setRelatedFromGraph] = useState<KnowledgeRelatedRef[] | null>(null);
   // 首开永远先出本地经节列表，不挂关系图（关系图重绘在安卓很卡）
   const [loading, setLoading] = useState(!cached);
   const [tab, setTab] = useState<EntityKnowledgeTab>('refs');
@@ -78,6 +78,7 @@ export function EntityKnowledgeSheet({
       setLoading(true);
     }
     setTab('refs');
+    setRelatedFromGraph(null);
 
     void api
       .entityKnowledge(entityId)
@@ -93,12 +94,12 @@ export function EntityKnowledgeSheet({
         if (!cancelled) setLoading(false);
       });
 
-    // 专题链接次要：延后拉，且缓存全表
+    // 专题链接次要：延后拉，且缓存全表；取 related.map 作手稿卡
     const t = window.setTimeout(() => {
       void loadGraphTopics().then((topics) => {
         if (cancelled || !topics) return;
         const found = topics.find((topic) => (topic.entity_ids ?? []).includes(entityId));
-        setGraphTopicId(found?.id ?? null);
+        setRelatedFromGraph(found?.related ?? null);
       });
     }, 180);
 
@@ -175,7 +176,7 @@ export function EntityKnowledgeSheet({
             tabs={tabs}
             onRefPreview={onRefPreview}
             onNodeClick={onNodeClick}
-            graphTopicId={graphTopicId}
+            relatedFromGraph={relatedFromGraph}
             from="reader"
           />
 

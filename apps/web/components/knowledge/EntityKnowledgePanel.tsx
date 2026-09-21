@@ -3,17 +3,19 @@
 import type { ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import type { DictEntity, EntityKnowledge } from '@/lib/api';
+import type { DictEntity, EntityKnowledge, KnowledgeRelatedRef } from '@/lib/api';
 import { entityDisplayName, entitySummaryText, entityTypeLabel } from '@/lib/dictionary_match';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import {
   ENTITY_KNOWLEDGE_TAB_LABEL,
   entityGraphHref,
+  mergeRelatedManuscriptTopics,
   type EntityKnowledgeFrom,
   type EntityKnowledgeTab,
+  type RelatedManuscriptTopic,
 } from '@/lib/entity_knowledge';
-import { mapStoryHref, graphTopicHref } from '@/lib/topic_routes';
+import { mapStoryHref } from '@/lib/topic_routes';
 import { DiagramViewer } from './DiagramViewer';
 
 const LocalRelationGraph = dynamic(
@@ -41,7 +43,7 @@ export function EntityKnowledgePanel({
   tabs,
   onRefPreview,
   onNodeClick,
-  graphTopicId,
+  relatedFromGraph,
   from,
 }: {
   entity: DictEntity;
@@ -52,12 +54,17 @@ export function EntityKnowledgePanel({
   tabs: EntityKnowledgeTab[];
   onRefPreview: (osis: string, label: string) => void;
   onNodeClick?: (entityId: string) => void;
-  graphTopicId?: string | null;
+  /** graph topic.related 中的 map 等，用于「相关专题」手稿卡 */
+  relatedFromGraph?: KnowledgeRelatedRef[] | null;
   from?: EntityKnowledgeFrom;
 }) {
   const mapPlaces = knowledge?.place ? [knowledge.place] : [];
   const mapTours = knowledge?.map_tours ?? [];
-  const hasRelatedTopics = Boolean(graphTopicId) || mapTours.length > 0;
+  const relatedTopics: RelatedManuscriptTopic[] = mergeRelatedManuscriptTopics({
+    mapTours,
+    relatedFromGraph,
+  });
+  const hasRelatedTopics = relatedTopics.length > 0;
 
   return (
     <>
@@ -67,31 +74,19 @@ export function EntityKnowledgePanel({
         <div className="entity-knowledge-related" aria-label="相关专题">
           <p className="entity-knowledge-related-label">相关专题</p>
           <div className="entity-knowledge-related-list">
-            {mapTours.slice(0, 2).map((tour) => (
+            {relatedTopics.slice(0, 4).map((topic) => (
               <Link
-                key={tour.id}
-                href={`${mapStoryHref(tour.id)}?view=1`}
+                key={topic.id}
+                href={topic.href}
                 className="entity-knowledge-topic-cta"
               >
-                <span className="entity-knowledge-topic-cta-kind">行程</span>
-                <span className="entity-knowledge-topic-cta-title">{tour.title}</span>
+                <span className="entity-knowledge-topic-cta-kind">{topic.kindLabel}</span>
+                <span className="entity-knowledge-topic-cta-title">{topic.title}</span>
                 <span className="entity-knowledge-topic-cta-go" aria-hidden>
                   ›
                 </span>
               </Link>
             ))}
-            {graphTopicId ? (
-              <Link
-                href={graphTopicHref(graphTopicId)}
-                className="entity-knowledge-topic-cta"
-              >
-                <span className="entity-knowledge-topic-cta-kind">关系</span>
-                <span className="entity-knowledge-topic-cta-title">查看关系专题</span>
-                <span className="entity-knowledge-topic-cta-go" aria-hidden>
-                  ›
-                </span>
-              </Link>
-            ) : null}
           </div>
         </div>
       ) : null}
@@ -128,14 +123,6 @@ export function EntityKnowledgePanel({
                 <Link href={entityGraphHref(entity.id ?? entity.name, { from })} className="entity-knowledge-tour-link">
                   全屏关系图 ›
                 </Link>
-                {graphTopicId ? (
-                  <Link
-                    href={graphTopicHref(graphTopicId)}
-                    className="entity-knowledge-tour-link"
-                  >
-                    打开关系专题 ›
-                  </Link>
-                ) : null}
               </div>
             </div>
           ) : null}

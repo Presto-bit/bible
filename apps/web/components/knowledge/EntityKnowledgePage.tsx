@@ -12,13 +12,15 @@ import {
   entityAnchorRef,
   entityAssistantQuestion,
   entityKnowledgeTabs,
+  mergeRelatedManuscriptTopics,
   type EntityKnowledgeFrom,
 } from '@/lib/entity_knowledge';
 import type { EntityKnowledgeTab } from '@/lib/entity_knowledge';
 import { EntityKnowledgeHeader, EntityKnowledgePanel } from '@/components/knowledge/EntityKnowledgePanel';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { formatGroupRefLabel } from '@/lib/ref_label';
-import { graphTopicHref } from '@/lib/topic_routes';
+import { knowledgeTopicsHref } from '@/lib/topic_routes';
+import type { KnowledgeRelatedRef } from '@/lib/api';
 
 export function EntityKnowledgePage({
   entityId,
@@ -43,7 +45,7 @@ export function EntityKnowledgePage({
   });
 
   const [knowledge, setKnowledge] = useState<EntityKnowledge | null>(null);
-  const [graphTopicId, setGraphTopicId] = useState<string | null>(null);
+  const [relatedFromGraph, setRelatedFromGraph] = useState<KnowledgeRelatedRef[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<EntityKnowledgeTab>('refs');
   const [preview, setPreview] = useState<{ osis: string; label: string } | null>(null);
@@ -53,6 +55,7 @@ export function EntityKnowledgePage({
     let cancelled = false;
     setLoading(true);
     setErr('');
+    setRelatedFromGraph(null);
     void api
       .entityKnowledge(entityId)
       .then((data) => {
@@ -81,9 +84,9 @@ export function EntityKnowledgePage({
         const hit = (d.topics ?? []).find((t) =>
           (t.entity_ids ?? []).includes(entityId),
         );
-        setGraphTopicId(hit?.id ?? null);
+        setRelatedFromGraph(hit?.related ?? null);
       })
-      .catch(() => setGraphTopicId(null));
+      .catch(() => setRelatedFromGraph(null));
   }, [entityId]);
 
   const entity = knowledge?.entity;
@@ -91,6 +94,15 @@ export function EntityKnowledgePage({
     () => (entity ? entityKnowledgeTabs(entity, knowledge) : []),
     [entity, knowledge],
   );
+  const relatedTopics = useMemo(
+    () =>
+      mergeRelatedManuscriptTopics({
+        mapTours: knowledge?.map_tours,
+        relatedFromGraph,
+      }),
+    [knowledge?.map_tours, relatedFromGraph],
+  );
+  const primaryTopic = relatedTopics[0] ?? null;
 
   const handleNodeClick = (nodeId: string) => {
     router.push(`/dictionary/${encodeURIComponent(nodeId)}`);
@@ -157,7 +169,7 @@ export function EntityKnowledgePage({
           tabs={tabs}
           onRefPreview={(osis, label) => setPreview({ osis, label })}
           onNodeClick={handleNodeClick}
-          graphTopicId={graphTopicId}
+          relatedFromGraph={relatedFromGraph}
           from={from}
         />
       </div>
@@ -166,17 +178,17 @@ export function EntityKnowledgePage({
         <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={askAssistant}>
           问小爱
         </button>
-        {graphTopicId ? (
+        {primaryTopic ? (
           <Link
-            href={graphTopicHref(graphTopicId)}
+            href={primaryTopic.href}
             className="btn"
             style={{ flex: 1, textAlign: 'center' }}
           >
-            关系专题
+            查看专题
           </Link>
         ) : (
-          <Link href="/search/graph" className="btn" style={{ flex: 1, textAlign: 'center' }}>
-            关系专题
+          <Link href={knowledgeTopicsHref()} className="btn" style={{ flex: 1, textAlign: 'center' }}>
+            浏览专题
           </Link>
         )}
       </div>

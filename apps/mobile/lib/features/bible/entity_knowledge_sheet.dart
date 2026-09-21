@@ -4,7 +4,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/badge_stats.dart';
@@ -195,6 +194,31 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                 if (mounted) setState(() => _tab = activeTab);
               });
             }
+
+            // 相关专题 = 地点所属行程 + graph topic.related.map（手稿卡，非关系图）
+            final relatedTopics = <({String id, String title})>[];
+            final seen = <String>{};
+            for (final t in k.mapTours) {
+              if (t.id.isEmpty || !seen.add(t.id)) continue;
+              relatedTopics.add((id: t.id, title: t.title));
+            }
+            final graphTopics =
+                ref.watch(graphTopicsProvider).asData?.value ?? const <GraphTopic>[];
+            GraphTopic? hit;
+            for (final topic in graphTopics) {
+              if (topic.entityIds.contains(_entity.id)) {
+                hit = topic;
+                break;
+              }
+            }
+            for (final r in hit?.related ?? const <GraphTopicRelated>[]) {
+              if (r.kind != 'map' || r.id.isEmpty || !seen.add(r.id)) continue;
+              relatedTopics.add((
+                id: r.id,
+                title: r.label.isNotEmpty ? r.label : r.id,
+              ));
+            }
+
             return _scaffold(
               typeLabel: typeLabel,
               showSenses: showSenses,
@@ -206,6 +230,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
               place: k.place,
               graph: k.graph,
               mapTours: k.mapTours,
+              relatedTopics: relatedTopics,
               diagrams: k.diagrams,
               bottomInset: bottom,
             );
@@ -226,6 +251,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
     GeoPlace? place,
     GraphData? graph,
     List<MapTour> mapTours = const [],
+    List<({String id, String title})> relatedTopics = const [],
     List<DiagramItem> diagrams = const [],
   }) {
     return Padding(
@@ -310,7 +336,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
               color: AppColors.inkSoft,
             ),
           ),
-          if (mapTours.isNotEmpty) ...[
+          if (relatedTopics.isNotEmpty) ...[
             const SizedBox(height: 12),
             const Text(
               '相关专题',
@@ -321,7 +347,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
               ),
             ),
             const SizedBox(height: 6),
-            for (final tour in mapTours.take(2))
+            for (final topic in relatedTopics.take(4))
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Material(
@@ -331,7 +357,7 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                     borderRadius: BorderRadius.circular(12),
                     onTap: () => openH5IfAllowed(
                       context,
-                      '/search/map/${tour.id}?view=1',
+                      '/search/map/${topic.id}?view=1',
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -358,12 +384,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              tour.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              topic.title,
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -371,12 +395,10 @@ class _EntityKnowledgeSheetState extends ConsumerState<_EntityKnowledgeSheet> {
                               ),
                             ),
                           ),
-                          const Text(
-                            '›',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: AppColors.inkFaint,
-                            ),
+                          const Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: AppColors.inkFaint,
                           ),
                         ],
                       ),

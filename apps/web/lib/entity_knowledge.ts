@@ -1,5 +1,6 @@
-import type { DictEntity, EntityKnowledge } from '@/lib/api';
+import type { DictEntity, EntityKnowledge, KnowledgeRelatedRef } from '@/lib/api';
 import { refSpaceToOsis } from '@/lib/inline_ref';
+import { mapStoryHref } from '@/lib/topic_routes';
 
 export type EntityKnowledgeTab = 'graph' | 'refs' | 'map' | 'diagram';
 
@@ -9,6 +10,46 @@ export const ENTITY_KNOWLEDGE_TAB_LABEL: Record<EntityKnowledgeTab, string> = {
   map: '地图',
   diagram: '图鉴',
 };
+
+/** 词典「相关专题」：可打开手稿册的行程卡（非关系图） */
+export type RelatedManuscriptTopic = {
+  id: string;
+  title: string;
+  kindLabel: string;
+  href: string;
+};
+
+export function mergeRelatedManuscriptTopics(opts: {
+  mapTours?: Array<{ id: string; title: string }> | null;
+  relatedFromGraph?: KnowledgeRelatedRef[] | null;
+}): RelatedManuscriptTopic[] {
+  const out: RelatedManuscriptTopic[] = [];
+  const seen = new Set<string>();
+  for (const t of opts.mapTours || []) {
+    const id = (t.id || '').trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push({
+      id,
+      title: (t.title || id).trim(),
+      kindLabel: '行程',
+      href: `${mapStoryHref(id)}?view=1`,
+    });
+  }
+  for (const r of opts.relatedFromGraph || []) {
+    if (r.kind !== 'map') continue;
+    const id = (r.id || '').trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push({
+      id,
+      title: (r.label || id).trim(),
+      kindLabel: '行程',
+      href: `${mapStoryHref(id)}?view=1`,
+    });
+  }
+  return out;
+}
 
 export function defaultEntityKnowledgeTab(
   entity: DictEntity,

@@ -690,22 +690,40 @@ final diagramProvider = FutureProvider.family<DiagramItem, String>(
   (ref, id) => ref.watch(contentRepoProvider).diagram(id),
 );
 
+class GraphTopicRelated {
+  GraphTopicRelated({required this.kind, required this.id, required this.label});
+  final String kind;
+  final String id;
+  final String label;
+  factory GraphTopicRelated.fromJson(Map<String, dynamic> j) => GraphTopicRelated(
+    kind: (j['kind'] ?? '') as String,
+    id: (j['id'] ?? '') as String,
+    label: (j['label'] ?? j['id'] ?? '') as String,
+  );
+}
+
 class GraphTopic {
   GraphTopic({
     required this.id,
     required this.title,
     this.subtitle,
     this.entityIds = const [],
+    this.related = const [],
   });
   final String id;
   final String title;
   final String? subtitle;
   final List<String> entityIds;
+  final List<GraphTopicRelated> related;
   factory GraphTopic.fromJson(Map<String, dynamic> j) => GraphTopic(
     id: (j['id'] ?? '') as String,
     title: (j['title'] ?? '') as String,
     subtitle: j['subtitle'] as String?,
     entityIds: ((j['entity_ids'] ?? []) as List).map((e) => '$e').toList(),
+    related: ((j['related'] ?? []) as List)
+        .whereType<Map>()
+        .map((e) => GraphTopicRelated.fromJson(Map<String, dynamic>.from(e)))
+        .toList(),
   );
 }
 
