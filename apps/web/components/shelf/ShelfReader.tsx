@@ -52,7 +52,7 @@ const ShelfLessonPanel = dynamic(() => import('@/components/shelf/ShelfLessonPan
   loading: () => <p className="muted shelf-pdf-status">加载教案…</p>,
 });
 
-const ShelfCheckinSheet = dynamic(() => import('@/components/shelf/ShelfCheckinSheet'), {
+const ShelfShareSheet = dynamic(() => import('@/components/shelf/ShelfShareSheet'), {
   ssr: false,
 });
 
@@ -919,8 +919,8 @@ export default function ShelfReader({
           <button
             type="button"
             className="shelf-reader-bottom-btn shelf-reader-bottom-btn-share"
-            aria-label="分享到共读群"
-            disabled={!sectionId}
+            aria-label="分享书籍"
+            disabled={!book}
             onClick={() => setShareOpen(true)}
           >
             <span className="shelf-reader-bottom-icon" aria-hidden>↗</span>
@@ -1090,16 +1090,19 @@ export default function ShelfReader({
         />
       ) : null}
 
-      {shareOpen && sectionId ? (
-        <ShelfCheckinSheet
+      {shareOpen && book ? (
+        <ShelfShareSheet
           bookId={bookId}
-          bookTitle={book?.title || ''}
-          sectionId={sectionId}
+          bookTitle={book.title || ''}
+          subtitle={book.subtitle}
+          author={book.author}
+          sectionId={sectionId ?? undefined}
           sectionTitle={section?.title || ''}
           pageIndex={pageIndex}
           presetGroupId={presetGroupId}
           onClose={() => setShareOpen(false)}
-          onDone={() => flashToast('已分享到共读群')}
+          onToast={flashToast}
+          onDone={() => flashToast('已分享')}
         />
       ) : null}
 

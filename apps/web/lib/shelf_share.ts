@@ -1,4 +1,4 @@
-/** 书架书目出站分享：氛围卡 + 深链回详情页 */
+/** 书架书目出站分享：氛围卡 + `/share/shelf/{id}` 落地（对齐经文/邀请） */
 
 import { buildTrackedUrl } from './acquisition';
 import { effectiveId } from './api';
@@ -15,8 +15,22 @@ export type ShelfBookShareInput = {
   sharerUserCode?: string | null;
 };
 
+/** 落地页标题 */
+export const SHELF_SHARE_LANDING_TITLE = '书架推荐';
+
+/** 落地页副文案 */
+export const SHELF_SHARE_LANDING_SUPPORT = '来自朋友的分享 · 安静读完这一本';
+
+/** 系统分享正文末行（与邀请/经文一致：安装意图） */
+export const SHELF_SHARE_CTA = `打开后保存到主屏幕，在${BRAND_NAME}一起读。`;
+
 export function shelfBookSharePath(bookId: string): string {
-  return `/shelf/${encodeURIComponent(bookId)}`;
+  return `/share/shelf/${encodeURIComponent(bookId.trim())}`;
+}
+
+/** 站内打开书目详情（落地页 CTA） */
+export function shelfBookOpenPath(bookId: string): string {
+  return `/shelf/${encodeURIComponent(bookId.trim())}`;
 }
 
 export function shelfBookShareUrl(
@@ -50,9 +64,9 @@ export function buildShelfBookShareCopy(input: ShelfBookShareInput): {
   const url = shelfBookShareUrl(input.bookId, input.sharerUserCode ?? effectiveId());
   const shareTitle = `《${title}》｜${BRAND_NAME}`;
   const shareText = [
-    `推荐一本好书《${title}》`,
+    `彼爱推荐一本好书《${title}》`,
     meta || null,
-    `在${BRAND_NAME}打开，一起读。`,
+    SHELF_SHARE_CTA,
   ]
     .filter(Boolean)
     .join('\n');

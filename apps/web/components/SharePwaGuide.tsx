@@ -20,8 +20,8 @@ import { isAndroid } from '@/lib/pwa_platform';
 export function SharePwaGuide({
   variant = 'analysis',
 }: {
-  /** analysis：解读；invite：邀请；daily：每日经文；campaign：活动；wrapped：回顾 */
-  variant?: 'analysis' | 'invite' | 'daily' | 'campaign' | 'wrapped';
+  /** analysis：解读；invite：邀请；daily：每日经文；campaign：活动；wrapped：回顾；shelf：书架 */
+  variant?: 'analysis' | 'invite' | 'daily' | 'campaign' | 'wrapped' | 'shelf';
 }) {
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [hidden, setHidden] = useState(true);
@@ -39,7 +39,11 @@ export function SharePwaGuide({
         ? 160
         : p === 'android-chrome' || p === 'android-other'
           ? 280
-          : variant === 'invite' || variant === 'daily' || variant === 'campaign' || variant === 'wrapped'
+          : variant === 'invite'
+            || variant === 'daily'
+            || variant === 'campaign'
+            || variant === 'wrapped'
+            || variant === 'shelf'
             ? 900
             : 2800;
     const t = window.setTimeout(() => {
@@ -81,7 +85,9 @@ export function SharePwaGuide({
           ? `想参加？先安装${BRAND_NAME}`
           : variant === 'wrapped'
             ? `留下足迹？安装${BRAND_NAME}`
-            : `喜欢这段？安装${BRAND_NAME}`
+            : variant === 'shelf'
+              ? `喜欢这本书？安装${BRAND_NAME}`
+              : `喜欢这段？安装${BRAND_NAME}`
     : variant === 'invite'
       ? `保存${BRAND_NAME}到主屏幕`
       : variant === 'daily'
@@ -90,7 +96,9 @@ export function SharePwaGuide({
           ? `想参加？保存${BRAND_NAME}到主屏幕`
           : variant === 'wrapped'
             ? `留下足迹？保存${BRAND_NAME}到主屏幕`
-            : `喜欢这段？保存${BRAND_NAME}到主屏幕`;
+            : variant === 'shelf'
+              ? `喜欢这本书？保存${BRAND_NAME}到主屏幕`
+              : `喜欢这段？保存${BRAND_NAME}到主屏幕`;
   const desc = android
     ? '下载安装包安装 · 比「添加到主屏幕」更稳'
     : variant === 'invite'
@@ -101,7 +109,9 @@ export function SharePwaGuide({
           ? '活动提醒与共读 · 下次一点就开'
           : variant === 'wrapped'
             ? '记录你的读经年/月 · 下次一点就开'
-            : '下次一点就开 · 离线也能读经';
+            : variant === 'shelf'
+              ? '安静读完这一本 · 下次一点就开'
+              : '下次一点就开 · 离线也能读经';
 
   return (
     <div className="share-pwa-bar share-pwa-bar-bottom" role="region" aria-label={android ? '安装彼爱' : '保存到主屏幕'}>

@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../core/share_card.dart';
 import '../../core/theme.dart';
@@ -16,6 +17,10 @@ Future<void> showShelfShareSheet(
   required String bookTitle,
   String subtitle = '',
   String author = '',
+  String? sectionId,
+  String sectionTitle = '',
+  int pageIndex = 0,
+  String? presetGroupId,
 }) async {
   final action = await showModalBottomSheet<String>(
     context: context,
@@ -27,6 +32,7 @@ Future<void> showShelfShareSheet(
       bookTitle: bookTitle,
       subtitle: subtitle,
       author: author,
+      userCode: ref.read(sessionProvider).effectiveUserCode,
     ),
   );
   if (action != 'group' || !context.mounted) return;
@@ -35,13 +41,19 @@ Future<void> showShelfShareSheet(
     ref,
     bookId: bookId,
     bookTitle: bookTitle,
+    sectionId: sectionId,
+    sectionTitle: sectionTitle,
+    pageIndex: pageIndex,
+    presetGroupId: presetGroupId,
   );
 }
 
-String shelfBookShareUrl(String bookId) {
+String shelfBookShareUrl(String bookId, {String? userCode}) {
   final base = AppConfig.webBaseUrl.replaceAll(RegExp(r'/+$'), '');
-  final id = Uri.encodeComponent(bookId.trim());
-  return '$base/shelf/$id?l1=share&l2=system_share&l3=shelf:${bookId.trim()}';
+  final id = bookId.trim();
+  final code = (userCode ?? '').trim();
+  final l3 = code.isNotEmpty ? 'shelf:$id.u:$code' : 'shelf:$id';
+  return '$base/share/shelf/${Uri.encodeComponent(id)}?l1=share&l2=system_share&l3=$l3';
 }
 
 class _ShelfShareSheet extends StatefulWidget {
@@ -50,12 +62,14 @@ class _ShelfShareSheet extends StatefulWidget {
     required this.bookTitle,
     this.subtitle = '',
     this.author = '',
+    this.userCode = '',
   });
 
   final String bookId;
   final String bookTitle;
   final String subtitle;
   final String author;
+  final String userCode;
 
   @override
   State<_ShelfShareSheet> createState() => _ShelfShareSheetState();
@@ -84,13 +98,13 @@ class _ShelfShareSheetState extends State<_ShelfShareSheet> {
       _err = null;
     });
     try {
-      final url = shelfBookShareUrl(widget.bookId);
+      final url = shelfBookShareUrl(widget.bookId, userCode: widget.userCode);
       final meta = _meta;
       final body = meta.isNotEmpty ? meta : '在彼爱书架，安静读完这一本。';
       final shareText = [
-        '推荐一本好书《$_title》',
+        '彼爱推荐一本好书《$_title》',
         if (meta.isNotEmpty) meta,
-        '在彼爱打开，一起读。',
+        '打开后保存到主屏幕，在彼爱一起读。',
         url,
       ].join('\n');
       final ok = await shareBrandCard(

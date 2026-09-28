@@ -678,3 +678,57 @@ body.share-landing-active .tabbar {
   font-size: 12px;
   color: var(--ink-soft);
 }
+
+/* 书架书目分享落地 */
+.shelf-share-page .shelf-share-title {
+  font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+}
+.shelf-share-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin: 20px 0 8px;
+  padding: 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--paper, #f7f3ea) 88%, #fff);
+  border: 1px solid color-mix(in srgb, var(--ink, #2c2a26) 8%, transparent);
+}
+.shelf-share-cover {
+  width: 72px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(44, 42, 38, 0.12);
+}
+.shelf-share-cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent, #7d9b8a) 22%, var(--paper, #f7f3ea));
+  color: var(--ink);
+  font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+  font-size: 28px;
+  font-weight: 600;
+}
+.shelf-share-card-body {
+  min-width: 0;
+  flex: 1;
+}
+.shelf-share-book-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--ink);
+}
+.shelf-share-book-meta {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.shelf-share-book-hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+}

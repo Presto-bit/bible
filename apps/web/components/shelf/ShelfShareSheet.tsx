@@ -10,6 +10,11 @@ type Props = {
   bookTitle: string;
   subtitle?: string;
   author?: string;
+  /** 阅读器内：分享到群时带上当前节 */
+  sectionId?: string;
+  sectionTitle?: string;
+  pageIndex?: number;
+  presetGroupId?: string | null;
   onClose: () => void;
   onToast?: (msg: string) => void;
   onDone?: () => void;
@@ -21,6 +26,10 @@ export default function ShelfShareSheet({
   bookTitle,
   subtitle = '',
   author = '',
+  sectionId,
+  sectionTitle = '',
+  pageIndex = 0,
+  presetGroupId,
   onClose,
   onToast,
   onDone,
@@ -60,6 +69,10 @@ export default function ShelfShareSheet({
       <ShelfCheckinSheet
         bookId={bookId}
         bookTitle={bookTitle}
+        sectionId={sectionId}
+        sectionTitle={sectionTitle}
+        pageIndex={pageIndex}
+        presetGroupId={presetGroupId}
         onClose={() => {
           setGroupOpen(false);
           onClose();

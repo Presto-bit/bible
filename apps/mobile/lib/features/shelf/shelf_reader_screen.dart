@@ -12,7 +12,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import '../../core/theme_ext.dart';
-import 'shelf_checkin_sheet.dart';
+import 'shelf_share_sheet.dart';
 import 'shelf_lesson_media_dock.dart';
 import 'shelf_media_sheet.dart';
 import 'shelf_navigator.dart';
@@ -1073,22 +1073,22 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                     onFont: () => unawaited(_openFontSheet()),
                     onComments: () => unawaited(_openCommentsSheet()),
                     commentBadge: formatShelfCommentCount(_sectionReviewCount),
-                    onShare: _sectionId == null
-                        ? null
-                        : () => unawaited(
-                              _withOverlay(
-                                () => showShelfCheckinSheet(
-                                  context,
-                                  ref,
-                                  bookId: widget.bookId,
-                                  bookTitle: book.title,
-                                  sectionId: _sectionId!,
-                                  sectionTitle: section?.title ?? '',
-                                  pageIndex: _pageIndex,
-                                  presetGroupId: widget.groupId,
-                                ),
-                              ),
-                            ),
+                    onShare: () => unawaited(
+                      _withOverlay(
+                        () => showShelfShareSheet(
+                          context,
+                          ref,
+                          bookId: widget.bookId,
+                          bookTitle: book.title,
+                          subtitle: book.subtitle,
+                          author: book.author,
+                          sectionId: _sectionId,
+                          sectionTitle: section?.title ?? '',
+                          pageIndex: _pageIndex,
+                          presetGroupId: widget.groupId,
+                        ),
+                      ),
+                    ),
                   )
                 else
                   SizedBox(height: bottomInset),
