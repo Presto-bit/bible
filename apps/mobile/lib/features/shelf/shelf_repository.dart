@@ -176,11 +176,17 @@ class ShelfPrimaryAsset {
     required this.storageKey,
     required this.mime,
     this.title,
+    this.pageStart,
+    this.pageEnd,
   });
 
   final String storageKey;
   final String mime;
   final String? title;
+  /// PDF：本节起始页（0-based，含）
+  final int? pageStart;
+  /// PDF：本节结束页（0-based，含）
+  final int? pageEnd;
 
   factory ShelfPrimaryAsset.fromJson(Map<String, dynamic>? j) {
     if (j == null) {
@@ -190,12 +196,23 @@ class ShelfPrimaryAsset {
       storageKey: '${j['storage_key'] ?? ''}',
       mime: '${j['mime'] ?? ''}',
       title: j['title'] as String?,
+      pageStart: (j['page_start'] as num?)?.toInt(),
+      pageEnd: (j['page_end'] as num?)?.toInt(),
     );
   }
 
   bool get isPdf => mime.contains('pdf') || storageKey.toLowerCase().endsWith('.pdf');
   bool get isDocx =>
       mime.contains('wordprocessingml') || storageKey.toLowerCase().endsWith('.docx');
+
+  /// 本节页数；无范围时返回 null（由阅读器读全本）。
+  int? get pdfSectionPageCount {
+    final start = pageStart;
+    final end = pageEnd;
+    if (start == null || end == null) return null;
+    if (start < 0 || end < start) return null;
+    return end - start + 1;
+  }
 }
 
 class ShelfAttachment {

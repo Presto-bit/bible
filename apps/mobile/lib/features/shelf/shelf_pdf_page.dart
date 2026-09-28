@@ -16,6 +16,8 @@ class ShelfPdfPageView extends StatefulWidget {
     required this.bookId,
     required this.storageKey,
     required this.pageIndex,
+    this.pageStart = 0,
+    this.pageEnd,
     this.canPrevSection = false,
     this.canNextSection = false,
     this.childrenLesson = false,
@@ -30,6 +32,10 @@ class ShelfPdfPageView extends StatefulWidget {
   final String bookId;
   final String storageKey;
   final int pageIndex;
+  /// 本节在 PDF 中的起始页（0-based，含）
+  final int pageStart;
+  /// 本节在 PDF 中的结束页（0-based，含）；null = 文末
+  final int? pageEnd;
   final bool canPrevSection;
   final bool canNextSection;
   final bool childrenLesson;
@@ -47,8 +53,24 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
   PdfControllerPinch? _controller;
   var _loading = true;
   String? _error;
-  var _pageCount = 1;
+  var _fullPageCount = 1;
   var _syncingPage = false;
+
+  int get _rangeStart => widget.pageStart < 0 ? 0 : widget.pageStart;
+
+  int get _rangeEnd {
+    final end = widget.pageEnd;
+    if (end == null) return _fullPageCount - 1;
+    return end.clamp(_rangeStart, _fullPageCount - 1);
+  }
+
+  int get _sectionPageCount => (_rangeEnd - _rangeStart + 1).clamp(1, _fullPageCount);
+
+  int _absPageFromRelative(int relative) =>
+      (_rangeStart + relative.clamp(0, _sectionPageCount - 1) + 1);
+
+  int _relativeFromAbs(int absOneBased) =>
+      (absOneBased - 1 - _rangeStart).clamp(0, _sectionPageCount - 1);
 
   @override
   void initState() {
@@ -64,10 +86,22 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
       _load();
       return;
     }
+    final rangeChanged =
+        oldWidget.pageStart != widget.pageStart || oldWidget.pageEnd != widget.pageEnd;
+    if (rangeChanged && _controller != null) {
+      widget.onPageCount?.call(_sectionPageCount);
+      final page = _absPageFromRelative(0);
+      _syncingPage = true;
+      _controller!.jumpToPage(page);
+      Future<void>.delayed(const Duration(milliseconds: 120), () {
+        if (mounted) _syncingPage = false;
+      });
+      return;
+    }
     if (!_syncingPage &&
         oldWidget.pageIndex != widget.pageIndex &&
         _controller != null) {
-      final page = (widget.pageIndex + 1).clamp(1, _pageCount);
+      final page = _absPageFromRelative(widget.pageIndex);
       _syncingPage = true;
       _controller!.jumpToPage(page);
       Future<void>.delayed(const Duration(milliseconds: 120), () {
@@ -96,7 +130,8 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
       );
       final data = Uint8List.fromList(bytes);
       final count = (await PdfDocument.openData(data)).pagesCount;
-      final initial = (widget.pageIndex + 1).clamp(1, count);
+      _fullPageCount = count;
+      final initial = _absPageFromRelative(widget.pageIndex);
       final ctrl = PdfControllerPinch(
         document: PdfDocument.openData(data),
         initialPage: initial,
@@ -107,10 +142,9 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
       }
       setState(() {
         _controller = ctrl;
-        _pageCount = count;
         _loading = false;
       });
-      widget.onPageCount?.call(count);
+      widget.onPageCount?.call(_sectionPageCount);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -158,7 +192,25 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
               padding: 8,
               onPageChanged: (page) {
                 if (_syncingPage) return;
-                widget.onPageIndexChange?.call(page - 1);
+                final start1 = _rangeStart + 1;
+                final end1 = _rangeEnd + 1;
+                if (page < start1) {
+                  _syncingPage = true;
+                  _controller!.jumpToPage(start1);
+                  Future<void>.delayed(const Duration(milliseconds: 80), () {
+                    if (mounted) _syncingPage = false;
+                  });
+                  return;
+                }
+                if (page > end1) {
+                  _syncingPage = true;
+                  _controller!.jumpToPage(end1);
+                  Future<void>.delayed(const Duration(milliseconds: 80), () {
+                    if (mounted) _syncingPage = false;
+                  });
+                  return;
+                }
+                widget.onPageIndexChange?.call(_relativeFromAbs(page));
               },
               builders: PdfViewPinchBuilders<DefaultBuilderOptions>(
                 options: const DefaultBuilderOptions(),

@@ -45,8 +45,8 @@ const ShelfBookManageSheet = dynamic(
   () => import('@/components/shelf/ShelfBookManageSheet'),
   { ssr: false },
 );
-const ShelfCheckinSheet = dynamic(
-  () => import('@/components/shelf/ShelfCheckinSheet'),
+const ShelfShareSheet = dynamic(
+  () => import('@/components/shelf/ShelfShareSheet'),
   { ssr: false },
 );
 
@@ -221,9 +221,11 @@ export function ShelfListContent() {
       ) : null}
 
       {shareBook ? (
-        <ShelfCheckinSheet
+        <ShelfShareSheet
           bookId={shareBook.id}
           bookTitle={shareBook.title}
+          subtitle={shareBook.subtitle}
+          author={shareBook.author}
           onClose={() => setShareBook(null)}
         />
       ) : null}

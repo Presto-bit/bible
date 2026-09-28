@@ -50,8 +50,8 @@ const ShelfAppendLessonSheet = dynamic(
   () => import('@/components/shelf/ShelfAppendLessonSheet'),
   { ssr: false },
 );
-const ShelfCheckinSheet = dynamic(
-  () => import('@/components/shelf/ShelfCheckinSheet'),
+const ShelfShareSheet = dynamic(
+  () => import('@/components/shelf/ShelfShareSheet'),
   { ssr: false },
 );
 const ShelfLibrarySheet = dynamic(
@@ -327,7 +327,7 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
             ·
           </span>
           <button type="button" className="shelf-detail-link" onClick={() => setShareOpen(true)}>
-            分享到群
+            分享
           </button>
           {book?.can_edit ? (
             <>
@@ -507,9 +507,11 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
       ) : null}
 
       {shareOpen && book ? (
-        <ShelfCheckinSheet
+        <ShelfShareSheet
           bookId={bookId}
           bookTitle={book.title}
+          subtitle={book.subtitle}
+          author={book.author}
           onClose={() => setShareOpen(false)}
         />
       ) : null}

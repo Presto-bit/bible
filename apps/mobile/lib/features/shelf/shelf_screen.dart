@@ -20,7 +20,7 @@ import 'shelf_repository.dart';
 import 'shelf_append_lesson_sheet.dart';
 import 'shelf_reader_contract.dart';
 import 'shelf_user_manage_sheet.dart';
-import 'shelf_checkin_sheet.dart';
+import 'shelf_share_sheet.dart';
 
 final shelfListProvider = FutureProvider<ShelfListData>((ref) async {
   ref.keepAlive();
@@ -341,7 +341,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.share_outlined),
-              title: const Text('分享到群'),
+              title: const Text('分享'),
               onTap: () => Navigator.pop(ctx, 'share'),
             ),
             if (showManage)
@@ -370,11 +370,13 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
       case 'move':
         await _moveBookToGroup(book);
       case 'share':
-        await showShelfCheckinSheet(
+        await showShelfShareSheet(
           context,
           ref,
           bookId: book.id,
           bookTitle: book.title,
+          subtitle: book.subtitle,
+          author: book.author,
         );
       case 'user_manage':
         final changed = await showShelfUserManageSheet(context, ref, book: book);

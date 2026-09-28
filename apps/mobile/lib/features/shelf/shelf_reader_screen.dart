@@ -872,12 +872,17 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     }
 
     if (section.hasPdfPrimary && section.primary != null) {
+      final primary = section.primary!;
       return ShelfPdfPageView(
-        key: ValueKey(section.primary!.storageKey),
+        key: ValueKey(
+          '${primary.storageKey}:${primary.pageStart ?? 0}:${primary.pageEnd ?? 'end'}',
+        ),
         repo: repo,
         bookId: widget.bookId,
-        storageKey: section.primary!.storageKey,
+        storageKey: primary.storageKey,
         pageIndex: _pageIndex,
+        pageStart: primary.pageStart ?? 0,
+        pageEnd: primary.pageEnd,
         canPrevSection: _canPrevSection,
         canNextSection: _canNextSection,
         childrenLesson: _isChildrenLesson && section.kind == 'lesson',

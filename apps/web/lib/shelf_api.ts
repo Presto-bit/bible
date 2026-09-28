@@ -59,6 +59,10 @@ export type ShelfPrimaryAsset = {
   storage_key: string;
   mime: string;
   title?: string;
+  /** PDF：本节起始页（0-based，含） */
+  page_start?: number;
+  /** PDF：本节结束页（0-based，含） */
+  page_end?: number;
 };
 
 export type ShelfBookDetail = ShelfBookSummary & {

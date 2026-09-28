@@ -72,7 +72,7 @@ function buildShelfBookActions(
     actions.push({ id: 'move', label: '移到分组', onClick: () => onMoveGroup(book) });
   }
   if (onShare) {
-    actions.push({ id: 'share', label: '分享到群', onClick: () => onShare(book) });
+    actions.push({ id: 'share', label: '分享', onClick: () => onShare(book) });
   }
   if (book.can_edit && onUserManage) {
     actions.push({ id: 'manage', label: '管理', onClick: () => onUserManage(book) });

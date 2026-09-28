@@ -1,4 +1,4 @@
-"""书架 P1/P2 解析器冒烟：md / txt / 图库 / EPUB DRM 拒绝。"""
+"""书架 P1/P2 解析器冒烟：md / txt / 图库 / EPUB DRM 拒绝 / PDF 书签。"""
 from __future__ import annotations
 
 import io
@@ -46,7 +46,7 @@ def test_trailing_gallery_wrap():
     assert out.count("<img") == 2
 
 
-def test_pdf_single_section_page_mode():
+def test_pdf_single_section_without_bookmarks():
     data = b"%PDF-1.4\n% fake minimal pdf for shelf import"
     parsed = parse_pdf_bytes(data, storage_key="shelf-my-book.pdf", title_hint="教案")
     assert parsed["section_count"] == 1
@@ -56,6 +56,54 @@ def test_pdf_single_section_page_mode():
     assert sec["html"] == ""
     assert sec["primary"]["mime"] == "application/pdf"
     assert sec["primary"]["storage_key"] == "shelf-my-book.pdf"
+
+
+def test_pdf_bookmarks_become_sections():
+    fitz = pytest.importorskip("fitz")
+    doc = fitz.open()
+    for i in range(5):
+        page = doc.new_page()
+        page.insert_text((72, 72), f"Page {i + 1}")
+    doc.set_toc(
+        [
+            [1, "引言", 1],
+            [1, "第一章", 3],
+            [1, "第二章", 5],
+        ]
+    )
+    data = doc.tobytes()
+    doc.close()
+
+    parsed = parse_pdf_bytes(data, storage_key="bookmarked.pdf", title_hint="教案")
+    assert parsed["section_count"] == 3
+    titles = [s["title"] for s in parsed["sections"]]
+    assert titles == ["引言", "第一章", "第二章"]
+    assert parsed["sections"][0]["primary"]["page_start"] == 0
+    assert parsed["sections"][0]["primary"]["page_end"] == 1
+    assert parsed["sections"][1]["primary"]["page_start"] == 2
+    assert parsed["sections"][1]["primary"]["page_end"] == 3
+    assert parsed["sections"][2]["primary"]["page_start"] == 4
+    assert parsed["sections"][2]["primary"]["page_end"] == 4
+    assert all(t.get("source") == "pdf_bookmark" for t in parsed["toc"]["body"])
+
+
+def test_pdf_front_matter_when_bookmark_not_on_page_one():
+    fitz = pytest.importorskip("fitz")
+    doc = fitz.open()
+    for i in range(4):
+        page = doc.new_page()
+        page.insert_text((72, 72), f"Page {i + 1}")
+    doc.set_toc([[1, "正文", 2]])
+    data = doc.tobytes()
+    doc.close()
+
+    parsed = parse_pdf_bytes(data, storage_key="front.pdf", title_hint="书")
+    assert parsed["section_count"] == 2
+    assert parsed["sections"][0]["title"] == "文前"
+    assert parsed["sections"][0]["primary"]["page_start"] == 0
+    assert parsed["sections"][0]["primary"]["page_end"] == 0
+    assert parsed["sections"][1]["title"] == "正文"
+    assert parsed["sections"][1]["primary"]["page_start"] == 1
 
 
 def test_epub_drm_rejected():

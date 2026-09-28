@@ -201,6 +201,8 @@ function ShelfPrimaryView({
         url={url}
         title={section.title}
         pageIndex={pageIndex}
+        pageStart={primary.page_start}
+        pageEnd={primary.page_end}
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
         onTap={onTap}

@@ -13,13 +13,13 @@ import '../../core/activity_log.dart';
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
-import 'shelf_checkin_sheet.dart';
 import 'shelf_library_store.dart';
 import 'shelf_post_sheets.dart';
 import 'shelf_posts_repository.dart';
 import 'shelf_progress.dart';
 import 'shelf_reader_screen.dart';
 import 'shelf_repository.dart';
+import 'shelf_share_sheet.dart';
 import 'shelf_toc.dart';
 import 'shelf_user_manage_sheet.dart';
 
@@ -574,11 +574,13 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                               Text('·', style: AppTypography.meta),
                               TextButton(
                                 onPressed: () => unawaited(
-                                  showShelfCheckinSheet(
+                                  showShelfShareSheet(
                                     context,
                                     ref,
                                     bookId: book.id,
                                     bookTitle: book.title,
+                                    subtitle: book.subtitle,
+                                    author: book.author,
                                   ),
                                 ),
                                 style: TextButton.styleFrom(
@@ -587,7 +589,7 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   foregroundColor: AppColors.accentDeep,
                                 ),
-                                child: const Text('分享到群', style: TextStyle(fontSize: 13)),
+                                child: const Text('分享', style: TextStyle(fontSize: 13)),
                               ),
                               if (book.canEdit) ...[
                                 Text('·', style: AppTypography.meta),

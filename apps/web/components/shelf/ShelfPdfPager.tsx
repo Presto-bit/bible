@@ -7,6 +7,10 @@ type Props = {
   url: string;
   title: string;
   pageIndex: number;
+  /** 本节在 PDF 中的起始页（0-based）；缺省 0 */
+  pageStart?: number;
+  /** 本节在 PDF 中的结束页（0-based，含）；缺省到文末 */
+  pageEnd?: number;
   baseScale?: number;
   initialZoom?: number;
   onPageCount?: (count: number) => void;
@@ -245,6 +249,8 @@ export default function ShelfPdfPager({
   url,
   title,
   pageIndex,
+  pageStart = 0,
+  pageEnd,
   baseScale = PDF_BASE_SCALE_DEFAULT,
   initialZoom = 1,
   onPageCount,
@@ -270,9 +276,22 @@ export default function ShelfPdfPager({
   const [pinching, setPinching] = useState(false);
   const [zoom, setZoom] = useState(() => clampShelfPdfZoom(initialZoom));
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
-  const [pageCount, setPageCount] = useState(0);
+  const [fullPageCount, setFullPageCount] = useState(0);
   const [containerWidth, setContainerWidth] = useState(() => measurePdfContainerWidth(null));
   const [pdfDoc, setPdfDoc] = useState<import('pdfjs-dist').PDFDocumentProxy | null>(null);
+
+  const rangeStart = Math.max(0, Math.floor(pageStart) || 0);
+  const rangeEndExclusive =
+    fullPageCount > 0
+      ? Math.min(
+          fullPageCount,
+          typeof pageEnd === 'number' && Number.isFinite(pageEnd)
+            ? Math.floor(pageEnd) + 1
+            : fullPageCount,
+        )
+      : 0;
+  const safeStart = Math.min(rangeStart, Math.max(0, rangeEndExclusive - 1));
+  const pageCount = Math.max(0, rangeEndExclusive - safeStart);
 
   useEffect(() => {
     activePageRef.current = pageIndex;
@@ -367,8 +386,7 @@ export default function ShelfPdfPager({
         if (cancelled) return;
         pdfRef.current = pdf;
         setPdfDoc(pdf);
-        setPageCount(pdf.numPages);
-        onPageCount?.(pdf.numPages);
+        setFullPageCount(pdf.numPages);
         setStatus('ready');
       } catch (err) {
         if (process.env.NODE_ENV !== 'production') {
@@ -382,8 +400,14 @@ export default function ShelfPdfPager({
       cancelled = true;
       pdfRef.current = null;
       setPdfDoc(null);
+      setFullPageCount(0);
     };
-  }, [url, onPageCount]);
+  }, [url]);
+
+  useEffect(() => {
+    if (status !== 'ready' || pageCount <= 0) return;
+    onPageCount?.(pageCount);
+  }, [status, pageCount, onPageCount]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -446,7 +470,7 @@ export default function ShelfPdfPager({
     requestAnimationFrame(() => {
       scrollSyncRef.current = false;
     });
-  }, [pageIndex, url, pageCount]);
+  }, [pageIndex, url, pageCount, safeStart]);
 
   const handleScroll = useCallback(() => {
     suppressTapRef.current = true;
@@ -532,25 +556,28 @@ export default function ShelfPdfPager({
           >
             {status === 'ready' && pdf && pageCount > 0 && containerWidth > 0 ? (
               <div className="shelf-pdf-scroll-stack">
-                {Array.from({ length: pageCount }, (_, i) => (
-                  <div
-                    key={`${url}-${i}`}
-                    ref={(el) => {
-                      pageRefs.current[i] = el;
-                    }}
-                  >
-                    <PdfPageTile
-                      pdf={pdf}
-                      pageNum={i + 1}
-                      url={url}
-                      containerWidth={containerWidth}
-                      baseScale={baseScale}
-                      zoom={zoom}
-                      title={title}
-                      scrollRootRef={stageRef}
-                    />
-                  </div>
-                ))}
+                {Array.from({ length: pageCount }, (_, i) => {
+                  const absPageNum = safeStart + i + 1;
+                  return (
+                    <div
+                      key={`${url}-${absPageNum}`}
+                      ref={(el) => {
+                        pageRefs.current[i] = el;
+                      }}
+                    >
+                      <PdfPageTile
+                        pdf={pdf}
+                        pageNum={absPageNum}
+                        url={url}
+                        containerWidth={containerWidth}
+                        baseScale={baseScale}
+                        zoom={zoom}
+                        title={title}
+                        scrollRootRef={stageRef}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             ) : status === 'ready' && pdf && pageCount > 0 ? (
               <p className="muted shelf-pdf-status" role="status">
