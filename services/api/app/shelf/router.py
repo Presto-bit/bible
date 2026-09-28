@@ -48,6 +48,11 @@ class UpdateSectionBody(BaseModel):
 router = APIRouter(prefix="/shelf", tags=["shelf"])
 
 
+# 上传书籍体积上限：普通用户 20MB，书柜管理员 100MB。
+_SHELF_IMPORT_MAX_BYTES = 20 * 1024 * 1024
+_SHELF_IMPORT_MAX_BYTES_ADMIN = 100 * 1024 * 1024
+
+
 @router.get("/platform/capabilities")
 def shelf_platform_capabilities(
     authorization: str | None = Header(default=None),
@@ -77,6 +82,9 @@ def shelf_platform_capabilities(
         "shelf_admin": ok,
         "can_append_collection": ok,
         "can_create_collection": bool(actor_id),
+        "import_max_bytes": (
+            _SHELF_IMPORT_MAX_BYTES_ADMIN if ok else _SHELF_IMPORT_MAX_BYTES
+        ),
     }
 
 
@@ -525,6 +533,11 @@ def shelf_platform_delete_book(
 @router.post("/platform/import")
 async def shelf_platform_import(
     file: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
     user_id: str = Depends(get_current_user),
 ) -> dict:
     """用户导入书架书目（docx / md / txt / pdf）。"""
@@ -534,9 +547,20 @@ async def shelf_platform_import(
     allowed = {".docx", ".md", ".markdown", ".txt", ".pdf"}
     if suffix not in allowed:
         raise HTTPException(400, "仅支持 .docx .md .txt .pdf")
+    is_admin = bool(
+        resolve_shelf_admin_actor(
+            authorization=authorization,
+            x_admin_token=x_admin_token,
+            x_user_id=x_user_id,
+            x_user_code=x_user_code,
+            cookie=cookie,
+        )
+    )
+    max_bytes = _SHELF_IMPORT_MAX_BYTES_ADMIN if is_admin else _SHELF_IMPORT_MAX_BYTES
+    max_mb = max_bytes // (1024 * 1024)
     data = await file.read()
-    if len(data) > 20 * 1024 * 1024:
-        raise HTTPException(400, "文件过大（上限 20MB）")
+    if len(data) > max_bytes:
+        raise HTTPException(400, f"文件过大（上限 {max_mb}MB）")
     if len(data) < 16:
         raise HTTPException(400, "文件无效")
     return import_platform_file(

@@ -92,7 +92,9 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
             ListTile(
               leading: const Icon(Icons.upload_file_outlined),
               title: const Text('上传书籍'),
-              subtitle: const Text('docx、txt、md、pdf，单本不超过 20MB'),
+              subtitle: Text(
+                'docx、txt、md、pdf，单本不超过 ${shelfImportMaxMbLabel(isShelfAdmin: _canManage)}',
+              ),
               onTap: () => Navigator.pop(ctx, 'book'),
             ),
             ListTile(
@@ -177,10 +179,12 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
     final file = result.files.single;
     final path = file.path;
     if (path == null || path.isEmpty) return;
-    if ((file.size) > shelfImportMaxBytes) {
+    final maxBytes = shelfImportLimitBytes(isShelfAdmin: _canManage);
+    final maxLabel = shelfImportMaxMbLabel(isShelfAdmin: _canManage);
+    if ((file.size) > maxBytes) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('单本不超过 20MB，可先拆章或转为 txt')),
+        SnackBar(content: Text('单本不超过 $maxLabel，可先拆章或转为 txt')),
       );
       return;
     }

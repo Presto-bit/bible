@@ -10,6 +10,16 @@ import { shelfIsChildrenLessonBook } from './shelf_reader_contract';
 export const SHELF_LIBRARY_KEY = 'presto_shelf_library_v1';
 export const SHELF_MAX_USER_GROUPS = 8;
 export const SHELF_IMPORT_MAX_BYTES = 20 * 1024 * 1024;
+/** 书柜管理员上传书籍上限 */
+export const SHELF_IMPORT_MAX_BYTES_ADMIN = 100 * 1024 * 1024;
+
+export function shelfImportMaxBytes(isShelfAdmin: boolean): number {
+  return isShelfAdmin ? SHELF_IMPORT_MAX_BYTES_ADMIN : SHELF_IMPORT_MAX_BYTES;
+}
+
+export function shelfImportMaxMbLabel(isShelfAdmin: boolean): string {
+  return `${shelfImportMaxBytes(isShelfAdmin) / (1024 * 1024)}MB`;
+}
 
 export type ShelfProgressFilter = 'reading' | 'finished' | 'unread';
 

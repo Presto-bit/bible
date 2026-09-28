@@ -1,5 +1,9 @@
 import { API_BASE, authHeaders } from './api_core';
 import { getAdminToken } from './admin_rag';
+import {
+  SHELF_IMPORT_MAX_BYTES,
+  SHELF_IMPORT_MAX_BYTES_ADMIN,
+} from './shelf_library';
 
 export type ShelfGroup = {
   id: string;
@@ -33,26 +37,49 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export async function fetchShelfAdminCapabilities(): Promise<{
   shelf_admin: boolean;
   can_append_collection: boolean;
+  import_max_bytes: number;
 }> {
   if (getAdminToken()) {
-    return { shelf_admin: true, can_append_collection: true };
+    return {
+      shelf_admin: true,
+      can_append_collection: true,
+      import_max_bytes: SHELF_IMPORT_MAX_BYTES_ADMIN,
+    };
   }
   try {
     const res = await fetch(`${API_BASE}/shelf/platform/capabilities`, {
       headers: authHeaders(),
       cache: 'no-store',
     });
-    if (!res.ok) return { shelf_admin: false, can_append_collection: false };
+    if (!res.ok) {
+      return {
+        shelf_admin: false,
+        can_append_collection: false,
+        import_max_bytes: SHELF_IMPORT_MAX_BYTES,
+      };
+    }
     const data = (await res.json()) as {
       shelf_admin?: boolean;
       can_append_collection?: boolean;
+      import_max_bytes?: number;
     };
+    const shelfAdmin = Boolean(data.shelf_admin);
     return {
-      shelf_admin: Boolean(data.shelf_admin),
+      shelf_admin: shelfAdmin,
       can_append_collection: Boolean(data.can_append_collection ?? data.shelf_admin),
+      import_max_bytes:
+        typeof data.import_max_bytes === 'number'
+          ? data.import_max_bytes
+          : shelfAdmin
+            ? SHELF_IMPORT_MAX_BYTES_ADMIN
+            : SHELF_IMPORT_MAX_BYTES,
     };
   } catch {
-    return { shelf_admin: false, can_append_collection: false };
+    return {
+      shelf_admin: false,
+      can_append_collection: false,
+      import_max_bytes: SHELF_IMPORT_MAX_BYTES,
+    };
   }
 }
 

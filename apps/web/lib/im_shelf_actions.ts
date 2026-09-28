@@ -9,7 +9,12 @@ import {
   parseShelfRef,
   rememberShelfRefLabel,
 } from '@/lib/shelf_checkin';
-import { pinShelfBookToLibrary, SHELF_IMPORT_MAX_BYTES } from '@/lib/shelf_library';
+import { fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
+import {
+  pinShelfBookToLibrary,
+  shelfImportMaxBytes,
+  shelfImportMaxMbLabel,
+} from '@/lib/shelf_library';
 
 export const SHELF_IMPORTABLE_EXTS = new Set(['.docx', '.md', '.markdown', '.txt', '.pdf']);
 
@@ -74,8 +79,10 @@ export async function saveShelfBookFromRef(ref: string): Promise<{ bookId: strin
 }
 
 export async function importImAttachmentToShelf(att: ImAttachment): Promise<{ id: string; title: string }> {
-  if (att.size_bytes && att.size_bytes > SHELF_IMPORT_MAX_BYTES) {
-    throw new Error('文件超过 20MB，无法导入书架');
+  const cap = await fetchShelfAdminCapabilities();
+  const maxBytes = shelfImportMaxBytes(cap.shelf_admin);
+  if (att.size_bytes && att.size_bytes > maxBytes) {
+    throw new Error(`文件超过 ${shelfImportMaxMbLabel(cap.shelf_admin)}，无法导入书架`);
   }
   const blob = att.storage_key
     ? await api.previewSocialMedia(att.storage_key)

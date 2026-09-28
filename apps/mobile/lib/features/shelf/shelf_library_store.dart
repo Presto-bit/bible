@@ -12,6 +12,13 @@ import 'shelf_repository.dart';
 const shelfLibraryKey = 'presto_shelf_library_v1';
 const shelfMaxUserGroups = 8;
 const shelfImportMaxBytes = 20 * 1024 * 1024;
+const shelfImportMaxBytesAdmin = 100 * 1024 * 1024;
+
+int shelfImportLimitBytes({required bool isShelfAdmin}) =>
+    isShelfAdmin ? shelfImportMaxBytesAdmin : shelfImportMaxBytes;
+
+String shelfImportMaxMbLabel({required bool isShelfAdmin}) =>
+    '${shelfImportLimitBytes(isShelfAdmin: isShelfAdmin) ~/ (1024 * 1024)}MB';
 const shelfUngroupedId = '_ungrouped';
 
 enum ShelfLibraryTabKind { lastRead, progress, added, group }

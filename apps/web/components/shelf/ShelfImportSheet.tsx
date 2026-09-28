@@ -1,11 +1,15 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useToast } from '@/components/ui/ToastProvider';
+import { fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
 import { createPlatformCollection, importPlatformShelfBook } from '@/lib/shelf_api';
 import { invalidateShelfListCache } from '@/lib/shelf_cache';
-import { SHELF_IMPORT_MAX_BYTES } from '@/lib/shelf_library';
+import {
+  shelfImportMaxBytes,
+  shelfImportMaxMbLabel,
+} from '@/lib/shelf_library';
 import { shellTapProps } from '@/lib/shell_tap';
 
 const ACCEPT =
@@ -18,13 +22,22 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>('book');
   const [busy, setBusy] = useState(false);
+  const [isShelfAdmin, setIsShelfAdmin] = useState(false);
   const [collectionTitle, setCollectionTitle] = useState('');
   const [collectionSubtitle, setCollectionSubtitle] = useState('');
+  const maxBytes = shelfImportMaxBytes(isShelfAdmin);
+  const maxMbLabel = shelfImportMaxMbLabel(isShelfAdmin);
+
+  useEffect(() => {
+    void fetchShelfAdminCapabilities().then((cap) => {
+      setIsShelfAdmin(cap.shelf_admin);
+    });
+  }, []);
 
   const onPick = async (file: File | null) => {
     if (!file) return;
-    if (file.size > SHELF_IMPORT_MAX_BYTES) {
-      flashToast('单本不超过 20MB，可先拆章或转为 txt');
+    if (file.size > maxBytes) {
+      flashToast(`单本不超过 ${maxMbLabel}，可先拆章或转为 txt`);
       return;
     }
     setBusy(true);
@@ -100,7 +113,7 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
         {mode === 'book' ? (
           <>
             <p className="shelf-import-hint muted">
-              支持 docx、txt、md、pdf，单本不超过 20MB。导入后将出现在「上架时间」。
+              支持 docx、txt、md、pdf，单本不超过 {maxMbLabel}。导入后将出现在「上架时间」。
             </p>
             <input
               id="shelf-import-file"
