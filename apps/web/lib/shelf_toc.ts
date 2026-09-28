@@ -12,12 +12,28 @@ export const SHELF_UNIT_DISPLAY: Record<string, string> = {
   第六单元: '第六单元 · 好牧人与小羊群',
 };
 
+export function isInternalShelfTocTitle(title: string | null | undefined): boolean {
+  const t = (title || '').trim();
+  if (!t) return true;
+  const stem = t.includes('.') ? t.replace(/\.[^.]+$/, '') : t;
+  return /^shelf-[0-9a-f]{8,}$/i.test(stem);
+}
+
+/** 书名展示：隐藏存储键形态的内部名 */
+export function shelfBookDisplayTitle(title: string | null | undefined): string {
+  const t = (title || '').trim();
+  if (!t || isInternalShelfTocTitle(t)) return '未命名';
+  return t;
+}
+
 export function shelfTocDisplayTitle(item: ShelfTocItem): string {
   if (item.source === 'unit' && item.title) {
     if (item.title.includes('·')) return item.title;
     return SHELF_UNIT_DISPLAY[item.title] ?? item.title;
   }
-  return item.title;
+  const t = (item.title || '').trim();
+  if (isInternalShelfTocTitle(t)) return '正文';
+  return t || '正文';
 }
 
 function sectionIds(items: ShelfTocItem[]): Set<string> {
@@ -40,6 +56,8 @@ function filterMetaItems(items: ShelfTocItem[]): ShelfTocItem[] {
     if (item.zone === 'meta') return false;
     if (/^目\s*录$/.test(t)) return false;
     if (t === 'Table of Contents') return false;
+    // 无真实目录时的占位「正文」不进目录预览（避免解析失败仍占一行）
+    if (item.source === 'file' && (t === '正文' || isInternalShelfTocTitle(t))) return false;
     return true;
   });
 }

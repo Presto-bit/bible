@@ -252,6 +252,24 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       if (_pendingScrollEnd) {
         setState(() => _pendingScrollEnd = false);
       }
+      if (shelfSectionIsPdf(section)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          maybeShowShelfPdfZoomHint(
+            ref.read(prefsProvider),
+            (msg) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(msg),
+                  duration: const Duration(milliseconds: 2200),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+          );
+        });
+      }
       unawaited(_loadPublicNotes(sectionId));
       unawaited(_reloadSectionStats());
     } catch (_) {
@@ -886,6 +904,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         canPrevSection: _canPrevSection,
         canNextSection: _canNextSection,
         childrenLesson: _isChildrenLesson && section.kind == 'lesson',
+        prefs: ref.read(prefsProvider),
         onPageCount: _onPageCount,
         onPageIndexChange: _onPageIndexChange,
         onTap: _toggleChrome,

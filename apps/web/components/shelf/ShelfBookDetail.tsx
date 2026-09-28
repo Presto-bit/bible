@@ -19,7 +19,7 @@ import {
   formatShelfCheckinLabel,
   rememberShelfRefLabel,
 } from '@/lib/shelf_checkin';
-import { buildShelfTocGroups, resolveSectionId, shelfTocDisplayTitle } from '@/lib/shelf_toc';
+import { buildShelfTocGroups, resolveSectionId, shelfBookDisplayTitle, shelfTocDisplayTitle } from '@/lib/shelf_toc';
 import {
   shelfBookProgressRatio,
   shelfBookProgressSummary,
@@ -262,8 +262,8 @@ export default function ShelfBookDetail({ bookId }: { bookId: string }) {
       ) : null}
 
       <section className="shelf-detail-hero">
-        <ShelfCoverPlate title={book?.title || ''} size="detail" coverUrl={coverUrl} />
-        <h1 className="shelf-detail-title">{book?.title}</h1>
+        <ShelfCoverPlate title={shelfBookDisplayTitle(book?.title)} size="detail" coverUrl={coverUrl} />
+        <h1 className="shelf-detail-title">{shelfBookDisplayTitle(book?.title)}</h1>
         {book?.author ? <p className="shelf-detail-author muted">{book.author}</p> : null}
         {typeMeta || progressSummary ? (
           <p className="shelf-detail-meta muted">

@@ -48,14 +48,26 @@ def test_trailing_gallery_wrap():
 
 def test_pdf_single_section_without_bookmarks():
     data = b"%PDF-1.4\n% fake minimal pdf for shelf import"
-    parsed = parse_pdf_bytes(data, storage_key="shelf-my-book.pdf", title_hint="教案")
+    parsed = parse_pdf_bytes(
+        data, storage_key="shelf-abcdef0123456789.pdf", title_hint="教案周刊"
+    )
     assert parsed["section_count"] == 1
-    assert parsed["title"] == "教案"
+    assert parsed["title"] == "教案周刊"
     sec = parsed["sections"][0]
     assert sec["kind"] == "lesson"
+    assert sec["title"] == "正文"
     assert sec["html"] == ""
     assert sec["primary"]["mime"] == "application/pdf"
-    assert sec["primary"]["storage_key"] == "shelf-my-book.pdf"
+    assert sec["primary"]["storage_key"] == "shelf-abcdef0123456789.pdf"
+    assert parsed["toc"]["body"][0]["title"] == "正文"
+
+
+def test_pdf_rejects_storage_key_as_visible_title():
+    data = b"%PDF-1.4\n% fake minimal pdf for shelf import"
+    parsed = parse_pdf_bytes(data, storage_key="shelf-abcdef0123456789.pdf", title_hint=None)
+    assert parsed["title"] == "未命名"
+    assert parsed["sections"][0]["title"] == "正文"
+    assert not parsed["title"].startswith("shelf-")
 
 
 def test_pdf_bookmarks_become_sections():

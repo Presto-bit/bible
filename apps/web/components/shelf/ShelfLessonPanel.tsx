@@ -200,9 +200,11 @@ function ShelfPrimaryView({
       <ShelfPdfPager
         url={url}
         title={section.title}
+        bookId={bookId}
         pageIndex={pageIndex}
         pageStart={primary.page_start}
         pageEnd={primary.page_end}
+        childrenLesson={childrenLesson}
         onPageCount={onPageCount}
         onPageIndexChange={onPageIndexChange}
         onTap={onTap}

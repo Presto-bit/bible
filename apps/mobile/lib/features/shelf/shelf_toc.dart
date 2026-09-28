@@ -20,12 +20,27 @@ const _unitDisplay = {
   '第六单元': '第六单元 · 好牧人与小羊群',
 };
 
+String shelfBookDisplayTitle(String? title) {
+  final t = (title ?? '').trim();
+  if (t.isEmpty || _isInternalShelfTocTitle(t)) return '未命名';
+  return t;
+}
+
 String shelfTocDisplayTitle(ShelfTocItem item) {
   if (item.source == 'unit' && item.title.isNotEmpty) {
     if (item.title.contains('·')) return item.title;
     return _unitDisplay[item.title] ?? item.title;
   }
-  return item.title;
+  final t = item.title.trim();
+  if (_isInternalShelfTocTitle(t)) return '正文';
+  return t.isEmpty ? '正文' : t;
+}
+
+bool _isInternalShelfTocTitle(String title) {
+  final t = title.trim();
+  if (t.isEmpty) return true;
+  final stem = t.contains('.') ? t.replaceAll(RegExp(r'\.[^.]+$'), '') : t;
+  return RegExp(r'^shelf-[0-9a-f]{8,}$', caseSensitive: false).hasMatch(stem);
 }
 
 Set<String> _sectionIds(List<ShelfTocItem> items) =>
@@ -45,6 +60,9 @@ List<ShelfTocItem> _filterMeta(List<ShelfTocItem> items) => items.where((item) {
       if (item.zone == 'meta') return false;
       if (RegExp(r'^目\s*录$').hasMatch(t)) return false;
       if (t == 'Table of Contents') return false;
+      if (item.source == 'file' && (t == '正文' || _isInternalShelfTocTitle(t))) {
+        return false;
+      }
       return true;
     }).toList();
 

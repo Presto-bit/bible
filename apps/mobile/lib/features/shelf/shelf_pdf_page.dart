@@ -1,12 +1,15 @@
 /// 书架 PDF 纵向连滚（节内上下滑页；左右滑切节，对齐 SHELF-READING 契约）。
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme.dart';
+import 'shelf_reader_contract.dart';
 import 'shelf_repository.dart';
 
 class ShelfPdfPageView extends StatefulWidget {
@@ -21,6 +24,7 @@ class ShelfPdfPageView extends StatefulWidget {
     this.canPrevSection = false,
     this.canNextSection = false,
     this.childrenLesson = false,
+    this.prefs,
     this.onPageCount,
     this.onPageIndexChange,
     this.onSectionEdge,
@@ -39,6 +43,7 @@ class ShelfPdfPageView extends StatefulWidget {
   final bool canPrevSection;
   final bool canNextSection;
   final bool childrenLesson;
+  final SharedPreferences? prefs;
   final ValueChanged<int>? onPageCount;
   final ValueChanged<int>? onPageIndexChange;
   final ValueChanged<String>? onSectionEdge;
@@ -55,6 +60,10 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
   String? _error;
   var _fullPageCount = 1;
   var _syncingPage = false;
+  double? _fitScale;
+  double _targetRelativeZoom = shelfPdfZoomDefault;
+  var _appliedInitialZoom = false;
+  SharedPreferences? _prefs;
 
   int get _rangeStart => widget.pageStart < 0 ? 0 : widget.pageStart;
 
@@ -72,6 +81,9 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
   int _relativeFromAbs(int absOneBased) =>
       (absOneBased - 1 - _rangeStart).clamp(0, _sectionPageCount - 1);
 
+  double get _defaultZoom =>
+      widget.childrenLesson ? shelfChildrenPdfDefaultZoom : shelfPdfZoomDefault;
+
   @override
   void initState() {
     super.initState();
@@ -85,6 +97,10 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
         oldWidget.bookId != widget.bookId) {
       _load();
       return;
+    }
+    if (oldWidget.childrenLesson != widget.childrenLesson ||
+        oldWidget.prefs != widget.prefs) {
+      _reloadTargetZoom();
     }
     final rangeChanged =
         oldWidget.pageStart != widget.pageStart || oldWidget.pageEnd != widget.pageEnd;
@@ -116,14 +132,31 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
     super.dispose();
   }
 
+  void _reloadTargetZoom() {
+    final prefs = _prefs ?? widget.prefs;
+    if (prefs == null) {
+      _targetRelativeZoom = _defaultZoom;
+      return;
+    }
+    _targetRelativeZoom = readShelfPdfZoom(
+      prefs,
+      bookId: widget.bookId,
+      fallback: _defaultZoom,
+    );
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
+      _fitScale = null;
+      _appliedInitialZoom = false;
     });
     _controller?.dispose();
     _controller = null;
     try {
+      _prefs = widget.prefs ?? await SharedPreferences.getInstance();
+      _reloadTargetZoom();
       final bytes = await widget.repo.fetchAssetBytes(
         widget.bookId,
         widget.storageKey,
@@ -152,6 +185,43 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
         _error = '无法加载 PDF';
       });
     }
+  }
+
+  Future<void> _applySavedZoom() async {
+    final ctrl = _controller;
+    if (ctrl == null || _appliedInitialZoom || !mounted) return;
+    for (var i = 0; i < 12; i++) {
+      if (!mounted || _controller != ctrl) return;
+      final fit = ctrl.calculatePageFitMatrix(pageNumber: ctrl.page);
+      if (fit != null) {
+        _fitScale = fit.getMaxScaleOnAxis();
+        final relative = clampShelfPdfZoom(_targetRelativeZoom);
+        if ((relative - 1.0).abs() > 0.02) {
+          final zoomed = Matrix4.copy(fit)..scaleByDouble(relative, relative, 1.0, 1.0);
+          await ctrl.goTo(destination: zoomed, duration: Duration.zero);
+        }
+        _appliedInitialZoom = true;
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+    }
+  }
+
+  void _captureFitScale() {
+    final ctrl = _controller;
+    if (ctrl == null || _fitScale != null) return;
+    final fit = ctrl.calculatePageFitMatrix(pageNumber: ctrl.page);
+    if (fit != null) _fitScale = fit.getMaxScaleOnAxis();
+  }
+
+  void _persistCurrentZoom() {
+    final ctrl = _controller;
+    final prefs = _prefs ?? widget.prefs;
+    final fit = _fitScale;
+    if (ctrl == null || prefs == null || fit == null || fit <= 0) return;
+    final relative = clampShelfPdfZoom(ctrl.zoomRatio / fit);
+    _targetRelativeZoom = relative;
+    unawaited(writeShelfPdfZoom(prefs, relative, bookId: widget.bookId));
   }
 
   @override
@@ -190,6 +260,21 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
               controller: _controller!,
               scrollDirection: Axis.vertical,
               padding: 8,
+              minScale: 1.0,
+              maxScale: 4.0,
+              onDocumentLoaded: (_) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  unawaited(_applySavedZoom());
+                });
+              },
+              onInteractionStart: (_) {
+                _captureFitScale();
+                widget.onPinchActive?.call(true);
+              },
+              onInteractionEnd: (_) {
+                widget.onPinchActive?.call(false);
+                _persistCurrentZoom();
+              },
               onPageChanged: (page) {
                 if (_syncingPage) return;
                 final start1 = _rangeStart + 1;
@@ -217,7 +302,7 @@ class _ShelfPdfPageViewState extends State<ShelfPdfPageView> {
                 documentLoaderBuilder: (_) =>
                     const Center(child: Text('正在加载 PDF…', style: AppTypography.meta)),
                 pageLoaderBuilder: (_) => const SizedBox.shrink(),
-                errorBuilder: (_, __) =>
+                errorBuilder: (_, error) =>
                     const Center(child: Text('无法渲染 PDF 页', style: AppTypography.meta)),
               ),
             ),

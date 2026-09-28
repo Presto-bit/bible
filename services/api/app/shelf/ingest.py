@@ -85,22 +85,24 @@ def import_platform_file(
         ".pdf": "application/pdf",
     }.get(suffix, "application/octet-stream")
 
+    # 人类可读标题优先：显式 title → 原文件名 → 解析结果（禁止 shelf-{uuid}）
+    title_hint = (title or Path(filename or "").stem or "").strip() or None
     try:
         if suffix == ".docx":
             parsed = parse_docx_bytes(data, book_id=book_id, storage_key=storage_key, enrich=True)
         elif suffix in {".md", ".markdown"}:
             parsed = parse_markdown_bytes(
-                data, book_id=book_id, storage_key=storage_key, title_hint=title
+                data, book_id=book_id, storage_key=storage_key, title_hint=title_hint
             )
         elif suffix == ".txt":
-            parsed = parse_txt_bytes(data, title_hint=title)
+            parsed = parse_txt_bytes(data, title_hint=title_hint)
         elif suffix == ".epub":
             parsed = parse_epub_bytes(
-                data, book_id=book_id, storage_key=storage_key, title_hint=title
+                data, book_id=book_id, storage_key=storage_key, title_hint=title_hint
             )
         elif suffix == ".pdf":
             parsed = parse_pdf_bytes(
-                data, storage_key=storage_key, title_hint=title
+                data, storage_key=storage_key, title_hint=title_hint
             )
         else:
             raise HTTPException(400, "不支持的格式")
@@ -111,9 +113,27 @@ def import_platform_file(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"解析失败：{e}") from e
 
-    book_title = (title or parsed.get("title") or Path(filename).stem or "未命名").strip()
+    from .pdf_parse import human_pdf_title, is_internal_shelf_label
+
+    book_title = human_pdf_title(
+        title,
+        Path(filename or "").stem,
+        parsed.get("title"),
+        fallback="未命名",
+    )
     toc = parsed.get("toc") or {}
     sections = parsed.get("sections") or []
+    # 兜底：已写入的节/目录标题若仍是存储键，改成「正文」
+    for sec in sections:
+        if isinstance(sec, dict) and is_internal_shelf_label(str(sec.get("title") or "")):
+            sec["title"] = "正文"
+    for zone in ("front", "body", "outline", "appendix"):
+        items = toc.get(zone) or []
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, dict) and is_internal_shelf_label(str(item.get("title") or "")):
+                item["title"] = "正文"
 
     # 章节 HTML 缓存，供阅读升级
     write_meta_cache(

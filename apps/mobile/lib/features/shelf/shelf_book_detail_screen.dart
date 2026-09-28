@@ -338,7 +338,7 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
           color: AppColors.accentDeep,
           onPressed: () => context.pop(),
         ),
-        title: Text(book?.title ?? '书目', style: AppTypography.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(shelfBookDisplayTitle(book?.title), style: AppTypography.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       floatingActionButton: _tab == _DetailTab.reviews
           ? FloatingActionButton.extended(
@@ -453,7 +453,7 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                           ),
                           const SizedBox(height: 14),
                           Text(
-                            book.title,
+                            shelfBookDisplayTitle(book.title),
                             style: AppTypography.title.copyWith(fontSize: 20),
                             textAlign: TextAlign.center,
                           ),

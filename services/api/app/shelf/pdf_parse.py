@@ -1,8 +1,30 @@
 """单本 PDF 入库：优先读书签切节；无书签则整文件一节。阅读走 page 模式。"""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
+
+# 存储键 stem：shelf-{uuid hex}，禁止当作用户可见书名/目录名
+_STORAGE_STEM_RE = re.compile(r"^shelf-[0-9a-f]{8,}$", re.IGNORECASE)
+
+
+def is_internal_shelf_label(raw: str | None) -> bool:
+    t = (raw or "").strip()
+    if not t:
+        return True
+    stem = Path(t).stem if "." in t else t
+    return bool(_STORAGE_STEM_RE.match(stem))
+
+
+def human_pdf_title(*candidates: str | None, fallback: str = "未命名") -> str:
+    for raw in candidates:
+        t = (raw or "").replace("\x00", "").strip()
+        t = " ".join(t.split())
+        if not t or is_internal_shelf_label(t):
+            continue
+        return t[:120]
+    return fallback
 
 
 def _single_section_book(
@@ -13,6 +35,9 @@ def _single_section_book(
     author: str | None = None,
 ) -> dict[str, Any]:
     stem = Path(storage_key).stem or "book"
+    book_title = human_pdf_title(title, fallback="未命名")
+    # 无书签时目录不要暴露存储键；单节统一展示「正文」
+    section_title = "正文"
     sec_id = f"sec-{stem}"
     primary: dict[str, Any] = {
         "storage_key": storage_key,
@@ -24,7 +49,7 @@ def _single_section_book(
         primary["page_end"] = page_count - 1
     toc_entry = {
         "id": f"tb-{stem}",
-        "title": title,
+        "title": section_title,
         "level": 1,
         "zone": "body",
         "source": "file",
@@ -33,7 +58,7 @@ def _single_section_book(
     }
     section = {
         "id": sec_id,
-        "title": title,
+        "title": section_title,
         "zone": "body",
         "level": 1,
         "kind": "lesson",
@@ -42,7 +67,7 @@ def _single_section_book(
         "attachments": [],
     }
     return {
-        "title": title,
+        "title": book_title,
         "subtitle": None,
         "author": author,
         "sections": [section],
@@ -59,11 +84,7 @@ def _single_section_book(
 
 
 def _clean_title(raw: str, *, fallback: str) -> str:
-    t = (raw or "").replace("\x00", "").strip()
-    t = " ".join(t.split())
-    if not t:
-        return fallback
-    return t[:120]
+    return human_pdf_title(raw, fallback=fallback)
 
 
 def _bookmark_entries(data: bytes) -> tuple[list[tuple[int, str, int]], int, str | None, str | None]:
@@ -74,7 +95,7 @@ def _bookmark_entries(data: bytes) -> tuple[list[tuple[int, str, int]], int, str
     try:
         page_count = int(doc.page_count or 0)
         meta = doc.metadata or {}
-        doc_title = (meta.get("title") or "").strip() or None
+        doc_title = human_pdf_title(meta.get("title"), fallback="") or None
         doc_author = (meta.get("author") or "").strip() or None
         raw_toc = doc.get_toc(simple=True) or []
     finally:
@@ -91,7 +112,9 @@ def _bookmark_entries(data: bytes) -> tuple[list[tuple[int, str, int]], int, str
         except (TypeError, ValueError):
             continue
         title = _clean_title(str(item[1] or ""), fallback="")
-        if not title or page < 1 or (page_count > 0 and page > page_count):
+        if not title or is_internal_shelf_label(title):
+            continue
+        if page < 1 or (page_count > 0 and page > page_count):
             continue
         # 同页连续书签合并为一条（避免空节）
         if page in seen_pages:
@@ -113,7 +136,7 @@ def parse_pdf_bytes(
         raise ValueError("不是有效的 PDF 文件")
 
     stem = Path(storage_key).stem or "book"
-    fallback_title = (title_hint or stem or "未命名").strip()
+    hint = human_pdf_title(title_hint, fallback="")
 
     try:
         entries, page_count, doc_title, doc_author = _bookmark_entries(data)
@@ -121,10 +144,10 @@ def parse_pdf_bytes(
         # PyMuPDF 不可用或损坏：回退整本一节
         return _single_section_book(
             storage_key=storage_key,
-            title=fallback_title,
+            title=hint or "未命名",
         )
 
-    title = (doc_title or fallback_title).strip() or "未命名"
+    title = human_pdf_title(doc_title, hint, fallback="未命名")
     if not entries or page_count <= 0:
         return _single_section_book(
             storage_key=storage_key,

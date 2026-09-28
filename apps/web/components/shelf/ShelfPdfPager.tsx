@@ -1,11 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react';
-import { clampShelfPdfZoom } from '@/lib/shelf_reader_contract';
+import {
+  clampShelfPdfZoom,
+  readShelfPdfZoom,
+  writeShelfPdfZoom,
+  SHELF_CHILDREN_PDF_BASE_SCALE,
+  SHELF_CHILDREN_PDF_DEFAULT_ZOOM,
+  SHELF_PDF_ZOOM_DEFAULT,
+} from '@/lib/shelf_reader_contract';
 
 type Props = {
   url: string;
   title: string;
+  bookId?: string;
   pageIndex: number;
   /** 本节在 PDF 中的起始页（0-based）；缺省 0 */
   pageStart?: number;
@@ -13,6 +21,7 @@ type Props = {
   pageEnd?: number;
   baseScale?: number;
   initialZoom?: number;
+  childrenLesson?: boolean;
   onPageCount?: (count: number) => void;
   onPageIndexChange?: (index: number) => void;
   onTap?: () => void;
@@ -248,11 +257,13 @@ function PdfPageTile({
 export default function ShelfPdfPager({
   url,
   title,
+  bookId,
   pageIndex,
   pageStart = 0,
   pageEnd,
-  baseScale = PDF_BASE_SCALE_DEFAULT,
-  initialZoom = 1,
+  baseScale: baseScaleProp,
+  initialZoom,
+  childrenLesson = false,
   onPageCount,
   onPageIndexChange,
   onTap,
@@ -273,8 +284,19 @@ export default function ShelfPdfPager({
   const zoomRafRef = useRef<number | null>(null);
   const pendingZoomRef = useRef<number | null>(null);
   const zoomRef = useRef(1);
+  const bookIdRef = useRef(bookId);
   const [pinching, setPinching] = useState(false);
-  const [zoom, setZoom] = useState(() => clampShelfPdfZoom(initialZoom));
+  const baseScale =
+    baseScaleProp
+    ?? (childrenLesson ? SHELF_CHILDREN_PDF_BASE_SCALE : PDF_BASE_SCALE_DEFAULT);
+  const defaultZoom = childrenLesson
+    ? SHELF_CHILDREN_PDF_DEFAULT_ZOOM
+    : SHELF_PDF_ZOOM_DEFAULT;
+  const [zoom, setZoom] = useState(() =>
+    clampShelfPdfZoom(
+      initialZoom ?? readShelfPdfZoom(bookId, defaultZoom),
+    ),
+  );
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [fullPageCount, setFullPageCount] = useState(0);
   const [containerWidth, setContainerWidth] = useState(() => measurePdfContainerWidth(null));
@@ -294,12 +316,28 @@ export default function ShelfPdfPager({
   const pageCount = Math.max(0, rangeEndExclusive - safeStart);
 
   useEffect(() => {
+    bookIdRef.current = bookId;
+  }, [bookId]);
+
+  useEffect(() => {
+    const next = clampShelfPdfZoom(
+      initialZoom ?? readShelfPdfZoom(bookId, defaultZoom),
+    );
+    setZoom(next);
+    zoomRef.current = next;
+  }, [bookId, initialZoom, defaultZoom]);
+
+  useEffect(() => {
     activePageRef.current = pageIndex;
   }, [pageIndex]);
 
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
+
+  const persistZoom = useCallback((z: number) => {
+    writeShelfPdfZoom(z, bookIdRef.current);
+  }, []);
 
   const scheduleZoom = useCallback((next: number) => {
     pendingZoomRef.current = clampShelfPdfZoom(next);
@@ -339,6 +377,7 @@ export default function ShelfPdfPager({
       pinchRef.current.active = false;
       onPinchActive?.(false);
       setPinching(false);
+      persistZoom(zoomRef.current);
     };
 
     el.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -355,7 +394,7 @@ export default function ShelfPdfPager({
       onPinchActive?.(false);
       setPinching(false);
     };
-  }, [onPinchActive, scheduleZoom, status]);
+  }, [onPinchActive, scheduleZoom, persistZoom, status]);
 
   useEffect(() => {
     let cancelled = false;

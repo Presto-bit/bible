@@ -33,7 +33,11 @@ import {
   formatShelfCommentCount,
   type ShelfPost,
 } from '@/lib/shelf_posts';
-import { shelfSectionIsPdf, shelfIsChildrenLessonBook } from '@/lib/shelf_reader_contract';
+import {
+  shelfSectionIsPdf,
+  shelfIsChildrenLessonBook,
+  maybeShowShelfPdfZoomHint,
+} from '@/lib/shelf_reader_contract';
 import { friendlyError } from '@/lib/friendly_error';
 import { touchShelfBookLastRead } from '@/lib/shelf_library';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
@@ -163,6 +167,11 @@ export default function ShelfReader({
       setShelfReaderChrome(false);
     };
   }, [bookId, sectionId]);
+
+  useEffect(() => {
+    if (!isPdfSection) return;
+    maybeShowShelfPdfZoomHint(flashToast);
+  }, [isPdfSection, flashToast]);
 
   const neighborId = useCallback(
     (delta: number) => {

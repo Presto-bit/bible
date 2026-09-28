@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
 import 'shelf_repository.dart';
+import 'shelf_toc.dart';
 
 /// 对齐 PWA `.shelf-book-card-cover { aspect-ratio: 3 / 4 }`
 const _kCoverAspect = 3 / 4;
@@ -102,7 +103,7 @@ class ShelfBookCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        book.title.isEmpty ? '未命名' : book.title,
+                        shelfBookDisplayTitle(book.title),
                         maxLines: hasMeta ? 1 : 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(

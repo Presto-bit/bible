@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useRef } from 'react';
 import type { ShelfBookSummary } from '@/lib/shelf_api';
 import { shelfBookCardHref } from '@/lib/shelf_library';
+import { shelfBookDisplayTitle } from '@/lib/shelf_toc';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import ShelfBrandCover from '@/components/shelf/ShelfBrandCover';
 import { shelfBookProgressRatio, shelfBookCardMetaLine } from '@/lib/shelf_library';
@@ -128,7 +129,9 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
         ) : null}
       </div>
       <div className="shelf-book-card-text">
-        <p className={`shelf-book-card-title${hasMeta ? ' is-compact' : ''}`}>{book.title}</p>
+        <p className={`shelf-book-card-title${hasMeta ? ' is-compact' : ''}`}>
+          {shelfBookDisplayTitle(book.title)}
+        </p>
         {hasMeta ? <p className="shelf-book-card-meta muted">{metaText}</p> : null}
       </div>
     </div>
