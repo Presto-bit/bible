@@ -52,7 +52,7 @@ import { shellTapProps } from '@/lib/shell_tap';
 import '@/styles/plans.css';
 import '@/styles/shelf.css';
 
-const ShelfLessonPanel = dynamic(() => import('@/components/shelf/ShelfLessonPanel'), {
+const ShelfLessonView = dynamic(() => import('@/components/shelf/ShelfLessonPanel'), {
   ssr: false,
   loading: () => <p className="muted shelf-pdf-status">加载教案…</p>,
 });
