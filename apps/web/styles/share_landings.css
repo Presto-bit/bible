@@ -594,6 +594,49 @@ body.share-landing-active .tabbar {
   align-items: stretch;
 }
 
+/* shelf unified share: recent contacts + system share */
+.shelf-unified-share-social {
+  margin-top: 16px;
+}
+.shelf-unified-share-social-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.shelf-unified-share-social-head .im-contact-section-title {
+  margin: 0;
+}
+.shelf-unified-share-recent {
+  margin: 0 -4px;
+  padding: 0 4px 4px;
+}
+.shelf-unified-share-compose {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.shelf-unified-share-dock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.shelf-unified-share-system {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--line, #ddd) 80%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.shelf-unified-share-system-hint {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+}
+
 
 /* relocated: share-target from verse_fullscreen */
 .share-target-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
