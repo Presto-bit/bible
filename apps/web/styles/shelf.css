@@ -2856,11 +2856,33 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   font-size: inherit !important;
   font-family: inherit !important;
   line-height: inherit !important;
-  color: inherit;
   margin-left: 0 !important;
   margin-right: 0 !important;
   max-width: 100% !important;
   width: auto !important;
+}
+
+/* 正文容器用阅读器墨色；强调/链接/带 color 的 span 保留作者色 */
+.shelf-docx-prose font,
+.shelf-docx-prose div:not(.shelf-docx-table-wrap):not(.shelf-run-color) {
+  color: inherit;
+}
+
+.shelf-docx-prose span:not([style*="color"]):not(.shelf-run-color) {
+  color: inherit;
+}
+
+.shelf-docx-prose a:not(.shelf-inline-ref) {
+  color: var(--accent, #7d9b8a);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.shelf-docx-prose .shelf-run-color,
+.shelf-docx-prose span[style*="color"],
+.shelf-docx-prose strong[style*="color"],
+.shelf-docx-prose em[style*="color"] {
+  /* 内联 color 优先于 prose 墨色 */
 }
 
 .shelf-docx-prose div:not(.shelf-docx-table-wrap) {
@@ -3061,6 +3083,9 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 
 .shelf-docx-prose strong {
   font-weight: 700;
+}
+
+.shelf-docx-prose strong:not([style*="color"]) {
   color: var(--ink);
 }
 

@@ -492,7 +492,7 @@ export async function updateCollectionSection(
   patch: { title?: string; unit?: string },
 ): Promise<{ section: { id: string; title: string; unit?: string } }> {
   const res = await fetch(
-    `${API_BASE}/shelf/platform/collections/${encodeURIComponent(bookId)}/sections/${encodeURIComponent(sectionId)}`,
+    `${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}/sections/${encodeURIComponent(sectionId)}`,
     {
       method: 'PATCH',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
@@ -511,6 +511,34 @@ export async function updateCollectionSection(
       /* ignore */
     }
     throw new Error(typeof detail === 'string' ? detail : '保存失败');
+  }
+  return res.json();
+}
+
+export async function reorderPlatformSections(
+  bookId: string,
+  sectionIds: string[],
+): Promise<{ section_ids: string[] }> {
+  const res = await fetch(
+    `${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}/sections/order`,
+    {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ section_ids: sectionIds }),
+      cache: 'no-store',
+    },
+  );
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权编辑');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '调整顺序失败');
   }
   return res.json();
 }
@@ -572,7 +600,7 @@ export async function deleteCollectionSection(
   sectionId: string,
 ): Promise<{ section_count: number }> {
   const res = await fetch(
-    `${API_BASE}/shelf/platform/collections/${encodeURIComponent(bookId)}/sections/${encodeURIComponent(sectionId)}`,
+    `${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}/sections/${encodeURIComponent(sectionId)}`,
     { method: 'DELETE', headers: authHeaders(), cache: 'no-store' },
   );
   if (res.status === 401) throw new Error('未登录');

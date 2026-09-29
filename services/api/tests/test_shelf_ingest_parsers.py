@@ -118,6 +118,40 @@ def test_pdf_front_matter_when_bookmark_not_on_page_one():
     assert parsed["sections"][1]["primary"]["page_start"] == 1
 
 
+def test_docx_plain_no_heading_falls_back_to_single_section():
+    """无段落样式的普通 Word：整篇落成一节，避免入库后空书。"""
+    from app.shelf.docx_parse import parse_docx_bytes
+
+    content_types = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>"""
+    rels = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>"""
+    doc = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>写给翻开这本书的你</w:t></w:r></w:p>
+    <w:p><w:r><w:t>爱情不会自然而然地长成承诺。</w:t></w:r></w:p>
+  </w:body>
+</w:document>"""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("[Content_Types].xml", content_types)
+        zf.writestr("_rels/.rels", rels)
+        zf.writestr("word/document.xml", doc)
+    parsed = parse_docx_bytes(buf.getvalue(), book_id="b1", storage_key="plain.docx", enrich=True)
+    assert parsed["section_count"] == 1
+    assert parsed["sections"][0]["title"] == "正文"
+    assert "承诺" in parsed["sections"][0]["html"]
+    assert parsed.get("needs_toc_confirm") is True
+    assert parsed["title"] == "写给翻开这本书的你"
+
+
 def test_epub_drm_rejected():
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:

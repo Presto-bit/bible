@@ -8,10 +8,12 @@ _STRIP_STYLE_KEYS = (
     "font-size",
     "font-family",
     "line-height",
-    "color",
     "letter-spacing",
     "mso-",
 )
+
+# 正文块上的 color 仍剥；强调/链接标签可保留
+_COLOR_OK_TAGS = frozenset({"a", "strong", "b", "em", "i", "span"})
 
 _LAYOUT_STYLE_KEYS = {
     "margin-left",
@@ -43,17 +45,25 @@ _H_RE = {
     4: re.compile(r"<h4\b([^>]*)>(.*?)</h4>", re.IGNORECASE | re.DOTALL),
 }
 _STYLE_RE = re.compile(r'\sstyle="([^"]*)"', re.IGNORECASE)
+_TAG_STYLE_RE = re.compile(
+    r"<([a-zA-Z][a-zA-Z0-9]*)\b([^>]*?)\sstyle=\"([^\"]*)\"([^>]*)>",
+    re.IGNORECASE,
+)
 _CLASS_RE = re.compile(r'\sclass="([^"]*)"', re.IGNORECASE)
 _TAG_RE = re.compile(r"<[^>]+>")
 
 
-def _strip_inline_style(style: str) -> str:
+def _strip_inline_style(style: str, *, allow_color: bool = False) -> str:
     parts = []
     for part in style.split(";"):
         part = part.strip()
         if not part:
             continue
         key = part.split(":")[0].strip().lower()
+        if key.startswith("color") or key.startswith("-webkit-text-fill-color"):
+            if allow_color:
+                parts.append(part)
+            continue
         if any(key.startswith(k) for k in _STRIP_STYLE_KEYS):
             continue
         if key in _LAYOUT_STYLE_KEYS:
@@ -62,11 +72,12 @@ def _strip_inline_style(style: str) -> str:
     return "; ".join(parts)
 
 
-def _clean_tag_attrs(attrs: str) -> str:
+def _clean_tag_attrs(attrs: str, *, tag: str = "") -> str:
     out = attrs or ""
+    allow_color = tag.lower() in _COLOR_OK_TAGS
 
     def _style_sub(m: re.Match[str]) -> str:
-        cleaned = _strip_inline_style(m.group(1))
+        cleaned = _strip_inline_style(m.group(1), allow_color=allow_color)
         return f' style="{cleaned}"' if cleaned else ""
 
     out = _STYLE_RE.sub(_style_sub, out)
@@ -75,8 +86,22 @@ def _clean_tag_attrs(attrs: str) -> str:
 
 
 def _normalize_img_tag(attrs: str) -> str:
-    cleaned = _clean_tag_attrs(attrs).rstrip().rstrip("/").rstrip()
+    cleaned = _clean_tag_attrs(attrs, tag="img").rstrip().rstrip("/").rstrip()
     return f'<img class="shelf-docx-img"{cleaned} />'
+
+
+def _strip_styles_tag_aware(html: str) -> str:
+    def _repl(m: re.Match[str]) -> str:
+        tag = m.group(1)
+        before = m.group(2) or ""
+        style = m.group(3) or ""
+        after = m.group(4) or ""
+        cleaned = _strip_inline_style(style, allow_color=tag.lower() in _COLOR_OK_TAGS)
+        if cleaned:
+            return f'<{tag}{before} style="{cleaned}"{after}>'
+        return f"<{tag}{before}{after}>"
+
+    return _TAG_STYLE_RE.sub(_repl, html)
 
 
 def _flatten_simple_divs(html: str) -> str:
@@ -211,10 +236,7 @@ def normalize_docx_html(raw: str, *, lesson: bool = False) -> str:
         flags=re.IGNORECASE,
     )
     out = _flatten_simple_divs(out)
-    out = _STYLE_RE.sub(
-        lambda m: (f' style="{c}"' if (c := _strip_inline_style(m.group(1))) else ""),
-        out,
-    )
+    out = _strip_styles_tag_aware(out)
     _ = lesson
     return inject_shelf_paragraph_anchors(out)
 

@@ -514,6 +514,13 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     required String sectionId,
     required String title,
   }) async {
+    final book = _book;
+    final sectionIds = (book?.sections ?? []).map((s) => s.id).where((id) => id.isNotEmpty).toList();
+    final index = sectionIds.indexOf(sectionId);
+    final isCollection = book?.bookType == 'collection';
+    final canMoveUp = index > 0;
+    final canMoveDown = index >= 0 && index < sectionIds.length - 1;
+
     final action = await showModalBottomSheet<String>(
       context: anchorCtx,
       backgroundColor: AppColors.paper,
@@ -530,9 +537,21 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
               title: const Text('改名'),
               onTap: () => Navigator.pop(ctx, 'rename'),
             ),
+            if (canMoveUp)
+              ListTile(
+                leading: const Icon(Icons.arrow_upward),
+                title: const Text('上移'),
+                onTap: () => Navigator.pop(ctx, 'up'),
+              ),
+            if (canMoveDown)
+              ListTile(
+                leading: const Icon(Icons.arrow_downward),
+                title: const Text('下移'),
+                onTap: () => Navigator.pop(ctx, 'down'),
+              ),
             ListTile(
               leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
-              title: Text('删除此份', style: TextStyle(color: Colors.red.shade700)),
+              title: Text('删除此节', style: TextStyle(color: Colors.red.shade700)),
               onTap: () => Navigator.pop(ctx, 'delete'),
             ),
           ],
@@ -568,12 +587,36 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
         }
       }
+    } else if (action == 'up' || action == 'down') {
+      if (index < 0) return;
+      final nextIndex = action == 'up' ? index - 1 : index + 1;
+      if (nextIndex < 0 || nextIndex >= sectionIds.length) return;
+      final ordered = List<String>.from(sectionIds);
+      final item = ordered.removeAt(index);
+      ordered.insert(nextIndex, item);
+      try {
+        await repo.reorderPlatformSections(bookId, ordered);
+        await _loadBook();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(action == 'up' ? '已上移' : '已下移')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        }
+      }
     } else if (action == 'delete') {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text('删除「$title」？'),
-          content: const Text('将从合集中移除，并删除对应文件。此操作不可恢复。'),
+          content: Text(
+            isCollection
+                ? '将从合集中移除，并删除对应文件。此操作不可恢复。'
+                : '将从目录中移除此节。此操作不可恢复。',
+          ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
             FilledButton(
@@ -672,7 +715,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                           Builder(
                             builder: (itemCtx) {
                               final sid = resolveSectionId(item, _sections);
-                              final canEditToc = book.canEdit && book.bookType == 'collection';
+                              final canEditToc = book.canEdit;
                               return ListTile(
                                 dense: true,
                                 title: Text(shelfTocDisplayTitle(item)),
@@ -701,11 +744,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
                   ],
                 ),
               ),
-              if (book.canEdit && book.bookType == 'collection')
+              if (book.canEdit)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                   child: Text(
-                    '长按目录项可改名或删除',
+                    '长按目录项可改名、排序或删除',
                     textAlign: TextAlign.center,
                     style: AppTypography.meta.copyWith(color: AppColors.inkSoft),
                   ),

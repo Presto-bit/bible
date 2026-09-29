@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
-import { deleteCollectionSection, updateCollectionSection } from '@/lib/shelf_api';
+import {
+  deleteCollectionSection,
+  reorderPlatformSections,
+  updateCollectionSection,
+} from '@/lib/shelf_api';
 import { shellTapProps } from '@/lib/shell_tap';
 
 type Props = {
@@ -12,6 +16,8 @@ type Props = {
   bookId: string;
   sectionId: string;
   sectionTitle: string;
+  sectionIds: string[];
+  isCollection?: boolean;
   anchorEl: HTMLElement | null;
   onClose: () => void;
   onChanged: () => void;
@@ -22,6 +28,8 @@ export default function ShelfTocSectionMenu({
   bookId,
   sectionId,
   sectionTitle,
+  sectionIds,
+  isCollection = false,
   anchorEl,
   onClose,
   onChanged,
@@ -33,6 +41,10 @@ export default function ShelfTocSectionMenu({
   const [renameOpen, setRenameOpen] = useState(false);
   const [title, setTitle] = useState(sectionTitle);
   const [busy, setBusy] = useState(false);
+
+  const index = useMemo(() => sectionIds.indexOf(sectionId), [sectionIds, sectionId]);
+  const canMoveUp = index > 0;
+  const canMoveDown = index >= 0 && index < sectionIds.length - 1;
 
   useEffect(() => {
     if (open) {
@@ -49,7 +61,7 @@ export default function ShelfTocSectionMenu({
     const place = () => {
       const bar = barRef.current;
       const bw = bar?.offsetWidth || 200;
-      const bh = bar?.offsetHeight || 120;
+      const bh = bar?.offsetHeight || 160;
       const rect = anchorEl.getBoundingClientRect();
       let top = rect.top - bh - 8;
       let left = rect.left;
@@ -80,10 +92,32 @@ export default function ShelfTocSectionMenu({
     }
   };
 
+  const move = async (dir: -1 | 1) => {
+    if (index < 0) return;
+    const next = index + dir;
+    if (next < 0 || next >= sectionIds.length) return;
+    const ordered = [...sectionIds];
+    const [item] = ordered.splice(index, 1);
+    ordered.splice(next, 0, item);
+    setBusy(true);
+    try {
+      await reorderPlatformSections(bookId, ordered);
+      toast(dir < 0 ? '已上移' : '已下移');
+      onChanged();
+      onClose();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : '调整顺序失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const remove = async () => {
     const ok = await confirm({
       title: `删除「${sectionTitle}」？`,
-      message: '将从合集中移除，并删除对应文件。此操作不可恢复。',
+      message: isCollection
+        ? '将从合集中移除，并删除对应文件。此操作不可恢复。'
+        : '将从目录中移除此节。此操作不可恢复。',
       confirmLabel: '删除',
       danger: true,
     });
@@ -105,7 +139,7 @@ export default function ShelfTocSectionMenu({
 
   return (
     <AppBodyPortal onTabAway={onClose}>
-      <div className="shelf-book-action-root" role="dialog" aria-label="资料操作">
+      <div className="shelf-book-action-root" role="dialog" aria-label="目录操作">
         <button type="button" className="shelf-book-action-backdrop" aria-label="关闭" onClick={onClose} />
         <div
           ref={barRef}
@@ -140,8 +174,28 @@ export default function ShelfTocSectionMenu({
                 <button type="button" className="shelf-book-action-item" {...shellTapProps({ onTap: () => setRenameOpen(true) })}>
                   改名
                 </button>
+                {canMoveUp ? (
+                  <button
+                    type="button"
+                    className="shelf-book-action-item"
+                    disabled={busy}
+                    {...shellTapProps({ onTap: () => void move(-1) })}
+                  >
+                    上移
+                  </button>
+                ) : null}
+                {canMoveDown ? (
+                  <button
+                    type="button"
+                    className="shelf-book-action-item"
+                    disabled={busy}
+                    {...shellTapProps({ onTap: () => void move(1) })}
+                  >
+                    下移
+                  </button>
+                ) : null}
                 <button type="button" className="shelf-book-action-item is-danger" {...shellTapProps({ onTap: () => void remove() })}>
-                  删除此份
+                  删除此节
                 </button>
               </div>
             </>

@@ -161,18 +161,24 @@ const SHELF_DOCX_LAYOUT_STYLE_KEYS = new Set([
   'position',
 ]);
 
-function stripShelfDocxInlineStyle(style: string): string {
+function stripShelfDocxInlineStyle(
+  style: string,
+  opts?: { allowColor?: boolean },
+): string {
+  const allowColor = Boolean(opts?.allowColor);
   return style
     .split(';')
     .map((part) => part.trim())
     .filter(Boolean)
     .filter((part) => {
       const key = part.split(':')[0]?.trim().toLowerCase() ?? '';
+      if (key.startsWith('color') || key.startsWith('-webkit-text-fill-color')) {
+        return allowColor;
+      }
       return !(
         key.startsWith('font-size')
         || key.startsWith('font-family')
         || key.startsWith('line-height')
-        || key.startsWith('color')
         || key.startsWith('letter-spacing')
         || key.startsWith('mso-')
         || SHELF_DOCX_LAYOUT_STYLE_KEYS.has(key)
@@ -263,7 +269,14 @@ export function adaptShelfDocxHtml(raw: string, opts?: { lesson?: boolean }): st
     });
 
     root.querySelectorAll('[style]').forEach((el) => {
-      const cleaned = stripShelfDocxInlineStyle(el.getAttribute('style') || '');
+      const tag = el.tagName.toUpperCase();
+      const allowColor = tag === 'A'
+        || tag === 'STRONG'
+        || tag === 'B'
+        || tag === 'EM'
+        || tag === 'I'
+        || tag === 'SPAN';
+      const cleaned = stripShelfDocxInlineStyle(el.getAttribute('style') || '', { allowColor });
       if (cleaned) el.setAttribute('style', cleaned);
       else el.removeAttribute('style');
     });

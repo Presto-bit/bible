@@ -1045,13 +1045,25 @@ def _section_primary_stem(section: dict[str, Any]) -> str:
 
 
 def _collection_book_record(book_id: str) -> tuple[dict[str, Any], str, Any] | None:
-    """返回 (book 可变 dict, source, persist_handle)。source=catalog|db。"""
+    """返回合集 (book 可变 dict, source, persist_handle)。source=catalog|db。"""
+    return _editable_book_record(book_id, collection_only=True)
+
+
+def _editable_book_record(
+    book_id: str,
+    *,
+    collection_only: bool = False,
+) -> tuple[dict[str, Any], str, Any] | None:
+    """返回可编辑书目 (book, source, persist_handle)。含普通 document。"""
     fb = get_file_book(book_id)
-    if fb and (fb.get("book_type") or fb.get("kind") or "") == "collection":
-        doc = load_catalog_document()
-        book = _find_catalog_book(doc, book_id)
-        if book:
-            return book, "catalog", doc
+    if fb:
+        bt = (fb.get("book_type") or fb.get("kind") or "document") or "document"
+        if (not collection_only) or bt == "collection":
+            doc = load_catalog_document()
+            book = _find_catalog_book(doc, book_id)
+            if book:
+                book.setdefault("book_type", bt)
+                return book, "catalog", doc
     if _db_available():
         pool = get_pool()
         ensure_shelf_schema(pool)
@@ -1065,14 +1077,17 @@ def _collection_book_record(book_id: str) -> tuple[dict[str, Any], str, Any] | N
                     """,
                     (book_id,),
                 ).fetchone()
-            if row and (row[2] or "") == "collection":
+            if row:
+                bt = (row[2] or "document") or "document"
+                if collection_only and bt != "collection":
+                    return None
                 toc = row[4] if isinstance(row[4], dict) else json.loads(row[4] or "{}")
                 sections = row[5] if isinstance(row[5], list) else json.loads(row[5] or "[]")
                 book = {
                     "id": book_id,
                     "title": row[0],
                     "subtitle": row[1],
-                    "book_type": "collection",
+                    "book_type": bt,
                     "uploaded_by": str(row[3]) if row[3] else None,
                     "toc": toc,
                     "sections": sections,
@@ -1091,13 +1106,30 @@ def _assert_collection_edit(
     actor_user_id: str | None,
     is_shelf_admin: bool,
 ) -> None:
+    _assert_book_edit(
+        book,
+        source,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+        label="合集",
+    )
+
+
+def _assert_book_edit(
+    book: dict[str, Any],
+    source: str,
+    *,
+    actor_user_id: str | None,
+    is_shelf_admin: bool,
+    label: str = "书目",
+) -> None:
     if is_shelf_admin:
         return
     if source == "catalog":
         raise HTTPException(status_code=403, detail="需要书柜管理员权限")
     uploaded_by = book.get("uploaded_by")
     if not uploaded_by or not actor_user_id or str(uploaded_by) != str(actor_user_id):
-        raise HTTPException(status_code=403, detail="无权编辑此合集")
+        raise HTTPException(status_code=403, detail=f"无权编辑此{label}")
 
 
 def create_user_collection(
@@ -1836,6 +1868,28 @@ def update_collection_section(
     is_shelf_admin: bool = False,
 ) -> dict[str, Any]:
     """更新合集内一份资料的标题或单元。"""
+    return update_platform_section(
+        book_id,
+        section_id,
+        title=title,
+        unit=unit,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+        collection_only=True,
+    )
+
+
+def update_platform_section(
+    book_id: str,
+    section_id: str,
+    *,
+    title: str | None = None,
+    unit: str | None = None,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
+    collection_only: bool = False,
+) -> dict[str, Any]:
+    """更新书目节标题（普通书 / 合集）；合集还可改 unit。"""
     new_title = (title or "").strip() if title is not None else None
     new_unit = (unit or "").strip() if unit is not None else None
     if new_title is not None and not new_title:
@@ -1843,11 +1897,11 @@ def update_collection_section(
     if new_title is None and new_unit is None:
         raise HTTPException(status_code=400, detail="无更新字段")
 
-    rec = _collection_book_record(book_id)
+    rec = _editable_book_record(book_id, collection_only=collection_only)
     if not rec:
-        raise HTTPException(status_code=404, detail="合集不存在")
+        raise HTTPException(status_code=404, detail="书目不存在")
     book, source, persist_handle = rec
-    _assert_collection_edit(
+    _assert_book_edit(
         book,
         source,
         actor_user_id=actor_user_id,
@@ -1860,13 +1914,13 @@ def update_collection_section(
             target = sec
             break
     if not target:
-        raise HTTPException(status_code=404, detail="资料不存在")
+        raise HTTPException(status_code=404, detail="章节不存在")
 
     if new_title is not None:
         target["title"] = new_title
         toc = book.setdefault("toc", {})
         _sync_toc_section_title(toc, section_id, new_title)
-    if new_unit is not None:
+    if new_unit is not None and (book.get("book_type") or "") == "collection":
         target["unit"] = new_unit or None
 
     try:
@@ -1893,11 +1947,31 @@ def delete_collection_section(
     is_shelf_admin: bool = False,
 ) -> dict[str, Any]:
     """从合集中移除一份资料并删除对应文件。"""
-    rec = _collection_book_record(book_id)
+    return delete_platform_section(
+        book_id,
+        section_id,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+        collection_only=True,
+        delete_files=True,
+    )
+
+
+def delete_platform_section(
+    book_id: str,
+    section_id: str,
+    *,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
+    collection_only: bool = False,
+    delete_files: bool = False,
+) -> dict[str, Any]:
+    """删除书目中的一节（普通书只改目录/节列表；合集可删文件）。"""
+    rec = _editable_book_record(book_id, collection_only=collection_only)
     if not rec:
-        raise HTTPException(status_code=404, detail="合集不存在")
+        raise HTTPException(status_code=404, detail="书目不存在")
     book, source, persist_handle = rec
-    _assert_collection_edit(
+    _assert_book_edit(
         book,
         source,
         actor_user_id=actor_user_id,
@@ -1914,10 +1988,16 @@ def delete_collection_section(
         else:
             rest.append(sec)
     if not target:
-        raise HTTPException(status_code=404, detail="资料不存在")
+        raise HTTPException(status_code=404, detail="章节不存在")
 
-    keys = _section_storage_keys(target)
-    removed_files = _delete_book_files(keys)
+    removed_files: list[str] = []
+    if delete_files or (book.get("book_type") or "") == "collection":
+        keys = _section_storage_keys(target)
+        # 普通书共用一个 storage_key 时勿删原件
+        if (book.get("book_type") or "") == "collection":
+            removed_files = _delete_book_files(keys)
+        elif keys and len(rest) == 0:
+            removed_files = _delete_book_files(keys)
     book["sections"] = rest
     toc = book.setdefault("toc", {})
     _remove_section_from_toc(toc, section_id)
@@ -1935,4 +2015,85 @@ def delete_collection_section(
         "deleted": True,
         "files_removed": removed_files,
         "section_count": len(rest),
+    }
+
+
+def reorder_platform_sections(
+    book_id: str,
+    section_ids: list[str],
+    *,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
+) -> dict[str, Any]:
+    """按给定 section_id 顺序重排目录（管理员/可编辑者）。"""
+    ids = [str(x).strip() for x in (section_ids or []) if str(x).strip()]
+    if not ids:
+        raise HTTPException(status_code=400, detail="顺序不能为空")
+    rec = _editable_book_record(book_id, collection_only=False)
+    if not rec:
+        raise HTTPException(status_code=404, detail="书目不存在")
+    book, source, persist_handle = rec
+    _assert_book_edit(
+        book,
+        source,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+    )
+    sections = [s for s in (book.get("sections") or []) if isinstance(s, dict)]
+    by_id = {str(s.get("id")): s for s in sections if s.get("id")}
+    if set(ids) != set(by_id.keys()):
+        raise HTTPException(status_code=400, detail="顺序须覆盖全部章节且无多余 id")
+    ordered = [by_id[i] for i in ids]
+    book["sections"] = ordered
+    toc = book.setdefault("toc", {})
+    # 按新顺序重建各 zone 的 toc 条目（保留 zone）
+    toc_items: list[dict[str, Any]] = []
+    for zone_key in ("front", "body", "appendix", "outline"):
+        for item in toc.get(zone_key) or []:
+            if isinstance(item, dict):
+                toc_items.append(item)
+    item_by_sid = {
+        str(it.get("section_id")): it
+        for it in toc_items
+        if it.get("section_id")
+    }
+    new_front: list[dict[str, Any]] = []
+    new_body: list[dict[str, Any]] = []
+    new_appendix: list[dict[str, Any]] = []
+    for sec in ordered:
+        sid = str(sec.get("id"))
+        zone = sec.get("zone") or "body"
+        item = item_by_sid.get(sid) or {
+            "id": f"tb-{sid}",
+            "title": sec.get("title") or "正文",
+            "level": int(sec.get("level") or 1),
+            "zone": zone,
+            "source": sec.get("source") or "structured",
+            "confidence": 1.0,
+            "section_id": sid,
+        }
+        item["title"] = sec.get("title") or item.get("title") or "正文"
+        item["zone"] = zone
+        item["section_id"] = sid
+        if zone == "front":
+            new_front.append(item)
+        elif zone == "appendix":
+            new_appendix.append(item)
+        else:
+            new_body.append(item)
+    toc["front"] = new_front
+    toc["body"] = new_body
+    toc["appendix"] = new_appendix
+    toc["outline"] = list(new_body)
+
+    try:
+        _persist_collection_book(book_id, book, source, persist_handle)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存失败：{e}") from e
+    invalidate_shelf_section_cache(book_id)
+    return {
+        "ok": True,
+        "book_id": book_id,
+        "section_ids": ids,
+        "section_count": len(ordered),
     }

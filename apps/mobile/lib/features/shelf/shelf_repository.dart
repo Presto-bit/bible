@@ -569,7 +569,7 @@ class ShelfRepository {
     String? unit,
   }) async {
     await _dio.patch<Map<String, dynamic>>(
-      '/shelf/platform/collections/${Uri.encodeComponent(bookId)}/sections/${Uri.encodeComponent(sectionId)}',
+      '/shelf/platform/books/${Uri.encodeComponent(bookId)}/sections/${Uri.encodeComponent(sectionId)}',
       data: {
         if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
         if (unit != null) 'unit': unit.trim(),
@@ -580,7 +580,15 @@ class ShelfRepository {
 
   Future<void> deleteCollectionSection(String bookId, String sectionId) async {
     await _dio.delete<Map<String, dynamic>>(
-      '/shelf/platform/collections/${Uri.encodeComponent(bookId)}/sections/${Uri.encodeComponent(sectionId)}',
+      '/shelf/platform/books/${Uri.encodeComponent(bookId)}/sections/${Uri.encodeComponent(sectionId)}',
+    );
+    await _fetchListFresh(force: true);
+  }
+
+  Future<void> reorderPlatformSections(String bookId, List<String> sectionIds) async {
+    await _dio.put<Map<String, dynamic>>(
+      '/shelf/platform/books/${Uri.encodeComponent(bookId)}/sections/order',
+      data: {'section_ids': sectionIds},
     );
     await _fetchListFresh(force: true);
   }

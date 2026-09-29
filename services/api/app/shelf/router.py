@@ -18,14 +18,17 @@ from .service import (
     create_user_collection,
     delete_collection_section,
     delete_platform_book,
+    delete_platform_section,
     delete_section_attachment,
     get_platform_asset_path,
     get_platform_book,
     get_platform_file_bytes,
     get_platform_section,
     list_platform_shelf,
+    reorder_platform_sections,
     update_collection_section,
     update_platform_book,
+    update_platform_section,
     generate_platform_book_cover_ai,
     upload_platform_book_cover,
 )
@@ -44,6 +47,10 @@ class UpdateBookBody(BaseModel):
 class UpdateSectionBody(BaseModel):
     title: str | None = Field(default=None, max_length=120)
     unit: str | None = Field(default=None, max_length=40)
+
+
+class ReorderSectionsBody(BaseModel):
+    section_ids: list[str] = Field(min_length=1)
 
 router = APIRouter(prefix="/shelf", tags=["shelf"])
 
@@ -446,6 +453,92 @@ def shelf_platform_update_book(
         title=body.title,
         subtitle=body.subtitle,
         actor_user_id=user_id,
+        is_shelf_admin=is_admin,
+    )
+
+
+@router.patch("/platform/books/{book_id}/sections/{section_id}")
+def shelf_platform_update_book_section(
+    book_id: str,
+    section_id: str,
+    body: UpdateSectionBody,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """更新书目章节标题（普通书 / 合集）。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    return update_platform_section(
+        book_id,
+        section_id,
+        title=body.title,
+        unit=body.unit,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
+        collection_only=False,
+    )
+
+
+@router.delete("/platform/books/{book_id}/sections/{section_id}")
+def shelf_platform_delete_book_section(
+    book_id: str,
+    section_id: str,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """删除书目中的一节。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    return delete_platform_section(
+        book_id,
+        section_id,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
+        collection_only=False,
+    )
+
+
+@router.put("/platform/books/{book_id}/sections/order")
+def shelf_platform_reorder_book_sections(
+    book_id: str,
+    body: ReorderSectionsBody,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """重排书目目录顺序。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    return reorder_platform_sections(
+        book_id,
+        body.section_ids,
+        actor_user_id=actor_id,
         is_shelf_admin=is_admin,
     )
 

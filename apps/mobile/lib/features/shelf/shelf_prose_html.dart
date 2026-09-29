@@ -211,14 +211,20 @@ final _stripStyleKeys = <String>[
   'font-size',
   'font-family',
   'line-height',
-  'color',
   'letter-spacing',
   'mso-',
   'word-spacing',
 ];
 
+const _colorOkTags = {'a', 'strong', 'b', 'em', 'i', 'span'};
+
 final _styleAttrRe = RegExp(
   r'''\sstyle=(["'])(.*?)\1''',
+  caseSensitive: false,
+  dotAll: true,
+);
+final _tagStyleRe = RegExp(
+  r'''<([a-zA-Z][a-zA-Z0-9]*)\b([^>]*?)\sstyle=(["'])(.*?)\3([^>]*)>''',
   caseSensitive: false,
   dotAll: true,
 );
@@ -257,12 +263,16 @@ final _spacerCellTableRe = RegExp(
   dotAll: true,
 );
 
-String _stripInlineLayoutStyle(String style) {
+String _stripInlineLayoutStyle(String style, {bool allowColor = false}) {
   final parts = <String>[];
   for (final part in style.split(';')) {
     final trimmed = part.trim();
     if (trimmed.isEmpty) continue;
     final key = trimmed.split(':').first.trim().toLowerCase();
+    if (key.startsWith('color') || key.startsWith('-webkit-text-fill-color')) {
+      if (allowColor) parts.add(trimmed);
+      continue;
+    }
     if (_layoutStyleKeys.contains(key)) continue;
     if (_stripStyleKeys.any(key.startsWith)) continue;
     parts.add(trimmed);
@@ -271,9 +281,18 @@ String _stripInlineLayoutStyle(String style) {
 }
 
 String _rewriteStyleAttrs(String html) {
-  return html.replaceAllMapped(_styleAttrRe, (m) {
-    final cleaned = _stripInlineLayoutStyle(m.group(2)!);
-    return cleaned.isEmpty ? '' : ' style="$cleaned"';
+  return html.replaceAllMapped(_tagStyleRe, (m) {
+    final tag = (m.group(1) ?? '').toLowerCase();
+    final before = m.group(2) ?? '';
+    final quote = m.group(3) ?? '"';
+    final style = m.group(4) ?? '';
+    final after = m.group(5) ?? '';
+    final cleaned = _stripInlineLayoutStyle(
+      style,
+      allowColor: _colorOkTags.contains(tag),
+    );
+    if (cleaned.isEmpty) return '<$tag$before$after>';
+    return '<$tag$before style=$quote$cleaned$quote$after>';
   });
 }
 

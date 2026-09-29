@@ -16,6 +16,124 @@ from xml.etree import ElementTree as ET
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
+# Mammoth 不保留 run 颜色：注入文本标记，转 HTML 后再还原为 span
+_COLOR_MARK_OPEN = "[[c:#"
+_COLOR_MARK_MID = "]]"
+_COLOR_MARK_CLOSE = "[[/c]]"
+_COLOR_SKIP = frozenset({"000000", "FFFFFF", "AUTO", "auto"})
+
+# 无样式 Word：从部标题 / 编号条目 / 附录 / 通用章节行启发式切节
+_PART_HEAD_RE = re.compile(
+    r"^第[一二三四五六七八九十百零〇\d]+[部篇卷](?:[｜|·\-—:\s　].{0,40})?$"
+)
+_NUM_ITEM_HEAD_RE = re.compile(r"^\d{1,2}\.\s*.{2,48}$")
+_APPENDIX_HEAD_RE = re.compile(r"^附录[一二三四五六七八九十\d].{0,40}$")
+_TXT_CHAPTER_RE = re.compile(
+    r"^(第[一二三四五六七八九十百零〇\d]+[章节回场部卷篇]\s*.{0,36}|#{1,3}\s+.+)$"
+)
+
+
+def _normalize_color_hex(raw: str) -> str | None:
+    v = (raw or "").strip().lstrip("#")
+    if not v or v.upper() in _COLOR_SKIP:
+        return None
+    if len(v) == 3:
+        v = "".join(c * 2 for c in v)
+    if len(v) == 8:
+        v = v[:6]
+    if len(v) != 6 or any(c not in "0123456789abcdefABCDEF" for c in v):
+        return None
+    return v.upper()
+
+
+def _is_plain_toc_line(text: str) -> bool:
+    """目录行：标题后粘页码，如「第一部｜…6」「1.题目7」。"""
+    t = (text or "").strip()
+    if not t or len(t) > 60:
+        return False
+    if not re.search(r"\d{1,3}$", t):
+        return False
+    base = re.sub(r"\d{1,3}$", "", t).strip()
+    return _is_inferred_body_heading(base)
+
+
+def _is_inferred_body_heading(text: str) -> bool:
+    t = (text or "").strip()
+    if not t or len(t) > 55 or len(t) < 2:
+        return False
+    # 目录粘页码行（标题后直接数字）不当作正文标题
+    if re.search(r"\d{1,3}$", t) and not re.search(r"[？?。！!）」』]$", t):
+        return False
+    return bool(
+        _PART_HEAD_RE.match(t)
+        or _NUM_ITEM_HEAD_RE.match(t)
+        or _APPENDIX_HEAD_RE.match(t)
+        or _TXT_CHAPTER_RE.match(t)
+    )
+
+
+def _inject_color_markers_docx(data: bytes) -> bytes:
+    """把带 w:color 的 run 文本包上标记，供 Mammoth 后再还原。"""
+    try:
+        zin = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile:
+        return data
+    try:
+        names = zin.namelist()
+        if "word/document.xml" not in names:
+            return data
+        doc = zin.read("word/document.xml").decode("utf-8", errors="replace")
+
+        def _wrap_run(m: re.Match[str]) -> str:
+            run = m.group(0)
+            cm = re.search(r'<w:color\b[^>]*w:val="([^"]+)"', run)
+            if not cm:
+                return run
+            hex_v = _normalize_color_hex(cm.group(1))
+            if not hex_v:
+                return run
+
+            def _wrap_t(tm: re.Match[str]) -> str:
+                attrs = tm.group(1) or ""
+                body = tm.group(2) or ""
+                if not body or _COLOR_MARK_OPEN in body:
+                    return tm.group(0)
+                marked = f"{_COLOR_MARK_OPEN}{hex_v}{_COLOR_MARK_MID}{body}{_COLOR_MARK_CLOSE}"
+                return f"<w:t{attrs}>{marked}</w:t>"
+
+            return re.sub(
+                r"<w:t([^>]*)>([\s\S]*?)</w:t>",
+                _wrap_t,
+                run,
+                count=1,
+            )
+
+        new_doc = re.sub(r"<w:r\b[^>]*>[\s\S]*?</w:r>", _wrap_run, doc)
+        if new_doc == doc:
+            return data
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+            for name in names:
+                payload = new_doc.encode("utf-8") if name == "word/document.xml" else zin.read(name)
+                zout.writestr(name, payload)
+        return out.getvalue()
+    finally:
+        zin.close()
+
+
+def _restore_color_markers_html(html_str: str) -> str:
+    if _COLOR_MARK_OPEN not in html_str:
+        return html_str
+    return re.sub(
+        re.escape(_COLOR_MARK_OPEN)
+        + r"([0-9A-Fa-f]{6})"
+        + re.escape(_COLOR_MARK_MID)
+        + r"([\s\S]*?)"
+        + re.escape(_COLOR_MARK_CLOSE),
+        r'<span class="shelf-run-color" style="color:#\1">\2</span>',
+        html_str,
+    )
+
 
 @dataclass
 class _Para:
@@ -373,14 +491,16 @@ def _mammoth_to_html(
 
     try:
         result = mammoth.convert_to_html(
-            io.BytesIO(data),
+            io.BytesIO(_inject_color_markers_docx(data)),
             style_map=style_map,
             convert_image=mammoth.images.img_element(convert_image),
         )
     except Exception:
         return None
     html_str = (result.value or "").strip()
-    return html_str or None
+    if not html_str:
+        return None
+    return _restore_color_markers_html(html_str)
 
 
 def _split_mammoth_book_html(html_str: str) -> list[tuple[str, str]]:
@@ -662,8 +782,160 @@ def parse_docx_bytes(
         except Exception:
             pass
 
+    # 无 Heading 样式：先试纯文本部标题/编号条目启发式切节，再整篇单节兜底
+    if not sections and paras:
+        heading_idxs: list[tuple[int, str]] = []
+        in_toc_block = False
+        for i, p in enumerate(paras):
+            t = (p.text or "").strip()
+            if t == "目录" or (t.startswith("目录") and len(t) <= 6):
+                in_toc_block = True
+                continue
+            if in_toc_block:
+                if _is_plain_toc_line(t):
+                    continue
+                if _is_inferred_body_heading(t):
+                    in_toc_block = False
+                else:
+                    # 前言区夹在目录后、首个正文标题前
+                    continue
+            if _is_inferred_body_heading(t):
+                heading_idxs.append((i, t))
+
+        if len(heading_idxs) >= 2:
+            # 文前
+            first_i = heading_idxs[0][0]
+            if first_i > 0:
+                pre_bits = [
+                    _para_html(p)
+                    for p in paras[:first_i]
+                    if (p.text or "").strip()
+                    and (p.text or "").strip() != "目录"
+                    and not _is_plain_toc_line(p.text or "")
+                ]
+                if pre_bits:
+                    sid = "sec-front"
+                    raw_preface = f'<div class="shelf-docx-root">{chr(10).join(pre_bits)}</div>'
+                    sections.append(
+                        {
+                            "id": sid,
+                            "title": "阅读本书之前",
+                            "level": 0,
+                            "zone": "front",
+                            "source": "inferred",
+                            "toc_id": "tb-front",
+                            "html": inject_shelf_paragraph_anchors(raw_preface),
+                            "kind": "front",
+                        }
+                    )
+                    toc_body.append(
+                        {
+                            "id": "tb-front",
+                            "title": "阅读本书之前",
+                            "level": 0,
+                            "zone": "front",
+                            "source": "inferred",
+                            "confidence": 0.6,
+                            "section_id": sid,
+                        }
+                    )
+            for hi, (start, title) in enumerate(heading_idxs):
+                end = heading_idxs[hi + 1][0] if hi + 1 < len(heading_idxs) else len(paras)
+                chunk = paras[start:end]
+                bits = [_para_html(p) for p in chunk if (p.text or "").strip()]
+                if not bits:
+                    continue
+                zone = _zone_for_title(title)
+                if zone == "meta":
+                    continue
+                sid = f"sec-{len(sections)}"
+                toc_id = f"tb-{len(sections)}"
+                wrapped = f'<div class="shelf-docx-root">{chr(10).join(bits)}</div>'
+                sections.append(
+                    {
+                        "id": sid,
+                        "title": title,
+                        "level": 1,
+                        "zone": zone if zone in ("body", "appendix", "front") else "body",
+                        "source": "inferred",
+                        "toc_id": toc_id,
+                        "html": inject_shelf_paragraph_anchors(wrapped),
+                        "kind": "body",
+                    }
+                )
+                toc_body.append(
+                    {
+                        "id": toc_id,
+                        "title": title,
+                        "level": 1,
+                        "zone": sections[-1]["zone"],
+                        "source": "inferred",
+                        "confidence": 0.65,
+                        "section_id": sid,
+                    }
+                )
+            if enrich and sections:
+                try:
+                    _enrich_sections_with_mammoth(
+                        data,
+                        sections,
+                        book_id=book_id,
+                        storage_key=storage_key,
+                    )
+                except Exception:
+                    pass
+
+        if not sections:
+            prose = ""
+            try:
+                prose = docx_bytes_to_prose_html(
+                    data,
+                    book_id=book_id,
+                    storage_key=storage_key,
+                    use_cache=False,
+                )
+            except Exception:
+                prose = ""
+            if not (prose or "").strip():
+                bits = [_para_html(p) for p in paras if (p.text or "").strip()]
+                if bits:
+                    prose = inject_shelf_paragraph_anchors(
+                        f'<div class="shelf-docx-root">{chr(10).join(bits)}</div>'
+                    )
+            if (prose or "").strip():
+                if title == "未命名":
+                    for p in paras[:12]:
+                        t = (p.text or "").strip()
+                        if t and 1 < len(t) < 80 and t != "目录" and not _is_plain_toc_line(t):
+                            title = t
+                            break
+                sid = "sec-0"
+                sections.append(
+                    {
+                        "id": sid,
+                        "title": "正文",
+                        "level": 1,
+                        "zone": "body",
+                        "source": "plain",
+                        "toc_id": "tb-0",
+                        "html": prose,
+                        "kind": "body",
+                    }
+                )
+                toc_body.append(
+                    {
+                        "id": "tb-0",
+                        "title": "正文",
+                        "level": 1,
+                        "zone": "body",
+                        "source": "plain",
+                        "confidence": 0.5,
+                        "section_id": sid,
+                    }
+                )
+
     return {
-        "title": title,
+        "title": _finalize_docx_title(title, paras),
         "subtitle": subtitle,
         "author": None,
         "toc": {
@@ -675,7 +947,22 @@ def parse_docx_bytes(
         },
         "sections": sections,
         "section_count": len(sections),
+        "needs_toc_confirm": bool(sections)
+        and any((s.get("source") in ("plain", "inferred")) for s in sections),
     }
+
+
+def _finalize_docx_title(title: str, paras: list[_Para]) -> str:
+    if title and title != "未命名":
+        return title
+    for p in paras[:24]:
+        t = (p.text or "").strip()
+        if not t or t == "目录" or len(t) > 48:
+            continue
+        if _is_plain_toc_line(t) or _is_inferred_body_heading(t):
+            continue
+        return t
+    return title or "未命名"
 
 
 def parse_docx_file(path: str | Path) -> dict[str, Any]:

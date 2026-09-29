@@ -597,7 +597,7 @@ export default function ShelfReader({
     (book?.can_edit || canAppendLesson) &&
       (book?.book_type === 'collection' || shelfIsChildrenLessonBook(book)),
   );
-  const canEditTocSections = Boolean(book?.can_edit && book?.book_type === 'collection');
+  const canEditTocSections = Boolean(book?.can_edit);
 
   const reloadBook = useCallback(() => {
     invalidateShelfBookCache(bookId);
@@ -1032,7 +1032,7 @@ export default function ShelfReader({
               </div>
             ) : null}
             {canEditTocSections ? (
-              <p className="shelf-toc-edit-hint muted">长按目录项可改名或删除</p>
+              <p className="shelf-toc-edit-hint muted">长按目录项可改名、排序或删除</p>
             ) : null}
           </div>
         </div>
@@ -1044,6 +1044,8 @@ export default function ShelfReader({
           bookId={bookId}
           sectionId={tocSectionMenu.sectionId}
           sectionTitle={tocSectionMenu.title}
+          sectionIds={(book?.sections ?? []).map((s) => s.id).filter(Boolean)}
+          isCollection={book?.book_type === 'collection'}
           anchorEl={tocSectionMenu.anchorEl}
           onClose={() => setTocSectionMenu(null)}
           onChanged={reloadBook}
