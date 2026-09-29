@@ -938,32 +938,6 @@ class _VersePreviewSheetState extends ConsumerState<_VersePreviewSheet> {
               const ReaderSheetCloseButton(),
             ],
           ),
-          if (canExpand) ...[
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: () {
-                  setState(() => _chapterMode = !_chapterMode);
-                  if (_chapterMode) {
-                    widget.onExpandChapter();
-                  } else {
-                    widget.onCollapse();
-                  }
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.accentDeep,
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  _chapterMode ? '收起' : '查看更多',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: 10),
           Expanded(
             child: !_chapterMode
@@ -1011,16 +985,56 @@ class _VersePreviewSheetState extends ConsumerState<_VersePreviewSheet> {
                         },
                       ),
           ),
+          if (canExpand) ...[
+            const SizedBox(height: 8),
+            const Divider(height: 1, color: AppColors.line),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () {
+                  setState(() => _chapterMode = !_chapterMode);
+                  if (_chapterMode) {
+                    widget.onExpandChapter();
+                  } else {
+                    widget.onCollapse();
+                  }
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentDeep,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  _chapterMode ? '收起' : '查看更多',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
+  static const _verseBodyStyle = TextStyle(
+    fontSize: 17,
+    height: 1.78,
+    color: AppColors.inkSoft,
+  );
+  static const _verseNumStyle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+    color: AppColors.accentDeep,
+  );
+
   Widget _verseList(List<Verse> verses, {required bool highlightFocus}) {
     return ListView.separated(
       controller: _scroll,
+      scrollDirection: Axis.vertical,
+      physics: const ClampingScrollPhysics(),
       itemCount: verses.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         final v = verses[i];
         final focused = highlightFocus && _inFocus(v.verse);
@@ -1038,24 +1052,12 @@ class _VersePreviewSheetState extends ConsumerState<_VersePreviewSheet> {
             child: Text.rich(
               TextSpan(
                 children: [
-                  TextSpan(
-                    text: '${v.verse} ',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.accentDeep,
-                    ),
-                  ),
-                  TextSpan(
-                    text: v.text,
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      height: 1.55,
-                      color: AppColors.inkSoft,
-                    ),
-                  ),
+                  TextSpan(text: '${v.verse} ', style: _verseNumStyle),
+                  TextSpan(text: v.text, style: _verseBodyStyle),
                 ],
               ),
+              softWrap: true,
+              overflow: TextOverflow.visible,
             ),
           ),
         );

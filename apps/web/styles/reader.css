@@ -1948,8 +1948,10 @@ body.reader-overlay-open .reader-page {
 .verse-preview-scroll {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
   margin-top: 10px;
   max-height: min(62vh, 480px);
   -webkit-overflow-scrolling: touch;
@@ -2010,9 +2012,12 @@ body.reader-overlay-open .reader-page {
   gap: 12px;
 }
 .verse-preview-line {
-  line-height: 1.75;
-  font-size: var(--reader-font-size, var(--app-font-size));
+  line-height: 1.78;
+  font-size: 17px;
   margin: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 .verse-preview-num {
   color: var(--accent-deep);

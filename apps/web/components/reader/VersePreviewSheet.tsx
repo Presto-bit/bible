@@ -225,27 +225,6 @@ export function VersePreviewSheet({
                 关闭
               </button>
             </div>
-            {canExpandChapter ? (
-              <div className="shelf-verse-preview-actions">
-                {mode === 'range' ? (
-                  <button
-                    type="button"
-                    className="text-link shelf-verse-preview-more"
-                    onClick={() => setMode('chapter')}
-                  >
-                    查看更多
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="text-link shelf-verse-preview-more"
-                    onClick={() => setMode('range')}
-                  >
-                    收起
-                  </button>
-                )}
-              </div>
-            ) : null}
           </div>
           <div ref={scrollRef} className="verse-preview-scroll shelf-verse-preview-scroll">
             {(loading || showChapterLoading) && <p className="muted">加载中…</p>}
@@ -271,6 +250,27 @@ export function VersePreviewSheet({
               <p className="muted">暂无经文</p>
             )}
           </div>
+          {canExpandChapter && !loading && !showChapterLoading && displayVerses.length > 0 ? (
+            <div className="shelf-verse-preview-footer">
+              {mode === 'range' ? (
+                <button
+                  type="button"
+                  className="text-link shelf-verse-preview-more"
+                  onClick={() => setMode('chapter')}
+                >
+                  查看更多
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="text-link shelf-verse-preview-more"
+                  onClick={() => setMode('range')}
+                >
+                  收起
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     </AppBodyPortal>

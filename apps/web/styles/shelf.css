@@ -1432,6 +1432,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   flex-direction: column;
   min-height: 0;
   transition: max-height 0.22s ease;
+  overflow-x: hidden;
 }
 
 .shelf-verse-preview-sheet.is-chapter {
@@ -1443,25 +1444,45 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   touch-action: none;
 }
 
-.shelf-verse-preview-actions {
+.shelf-verse-preview-footer {
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-start;
-  margin: 2px 0 4px;
+  padding: 10px 0 2px;
+  border-top: 1px solid color-mix(in srgb, var(--line, rgba(0, 0, 0, 0.08)) 80%, transparent);
+  margin-top: 4px;
 }
 
 .shelf-verse-preview-more {
-  font-size: 13px;
-  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 0;
 }
 
 .shelf-verse-preview-scroll {
   flex: 1;
   min-height: 0;
   max-height: none;
+  overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+}
+
+/* 与范围预览同字号；展开整章不另套一套字号 */
+.shelf-verse-preview-sheet .verse-preview-line {
+  font-size: var(--shelf-font-size, 17px);
+  line-height: 1.78;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.shelf-verse-preview-sheet .verse-preview-list {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .shelf-verse-preview-handle {
@@ -1484,6 +1505,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   padding: 6px 8px;
   margin-left: -8px;
   margin-right: -8px;
+  box-sizing: border-box;
 }
 
 .shelf-flow-scroll-tail {
