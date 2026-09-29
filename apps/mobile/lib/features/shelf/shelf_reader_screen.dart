@@ -26,6 +26,7 @@ import 'shelf_reader_contract.dart';
 import 'shelf_reading_prefs.dart';
 import 'shelf_repository.dart';
 import 'shelf_scroll_anchor.dart';
+import 'shelf_scroll_nav.dart';
 import 'shelf_toc.dart';
 import 'shelf_turn_gesture.dart';
 import 'shelf_append_lesson_sheet.dart';
@@ -76,6 +77,8 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   final _scrollAnchorBySection = <String, ShelfScrollAnchor>{};
   final _pageCountBySection = <String, int>{};
   var _scrollSnapGeneration = 0;
+  var _scrollNavEpoch = 0;
+  var _scrollIntent = ShelfScrollIntent.resume;
   var _sectionReviewCount = 0;
 
   bool get _blocked => _overlayOpen > 0 || _pdfPinching;
@@ -228,7 +231,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _pageCount = _pageCountBySection[sectionId] ?? 1;
       });
     } else if (mounted) {
-      setState(() => _sectionLoading = true);
+      setState(() {
+        // 避免新 sectionId 仍渲染旧节 HTML，污染滚动锚点
+        if (_section?.id != sectionId) _section = null;
+        _sectionLoading = true;
+      });
     }
     try {
       var section = await repo.getSection(widget.bookId, sectionId);
@@ -242,6 +249,17 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _section = section;
         _sectionLoading = false;
         _pageCount = _pageCountBySection[sectionId] ?? 1;
+        if ((_scrollIntent == ShelfScrollIntent.start ||
+                _scrollIntent == ShelfScrollIntent.end) &&
+            _sectionId == sectionId) {
+          // 对齐后再放开进度回写（下一帧，避免同帧 mid 污染）
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            if (_sectionId == sectionId && _section?.id == sectionId) {
+              setState(() => _scrollIntent = ShelfScrollIntent.resume);
+            }
+          });
+        }
       });
       if (_pendingLastPage) {
         setState(() {
@@ -355,6 +373,11 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     _progressTimer = Timer(const Duration(milliseconds: 350), () {
       final sid = _sectionId;
       if (sid == null) return;
+      if (_section?.id != sid) return;
+      if (_scrollIntent == ShelfScrollIntent.start ||
+          _scrollIntent == ShelfScrollIntent.end) {
+        return;
+      }
       final sectionIdx = _sectionIndex >= 0 ? _sectionIndex : 0;
       final totalSections = _sections.isEmpty ? 1 : _sections.length;
       final progressRatio = _isPdfSection
@@ -384,6 +407,15 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   void _onFlowScrollProgress(double ratio) {
+    final epoch = _scrollNavEpoch;
+    if (!shouldAcceptShelfFlowScrollReport(
+      intent: _scrollIntent,
+      sectionMatches: _section != null && _sectionId != null && _section!.id == _sectionId,
+      navEpoch: epoch,
+      reportEpoch: epoch,
+    )) {
+      return;
+    }
     _flowScrollRatio = ratio;
     if (_flowScrollRatioN.value != ratio) {
       _flowScrollRatioN.value = ratio;
@@ -392,6 +424,15 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
   }
 
   void _onFlowScrollAnchor(ShelfScrollAnchor anchor) {
+    final epoch = _scrollNavEpoch;
+    if (!shouldAcceptShelfFlowScrollReport(
+      intent: _scrollIntent,
+      sectionMatches: _section != null && _sectionId != null && _section!.id == _sectionId,
+      navEpoch: epoch,
+      reportEpoch: epoch,
+    )) {
+      return;
+    }
     _flowScrollAnchor = anchor;
     _scheduleProgress();
   }
@@ -439,10 +480,20 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
     final savedScroll = scrollStart ? 0.0 : (_scrollBySection[id] ?? 0.0);
     final savedAnchor = scrollStart ? null : _scrollAnchorBySection[id];
     final cached = ref.read(shelfRepoProvider).peekSection(widget.bookId, id);
+    _scrollNavEpoch += 1;
     if (scrollStart) {
+      _scrollIntent = ShelfScrollIntent.start;
       _scrollBySection[id] = 0;
       _scrollAnchorBySection.remove(id);
       _pageBySection[id] = page ?? 0;
+      _scrollSnapGeneration++;
+    } else if (scrollEnd || lastPage) {
+      _scrollIntent = ShelfScrollIntent.end;
+      _scrollAnchorBySection.remove(id);
+      _flowScrollAnchor = null;
+      _scrollSnapGeneration++;
+    } else {
+      _scrollIntent = ShelfScrollIntent.resume;
       _scrollSnapGeneration++;
     }
     setState(() {
@@ -451,6 +502,7 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         _section = cached;
         _sectionLoading = false;
       } else {
+        _section = null;
         _sectionLoading = true;
       }
       _pageCount = _pageCountBySection[id] ?? 1;
@@ -461,6 +513,8 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       } else if (page != null) {
         _pageIndex = page;
         _pageBySection[id] = page;
+      } else if (scrollStart) {
+        _pageIndex = page ?? 0;
       } else {
         _pageIndex = _pageBySection[id] ?? 0;
       }
@@ -468,6 +522,16 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       _flowScrollRatioN.value = _flowScrollRatio;
       _flowScrollAnchor = scrollStart || scrollEnd ? null : savedAnchor;
     });
+    if (cached != null &&
+        !cached.docxHtmlLooksLegacy &&
+        (scrollStart || scrollEnd || lastPage)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_sectionId == id && _section?.id == id) {
+          setState(() => _scrollIntent = ShelfScrollIntent.resume);
+        }
+      });
+    }
     unawaited(_loadSection(id));
     unawaited(_reloadSectionStats());
     _scheduleProgress();
@@ -893,6 +957,13 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         section.html.contains('shelf-docx-root') ||
         section.html.contains('shelf-epub-root');
     if (shelfSectionUsesFlow(section) && section.html.trim().isNotEmpty) {
+      final flowScroll = resolveShelfFlowScrollApply(
+        intent: _pendingScrollEnd ? ShelfScrollIntent.end : _scrollIntent,
+        sectionMatches: _sectionId == section.id,
+        flowRatio: _flowScrollRatio,
+        savedAnchor: _scrollAnchorBySection[section.id],
+        flowAnchor: _flowScrollAnchor,
+      );
       return ShelfPaginatedProse(
         key: ValueKey(
           '${section.id}:${prefs.fontPx}:${prefs.lineHeight}:${prefs.fontFamily.name}',
@@ -905,9 +976,9 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
         fontFamily: prefs.fontFamily,
         variantDocx: variantDocx,
         lessonTone: _isChildrenLesson && section.kind == 'lesson',
-        scrollOffset: _scrollBySection[section.id] ?? _flowScrollRatio,
-        scrollAnchor: _scrollAnchorBySection[section.id] ?? _flowScrollAnchor,
-        scrollToEnd: _pendingScrollEnd,
+        scrollOffset: flowScroll.scrollOffset,
+        scrollAnchor: flowScroll.scrollAnchor,
+        scrollToEnd: flowScroll.scrollToEnd,
         scrollSnapKey: _scrollSnapGeneration,
         onTap: _toggleChrome,
         onScrollProgress: _onFlowScrollProgress,

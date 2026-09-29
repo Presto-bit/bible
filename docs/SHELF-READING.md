@@ -87,6 +87,23 @@
 
 首次进入任意书架阅读器：一次性 Toast「上下滑动阅读，左右切换章节」，写 `localStorage.shelf_reading_hint_v1`，不重复打扰。
 
+## 11. 切节滚动回归（2026-09-29）
+
+契约：**左右滑切节 → 目标节开头**；**目录点选 / 续读 → 可中部断点**。
+
+实现：`apps/web/lib/shelf_scroll_nav.ts` · `apps/mobile/lib/features/shelf/shelf_scroll_nav.dart`（`navEpoch` + `intent`，未对齐旧 DOM 不写中部锚点）。
+
+| 场景 | 期望 |
+|------|------|
+| 左右滑（有缓存） | `scrollTop/offset ≈ 0` |
+| 左右滑（无缓存，先 loading） | 新节 HTML 到位后仍到顶 |
+| 目录点选续读 | 可恢复 mid ratio / paragraph anchor |
+| `scroll:end` / 上一节末 | 到末尾 |
+| PDF `pageIndex±1` | 节内翻页；切节仍 page 0 开头 |
+| 字号变更 | 不因 snap 丢续读（intent=resume） |
+
+单测：`apps/web/lib/shelf_scroll_nav.test.ts` · `apps/mobile/test/shelf_scroll_nav_test.dart`。
+
 ---
 
 工程入口：`apps/web/components/shelf/ShelfReader.tsx` · 样式 `apps/web/styles/shelf.css` · 解析定案 `docs/SHELF-PARSE.md`

@@ -42,6 +42,11 @@ import { friendlyError } from '@/lib/friendly_error';
 import { touchShelfBookLastRead } from '@/lib/shelf_library';
 import { notifyFlutterShelfPath, setShelfReaderChrome } from '@/lib/shelf_host';
 import { useShelfTurn, type ShelfTurnKind } from '@/components/shelf/useShelfTurn';
+import {
+  resolveShelfFlowScrollApply,
+  shouldAcceptShelfFlowScrollReport,
+  type ShelfScrollIntent,
+} from '@/lib/shelf_scroll_nav';
 import { isFinePointerUI } from '@/lib/touch_ui';
 import { shellTapProps } from '@/lib/shell_tap';
 import '@/styles/plans.css';
@@ -126,6 +131,8 @@ export default function ShelfReader({
   const scrollAnchorBySectionRef = useRef<Record<string, { paragraphIndex: number }>>({});
   const pageCountBySectionRef = useRef<Record<string, number>>({});
   const flowScrollAnchorRef = useRef<{ paragraphIndex: number } | null>(null);
+  const scrollIntentRef = useRef<ShelfScrollIntent>('resume');
+  const scrollNavEpochRef = useRef(0);
   const tocListRef = useRef<HTMLDivElement | null>(null);
   const finishNavRef = useRef(false);
 
@@ -254,6 +261,8 @@ export default function ShelfReader({
       setSectionLoading(false);
       syncNeighborsFromCache(sectionId);
     } else {
+      // 避免「新 sectionId + 旧节 HTML」窗口污染滚动锚点
+      setSection(null);
       setSectionLoading(true);
     }
 
@@ -288,11 +297,30 @@ export default function ShelfReader({
   useEffect(() => {
     if (!sectionId) return;
     if (pendingLastPage || pendingScrollEnd) return;
+    // 左右滑 start/end 钉住阶段：不要用可能被污染的 map 覆盖
+    if (scrollIntentRef.current === 'start' || scrollIntentRef.current === 'end') return;
     const savedPage = pageBySectionRef.current[sectionId];
     const savedScroll = scrollBySectionRef.current[sectionId];
     setPageIndex(typeof savedPage === 'number' ? savedPage : 0);
     setFlowScrollRatio(typeof savedScroll === 'number' ? savedScroll : 0);
   }, [sectionId, pendingLastPage, pendingScrollEnd]);
+
+  // 目标节内容对齐后，解除 start/end 钉住，恢复进度回写
+  useEffect(() => {
+    if (!sectionId || !section || section.id !== sectionId) return;
+    if (scrollIntentRef.current !== 'start' && scrollIntentRef.current !== 'end') return;
+    let cancelled = false;
+    const id = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        if (section.id === sectionId) scrollIntentRef.current = 'resume';
+      });
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(id);
+    };
+  }, [sectionId, section, contentKey, scrollSnapKey]);
 
   useEffect(() => {
     if (pendingScrollEnd) {
@@ -430,22 +458,34 @@ export default function ShelfReader({
       setSectionId(id);
       setTocOpen(false);
       if (opts?.page === 'last' || opts?.scroll === 'end') {
+        scrollIntentRef.current = 'end';
+        scrollNavEpochRef.current += 1;
         setPendingLastPage(true);
         setPendingScrollEnd(true);
         setPageIndex(0);
         setFlowScrollRatio(1);
+        delete scrollAnchorBySectionRef.current[id];
+        flowScrollAnchorRef.current = null;
       } else if (typeof opts?.page === 'number') {
+        scrollIntentRef.current = 'start';
+        scrollNavEpochRef.current += 1;
         setPageIndex(opts.page);
         pageBySectionRef.current[id] = opts.page;
         setFlowScrollRatio(0);
         scrollBySectionRef.current[id] = 0;
+        delete scrollAnchorBySectionRef.current[id];
+        flowScrollAnchorRef.current = null;
       } else if (opts?.scroll === 'start') {
+        scrollIntentRef.current = 'start';
+        scrollNavEpochRef.current += 1;
         setPageIndex(0);
         setFlowScrollRatio(0);
         scrollBySectionRef.current[id] = 0;
         delete scrollAnchorBySectionRef.current[id];
         flowScrollAnchorRef.current = null;
       } else {
+        scrollIntentRef.current = 'resume';
+        scrollNavEpochRef.current += 1;
         const savedPage = pageBySectionRef.current[id];
         const savedScroll = scrollBySectionRef.current[id];
         setPageIndex(typeof savedPage === 'number' ? savedPage : 0);
@@ -675,18 +715,50 @@ export default function ShelfReader({
   }, [tocOpen, sectionId]);
 
   const onFlowScrollProgress = useCallback((ratio: number) => {
+    const epoch = scrollNavEpochRef.current;
+    if (
+      !shouldAcceptShelfFlowScrollReport({
+        intent: scrollIntentRef.current,
+        sectionMatches: Boolean(section && sectionId && section.id === sectionId),
+        navEpoch: epoch,
+        reportEpoch: epoch,
+      })
+    ) {
+      return;
+    }
     if (sectionId) scrollBySectionRef.current[sectionId] = ratio;
     if (flowProgressTimerRef.current != null) return;
     flowProgressTimerRef.current = window.setTimeout(() => {
       flowProgressTimerRef.current = null;
+      if (
+        !shouldAcceptShelfFlowScrollReport({
+          intent: scrollIntentRef.current,
+          sectionMatches: Boolean(section && sectionId && section.id === sectionId),
+          navEpoch: scrollNavEpochRef.current,
+          reportEpoch: epoch,
+        })
+      ) {
+        return;
+      }
       setFlowScrollRatio(ratio);
     }, 120);
-  }, [sectionId]);
+  }, [section, sectionId]);
 
   const onFlowScrollAnchor = useCallback((anchor: { paragraphIndex: number }) => {
+    const epoch = scrollNavEpochRef.current;
+    if (
+      !shouldAcceptShelfFlowScrollReport({
+        intent: scrollIntentRef.current,
+        sectionMatches: Boolean(section && sectionId && section.id === sectionId),
+        navEpoch: epoch,
+        reportEpoch: epoch,
+      })
+    ) {
+      return;
+    }
     flowScrollAnchorRef.current = anchor;
     if (sectionId) scrollAnchorBySectionRef.current[sectionId] = anchor;
-  }, [sectionId]);
+  }, [section, sectionId]);
 
   const renderSectionContent = (
     sec: ShelfSection | null,
@@ -694,21 +766,31 @@ export default function ShelfReader({
     opts?: { scrollToEnd?: boolean },
   ) => {
     if (!sec) return null;
+    const sectionMatches = sectionId === sec.id;
+    const intent: ShelfScrollIntent = opts?.scrollToEnd
+      ? 'end'
+      : scrollIntentRef.current;
+    const flowScroll = interactive
+      ? resolveShelfFlowScrollApply({
+          intent,
+          sectionMatches,
+          flowRatio: flowScrollRatio,
+          savedAnchor: scrollAnchorBySectionRef.current[sec.id],
+          flowAnchor: flowScrollAnchorRef.current,
+        })
+      : { scrollOffset: 0, scrollAnchor: undefined, scrollToEnd: false };
     if (sec.kind === 'lesson') {
       return (
-        <ShelfLessonPanel
+        <ShelfLessonView
+          key={`${bookId}:${sec.id}`}
           bookId={bookId}
           section={sec}
           childrenLesson={isChildrenLesson}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
           pageIndex={interactive ? pageIndex : 0}
-          scrollOffset={
-            interactive ? (sectionId === sec.id ? flowScrollRatio : (scrollBySectionRef.current[sec.id] ?? 0)) : 0
-          }
-          scrollAnchor={
-            interactive ? (scrollAnchorBySectionRef.current[sec.id] ?? flowScrollAnchorRef.current ?? undefined) : undefined
-          }
-          scrollToEnd={interactive ? Boolean(opts?.scrollToEnd) : false}
+          scrollOffset={flowScroll.scrollOffset}
+          scrollAnchor={flowScroll.scrollAnchor}
+          scrollToEnd={flowScroll.scrollToEnd}
           scrollSnapKey={interactive ? scrollSnapKey : 0}
           onPageCount={interactive && shelfSectionIsPdf(sec) ? setPageCountForSection : undefined}
           onPageIndexChange={interactive && shelfSectionIsPdf(sec) ? setPageIndex : undefined}
@@ -739,19 +821,16 @@ export default function ShelfReader({
           : 'html';
       return (
         <ShelfPaginatedProse
+          key={`${bookId}:${sec.id}`}
           html={sec.html}
           bookId={bookId}
           sectionId={sec.id}
           pageIndex={0}
           variant={flowVariant}
           contentKey={`${bookId}:${sec.id}:${fontPx}:${lineHeight}`}
-          scrollOffset={
-            interactive ? (sectionId === sec.id ? flowScrollRatio : (scrollBySectionRef.current[sec.id] ?? 0)) : 0
-          }
-          scrollAnchor={
-            interactive ? (scrollAnchorBySectionRef.current[sec.id] ?? flowScrollAnchorRef.current ?? undefined) : undefined
-          }
-          scrollToEnd={interactive ? Boolean(opts?.scrollToEnd) : false}
+          scrollOffset={flowScroll.scrollOffset}
+          scrollAnchor={flowScroll.scrollAnchor}
+          scrollToEnd={flowScroll.scrollToEnd}
           scrollSnapKey={interactive ? scrollSnapKey : 0}
           onScrollProgress={interactive ? onFlowScrollProgress : undefined}
           onScrollAnchor={interactive ? onFlowScrollAnchor : undefined}

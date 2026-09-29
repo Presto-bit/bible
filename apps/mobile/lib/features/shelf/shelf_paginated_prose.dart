@@ -153,16 +153,34 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
   }
 
   void _applyInitialScroll() {
-    if (!_scroll.hasClients) return;
+    if (!_scroll.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _applyInitialScroll();
+      });
+      return;
+    }
     _syncingScroll = true;
     final max = _scroll.position.maxScrollExtent;
-    final ratio = _targetScrollRatio();
+    final forceStart =
+        !_pendingScroll.toEnd && _pendingScroll.anchor == null && _pendingScroll.offset <= 0;
     if (_pendingScroll.toEnd) {
       _scroll.jumpTo(max);
-    } else if (ratio > 0 && max > 0) {
-      _scroll.jumpTo(ratio * max);
-    } else {
+    } else if (forceStart) {
       _scroll.jumpTo(0);
+    } else {
+      final ratio = _targetScrollRatio();
+      if (ratio > 0 && max > 0) {
+        _scroll.jumpTo(ratio * max);
+      } else {
+        _scroll.jumpTo(0);
+      }
+    }
+    // 布局未完成（max==0）时再钉一次开头
+    if (forceStart || max <= 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scroll.hasClients) return;
+        if (forceStart) _scroll.jumpTo(0);
+      });
     }
     Future<void>.delayed(const Duration(milliseconds: 80), () {
       if (mounted) _syncingScroll = false;

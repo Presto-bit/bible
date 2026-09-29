@@ -207,22 +207,47 @@ export default function ShelfPaginatedProse({
     scrollApplyKeyRef.current = key;
     syncRef.current = true;
     const { offset, anchor, toEnd } = pendingScrollRef.current;
-    requestAnimationFrame(() => {
+    // start 语义：忽略可能残留的 mid anchor（由父层清空；此处再兜底）
+    const forceStart = !toEnd && offset <= 0 && !anchor;
+
+    const apply = () => {
       const max = Math.max(0, el.scrollHeight - el.clientHeight);
       if (toEnd) el.scrollTop = max;
+      else if (forceStart) el.scrollTop = 0;
       else if (anchor && linkedHtml) {
         const ratio = shelfRatioForParagraphIndex(linkedHtml, anchor.paragraphIndex);
         el.scrollTop = ratio * max;
       } else if (offset > 0) el.scrollTop = offset * max;
       else el.scrollTop = 0;
-      syncRef.current = false;
-      // 内容晚于 snap 抵达时再滚一次，确保切章到开头
-      if (!toEnd && offset <= 0 && !anchor) {
-        requestAnimationFrame(() => {
+    };
+
+    requestAnimationFrame(() => {
+      apply();
+      // 内容晚于 snap 抵达 / 布局未完成时再钉一次
+      requestAnimationFrame(() => {
+        if (forceStart || (!toEnd && offset <= 0 && !anchor)) {
           el.scrollTop = 0;
-        });
-      }
+        } else {
+          apply();
+        }
+        window.setTimeout(() => {
+          if (forceStart) el.scrollTop = 0;
+          syncRef.current = false;
+        }, 80);
+      });
     });
+
+    if (!forceStart && !toEnd) return undefined;
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+          if (!forceStart) return;
+          if (Math.max(0, el.scrollHeight - el.clientHeight) > 0 && el.scrollTop > 1) {
+            el.scrollTop = 0;
+          }
+        })
+      : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
   }, [contentKey, linkedHtml, scrollToEnd, scrollSnapKey]);
 
   const repaintHighlights = useCallback(() => {
