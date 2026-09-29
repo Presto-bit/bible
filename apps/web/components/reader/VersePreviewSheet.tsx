@@ -1,11 +1,54 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, type Verse } from '@/lib/api';
+import { normalizeInlineRef } from '@/lib/inline_ref';
 import { refToChineseLabel } from '@/lib/ref_label';
 import AppBodyPortal from '@/components/AppBodyPortal';
 
 const DISMISS_DY = 72;
+
+type PreviewMode = 'range' | 'chapter';
+
+type RefTarget = {
+  book: string;
+  chapter: number;
+  verseStart?: number;
+  verseEnd?: number;
+};
+
+function parseRefTarget(refParam: string): RefTarget | null {
+  const raw = (normalizeInlineRef(refParam) || refParam).trim();
+  const range = raw.match(/^([A-Za-z0-9]+)\.(\d+)\.(\d+)-(\d+)$/);
+  if (range) {
+    return {
+      book: range[1].toUpperCase(),
+      chapter: Number(range[2]),
+      verseStart: Number(range[3]),
+      verseEnd: Number(range[4]),
+    };
+  }
+  const single = raw.match(/^([A-Za-z0-9]+)\.(\d+)\.(\d+)$/);
+  if (single) {
+    return {
+      book: single[1].toUpperCase(),
+      chapter: Number(single[2]),
+      verseStart: Number(single[3]),
+      verseEnd: Number(single[3]),
+    };
+  }
+  const ch = raw.match(/^([A-Za-z0-9]+)\.(\d+)$/);
+  if (ch) {
+    return { book: ch[1].toUpperCase(), chapter: Number(ch[2]) };
+  }
+  return null;
+}
+
+function inFocusRange(verse: number, target: RefTarget | null): boolean {
+  if (!target?.verseStart) return false;
+  const end = target.verseEnd ?? target.verseStart;
+  return verse >= target.verseStart && verse <= end;
+}
 
 export function VersePreviewSheet({
   refParam,
@@ -16,10 +59,14 @@ export function VersePreviewSheet({
   refLabel?: string;
   onClose: () => void;
 }) {
+  const [mode, setMode] = useState<PreviewMode>('range');
   const [verses, setVerses] = useState<Verse[]>([]);
+  const [chapterVerses, setChapterVerses] = useState<Verse[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chapterLoading, setChapterLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const focusRef = useRef<HTMLParagraphElement | null>(null);
   const dragRef = useRef<{ y: number; pulling: boolean; pointerId: number }>({
     y: 0,
     pulling: false,
@@ -29,6 +76,8 @@ export function VersePreviewSheet({
   const [isDragging, setIsDragging] = useState(false);
   const dragOffsetRef = useRef(0);
   const label = refLabel ?? refToChineseLabel(refParam) ?? refParam;
+  const target = useMemo(() => parseRefTarget(refParam), [refParam]);
+  const canExpandChapter = Boolean(target?.book && target.chapter > 0);
 
   useEffect(() => {
     dragOffsetRef.current = dragOffset;
@@ -38,6 +87,8 @@ export function VersePreviewSheet({
     let cancelled = false;
     setLoading(true);
     setErr(null);
+    setMode('range');
+    setChapterVerses(null);
     void api
       .scriptureRef(refParam)
       .then((d) => {
@@ -57,6 +108,35 @@ export function VersePreviewSheet({
       cancelled = true;
     };
   }, [refParam]);
+
+  useEffect(() => {
+    if (mode !== 'chapter' || !target || chapterVerses) return;
+    let cancelled = false;
+    setChapterLoading(true);
+    void api
+      .chapter(target.book, target.chapter)
+      .then((d) => {
+        if (cancelled) return;
+        setChapterVerses(d.verses ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setErr('无法加载整章');
+      })
+      .finally(() => {
+        if (!cancelled) setChapterLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, target, chapterVerses]);
+
+  useEffect(() => {
+    if (mode !== 'chapter' || chapterLoading) return;
+    const id = window.setTimeout(() => {
+      focusRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [mode, chapterLoading, chapterVerses]);
 
   const resetDrag = useCallback(() => {
     setDragOffset(0);
@@ -102,11 +182,22 @@ export function VersePreviewSheet({
     };
   }, [moveDismissDrag, endDismissDrag]);
 
+  const displayVerses = mode === 'chapter' ? chapterVerses ?? verses : verses;
+  const showChapterLoading = mode === 'chapter' && chapterLoading && !chapterVerses;
+  const firstFocusVerse =
+    mode === 'chapter' && target?.verseStart
+      ? displayVerses.find((v) => inFocusRange(v.verse, target))?.verse
+      : undefined;
+
+  useEffect(() => {
+    focusRef.current = null;
+  }, [mode, refParam]);
+
   return (
     <AppBodyPortal>
       <div className="sheet-backdrop shelf-verse-preview-backdrop" onClick={onClose}>
         <div
-          className="sheet card verse-preview-sheet shelf-verse-preview-sheet"
+          className={`sheet card verse-preview-sheet shelf-verse-preview-sheet${mode === 'chapter' ? ' is-chapter' : ''}`}
           style={{
             transform: dragOffset ? `translateY(${dragOffset}px)` : undefined,
             transition: isDragging ? 'none' : 'transform 0.22s ease',
@@ -129,26 +220,56 @@ export function VersePreviewSheet({
             }}
           >
             <div className="section-row" style={{ marginTop: 0 }}>
-              <strong>{label}</strong>
+              <strong>{mode === 'chapter' ? `${label} · 整章` : label}</strong>
               <button type="button" className="text-link" onClick={onClose}>
                 关闭
               </button>
             </div>
+            {canExpandChapter ? (
+              <div className="shelf-verse-preview-actions">
+                {mode === 'range' ? (
+                  <button
+                    type="button"
+                    className="text-link shelf-verse-preview-more"
+                    onClick={() => setMode('chapter')}
+                  >
+                    查看更多
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="text-link shelf-verse-preview-more"
+                    onClick={() => setMode('range')}
+                  >
+                    收起
+                  </button>
+                )}
+              </div>
+            ) : null}
           </div>
           <div ref={scrollRef} className="verse-preview-scroll shelf-verse-preview-scroll">
-            {loading && <p className="muted">加载中…</p>}
+            {(loading || showChapterLoading) && <p className="muted">加载中…</p>}
             {err && <p className="muted">{err}</p>}
-            {!loading && verses.length > 0 && (
+            {!loading && !showChapterLoading && displayVerses.length > 0 && (
               <div className="verse-preview-list">
-                {verses.map((v) => (
-                  <p key={v.verse} className="verse-preview-line">
-                    <sup className="verse-preview-num">{v.verse}</sup>
-                    {v.text}
-                  </p>
-                ))}
+                {displayVerses.map((v) => {
+                  const focused = mode === 'chapter' && inFocusRange(v.verse, target);
+                  return (
+                    <p
+                      key={v.verse}
+                      ref={v.verse === firstFocusVerse ? focusRef : undefined}
+                      className={`verse-preview-line${focused ? ' is-focus' : ''}`}
+                    >
+                      <sup className="verse-preview-num">{v.verse}</sup>
+                      {v.text}
+                    </p>
+                  );
+                })}
               </div>
             )}
-            {!loading && !err && verses.length === 0 && <p className="muted">暂无经文</p>}
+            {!loading && !showChapterLoading && !err && displayVerses.length === 0 && (
+              <p className="muted">暂无经文</p>
+            )}
           </div>
         </div>
       </div>

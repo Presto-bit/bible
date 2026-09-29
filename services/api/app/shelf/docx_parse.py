@@ -188,14 +188,25 @@ def _source_for_style(style: str | None) -> str:
     return "inferred"
 
 
-_DIALOGUE_SPEAKER_RE = re.compile(r"^(信徒|牧者)[：:]\s*(.*)$", re.DOTALL)
+_DIALOGUE_SPEAKER_RE = re.compile(r"^([\u4e00-\u9fff]{2,4})[：:]\s*(.+)$", re.DOTALL)
+_SECTION_KICKERS = frozenset(
+    {
+        "场景",
+        "核心句",
+        "一起阅读的经文",
+        "继续对话的问题",
+        "本章练习",
+    }
+)
+_Q_BLOCK_HEADS = frozenset({"继续对话的问题", "本章练习"})
+_PAREN_ASIDE_RE = re.compile(r"^（[^）]{1,120}）$")
 
 
 def _dialogue_html(text: str) -> str:
     m = _DIALOGUE_SPEAKER_RE.match(text.strip())
     if not m:
         return f'<p class="shelf-dialogue">{html.escape(text)}</p>'
-    speaker, body = m.group(1), m.group(2)
+    speaker, body = m.group(1), m.group(2).strip()
     return (
         f'<p class="shelf-dialogue">'
         f'<span class="shelf-dialogue-speaker">{html.escape(speaker)}</span>：'
@@ -204,9 +215,16 @@ def _dialogue_html(text: str) -> str:
 
 
 def _body_html(text: str) -> str:
+    t = (text or "").strip()
     esc = html.escape(text)
-    if text.strip() == "继续对话的问题":
+    if t in _Q_BLOCK_HEADS:
         return f'<p class="shelf-dialogue-q-head">{esc}</p>'
+    if t in _SECTION_KICKERS:
+        return f'<p class="shelf-section-kicker">{esc}</p>'
+    if _PAREN_ASIDE_RE.match(t):
+        return f'<p class="shelf-aside">{esc}</p>'
+    if _DIALOGUE_SPEAKER_RE.match(t) and t.split("：", 1)[0].split(":", 1)[0] not in _SECTION_KICKERS:
+        return _dialogue_html(t)
     return f'<p class="shelf-body">{esc}</p>'
 
 
@@ -226,25 +244,117 @@ def _para_html(p: _Para) -> str:
     return _body_html(p.text)
 
 
+def _plain_p_text(piece: str) -> str:
+    text = re.sub(r"<[^>]+>", "", piece)
+    return html.unescape(text).replace("\u00a0", " ").strip()
+
+
+def _set_p_class(piece: str, cls: str) -> str:
+    if re.search(r'\bclass="', piece):
+        return re.sub(r'\bclass="[^"]*"', f'class="{cls}"', piece, count=1)
+    if re.search(r"\bclass='", piece):
+        return re.sub(r"\bclass='[^']*'", f"class='{cls}'", piece, count=1)
+    return piece.replace("<p", f'<p class="{cls}"', 1)
+
+
 def _mark_dialogue_questions(html: str) -> str:
+    """继续对话 / 本章练习 标题后的条目标为 shelf-dialogue-q；一起阅读后标 shelf-verse-line。"""
     chunks = html.split("</p>")
     out: list[str] = []
-    in_q = False
+    mode: str | None = None  # "q" | "verse" | None
     for chunk in chunks:
         if not chunk.strip():
             continue
         piece = chunk + "</p>"
-        if 'class="shelf-dialogue-q-head"' in piece:
-            in_q = True
+        plain = re.sub(r"\s+", "", _plain_p_text(piece))
+        if plain in _Q_BLOCK_HEADS:
+            out.append(_set_p_class(piece, "shelf-dialogue-q-head"))
+            mode = "q"
+            continue
+        if plain == "一起阅读的经文":
+            out.append(_set_p_class(piece, "shelf-section-kicker"))
+            mode = "verse"
+            continue
+        if plain in _SECTION_KICKERS:
+            out.append(_set_p_class(piece, "shelf-section-kicker"))
+            mode = None
+            continue
+        if 'class="shelf-docx-h' in piece or 'class="shelf-h' in piece or "shelf-docx-title" in piece:
+            mode = None
             out.append(piece)
             continue
-        if in_q and 'class="shelf-body"' in piece:
-            out.append(piece.replace('class="shelf-body"', 'class="shelf-dialogue-q"', 1))
+        line = _plain_p_text(piece)
+        if not line:
+            out.append(piece)
             continue
-        if in_q:
-            in_q = False
+        if mode == "verse":
+            out.append(_set_p_class(piece, "shelf-verse-line"))
+            mode = None
+            continue
+        if mode == "q":
+            if _DIALOGUE_SPEAKER_RE.match(line):
+                mode = None
+                out.append(piece)
+                continue
+            if plain in _SECTION_KICKERS or plain in _Q_BLOCK_HEADS:
+                # handled above
+                pass
+            out.append(_set_p_class(piece, "shelf-dialogue-q"))
+            continue
         out.append(piece)
     return "".join(out)
+
+
+def _enhance_prose_semantics(html_str: str) -> str:
+    """无样式 Word：小标题 / 对白 / 经文行 / 练习块语义 class。"""
+    if not html_str:
+        return html_str
+    # 规范化 Word 不换行连字符，便于经文 linkify
+    html_str = html_str.replace("\u2011", "-")
+    chunks = html_str.split("</p>")
+    out: list[str] = []
+    for chunk in chunks:
+        if not chunk.strip():
+            continue
+        piece = chunk + "</p>"
+        # 已有语义 class 则跳过重标（仍走后续 block 标记）
+        if any(
+            c in piece
+            for c in (
+                "shelf-dialogue-q-head",
+                "shelf-section-kicker",
+                "shelf-verse-line",
+                "shelf-aside",
+                "shelf-dialogue-speaker",
+            )
+        ):
+            out.append(piece)
+            continue
+        line = _plain_p_text(piece)
+        if not line:
+            out.append(piece)
+            continue
+        if line in _Q_BLOCK_HEADS:
+            out.append(_set_p_class(piece, "shelf-dialogue-q-head"))
+            continue
+        if line in _SECTION_KICKERS:
+            out.append(_set_p_class(piece, "shelf-section-kicker"))
+            continue
+        if _PAREN_ASIDE_RE.match(line):
+            out.append(_set_p_class(piece, "shelf-aside"))
+            continue
+        m = _DIALOGUE_SPEAKER_RE.match(line)
+        if m and "shelf-dialogue" not in piece:
+            speaker, body = m.group(1), m.group(2).strip()
+            out.append(
+                f'<p class="shelf-dialogue">'
+                f'<span class="shelf-dialogue-speaker">{html.escape(speaker)}</span>：'
+                f'<span class="shelf-dialogue-text">{html.escape(body)}</span></p>'
+            )
+            continue
+        out.append(piece)
+    merged = "".join(out)
+    return _mark_dialogue_questions(merged)
 
 
 def _match_toc_to_section(toc_title: str, section_title: str) -> bool:
@@ -576,7 +686,9 @@ def _enrich_sections_with_mammoth(
             flags=re.IGNORECASE | re.DOTALL,
         )
         sec["html"] = inject_shelf_paragraph_anchors(
-            _mark_dialogue_questions(f'<div class="shelf-docx-root">{matched}</div>')
+            _enhance_prose_semantics(
+                _mark_dialogue_questions(f'<div class="shelf-docx-root">{matched}</div>')
+            )
         )
 
 
@@ -664,7 +776,7 @@ def parse_docx_bytes(
         if current is None:
             return
         current["html"] = inject_shelf_paragraph_anchors(
-            _mark_dialogue_questions("\n".join(buf))
+            _enhance_prose_semantics(_mark_dialogue_questions("\n".join(buf)))
         )
         sections.append(current)
         # 目录只保留一级标题（二十场对话 + 三个附录），附录内经文/第几天不入目录
@@ -859,7 +971,7 @@ def parse_docx_bytes(
                         "zone": zone if zone in ("body", "appendix", "front") else "body",
                         "source": "inferred",
                         "toc_id": toc_id,
-                        "html": inject_shelf_paragraph_anchors(wrapped),
+                        "html": inject_shelf_paragraph_anchors(_enhance_prose_semantics(wrapped)),
                         "kind": "body",
                     }
                 )
@@ -900,7 +1012,9 @@ def parse_docx_bytes(
                 bits = [_para_html(p) for p in paras if (p.text or "").strip()]
                 if bits:
                     prose = inject_shelf_paragraph_anchors(
-                        f'<div class="shelf-docx-root">{chr(10).join(bits)}</div>'
+                        _enhance_prose_semantics(
+                            f'<div class="shelf-docx-root">{chr(10).join(bits)}</div>'
+                        )
                     )
             if (prose or "").strip():
                 if title == "未命名":

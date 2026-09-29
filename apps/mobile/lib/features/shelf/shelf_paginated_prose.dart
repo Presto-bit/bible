@@ -219,12 +219,14 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
           display: Display.block,
         ));
 
+    final tracking = 0.01 * bodySize;
+
     Style bodyParagraph() => block(Style(
           fontSize: FontSize(bodySize),
           lineHeight: LineHeight(lh),
           margin: Margins.only(bottom: widget.lessonTone ? 14 : 12),
           textAlign: TextAlign.justify,
-          letterSpacing: widget.variantDocx ? 0.01 * bodySize : null,
+          letterSpacing: tracking,
         ));
 
     Style heading({
@@ -237,6 +239,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
           lineHeight: LineHeight(lh * 0.95),
           fontWeight: weight,
           margin: margin,
+          letterSpacing: tracking,
           textAlign: TextAlign.left,
         ));
 
@@ -386,14 +389,23 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         fontWeight: FontWeight.w400,
         margin: Margins.only(bottom: 10),
         textAlign: TextAlign.justify,
+        letterSpacing: tracking,
       )),
-      '.shelf-dialogue-speaker': withFamily(Style(fontWeight: FontWeight.w600)),
-      '.shelf-dialogue-text': withFamily(Style(fontWeight: FontWeight.w400)),
+      '.shelf-dialogue-speaker': withFamily(Style(fontWeight: FontWeight.w600, letterSpacing: tracking)),
+      '.shelf-dialogue-text': withFamily(Style(fontWeight: FontWeight.w400, letterSpacing: tracking)),
       '.shelf-dialogue-q-head': block(Style(
         fontSize: FontSize(bodySize),
         fontWeight: FontWeight.w600,
         margin: Margins.only(top: 16, bottom: 6),
         textAlign: TextAlign.left,
+        letterSpacing: tracking,
+      )),
+      '.shelf-section-kicker': block(Style(
+        fontSize: FontSize(bodySize),
+        fontWeight: FontWeight.w600,
+        margin: Margins.only(top: 16, bottom: 6),
+        textAlign: TextAlign.left,
+        letterSpacing: tracking,
       )),
       '.shelf-dialogue-q': block(Style(
         fontSize: FontSize(bodySize),
@@ -403,6 +415,25 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         color: const Color(0xFF3D5A45),
         margin: Margins.only(bottom: 8),
         textAlign: TextAlign.left,
+        letterSpacing: tracking,
+      )),
+      '.shelf-verse-line': block(Style(
+        fontSize: FontSize(bodySize),
+        lineHeight: LineHeight(lh),
+        fontWeight: FontWeight.w400,
+        color: const Color(0xFF3D5A45),
+        margin: Margins.only(bottom: 12),
+        textAlign: TextAlign.left,
+        letterSpacing: tracking,
+      )),
+      '.shelf-aside': block(Style(
+        fontSize: FontSize(bodySize),
+        lineHeight: LineHeight(lh),
+        fontWeight: FontWeight.w400,
+        color: const Color(0xB82C2825),
+        margin: Margins.only(bottom: 10),
+        textAlign: TextAlign.left,
+        letterSpacing: tracking,
       )),
       'a.shelf-inline-ref': withFamily(Style(
         color: const Color(0xFF3D5A45),
@@ -494,7 +525,7 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
       }
       base = _layoutHtml ?? base;
     }
-    base = linkifyShelfProseHtml(_indentBodyParagraphs(base));
+    base = _indentBodyParagraphs(linkifyShelfProseHtml(base));
     final marks = ref.watch(highlightMapProvider).maybeWhen(
           data: (m) => m,
           orElse: () => const <String, HighlightMark>{},
@@ -528,6 +559,11 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
         (m) {
           final classes = m.group(1)!;
           if (classes.contains('shelf-dialogue') ||
+              classes.contains('shelf-dialogue-q') ||
+              classes.contains('shelf-dialogue-q-head') ||
+              classes.contains('shelf-section-kicker') ||
+              classes.contains('shelf-verse-line') ||
+              classes.contains('shelf-aside') ||
               classes.contains('shelf-docx-title') ||
               classes.contains('shelf-docx-h') ||
               classes.contains('shelf-title') ||

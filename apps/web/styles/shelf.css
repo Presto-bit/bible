@@ -1416,7 +1416,8 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   touch-action: pan-x pan-y;
   overflow-x: hidden;
   word-wrap: break-word;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .shelf-flow-bottom-spacer {
@@ -1430,11 +1431,27 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  transition: max-height 0.22s ease;
+}
+
+.shelf-verse-preview-sheet.is-chapter {
+  max-height: min(92vh, 860px);
 }
 
 .shelf-verse-preview-head {
   flex-shrink: 0;
   touch-action: none;
+}
+
+.shelf-verse-preview-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin: 2px 0 4px;
+}
+
+.shelf-verse-preview-more {
+  font-size: 13px;
+  padding: 0;
 }
 
 .shelf-verse-preview-scroll {
@@ -1459,6 +1476,14 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   margin: -4px 0 8px;
   font-size: 12px;
   text-align: center;
+}
+
+.shelf-verse-preview-sheet .verse-preview-line.is-focus {
+  background: color-mix(in srgb, var(--accent, #4a6b52) 10%, transparent);
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-left: -8px;
+  margin-right: -8px;
 }
 
 .shelf-flow-scroll-tail {
@@ -1674,7 +1699,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   line-height: 1.45;
 }
 
-.shelf-docx-prose:not(.shelf-docx-prose-lesson) .shelf-docx-p:not(.shelf-docx-title):not(.shelf-docx-h1):not(.shelf-docx-h2):not(.shelf-docx-h3):not(.shelf-dialogue):not(.shelf-dialogue-q-head):not(.shelf-dialogue-q) {
+.shelf-docx-prose:not(.shelf-docx-prose-lesson) .shelf-docx-p:not(.shelf-docx-title):not(.shelf-docx-h1):not(.shelf-docx-h2):not(.shelf-docx-h3):not(.shelf-dialogue):not(.shelf-dialogue-q-head):not(.shelf-dialogue-q):not(.shelf-section-kicker):not(.shelf-verse-line):not(.shelf-aside) {
   text-indent: 2em;
 }
 
@@ -1696,12 +1721,15 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   font-weight: 400;
 }
 
+.shelf-docx-prose .shelf-section-kicker,
+.shelf-prose .shelf-section-kicker,
 .shelf-docx-prose .shelf-dialogue-q-head,
 .shelf-prose .shelf-dialogue-q-head {
   margin: 1.35em 0 0.45em;
   text-indent: 0;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--ink);
+  letter-spacing: inherit;
 }
 
 .shelf-docx-prose .shelf-dialogue-q,
@@ -1712,6 +1740,29 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   font-weight: 400;
   color: var(--accent-deep, #3d5a45);
   line-height: 1.72;
+}
+
+.shelf-docx-prose .shelf-verse-line,
+.shelf-prose .shelf-verse-line {
+  margin: 0 0 0.85em;
+  text-indent: 0;
+  text-align: left;
+  line-height: 1.7;
+  color: var(--accent-deep, #3d5a45);
+}
+
+.shelf-docx-prose .shelf-verse-line .shelf-inline-ref,
+.shelf-prose .shelf-verse-line .shelf-inline-ref {
+  white-space: nowrap;
+}
+
+.shelf-docx-prose .shelf-aside,
+.shelf-prose .shelf-aside {
+  margin: 0.35em 0 0.75em;
+  text-indent: 0;
+  font-weight: 400;
+  color: color-mix(in srgb, var(--ink, #2c2825) 72%, transparent);
+  line-height: 1.7;
 }
 
 .shelf-docx-prose .shelf-body,
@@ -2800,9 +2851,17 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
   color: var(--ink, #2c2825);
   font-family: var(--shelf-font-family, var(--font-reader));
   text-align: justify;
-  text-justify: inter-ideograph;
+  /* 不用 inter-ideograph：部分浏览器会把汉字间距拉得忽疏忽密 */
   text-wrap: pretty;
   letter-spacing: 0.01em;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+/* 阅读器统一字距：子节点一律继承，避免小标题/强调/残留 Word 样式各行一套 */
+.shelf-docx-prose *:not(.shelf-inline-ref),
+.shelf-prose *:not(.shelf-inline-ref) {
+  letter-spacing: inherit;
 }
 
 .shelf-docx-prose .shelf-docx-title,
@@ -2842,7 +2901,6 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-docx-prose .shelf-docx-p {
   margin: 0 0 1em;
   text-align: justify;
-  text-justify: inter-ideograph;
   text-wrap: pretty;
   line-height: inherit;
   width: 100%;
@@ -3039,7 +3097,7 @@ html.android-flutter-h5 .shelf-pdf-pager.is-fullscreen {
 .shelf-docx-prose-lesson {
   font-size: calc(var(--shelf-font-size, 18px) * 1.04);
   line-height: calc(var(--shelf-line-height, 1.88) * 1.04);
-  letter-spacing: 0.015em;
+  letter-spacing: 0.01em;
 }
 
 .shelf-docx-prose-lesson .shelf-docx-p {

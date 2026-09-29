@@ -1,97 +1,131 @@
-/// 书架正文 HTML 预处理（对话说话人、继续对话问题、经文 linkify）。
+/// 书架正文 HTML 预处理（对话说话人、继续对话/本章练习、经文 linkify）。
 library;
 
 import '../bible/inline_ref.dart';
 
-final _dialogueParaRe = RegExp(
-  r'<p class="shelf-dialogue">(信徒|牧者)[：:]\s*(.*?)</p>',
-  dotAll: true,
-);
+final _sectionKickers = {
+  '场景',
+  '核心句',
+  '一起阅读的经文',
+  '继续对话的问题',
+  '本章练习',
+};
 
-final _speakerLineRe = RegExp(r'^(信徒|牧者)[：:]\s*(.*)$', dotAll: true);
+final _qBlockHeads = {'继续对话的问题', '本章练习'};
+
+final _speakerLineRe = RegExp(r'^([\u4e00-\u9fff]{2,4})[：:]\s*(.+)$', dotAll: true);
+final _parenAsideRe = RegExp(r'^（[^）]{1,120}）$');
 
 final _anyParaRe = RegExp(r'<p([^>]*)>(.*?)</p>', dotAll: true);
+
+String _plainOfHtml(String html) => html
+    .replaceAll(RegExp(r'<[^>]+>'), '')
+    .replaceAll('\u00a0', ' ')
+    .replaceAll('\u2011', '-')
+    .trim();
+
+String _setParaClass(String piece, String cls) {
+  if (piece.contains('class="')) {
+    return piece.replaceFirst(RegExp(r'class="[^"]*"'), 'class="$cls"');
+  }
+  if (piece.contains("class='")) {
+    return piece.replaceFirst(RegExp(r"class='[^']*'"), "class='$cls'");
+  }
+  if (piece.startsWith('<p>')) {
+    return piece.replaceFirst('<p>', '<p class="$cls">');
+  }
+  return piece.replaceFirst('<p ', '<p class="$cls" ');
+}
 
 String _tagDialogueParagraphs(String html) {
   return html.replaceAllMapped(_anyParaRe, (m) {
     final attrs = m.group(1)!;
     if (attrs.contains('shelf-dialogue') ||
         attrs.contains('shelf-dialogue-q') ||
-        attrs.contains('shelf-dialogue-q-head')) {
+        attrs.contains('shelf-dialogue-q-head') ||
+        attrs.contains('shelf-section-kicker') ||
+        attrs.contains('shelf-verse-line') ||
+        attrs.contains('shelf-aside')) {
       return m.group(0)!;
     }
-    final plain = m
-        .group(2)!
-        .replaceAll(RegExp(r'<[^>]+>'), '')
-        .replaceAll('\u00a0', ' ')
-        .trim();
-    if (!_speakerLineRe.hasMatch(plain)) return m.group(0)!;
-    return '<p class="shelf-dialogue">${m.group(2)!}</p>';
+    final plain = _plainOfHtml(m.group(2)!);
+    if (_qBlockHeads.contains(plain)) {
+      return '<p class="shelf-dialogue-q-head">${m.group(2)!}</p>';
+    }
+    if (_sectionKickers.contains(plain)) {
+      return '<p class="shelf-section-kicker">${m.group(2)!}</p>';
+    }
+    if (_parenAsideRe.hasMatch(plain)) {
+      return '<p class="shelf-aside">${m.group(2)!}</p>';
+    }
+    if (_speakerLineRe.hasMatch(plain)) {
+      return '<p class="shelf-dialogue">${m.group(2)!}</p>';
+    }
+    return m.group(0)!;
   });
 }
 
 String _enhanceDialogueParagraphs(String html) {
-  return html.replaceAllMapped(_dialogueParaRe, (m) {
-    final speaker = m.group(1)!;
-    final body = m.group(2)!;
-    return '<p class="shelf-dialogue">'
-        '<span class="shelf-dialogue-speaker">$speaker</span>：'
-        '<span class="shelf-dialogue-text">$body</span></p>';
-  });
+  return html.replaceAllMapped(
+    RegExp(
+      r'<p class="shelf-dialogue">([\u4e00-\u9fff]{2,4})[：:]\s*(.*?)</p>',
+      dotAll: true,
+    ),
+    (m) {
+      final speaker = m.group(1)!;
+      final body = m.group(2)!;
+      return '<p class="shelf-dialogue">'
+          '<span class="shelf-dialogue-speaker">$speaker</span>：'
+          '<span class="shelf-dialogue-text">$body</span></p>';
+    },
+  );
 }
 
 String _enhanceDialogueQuestions(String html) {
   final parts = html.split('</p>');
   final rebuilt = <String>[];
-  var inQuestions = false;
+  String? mode; // q | verse
   for (final chunk in parts) {
     if (chunk.isEmpty) continue;
     var piece = '$chunk</p>';
-    final plain = piece.replaceAll(RegExp(r'<[^>]+>'), '').replaceAll(RegExp(r'\s+'), '');
-    if (plain == '继续对话的问题') {
-      rebuilt.add('<p class="shelf-dialogue-q-head">继续对话的问题</p>');
-      inQuestions = true;
+    final plain = _plainOfHtml(piece).replaceAll(RegExp(r'\s+'), '');
+    if (_qBlockHeads.contains(plain)) {
+      rebuilt.add('<p class="shelf-dialogue-q-head">$plain</p>');
+      mode = 'q';
       continue;
     }
-    if (inQuestions) {
-      if (piece.contains('shelf-h1') || piece.contains('shelf-docx-h1')) {
-        inQuestions = false;
-        rebuilt.add(piece);
-        continue;
-      }
-      if (piece.contains('shelf-dialogue-q-head')) {
-        inQuestions = false;
-        rebuilt.add(piece);
-        continue;
-      }
-      final line = piece.replaceAll(RegExp(r'<[^>]+>'), '').replaceAll('\u00a0', ' ').trim();
-      if (line.isEmpty) {
-        rebuilt.add(piece);
-        continue;
-      }
-      if (_speakerLineRe.hasMatch(line)) {
-        inQuestions = false;
-        rebuilt.add(piece);
-        continue;
-      }
-      if (piece.contains('class="')) {
-        piece = piece.replaceFirst(RegExp(r'class="[^"]*"'), 'class="shelf-dialogue-q"');
-      } else if (piece.contains("class='")) {
-        piece = piece.replaceFirst(RegExp(r"class='[^']*'"), "class='shelf-dialogue-q'");
-      } else {
-        piece = piece.replaceFirst('<p>', '<p class="shelf-dialogue-q">');
-      }
+    if (plain == '一起阅读的经文') {
+      rebuilt.add(_setParaClass(piece, 'shelf-section-kicker'));
+      mode = 'verse';
+      continue;
+    }
+    if (_sectionKickers.contains(plain)) {
+      rebuilt.add(_setParaClass(piece, 'shelf-section-kicker'));
+      mode = null;
+      continue;
+    }
+    if (piece.contains('shelf-h1') || piece.contains('shelf-docx-h1')) {
+      mode = null;
       rebuilt.add(piece);
       continue;
     }
-    if (piece.contains('class="shelf-body">继续对话的问题</p>') ||
-        piece.contains("class='shelf-body'>继续对话的问题</p>")) {
-      rebuilt.add(piece.replaceFirst('class="shelf-body"', 'class="shelf-dialogue-q-head"'));
-      inQuestions = true;
+    final line = _plainOfHtml(piece);
+    if (line.isEmpty) {
+      rebuilt.add(piece);
       continue;
     }
-    if (inQuestions && piece.contains('class="shelf-body"')) {
-      rebuilt.add(piece.replaceFirst('class="shelf-body"', 'class="shelf-dialogue-q"'));
+    if (mode == 'verse') {
+      rebuilt.add(_setParaClass(piece, 'shelf-verse-line'));
+      mode = null;
+      continue;
+    }
+    if (mode == 'q') {
+      if (_speakerLineRe.hasMatch(line) || piece.contains('shelf-dialogue-q-head')) {
+        mode = null;
+        rebuilt.add(piece);
+        continue;
+      }
+      rebuilt.add(_setParaClass(piece, 'shelf-dialogue-q'));
       continue;
     }
     rebuilt.add(piece);
@@ -101,7 +135,8 @@ String _enhanceDialogueQuestions(String html) {
 
 String prepareShelfProseHtml(String html) {
   if (html.trim().isEmpty) return html;
-  var out = _tagDialogueParagraphs(html);
+  var out = html.replaceAll('\u2011', '-');
+  out = _tagDialogueParagraphs(out);
   out = _enhanceDialogueParagraphs(out);
   out = _enhanceDialogueQuestions(out);
   return out;
@@ -151,7 +186,7 @@ String injectShelfParagraphAnchors(String html) {
   var idx = 0;
   return html.replaceAllMapped(
     RegExp(
-      r'<p(\s[^>]*class="[^"]*(?:shelf-body|shelf-docx-p|shelf-dialogue)[^"]*"[^>]*)>',
+      r'<p(\s[^>]*class="[^"]*(?:shelf-body|shelf-docx-p|shelf-dialogue|shelf-aside|shelf-verse-line)[^"]*"[^>]*)>',
     ),
     (m) {
       final full = m.group(0)!;

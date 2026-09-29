@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.shelf.docx_parse import _wrap_trailing_gallery  # noqa: E402
+from app.shelf.docx_parse import _wrap_trailing_gallery, _enhance_prose_semantics, parse_docx_bytes  # noqa: E402
 from app.shelf.epub_parse import EpubError, parse_epub_bytes  # noqa: E402
 from app.shelf.md_parse import parse_markdown_bytes  # noqa: E402
 from app.shelf.pdf_parse import parse_pdf_bytes  # noqa: E402
@@ -160,3 +160,28 @@ def test_epub_drm_rejected():
         zf.writestr("OEBPS/content.opf", "<package/>")
     with pytest.raises(EpubError, match="DRM"):
         parse_epub_bytes(buf.getvalue())
+
+
+def test_enhance_prose_semantics_kickers_and_verse():
+    sample = (
+        '<div class="shelf-docx-root">'
+        '<p class="shelf-body">场景</p>'
+        '<p class="shelf-body">陈宇：你好吗？</p>'
+        '<p class="shelf-body">（他笑了。）</p>'
+        '<p class="shelf-body">一起阅读的经文</p>'
+        '<p class="shelf-body">腓立比书2:3‑4；雅各书1:19</p>'
+        '<p class="shelf-body">继续对话的问题</p>'
+        '<p class="shelf-body">・ 问题一？</p>'
+        '<p class="shelf-body">本章练习</p>'
+        '<p class="shelf-body">请写下答案。</p>'
+        "</div>"
+    )
+    out = _enhance_prose_semantics(sample)
+    assert "shelf-section-kicker" in out
+    assert "shelf-dialogue-speaker" in out
+    assert "shelf-verse-line" in out
+    assert "2:3-4" in out
+    assert "\u2011" not in out
+    assert out.count("shelf-dialogue-q-head") == 2
+    assert "shelf-dialogue-q" in out
+    assert "shelf-aside" in out

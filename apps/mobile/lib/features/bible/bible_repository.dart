@@ -160,7 +160,7 @@ class BibleRepository {
   }
 
   Future<ScriptureRefResult?> _scriptureRefOffline(String raw) async {
-    final parsed = _parseOsisRef(raw);
+    final parsed = parseOsisRef(raw);
     if (parsed == null) return null;
     final ch = await chapter(parsed.book, parsed.chapter);
     final verses = _filterVerses(ch.verses, parsed.verseStart, parsed.verseEnd);
@@ -181,8 +181,8 @@ class BibleRepository {
   }
 }
 
-class _ParsedOsisRef {
-  const _ParsedOsisRef({
+class ParsedOsisRef {
+  const ParsedOsisRef({
     required this.book,
     required this.chapter,
     required this.osis,
@@ -199,11 +199,34 @@ class _ParsedOsisRef {
   final int? verseEnd;
 }
 
-_ParsedOsisRef? _parseOsisRef(String raw) {
-  final s = raw.trim();
+ParsedOsisRef? parseOsisRef(String raw) {
+  final s = raw
+      .trim()
+      .replaceAll('‑', '-')
+      .replaceAll('－', '-')
+      .replaceAll('—', '-')
+      .replaceAll('–', '-');
   if (s.isEmpty) return null;
+  final range = RegExp(
+    r'^([A-Za-z0-9]+)[.\s]+(\d+)[.\s]+(\d+)\s*[-~]\s*(\d+)$',
+  ).firstMatch(s);
+  if (range != null) {
+    final book = range.group(1)!.toUpperCase();
+    final chapter = int.parse(range.group(2)!);
+    final verseStart = int.parse(range.group(3)!);
+    final verseEnd = int.parse(range.group(4)!);
+    final osis = '$book.$chapter.$verseStart-$verseEnd';
+    return ParsedOsisRef(
+      book: book,
+      chapter: chapter,
+      osis: osis,
+      display: osis,
+      verseStart: verseStart,
+      verseEnd: verseEnd,
+    );
+  }
   final m = RegExp(
-    r'^([A-Za-z0-9]+)[.\s]+(\d+)(?:[:.\s]+(\d+)(?:\s*[-~–—]\s*(\d+))?)?',
+    r'^([A-Za-z0-9]+)[.\s]+(\d+)(?:[:.\s]+(\d+)(?:\s*[-~]\s*(\d+))?)?',
   ).firstMatch(s);
   if (m == null) return null;
   final book = m.group(1)!.toUpperCase();
@@ -215,7 +238,7 @@ _ParsedOsisRef? _parseOsisRef(String raw) {
       : verseEnd != null && verseEnd != verseStart
           ? '$book.$chapter.$verseStart-$verseEnd'
           : '$book.$chapter.$verseStart';
-  return _ParsedOsisRef(
+  return ParsedOsisRef(
     book: book,
     chapter: chapter,
     osis: osis,

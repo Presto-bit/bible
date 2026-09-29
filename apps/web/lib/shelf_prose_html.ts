@@ -13,6 +13,19 @@ const SKIP_TAGS = new Set([
   'INPUT',
 ]);
 
+const SECTION_KICKERS = new Set([
+  '场景',
+  '核心句',
+  '一起阅读的经文',
+  '继续对话的问题',
+  '本章练习',
+]);
+
+const Q_BLOCK_HEADS = new Set(['继续对话的问题', '本章练习']);
+
+const SPEAKER_RE = /^([\u4e00-\u9fff]{2,4})[：:]\s*(.+)$/s;
+const PAREN_ASIDE_RE = /^（[^）]{1,120}）$/;
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -45,12 +58,15 @@ function walkTextNodes(root: HTMLElement, fn: (node: Text) => void) {
   batch.forEach(fn);
 }
 
-const DIALOGUE_SPEAKER_RE = /^(信徒|牧者)[：:]\s*(.*)$/s;
+function plainOf(el: Element): string {
+  return (el.textContent || '').replace(/\u00a0/g, ' ').trim();
+}
 
 function enhanceDialogueParagraph(p: HTMLParagraphElement, doc: Document) {
   if (!p.classList.contains('shelf-dialogue')) return;
-  const text = (p.textContent || '').replace(/\u00a0/g, ' ').trim();
-  const match = text.match(DIALOGUE_SPEAKER_RE);
+  if (p.querySelector('.shelf-dialogue-speaker')) return;
+  const text = plainOf(p);
+  const match = text.match(SPEAKER_RE);
   if (!match) return;
   const [, speaker, body] = match;
   p.replaceChildren();
@@ -65,52 +81,104 @@ function enhanceDialogueParagraph(p: HTMLParagraphElement, doc: Document) {
   p.appendChild(bodyEl);
 }
 
-function tagDialogueParagraphs(root: HTMLElement) {
+function tagSemanticParagraphs(root: HTMLElement) {
   root.querySelectorAll('p').forEach((p) => {
     if (
       p.classList.contains('shelf-dialogue')
       || p.classList.contains('shelf-dialogue-q-head')
       || p.classList.contains('shelf-dialogue-q')
+      || p.classList.contains('shelf-section-kicker')
+      || p.classList.contains('shelf-verse-line')
+      || p.classList.contains('shelf-aside')
     ) {
       return;
     }
-    const text = (p.textContent || '').replace(/\u00a0/g, ' ').trim();
-    if (DIALOGUE_SPEAKER_RE.test(text)) {
+    const text = plainOf(p);
+    if (!text) return;
+    if (Q_BLOCK_HEADS.has(text)) {
+      p.className = 'shelf-dialogue-q-head';
+      return;
+    }
+    if (SECTION_KICKERS.has(text)) {
+      p.className = 'shelf-section-kicker';
+      return;
+    }
+    if (PAREN_ASIDE_RE.test(text)) {
+      p.className = 'shelf-aside';
+      return;
+    }
+    if (SPEAKER_RE.test(text)) {
       p.classList.add('shelf-dialogue');
     }
   });
 }
 
-function enhanceDialogueQuestions(root: HTMLElement) {
+function enhanceBlockSections(root: HTMLElement) {
   const paras = Array.from(root.querySelectorAll('p'));
+  let mode: 'q' | 'verse' | null = null;
   for (let i = 0; i < paras.length; i++) {
     const p = paras[i];
-    const label = (p.textContent || '').replace(/\s+/g, '').trim();
-    if (label !== '继续对话的问题') continue;
-    p.className = 'shelf-dialogue-q-head';
-    for (let j = i + 1; j < paras.length; j++) {
-      const next = paras[j];
-      if (next.classList.contains('shelf-h1') || next.classList.contains('shelf-docx-h1')) break;
-      if (next.classList.contains('shelf-dialogue-q-head')) break;
-      if ((next.textContent || '').trim().length === 0) continue;
-      if (DIALOGUE_SPEAKER_RE.test((next.textContent || '').replace(/\u00a0/g, ' ').trim())) break;
-      next.className = 'shelf-dialogue-q';
+    const label = plainOf(p).replace(/\s+/g, '');
+    if (Q_BLOCK_HEADS.has(label)) {
+      p.className = 'shelf-dialogue-q-head';
+      mode = 'q';
+      continue;
+    }
+    if (label === '一起阅读的经文') {
+      p.className = 'shelf-section-kicker';
+      mode = 'verse';
+      continue;
+    }
+    if (SECTION_KICKERS.has(label)) {
+      p.className = 'shelf-section-kicker';
+      mode = null;
+      continue;
+    }
+    if (
+      p.classList.contains('shelf-h1')
+      || p.classList.contains('shelf-docx-h1')
+      || p.classList.contains('shelf-docx-title')
+    ) {
+      mode = null;
+      continue;
+    }
+    const text = plainOf(p);
+    if (!text) continue;
+    if (mode === 'verse') {
+      p.className = 'shelf-verse-line';
+      mode = null;
+      continue;
+    }
+    if (mode === 'q') {
+      if (SPEAKER_RE.test(text)) {
+        mode = null;
+        continue;
+      }
+      p.className = 'shelf-dialogue-q';
     }
   }
 }
 
 function enhanceShelfDialogueHtml(root: HTMLElement, doc: Document) {
-  tagDialogueParagraphs(root);
+  // Word 不换行连字符 → ASCII，便于范围解析
+  walkTextNodes(root, (node) => {
+    if (node.textContent && node.textContent.includes('\u2011')) {
+      node.textContent = node.textContent.replace(/\u2011/g, '-');
+    }
+  });
+  tagSemanticParagraphs(root);
   root.querySelectorAll('p.shelf-dialogue').forEach((p) => {
     enhanceDialogueParagraph(p as HTMLParagraphElement, doc);
   });
-  enhanceDialogueQuestions(root);
+  enhanceBlockSections(root);
 }
 
 /** 段落锚点：竖滚续读比 scroll 比例更稳（对齐 API html_normalize） */
 export function injectShelfParagraphAnchors(root: ParentNode) {
   let idx = 0;
-  root.querySelectorAll('p.shelf-body, p.shelf-docx-p, p.shelf-dialogue').forEach((p) => {
+  root.querySelectorAll(
+    'p.shelf-body, p.shelf-docx-p, p.shelf-dialogue, p.shelf-aside, p.shelf-verse-line',
+  ).forEach((p) => {
     if (p.hasAttribute('data-shelf-p')) return;
     p.setAttribute('data-shelf-p', String(idx));
     idx += 1;

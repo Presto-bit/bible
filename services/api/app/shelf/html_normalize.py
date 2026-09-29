@@ -148,10 +148,29 @@ def _plain_len(html_fragment: str) -> int:
 
 
 def inject_shelf_paragraph_anchors(html: str) -> str:
-    """为 shelf-body / shelf-docx-p 段落注入 data-shelf-p 索引。"""
+    """为正文段落注入 data-shelf-p；语义块不补 shelf-body（避免被正文缩进 CSS 命中）。"""
     if not html.strip():
         return html
     idx = 0
+    semantic = (
+        "shelf-dialogue-q-head",
+        "shelf-section-kicker",
+        "shelf-dialogue-q",
+        "shelf-verse-line",
+        "shelf-aside",
+        "shelf-docx-title",
+        "shelf-docx-h",
+        "shelf-title",
+        "shelf-subtitle",
+        "shelf-h",
+    )
+    anchorable = (
+        "shelf-body",
+        "shelf-docx-p",
+        "shelf-dialogue",
+        "shelf-aside",
+        "shelf-verse-line",
+    )
 
     def _inject_p(m: re.Match[str]) -> str:
         nonlocal idx
@@ -161,18 +180,24 @@ def inject_shelf_paragraph_anchors(html: str) -> str:
             return m.group(0)
         cls_m = _CLASS_RE.search(attrs)
         classes = cls_m.group(1) if cls_m else ""
-        is_body = "shelf-body" in classes or "shelf-docx-p" in classes or "shelf-dialogue" in classes
-        if not is_body and _plain_len(body) == 0:
+        is_semantic = any(s in classes for s in semantic)
+        if not classes and _plain_len(body) == 0:
             return m.group(0)
-        if "shelf-body" not in classes and "shelf-docx-p" not in classes and _plain_len(body) > 0:
-            if not cls_m:
-                attrs += ' class="shelf-body"'
-            elif "shelf-body" not in classes and "shelf-docx-p" not in classes:
-                attrs = _CLASS_RE.sub(f' class="{classes} shelf-body"', attrs, count=1)
-        anchor = f' data-shelf-p="{idx}"'
-        idx += 1
+        if not is_semantic and "shelf-body" not in classes and "shelf-docx-p" not in classes:
+            if _plain_len(body) > 0:
+                if not cls_m:
+                    attrs += ' class="shelf-body"'
+                    classes = "shelf-body"
+                else:
+                    attrs = _CLASS_RE.sub(f' class="{classes} shelf-body"', attrs, count=1)
+                    classes = f"{classes} shelf-body"
+        should_anchor = any(a in classes for a in anchorable) or "shelf-dialogue" in classes
         attrs = _clean_tag_attrs(attrs)
-        return f"<p{attrs}{anchor}>{body}</p>"
+        if should_anchor:
+            anchor = f' data-shelf-p="{idx}"'
+            idx += 1
+            return f"<p{attrs}{anchor}>{body}</p>"
+        return f"<p{attrs}>{body}</p>"
 
     return _P_RE.sub(_inject_p, html)
 

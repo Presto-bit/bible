@@ -84,7 +84,7 @@ const _cnAbbr = <String, String>{
 };
 
 final _refInText = RegExp(
-  r'(?:[（(])?((?:[A-Za-z0-9]{2,4}|[\u4e00-\u9fff]{1,3})\s*\d+[:：.\s]\d+(?:\s*[-~–]\s*\d+)?|[\u4e00-\u9fff]{2,6}\d+[:：]\d+(?:-\d+)?)(?:[）)])?',
+  r'(?:[（(])?((?:[A-Za-z0-9]{2,4}|[\u4e00-\u9fff]{1,3})\s*\d+[:：.\s]\d+(?:\s*[-~–—‑]\s*\d+)?|[\u4e00-\u9fff]{2,6}\d+[:：]\d+(?:\s*[-~–—‑]\d+)?)(?:[）)])?',
 );
 
 String _formatOsis(
@@ -103,11 +103,17 @@ String _formatOsis(
 }
 
 String? normalizeInlineRef(String raw) {
-  final s = raw.trim().replaceAll(RegExp(r'[（）()]'), '');
+  final s = raw
+      .trim()
+      .replaceAll(RegExp(r'[（）()]'), '')
+      .replaceAll('‑', '-') // U+2011
+      .replaceAll('－', '-')
+      .replaceAll('—', '-')
+      .replaceAll('–', '-');
   if (s.isEmpty) return null;
 
   final osisMatch = RegExp(
-    r'^([A-Za-z0-9]+)[.\s]+(\d+)(?:[:.\s]+(\d+)(?:\s*[-~–—]\s*(\d+))?)?',
+    r'^([A-Za-z0-9]+)[.\s]+(\d+)(?:[:.\s]+(\d+)(?:\s*[-~–—‑]\s*(\d+))?)?',
   ).firstMatch(s);
   if (osisMatch != null) {
     return _formatOsis(
@@ -119,7 +125,7 @@ String? normalizeInlineRef(String raw) {
   }
 
   final cnMatch = RegExp(
-    r'^([\u4e00-\u9fff]{1,3})(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?',
+    r'^([\u4e00-\u9fff]{1,3})(\d+)[:：](\d+)(?:\s*[-~–—‑]\s*(\d+))?',
   ).firstMatch(s);
   if (cnMatch != null) {
     final book = _cnAbbr[cnMatch.group(1)!];

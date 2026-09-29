@@ -17,6 +17,7 @@ import 'content_repository.dart';
 import 'dictionary_match.dart';
 import 'entity_graph_screen.dart';
 import 'local_relation_graph.dart';
+import 'models.dart';
 import 'reader_sheet.dart';
 
 Future<void> showEntityKnowledgeSheet(
@@ -104,11 +105,23 @@ Future<void> showInlineVersePreview(
   required String refParam,
   String? label,
 }) {
+  final sheetSize = ValueNotifier(
+    const ReaderSheetSize(heightFactor: 0.55, maxHeight: 480),
+  );
   return showReaderSheet<void>(
     context: context,
-    heightFactor: 0.55,
-    builder: (_) => _VersePreviewSheet(refParam: refParam, label: label),
-  );
+    sizeListenable: sheetSize,
+    builder: (_) => _VersePreviewSheet(
+      refParam: refParam,
+      label: label,
+      onExpandChapter: () {
+        sheetSize.value = const ReaderSheetSize(heightFactor: 0.92, maxHeight: 820);
+      },
+      onCollapse: () {
+        sheetSize.value = const ReaderSheetSize(heightFactor: 0.55, maxHeight: 480);
+      },
+    ),
+  ).whenComplete(sheetSize.dispose);
 }
 
 class _EntityKnowledgeSheet extends ConsumerStatefulWidget {
@@ -843,20 +856,67 @@ class _RefPill extends StatelessWidget {
   }
 }
 
-class _VersePreviewSheet extends ConsumerWidget {
+class _VersePreviewSheet extends ConsumerStatefulWidget {
   const _VersePreviewSheet({
     required this.refParam,
     this.label,
+    required this.onExpandChapter,
+    required this.onCollapse,
   });
 
   final String refParam;
   final String? label;
+  final VoidCallback onExpandChapter;
+  final VoidCallback onCollapse;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(scriptureRefProvider(refParam));
-    final title = label ?? refToChineseLabel(refParam) ?? refParam;
+  ConsumerState<_VersePreviewSheet> createState() => _VersePreviewSheetState();
+}
+
+class _VersePreviewSheetState extends ConsumerState<_VersePreviewSheet> {
+  bool _chapterMode = false;
+  final _scroll = ScrollController();
+
+  ParsedOsisRef? get _target => parseOsisRef(widget.refParam);
+
+  bool _inFocus(int verse) {
+    final t = _target;
+    if (t?.verseStart == null) return false;
+    final end = t!.verseEnd ?? t.verseStart!;
+    return verse >= t.verseStart! && verse <= end;
+  }
+
+  Future<void> _scrollToFocus(List<Verse> verses) async {
+    final focusIdx = verses.indexWhere((v) => _inFocus(v.verse));
+    if (focusIdx < 0 || !_scroll.hasClients) return;
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    if (!mounted || !_scroll.hasClients) return;
+    // 估算行高，将焦点节滚到中间附近
+    final offset = (focusIdx * 56.0) - 120;
+    await _scroll.animateTo(
+      offset.clamp(0, _scroll.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.label ?? refToChineseLabel(widget.refParam) ?? widget.refParam;
     final bottom = MediaQuery.paddingOf(context).bottom;
+    final target = _target;
+    final canExpand = target != null && target.chapter > 0;
+    final rangeAsync = ref.watch(scriptureRefProvider(widget.refParam));
+    final chapterAsync = _chapterMode && target != null
+        ? ref.watch(chapterProvider((book: target.book, chapter: target.chapter)))
+        : null;
+
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 12 + bottom),
       child: Column(
@@ -867,7 +927,7 @@ class _VersePreviewSheet extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  title,
+                  _chapterMode ? '$title · 整章' : title,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -878,58 +938,128 @@ class _VersePreviewSheet extends ConsumerWidget {
               const ReaderSheetCloseButton(),
             ],
           ),
+          if (canExpand) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () {
+                  setState(() => _chapterMode = !_chapterMode);
+                  if (_chapterMode) {
+                    widget.onExpandChapter();
+                  } else {
+                    widget.onCollapse();
+                  }
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentDeep,
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  _chapterMode ? '收起' : '查看更多',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Expanded(
-            child: async.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              error: (_, __) => const Text(
-                '无法加载经文',
-                style: TextStyle(color: AppColors.inkFaint),
-              ),
-              data: (result) {
-                final verses = result.verses;
-                if (verses.isEmpty) {
-                  return const Text(
-                    '暂无经文',
-                    style: TextStyle(color: AppColors.inkFaint),
-                  );
-                }
-                return ListView.separated(
-                  itemCount: verses.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) {
-                    final v = verses[i];
-                    return Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '${v.verse} ',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.accentDeep,
-                            ),
-                          ),
-                          TextSpan(
-                            text: v.text,
-                            style: const TextStyle(
-                              fontSize: 14.5,
-                              height: 1.55,
-                              color: AppColors.inkSoft,
-                            ),
-                          ),
-                        ],
+            child: !_chapterMode
+                ? rangeAsync.when(
+                    loading: () => const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    error: (_, __) => const Text(
+                      '无法加载经文',
+                      style: TextStyle(color: AppColors.inkFaint),
+                    ),
+                    data: (result) {
+                      final verses = result.verses;
+                      if (verses.isEmpty) {
+                        return const Text(
+                          '暂无经文',
+                          style: TextStyle(color: AppColors.inkFaint),
+                        );
+                      }
+                      return _verseList(verses, highlightFocus: false);
+                    },
+                  )
+                : chapterAsync == null
+                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                    : chapterAsync.when(
+                        loading: () => const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        error: (_, __) => const Text(
+                          '无法加载整章',
+                          style: TextStyle(color: AppColors.inkFaint),
+                        ),
+                        data: (ch) {
+                          final verses = ch.verses;
+                          if (verses.isEmpty) {
+                            return const Text(
+                              '暂无经文',
+                              style: TextStyle(color: AppColors.inkFaint),
+                            );
+                          }
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _scrollToFocus(verses);
+                          });
+                          return _verseList(verses, highlightFocus: true);
+                        },
                       ),
-                    );
-                  },
-                );
-              },
-            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _verseList(List<Verse> verses, {required bool highlightFocus}) {
+    return ListView.separated(
+      controller: _scroll,
+      itemCount: verses.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) {
+        final v = verses[i];
+        final focused = highlightFocus && _inFocus(v.verse);
+        return DecoratedBox(
+          decoration: focused
+              ? BoxDecoration(
+                  color: AppColors.accentDeep.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                )
+              : const BoxDecoration(),
+          child: Padding(
+            padding: focused
+                ? const EdgeInsets.symmetric(horizontal: 8, vertical: 6)
+                : EdgeInsets.zero,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${v.verse} ',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.accentDeep,
+                    ),
+                  ),
+                  TextSpan(
+                    text: v.text,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      height: 1.55,
+                      color: AppColors.inkSoft,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
