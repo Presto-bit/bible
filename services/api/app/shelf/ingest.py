@@ -30,6 +30,8 @@ def import_platform_file(
     *,
     filename: str,
     title: str | None = None,
+    subtitle: str | None = None,
+    author: str | None = None,
     sort_order: int = 0,
     replace_sha256: str | None = None,
     uploaded_by: str | None = None,
@@ -121,6 +123,8 @@ def import_platform_file(
         parsed.get("title"),
         fallback="未命名",
     )
+    book_subtitle = (subtitle or "").strip() or parsed.get("subtitle") or None
+    book_author = (author or "").strip() or parsed.get("author") or None
     toc = parsed.get("toc") or {}
     sections = parsed.get("sections") or []
     # 兜底：已写入的节/目录标题若仍是存储键，改成「正文」
@@ -156,8 +160,8 @@ def import_platform_file(
             (
                 book_id,
                 book_title,
-                parsed.get("subtitle"),
-                parsed.get("author"),
+                book_subtitle,
+                book_author,
                 mime,
                 storage_key,
                 len(data),
@@ -177,8 +181,8 @@ def import_platform_file(
             {
                 "id": book_id,
                 "title": book_title,
-                "subtitle": parsed.get("subtitle"),
-                "author": parsed.get("author"),
+                "subtitle": book_subtitle,
+                "author": book_author,
                 "mime": mime,
                 "storage_key": storage_key,
                 "book_type": "document",

@@ -106,7 +106,7 @@ Future<void> showInlineVersePreview(
   String? label,
 }) {
   final sheetSize = ValueNotifier(
-    const ReaderSheetSize(heightFactor: 0.55, maxHeight: 480),
+    const ReaderSheetSize(heightFactor: 0.52, maxHeight: 456),
   );
   return showReaderSheet<void>(
     context: context,
@@ -115,10 +115,10 @@ Future<void> showInlineVersePreview(
       refParam: refParam,
       label: label,
       onExpandChapter: () {
-        sheetSize.value = const ReaderSheetSize(heightFactor: 0.92, maxHeight: 820);
+        sheetSize.value = const ReaderSheetSize(heightFactor: 0.87, maxHeight: 779);
       },
       onCollapse: () {
-        sheetSize.value = const ReaderSheetSize(heightFactor: 0.55, maxHeight: 480);
+        sheetSize.value = const ReaderSheetSize(heightFactor: 0.52, maxHeight: 456);
       },
     ),
   ).whenComplete(sheetSize.dispose);

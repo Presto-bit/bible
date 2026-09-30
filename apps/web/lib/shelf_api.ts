@@ -322,9 +322,16 @@ export async function deletePlatformShelfBook(bookId: string): Promise<{ ok: boo
 
 export async function importPlatformShelfBook(
   file: File,
+  opts?: { title?: string; subtitle?: string; author?: string },
 ): Promise<{ id: string; title: string; section_count: number }> {
   const form = new FormData();
   form.append('file', file);
+  const title = (opts?.title || '').trim();
+  const subtitle = (opts?.subtitle || '').trim();
+  const author = (opts?.author || '').trim();
+  if (title) form.append('title', title);
+  if (subtitle) form.append('subtitle', subtitle);
+  if (author) form.append('author', author);
   const res = await fetch(`${API_BASE}/shelf/platform/import`, {
     method: 'POST',
     headers: authHeaders(),

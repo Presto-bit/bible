@@ -478,9 +478,18 @@ class ShelfRepository {
     return res.data ?? const {};
   }
 
-  Future<Map<String, dynamic>> importBook(String filePath, String filename) async {
+  Future<Map<String, dynamic>> importBook(
+    String filePath,
+    String filename, {
+    String? title,
+    String? subtitle,
+    String? author,
+  }) async {
     final form = FormData.fromMap({
       'file': await MultipartFile.fromFile(filePath, filename: filename),
+      if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+      if (subtitle != null && subtitle.trim().isNotEmpty) 'subtitle': subtitle.trim(),
+      if (author != null && author.trim().isNotEmpty) 'author': author.trim(),
     });
     final res = await _dio.post<Map<String, dynamic>>('/shelf/platform/import', data: form);
     await _fetchListFresh(force: true);

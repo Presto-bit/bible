@@ -189,11 +189,114 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
       return;
     }
     if (!mounted) return;
+
+    final stem = file.name.contains('.')
+        ? file.name.substring(0, file.name.lastIndexOf('.'))
+        : file.name;
+    final titleCtrl = TextEditingController(text: stem);
+    final authorCtrl = TextEditingController();
+    final subtitleCtrl = TextEditingController();
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                '确认导入',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '均可留空；空书名则用文件名。',
+                style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                file.name,
+                style: const TextStyle(fontSize: 13, color: AppColors.inkSoft),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: titleCtrl,
+                maxLength: 80,
+                decoration: const InputDecoration(
+                  labelText: '书名（可选）',
+                  hintText: '留空则用文件名',
+                  counterText: '',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: authorCtrl,
+                maxLength: 80,
+                decoration: const InputDecoration(
+                  labelText: '作者（可选）',
+                  counterText: '',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: subtitleCtrl,
+                maxLength: 160,
+                decoration: const InputDecoration(
+                  labelText: '副标题（可选）',
+                  hintText: '一句话说明',
+                  counterText: '',
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('取消'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('导入'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    final title = titleCtrl.text;
+    final author = authorCtrl.text;
+    final subtitle = subtitleCtrl.text;
+    titleCtrl.dispose();
+    authorCtrl.dispose();
+    subtitleCtrl.dispose();
+    if (confirmed != true || !mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('正在导入…')),
     );
     try {
-      final res = await ref.read(shelfRepoProvider).importBook(path, file.name);
+      final res = await ref.read(shelfRepoProvider).importBook(
+            path,
+            file.name,
+            title: title,
+            author: author,
+            subtitle: subtitle,
+          );
       ref.invalidate(shelfListProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

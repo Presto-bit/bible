@@ -626,6 +626,9 @@ def shelf_platform_delete_book(
 @router.post("/platform/import")
 async def shelf_platform_import(
     file: UploadFile = File(...),
+    title: str | None = Form(default=None),
+    subtitle: str | None = Form(default=None),
+    author: str | None = Form(default=None),
     authorization: str | None = Header(default=None),
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
     x_user_id: str | None = Header(default=None),
@@ -633,7 +636,7 @@ async def shelf_platform_import(
     cookie: str | None = Header(default=None),
     user_id: str = Depends(get_current_user),
 ) -> dict:
-    """用户导入书架书目（docx / md / txt / pdf）。"""
+    """用户导入书架书目（docx / md / txt / pdf）。可选书名/作者/副标题，空则回落文件名或解析结果。"""
     from .ingest import import_platform_file
 
     suffix = Path(file.filename or "").suffix.lower()
@@ -659,6 +662,9 @@ async def shelf_platform_import(
     return import_platform_file(
         data,
         filename=file.filename or f"book{suffix}",
+        title=(title or "").strip() or None,
+        subtitle=(subtitle or "").strip() or None,
+        author=(author or "").strip() or None,
         sort_order=9999,
         uploaded_by=user_id,
     )
