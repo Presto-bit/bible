@@ -22,14 +22,26 @@ _COLOR_MARK_MID = "]]"
 _COLOR_MARK_CLOSE = "[[/c]]"
 _COLOR_SKIP = frozenset({"000000", "FFFFFF", "AUTO", "auto"})
 
-# 无样式 Word：从部标题 / 编号条目 / 附录 / 通用章节行启发式切节
+# 无样式 Word：从部标题 / 附录 / 通用章节行启发式切节（禁止裸「1. xxx」）
 _PART_HEAD_RE = re.compile(
-    r"^第[一二三四五六七八九十百零〇\d]+[部篇卷](?:[｜|·\-—:\s　].{0,40})?$"
+    r"^第[一二三四五六七八九十百零〇\d]+(?:部|部分|篇|卷)(?:[｜|·\-—:\s　].{0,60})?$"
 )
 _NUM_ITEM_HEAD_RE = re.compile(r"^\d{1,2}\.\s*.{2,48}$")
-_APPENDIX_HEAD_RE = re.compile(r"^附录[一二三四五六七八九十\d].{0,40}$")
+_APPENDIX_HEAD_RE = re.compile(r"^附录[一二三四五六七八九十\d｜|].{0,40}$|^附录[｜|].{0,40}$")
 _TXT_CHAPTER_RE = re.compile(
     r"^(第[一二三四五六七八九十百零〇\d]+[章节回场部卷篇]\s*.{0,36}|#{1,3}\s+.+)$"
+)
+_QUESTION_HEAD_RE = re.compile(r"^问题\s*(\d{1,2})$")
+_SCENE_DIALOGUE_RE = re.compile(
+    r"^第[一二三四五六七八九十百零〇\d]+场(?:对话)?[｜|].{0,48}$"
+)
+_LESSON_NUM_RE = re.compile(r"^\d{2}\s+\S.{0,60}$")
+_CLOSING_HEADS = frozenset(
+    {
+        "对话结束以后",
+        "写给愿意再向前一步的人",
+        "教会中常听到的词——简明指南",
+    }
 )
 
 
@@ -46,23 +58,47 @@ def _normalize_color_hex(raw: str) -> str | None:
     return v.upper()
 
 
+def _strip_trailing_page_num(text: str) -> str:
+    return re.sub(r"\s*\d{1,3}$", "", (text or "").strip()).strip()
+
+
 def _is_plain_toc_line(text: str) -> bool:
-    """目录行：标题后粘页码，如「第一部｜…6」「1.题目7」。"""
+    """目录行：标题后粘页码，如「第一部｜…6」「1.题目7」「01 创造…10」。"""
     t = (text or "").strip()
-    if not t or len(t) > 60:
+    if not t or len(t) > 80:
         return False
     if not re.search(r"\d{1,3}$", t):
         return False
-    base = re.sub(r"\d{1,3}$", "", t).strip()
-    return _is_inferred_body_heading(base)
+    base = _strip_trailing_page_num(t)
+    if not base or len(base) < 2:
+        return False
+    if _is_inferred_body_heading(base):
+        return True
+    if _NUM_ITEM_HEAD_RE.match(base) or _LESSON_NUM_RE.match(base):
+        return True
+    # 前言目录项：短标题 + 页码
+    if len(base) <= 40 and not re.search(r"[。！？!?]", base):
+        return True
+    return False
 
 
 def _is_inferred_body_heading(text: str) -> bool:
-    """强模式才作建议切点：部/篇/卷、附录、第x章…；禁止裸「1. xxx」防误切。"""
+    """强模式正文切点：部/部分/场对话/问题 N/附录/第x章；禁裸「1. xxx」。"""
     t = (text or "").strip()
-    if not t or len(t) > 55 or len(t) < 2:
+    if not t or len(t) > 60 or len(t) < 2:
         return False
-    # 目录粘页码行（标题后直接数字）不当作正文标题
+    # 目录胶粘行（多条粘一起）
+    if t.count("｜") >= 2 or (t.count("部") >= 1 and t.count("场") >= 1 and "场对话" not in t):
+        return False
+    if t in _CLOSING_HEADS or t.startswith("附录｜") or t.startswith("附录|"):
+        return True
+    if _QUESTION_HEAD_RE.match(t):
+        return True
+    # 正文场标题多为「第N场对话｜」；纯「第N场｜」常见于目录
+    if re.match(r"^第[一二三四五六七八九十百零〇\d]+场对话[｜|].{0,48}$", t):
+        return True
+    if _LESSON_NUM_RE.match(t) and not re.search(r"\d{1,3}$", t):
+        return True
     if re.search(r"\d{1,3}$", t) and not re.search(r"[？?。！!）」』]$", t):
         return False
     return bool(
@@ -70,6 +106,116 @@ def _is_inferred_body_heading(text: str) -> bool:
         or _APPENDIX_HEAD_RE.match(t)
         or _TXT_CHAPTER_RE.match(t)
     )
+
+
+
+def _is_section_title_style(style: str | None, text: str) -> bool:
+    """结构化切节：Heading1，或 Title 且像部/部分标题。不切 Heading2（课内小标题太碎）。"""
+    st = style or ""
+    t = (text or "").strip()
+    if "目录" in t and len(t) <= 8:
+        return False
+    if st == "Heading1":
+        return True
+    if st == "TitleCustom" and (_PART_HEAD_RE.match(t) or t in _CLOSING_HEADS):
+        return True
+    return False
+
+
+def _extract_plain_front_toc(paras: list[_Para]) -> tuple[list[dict[str, Any]], set[int]]:
+    """抽取文前「目录」块为 outline，并返回应跳过的段落 index（不进正文）。"""
+    start = -1
+    for i, p in enumerate(paras):
+        t = (p.text or "").strip()
+        if t == "目录" or (t.startswith("目录") and len(t) <= 6) or (
+            p.style == "TitleCustom" and t == "目录"
+        ):
+            start = i
+            break
+    if start < 0:
+        return [], set()
+
+    _toc_end_titles = {
+        "致翻开这本书的你",
+        "写给翻开这本书的你",
+        "写给带着问题阅读的你",
+        "写给带着问题读圣经的你",
+        "怎样使用这本书",
+        "预备洗礼时需要了解的本教会三项追求",
+        "三个人物",
+        "一起读经时，我们遵循这些原则",
+    }
+
+    items: list[dict[str, Any]] = []
+    skip: set[int] = {paras[start].index}
+    i = start + 1
+    while i < len(paras):
+        p = paras[i]
+        t = (p.text or "").strip()
+        if t in _toc_end_titles:
+            break
+        if _QUESTION_HEAD_RE.match(t):
+            break
+        # 正文课标题 Heading1「01 …」
+        if p.style == "Heading1" and _LESSON_NUM_RE.match(t) and not _is_plain_toc_line(t):
+            break
+        # 正文部标题：无尾页码的「第N部…」
+        if (
+            (_PART_HEAD_RE.match(t) or (p.style == "TitleCustom" and "部" in t[:6]))
+            and not _is_plain_toc_line(t)
+            and t.count("｜") <= 1
+            and "场" not in t
+        ):
+            break
+        # 正文场对话
+        if re.match(r"^第[一二三四五六七八九十百零〇\d]+场对话[｜|]", t):
+            break
+        skip.add(p.index)
+        if not t:
+            i += 1
+            continue
+        if t.startswith("点击标题") or t.startswith("76个单元"):
+            i += 1
+            continue
+        is_tocish = (
+            _is_plain_toc_line(t)
+            or ("第" in t[:3] and ("部" in t or "场" in t) and len(t) < 90)
+            or (
+                len(t) <= 70
+                and not re.search(r"[。！？]", t)
+                and "陈宇" not in t
+                and (p.style in (None, "Heading2", "TOCEntry") or _is_plain_toc_line(t))
+            )
+        )
+        if is_tocish:
+            title = _strip_trailing_page_num(t)
+            chunks = re.split(
+                r"(?=第[一二三四五六七八九十百零〇\d]+(?:部|部分|场))",
+                title,
+            )
+            chunks = [c.strip() for c in chunks if c and c.strip()]
+            for ch in chunks or [title]:
+                if len(ch) < 2:
+                    continue
+                zone = _zone_for_title(ch)
+                if zone == "meta":
+                    continue
+                items.append(
+                    {
+                        "id": f"ft-{len(items)}",
+                        "title": ch,
+                        "level": 1 if _PART_HEAD_RE.match(ch) else 2,
+                        "zone": zone if zone != "meta" else "body",
+                        "source": "front_toc",
+                        "confidence": 0.85,
+                        "section_id": None,
+                    }
+                )
+        i += 1
+        if i - start > 220:
+            break
+    return items, skip
+
 
 
 def _inject_color_markers_docx(data: bytes) -> bytes:
@@ -142,7 +288,62 @@ class _Para:
     index: int
 
 
-def _iter_paragraphs(document_xml: bytes) -> list[_Para]:
+def _style_name_map(styles_xml: bytes | None) -> dict[str, str]:
+    if not styles_xml:
+        return {}
+    try:
+        root = ET.fromstring(styles_xml)
+    except ET.ParseError:
+        return {}
+    out: dict[str, str] = {}
+    for s in root.iter(f"{W}style"):
+        sid = s.get(f"{W}styleId")
+        name_el = s.find(f"{W}name")
+        if not sid or name_el is None:
+            continue
+        name = name_el.get(f"{W}val")
+        if name:
+            out[sid] = name
+    return out
+
+
+def _canonicalize_style(style_id: str | None, name: str | None) -> str | None:
+    """把 styleId / 显示名归一成 Heading1、TitleCustom、TOCEntry 等。"""
+    for raw in (name, style_id):
+        s = (raw or "").strip()
+        if not s:
+            continue
+        if s in {
+            "Heading1",
+            "Heading2",
+            "Heading3",
+            "TOCEntry",
+            "TitleCustom",
+            "SubtitleCustom",
+        }:
+            return s
+        compact = re.sub(r"[\s_\-]+", "", s).lower()
+        m = re.match(r"^(?:heading|标题)(\d)$", compact)
+        if m:
+            return f"Heading{m.group(1)}"
+        if compact in {"title", "标题"}:
+            return "TitleCustom"
+        if compact in {"subtitle", "副标题"}:
+            return "SubtitleCustom"
+        # TOC1 / toc 1 / 目录 1 …；排除 "TOC Heading"
+        if compact.startswith("toc") and "heading" not in compact and "标题" not in compact:
+            return "TOCEntry"
+        if compact in {"tocheading", "目录标题"}:
+            return "TitleCustom"
+    return style_id
+
+
+def _iter_paragraphs(
+    document_xml: bytes,
+    *,
+    styles_xml: bytes | None = None,
+) -> list[_Para]:
+    name_map = _style_name_map(styles_xml)
     root = ET.fromstring(document_xml)
     out: list[_Para] = []
     for i, p in enumerate(root.iter(f"{W}p")):
@@ -150,12 +351,13 @@ def _iter_paragraphs(document_xml: bytes) -> list[_Para]:
         line = "".join(texts).strip()
         if not line:
             continue
-        style = None
+        style_id = None
         p_pr = p.find(f"{W}pPr")
         if p_pr is not None:
             ps = p_pr.find(f"{W}pStyle")
             if ps is not None:
-                style = ps.get(f"{W}val")
+                style_id = ps.get(f"{W}val")
+        style = _canonicalize_style(style_id, name_map.get(style_id or ""))
         out.append(_Para(style=style, text=line, index=i))
     return out
 
@@ -747,7 +949,8 @@ def parse_docx_bytes(
 ) -> dict[str, Any]:
     with zipfile.ZipFile(io.BytesIO(data)) as zf:
         doc_xml = zf.read("word/document.xml")
-    paras = _iter_paragraphs(doc_xml)
+        styles_xml = zf.read("word/styles.xml") if "word/styles.xml" in zf.namelist() else None
+    paras = _iter_paragraphs(doc_xml, styles_xml=styles_xml)
 
     title = "未命名"
     subtitle = ""
@@ -757,10 +960,12 @@ def parse_docx_bytes(
         elif p.style == "SubtitleCustom" and not subtitle:
             subtitle = p.text
 
-    front_toc: list[dict[str, Any]] = []
+    plain_front_toc, toc_skip_indexes = _extract_plain_front_toc(paras)
+
+    front_toc: list[dict[str, Any]] = list(plain_front_toc)
     in_toc = False
     for p in paras:
-        if p.style and "Heading1" in p.style and "目录" in p.text:
+        if p.style and "Heading1" in (p.style or "") and "目录" in p.text:
             in_toc = True
             continue
         if in_toc:
@@ -769,7 +974,7 @@ def parse_docx_bytes(
                 front_toc.append(
                     {
                         "id": f"ft-{len(front_toc)}",
-                        "title": p.text,
+                        "title": _strip_trailing_page_num(p.text),
                         "level": _level_for_style(p.style, p.text),
                         "zone": zone,
                         "source": "front_toc",
@@ -777,7 +982,8 @@ def parse_docx_bytes(
                         "section_id": None,
                     }
                 )
-            elif p.style and "Heading1" in p.style:
+                toc_skip_indexes.add(p.index)
+            elif p.style and "Heading1" in (p.style or ""):
                 break
 
     sections: list[dict[str, Any]] = []
@@ -794,7 +1000,6 @@ def parse_docx_bytes(
             _enhance_prose_semantics(_mark_dialogue_questions("\n".join(buf)))
         )
         sections.append(current)
-        # 目录只保留一级标题（二十场对话 + 三个附录），附录内经文/第几天不入目录
         if current["level"] <= 1:
             toc_body.append(
                 {
@@ -812,23 +1017,26 @@ def parse_docx_bytes(
 
     preface_start = 0
     for i, p in enumerate(paras):
-        if p.style and "Heading1" in p.style and "目录" not in p.text:
-            if "对话" in p.text or p.text.startswith("第"):
-                preface_start = i
-                break
+        if p.index in toc_skip_indexes:
+            continue
+        if _is_section_title_style(p.style, p.text):
+            preface_start = i
+            break
 
     if preface_start > 0:
         preface_html: list[str] = []
         for p in paras[:preface_start]:
-            if p.style == "TOCEntry":
+            if p.index in toc_skip_indexes or p.style == "TOCEntry":
                 continue
-            if p.style in ("TitleCustom", "SubtitleCustom"):
+            if p.style in ("TitleCustom", "SubtitleCustom") and (
+                p.text.strip() == "目录" or ("目录" in p.text and len(p.text) <= 6)
+            ):
+                continue
+            if _is_plain_toc_line(p.text):
                 continue
             preface_html.append(_para_html(p))
-        # Drop leading cover paragraphs that appear before "阅读本书之前" heading
         while preface_html and not preface_html[0].startswith("<h"):
             preface_html.pop(0)
-        # Drop trailing TOC heading (目录) and any paragraphs after it
         for j, h in enumerate(preface_html):
             if ">目录<" in h:
                 preface_html = preface_html[:j]
@@ -861,33 +1069,37 @@ def parse_docx_bytes(
                 },
             )
 
+    structured_hits = 0
     for p in paras[preface_start:]:
-        if p.style == "TOCEntry":
+        if p.index in toc_skip_indexes or p.style == "TOCEntry":
             continue
-        is_h1 = p.style and "Heading1" in p.style and "目录" not in p.text
-        is_h2 = p.style and "Heading2" in p.style
-        if is_h1 or is_h2:
+        if _is_plain_toc_line(p.text) and p.style != "Heading1":
+            continue
+        if _is_section_title_style(p.style, p.text):
             flush()
-            if is_h1:
-                current_zone = _zone_for_title(p.text)
-                zone = current_zone
-            else:
-                zone = current_zone
+            structured_hits += 1
+            current_zone = _zone_for_title(p.text)
+            zone = current_zone
             if zone == "meta":
                 continue
             sec_id = f"sec-{len(sections)}"
+            level = 0 if (p.style == "TitleCustom" and _PART_HEAD_RE.match(p.text.strip())) else 1
             current = {
                 "id": sec_id,
-                "title": p.text,
-                "level": 1 if is_h1 else 2,
+                "title": p.text.strip(),
+                "level": level,
                 "zone": zone,
-                "source": _source_for_style(p.style),
+                "source": "structured",
                 "toc_id": f"tb-{len(sections)}",
             }
             buf.append(_para_html(p))
         elif current is not None:
             buf.append(_para_html(p))
     flush()
+
+    if structured_hits < 2:
+        sections = []
+        toc_body = []
 
     for ft in front_toc:
         for sec in sections:
@@ -898,7 +1110,7 @@ def parse_docx_bytes(
     appendix_toc = [t for t in front_toc if t.get("zone") == "appendix"]
     body_outline = [t for t in front_toc if t.get("zone") != "appendix"]
 
-    if enrich:
+    if enrich and sections:
         try:
             _enrich_sections_with_mammoth(
                 data,
@@ -909,41 +1121,144 @@ def parse_docx_bytes(
         except Exception:
             pass
 
-    # 无 Heading：强模式只作建议切点（toc.plan），默认整本一节，防误切上架
     suggested_cuts: list[dict[str, Any]] = []
     if not sections and paras:
         heading_idxs: list[tuple[int, str]] = []
-        in_toc_block = False
-        for i, p in enumerate(paras):
-            t = (p.text or "").strip()
-            if t == "目录" or (t.startswith("目录") and len(t) <= 6):
-                in_toc_block = True
+        i = 0
+        while i < len(paras):
+            p = paras[i]
+            if p.index in toc_skip_indexes:
+                i += 1
                 continue
-            if in_toc_block:
-                if _is_plain_toc_line(t):
-                    continue
-                if _is_inferred_body_heading(t):
-                    in_toc_block = False
-                else:
-                    continue
+            t = (p.text or "").strip()
+            if _QUESTION_HEAD_RE.match(t):
+                nxt = ""
+                if i + 1 < len(paras):
+                    nxt = (paras[i + 1].text or "").strip()
+                title_q = f"{t}｜{nxt}" if nxt and len(nxt) <= 60 else t
+                heading_idxs.append((i, title_q))
+                i += 1
+                continue
             if _is_inferred_body_heading(t):
                 heading_idxs.append((i, t))
+            i += 1
+
+        deduped: list[tuple[int, str]] = []
+        seen_norm: set[str] = set()
+        for idx, tit in reversed(heading_idxs):
+            key = _normalize_toc_title(tit)
+            if not key or key in seen_norm:
+                continue
+            if tit.count("｜") >= 2 and len(tit) > 40:
+                continue
+            seen_norm.add(key)
+            deduped.append((idx, tit))
+        heading_idxs = list(reversed(deduped))
 
         if len(heading_idxs) >= 2:
-            for hi, (start, title) in enumerate(heading_idxs):
-                zone = _zone_for_title(title)
+            for hi, (start, sec_title) in enumerate(heading_idxs):
+                zone = _zone_for_title(sec_title.split("｜", 1)[0])
                 if zone == "meta":
                     continue
                 suggested_cuts.append(
                     {
                         "id": f"cut-{hi}",
-                        "title": title,
+                        "title": sec_title,
                         "level": 1,
                         "zone": zone if zone in ("body", "appendix", "front") else "body",
                         "anchor": {"type": "paragraph", "index": start},
-                        "confidence": 0.65,
+                        "confidence": 0.8,
                     }
                 )
+
+            first_i = heading_idxs[0][0]
+            if first_i > 0:
+                pre_bits = [
+                    _para_html(p)
+                    for p in paras[:first_i]
+                    if p.index not in toc_skip_indexes
+                    and (p.text or "").strip()
+                    and (p.text or "").strip() != "目录"
+                    and not _is_plain_toc_line(p.text or "")
+                ]
+                if pre_bits:
+                    sid = "sec-front"
+                    raw_preface = f'<div class="shelf-docx-root">{chr(10).join(pre_bits)}</div>'
+                    sections.append(
+                        {
+                            "id": sid,
+                            "title": "阅读本书之前",
+                            "level": 0,
+                            "zone": "front",
+                            "source": "inferred",
+                            "toc_id": "tb-front",
+                            "html": inject_shelf_paragraph_anchors(raw_preface),
+                            "kind": "front",
+                        }
+                    )
+                    toc_body.append(
+                        {
+                            "id": "tb-front",
+                            "title": "阅读本书之前",
+                            "level": 0,
+                            "zone": "front",
+                            "source": "inferred",
+                            "confidence": 0.75,
+                            "section_id": sid,
+                        }
+                    )
+            for hi, (start, sec_title) in enumerate(heading_idxs):
+                end = heading_idxs[hi + 1][0] if hi + 1 < len(heading_idxs) else len(paras)
+                chunk = [
+                    p
+                    for p in paras[start:end]
+                    if p.index not in toc_skip_indexes and (p.text or "").strip()
+                ]
+                if not chunk:
+                    continue
+                bits = [_para_html(p) for p in chunk]
+                zone = _zone_for_title(sec_title.split("｜", 1)[0])
+                if zone == "meta":
+                    continue
+                sid = f"sec-{len(sections)}"
+                toc_id = f"tb-{len(sections)}"
+                wrapped = f'<div class="shelf-docx-root">{chr(10).join(bits)}</div>'
+                sections.append(
+                    {
+                        "id": sid,
+                        "title": sec_title,
+                        "level": 1,
+                        "zone": zone if zone in ("body", "appendix", "front") else "body",
+                        "source": "inferred",
+                        "toc_id": toc_id,
+                        "html": inject_shelf_paragraph_anchors(
+                            _enhance_prose_semantics(wrapped)
+                        ),
+                        "kind": "body",
+                    }
+                )
+                toc_body.append(
+                    {
+                        "id": toc_id,
+                        "title": sec_title,
+                        "level": 1,
+                        "zone": sections[-1]["zone"],
+                        "source": "inferred",
+                        "confidence": 0.8,
+                        "section_id": sid,
+                    }
+                )
+            if enrich and sections:
+                try:
+                    _enrich_sections_with_mammoth(
+                        data,
+                        sections,
+                        book_id=book_id,
+                        storage_key=storage_key,
+                    )
+                except Exception:
+                    pass
+            suggested_cuts = []
 
         if not sections:
             prose = ""
@@ -957,7 +1272,13 @@ def parse_docx_bytes(
             except Exception:
                 prose = ""
             if not (prose or "").strip():
-                bits = [_para_html(p) for p in paras if (p.text or "").strip()]
+                bits = [
+                    _para_html(p)
+                    for p in paras
+                    if p.index not in toc_skip_indexes
+                    and (p.text or "").strip()
+                    and not _is_plain_toc_line(p.text or "")
+                ]
                 if bits:
                     prose = inject_shelf_paragraph_anchors(
                         _enhance_prose_semantics(
@@ -968,7 +1289,12 @@ def parse_docx_bytes(
                 if title == "未命名":
                     for p in paras[:12]:
                         t = (p.text or "").strip()
-                        if t and 1 < len(t) < 80 and t != "目录" and not _is_plain_toc_line(t):
+                        if (
+                            t
+                            and 1 < len(t) < 80
+                            and t != "目录"
+                            and not _is_plain_toc_line(t)
+                        ):
                             title = t
                             break
                 sid = "sec-0"
@@ -995,18 +1321,39 @@ def parse_docx_bytes(
                         "section_id": sid,
                     }
                 )
+                if body_outline and not suggested_cuts:
+                    for hi, item in enumerate(body_outline):
+                        suggested_cuts.append(
+                            {
+                                "id": f"cut-{hi}",
+                                "title": item.get("title") or "",
+                                "level": int(item.get("level") or 1),
+                                "zone": item.get("zone") or "body",
+                                "anchor": {"type": "toc", "index": hi},
+                                "confidence": float(item.get("confidence") or 0.7),
+                            }
+                        )
 
     has_structure = any(
         isinstance(s, dict) and s.get("source") in ("structured", "front_toc")
         for s in sections
     )
-    plan_source = "heading" if has_structure else ("inferred" if suggested_cuts else "plain")
-    plan_confidence = (
-        0.95 if has_structure else (0.65 if suggested_cuts else 0.5)
+    has_inferred_multi = len(sections) >= 2 and any(
+        isinstance(s, dict) and s.get("source") == "inferred" for s in sections
     )
-    toc_out: dict[str, Any] = {
-        "front": [t for t in toc_body if t.get("zone") == "front"],
-        "outline": body_outline or [
+    plan_source = (
+        "heading"
+        if has_structure
+        else ("inferred" if (suggested_cuts or has_inferred_multi) else "plain")
+    )
+    plan_confidence = (
+        0.95
+        if has_structure
+        else (0.8 if has_inferred_multi else (0.65 if suggested_cuts else 0.5))
+    )
+    needs_confirm = bool(suggested_cuts) and not has_structure and not has_inferred_multi
+    outline_out = body_outline or (
+        [
             {
                 "id": c["id"],
                 "title": c["title"],
@@ -1018,15 +1365,20 @@ def parse_docx_bytes(
                 "suggested": True,
             }
             for c in suggested_cuts
-        ],
+        ]
+        if suggested_cuts
+        else [t for t in toc_body if t.get("zone") == "body"]
+    )
+    toc_out: dict[str, Any] = {
+        "front": [t for t in toc_body if t.get("zone") == "front"],
+        "outline": outline_out,
         "body": [t for t in toc_body if t.get("zone") == "body"],
-        "appendix": [t for t in toc_body if t.get("zone") == "appendix"]
-        or appendix_toc,
+        "appendix": [t for t in toc_body if t.get("zone") == "appendix"] or appendix_toc,
         "plan": {
             "source": plan_source,
             "confidence": plan_confidence,
             "cuts": suggested_cuts,
-            "needs_confirm": bool(suggested_cuts) and not has_structure,
+            "needs_confirm": needs_confirm,
         },
     }
     return {
@@ -1036,8 +1388,9 @@ def parse_docx_bytes(
         "toc": toc_out,
         "sections": sections,
         "section_count": len(sections),
-        "needs_toc_confirm": bool(suggested_cuts) and not has_structure,
+        "needs_toc_confirm": needs_confirm,
     }
+
 
 
 def _finalize_docx_title(title: str, paras: list[_Para]) -> str:
