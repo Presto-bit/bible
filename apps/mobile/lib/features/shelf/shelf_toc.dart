@@ -60,8 +60,13 @@ List<ShelfTocItem> _filterMeta(List<ShelfTocItem> items) => items.where((item) {
       if (item.zone == 'meta') return false;
       if (RegExp(r'^目\s*录$').hasMatch(t)) return false;
       if (t == 'Table of Contents') return false;
-      // 建议切点未绑定 section，不进读者目录
-      if (item.suggested || ((item.sectionId == null || item.sectionId!.isEmpty) && item.source == 'inferred')) {
+      // 未绑定正文的目录项不进读者目录（防「有目录 / 无正文」）
+      final unbound = item.sectionId == null || item.sectionId!.isEmpty;
+      if (item.suggested ||
+          (unbound &&
+              (item.source == 'inferred' ||
+                  item.source == 'front_toc' ||
+                  item.source == 'structured'))) {
         return false;
       }
       if (item.source == 'file' && (t == '正文' || _isInternalShelfTocTitle(t))) {
@@ -116,6 +121,33 @@ String? resolveSectionId(ShelfTocItem item, List<ShelfSectionSummary> sections) 
   if (item.sectionId != null && item.sectionId!.isNotEmpty) return item.sectionId;
   for (final section in sections) {
     if (section.title == item.title) return section.id;
+  }
+  String norm(String t) {
+    var s = t.trim();
+    s = s.replaceFirst(RegExp(r'\s*\d{1,3}$'), '');
+    s = s.replaceFirst(RegExp(r'^[\d一二三四五六七八九十百零〇]+[.、．]\s*'), '');
+    s = s.replaceFirst(RegExp(r'^问题\s*\d+\s*'), '');
+    s = s.replaceFirst(RegExp(r'^第[一二三四五六七八九十百零〇\d]+部[：:｜|]?\s*'), '');
+    s = s.replaceFirst(RegExp(r'^第[一二三四五六七八九十百零〇\d]+场(?:对话)?[：:｜|]?\s*'), '');
+    if (s.contains('｜') || s.contains('|')) {
+      s = s.split(RegExp(r'[｜|]')).last.trim();
+    }
+    return s.replaceAll(RegExp(r'[｜|·\-—:\s　？?！!。．.]+'), '').toLowerCase();
+  }
+
+  String leftCore(String t) {
+    final left = t.split(RegExp(r'[｜|]')).first.trim();
+    return left.replaceFirst(RegExp(r'对话$'), '');
+  }
+
+  final na = norm(item.title);
+  for (final section in sections) {
+    if (na.isNotEmpty && na == norm(section.title)) return section.id;
+    if ((item.title.contains('｜') || item.title.contains('|')) &&
+        (section.title.contains('｜') || section.title.contains('|')) &&
+        leftCore(item.title) == leftCore(section.title)) {
+      return section.id;
+    }
   }
   return null;
 }

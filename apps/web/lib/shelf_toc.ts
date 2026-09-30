@@ -56,8 +56,14 @@ function filterMetaItems(items: ShelfTocItem[]): ShelfTocItem[] {
     if (item.zone === 'meta') return false;
     if (/^目\s*录$/.test(t)) return false;
     if (t === 'Table of Contents') return false;
-    // 建议切点未绑定 section，不进读者目录（防误点）
-    if (item.suggested || (!item.section_id && item.source === 'inferred')) return false;
+    // 未绑定正文的目录项不进读者目录（防「有目录 / 无正文」）
+    if (
+      item.suggested ||
+      (!item.section_id &&
+        (item.source === 'inferred' || item.source === 'front_toc' || item.source === 'structured'))
+    ) {
+      return false;
+    }
     // 无真实目录时的占位「正文」不进目录预览（避免解析失败仍占一行）
     if (item.source === 'file' && (t === '正文' || isInternalShelfTocTitle(t))) return false;
     return true;
@@ -119,6 +125,29 @@ export function buildShelfTocGroups(
 
 export function resolveSectionId(item: ShelfTocItem, sections: { id: string; title: string }[]) {
   if (item.section_id) return item.section_id;
-  const hit = sections.find((s) => s.title === item.title);
-  return hit?.id ?? null;
+  const exact = sections.find((s) => s.title === item.title);
+  if (exact) return exact.id;
+  const norm = (t: string) => {
+    let s = t.trim();
+    s = s.replace(/\s*\d{1,3}$/, '');
+    s = s.replace(/^[\d一二三四五六七八九十百零〇]+[.、．]\s*/, '');
+    s = s.replace(/^问题\s*\d+\s*/, '');
+    s = s.replace(/^第[一二三四五六七八九十百零〇\d]+部[：:｜|]?\s*/, '');
+    s = s.replace(/^第[一二三四五六七八九十百零〇\d]+场(?:对话)?[：:｜|]?\s*/, '');
+    if (s.includes('｜') || s.includes('|')) s = s.split(/[｜|]/).pop()!.trim();
+    return s.replace(/[｜|·\-—:\s　？?！!。．.]+/g, '').toLowerCase();
+  };
+  const leftCore = (t: string) => (t.split(/[｜|]/, 1)[0] ?? t).trim().replace(/对话$/, '');
+  const na = norm(item.title);
+  for (const s of sections) {
+    if (na && na === norm(s.title)) return s.id;
+    if (
+      (item.title.includes('｜') || item.title.includes('|')) &&
+      (s.title.includes('｜') || s.title.includes('|')) &&
+      leftCore(item.title) === leftCore(s.title)
+    ) {
+      return s.id;
+    }
+  }
+  return null;
 }

@@ -11,6 +11,7 @@ import {
 } from '@/lib/reader_highlights';
 import { rewriteShelfHtmlAssetUrls } from '@/lib/shelf_api';
 import { linkifyShelfProseHtml, shelfParagraphIndexForRatio, shelfRatioForParagraphIndex } from '@/lib/shelf_prose_html';
+import { openExternalBrowser } from '@/lib/external_browser';
 import {
   clearShelfActiveSelection,
   clearShelfPinnedSelectionDom,
@@ -548,12 +549,25 @@ export default function ShelfPaginatedProse({
     (e: MouseEvent<HTMLElement>) => {
       const target = e.target as HTMLElement;
       const btn = target.closest('.shelf-inline-ref') as HTMLElement | null;
-      if (!btn?.dataset.osis) return;
+      if (btn?.dataset.osis) {
+        e.preventDefault();
+        e.stopPropagation();
+        setVersePreview({
+          osis: btn.dataset.osis,
+          label: btn.dataset.label || btn.textContent || '',
+        });
+        return;
+      }
+      const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = (anchor.getAttribute('href') || '').trim();
+      if (!/^https?:\/\//i.test(href)) return;
       e.preventDefault();
       e.stopPropagation();
-      setVersePreview({
-        osis: btn.dataset.osis,
-        label: btn.dataset.label || btn.textContent || '',
+      openExternalBrowser({
+        url: href,
+        title: (anchor.textContent || '').trim() || undefined,
+        chrome: 'browser',
       });
     },
     [],

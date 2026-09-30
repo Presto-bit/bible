@@ -12,6 +12,7 @@ import 'package:flutter_html/src/extension/helpers/image_tap_extension.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config.dart';
+import '../../core/open_external.dart';
 import '../bible/entity_knowledge_sheet.dart' show showInlineVersePreview;
 import '../bible/markings_repository.dart';
 import '../bible/reader_focus_bar.dart';
@@ -494,6 +495,10 @@ class _ShelfPaginatedProseState extends ConsumerState<ShelfPaginatedProse> {
       final osis = href.substring('shelf-ref:'.length);
       final label = attributes['data-label'] ?? attributes['href'] ?? osis;
       await showInlineVersePreview(context, refParam: osis, label: label);
+      return;
+    }
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      await openInAppBrowser(href, title: attributes['data-label'] ?? attributes['title']);
       return;
     }
     if (href.startsWith('shelf-note:')) {

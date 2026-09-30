@@ -164,18 +164,28 @@ String _linkifyPlainText(String text) {
 String _linkifyPlainTextInHtml(String html) {
   final out = StringBuffer();
   var i = 0;
+  var skipDepth = 0;
   while (i < html.length) {
     if (html[i] == '<') {
       final gt = html.indexOf('>', i);
       if (gt < 0) break;
-      out.write(html.substring(i, gt + 1));
+      final tag = html.substring(i, gt + 1);
+      final lower = tag.toLowerCase();
+      if (RegExp(r'^</?(?:a|button)\b').hasMatch(lower)) {
+        if (lower.startsWith('</')) {
+          if (skipDepth > 0) skipDepth -= 1;
+        } else if (!lower.endsWith('/>')) {
+          skipDepth += 1;
+        }
+      }
+      out.write(tag);
       i = gt + 1;
       continue;
     }
     final nextTag = html.indexOf('<', i);
     final textEnd = nextTag < 0 ? html.length : nextTag;
     final chunk = html.substring(i, textEnd);
-    out.write(_linkifyPlainText(chunk));
+    out.write(skipDepth > 0 ? chunk : _linkifyPlainText(chunk));
     i = textEnd;
   }
   return out.toString();

@@ -15,6 +15,8 @@ from typing import Any
 from xml.etree import ElementTree as ET
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+REL_NS = "{http://schemas.openxmlformats.org/package/2006/relationships}"
 
 # Mammoth 不保留 run 颜色：注入文本标记，转 HTML 后再还原为 span
 _COLOR_MARK_OPEN = "[[c:#"
@@ -286,6 +288,85 @@ class _Para:
     style: str | None
     text: str
     index: int
+    # 已转义的段落内 HTML（含 <a class="shelf-ext-link">）；空则回落 text
+    inner_html: str = ""
+
+
+def _load_docx_rels(zf: zipfile.ZipFile) -> dict[str, str]:
+    """document.xml.rels → {rId: Target}（仅 External http(s)）。"""
+    path = "word/_rels/document.xml.rels"
+    if path not in zf.namelist():
+        return {}
+    try:
+        root = ET.fromstring(zf.read(path))
+    except ET.ParseError:
+        return {}
+    out: dict[str, str] = {}
+    for rel in root:
+        if not rel.tag.endswith("Relationship"):
+            continue
+        rid = rel.get("Id") or ""
+        target = (rel.get("Target") or "").strip()
+        mode = (rel.get("TargetMode") or "").strip().lower()
+        if not rid or not target:
+            continue
+        if mode == "external" or target.startswith(("http://", "https://")):
+            # Word 可能把 & 写成 &amp;
+            target = html.unescape(target)
+            out[rid] = target
+    return out
+
+
+def _collect_run_text(el: ET.Element) -> str:
+    return "".join(t.text or "" for t in el.iter(f"{W}t"))
+
+
+def _para_inner_html(p_el: ET.Element, rels: dict[str, str]) -> str:
+    """按文档顺序输出段落内文本，并把 w:hyperlink 转成可点外链。"""
+    parts: list[str] = []
+
+    def walk(node: ET.Element) -> None:
+        tag = node.tag
+        if tag == f"{W}hyperlink":
+            rid = node.get(f"{R}id") or node.get("id") or ""
+            url = rels.get(rid, "")
+            text = _collect_run_text(node)
+            if not text:
+                return
+            if url.startswith(("http://", "https://")):
+                href = html.escape(url, quote=True)
+                parts.append(
+                    f'<a href="{href}" class="shelf-ext-link" '
+                    f'target="_blank" rel="noopener noreferrer">'
+                    f"{html.escape(text)}</a>"
+                )
+            else:
+                parts.append(html.escape(text))
+            return
+        if tag == f"{W}r":
+            # 指令域 HYPERLINK 可能夹在 run 里；普通 run 直接取文本
+            instr = "".join(
+                (t.text or "") for t in node.iter(f"{W}instrText")
+            ).strip()
+            if instr.upper().startswith("HYPERLINK"):
+                # 域代码本身不输出，可见文字在后续 run / hyperlink
+                return
+            text = _collect_run_text(node)
+            if text:
+                parts.append(html.escape(text))
+            return
+        if tag == f"{W}t":
+            # 已在 run/hyperlink 处理
+            return
+        for child in list(node):
+            walk(child)
+
+    walk(p_el)
+    if parts:
+        return "".join(parts)
+    # 回落：无结构化子节点时拼全文
+    plain = _collect_run_text(p_el)
+    return html.escape(plain) if plain else ""
 
 
 def _style_name_map(styles_xml: bytes | None) -> dict[str, str]:
@@ -342,8 +423,10 @@ def _iter_paragraphs(
     document_xml: bytes,
     *,
     styles_xml: bytes | None = None,
+    rels: dict[str, str] | None = None,
 ) -> list[_Para]:
     name_map = _style_name_map(styles_xml)
+    link_rels = rels or {}
     root = ET.fromstring(document_xml)
     out: list[_Para] = []
     for i, p in enumerate(root.iter(f"{W}p")):
@@ -358,7 +441,13 @@ def _iter_paragraphs(
             if ps is not None:
                 style_id = ps.get(f"{W}val")
         style = _canonicalize_style(style_id, name_map.get(style_id or ""))
-        out.append(_Para(style=style, text=line, index=i))
+        if link_rels:
+            inner = _para_inner_html(p, link_rels)
+            if "<a " not in inner:
+                inner = html.escape(line)
+        else:
+            inner = html.escape(line)
+        out.append(_Para(style=style, text=line, index=i, inner_html=inner))
     return out
 
 
@@ -404,11 +493,13 @@ _Q_BLOCK_HEADS = frozenset({"继续对话的问题", "本章练习"})
 _PAREN_ASIDE_RE = re.compile(r"^（[^）]{1,120}）$")
 
 
-def _dialogue_html(text: str) -> str:
+def _dialogue_html(text: str, *, inner_html: str | None = None) -> str:
     m = _DIALOGUE_SPEAKER_RE.match(text.strip())
     if not m:
-        return f'<p class="shelf-dialogue">{html.escape(text)}</p>'
+        body = inner_html if inner_html is not None else html.escape(text)
+        return f'<p class="shelf-dialogue">{body}</p>'
     speaker, body = m.group(1), m.group(2).strip()
+    # 说话人结构优先用纯文本拆分；外链极少出现在说话人行
     return (
         f'<p class="shelf-dialogue">'
         f'<span class="shelf-dialogue-speaker">{html.escape(speaker)}</span>：'
@@ -416,9 +507,9 @@ def _dialogue_html(text: str) -> str:
     )
 
 
-def _body_html(text: str) -> str:
+def _body_html(text: str, *, inner_html: str | None = None) -> str:
     t = (text or "").strip()
-    esc = html.escape(text)
+    esc = inner_html if inner_html is not None else html.escape(text)
     if t in _Q_BLOCK_HEADS:
         return f'<p class="shelf-dialogue-q-head">{esc}</p>'
     if t in _SECTION_KICKERS:
@@ -426,24 +517,24 @@ def _body_html(text: str) -> str:
     if _PAREN_ASIDE_RE.match(t):
         return f'<p class="shelf-aside">{esc}</p>'
     if _DIALOGUE_SPEAKER_RE.match(t) and t.split("：", 1)[0].split(":", 1)[0] not in _SECTION_KICKERS:
-        return _dialogue_html(t)
+        return _dialogue_html(t, inner_html=inner_html)
     return f'<p class="shelf-body">{esc}</p>'
 
 
 def _para_html(p: _Para) -> str:
-    esc = html.escape(p.text)
+    inner = p.inner_html or html.escape(p.text)
     st = p.style or ""
     if st == "TitleCustom":
-        return f'<h1 class="shelf-title">{esc}</h1>'
+        return f'<h1 class="shelf-title">{inner}</h1>'
     if st == "SubtitleCustom":
-        return f'<p class="shelf-subtitle">{esc}</p>'
+        return f'<p class="shelf-subtitle">{inner}</p>'
     if st.startswith("Heading1") or st == "TOCEntry":
-        return f'<h2 class="shelf-h1">{esc}</h2>'
+        return f'<h2 class="shelf-h1">{inner}</h2>'
     if st.startswith("Heading2"):
-        return f'<h3 class="shelf-h2">{esc}</h3>'
+        return f'<h3 class="shelf-h2">{inner}</h3>'
     if st == "Dialogue":
-        return _dialogue_html(p.text)
-    return _body_html(p.text)
+        return _dialogue_html(p.text, inner_html=inner)
+    return _body_html(p.text, inner_html=inner)
 
 
 def _plain_p_text(piece: str) -> str:
@@ -560,11 +651,16 @@ def _enhance_prose_semantics(html_str: str) -> str:
 
 
 def _normalize_toc_title(title: str) -> str:
-    """去页码、首尾序号与空白，供文前目录与 Heading 模糊对齐。"""
+    """去页码、部/场前缀与空白，供文前目录与正文标题模糊对齐。"""
     t = (title or "").strip()
     t = re.sub(r"\s*\d{1,3}$", "", t).strip()
     t = re.sub(r"^[\d一二三四五六七八九十百零〇]+[\.、．]\s*", "", t)
-    t = re.sub(r"[｜|·\-—:\s　]+", "", t)
+    t = re.sub(r"^问题\s*\d+\s*", "", t)
+    t = re.sub(r"^第[一二三四五六七八九十百零〇\d]+部[：:｜|]?\s*", "", t)
+    t = re.sub(r"^第[一二三四五六七八九十百零〇\d]+场(?:对话)?[：:｜|]?\s*", "", t)
+    if "｜" in t or "|" in t:
+        t = re.split(r"[｜|]", t, 1)[-1].strip()
+    t = re.sub(r"[｜|·\-—:\s　？?！!。．.]+", "", t)
     return t.casefold()
 
 
@@ -574,7 +670,18 @@ def _match_toc_to_section(toc_title: str, section_title: str) -> bool:
     if a == b:
         return True
     if "｜" in a and "｜" in b:
-        if a.split("｜", 1)[0].strip() == b.split("｜", 1)[0].strip():
+        left_a, right_a = a.split("｜", 1)
+        left_b, right_b = b.split("｜", 1)
+        if left_a.strip() == left_b.strip():
+            return True
+        # 文前「第一场」↔ 正文「第一场对话」
+        la = re.sub(r"对话$", "", left_a.strip())
+        lb = re.sub(r"对话$", "", left_b.strip())
+        if la and la == lb:
+            return True
+        if _normalize_toc_title(right_a) and _normalize_toc_title(right_a) == _normalize_toc_title(
+            right_b
+        ):
             return True
     na, nb = _normalize_toc_title(a), _normalize_toc_title(b)
     if not na or not nb:
@@ -582,6 +689,53 @@ def _match_toc_to_section(toc_title: str, section_title: str) -> bool:
     if na == nb:
         return True
     return na in nb or nb in na
+
+
+def _link_front_toc_to_sections(
+    front_toc: list[dict[str, Any]], sections: list[dict[str, Any]]
+) -> None:
+    """把文前目录项绑定到已切出的正文节（可在 structured / inferred 之后各跑一次）。"""
+    if not front_toc or not sections:
+        return
+    for ft in front_toc:
+        if ft.get("section_id"):
+            continue
+        for sec in sections:
+            if _match_toc_to_section(ft.get("title") or "", sec.get("title") or ""):
+                ft["section_id"] = sec["id"]
+                break
+
+
+def _choose_outline(
+    front_toc: list[dict[str, Any]],
+    toc_body: list[dict[str, Any]],
+    suggested_cuts: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """读者目录优先用已绑定的文前目录；绑定不足则回落正文 toc，避免「有目录无正文」。"""
+    body_outline = [t for t in front_toc if t.get("zone") != "appendix"]
+    linked = [t for t in body_outline if t.get("section_id")]
+    body_items = [t for t in toc_body if t.get("zone") == "body"]
+    if linked and (
+        len(linked) >= max(2, int(len(body_outline) * 0.5)) or not body_items
+    ):
+        return linked
+    if body_items:
+        return body_items
+    if suggested_cuts:
+        return [
+            {
+                "id": c["id"],
+                "title": c["title"],
+                "level": c.get("level", 1),
+                "zone": c.get("zone") or "body",
+                "source": "inferred",
+                "confidence": c.get("confidence", 0.65),
+                "section_id": None,
+                "suggested": True,
+            }
+            for c in suggested_cuts
+        ]
+    return linked or body_outline
 
 
 _SHELF_DOCX_STYLE_MAP = """
@@ -783,7 +937,8 @@ def _refine_lesson_html(html_str: str) -> str:
 def _text_only_prose_html(data: bytes) -> str:
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         doc = z.read("word/document.xml")
-    paras = _iter_paragraphs(doc)
+        rels = _load_docx_rels(z)
+    paras = _iter_paragraphs(doc, rels=rels)
     if not paras:
         return '<p class="shelf-body muted">（空文档）</p>'
     return inject_shelf_paragraph_anchors("\n".join(_para_html(p) for p in paras))
@@ -950,7 +1105,8 @@ def parse_docx_bytes(
     with zipfile.ZipFile(io.BytesIO(data)) as zf:
         doc_xml = zf.read("word/document.xml")
         styles_xml = zf.read("word/styles.xml") if "word/styles.xml" in zf.namelist() else None
-    paras = _iter_paragraphs(doc_xml, styles_xml=styles_xml)
+        rels = _load_docx_rels(zf)
+    paras = _iter_paragraphs(doc_xml, styles_xml=styles_xml, rels=rels)
 
     title = "未命名"
     subtitle = ""
@@ -1101,11 +1257,7 @@ def parse_docx_bytes(
         sections = []
         toc_body = []
 
-    for ft in front_toc:
-        for sec in sections:
-            if _match_toc_to_section(ft["title"], sec["title"]):
-                ft["section_id"] = sec["id"]
-                break
+    _link_front_toc_to_sections(front_toc, sections)
 
     appendix_toc = [t for t in front_toc if t.get("zone") == "appendix"]
     body_outline = [t for t in front_toc if t.get("zone") != "appendix"]
@@ -1334,6 +1486,11 @@ def parse_docx_bytes(
                             }
                         )
 
+    # 推断切节在文前目录首次绑定时可能尚未存在，这里补绑一次
+    _link_front_toc_to_sections(front_toc, sections)
+    body_outline = [t for t in front_toc if t.get("zone") != "appendix"]
+    appendix_toc = [t for t in front_toc if t.get("zone") == "appendix"]
+
     has_structure = any(
         isinstance(s, dict) and s.get("source") in ("structured", "front_toc")
         for s in sections
@@ -1352,23 +1509,7 @@ def parse_docx_bytes(
         else (0.8 if has_inferred_multi else (0.65 if suggested_cuts else 0.5))
     )
     needs_confirm = bool(suggested_cuts) and not has_structure and not has_inferred_multi
-    outline_out = body_outline or (
-        [
-            {
-                "id": c["id"],
-                "title": c["title"],
-                "level": c.get("level", 1),
-                "zone": c.get("zone") or "body",
-                "source": "inferred",
-                "confidence": c.get("confidence", 0.65),
-                "section_id": None,
-                "suggested": True,
-            }
-            for c in suggested_cuts
-        ]
-        if suggested_cuts
-        else [t for t in toc_body if t.get("zone") == "body"]
-    )
+    outline_out = _choose_outline(front_toc, toc_body, suggested_cuts)
     toc_out: dict[str, Any] = {
         "front": [t for t in toc_body if t.get("zone") == "front"],
         "outline": outline_out,

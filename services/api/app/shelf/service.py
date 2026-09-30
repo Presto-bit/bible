@@ -1221,8 +1221,6 @@ def upload_platform_book_cover(
     is_shelf_admin: bool,
 ) -> dict[str, Any]:
     """上传/替换书目封面（上传者或书柜管理员）。"""
-    if len(data) > 2 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="封面过大（上限 2MB）")
     if len(data) < 32:
         raise HTTPException(status_code=400, detail="无效的图片")
 

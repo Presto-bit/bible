@@ -100,7 +100,7 @@ export function normalizeInlineRef(raw: string): string | null {
     const tail = s.slice(name.length).trimStart();
     const book = CN_ALL[name];
 
-    const chVerseMatch = tail.match(/^(\d+)章\s*(\d+)\s*(?:至\s*(\d+))?\s*节$/);
+    const chVerseMatch = tail.match(/^第?\s*(\d+)章\s*(\d+)\s*(?:至\s*(\d+))?\s*节$/);
     if (chVerseMatch) {
       return osisFromCnBook(book, chVerseMatch[1], chVerseMatch[2], chVerseMatch[3]);
     }
@@ -115,11 +115,14 @@ export function normalizeInlineRef(raw: string): string | null {
       return osisFromCnBook(book, verseMatch[1], verseMatch[2], verseMatch[3]);
     }
 
-    const chRangeMatch = tail.match(/^(\d+)\s*[-~–—]\s*(\d+)\s*章/);
-    if (chRangeMatch) return `${book}.${chRangeMatch[1]}`;
+    const chapterBlock = tail.match(new RegExp(String.raw`^(${CHAPTER_BLOCK})`));
+    if (chapterBlock) {
+      const firstCh = chapterBlock[1].match(/\d+/)?.[0];
+      if (firstCh) return `${book}.${firstCh}`;
+    }
 
-    const chMatch = tail.match(/^(\d+)\s*章/);
-    if (chMatch) return `${book}.${chMatch[1]}`;
+    const bareChRange = tail.match(/^(\d+)\s*[-~–—]\s*(\d+)(?!\s*[:：])/);
+    if (bareChRange) return `${book}.${bareChRange[1]}`;
   }
 
   const cnMatch = s.match(/^([\u4e00-\u9fff]{1,4})\s*(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?$/);
@@ -155,13 +158,17 @@ function canStartBareRef(text: string, index: number): boolean {
   return /[；;，,\s：:、（(）)]/.test(prev);
 }
 
+/** 书卷名后的章域：可选「第」、枚举「、」、范围「-」、章/篇。 */
+const CHAPTER_BLOCK =
+  String.raw`第?\s*\d+(?:\s*[-~–—]\s*\d+)?(?:\s*[、，,]\s*第?\d+(?:\s*[-~–—]\s*\d+)?)*\s*[章篇]`;
+
 function matchBookRefAt(text: string, index: number): RefHit | null {
   for (const name of CN_NAMES_SORTED) {
     if (!text.startsWith(name, index)) continue;
     const tail = text.slice(index + name.length);
     const bookId = CN_ALL[name];
 
-    const chVerseMatch = tail.match(/^\s*(\d+)章\s*(\d+)\s*(?:至\s*(\d+))?\s*节/);
+    const chVerseMatch = tail.match(/^\s*第?\s*(\d+)章\s*(\d+)\s*(?:至\s*(\d+))?\s*节/);
     if (chVerseMatch) {
       const value = name + chVerseMatch[0];
       return {
@@ -200,29 +207,34 @@ function matchBookRefAt(text: string, index: number): RefHit | null {
       };
     }
 
-    const chRangeMatch = tail.match(/^\s*(\d+)\s*[-~–—]\s*(\d+)\s*章/);
-    if (chRangeMatch) {
-      const value = name + chRangeMatch[0];
-      return {
-        start: index,
-        end: index + value.length,
-        value,
-        osis: `${bookId}.${chRangeMatch[1]}`,
-        bookId,
-        chapter: chRangeMatch[1],
-      };
+    // 创世记第6-9章 / 以赛亚书第1-2、6、11、40章 / 诗篇第8、104篇
+    const chapterBlock = tail.match(new RegExp(String.raw`^\s*(${CHAPTER_BLOCK})`));
+    if (chapterBlock) {
+      const value = name + chapterBlock[0];
+      const firstCh = chapterBlock[1].match(/\d+/)?.[0];
+      if (firstCh) {
+        return {
+          start: index,
+          end: index + value.length,
+          value,
+          osis: `${bookId}.${firstCh}`,
+          bookId,
+          chapter: firstCh,
+        };
+      }
     }
 
-    const chMatch = tail.match(/^\s*(\d+)\s*章/);
-    if (chMatch) {
-      const value = name + chMatch[0];
+    // 罗马书12-14 / 林后8-9（无「章」，且非章:节）
+    const bareChRange = tail.match(/^\s*(\d+)\s*[-~–—]\s*(\d+)(?!\s*[:：])/);
+    if (bareChRange) {
+      const value = name + bareChRange[0];
       return {
         start: index,
         end: index + value.length,
         value,
-        osis: `${bookId}.${chMatch[1]}`,
+        osis: `${bookId}.${bareChRange[1]}`,
         bookId,
-        chapter: chMatch[1],
+        chapter: bareChRange[1],
       };
     }
   }
@@ -248,7 +260,7 @@ function matchBookRefAt(text: string, index: number): RefHit | null {
 function matchContinuationAt(text: string, index: number, ctx: RefContext): RefHit | null {
   if (!ctx.bookId || !ctx.chapter) return null;
 
-  const andChapter = text.slice(index).match(/^和\s*(\d+)\s*章/);
+  const andChapter = text.slice(index).match(/^和\s*第?\s*(\d+)\s*[章篇]/);
   if (andChapter) {
     const value = andChapter[0];
     return {
@@ -293,6 +305,22 @@ function matchContinuationAt(text: string, index: number, ctx: RefContext): RefH
 function matchBareRefAt(text: string, index: number, ctx: RefContext): RefHit | null {
   if (!ctx.bookId || !canStartBareRef(text, index)) return null;
   const slice = text.slice(index);
+
+  // ；第39-50章 / 第6章（承接上文书卷）
+  const chapterBlock = slice.match(new RegExp(String.raw`^(${CHAPTER_BLOCK})`));
+  if (chapterBlock) {
+    const firstCh = chapterBlock[1].match(/\d+/)?.[0];
+    if (firstCh) {
+      return {
+        start: index,
+        end: index + chapterBlock[0].length,
+        value: chapterBlock[0],
+        osis: `${ctx.bookId}.${firstCh}`,
+        bookId: ctx.bookId,
+        chapter: firstCh,
+      };
+    }
+  }
 
   const crossMatch = slice.match(/^(\d+)[:：](\d+)\s*[-~–—]\s*(\d+)[:：](\d+)/);
   if (crossMatch) {
