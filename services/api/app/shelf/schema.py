@@ -50,5 +50,9 @@ def ensure_shelf_schema(pool) -> None:
             "ALTER TABLE shelf_platform_book "
             "ADD COLUMN IF NOT EXISTS cover_source TEXT"
         )
+        conn.execute(
+            "ALTER TABLE shelf_platform_book "
+            "ADD COLUMN IF NOT EXISTS needs_toc_confirm BOOLEAN NOT NULL DEFAULT FALSE"
+        )
         conn.commit()
     logger.info("shelf schema ready")

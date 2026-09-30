@@ -45,6 +45,7 @@ export default function ShelfTocSectionMenu({
   const index = useMemo(() => sectionIds.indexOf(sectionId), [sectionIds, sectionId]);
   const canMoveUp = index > 0;
   const canMoveDown = index >= 0 && index < sectionIds.length - 1;
+  const canRemoveToc = sectionIds.length > 1;
 
   useEffect(() => {
     if (open) {
@@ -113,19 +114,23 @@ export default function ShelfTocSectionMenu({
   };
 
   const remove = async () => {
+    if (!canRemoveToc) {
+      toast('仅剩一节，无法删除目录');
+      return;
+    }
     const ok = await confirm({
-      title: `删除「${sectionTitle}」？`,
+      title: isCollection ? `删除「${sectionTitle}」？` : `从目录移除「${sectionTitle}」？`,
       message: isCollection
         ? '将从合集中移除，并删除对应文件。此操作不可恢复。'
-        : '将从目录中移除此节。此操作不可恢复。',
-      confirmLabel: '删除',
+        : '仅删除目录项，正文会自动合并到上一节（首节则并入下一节），不会丢失内容。',
+      confirmLabel: isCollection ? '删除' : '移除并合并',
       danger: true,
     });
     if (!ok) return;
     setBusy(true);
     try {
-      await deleteCollectionSection(bookId, sectionId);
-      toast('已删除');
+      const res = await deleteCollectionSection(bookId, sectionId);
+      toast(isCollection || !res.merged ? '已删除' : '已移除目录，正文已合并');
       onChanged();
       onClose();
     } catch (e) {
@@ -194,9 +199,11 @@ export default function ShelfTocSectionMenu({
                     下移
                   </button>
                 ) : null}
-                <button type="button" className="shelf-book-action-item is-danger" {...shellTapProps({ onTap: () => void remove() })}>
-                  删除此节
-                </button>
+                {canRemoveToc ? (
+                  <button type="button" className="shelf-book-action-item is-danger" {...shellTapProps({ onTap: () => void remove() })}>
+                    {isCollection ? '删除此节' : '移除目录（合并正文）'}
+                  </button>
+                ) : null}
               </div>
             </>
           )}

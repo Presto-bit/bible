@@ -78,6 +78,7 @@ class ShelfCache {
                   'group_id': b.groupId,
                   'sort_order': b.sortOrder,
                   'book_type': b.bookType,
+                  'needs_toc_confirm': b.needsTocConfirm,
                 },
               )
               .toList(),

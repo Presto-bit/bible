@@ -457,6 +457,14 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
                             style: AppTypography.title.copyWith(fontSize: 20),
                             textAlign: TextAlign.center,
                           ),
+                          if (book.needsTocConfirm) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              '目录待确认 · 可在导入后整理或移除合并',
+                              style: AppTypography.meta,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                           if (book.author.isNotEmpty) ...[
                             const SizedBox(height: 6),
                             Text(book.author, style: AppTypography.meta, textAlign: TextAlign.center),

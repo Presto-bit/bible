@@ -615,7 +615,10 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
               ),
             ListTile(
               leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
-              title: Text('删除此节', style: TextStyle(color: Colors.red.shade700)),
+              title: Text(
+                isCollection ? '删除此节' : '移除目录（合并正文）',
+                style: TextStyle(color: Colors.red.shade700),
+              ),
               onTap: () => Navigator.pop(ctx, 'delete'),
             ),
           ],
@@ -675,18 +678,18 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text('删除「$title」？'),
+          title: Text(isCollection ? '删除「$title」？' : '从目录移除「$title」？'),
           content: Text(
             isCollection
                 ? '将从合集中移除，并删除对应文件。此操作不可恢复。'
-                : '将从目录中移除此节。此操作不可恢复。',
+                : '仅删除目录项，正文会自动合并到上一节（首节则并入下一节），不会丢失内容。',
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
               style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
-              child: const Text('删除'),
+              child: Text(isCollection ? '删除' : '移除并合并'),
             ),
           ],
         ),
@@ -700,7 +703,9 @@ class _ShelfReaderScreenState extends ConsumerState<ShelfReaderScreen> {
           if (secs.isNotEmpty) _goSection(secs.first.id);
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已删除')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(isCollection ? '已删除' : '已移除目录，正文已合并')),
+          );
         }
       } catch (e) {
         if (mounted) {

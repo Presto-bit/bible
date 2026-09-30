@@ -60,6 +60,10 @@ List<ShelfTocItem> _filterMeta(List<ShelfTocItem> items) => items.where((item) {
       if (item.zone == 'meta') return false;
       if (RegExp(r'^目\s*录$').hasMatch(t)) return false;
       if (t == 'Table of Contents') return false;
+      // 建议切点未绑定 section，不进读者目录
+      if (item.suggested || ((item.sectionId == null || item.sectionId!.isEmpty) && item.source == 'inferred')) {
+        return false;
+      }
       if (item.source == 'file' && (t == '正文' || _isInternalShelfTocTitle(t))) {
         return false;
       }

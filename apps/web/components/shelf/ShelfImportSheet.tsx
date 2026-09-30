@@ -1,10 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useToast } from '@/components/ui/ToastProvider';
 import { fetchShelfAdminCapabilities } from '@/lib/shelf_admin';
-import { createPlatformCollection, importPlatformShelfBook } from '@/lib/shelf_api';
+import {
+  createPlatformCollection,
+  importPlatformShelfBook,
+  type ShelfTocItem,
+} from '@/lib/shelf_api';
 import { invalidateShelfListCache } from '@/lib/shelf_cache';
 import {
   shelfImportMaxBytes,
@@ -12,8 +17,12 @@ import {
 } from '@/lib/shelf_library';
 import { shellTapProps } from '@/lib/shell_tap';
 
+const ShelfTocConfirmSheet = dynamic(() => import('@/components/shelf/ShelfTocConfirmSheet'), {
+  ssr: false,
+});
+
 const ACCEPT =
-  '.docx,.txt,.md,.pdf,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  '.docx,.txt,.md,.pdf,.epub,text/plain,text/markdown,application/pdf,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 type Mode = 'book' | 'collection';
 
@@ -34,6 +43,11 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
   const [bookTitle, setBookTitle] = useState('');
   const [bookAuthor, setBookAuthor] = useState('');
   const [bookSubtitle, setBookSubtitle] = useState('');
+  const [tocConfirm, setTocConfirm] = useState<{
+    bookId: string;
+    bookTitle: string;
+    suggested: ShelfTocItem[];
+  } | null>(null);
   const maxBytes = shelfImportMaxBytes(isShelfAdmin);
   const maxMbLabel = shelfImportMaxMbLabel(isShelfAdmin);
 
@@ -49,6 +63,12 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
     setBookAuthor('');
     setBookSubtitle('');
     if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const finishAndReload = () => {
+    invalidateShelfListCache();
+    onClose();
+    window.location.reload();
   };
 
   const onPick = (file: File | null) => {
@@ -74,9 +94,18 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
         subtitle: bookSubtitle,
       });
       invalidateShelfListCache();
+      if (res.needs_toc_confirm) {
+        const suggested = (res.preview?.toc_outline || []) as ShelfTocItem[];
+        setTocConfirm({
+          bookId: res.id,
+          bookTitle: res.title,
+          suggested,
+        });
+        flashToast(`已导入「${res.title}」，请确认目录`);
+        return;
+      }
       flashToast(`已导入「${res.title}」`);
-      onClose();
-      window.location.reload();
+      finishAndReload();
     } catch (e) {
       flashToast(e instanceof Error ? e.message : '导入失败');
     } finally {
@@ -98,14 +127,25 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
       });
       invalidateShelfListCache();
       flashToast(`已创建合集「${res.title}」`);
-      onClose();
-      window.location.reload();
+      finishAndReload();
     } catch (e) {
       flashToast(e instanceof Error ? e.message : '创建失败');
     } finally {
       setBusy(false);
     }
   };
+
+  if (tocConfirm) {
+    return (
+      <ShelfTocConfirmSheet
+        bookId={tocConfirm.bookId}
+        bookTitle={tocConfirm.bookTitle}
+        suggested={tocConfirm.suggested}
+        onDone={finishAndReload}
+        onClose={finishAndReload}
+      />
+    );
+  }
 
   return (
     <AppBodyPortal>
@@ -150,7 +190,7 @@ export default function ShelfImportSheet({ onClose }: { onClose: () => void }) {
         {mode === 'book' && !pendingFile ? (
           <>
             <p className="shelf-import-hint muted">
-              支持 docx、txt、md、pdf，单本不超过 {maxMbLabel}。选文件后可补书名与作者（均可留空）。
+              支持 docx、txt、md、pdf、epub，单本不超过 {maxMbLabel}。选文件后可补书名与作者（均可留空）。
             </p>
             <input
               id="shelf-import-file"

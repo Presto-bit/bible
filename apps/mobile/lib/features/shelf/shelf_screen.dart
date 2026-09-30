@@ -172,7 +172,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   Future<void> _openImport() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: const ['docx', 'txt', 'md', 'pdf'],
+      allowedExtensions: const ['docx', 'txt', 'md', 'pdf', 'epub'],
       withReadStream: false,
     );
     if (result == null || result.files.isEmpty) return;
@@ -299,8 +299,80 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
           );
       ref.invalidate(shelfListProvider);
       if (!mounted) return;
+      final needsConfirm = res['needs_toc_confirm'] == true;
+      final bookId = '${res['id'] ?? ''}';
+      final importedTitle = '${res['title'] ?? file.name}';
+      if (needsConfirm && bookId.isNotEmpty) {
+        final outline = ((res['preview'] as Map?)?['toc_outline'] as List?) ?? const [];
+        final apply = await showModalBottomSheet<bool>(
+          context: context,
+          backgroundColor: AppColors.paper,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          builder: (ctx) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    '确认目录',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '「$importedTitle」未识别到可靠样式目录。检测到 ${outline.length} 个建议切点。',
+                    style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
+                  ),
+                  const SizedBox(height: 12),
+                  ...outline.take(8).map((e) {
+                    final titleText = e is Map ? '${e['title'] ?? ''}' : '$e';
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text(titleText, style: const TextStyle(fontSize: 14)),
+                    );
+                  }),
+                  if (outline.length > 8)
+                    Text(
+                      '另有 ${outline.length - 8} 项…',
+                      style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                    ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('保持整本一节'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: outline.length < 2 ? null : () => Navigator.pop(ctx, true),
+                          child: const Text('应用建议'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        if (apply != null && mounted) {
+          try {
+            await ref.read(shelfRepoProvider).confirmToc(bookId, applySuggested: apply);
+            ref.invalidate(shelfListProvider);
+          } catch (_) {}
+        }
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已导入「${res['title'] ?? file.name}」')),
+        SnackBar(content: Text('已导入「$importedTitle」')),
       );
     } catch (e) {
       if (!mounted) return;

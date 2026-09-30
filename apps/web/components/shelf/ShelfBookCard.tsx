@@ -112,7 +112,7 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
         }
       }}
     >
-      <div className="shelf-book-card-cover">
+      <div className="shelf-book-card-cover" style={{ position: 'relative' }}>
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverUrl} alt="" className="shelf-book-card-image" draggable={false} />
@@ -127,10 +127,33 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
             />
           </div>
         ) : null}
+        {book.needs_toc_confirm ? (
+          <span
+            className="shelf-book-card-badge"
+            style={{
+              position: 'absolute',
+              top: 6,
+              left: 6,
+              padding: '2px 6px',
+              borderRadius: 4,
+              fontSize: 10,
+              letterSpacing: '0.02em',
+              background: 'color-mix(in srgb, var(--paper, #f7f2e8) 88%, #8b6914)',
+              color: 'color-mix(in srgb, var(--ink, #2a241c) 78%, #8b6914)',
+            }}
+          >
+            待确认目录
+          </span>
+        ) : null}
       </div>
       <div className="shelf-book-card-text">
         <p className={`shelf-book-card-title${hasMeta ? ' is-compact' : ''}`}>
           {shelfBookDisplayTitle(book.title)}
+          {book.needs_toc_confirm ? (
+            <span className="muted" style={{ fontSize: 11, fontWeight: 500, marginLeft: 4 }}>
+              · 建议
+            </span>
+          ) : null}
         </p>
         {hasMeta ? <p className="shelf-book-card-meta muted">{metaText}</p> : null}
       </div>

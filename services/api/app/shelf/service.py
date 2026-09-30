@@ -225,7 +225,9 @@ def _row_to_summary(row: tuple) -> dict[str, Any]:
         cover_storage_key,
         created_at,
         cover_source,
+        *rest,
     ) = row
+    needs_toc_confirm = bool(rest[0]) if rest else False
     toc = toc_json if isinstance(toc_json, dict) else json.loads(toc_json or "{}")
     sections = (
         sections_json
@@ -239,6 +241,9 @@ def _row_to_summary(row: tuple) -> dict[str, Any]:
         section_count = len(sections) if sections else (
             len(toc.get("body") or []) + len(toc.get("appendix") or [])
         )
+    plan = toc.get("plan") if isinstance(toc.get("plan"), dict) else {}
+    if plan.get("needs_confirm"):
+        needs_toc_confirm = True
     return {
         "id": str(bid),
         "title": title,
@@ -254,6 +259,8 @@ def _row_to_summary(row: tuple) -> dict[str, Any]:
         "cover_storage_key": cover_storage_key,
         "cover_source": cover_source,
         "created_at": created_at.isoformat() if created_at else None,
+        "needs_toc_confirm": needs_toc_confirm,
+        "toc_confidence": plan.get("confidence"),
         "source": "platform",
     }
 
@@ -327,7 +334,7 @@ def list_platform_books(
                 """
                 SELECT id, title, subtitle, author, mime, file_size, toc_json, sections_json,
                        status, sort_order, book_type, uploaded_by, cover_storage_key, created_at,
-                       cover_source
+                       cover_source, needs_toc_confirm
                 FROM shelf_platform_book
                 WHERE status = 'published'
                 ORDER BY sort_order DESC, created_at DESC
@@ -490,7 +497,7 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                     """
                     SELECT id, title, subtitle, author, mime, storage_key, file_size, file_sha256,
                            toc_json, sections_json, status, sort_order, book_type, uploaded_by,
-                           cover_storage_key, created_at, cover_source
+                           cover_storage_key, created_at, cover_source, needs_toc_confirm
                     FROM shelf_platform_book
                     WHERE id = %s AND status = 'published'
                     """,
@@ -517,7 +524,13 @@ def get_platform_book(book_id: str, *, include_sections: bool = False) -> dict[s
                     "cover_storage_key": row[14],
                     "created_at": row[15].isoformat() if row[15] else None,
                     "cover_source": row[16],
+                    "needs_toc_confirm": bool(row[17]) if len(row) > 17 else False,
                 }
+                plan = toc.get("plan") if isinstance(toc.get("plan"), dict) else {}
+                if plan.get("needs_confirm"):
+                    out["needs_toc_confirm"] = True
+                if plan.get("confidence") is not None:
+                    out["toc_confidence"] = plan.get("confidence")
                 if fb and fb.get("book_type") == "collection" and db_book_type != "collection":
                     return _book_detail_from_file(fb, include_sections=include_sections)
                 if include_sections:
@@ -1568,6 +1581,11 @@ def _persist_collection_book(
         save_catalog_document(persist_handle)
         return
     pool = get_pool()
+    needs = book.get("needs_toc_confirm")
+    toc = book.get("toc") or {}
+    plan = toc.get("plan") if isinstance(toc.get("plan"), dict) else {}
+    if needs is None:
+        needs = bool(plan.get("needs_confirm"))
     with pool.connection() as conn:
         conn.execute(
             """
@@ -1575,13 +1593,15 @@ def _persist_collection_book(
             SET sections_json = %s::jsonb,
                 toc_json = %s::jsonb,
                 file_size = %s,
+                needs_toc_confirm = %s,
                 updated_at = now()
             WHERE id = %s
             """,
             (
                 json.dumps(book.get("sections") or [], ensure_ascii=False),
-                json.dumps(book.get("toc") or {}, ensure_ascii=False),
+                json.dumps(toc, ensure_ascii=False),
                 int(book.get("file_size") or 0),
+                bool(needs),
                 book_id,
             ),
         )
@@ -1957,6 +1977,63 @@ def delete_collection_section(
     )
 
 
+
+def _section_inner_html(html: str) -> str:
+    h = (html or "").strip()
+    if not h:
+        return ""
+    m = re.search(
+        r'<div class="shelf-docx-root"[^>]*>([\s\S]*)</div>\s*$',
+        h,
+        flags=re.IGNORECASE,
+    )
+    if m:
+        return (m.group(1) or "").strip()
+    return h
+
+
+def _concat_section_html(left: dict[str, Any], right: dict[str, Any]) -> str:
+    """合并两节 HTML，并重打段落锚点。"""
+    from .html_normalize import inject_shelf_paragraph_anchors
+
+    inner = "\n".join(
+        x
+        for x in (
+            _section_inner_html(str(left.get("html") or "")),
+            _section_inner_html(str(right.get("html") or "")),
+        )
+        if x
+    )
+    if not inner:
+        return str(left.get("html") or right.get("html") or "")
+    wrapped = f'<div class="shelf-docx-root">{inner}</div>'
+    return inject_shelf_paragraph_anchors(wrapped)
+
+
+def _merge_pdf_primary(into: dict[str, Any], donor: dict[str, Any]) -> None:
+    """扩展 PDF 节的页范围以覆盖被并入节。"""
+    a = into.get("primary") if isinstance(into.get("primary"), dict) else {}
+    b = donor.get("primary") if isinstance(donor.get("primary"), dict) else {}
+    if not a and not b:
+        return
+    start_vals = [
+        x
+        for x in (a.get("page_start"), b.get("page_start"))
+        if isinstance(x, int)
+    ]
+    end_vals = [
+        x
+        for x in (a.get("page_end"), b.get("page_end"))
+        if isinstance(x, int)
+    ]
+    base = dict(a or b)
+    if start_vals:
+        base["page_start"] = min(start_vals)
+    if end_vals:
+        base["page_end"] = max(end_vals)
+    into["primary"] = base
+
+
 def delete_platform_section(
     book_id: str,
     section_id: str,
@@ -1966,7 +2043,10 @@ def delete_platform_section(
     collection_only: bool = False,
     delete_files: bool = False,
 ) -> dict[str, Any]:
-    """删除书目中的一节（普通书只改目录/节列表；合集可删文件）。"""
+    """删除目录项：普通书正文并入上一节（首节则并入下一节），不丢内容。
+
+    合集仍可按需删除对应课节文件。
+    """
     rec = _editable_book_record(book_id, collection_only=collection_only)
     if not rec:
         raise HTTPException(status_code=404, detail="书目不存在")
@@ -1977,28 +2057,42 @@ def delete_platform_section(
         actor_user_id=actor_user_id,
         is_shelf_admin=is_shelf_admin,
     )
-    sections = book.get("sections") or []
-    target = None
-    rest: list[dict[str, Any]] = []
-    for sec in sections:
-        if not isinstance(sec, dict):
-            continue
-        if str(sec.get("id")) == section_id:
-            target = sec
-        else:
-            rest.append(sec)
-    if not target:
+    sections = [s for s in (book.get("sections") or []) if isinstance(s, dict)]
+    idx = next((i for i, s in enumerate(sections) if str(s.get("id")) == section_id), -1)
+    if idx < 0:
         raise HTTPException(status_code=404, detail="章节不存在")
+    if len(sections) <= 1:
+        raise HTTPException(status_code=400, detail="仅剩一节，无法删除目录")
 
+    target = sections[idx]
+    is_collection = (book.get("book_type") or "") == "collection"
     removed_files: list[str] = []
-    if delete_files or (book.get("book_type") or "") == "collection":
+    merged_into_id: str | None = None
+
+    if is_collection or delete_files:
+        # 合集：仍移除课节文件（每节独立文件）
         keys = _section_storage_keys(target)
-        # 普通书共用一个 storage_key 时勿删原件
-        if (book.get("book_type") or "") == "collection":
+        if is_collection:
             removed_files = _delete_book_files(keys)
-        elif keys and len(rest) == 0:
-            removed_files = _delete_book_files(keys)
-    book["sections"] = rest
+        rest = [s for i, s in enumerate(sections) if i != idx]
+        book["sections"] = rest
+    else:
+        # 普通书：目录项删除 = 正文并入相邻节
+        if idx == 0:
+            sink = sections[1]
+            sink["html"] = _concat_section_html(target, sink)
+            _merge_pdf_primary(sink, target)
+            merged_into_id = str(sink.get("id") or "")
+            rest = [sink] + sections[2:]
+        else:
+            sink = sections[idx - 1]
+            sink["html"] = _concat_section_html(sink, target)
+            _merge_pdf_primary(sink, target)
+            merged_into_id = str(sink.get("id") or "")
+            rest = sections[:idx] + sections[idx + 1 :]
+            # sink already in rest at idx-1
+        book["sections"] = rest
+
     toc = book.setdefault("toc", {})
     _remove_section_from_toc(toc, section_id)
     _prune_empty_unit_nodes(toc)
@@ -2013,8 +2107,10 @@ def delete_platform_section(
         "book_id": book_id,
         "section_id": section_id,
         "deleted": True,
+        "merged": not is_collection,
+        "merged_into": merged_into_id,
         "files_removed": removed_files,
-        "section_count": len(rest),
+        "section_count": len(book.get("sections") or []),
     }
 
 
@@ -2096,4 +2192,319 @@ def reorder_platform_sections(
         "book_id": book_id,
         "section_ids": ids,
         "section_count": len(ordered),
+    }
+
+
+def _rebuild_toc_from_sections(book: dict[str, Any]) -> None:
+    toc = book.setdefault("toc", {})
+    new_front: list[dict[str, Any]] = []
+    new_body: list[dict[str, Any]] = []
+    new_appendix: list[dict[str, Any]] = []
+    for sec in book.get("sections") or []:
+        if not isinstance(sec, dict):
+            continue
+        sid = str(sec.get("id") or "")
+        zone = sec.get("zone") or "body"
+        item = {
+            "id": sec.get("toc_id") or f"tb-{sid}",
+            "title": sec.get("title") or "正文",
+            "level": int(sec.get("level") or 1),
+            "zone": zone,
+            "source": sec.get("source") or "manual",
+            "confidence": 1.0,
+            "section_id": sid,
+        }
+        if zone == "front":
+            new_front.append(item)
+        elif zone == "appendix":
+            new_appendix.append(item)
+        else:
+            new_body.append(item)
+    toc["front"] = new_front
+    toc["body"] = new_body
+    toc["appendix"] = new_appendix
+    toc["outline"] = list(new_body)
+
+
+def _plain_from_html_chunk(chunk: str) -> str:
+    t = re.sub(r"<[^>]+>", "", chunk or "")
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _split_html_at_paragraph(html: str, paragraph_index: int) -> tuple[str, str]:
+    """按 data-shelf-p / 段落序号切开；返回 (left_html, right_html)。"""
+    from .html_normalize import inject_shelf_paragraph_anchors
+
+    inner = _section_inner_html(html)
+    if not inner:
+        raise HTTPException(status_code=400, detail="本节无正文可拆")
+    # 按顶层块切（p/h1-h6/div/blockquote/li）
+    parts = re.split(
+        r"(?=(?:<(?:p|h[1-6]|div|blockquote|li)\b))",
+        inner,
+        flags=re.IGNORECASE,
+    )
+    parts = [p for p in parts if p and p.strip()]
+    if paragraph_index <= 0 or paragraph_index >= len(parts):
+        raise HTTPException(status_code=400, detail="切点越界")
+    left_inner = "\n".join(parts[:paragraph_index]).strip()
+    right_inner = "\n".join(parts[paragraph_index:]).strip()
+    if not left_inner or not right_inner:
+        raise HTTPException(status_code=400, detail="切点须落在正文中间")
+    left = inject_shelf_paragraph_anchors(f'<div class="shelf-docx-root">{left_inner}</div>')
+    right = inject_shelf_paragraph_anchors(f'<div class="shelf-docx-root">{right_inner}</div>')
+    return left, right
+
+
+def _split_html_by_cut_titles(html: str, cuts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """按建议标题在 HTML 块中定位并切成多节。"""
+    from .html_normalize import inject_shelf_paragraph_anchors
+
+    inner = _section_inner_html(html)
+    parts = re.split(
+        r"(?=(?:<(?:p|h[1-6]|div|blockquote|li)\b))",
+        inner,
+        flags=re.IGNORECASE,
+    )
+    parts = [p for p in parts if p and p.strip()]
+    if not parts:
+        return []
+
+    def find_idx(title: str, start_at: int) -> int:
+        want = re.sub(r"\s+", "", (title or "").strip())
+        if not want:
+            return -1
+        for i in range(start_at, len(parts)):
+            plain = re.sub(r"\s+", "", _plain_from_html_chunk(parts[i]))
+            if plain == want or want in plain or plain in want:
+                return i
+        return -1
+
+    landmarks: list[tuple[int, dict[str, Any]]] = []
+    cursor = 0
+    for cut in cuts:
+        if not isinstance(cut, dict):
+            continue
+        idx = find_idx(str(cut.get("title") or ""), cursor)
+        if idx < 0:
+            continue
+        landmarks.append((idx, cut))
+        cursor = idx + 1
+    if len(landmarks) < 2:
+        return []
+
+    out: list[dict[str, Any]] = []
+    # 首切点前作前言（若有实质内容）
+    first_i = landmarks[0][0]
+    if first_i > 0:
+        pref = "\n".join(parts[:first_i]).strip()
+        if pref and len(_plain_from_html_chunk(pref)) > 20:
+            out.append(
+                {
+                    "title": "阅读本书之前",
+                    "zone": "front",
+                    "level": 0,
+                    "html": inject_shelf_paragraph_anchors(
+                        f'<div class="shelf-docx-root">{pref}</div>'
+                    ),
+                }
+            )
+    for hi, (start, cut) in enumerate(landmarks):
+        end = landmarks[hi + 1][0] if hi + 1 < len(landmarks) else len(parts)
+        chunk = "\n".join(parts[start:end]).strip()
+        if not chunk:
+            continue
+        zone = cut.get("zone") or "body"
+        out.append(
+            {
+                "title": cut.get("title") or f"第{hi + 1}节",
+                "zone": zone if zone in ("front", "body", "appendix") else "body",
+                "level": int(cut.get("level") or 1),
+                "html": inject_shelf_paragraph_anchors(
+                    f'<div class="shelf-docx-root">{chunk}</div>'
+                ),
+            }
+        )
+    return out
+
+
+def split_platform_section(
+    book_id: str,
+    section_id: str,
+    *,
+    paragraph_index: int,
+    new_title: str | None = None,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
+) -> dict[str, Any]:
+    """从此处分节：按段落序号把一节拆成两节。"""
+    rec = _editable_book_record(book_id, collection_only=False)
+    if not rec:
+        raise HTTPException(status_code=404, detail="书目不存在")
+    book, source, persist_handle = rec
+    _assert_book_edit(
+        book,
+        source,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+    )
+    if (book.get("book_type") or "") == "collection":
+        raise HTTPException(status_code=400, detail="合集不支持从此处分节")
+    sections = [s for s in (book.get("sections") or []) if isinstance(s, dict)]
+    idx = next((i for i, s in enumerate(sections) if str(s.get("id")) == section_id), -1)
+    if idx < 0:
+        raise HTTPException(status_code=404, detail="章节不存在")
+    target = sections[idx]
+    left_html, right_html = _split_html_at_paragraph(
+        str(target.get("html") or ""), int(paragraph_index)
+    )
+    title_right = (new_title or "").strip() or "未命名"
+    new_id = f"sec-{uuid.uuid4().hex[:10]}"
+    right = {
+        "id": new_id,
+        "title": title_right,
+        "level": int(target.get("level") or 1),
+        "zone": target.get("zone") or "body",
+        "source": "manual",
+        "toc_id": f"tb-{new_id}",
+        "html": right_html,
+        "kind": target.get("kind") or "body",
+    }
+    target["html"] = left_html
+    sections.insert(idx + 1, right)
+    book["sections"] = sections
+    _rebuild_toc_from_sections(book)
+    toc = book.setdefault("toc", {})
+    plan = toc.setdefault("plan", {})
+    if isinstance(plan, dict):
+        plan["needs_confirm"] = False
+        plan["source"] = "manual"
+        plan["confidence"] = 1.0
+    book["needs_toc_confirm"] = False
+    try:
+        _persist_collection_book(book_id, book, source, persist_handle)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存失败：{e}") from e
+    invalidate_shelf_section_cache(book_id)
+    return {
+        "ok": True,
+        "book_id": book_id,
+        "section_id": section_id,
+        "new_section_id": new_id,
+        "section_count": len(sections),
+    }
+
+
+def apply_platform_toc_plan(
+    book_id: str,
+    *,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
+) -> dict[str, Any]:
+    """按 toc.plan 建议切点切分当前正文（无样式 Word/txt 确认目录）。"""
+    rec = _editable_book_record(book_id, collection_only=False)
+    if not rec:
+        raise HTTPException(status_code=404, detail="书目不存在")
+    book, source, persist_handle = rec
+    _assert_book_edit(
+        book,
+        source,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+    )
+    if (book.get("book_type") or "") == "collection":
+        raise HTTPException(status_code=400, detail="合集不支持建议切点")
+    toc = book.setdefault("toc", {})
+    plan = toc.get("plan") if isinstance(toc.get("plan"), dict) else {}
+    cuts = [c for c in (plan.get("cuts") or []) if isinstance(c, dict)]
+    if len(cuts) < 2:
+        raise HTTPException(status_code=400, detail="没有可用的建议目录")
+    sections = [s for s in (book.get("sections") or []) if isinstance(s, dict)]
+    if not sections:
+        raise HTTPException(status_code=400, detail="无正文")
+    # 合并现有 HTML 再按建议切
+    combined = sections[0].get("html") or ""
+    for extra in sections[1:]:
+        combined = _concat_section_html({"html": combined}, extra)
+    chunks = _split_html_by_cut_titles(str(combined), cuts)
+    if len(chunks) < 2:
+        raise HTTPException(status_code=400, detail="未能按建议标题定位切点")
+    new_sections: list[dict[str, Any]] = []
+    for i, ch in enumerate(chunks):
+        sid = f"sec-{i}"
+        new_sections.append(
+            {
+                "id": sid,
+                "title": ch["title"],
+                "level": ch.get("level", 1),
+                "zone": ch.get("zone") or "body",
+                "source": "manual",
+                "toc_id": f"tb-{i}",
+                "html": ch["html"],
+                "kind": "body",
+            }
+        )
+    book["sections"] = new_sections
+    _rebuild_toc_from_sections(book)
+    plan["needs_confirm"] = False
+    plan["source"] = "manual"
+    plan["confidence"] = 0.9
+    plan["cuts"] = []
+    toc["plan"] = plan
+    book["needs_toc_confirm"] = False
+    try:
+        _persist_collection_book(book_id, book, source, persist_handle)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存失败：{e}") from e
+    invalidate_shelf_section_cache(book_id)
+    return {
+        "ok": True,
+        "book_id": book_id,
+        "section_count": len(new_sections),
+        "needs_toc_confirm": False,
+    }
+
+
+def confirm_platform_toc(
+    book_id: str,
+    *,
+    apply_suggested: bool = False,
+    actor_user_id: str | None = None,
+    is_shelf_admin: bool = False,
+) -> dict[str, Any]:
+    """确认目录：apply_suggested=True 按建议切分；False 保持现状并清确认旗标。"""
+    if apply_suggested:
+        return apply_platform_toc_plan(
+            book_id,
+            actor_user_id=actor_user_id,
+            is_shelf_admin=is_shelf_admin,
+        )
+    rec = _editable_book_record(book_id, collection_only=False)
+    if not rec:
+        raise HTTPException(status_code=404, detail="书目不存在")
+    book, source, persist_handle = rec
+    _assert_book_edit(
+        book,
+        source,
+        actor_user_id=actor_user_id,
+        is_shelf_admin=is_shelf_admin,
+    )
+    toc = book.setdefault("toc", {})
+    plan = toc.setdefault("plan", {})
+    if isinstance(plan, dict):
+        plan["needs_confirm"] = False
+        if plan.get("source") == "inferred":
+            plan["source"] = "manual"
+        plan["confidence"] = 1.0
+    book["needs_toc_confirm"] = False
+    try:
+        _persist_collection_book(book_id, book, source, persist_handle)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存失败：{e}") from e
+    invalidate_shelf_section_cache(book_id)
+    return {
+        "ok": True,
+        "book_id": book_id,
+        "section_count": len(book.get("sections") or []),
+        "needs_toc_confirm": False,
     }

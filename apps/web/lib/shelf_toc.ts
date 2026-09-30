@@ -56,6 +56,8 @@ function filterMetaItems(items: ShelfTocItem[]): ShelfTocItem[] {
     if (item.zone === 'meta') return false;
     if (/^目\s*录$/.test(t)) return false;
     if (t === 'Table of Contents') return false;
+    // 建议切点未绑定 section，不进读者目录（防误点）
+    if (item.suggested || (!item.section_id && item.source === 'inferred')) return false;
     // 无真实目录时的占位「正文」不进目录预览（避免解析失败仍占一行）
     if (item.source === 'file' && (t === '正文' || isInternalShelfTocTitle(t))) return false;
     return true;

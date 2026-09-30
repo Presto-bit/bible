@@ -159,6 +159,23 @@ Word 与 EPUB **不要共用同一套剥样式**：
 
 无预览不得把启发式切节直接推给读者。
 
+### 6.1 目录确认门禁（2026-09-30）
+
+对齐微信读书：**结构优先 → 弱启发式只作候选 → 确认后再细目录**。
+
+| 层 | 职责 |
+|---|---|
+| StructureExtract | Heading / 文前 TOC / EPUB nav / PDF 书签 |
+| CandidatePropose | 无结构时产出 `toc.plan.cuts`（带 confidence） |
+| TocCommit | 人确认 / 应用建议 → 写 `sections_json` |
+
+- 无样式 Word / txt：**默认整本一节**；强模式（第 x 部/章等）仅入 `toc.plan`，`needs_toc_confirm=true`
+- 导入后确认半屏：应用建议目录 / 保持整本一节
+- **删除目录项 ≠ 删正文**：正文并入上一节（首节并入下一节）
+- 切点编辑：合并（删目录）、拆分（`POST .../sections/{id}/split`）、应用建议（`.../toc/apply-plan`）
+- 读者目录隐藏 `suggested` 且无 `section_id` 的候选项；封面卡可标「待确认目录」
+- 用户可导入 `.epub`（可重排）
+
 ## 7. 落地顺序
 
 **P0（现有书就痛）**

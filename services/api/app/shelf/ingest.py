@@ -154,8 +154,8 @@ def import_platform_file(
             """
             INSERT INTO shelf_platform_book (
               id, title, subtitle, author, mime, storage_key, file_size, file_sha256,
-              toc_json, sections_json, status, sort_order, uploaded_by
-            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,'published',%s,%s)
+              toc_json, sections_json, status, sort_order, uploaded_by, needs_toc_confirm
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,'published',%s,%s,%s)
             """,
             (
                 book_id,
@@ -170,6 +170,7 @@ def import_platform_file(
                 json.dumps(sections, ensure_ascii=False),
                 sort_order,
                 uploaded_by,
+                bool(parsed.get("needs_toc_confirm")),
             ),
         )
         conn.commit()
@@ -202,7 +203,12 @@ def import_platform_file(
         "mime": mime,
         "needs_toc_confirm": bool(parsed.get("needs_toc_confirm")),
         "preview": {
-            "toc_outline": (toc.get("outline") or toc.get("body") or [])[:12],
+            "toc_outline": (
+                (toc.get("plan") or {}).get("cuts")
+                or toc.get("outline")
+                or toc.get("body")
+                or []
+            )[:40],
             "first_html": (sections[0].get("html") if sections else "")[:4000],
         },
     }

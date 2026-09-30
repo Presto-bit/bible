@@ -14,7 +14,9 @@ from .service import (
     _book_can_edit,
     append_collection_lesson,
     append_section_attachments,
+    apply_platform_toc_plan,
     collection_units,
+    confirm_platform_toc,
     create_user_collection,
     delete_collection_section,
     delete_platform_book,
@@ -26,6 +28,7 @@ from .service import (
     get_platform_section,
     list_platform_shelf,
     reorder_platform_sections,
+    split_platform_section,
     update_collection_section,
     update_platform_book,
     update_platform_section,
@@ -51,6 +54,16 @@ class UpdateSectionBody(BaseModel):
 
 class ReorderSectionsBody(BaseModel):
     section_ids: list[str] = Field(min_length=1)
+
+
+class SplitSectionBody(BaseModel):
+    paragraph_index: int = Field(ge=1)
+    new_title: str | None = Field(default=None, max_length=120)
+
+
+class ConfirmTocBody(BaseModel):
+    apply_suggested: bool = False
+
 
 router = APIRouter(prefix="/shelf", tags=["shelf"])
 
@@ -543,6 +556,88 @@ def shelf_platform_reorder_book_sections(
     )
 
 
+@router.post("/platform/books/{book_id}/sections/{section_id}/split")
+def shelf_platform_split_section(
+    book_id: str,
+    section_id: str,
+    body: SplitSectionBody,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """从此处分节（按段落序号）。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    return split_platform_section(
+        book_id,
+        section_id,
+        paragraph_index=body.paragraph_index,
+        new_title=body.new_title,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
+    )
+
+
+@router.post("/platform/books/{book_id}/toc/apply-plan")
+def shelf_platform_apply_toc_plan(
+    book_id: str,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """按建议切点生成目录。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    return apply_platform_toc_plan(
+        book_id,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
+    )
+
+
+@router.post("/platform/books/{book_id}/toc/confirm")
+def shelf_platform_confirm_toc(
+    book_id: str,
+    body: ConfirmTocBody,
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """确认目录（可选用建议切点，或保持整本一节）。"""
+    actor_id, is_admin = _shelf_actor_context(
+        authorization=authorization,
+        x_admin_token=x_admin_token,
+        x_user_id=x_user_id,
+        x_user_code=x_user_code,
+        cookie=cookie,
+    )
+    return confirm_platform_toc(
+        book_id,
+        apply_suggested=body.apply_suggested,
+        actor_user_id=actor_id,
+        is_shelf_admin=is_admin,
+    )
+
+
 @router.patch("/platform/collections/{book_id}/sections/{section_id}")
 def shelf_platform_update_section(
     book_id: str,
@@ -636,13 +731,13 @@ async def shelf_platform_import(
     cookie: str | None = Header(default=None),
     user_id: str = Depends(get_current_user),
 ) -> dict:
-    """用户导入书架书目（docx / md / txt / pdf）。可选书名/作者/副标题，空则回落文件名或解析结果。"""
+    """用户导入书架书目（docx / md / txt / pdf / epub）。可选书名/作者/副标题，空则回落文件名或解析结果。"""
     from .ingest import import_platform_file
 
     suffix = Path(file.filename or "").suffix.lower()
-    allowed = {".docx", ".md", ".markdown", ".txt", ".pdf"}
+    allowed = {".docx", ".md", ".markdown", ".txt", ".pdf", ".epub"}
     if suffix not in allowed:
-        raise HTTPException(400, "仅支持 .docx .md .txt .pdf")
+        raise HTTPException(400, "仅支持 .docx .md .txt .pdf .epub")
     is_admin = bool(
         resolve_shelf_admin_actor(
             authorization=authorization,

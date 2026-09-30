@@ -48,6 +48,7 @@ class ShelfBookSummary {
     this.coverStorageKey,
     this.coverSource,
     this.coverVersion,
+    this.needsTocConfirm = false,
   });
 
   final String id;
@@ -63,6 +64,7 @@ class ShelfBookSummary {
   final String? coverStorageKey;
   final String? coverSource;
   final int? coverVersion;
+  final bool needsTocConfirm;
 
   factory ShelfBookSummary.fromJson(Map<String, dynamic> j) => ShelfBookSummary(
         id: '${j['id'] ?? ''}',
@@ -78,6 +80,7 @@ class ShelfBookSummary {
         coverStorageKey: j['cover_storage_key'] as String?,
         coverSource: j['cover_source'] as String?,
         coverVersion: (j['cover_version'] as num?)?.toInt(),
+        needsTocConfirm: j['needs_toc_confirm'] == true,
       );
 }
 
@@ -89,6 +92,7 @@ class ShelfTocItem {
     this.zone = 'body',
     this.sectionId,
     this.source,
+    this.suggested = false,
   });
 
   final String id;
@@ -97,6 +101,7 @@ class ShelfTocItem {
   final String zone;
   final String? sectionId;
   final String? source;
+  final bool suggested;
 
   factory ShelfTocItem.fromJson(Map<String, dynamic> j) => ShelfTocItem(
         id: '${j['id'] ?? ''}',
@@ -105,6 +110,7 @@ class ShelfTocItem {
         zone: '${j['zone'] ?? 'body'}',
         sectionId: j['section_id'] as String?,
         source: j['source'] as String?,
+        suggested: j['suggested'] == true,
       );
 }
 
@@ -254,6 +260,7 @@ class ShelfBookDetail extends ShelfBookSummary {
     super.coverStorageKey,
     super.coverSource,
     super.coverVersion,
+    super.needsTocConfirm,
     required this.toc,
     this.sections = const [],
   });
@@ -275,6 +282,7 @@ class ShelfBookDetail extends ShelfBookSummary {
         coverStorageKey: j['cover_storage_key'] as String?,
         coverSource: j['cover_source'] as String?,
         coverVersion: (j['cover_version'] as num?)?.toInt(),
+        needsTocConfirm: j['needs_toc_confirm'] == true,
         toc: ShelfBookToc.fromJson(j['toc'] as Map<String, dynamic>?),
         sections: (j['sections'] as List<dynamic>? ?? const [])
             .whereType<Map>()
@@ -492,6 +500,15 @@ class ShelfRepository {
       if (author != null && author.trim().isNotEmpty) 'author': author.trim(),
     });
     final res = await _dio.post<Map<String, dynamic>>('/shelf/platform/import', data: form);
+    await _fetchListFresh(force: true);
+    return res.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> confirmToc(String bookId, {bool applySuggested = false}) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/shelf/platform/books/${Uri.encodeComponent(bookId)}/toc/confirm',
+      data: {'apply_suggested': applySuggested},
+    );
     await _fetchListFresh(force: true);
     return res.data ?? const {};
   }

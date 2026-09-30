@@ -91,6 +91,26 @@ class ShelfBookCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                      if (book.needsTocConfirm)
+                        Positioned(
+                          top: 6,
+                          left: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.paper.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '待确认目录',
+                              style: TextStyle(
+                                fontSize: 9,
+                                height: 1.2,
+                                color: AppColors.ink.withValues(alpha: 0.72),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

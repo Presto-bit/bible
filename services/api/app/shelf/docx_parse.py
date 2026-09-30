@@ -58,6 +58,7 @@ def _is_plain_toc_line(text: str) -> bool:
 
 
 def _is_inferred_body_heading(text: str) -> bool:
+    """强模式才作建议切点：部/篇/卷、附录、第x章…；禁止裸「1. xxx」防误切。"""
     t = (text or "").strip()
     if not t or len(t) > 55 or len(t) < 2:
         return False
@@ -66,7 +67,6 @@ def _is_inferred_body_heading(text: str) -> bool:
         return False
     return bool(
         _PART_HEAD_RE.match(t)
-        or _NUM_ITEM_HEAD_RE.match(t)
         or _APPENDIX_HEAD_RE.match(t)
         or _TXT_CHAPTER_RE.match(t)
     )
@@ -357,14 +357,29 @@ def _enhance_prose_semantics(html_str: str) -> str:
     return _mark_dialogue_questions(merged)
 
 
+def _normalize_toc_title(title: str) -> str:
+    """去页码、首尾序号与空白，供文前目录与 Heading 模糊对齐。"""
+    t = (title or "").strip()
+    t = re.sub(r"\s*\d{1,3}$", "", t).strip()
+    t = re.sub(r"^[\d一二三四五六七八九十百零〇]+[\.、．]\s*", "", t)
+    t = re.sub(r"[｜|·\-—:\s　]+", "", t)
+    return t.casefold()
+
+
 def _match_toc_to_section(toc_title: str, section_title: str) -> bool:
     a = toc_title.strip()
     b = section_title.strip()
     if a == b:
         return True
     if "｜" in a and "｜" in b:
-        return a.split("｜", 1)[0] == b.split("｜", 1)[0]
-    return False
+        if a.split("｜", 1)[0].strip() == b.split("｜", 1)[0].strip():
+            return True
+    na, nb = _normalize_toc_title(a), _normalize_toc_title(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    return na in nb or nb in na
 
 
 _SHELF_DOCX_STYLE_MAP = """
@@ -894,7 +909,8 @@ def parse_docx_bytes(
         except Exception:
             pass
 
-    # 无 Heading 样式：先试纯文本部标题/编号条目启发式切节，再整篇单节兜底
+    # 无 Heading：强模式只作建议切点（toc.plan），默认整本一节，防误切上架
+    suggested_cuts: list[dict[str, Any]] = []
     if not sections and paras:
         heading_idxs: list[tuple[int, str]] = []
         in_toc_block = False
@@ -909,93 +925,25 @@ def parse_docx_bytes(
                 if _is_inferred_body_heading(t):
                     in_toc_block = False
                 else:
-                    # 前言区夹在目录后、首个正文标题前
                     continue
             if _is_inferred_body_heading(t):
                 heading_idxs.append((i, t))
 
         if len(heading_idxs) >= 2:
-            # 文前
-            first_i = heading_idxs[0][0]
-            if first_i > 0:
-                pre_bits = [
-                    _para_html(p)
-                    for p in paras[:first_i]
-                    if (p.text or "").strip()
-                    and (p.text or "").strip() != "目录"
-                    and not _is_plain_toc_line(p.text or "")
-                ]
-                if pre_bits:
-                    sid = "sec-front"
-                    raw_preface = f'<div class="shelf-docx-root">{chr(10).join(pre_bits)}</div>'
-                    sections.append(
-                        {
-                            "id": sid,
-                            "title": "阅读本书之前",
-                            "level": 0,
-                            "zone": "front",
-                            "source": "inferred",
-                            "toc_id": "tb-front",
-                            "html": inject_shelf_paragraph_anchors(raw_preface),
-                            "kind": "front",
-                        }
-                    )
-                    toc_body.append(
-                        {
-                            "id": "tb-front",
-                            "title": "阅读本书之前",
-                            "level": 0,
-                            "zone": "front",
-                            "source": "inferred",
-                            "confidence": 0.6,
-                            "section_id": sid,
-                        }
-                    )
             for hi, (start, title) in enumerate(heading_idxs):
-                end = heading_idxs[hi + 1][0] if hi + 1 < len(heading_idxs) else len(paras)
-                chunk = paras[start:end]
-                bits = [_para_html(p) for p in chunk if (p.text or "").strip()]
-                if not bits:
-                    continue
                 zone = _zone_for_title(title)
                 if zone == "meta":
                     continue
-                sid = f"sec-{len(sections)}"
-                toc_id = f"tb-{len(sections)}"
-                wrapped = f'<div class="shelf-docx-root">{chr(10).join(bits)}</div>'
-                sections.append(
+                suggested_cuts.append(
                     {
-                        "id": sid,
+                        "id": f"cut-{hi}",
                         "title": title,
                         "level": 1,
                         "zone": zone if zone in ("body", "appendix", "front") else "body",
-                        "source": "inferred",
-                        "toc_id": toc_id,
-                        "html": inject_shelf_paragraph_anchors(_enhance_prose_semantics(wrapped)),
-                        "kind": "body",
-                    }
-                )
-                toc_body.append(
-                    {
-                        "id": toc_id,
-                        "title": title,
-                        "level": 1,
-                        "zone": sections[-1]["zone"],
-                        "source": "inferred",
+                        "anchor": {"type": "paragraph", "index": start},
                         "confidence": 0.65,
-                        "section_id": sid,
                     }
                 )
-            if enrich and sections:
-                try:
-                    _enrich_sections_with_mammoth(
-                        data,
-                        sections,
-                        book_id=book_id,
-                        storage_key=storage_key,
-                    )
-                except Exception:
-                    pass
 
         if not sections:
             prose = ""
@@ -1048,21 +996,47 @@ def parse_docx_bytes(
                     }
                 )
 
+    has_structure = any(
+        isinstance(s, dict) and s.get("source") in ("structured", "front_toc")
+        for s in sections
+    )
+    plan_source = "heading" if has_structure else ("inferred" if suggested_cuts else "plain")
+    plan_confidence = (
+        0.95 if has_structure else (0.65 if suggested_cuts else 0.5)
+    )
+    toc_out: dict[str, Any] = {
+        "front": [t for t in toc_body if t.get("zone") == "front"],
+        "outline": body_outline or [
+            {
+                "id": c["id"],
+                "title": c["title"],
+                "level": c.get("level", 1),
+                "zone": c.get("zone") or "body",
+                "source": "inferred",
+                "confidence": c.get("confidence", 0.65),
+                "section_id": None,
+                "suggested": True,
+            }
+            for c in suggested_cuts
+        ],
+        "body": [t for t in toc_body if t.get("zone") == "body"],
+        "appendix": [t for t in toc_body if t.get("zone") == "appendix"]
+        or appendix_toc,
+        "plan": {
+            "source": plan_source,
+            "confidence": plan_confidence,
+            "cuts": suggested_cuts,
+            "needs_confirm": bool(suggested_cuts) and not has_structure,
+        },
+    }
     return {
         "title": _finalize_docx_title(title, paras),
         "subtitle": subtitle,
         "author": None,
-        "toc": {
-            "front": [t for t in toc_body if t.get("zone") == "front"],
-            "outline": body_outline,
-            "body": [t for t in toc_body if t.get("zone") == "body"],
-            "appendix": [t for t in toc_body if t.get("zone") == "appendix"]
-            or appendix_toc,
-        },
+        "toc": toc_out,
         "sections": sections,
         "section_count": len(sections),
-        "needs_toc_confirm": bool(sections)
-        and any((s.get("source") in ("plain", "inferred")) for s in sections),
+        "needs_toc_confirm": bool(suggested_cuts) and not has_structure,
     }
 
 

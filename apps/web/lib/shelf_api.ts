@@ -18,6 +18,21 @@ export type ShelfTocItem = {
   source?: string;
   confidence?: number;
   section_id?: string | null;
+  suggested?: boolean;
+};
+
+export type ShelfTocPlan = {
+  source?: string;
+  confidence?: number;
+  needs_confirm?: boolean;
+  cuts?: {
+    id: string;
+    title: string;
+    level?: number;
+    zone?: string;
+    confidence?: number;
+    anchor?: { type?: string; index?: number };
+  }[];
 };
 
 export type ShelfBookSummary = {
@@ -38,6 +53,8 @@ export type ShelfBookSummary = {
   cover_source?: 'user' | 'pdf' | 'ai' | 'typography' | string | null;
   /** 封面文件 mtime，用于 ?v= 破浏览器缓存 */
   cover_version?: number | null;
+  needs_toc_confirm?: boolean;
+  toc_confidence?: number | null;
   source: 'platform' | 'local';
 };
 
@@ -71,6 +88,7 @@ export type ShelfBookDetail = ShelfBookSummary & {
     outline?: ShelfTocItem[];
     body?: ShelfTocItem[];
     appendix?: ShelfTocItem[];
+    plan?: ShelfTocPlan;
   };
   sections?: {
     id: string;
@@ -323,7 +341,13 @@ export async function deletePlatformShelfBook(bookId: string): Promise<{ ok: boo
 export async function importPlatformShelfBook(
   file: File,
   opts?: { title?: string; subtitle?: string; author?: string },
-): Promise<{ id: string; title: string; section_count: number }> {
+): Promise<{
+  id: string;
+  title: string;
+  section_count: number;
+  needs_toc_confirm?: boolean;
+  preview?: { toc_outline?: ShelfTocItem[]; first_html?: string };
+}> {
   const form = new FormData();
   form.append('file', file);
   const title = (opts?.title || '').trim();
@@ -605,7 +629,7 @@ export async function deleteSectionAttachment(
 export async function deleteCollectionSection(
   bookId: string,
   sectionId: string,
-): Promise<{ section_count: number }> {
+): Promise<{ section_count: number; merged?: boolean; merged_into?: string | null }> {
   const res = await fetch(
     `${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}/sections/${encodeURIComponent(sectionId)}`,
     { method: 'DELETE', headers: authHeaders(), cache: 'no-store' },
@@ -621,6 +645,88 @@ export async function deleteCollectionSection(
       /* ignore */
     }
     throw new Error(typeof detail === 'string' ? detail : '删除失败');
+  }
+  return res.json();
+}
+
+export async function splitPlatformSection(
+  bookId: string,
+  sectionId: string,
+  opts: { paragraphIndex: number; newTitle?: string },
+): Promise<{ new_section_id: string; section_count: number }> {
+  const res = await fetch(
+    `${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}/sections/${encodeURIComponent(sectionId)}/split`,
+    {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        paragraph_index: opts.paragraphIndex,
+        new_title: opts.newTitle,
+      }),
+      cache: 'no-store',
+    },
+  );
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权编辑');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '拆分失败');
+  }
+  return res.json();
+}
+
+export async function confirmPlatformToc(
+  bookId: string,
+  opts?: { applySuggested?: boolean },
+): Promise<{ section_count: number; needs_toc_confirm?: boolean }> {
+  const res = await fetch(
+    `${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}/toc/confirm`,
+    {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apply_suggested: Boolean(opts?.applySuggested) }),
+      cache: 'no-store',
+    },
+  );
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权编辑');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '确认失败');
+  }
+  return res.json();
+}
+
+export async function applyPlatformTocPlan(
+  bookId: string,
+): Promise<{ section_count: number }> {
+  const res = await fetch(
+    `${API_BASE}/shelf/platform/books/${encodeURIComponent(bookId)}/toc/apply-plan`,
+    { method: 'POST', headers: authHeaders(), cache: 'no-store' },
+  );
+  if (res.status === 401) throw new Error('未登录');
+  if (res.status === 403) throw new Error('无权编辑');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === 'string' ? detail : '应用建议目录失败');
   }
   return res.json();
 }
