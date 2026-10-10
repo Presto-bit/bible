@@ -88,10 +88,12 @@ function AdminPageInner() {
       {tab === 'rag' ? <AdminRagWorkspace /> : null}
       {tab === 'stats' ? <AdminStatsPanel /> : null}
       {tab === 'ops' ? (
-        <CampaignAdminGate embedded>
+        <>
           <AdminDailyVerseWarmPanel />
-          <CampaignsListPanel embedded />
-        </CampaignAdminGate>
+          <CampaignAdminGate embedded>
+            <CampaignsListPanel embedded />
+          </CampaignAdminGate>
+        </>
       ) : null}
       {tab === 'moderation' ? <AdminModerationPanel /> : null}
     </>

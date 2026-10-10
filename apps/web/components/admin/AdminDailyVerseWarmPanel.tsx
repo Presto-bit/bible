@@ -59,8 +59,17 @@ export default function AdminDailyVerseWarmPanel() {
     try {
       const res = await runDailyVerseWarmTick();
       setData(res);
+      const skipped = res.tick?.skipped;
+      if (skipped === 'disabled') {
+        flash('请先打开暖场开关');
+        return;
+      }
       const added = (res.tick?.personas_added as number) ?? 0;
-      flash(added > 0 ? `已写入 ${added} 人互动` : '当前进度已跟上，无需写入');
+      if (skipped === 'caught_up') {
+        flash('当前进度已跟上，无需写入');
+        return;
+      }
+      flash(added > 0 ? `已写入 ${added} 人互动` : '本次未新增互动');
     } catch (e) {
       setErr(e instanceof Error ? e.message : '执行失败');
     } finally {

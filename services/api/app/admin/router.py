@@ -884,7 +884,15 @@ def admin_run_daily_verse_warm(
         return {"tick": tick, **status}
     except Exception as exc:
         logger.exception("daily verse warm manual run failed")
-        raise HTTPException(status_code=503, detail="执行失败") from exc
+        err = str(exc).lower()
+        detail = "执行失败"
+        if "unique" in err and "username" in err:
+            detail = "暖场账号昵称与已有用户冲突，请重试或联系开发"
+        elif "admin_runtime_settings" in err and "does not exist" in err:
+            detail = "缺少 admin_runtime_settings 表，请执行数据库迁移并重启 API"
+        elif "daily_verse" in err and "does not exist" in err:
+            detail = "缺少每日经文互动表，请检查数据库迁移"
+        raise HTTPException(status_code=503, detail=detail) from exc
 
 
 class ModerationResolveBody(BaseModel):

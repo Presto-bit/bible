@@ -121,12 +121,31 @@ def _rng_for(*parts: str) -> random.Random:
     return random.Random(int(seed[:16], 16))
 
 
+def _alloc_persona_username(conn, *, code: str, preferred: str) -> str:
+    """分配不与其它 user_code 冲突的展示名（accounts.username 全局唯一）。"""
+    from ..auth.random_username import is_username_taken
+
+    base = (preferred or "").strip() or f"伙伴{code[-4:]}"
+    if not is_username_taken(conn, base, exclude_user_code=code):
+        return base
+    for suffix in (code[-2:], code[-3:], code[-4:]):
+        cand = f"{base}·{suffix}"
+        if len(cand) > 24:
+            cand = f"伙伴{suffix}"
+        if len(cand) >= 2 and not is_username_taken(conn, cand, exclude_user_code=code):
+            return cand
+    fallback = f"伙伴{code[-4:]}"
+    if is_username_taken(conn, fallback, exclude_user_code=code):
+        fallback = f"读{code[-4:]}"
+    return fallback
+
+
 def ensure_synthetic_personas(conn) -> int:
     """确保 8800  persona 账号与昵称存在；返回新建/更新数。"""
     touched = 0
     for i in range(1, PERSONA_COUNT + 1):
         code = synthetic_user_code(i)
-        name = PERSONA_NICKNAMES[i - 1]
+        name = _alloc_persona_username(conn, code=code, preferred=PERSONA_NICKNAMES[i - 1])
         uid = uuid_for_code(code)
         conn.execute(
             "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
