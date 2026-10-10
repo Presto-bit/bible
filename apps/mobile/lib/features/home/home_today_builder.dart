@@ -26,7 +26,7 @@ class HomeTodayCampaign {
     final rawSlot = j['railSlot'];
     var slot = 1;
     if (rawSlot is num) {
-      slot = rawSlot.toInt().clamp(1, 3);
+      slot = rawSlot.toInt().clamp(1, 4);
     }
     return HomeTodayCampaign(
       id: '${j['id'] ?? ''}',
@@ -154,7 +154,7 @@ HomeTodaySlot _campaignActivity(HomeTodayCampaign c) {
 Map<int, HomeTodayCampaign> _campaignsByRailSlot(List<HomeTodayCampaign> campaigns) {
   final map = <int, HomeTodayCampaign>{};
   for (final c in campaigns) {
-    final slot = c.railSlot.clamp(1, 3);
+    final slot = c.railSlot.clamp(1, 4);
     map.putIfAbsent(slot, () => c);
   }
   return map;
@@ -347,7 +347,7 @@ HomeTodaySlot _exploreSlot(HomeTodayInput input) {
 
 /// 固定四坑：[1] 活动/书架 · [2] 继续阅读 · [3] 共读 · [4] 探索
 HomeTodayPanelResult buildHomeTodayPanel(HomeTodayInput input) {
-  final explore = _exploreSlot(input);
+  final exploreDefault = _exploreSlot(input);
   final bySlot = _campaignsByRailSlot(input.campaigns);
   return HomeTodayPanelResult(
     activity: bySlot.containsKey(1)
@@ -355,6 +355,8 @@ HomeTodayPanelResult buildHomeTodayPanel(HomeTodayInput input) {
         : _shelfSlot(input),
     read: bySlot.containsKey(2) ? _campaignActivity(bySlot[2]!) : _readSlot(input),
     group: bySlot.containsKey(3) ? _campaignActivity(bySlot[3]!) : _groupSlot(input),
-    explore: explore,
+    explore: bySlot.containsKey(4)
+        ? _campaignActivity(bySlot[4]!)
+        : exploreDefault,
   );
 }

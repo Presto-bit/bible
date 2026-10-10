@@ -321,7 +321,7 @@ export function CampaignLivePreview({
               ) : null}
               {onChangeRailSlot ? (
                 <div className="ops-chip-row" style={{ marginTop: 8 }}>
-                  {[1, 2, 3].map((n) => (
+                  {[1, 2, 3, 4].map((n) => (
                     <button
                       key={n}
                       type="button"
@@ -329,7 +329,14 @@ export function CampaignLivePreview({
                       disabled={railEnabled === false}
                       onClick={() => onChangeRailSlot(n)}
                     >
-                      第 {n} 位{n === 1 ? ' · 主卡' : ''}
+                      第 {n} 位
+                      {n === 1
+                        ? ' · 活动主卡'
+                        : n === 2
+                          ? ' · 继续阅读'
+                          : n === 3
+                            ? ' · 共读'
+                            : ' · 探索'}
                     </button>
                   ))}
                 </div>

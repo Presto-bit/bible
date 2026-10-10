@@ -75,7 +75,7 @@ export function buildSectionChecklist(
       }
       if (input.railEnabled !== false) {
         const slot = Number(input.railSlot || 0);
-        if (slot < 1 || slot > 3) errors.push('请选择今日推荐位置（第 1～3 位）');
+        if (slot < 1 || slot > 4) errors.push('请选择今日推荐位置（第 1～4 位）');
       }
       break;
     }
@@ -311,7 +311,7 @@ export function buildRequiredSlots(input: PublishChecklistInput): RequiredSlot[]
       id: 'rail',
       section: 'exposure',
       label: '今日推荐位置',
-      done: slot >= 1 && slot <= 3,
+      done: slot >= 1 && slot <= 4,
       blocking: true,
       anchor: 'ops-sec-exposure',
     });

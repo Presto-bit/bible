@@ -305,7 +305,7 @@ CREATE TABLE IF NOT EXISTS ops_campaign (
   end_at TIMESTAMPTZ NOT NULL,
   cover_url TEXT,
   subtitle TEXT NOT NULL DEFAULT '',
-  rail_slot INT NOT NULL DEFAULT 1 CHECK (rail_slot BETWEEN 1 AND 3),
+  rail_slot INT NOT NULL DEFAULT 1 CHECK (rail_slot BETWEEN 1 AND 4),
   rail_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   priority INT NOT NULL DEFAULT 50,
   landing_json JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -424,6 +424,27 @@ CREATE INDEX IF NOT EXISTS ops_campaign_hero_idx
 _schema_ready = False
 
 
+def _upgrade_rail_slot_check(conn) -> None:
+    """已有库：放宽 rail_slot 为 1～4（第 4 格探索）。"""
+    rows = conn.execute(
+        """
+        SELECT conname FROM pg_constraint
+        WHERE conrelid = 'ops_campaign'::regclass
+          AND contype = 'c'
+          AND pg_get_constraintdef(oid) ILIKE '%rail_slot%'
+        """
+    ).fetchall()
+    for (name,) in rows or []:
+        conn.execute(f'ALTER TABLE ops_campaign DROP CONSTRAINT IF EXISTS "{name}"')
+    conn.execute(
+        """
+        ALTER TABLE ops_campaign
+          ADD CONSTRAINT ops_campaign_rail_slot_check
+          CHECK (rail_slot BETWEEN 1 AND 4)
+        """
+    )
+
+
 def ensure_campaign_schema(pool=None) -> None:
     global _schema_ready
     if _schema_ready:
@@ -431,6 +452,11 @@ def ensure_campaign_schema(pool=None) -> None:
     p = pool or get_pool()
     with p.connection() as conn:
         conn.execute(_SCHEMA_SQL)
+        try:
+            _upgrade_rail_slot_check(conn)
+        except Exception:
+            pass
+        conn.commit()
     _schema_ready = True
 
 
@@ -788,8 +814,8 @@ def _publish_checklist(
         errors.append("请填写页面标题")
     if start_at is not None and end_at is not None and end_at <= start_at:
         errors.append("结束时间须晚于开始时间")
-    if rail_enabled and not (1 <= int(rail_slot or 0) <= 3):
-        errors.append("请选择今日推荐位置（第 1～3 位）")
+    if rail_enabled and not (1 <= int(rail_slot or 0) <= 4):
+        errors.append("请选择今日推荐位置（第 1～4 位）")
     template_id = str(body.get("templateId") or "")
     days = landing.get("days") if isinstance(landing.get("days"), list) else []
     body_text = str(landing.get("body") or "").strip()
@@ -1110,7 +1136,7 @@ def create_campaign(body: CampaignUpsert, user_id: str = Depends(get_current_use
     end_at = _parse_dt(body.endAt)
     if end_at <= start_at:
         raise HTTPException(400, "结束时间须晚于开始时间")
-    rail_slot = min(3, max(1, int(body.railSlot or 1)))
+    rail_slot = min(4, max(1, int(body.railSlot or 1)))
     rail_href = normalize_rail_href(body.railHref)
     landing = body.landing or dict(TEMPLATES[body.templateId]["landing"])
     if not landing.get("title"):
@@ -1203,7 +1229,7 @@ def home_campaigns(user_id: str | None = Depends(try_get_current_user)) -> dict:
 
 
 def list_home_rail_campaigns(user_id: str | None) -> list[dict]:
-    """供 /campaigns/home 与 /home/bootstrap 共用：最多 3 张运营卡。"""
+    """供 /campaigns/home 与 /home/bootstrap 共用：最多 4 张运营卡（四宫格各一）。"""
     ensure_campaign_schema()
     if not user_id:
         return []
@@ -1233,21 +1259,21 @@ def list_home_rail_campaigns(user_id: str | None) -> list[dict]:
             """,
             (user_id, now, now, is_admin),
         ).fetchall()
-        # 每位用户最多露出 3 张运营卡（对应今日推荐三坑）
+        # 每位用户最多露出 4 张运营卡（对应今日推荐四坑）
         by_slot: dict[int, tuple] = {}
         extras: list[tuple] = []
         for row in rows:
-            slot = int(row[9] or 1)
+            slot = min(4, max(1, int(row[9] or 1)))
             if slot not in by_slot:
                 by_slot[slot] = row
             else:
                 extras.append(row)
         ordered = [by_slot[s] for s in sorted(by_slot.keys())]
         for row in extras:
-            if len(ordered) >= 3:
+            if len(ordered) >= 4:
                 break
             ordered.append(row)
-        ordered = ordered[:3]
+        ordered = ordered[:4]
         out = []
         for row in ordered:
             landing = _landing(row[12])
@@ -1558,7 +1584,7 @@ def update_campaign(
     end_at = _parse_dt(body.endAt)
     if end_at <= start_at:
         raise HTTPException(400, "结束时间须晚于开始时间")
-    rail_slot = min(3, max(1, int(body.railSlot or 1)))
+    rail_slot = min(4, max(1, int(body.railSlot or 1)))
     rail_href = normalize_rail_href(body.railHref)
     landing = body.landing or {}
     if not landing.get("title"):

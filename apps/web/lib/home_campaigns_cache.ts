@@ -17,7 +17,7 @@ function normalizeList(parsed: unknown): HomeTodayCampaignInput[] | null {
     .filter((c): c is HomeTodayCampaignInput =>
       Boolean(c && typeof c === 'object' && (c as HomeTodayCampaignInput).id),
     )
-    .slice(0, 3)
+    .slice(0, 4)
     .map((c) => ({
       id: String(c.id),
       tag: (() => {
@@ -28,7 +28,7 @@ function normalizeList(parsed: unknown): HomeTodayCampaignInput[] | null {
       title: String(c.title || ''),
       sub: String(c.sub || ''),
       href: String(c.href || ''),
-      railSlot: Math.min(3, Math.max(1, Number((c as { railSlot?: number }).railSlot) || 1)),
+      railSlot: Math.min(4, Math.max(1, Number((c as { railSlot?: number }).railSlot) || 1)),
       bookId: c.bookId ? String(c.bookId) : undefined,
       coverUrl: c.coverUrl ? String(c.coverUrl) : undefined,
     }));
@@ -64,7 +64,7 @@ export function writeCachedHomeCampaigns(campaigns: HomeTodayCampaignInput[]): v
   if (typeof window === 'undefined') return;
   const payload: CachePayload = {
     savedAt: Date.now(),
-    campaigns: campaigns.slice(0, 3),
+    campaigns: campaigns.slice(0, 4),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(payload));
@@ -110,13 +110,13 @@ export function mapApiCampaignsToHomeInput(
     railSlot?: number;
   }>,
 ): HomeTodayCampaignInput[] {
-  return rows.slice(0, 3).map((c) => ({
+  return rows.slice(0, 4).map((c) => ({
     id: c.id,
     tag: normalizeHomeRailTag(c.tag),
     title: c.name,
     sub: (c.subtitle || '').trim() || '进入活动',
     href: c.href || `/campaigns/view/${c.id}`,
-    railSlot: Math.min(3, Math.max(1, Number(c.railSlot) || 1)),
+    railSlot: Math.min(4, Math.max(1, Number(c.railSlot) || 1)),
     coverUrl: c.coverUrl || undefined,
   }));
 }

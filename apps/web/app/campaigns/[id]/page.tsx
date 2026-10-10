@@ -196,7 +196,17 @@ function CampaignDetailInner() {
               <dd>
                 {camp.railEnabled === false
                   ? '未挂载'
-                  : `第 ${camp.railSlot || 1} 位${camp.railSlot === 1 ? ' · 主卡' : ' · 副卡'}`}
+                  : `第 ${camp.railSlot || 1} 位${
+                      camp.railSlot === 1
+                        ? ' · 活动主卡'
+                        : camp.railSlot === 2
+                          ? ' · 继续阅读'
+                          : camp.railSlot === 3
+                            ? ' · 共读'
+                            : camp.railSlot === 4
+                              ? ' · 探索'
+                              : ' · 副卡'
+                    }`}
               </dd>
             </div>
             <div>

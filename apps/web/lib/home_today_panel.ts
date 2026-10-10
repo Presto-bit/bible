@@ -57,7 +57,7 @@ export type HomeTodayCampaignInput = {
   title: string;
   sub: string;
   href: string;
-  /** 今日推荐坑位：1 活动主卡 · 2 继续阅读 · 3 共读（与后台 railSlot 一致） */
+  /** 今日推荐坑位：1 活动 · 2 继续阅读 · 3 共读 · 4 探索（与后台 railSlot 一致） */
   railSlot?: number;
   /** 主卡封面书卷；有 coverUrl 时不用 */
   bookId?: string;
@@ -102,7 +102,7 @@ export type HomeTodayPanelInput = {
   suggest?: { title: string; sub: string; href: string; bookId?: string };
   /** 无活动时 [1] 坑书架回退数据 */
   shelf?: HomeTodayShelfInput;
-  /** 运营活动：按 railSlot 占用 1～3 坑；无活动占用的 [1] 为书架 */
+  /** 运营活动：按 railSlot 占用 1～4 坑；无活动占用的 [1] 为书架 */
   campaigns?: HomeTodayCampaignInput[];
   /** 今日计划日已完成（会话/进度） */
   planDoneToday?: boolean;
@@ -135,7 +135,7 @@ function campaignsByRailSlot(
 ): Map<number, HomeTodayCampaignInput> {
   const map = new Map<number, HomeTodayCampaignInput>();
   for (const c of campaigns || []) {
-    const slot = Math.min(3, Math.max(1, Number(c.railSlot) || 1));
+    const slot = Math.min(4, Math.max(1, Number(c.railSlot) || 1));
     if (!map.has(slot)) map.set(slot, c);
   }
   return map;
@@ -388,12 +388,13 @@ function exploreSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
 export function buildHomeTodayPanel(input: HomeTodayPanelInput): HomeTodayPanelModel {
   const explore = exploreSlot(input);
   const bySlot = campaignsByRailSlot(input.campaigns);
+  const exploreDefault = exploreSlot(input);
   return {
     activity: bySlot.has(1) ? campaignActivity(bySlot.get(1)!) : shelfSlot(input),
     read: bySlot.has(2) ? campaignActivity(bySlot.get(2)!) : readSlot(input),
     group: bySlot.has(3) ? campaignActivity(bySlot.get(3)!) : groupSlot(input),
-    explore,
-    prayer: explore,
+    explore: bySlot.has(4) ? campaignActivity(bySlot.get(4)!) : exploreDefault,
+    prayer: bySlot.has(4) ? campaignActivity(bySlot.get(4)!) : exploreDefault,
   };
 }
 
