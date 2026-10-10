@@ -16,6 +16,7 @@ def setup_function() -> None:
 
 def test_exclude_smoke_user_code():
     assert is_excluded_user_code("99990001")
+    assert is_excluded_user_code("88000012")
     assert not is_excluded_user_code("45716122")
     assert not is_excluded_user_code("")
 

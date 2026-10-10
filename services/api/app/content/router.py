@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from ..config import get_settings
 from ..auth.session import get_current_user
 from ..auth.user_code import is_user_code
 from ..auth.local_session import make_media_asset_sig, verify_media_asset_sig
@@ -301,6 +302,28 @@ def toggle_daily_verse_like(
         raise
     except Exception as exc:
         raise HTTPException(status_code=503, detail="点赞服务暂不可用") from exc
+
+
+@router.post("/cron/daily-verse-warm")
+def cron_daily_verse_warm(
+    x_cron_secret: str | None = Header(default=None, alias="X-Cron-Secret"),
+) -> dict:
+    """定时暖场：分波写入每日经文点赞/回应（需 PUSH_CRON_SECRET）。"""
+    settings = get_settings()
+    if not settings.push_cron_secret or x_cron_secret != settings.push_cron_secret:
+        raise HTTPException(status_code=403, detail="无效 cron 密钥")
+    from .daily_verse_warm import run_warm_tick
+
+    verse_day, _ = _resolve_verse_day(None)
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            result = run_warm_tick(conn, verse_day=verse_day)
+            conn.commit()
+        return result
+    except Exception as exc:
+        logger.exception("cron daily verse warm failed")
+        raise HTTPException(status_code=503, detail="暖场任务失败") from exc
 
 
 @router.post("/daily-verse/share")

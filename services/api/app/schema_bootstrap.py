@@ -56,6 +56,14 @@ def bootstrap_schemas(pool) -> None:
     except Exception:
         logger.exception("bootstrap: daily verse react schema failed")
     try:
+        from .content.daily_verse_warm_settings import ensure_warm_settings_schema
+
+        with pool.connection() as conn:
+            ensure_warm_settings_schema(conn)
+            conn.commit()
+    except Exception:
+        logger.exception("bootstrap: daily verse warm settings schema failed")
+    try:
         from .social.group_prayer import ensure_group_prayer_schema
 
         ensure_group_prayer_schema(pool)

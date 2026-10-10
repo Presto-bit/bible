@@ -2,12 +2,16 @@
 
 口径：
 - 发版冒烟固定账号 99990001、release-smoke* 设备
+- 每日经文暖场 persona：8800xxxx（见 content.daily_verse_warm）
 - 环境变量 ANALYTICS_EXCLUDE_USER_CODES（逗号分隔）可追加
 - 本机 / 内网探测 IP 伪设备（ip:127.* 等）
 """
 from __future__ import annotations
 
+import re
 from functools import lru_cache
+
+_SYNTHETIC_USER_CODE_RE = re.compile(r"^8800\d{4}$")
 
 # release.sh 鉴权冒烟固定码
 _DEFAULT_EXCLUDE_USER_CODES = frozenset({"99990001"})
@@ -38,10 +42,17 @@ def clear_exclude_cache() -> None:
     excluded_user_codes.cache_clear()
 
 
+def is_synthetic_engagement_user_code(user_code: str | None) -> bool:
+    code = (user_code or "").strip()
+    return bool(_SYNTHETIC_USER_CODE_RE.match(code))
+
+
 def is_excluded_user_code(user_code: str | None) -> bool:
     code = (user_code or "").strip()
     if not code:
         return False
+    if is_synthetic_engagement_user_code(code):
+        return True
     return code in excluded_user_codes()
 
 
@@ -83,6 +94,7 @@ def uv_not_excluded_sql(alias: str | None = None) -> str:
     codes = _sql_string_list(excluded_user_codes())
     return f"""(
       COALESCE({identity}, nullif(trim({code_col}), '')) NOT IN ({codes})
+      AND COALESCE({identity}, nullif(trim({code_col}), '')) !~ '^8800'
       AND COALESCE({fp}, '') !~* '{_DEVICE_PREFIX_RE}'
       AND COALESCE({fp}, '') !~* '{_LOCAL_IP_RE}'
     )"""
@@ -95,7 +107,10 @@ def users_not_excluded_sql(user_alias: str = "u") -> str:
       NOT EXISTS (
         SELECT 1 FROM accounts _ax
         WHERE _ax.user_id = {user_alias}.id
-          AND _ax.user_code IN ({codes})
+          AND (
+            _ax.user_code IN ({codes})
+            OR _ax.user_code ~ '^8800'
+          )
       )
       AND NOT EXISTS (
         SELECT 1
@@ -111,6 +126,7 @@ def accounts_not_excluded_sql(account_alias: str = "a") -> str:
     codes = _sql_string_list(excluded_user_codes())
     return f"""(
       {account_alias}.user_code NOT IN ({codes})
+      AND {account_alias}.user_code !~ '^8800'
       AND NOT EXISTS (
         SELECT 1 FROM device_user_bindings _db
         WHERE _db.user_code = {account_alias}.user_code

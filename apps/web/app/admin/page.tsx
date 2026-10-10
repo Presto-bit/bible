@@ -12,6 +12,7 @@ import AdminStatsPanel from '@/components/AdminStatsPanel';
 import AdminModerationPanel from '@/components/admin/AdminModerationPanel';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 import { CampaignsListPanel } from '@/components/campaigns/CampaignsListPanel';
+import AdminDailyVerseWarmPanel from '@/components/admin/AdminDailyVerseWarmPanel';
 import { adminCheck, clearAdminToken } from '@/lib/admin_rag';
 
 function parseTab(value: string | null): AdminTab {
@@ -88,6 +89,7 @@ function AdminPageInner() {
       {tab === 'stats' ? <AdminStatsPanel /> : null}
       {tab === 'ops' ? (
         <CampaignAdminGate embedded>
+          <AdminDailyVerseWarmPanel />
           <CampaignsListPanel embedded />
         </CampaignAdminGate>
       ) : null}

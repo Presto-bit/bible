@@ -785,6 +785,108 @@ def admin_resolve_hero_b_link(
     return {"href": href}
 
 
+class DailyVerseWarmSettingsBody(BaseModel):
+    enabled: bool | None = None
+    t0: str | None = None
+    ramp_days: int | None = None
+    cap_min: int | None = None
+    cap_max: int | None = None
+    max_boost: int | None = None
+
+
+def _daily_verse_warm_status(conn) -> dict:
+    from ..content.daily_clock import china_today, verse_day_for_date
+    from ..content import loader
+    from ..content.daily_verse_warm import (
+        day_progress_fraction,
+        target_cap_for_date,
+        _count_distinct_engagement,
+    )
+    from ..content.daily_verse_warm_settings import get_warm_settings, settings_public_view
+    from ..time_cn import china_now
+
+    settings = get_warm_settings(conn)
+    data = loader.daily_verses()
+    verses = data.get("verses") or []
+    today = china_today()
+    verse_day = verse_day_for_date(today, len(verses) or 366)
+    cap = target_cap_for_date(settings, today)
+    real_u = _count_distinct_engagement(conn, verse_day=verse_day, synthetic_only=False)
+    synthetic_u = _count_distinct_engagement(conn, verse_day=verse_day, synthetic_only=True)
+    total_u = _count_distinct_engagement(conn, verse_day=verse_day, synthetic_only=None)
+    progress = day_progress_fraction(china_now())
+    max_boost = int(settings.get("max_boost") or 20)
+    target_total = min(cap, real_u + max_boost)
+    return {
+        "settings": settings_public_view(settings),
+        "today": {
+            "verse_day": verse_day,
+            "cap": cap,
+            "real_u": real_u,
+            "synthetic_u": synthetic_u,
+            "total_u": total_u,
+            "target_total": target_total,
+            "day_progress": round(progress, 3),
+        },
+    }
+
+
+@router.get("/ops/daily-verse-warm")
+def admin_get_daily_verse_warm(_phone: str = Depends(require_admin)) -> dict:
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            return _daily_verse_warm_status(conn)
+    except Exception as exc:
+        logger.exception("daily verse warm status failed")
+        raise HTTPException(status_code=503, detail="暖场状态暂不可用") from exc
+
+
+@router.patch("/ops/daily-verse-warm")
+def admin_patch_daily_verse_warm(
+    body: DailyVerseWarmSettingsBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    from ..content.daily_verse_warm_settings import save_warm_settings
+
+    patch = body.model_dump(exclude_none=True)
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            save_warm_settings(conn, patch)
+            conn.commit()
+            return _daily_verse_warm_status(conn)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("daily verse warm settings save failed")
+        raise HTTPException(status_code=503, detail="保存失败") from exc
+
+
+@router.post("/ops/daily-verse-warm/run")
+def admin_run_daily_verse_warm(
+    _phone: str = Depends(require_admin),
+    max_writes: int = Query(12, ge=1, le=30),
+) -> dict:
+    from ..content.daily_clock import china_today, verse_day_for_date
+    from ..content import loader
+    from ..content.daily_verse_warm import run_warm_tick
+
+    try:
+        data = loader.daily_verses()
+        verses = data.get("verses") or []
+        verse_day = verse_day_for_date(china_today(), len(verses) or 366)
+        pool = get_pool()
+        with pool.connection() as conn:
+            tick = run_warm_tick(conn, verse_day=verse_day, max_writes=max_writes)
+            conn.commit()
+            status = _daily_verse_warm_status(conn)
+        return {"tick": tick, **status}
+    except Exception as exc:
+        logger.exception("daily verse warm manual run failed")
+        raise HTTPException(status_code=503, detail="执行失败") from exc
+
+
 class ModerationResolveBody(BaseModel):
     status: str
     note: str | None = None
