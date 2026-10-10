@@ -742,7 +742,8 @@ function CampaignEditInner() {
                     disabled={!railEnabled}
                     onClick={() => setRailSlot(n)}
                   >
-                    第 {n} 位{n === 1 ? ' · 主卡' : ''}
+                    第 {n} 位
+                    {n === 1 ? ' · 活动主卡' : n === 2 ? ' · 继续阅读' : ' · 共读'}
                   </button>
                 ))}
               </div>

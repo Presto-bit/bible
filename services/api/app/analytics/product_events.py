@@ -216,14 +216,21 @@ def record_product_event(
         return {"ok": False, "error": "write_failed"}
 
 
+def _pe_exclude_sql(alias: str = "pe") -> str:
+    from .exclude import product_events_not_excluded_sql
+
+    return product_events_not_excluded_sql(alias)
+
+
 def product_events_today_count(conn) -> int:
     try:
         ensure_product_events_schema(conn)
         row = conn.execute(
-            """
-            SELECT count(*) FROM product_events
-            WHERE (timezone('Asia/Shanghai', created_at))::date
+            f"""
+            SELECT count(*) FROM product_events pe
+            WHERE (timezone('Asia/Shanghai', pe.created_at))::date
               = (timezone('Asia/Shanghai', now()))::date
+              AND {_pe_exclude_sql('pe')}
             """
         ).fetchone()
         return int(row[0] or 0) if row else 0
@@ -237,13 +244,14 @@ def product_events_series(conn, span_days: int) -> list[dict]:
 
     ensure_product_events_schema(conn)
     rows = conn.execute(
-        """
-        SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*)
-        FROM product_events
-        WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp
+        f"""
+        SELECT (timezone('Asia/Shanghai', pe.created_at))::date::text, count(*)
+        FROM product_events pe
+        WHERE pe.created_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp
                              AT TIME ZONE 'Asia/Shanghai')
-        GROUP BY (timezone('Asia/Shanghai', created_at))::date
-        ORDER BY (timezone('Asia/Shanghai', created_at))::date
+          AND {_pe_exclude_sql('pe')}
+        GROUP BY (timezone('Asia/Shanghai', pe.created_at))::date
+        ORDER BY (timezone('Asia/Shanghai', pe.created_at))::date
         """,
         (span_days - 1,),
     ).fetchall()
@@ -260,12 +268,13 @@ def product_events_series(conn, span_days: int) -> list[dict]:
 def product_events_series_between(conn, start: date, end: date) -> list[dict]:
     ensure_product_events_schema(conn)
     rows = conn.execute(
-        """
-        SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*)
-        FROM product_events
-        WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
-        GROUP BY (timezone('Asia/Shanghai', created_at))::date
-        ORDER BY (timezone('Asia/Shanghai', created_at))::date
+        f"""
+        SELECT (timezone('Asia/Shanghai', pe.created_at))::date::text, count(*)
+        FROM product_events pe
+        WHERE (timezone('Asia/Shanghai', pe.created_at))::date BETWEEN %s AND %s
+          AND {_pe_exclude_sql('pe')}
+        GROUP BY (timezone('Asia/Shanghai', pe.created_at))::date
+        ORDER BY (timezone('Asia/Shanghai', pe.created_at))::date
         """,
         (start, end),
     ).fetchall()
@@ -297,12 +306,13 @@ def feature_usage_ranking(conn, start: date, end: date) -> list[dict]:
     """功能使用排行：事件次数 + 去重用户。"""
     ensure_product_events_schema(conn)
     rows = conn.execute(
-        """
+        f"""
         SELECT event_name,
                count(*) AS events,
                count(DISTINCT NULLIF(trim(user_code), '')) AS users
-        FROM product_events
-        WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
+        FROM product_events pe
+        WHERE (timezone('Asia/Shanghai', pe.created_at))::date BETWEEN %s AND %s
+          AND {_pe_exclude_sql('pe')}
         GROUP BY event_name
         ORDER BY events DESC, users DESC
         """,
@@ -335,8 +345,10 @@ def activation_deep_funnel(conn, start: date, end: date, *, within_days: int = 7
     """新用户深度激活：阅读/听读 → 习惯 → 深度内容（注册后 within_days 日内）。"""
     ensure_product_events_schema(conn)
     window = max(1, min(int(within_days or 7), 30))
+    from .exclude import users_not_excluded_sql
+
     cohort = conn.execute(
-        """
+        f"""
         SELECT DISTINCT
           COALESCE(a.user_code, up.user_code) AS user_code,
           (timezone('Asia/Shanghai', u.created_at))::date AS reg_day
@@ -346,6 +358,7 @@ def activation_deep_funnel(conn, start: date, end: date, *, within_days: int = 7
         WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
           AND COALESCE(a.user_code, up.user_code) IS NOT NULL
           AND trim(COALESCE(a.user_code, up.user_code)) <> ''
+          AND {users_not_excluded_sql('u')}
         """,
         (start, end),
     ).fetchall()
@@ -377,6 +390,7 @@ def activation_deep_funnel(conn, start: date, end: date, *, within_days: int = 7
                 AND (timezone('Asia/Shanghai', pe.created_at))::date >= c.reg_day
                 AND (timezone('Asia/Shanghai', pe.created_at))::date
                     <= c.reg_day + %s::int
+                AND {_pe_exclude_sql('pe')}
             )
             """,
             (codes, reg_days, list(names), window - 1),
@@ -417,13 +431,14 @@ def product_props_breakdowns(conn, start: date, end: date) -> dict[str, list[dic
     }
 
     rows = conn.execute(
-        """
-        SELECT COALESCE(NULLIF(trim(props->>'source'), ''), 'unknown') AS dim,
+        f"""
+        SELECT COALESCE(NULLIF(trim(pe.props->>'source'), ''), 'unknown') AS dim,
                count(*) AS events,
-               count(DISTINCT NULLIF(trim(user_code), '')) AS users
-        FROM product_events
-        WHERE event_name = 'reader_session_end'
-          AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
+               count(DISTINCT NULLIF(trim(pe.user_code), '')) AS users
+        FROM product_events pe
+        WHERE pe.event_name = 'reader_session_end'
+          AND (timezone('Asia/Shanghai', pe.created_at))::date BETWEEN %s AND %s
+          AND {_pe_exclude_sql('pe')}
         GROUP BY 1
         ORDER BY events DESC, dim
         """,
@@ -440,13 +455,14 @@ def product_props_breakdowns(conn, start: date, end: date) -> dict[str, list[dic
     ]
 
     rows = conn.execute(
-        """
-        SELECT COALESCE(NULLIF(trim(props->>'kind'), ''), 'unknown') AS dim,
+        f"""
+        SELECT COALESCE(NULLIF(trim(pe.props->>'kind'), ''), 'unknown') AS dim,
                count(*) AS events,
-               count(DISTINCT NULLIF(trim(user_code), '')) AS users
-        FROM product_events
-        WHERE event_name = 'plan_day_done'
-          AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
+               count(DISTINCT NULLIF(trim(pe.user_code), '')) AS users
+        FROM product_events pe
+        WHERE pe.event_name = 'plan_day_done'
+          AND (timezone('Asia/Shanghai', pe.created_at))::date BETWEEN %s AND %s
+          AND {_pe_exclude_sql('pe')}
         GROUP BY 1
         ORDER BY events DESC, dim
         """,
@@ -464,21 +480,22 @@ def product_props_breakdowns(conn, start: date, end: date) -> dict[str, list[dic
     ]
 
     rows = conn.execute(
-        """
+        f"""
         SELECT
           CASE
-            WHEN COALESCE((props->>'minutes')::int, 0) <= 0 THEN '0 分钟'
-            WHEN COALESCE((props->>'minutes')::int, 0) <= 5 THEN '1–5 分钟'
-            WHEN COALESCE((props->>'minutes')::int, 0) <= 15 THEN '6–15 分钟'
+            WHEN COALESCE((pe.props->>'minutes')::int, 0) <= 0 THEN '0 分钟'
+            WHEN COALESCE((pe.props->>'minutes')::int, 0) <= 5 THEN '1–5 分钟'
+            WHEN COALESCE((pe.props->>'minutes')::int, 0) <= 15 THEN '6–15 分钟'
             ELSE '15 分钟以上'
           END AS bucket,
                count(*) AS events,
-               count(DISTINCT NULLIF(trim(user_code), '')) AS users
-        FROM product_events
-        WHERE event_name = 'listen_session_end'
-          AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
+               count(DISTINCT NULLIF(trim(pe.user_code), '')) AS users
+        FROM product_events pe
+        WHERE pe.event_name = 'listen_session_end'
+          AND (timezone('Asia/Shanghai', pe.created_at))::date BETWEEN %s AND %s
+          AND {_pe_exclude_sql('pe')}
         GROUP BY 1
-        ORDER BY min(COALESCE((props->>'minutes')::int, 0))
+        ORDER BY min(COALESCE((pe.props->>'minutes')::int, 0))
         """,
         (start, end),
     ).fetchall()
@@ -503,8 +520,10 @@ def activation_funnel(conn, start: date, end: date, *, within_days: int = 7) -> 
     """
     ensure_product_events_schema(conn)
     window = max(1, min(int(within_days or 7), 30))
+    from .exclude import users_not_excluded_sql
+
     cohort = conn.execute(
-        """
+        f"""
         SELECT DISTINCT
           COALESCE(a.user_code, up.user_code) AS user_code,
           (timezone('Asia/Shanghai', u.created_at))::date AS reg_day
@@ -514,6 +533,7 @@ def activation_funnel(conn, start: date, end: date, *, within_days: int = 7) -> 
         WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
           AND COALESCE(a.user_code, up.user_code) IS NOT NULL
           AND trim(COALESCE(a.user_code, up.user_code)) <> ''
+          AND {users_not_excluded_sql('u')}
         """,
         (start, end),
     ).fetchall()
@@ -546,6 +566,7 @@ def activation_funnel(conn, start: date, end: date, *, within_days: int = 7) -> 
                 AND (timezone('Asia/Shanghai', pe.created_at))::date >= c.reg_day
                 AND (timezone('Asia/Shanghai', pe.created_at))::date
                     <= c.reg_day + %s::int
+                AND {_pe_exclude_sql('pe')}
             )
             """,
             (codes, reg_days, list(names), window - 1),
@@ -599,8 +620,10 @@ def d1_retention(conn, start: date, end: date) -> dict[str, Any]:
             "hint": "区间内尚无已过次日的注册用户",
         }
 
+    from .exclude import users_not_excluded_sql, uv_not_excluded_sql
+
     rows = conn.execute(
-        """
+        f"""
         WITH cohort AS (
           SELECT DISTINCT
             COALESCE(a.user_code, up.user_code) AS user_code,
@@ -612,6 +635,7 @@ def d1_retention(conn, start: date, end: date) -> dict[str, Any]:
           WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
             AND COALESCE(a.user_code, up.user_code) IS NOT NULL
             AND trim(COALESCE(a.user_code, up.user_code)) <> ''
+            AND {users_not_excluded_sql('u')}
         ),
         returned AS (
           SELECT DISTINCT c.user_code
@@ -620,10 +644,12 @@ def d1_retention(conn, start: date, end: date) -> dict[str, Any]:
             SELECT 1 FROM product_events pe
             WHERE pe.user_code = c.user_code
               AND (timezone('Asia/Shanghai', pe.created_at))::date = c.reg_day + 1
+              AND {_pe_exclude_sql('pe')}
           )
           OR EXISTS (
             SELECT 1 FROM daily_active_visitors dav
             WHERE dav.visit_date = c.reg_day + 1
+              AND {uv_not_excluded_sql('dav')}
               AND (
                 (dav.user_code IS NOT NULL AND dav.user_code = c.user_code)
                 OR (dav.user_id IS NOT NULL AND dav.user_id::text = c.user_id::text)
@@ -649,8 +675,10 @@ def d1_retention(conn, start: date, end: date) -> dict[str, Any]:
 
 def acquisition_source_breakdown(conn, start: date, end: date) -> list[dict]:
     """新注册用户来源拆分：未绑定 / organic·direct / organic·其他 / 有渠道。"""
+    from .exclude import users_not_excluded_sql
+
     rows = conn.execute(
-        """
+        f"""
         WITH new_users AS (
           SELECT DISTINCT COALESCE(a.user_code, up.user_code) AS user_code
           FROM users u
@@ -659,6 +687,7 @@ def acquisition_source_breakdown(conn, start: date, end: date) -> list[dict]:
           WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
             AND COALESCE(a.user_code, up.user_code) IS NOT NULL
             AND trim(COALESCE(a.user_code, up.user_code)) <> ''
+            AND {users_not_excluded_sql('u')}
         )
         SELECT
           CASE

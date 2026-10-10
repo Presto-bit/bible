@@ -11,6 +11,7 @@ class HomeTodayCampaign {
     required this.title,
     required this.sub,
     required this.href,
+    this.railSlot = 1,
     this.coverUrl,
   });
   final String id;
@@ -18,17 +19,25 @@ class HomeTodayCampaign {
   final String title;
   final String sub;
   final String href;
+  final int railSlot;
   final String? coverUrl;
 
-  factory HomeTodayCampaign.fromJson(Map<String, dynamic> j) =>
-      HomeTodayCampaign(
-        id: '${j['id'] ?? ''}',
-        tag: '${j['tag'] ?? j['badge'] ?? '活动'}',
-        title: '${j['title'] ?? j['name'] ?? ''}',
-        sub: '${j['sub'] ?? j['subtitle'] ?? j['cta'] ?? '进入活动'}',
-        href: '${j['href'] ?? j['url'] ?? '/'}',
-        coverUrl: j['coverUrl'] as String? ?? j['imageUrl'] as String?,
-      );
+  factory HomeTodayCampaign.fromJson(Map<String, dynamic> j) {
+    final rawSlot = j['railSlot'];
+    var slot = 1;
+    if (rawSlot is num) {
+      slot = rawSlot.toInt().clamp(1, 3);
+    }
+    return HomeTodayCampaign(
+      id: '${j['id'] ?? ''}',
+      tag: '${j['tag'] ?? j['badge'] ?? '活动'}',
+      title: '${j['title'] ?? j['name'] ?? ''}',
+      sub: '${j['sub'] ?? j['subtitle'] ?? j['cta'] ?? '进入活动'}',
+      href: '${j['href'] ?? j['url'] ?? '/'}',
+      railSlot: slot,
+      coverUrl: j['coverUrl'] as String? ?? j['imageUrl'] as String?,
+    );
+  }
 }
 
 class HomeTodayShelfInput {
@@ -142,11 +151,13 @@ HomeTodaySlot _campaignActivity(HomeTodayCampaign c) {
   );
 }
 
-HomeTodaySlot _activitySlot(HomeTodayInput input) {
-  if (input.campaigns.isNotEmpty) {
-    return _campaignActivity(input.campaigns.first);
+Map<int, HomeTodayCampaign> _campaignsByRailSlot(List<HomeTodayCampaign> campaigns) {
+  final map = <int, HomeTodayCampaign>{};
+  for (final c in campaigns) {
+    final slot = c.railSlot.clamp(1, 3);
+    map.putIfAbsent(slot, () => c);
   }
-  return _shelfSlot(input);
+  return map;
 }
 
 HomeTodaySlot _shelfSlot(HomeTodayInput input) {
@@ -337,10 +348,13 @@ HomeTodaySlot _exploreSlot(HomeTodayInput input) {
 /// 固定四坑：[1] 活动/书架 · [2] 继续阅读 · [3] 共读 · [4] 探索
 HomeTodayPanelResult buildHomeTodayPanel(HomeTodayInput input) {
   final explore = _exploreSlot(input);
+  final bySlot = _campaignsByRailSlot(input.campaigns);
   return HomeTodayPanelResult(
-    activity: _activitySlot(input),
-    read: _readSlot(input),
-    group: _groupSlot(input),
+    activity: bySlot.containsKey(1)
+        ? _campaignActivity(bySlot[1]!)
+        : _shelfSlot(input),
+    read: bySlot.containsKey(2) ? _campaignActivity(bySlot[2]!) : _readSlot(input),
+    group: bySlot.containsKey(3) ? _campaignActivity(bySlot[3]!) : _groupSlot(input),
     explore: explore,
   );
 }

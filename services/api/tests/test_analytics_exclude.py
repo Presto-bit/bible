@@ -5,6 +5,7 @@ from app.analytics.exclude import (
     clear_exclude_cache,
     is_excluded_device_id,
     is_excluded_user_code,
+    product_events_not_excluded_sql,
     should_exclude_visit,
     uv_not_excluded_sql,
 )
@@ -39,3 +40,9 @@ def test_uv_not_excluded_sql_contains_smoke_code():
     sql = uv_not_excluded_sql()
     assert "99990001" in sql
     assert "release-smoke" in sql
+
+
+def test_product_events_not_excluded_sql():
+    sql = product_events_not_excluded_sql("pe")
+    assert "8800" in sql
+    assert "99990001" in sql

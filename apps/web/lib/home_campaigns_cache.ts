@@ -28,6 +28,7 @@ function normalizeList(parsed: unknown): HomeTodayCampaignInput[] | null {
       title: String(c.title || ''),
       sub: String(c.sub || ''),
       href: String(c.href || ''),
+      railSlot: Math.min(3, Math.max(1, Number((c as { railSlot?: number }).railSlot) || 1)),
       bookId: c.bookId ? String(c.bookId) : undefined,
       coverUrl: c.coverUrl ? String(c.coverUrl) : undefined,
     }));
@@ -106,6 +107,7 @@ export function mapApiCampaignsToHomeInput(
     subtitle?: string;
     href?: string;
     coverUrl?: string | null;
+    railSlot?: number;
   }>,
 ): HomeTodayCampaignInput[] {
   return rows.slice(0, 3).map((c) => ({
@@ -114,6 +116,7 @@ export function mapApiCampaignsToHomeInput(
     title: c.name,
     sub: (c.subtitle || '').trim() || '进入活动',
     href: c.href || `/campaigns/view/${c.id}`,
+    railSlot: Math.min(3, Math.max(1, Number(c.railSlot) || 1)),
     coverUrl: c.coverUrl || undefined,
   }));
 }

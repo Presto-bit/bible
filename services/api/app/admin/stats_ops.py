@@ -475,17 +475,22 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
         uv_today_where = f"visit_date = DATE '{cn_today}'"
         totals = _fetch_admin_totals(conn)
         try:
+            from ..analytics.exclude import product_events_not_excluded_sql
+
+            pe_filter = product_events_not_excluded_sql("pe")
             product_dod = _dod(
                 conn,
-                """
-                SELECT count(*) FROM product_events
-                WHERE (timezone('Asia/Shanghai', created_at))::date
+                f"""
+                SELECT count(*) FROM product_events pe
+                WHERE (timezone('Asia/Shanghai', pe.created_at))::date
                   = (timezone('Asia/Shanghai', now()))::date
+                  AND {pe_filter}
                 """,
-                """
-                SELECT count(*) FROM product_events
-                WHERE (timezone('Asia/Shanghai', created_at))::date
+                f"""
+                SELECT count(*) FROM product_events pe
+                WHERE (timezone('Asia/Shanghai', pe.created_at))::date
                   = (timezone('Asia/Shanghai', now()))::date - 1
+                  AND {pe_filter}
                 """,
             )
         except Exception:

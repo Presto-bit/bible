@@ -133,3 +133,15 @@ def accounts_not_excluded_sql(account_alias: str = "a") -> str:
           AND _db.device_fingerprint ~* '{_DEVICE_PREFIX_RE}'
       )
     )"""
+
+
+def product_events_not_excluded_sql(alias: str = "pe") -> str:
+    """product_events 行过滤：排除暖场 8800、冒烟码与测试设备。"""
+    codes = _sql_string_list(excluded_user_codes())
+    uc = f"nullif(trim({alias}.user_code), '')"
+    dev = f"COALESCE({alias}.device_id, '')"
+    return f"""(
+      ({uc} IS NULL OR ({uc} NOT IN ({codes}) AND {uc} !~ '^8800'))
+      AND {dev} !~* '{_DEVICE_PREFIX_RE}'
+      AND {dev} !~* '{_LOCAL_IP_RE}'
+    )"""
