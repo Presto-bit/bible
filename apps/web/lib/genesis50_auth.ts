@@ -1,4 +1,4 @@
-/** 创世记 50 天（genesis-50.pages.dev）免改对方代码的自动进入。
+/** 邀请码活动外站（genesis-50 / hebrews-30 等 pages.dev）免改对方代码的自动进入。
  *
  * 对方站点用邀请码换固定邮箱/密码登录 Supabase。我们在本域完成登录后，
  * 把 session 写进目标站 URL query（其 supabase-js detectSessionInUrl 会接收），
@@ -12,6 +12,10 @@ import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 import { openExternalBrowser } from '@/lib/external_browser';
 
 const G50_HOST = 'genesis-50.pages.dev';
+const HEBREWS30_HOST = 'hebrews-30.pages.dev';
+
+/** 走同一 Supabase 邀请码鉴权的外站域名 */
+const INVITE_CAMPAIGN_HOSTS = [G50_HOST, HEBREWS30_HOST] as const;
 const G50_SUPABASE_URL = 'https://ytiwfmufekvxdgyaokae.supabase.co';
 /** 同源桥接页：安卓 WebView 先打开彼爱域，再 replace 到外站（与 PWA iframe 鉴权同路径） */
 export const GENESIS50_BRIDGE_PATH = '/campaigns/genesis-50/enter';
@@ -48,16 +52,39 @@ function authHeaders(): HeadersInit {
   };
 }
 
+function isInviteCampaignHost(hostname: string): boolean {
+  const host = (hostname || '').trim().toLowerCase();
+  if (!host) return false;
+  return INVITE_CAMPAIGN_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+}
+
+/** 邀请码活动外站（含希伯来书 30 天 hebrews-30.pages.dev） */
 export function isGenesis50Href(href: string): boolean {
   const t = (href || '').trim().toLowerCase();
   if (t.includes('genesis-50') || t.includes('genesis50')) return true;
+  if (t.includes('hebrews-30') || t.includes('hebrews30')) return true;
   try {
     const u = new URL(normalizeHref(href));
-    const host = u.hostname.toLowerCase();
-    return host === G50_HOST || host.endsWith(`.${G50_HOST}`);
+    return isInviteCampaignHost(u.hostname);
   } catch {
     return false;
   }
+}
+
+export function inviteCampaignDisplayTitle(href: string): string {
+  const t = (href || '').trim().toLowerCase();
+  if (t.includes('hebrews-30') || t.includes('hebrews30') || t.includes('hebrews')) {
+    return '希伯来书 30 天';
+  }
+  try {
+    const u = new URL(normalizeHref(href));
+    if (isInviteCampaignHost(u.hostname) && u.hostname.includes('hebrews')) {
+      return '希伯来书 30 天';
+    }
+  } catch {
+    /* ignore */
+  }
+  return '创世记 50 天';
 }
 
 /** 安卓壳 / WebView：先打开同源桥接页，由页内 JS 完成 Supabase 鉴权再跳转外站。 */
@@ -233,7 +260,7 @@ export async function resolveGenesis50OpenUrl(href: string): Promise<string> {
 /** 应用内打开：PWA 用 iframe 鉴权；Flutter 壳走同源桥接页 + 全屏 WebView。 */
 export function openGenesis50Authed(href: string): void {
   if (typeof window === 'undefined') return;
-  const title = '创世记 50 天';
+  const title = inviteCampaignDisplayTitle(href);
 
   if (isFlutterH5Host()) {
     openExternalBrowser({

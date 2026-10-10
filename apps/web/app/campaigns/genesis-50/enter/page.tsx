@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   isGenesis50Href,
   normalizeGenesis50Href,
+  inviteCampaignDisplayTitle,
   resolveGenesis50InviteCode,
   resolveGenesis50OpenUrl,
 } from '@/lib/genesis50_auth';
@@ -25,7 +26,6 @@ function Genesis50EnterInner() {
       setError('链接无效，请联系活动管理员。');
       return;
     }
-
     let cancelled = false;
     void (async () => {
       try {
@@ -48,6 +48,13 @@ function Genesis50EnterInner() {
       cancelled = true;
     };
   }, [search]);
+
+  const displayTitle =
+    inviteCampaignDisplayTitle(
+      normalizeGenesis50Href(
+        (search.get('href') || search.get('target') || '').trim(),
+      ),
+    );
 
   if (error) {
     return (
@@ -89,7 +96,7 @@ function Genesis50EnterInner() {
       }}
     >
       <p className="muted" style={{ marginBottom: 12 }}>
-        创世记 50 天
+        {displayTitle}
       </p>
       <p>{message}</p>
     </main>

@@ -14,7 +14,8 @@ import 'open_genesis50_tab.dart';
 import 'h5_whitelist.dart';
 import 'theme.dart';
 
-export 'genesis50_auth.dart' show isGenesis50Href, isGenesis50BridgeHref;
+export 'genesis50_auth.dart'
+    show isGenesis50Href, isGenesis50BridgeHref, inviteCampaignDisplayTitle;
 
 bool _isAppHostname(String host) {
   final h = host.trim().toLowerCase().replaceFirst(RegExp(r'^www\.'), '');

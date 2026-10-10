@@ -10,6 +10,10 @@ import 'config.dart';
 import 'h5_whitelist.dart';
 
 const _g50Host = 'genesis-50.pages.dev';
+const _hebrews30Host = 'hebrews-30.pages.dev';
+
+const _inviteCampaignHosts = [_g50Host, _hebrews30Host];
+
 const _g50Origin = 'https://$_g50Host';
 const _g50SupabaseUrl = 'https://ytiwfmufekvxdgyaokae.supabase.co';
 
@@ -92,16 +96,41 @@ bool isGenesis50BridgeHref(String href) {
   }
 }
 
+bool _isInviteCampaignHost(String host) {
+  final h = host.trim().toLowerCase();
+  if (h.isEmpty) return false;
+  for (final allowed in _inviteCampaignHosts) {
+    if (h == allowed || h.endsWith('.$allowed')) return true;
+  }
+  return false;
+}
+
 bool isGenesis50Href(String href) {
   final t = href.trim().toLowerCase();
   if (t.contains('genesis-50') || t.contains('genesis50')) return true;
+  if (t.contains('hebrews-30') || t.contains('hebrews30')) return true;
   try {
     final u = Uri.parse(normalizeGenesis50Href(href));
-    final host = u.host.toLowerCase();
-    return host == _g50Host || host.endsWith('.$_g50Host');
+    return _isInviteCampaignHost(u.host);
   } catch (_) {
     return false;
   }
+}
+
+String inviteCampaignDisplayTitle(String href) {
+  final t = href.trim().toLowerCase();
+  if (t.contains('hebrews-30') ||
+      t.contains('hebrews30') ||
+      t.contains('hebrews')) {
+    return '希伯来书 30 天';
+  }
+  try {
+    final u = Uri.parse(normalizeGenesis50Href(href));
+    if (_isInviteCampaignHost(u.host) && u.host.contains('hebrews')) {
+      return '希伯来书 30 天';
+    }
+  } catch (_) {}
+  return '创世记 50 天';
 }
 
 String resolveGenesis50InviteCode(String href) {

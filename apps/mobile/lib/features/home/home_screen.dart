@@ -878,7 +878,7 @@ void _openHeroB(BuildContext context, WidgetRef ref, String href) {
     openCampaignHref(
       context,
       href,
-      title: isGenesis50Href(href) ? '创世记 50 天' : null,
+      title: isGenesis50Href(href) ? inviteCampaignDisplayTitle(href) : null,
     );
     return;
   }
