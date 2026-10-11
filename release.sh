@@ -18,6 +18,7 @@
 #   BUILD_API=0|1          强制跳过/强制构建 api（默认按变更自动）
 #   BUILD_WEB=0|1          强制跳过/强制构建 web（默认按变更自动）
 #   STRICT_PUBLIC=0|1      默认 1：重建 web 后公网 app-version/sw 必须与本机一致，否则失败
+#   SKIP_PUBLIC_CHECK=1    跳过全部公网检查（证书过期/本机无法回环公网时临时用；不代替修 SSL）
 #   RECREATE_WEB=0|1       默认 1：重建 web 镜像后 --force-recreate 容器（避免旧进程挂着）
 #   INSTALL_HIJACK_CRON=1  安装每分钟劫持探测+自愈 cron（默认 0）
 #   SKIP_SW_CHECK=1        跳过 SW 烙印 / Cache-Control 门禁（默认 0；紧急回滚时可开）
@@ -216,11 +217,26 @@ wait_local_app_version() {
 assert_web_not_hijacked() {
   local url="$1"
   local label="${2:-$url}"
-  local headers code loc host allow_host
-  headers="$(curl -sSI --connect-timeout 5 --max-time 15 --max-redirs 0 "$url" 2>/dev/null || true)"
+  local headers code loc host allow_host curl_err
+  # 把 stderr 留下，便于区分「证书过期」与「连不上」
+  curl_err="$(mktemp)"
+  headers="$(curl -sSI --connect-timeout 5 --max-time 15 --max-redirs 0 "$url" 2>"$curl_err" || true)"
   if [[ -z "$headers" ]]; then
+    if grep -qiE 'certificate has expired|SSL certificate problem|certificate expired' "$curl_err" 2>/dev/null; then
+      rm -f "$curl_err"
+# ACME 验证：错误提示里误写了空格
+      die "劫持检查失败：$label HTTPS 证书已过期。请在宝塔续签 SSL（ACME 需放行 /.well-known，或改 DNS 验证）；临时跳过可 SKIP_PUBLIC_CHECK=1"
+    fi
+    if grep -qiE 'SSL|TLS|certificate' "$curl_err" 2>/dev/null; then
+      local detail
+      detail="$(tr '\n' ' ' <"$curl_err" | head -c 200)"
+      rm -f "$curl_err"
+      die "劫持检查失败：$label TLS/证书异常（$detail）。先修 HTTPS，勿误判为反代端口"
+    fi
+    rm -f "$curl_err"
     die "劫持检查失败：无法访问 $label（连接失败，Web 可能未就绪）"
   fi
+  rm -f "$curl_err"
   code="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'toupper($1) ~ /^HTTP\//{print $2; exit}')"
   loc="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'tolower($1)=="location:"{print $2; exit}')"
 
@@ -674,8 +690,13 @@ if [[ -n "$pub_url" && -n "$css_path" ]]; then
   pub_code="$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 20 --max-redirs 0 \
     "${pub_url%/}${css_path}" 2>/dev/null || echo "000")"
   if [[ "$pub_code" != "200" ]]; then
+    pub_ssl_err="$(curl -sSI --connect-timeout 5 --max-time 15 --max-redirs 0 "${pub_url%/}/" 2>&1 | tr '\n' ' ' | head -c 240 || true)"
     log "⚠️  本机 ${WEB_HOST_PORT} CSS 正常，但公网 ${pub_url}${css_path} 返回 HTTP ${pub_code}"
-    log "   宝塔/Nginx 反代很可能仍指向 3000 或其它端口，请改为 127.0.0.1:${WEB_HOST_PORT}（见 DEPLOYMENT.md §宝塔）"
+    if printf '%s' "$pub_ssl_err" | grep -qiE 'certificate has expired|SSL certificate problem'; then
+      log "   原因：HTTPS 证书已过期（不是反代端口）。请宝塔续签 SSL；ACME 404 时改 DNS 验证或放行 /.well-known"
+    else
+      log "   若本机 3002 正常：先查 SSL/证书；其次查宝塔反代是否指向 127.0.0.1:${WEB_HOST_PORT}（见 DEPLOYMENT.md §宝塔）"
+    fi
   fi
 fi
 
@@ -741,6 +762,11 @@ assert_sw_fresh "http://127.0.0.1:${WEB_HOST_PORT}" "本机" "$served_sw_tok" 1
 
 log "壁纸缓存：本机 daily-wallpapers 勿被反代 no-cache 盖掉"
 assert_wallpaper_long_cache "http://127.0.0.1:${WEB_HOST_PORT}" "本机" || true
+
+if [[ "${SKIP_PUBLIC_CHECK:-0}" == "1" ]]; then
+  log "SKIP_PUBLIC_CHECK=1，跳过公网劫持/版本检查（本机已校验；请尽快修好 HTTPS）"
+  pub_url=""
+fi
 
 if [[ -n "$pub_url" ]]; then
   log "劫持检查：公网 Web"
