@@ -59,18 +59,6 @@ body.external-browser-open .app-body {
   font-weight: 650;
 }
 
-.external-browser-bridge-hint {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 8px 14px;
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--muted, #6b6560);
-  text-align: center;
-  background: color-mix(in srgb, var(--accent, #c45c3e) 8%, var(--bg, #fff));
-  border-bottom: 1px solid color-mix(in srgb, var(--ink, #222) 6%, transparent);
-}
-
 .external-browser-title {
   min-width: 0;
   text-align: center;

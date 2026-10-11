@@ -11,11 +11,6 @@ import {
   type ExternalBrowserOpenDetail,
 } from '@/lib/external_browser';
 import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
-import {
-  GENESIS50_BRIDGE_MESSAGE,
-  isGenesis50BridgeHref,
-  type Genesis50BridgeMessage,
-} from '@/lib/genesis50_auth';
 
 type BrowserState = {
   open: boolean;
@@ -38,23 +33,9 @@ const CLOSED: BrowserState = {
  * 若事件误带站内 URL，直接同窗跳转，不展示浏览器顶栏。
  * 默认 chrome=app：仅返回+标题；无网址 / 无「浏览器打开」。
  */
-function iframeAllowForUrl(url: string): string {
-  const base = 'fullscreen; clipboard-read; clipboard-write';
-  if (!url) return base;
-  try {
-    if (isGenesis50BridgeHref(url) || /hebrews-30|genesis-50|genesis50/i.test(url)) {
-      return `${base}; storage-access *`;
-    }
-  } catch {
-    /* ignore */
-  }
-  return base;
-}
-
 export default function ExternalBrowserSheet() {
   const [state, setState] = useState<BrowserState>(CLOSED);
   const [frameBlocked, setFrameBlocked] = useState(false);
-  const [bridgeHint, setBridgeHint] = useState<string | null>(null);
 
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -90,34 +71,10 @@ export default function ExternalBrowserSheet() {
           chrome,
         };
       });
-      if (nextUrl) {
-        setFrameBlocked(false);
-        setBridgeHint(null);
-      }
+      if (nextUrl) setFrameBlocked(false);
     };
     window.addEventListener(EXTERNAL_BROWSER_OPEN, onOpen);
     return () => window.removeEventListener(EXTERNAL_BROWSER_OPEN, onOpen);
-  }, []);
-
-  useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      if (e.origin !== window.location.origin) return;
-      const data = e.data as Genesis50BridgeMessage | undefined;
-      if (!data || data.type !== GENESIS50_BRIDGE_MESSAGE) return;
-      if (data.status === 'opening') {
-        setBridgeHint(null);
-        return;
-      }
-      if (data.status === 'error') {
-        setBridgeHint(data.message || '自动进入未完成，可在活动页内重试或填写邀请码。');
-        return;
-      }
-      if (data.status === 'manual') {
-        setBridgeHint(null);
-      }
-    };
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
   }, []);
 
   useEffect(() => {
@@ -133,7 +90,6 @@ export default function ExternalBrowserSheet() {
   const close = useCallback(() => {
     setState(CLOSED);
     setFrameBlocked(false);
-    setBridgeHint(null);
     // 同步剥 class，避免门户卸载帧差期间 pointer-events:none 锁死整页
     try {
       document.documentElement.classList.remove('external-browser-open');
@@ -205,12 +161,6 @@ export default function ExternalBrowserSheet() {
           )}
         </header>
 
-        {bridgeHint ? (
-          <p className="external-browser-bridge-hint" role="status">
-            {bridgeHint}
-          </p>
-        ) : null}
-
         <div className="external-browser-body">
           {state.loading || !state.url ? (
             <div className="external-browser-loading" aria-live="polite">
@@ -223,7 +173,7 @@ export default function ExternalBrowserSheet() {
               className="external-browser-frame"
               src={state.url}
               title={state.title}
-              allow={iframeAllowForUrl(state.url)}
+              allow="fullscreen; clipboard-read; clipboard-write"
               referrerPolicy="strict-origin-when-cross-origin"
               onError={() => setFrameBlocked(true)}
             />
