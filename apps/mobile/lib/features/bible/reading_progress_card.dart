@@ -62,6 +62,9 @@ void _showReadingProgressCatalog(
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    isDismissible: true,
+    enableDrag: true,
+    showDragHandle: true,
     backgroundColor: AppColors.paper,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -70,22 +73,12 @@ void _showReadingProgressCatalog(
       child: DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.7,
+        minChildSize: 0.35,
         maxChildSize: 0.92,
         builder: (_, controller) => ListView(
           controller: controller,
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.line,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
             const Center(
               child: Text(
                 '读经目录',
@@ -288,6 +281,9 @@ class _CatalogSection extends StatelessWidget {
                         const SizedBox(height: 1),
                         Text(
                             formatBookProgressLabel(p, b.chapterCount),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
                                 fontSize: 9, color: AppColors.inkFaint)),
                       ],

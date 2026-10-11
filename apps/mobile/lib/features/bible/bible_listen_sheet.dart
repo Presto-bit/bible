@@ -839,18 +839,8 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
                                               alignment: Alignment.center,
                                               child: preparing
                                                   ? null
-                                                  : Text(
-                                                      playing ? '‖' : '▶',
-                                                      style: TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize:
-                                                            playing ? 26 : 24,
-                                                        height: 1,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        letterSpacing:
-                                                            playing ? 0 : 2,
-                                                      ),
+                                                  : _ListenPlayPauseIcon(
+                                                      playing: playing,
                                                     ),
                                             ),
                                           ),
@@ -1278,6 +1268,72 @@ class _BibleListenSheetBodyState extends ConsumerState<_BibleListenSheetBody>
         ),
       ),
     );
+  }
+}
+
+/// 播放/暂停 glyph：CustomPaint 绘制，避免 Android 系统字体把 ▶/‖ 渲染成方块（对齐 PWA）。
+class _ListenPlayPauseIcon extends StatelessWidget {
+  const _ListenPlayPauseIcon({required this.playing});
+
+  final bool playing;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(28, 28),
+      painter: _ListenPlayPauseIconPainter(playing: playing),
+    );
+  }
+}
+
+class _ListenPlayPauseIconPainter extends CustomPainter {
+  _ListenPlayPauseIconPainter({required this.playing});
+
+  final bool playing;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.white;
+    if (playing) {
+      // 暂停：两竖条（对齐 PWA ‖）
+      const barW = 5.0;
+      const gap = 7.0;
+      final h = size.height * 0.52;
+      final top = (size.height - h) / 2;
+      final cx = size.width / 2;
+      final r = Radius.circular(barW / 2);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(cx - gap / 2 - barW, top, barW, h),
+          r,
+        ),
+        paint,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(cx + gap / 2, top, barW, h),
+          r,
+        ),
+        paint,
+      );
+    } else {
+      // 播放：右指三角（对齐 PWA ▶）
+      final w = size.width * 0.78;
+      final h = size.height * 0.88;
+      final left = (size.width - w) / 2 + size.width * 0.06;
+      final top = (size.height - h) / 2;
+      final path = Path()
+        ..moveTo(left, top)
+        ..lineTo(left + w, top + h / 2)
+        ..lineTo(left, top + h)
+        ..close();
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ListenPlayPauseIconPainter oldDelegate) {
+    return oldDelegate.playing != playing;
   }
 }
 

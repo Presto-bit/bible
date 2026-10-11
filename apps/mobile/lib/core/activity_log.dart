@@ -8,7 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../features/notes/notes_repository.dart' show syncEngineProvider;
-import 'product_events.dart';
+import 'api_client.dart' show prefsProvider;
+import 'product_events.dart' show readProv, trackProductEvent;
 import 'user_storage.dart';
 
 const _key = 'presto_activity_log';
@@ -79,7 +80,7 @@ Map<String, ActivityDay> _readAll(SharedPreferences prefs) {
 void _writeAll(
   SharedPreferences prefs,
   Map<String, ActivityDay> all, {
-  Ref? ref,
+  Object? ref,
   String? pushDay,
 }) {
   final out = all.map(
@@ -97,7 +98,7 @@ void _writeAll(
     final row = all[pushDay];
     if (row != null) {
       unawaited(
-        ref.read(syncEngineProvider).enqueueActivityLog(
+        readProv(ref, syncEngineProvider).enqueueActivityLog(
               date: pushDay,
               prayers: row.prayers,
               listenMinutes: row.listenMinutes,
@@ -113,7 +114,7 @@ void _writeAll(
 
 void _bump(
   SharedPreferences prefs,
-  Ref ref,
+  Object ref,
   ActivityDay Function(ActivityDay cur) fn,
 ) {
   final day = _ymd(DateTime.now());
@@ -138,11 +139,11 @@ void _bumpPrayerLog(SharedPreferences prefs) {
 }
 
 Future<void> logActivityPrayer(
-  Ref ref, {
+  Object ref, {
   String? flowId,
   String? planId,
 }) async {
-  final prefs = ref.read(prefsProvider);
+  final prefs = readProv(ref, prefsProvider);
   _bumpPrayerLog(prefs);
   _bump(prefs, ref, (c) => c.copyWith(prayers: c.prayers + 1));
   await trackProductEvent(
@@ -218,7 +219,7 @@ ReportFourthTile pickReportFourthTile({
   return ReportFourthCta('去祷告', '开始第一次', '/pray');
 }
 
-Future<void> logListenOpen(Ref ref, String book, int chapter) {
+Future<void> logListenOpen(Object ref, String book, int chapter) {
   return trackProductEvent(
     ref,
     'listen_open',
@@ -229,7 +230,7 @@ Future<void> logListenOpen(Ref ref, String book, int chapter) {
 }
 
 Future<void> logListenSessionEnd(
-  Ref ref, {
+  Object ref, {
   required String book,
   required int chapter,
   required int minutes,
@@ -238,7 +239,7 @@ Future<void> logListenSessionEnd(
 }) async {
   final mins = minutes < 1 ? 0 : minutes;
   if (mins > 0) {
-    final prefs = ref.read(prefsProvider);
+    final prefs = readProv(ref, prefsProvider);
     _bump(
       prefs,
       ref,
@@ -259,8 +260,8 @@ Future<void> logListenSessionEnd(
   );
 }
 
-Future<void> logShelfCheckin(Ref ref, String bookId, {String? sectionId}) async {
-  final prefs = ref.read(prefsProvider);
+Future<void> logShelfCheckin(Object ref, String bookId, {String? sectionId}) async {
+  final prefs = readProv(ref, prefsProvider);
   _bump(prefs, ref, (c) => c.copyWith(shelfCheckins: c.shelfCheckins + 1));
   await trackProductEvent(
     ref,
@@ -272,7 +273,7 @@ Future<void> logShelfCheckin(Ref ref, String bookId, {String? sectionId}) async 
   );
 }
 
-Future<void> logShelfOpen(Ref ref, String bookId, bool hasProgress) {
+Future<void> logShelfOpen(Object ref, String bookId, bool hasProgress) {
   return trackProductEvent(
     ref,
     'shelf_open',
@@ -282,8 +283,8 @@ Future<void> logShelfOpen(Ref ref, String bookId, bool hasProgress) {
   );
 }
 
-Future<void> logShelfPost(Ref ref, String bookId, String kind) async {
-  final prefs = ref.read(prefsProvider);
+Future<void> logShelfPost(Object ref, String bookId, String kind) async {
+  final prefs = readProv(ref, prefsProvider);
   _bump(prefs, ref, (c) => c.copyWith(shelfPosts: c.shelfPosts + 1));
   await trackProductEvent(
     ref,
@@ -292,8 +293,8 @@ Future<void> logShelfPost(Ref ref, String bookId, String kind) async {
   );
 }
 
-Future<void> logVisualCardView(Ref ref, String cardId, {String mode = 'link'}) async {
-  final prefs = ref.read(prefsProvider);
+Future<void> logVisualCardView(Object ref, String cardId, {String mode = 'link'}) async {
+  final prefs = readProv(ref, prefsProvider);
   _bump(prefs, ref, (c) => c.copyWith(visualCards: c.visualCards + 1));
   await trackProductEvent(
     ref,

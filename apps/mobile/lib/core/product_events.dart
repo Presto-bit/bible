@@ -3,10 +3,19 @@ library;
 
 import 'dart:convert';
 
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod/misc.dart' show ProviderListenable, Ref;
 
 import 'api_client.dart';
+
+/// Notifier 的 [Ref] 与 Widget 的 [WidgetRef] 在 3.3 不再同一类型。
+T readProv<T>(Object ref, ProviderListenable<T> provider) {
+  return switch (ref) {
+    Ref r => r.read(provider),
+    WidgetRef r => r.read(provider),
+    _ => throw ArgumentError.value(ref, 'ref'),
+  };
+}
 
 const productEvents = [
   'app_open',
@@ -41,22 +50,24 @@ String _chinaDayKey() {
 }
 
 Future<void> trackProductEvent(
-  Ref ref,
+  Object ref,
   String event, {
   Map<String, Object?> props = const {},
   bool oncePerDay = false,
   String onceSalt = '',
-}) {
-  if (!productEvents.contains(event)) return Future.value();
+}) async {
+  if (!productEvents.contains(event)) return;
   if (oncePerDay) {
     final key = '${_chinaDayKey()}:$event:$onceSalt';
-    if (_onceKeys.contains(key)) return Future.value();
+    if (_onceKeys.contains(key)) return;
     _onceKeys.add(key);
   }
-  final dio = ref.read(dioProvider);
+  final dio = readProv(ref, dioProvider);
   final body = jsonEncode({'event': event, 'props': props, 'path': 'flutter'});
-  return Future.wait([
-    dio.post('/content/product-event', data: body).onError((_, __) => null),
-    dio.post('/analytics/events', data: body).onError((_, __) => null),
-  ]);
+  try {
+    await dio.post('/content/product-event', data: body);
+  } catch (_) {}
+  try {
+    await dio.post('/analytics/events', data: body);
+  } catch (_) {}
 }

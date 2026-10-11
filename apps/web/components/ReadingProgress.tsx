@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type BibleBook } from '@/lib/api';
 import {
   bookProgressMap,
@@ -9,6 +9,7 @@ import {
   type BookProgress,
 } from '@/lib/reading';
 import AppBodyPortal from '@/components/AppBodyPortal';
+import { useVerticalSwipeDismiss } from '@/lib/use_vertical_swipe_dismiss';
 
 const BOOK_ABBR: Record<string, string> = {
   创世记: '创', 出埃及记: '出', 利未记: '利', 民数记: '民', 申命记: '申',
@@ -51,6 +52,11 @@ export default function ReadingProgress({
   const [books, setBooks] = useState<BibleBook[]>([]);
   const [open, setOpen] = useState(false);
   const [rev, setRev] = useState(0);
+  const sheetBodyRef = useRef<HTMLDivElement | null>(null);
+  const swipe = useVerticalSwipeDismiss({
+    onDismiss: () => setOpen(false),
+    scrollRef: sheetBodyRef,
+  });
 
   useEffect(() => {
     api.books().then((d) => setBooks(d.books)).catch(() => setBooks([]));
@@ -192,10 +198,25 @@ export default function ReadingProgress({
         <AppBodyPortal onTabAway={() => setOpen(false)}>
           <div className="sheet-backdrop" data-dismiss-on-tab-nav onClick={() => setOpen(false)}>
             <div
-              className="sheet card"
-              style={{ maxHeight: '88vh', overflowY: 'auto' }}
+              ref={sheetBodyRef}
+              className="sheet card reading-journey-sheet"
+              style={
+                swipe.dragOffset > 0
+                  ? {
+                      maxHeight: '88vh',
+                      overflowY: 'auto',
+                      transform: `translateY(${swipe.dragOffset}px)`,
+                      transition: 'none',
+                    }
+                  : { maxHeight: '88vh', overflowY: 'auto' }
+              }
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={swipe.onTouchStart}
+              onTouchMove={swipe.onTouchMove}
+              onTouchEnd={swipe.onTouchEnd}
+              onTouchCancel={swipe.onTouchCancel}
             >
+              <div className="half-sheet-grab" aria-hidden />
               <div className="section-row" style={{ marginTop: 0 }}>
                 <h3 style={{ margin: 0 }}>读经目录</h3>
                 <button type="button" className="text-link" onClick={() => setOpen(false)}>

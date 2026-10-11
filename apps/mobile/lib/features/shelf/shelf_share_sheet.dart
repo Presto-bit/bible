@@ -263,7 +263,6 @@ class _ShelfShareSheetState extends ConsumerState<_ShelfShareSheet> {
         await repo.sendDm(threadId, text);
       }
       await logShelfCheckin(
-        // ignore: argument_type_not_assignable — WidgetRef / Ref 仓库既有用法
         ref,
         widget.bookId,
         sectionId: widget.sectionId,

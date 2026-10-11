@@ -91,7 +91,7 @@ export const OFFLINE_CATALOG: OfflineCatalogItem[] = [
   {
     id: 'topics',
     tab: 'materials',
-    name: '人生主题',
+    name: '主题经文索引',
     paths: ['content/topics/topics.json'],
     kind: 'bundle',
   },

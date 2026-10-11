@@ -4458,18 +4458,11 @@ button.rail-card {
 }
 
 .reading-journey-sheet {
-  display: flex;
-  flex-direction: column;
   max-height: 88vh;
-  overflow: hidden;
-  padding-top: 12px;
-}
-
-.reading-journey-sheet-body {
-  flex: 1;
-  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding-top: 10px;
+  padding-bottom: 16px;
 }
 
 .sync-migrate-sheet h2 {
