@@ -8,7 +8,6 @@
  */
 
 import { getUserName } from '@/lib/api';
-import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 import { openExternalBrowser } from '@/lib/external_browser';
 
 const G50_HOST = 'genesis-50.pages.dev';
@@ -237,67 +236,74 @@ async function obtainGenesis50Session(code: string): Promise<G50Session> {
   }
 }
 
-/** 解析可打开的创世记 50 URL（桥接页 / PWA 共用）。 */
-export async function resolveGenesis50OpenUrl(href: string): Promise<string> {
+/** 鉴权失败时带邀请码 query，供用户手动进入活动站。 */
+export function buildGenesis50FallbackUrl(href: string, code?: string): string {
+  const fallback = normalizeHref(href);
+  const invite = (code || resolveGenesis50InviteCode(href)).trim();
+  try {
+    const u = new URL(fallback);
+    if (!u.searchParams.get('code') && !u.searchParams.get('invite') && invite) {
+      u.searchParams.set('code', invite);
+    }
+    return u.toString();
+  } catch {
+    return fallback;
+  }
+}
+
+export type ResolveGenesis50OpenOptions = {
+  /** false：鉴权失败抛错（内嵌桥接页提示）；true：带邀请码兜底 URL（默认，供原生 Custom Tabs 等） */
+  allowFallback?: boolean;
+};
+
+/** 解析可打开的创世记 50 URL（桥接页 / Custom Tabs 共用）。 */
+export async function resolveGenesis50OpenUrl(
+  href: string,
+  options?: ResolveGenesis50OpenOptions,
+): Promise<string> {
+  const allowFallback = options?.allowFallback !== false;
   const fallback = normalizeHref(href);
   const code = resolveGenesis50InviteCode(href);
   try {
     const session = await obtainGenesis50Session(code);
     return buildAuthedUrl(fallback, session);
-  } catch {
-    try {
-      const u = new URL(fallback);
-      if (!u.searchParams.get('code') && !u.searchParams.get('invite')) {
-        u.searchParams.set('code', code);
-      }
-      return u.toString();
-    } catch {
-      return fallback;
+  } catch (err) {
+    if (!allowFallback) {
+      throw err instanceof Error ? err : new Error('自动进入失败');
     }
+    return buildGenesis50FallbackUrl(fallback, code);
   }
 }
 
-/** 应用内打开：PWA 用 iframe 鉴权；Flutter 壳走同源桥接页 + 全屏 WebView。 */
+/** 桥接页向内嵌浏览器父页上报状态（失败时可显示顶栏提示）。 */
+export const GENESIS50_BRIDGE_MESSAGE = 'presto-genesis50-bridge';
+
+export type Genesis50BridgeMessage = {
+  type: typeof GENESIS50_BRIDGE_MESSAGE;
+  status: 'opening' | 'error' | 'manual';
+  message?: string;
+};
+
+export function postGenesis50BridgeMessage(payload: Omit<Genesis50BridgeMessage, 'type'>): void {
+  if (typeof window === 'undefined' || window.parent === window) return;
+  try {
+    window.parent.postMessage(
+      { type: GENESIS50_BRIDGE_MESSAGE, ...payload } satisfies Genesis50BridgeMessage,
+      window.location.origin,
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 应用内打开：内嵌全屏 + 同源桥接页鉴权（与 Android WebView 路径一致，无系统浏览器 chrome）。 */
 export function openGenesis50Authed(href: string): void {
   if (typeof window === 'undefined') return;
   const title = inviteCampaignDisplayTitle(href);
-
-  if (isFlutterH5Host()) {
-    openExternalBrowser({
-      url: buildGenesis50BridgeUrl(href),
-      title,
-      loading: true,
-      chrome: 'app',
-    });
-    return;
-  }
-
-  const code = resolveGenesis50InviteCode(href);
-  const fallback = normalizeHref(href);
-
-  openExternalBrowser({ title, loading: true, chrome: 'app' });
-
-  void (async () => {
-    try {
-      const session = await obtainGenesis50Session(code);
-      openExternalBrowser({
-        url: buildAuthedUrl(fallback, session),
-        title,
-        loading: false,
-        chrome: 'app',
-      });
-    } catch (err) {
-      console.warn('[genesis50] auto enter failed, fallback plain embed', err);
-      // 仍内嵌打开；带 code 方便对方站内手动登录时少一步记忆
-      try {
-        const u = new URL(fallback);
-        if (!u.searchParams.get('code') && !u.searchParams.get('invite')) {
-          u.searchParams.set('code', code);
-        }
-        openExternalBrowser({ url: u.toString(), title, loading: false, chrome: 'app' });
-      } catch {
-        openExternalBrowser({ url: fallback, title, loading: false, chrome: 'app' });
-      }
-    }
-  })();
+  openExternalBrowser({
+    url: buildGenesis50BridgeUrl(href),
+    title,
+    loading: false,
+    chrome: 'app',
+  });
 }
