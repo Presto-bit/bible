@@ -1,4 +1,8 @@
-/// 希伯来书 30 天：安卓 App 内全屏 WebView。主框架打不开或空白时退回 Custom Tabs。
+/// 希伯来书 30 天：安卓 App 内全屏 WebView。
+///
+/// 与 PWA 一致：先打开彼爱同源桥接页 `/campaigns/genesis-50/enter`，
+/// 由页内 JS 鉴权再 `location.replace` 到活动站（避免直链外站 + 过早空白检测）。
+/// 用户可选「浏览器打开」时再走 Custom Tabs。
 library;
 
 import 'dart:async';
@@ -11,21 +15,7 @@ import 'genesis50_auth.dart';
 import 'open_genesis50_tab.dart';
 import 'theme.dart';
 
-const _blankProbeJs = '''
-(function(){
-  try {
-    var b = document.body;
-    if (!b) return '0:0';
-    var text = ((b.innerText || '').replace(/\\s+/g, '')).length;
-    var nodes = b.getElementsByTagName('*').length;
-    return text + ':' + nodes;
-  } catch (e) {
-    return '1:8';
-  }
-})()
-''';
-
-/// 鉴权后在彼爱内打开。返回前若页内加载失败，再走 [openGenesis50InCustomTab]。
+/// 先桥接页、再在 App 内打开；仅用户点「浏览器打开」时退回 Custom Tabs。
 Future<void> openHebrews30InApp(
   BuildContext context, {
   required String href,
@@ -33,77 +23,46 @@ Future<void> openHebrews30InApp(
 }) async {
   if (!context.mounted) return;
   final target = resolveGenesis50RawTarget(href);
-  if (target.isEmpty) {
+  if (target.isEmpty || !isHebrews30Href(target)) {
     await openGenesis50InCustomTab(context, href: href);
     return;
   }
 
-  final navigator = Navigator.of(context, rootNavigator: true);
-  final dialog = DialogRoute<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (ctx) => PopScope(
-      canPop: false,
-      child: AlertDialog(
-        backgroundColor: AppColors.paper,
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2.5),
-            ),
-            const SizedBox(width: 16),
-            Flexible(
-              child: Text('正在进入活动…', style: Theme.of(ctx).textTheme.bodyMedium),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-  unawaited(navigator.push(dialog));
-
-  String? url;
-  try {
-    final resolved = await resolveGenesis50OpenUrl(target);
-    if (resolved.trim().isNotEmpty) url = resolved.trim();
-  } catch (_) {
-    url = null;
-  } finally {
-    try {
-      navigator.removeRoute(dialog);
-    } catch (_) {}
-  }
-
-  if (!context.mounted) return;
-  if (url == null) {
-    await openGenesis50InCustomTab(context, href: href);
-    return;
-  }
+  final startUrl = isGenesis50BridgeHref(href)
+      ? normalizeGenesis50Href(href)
+      : buildGenesis50BridgeUrl(target);
 
   final passed = title?.trim() ?? '';
   final pageTitle = (passed.isNotEmpty && passed != '创世记 50 天')
       ? passed
       : inviteCampaignDisplayTitle(target);
 
-  final gaveUp = await navigator.push<bool>(
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final useBrowser = await navigator.push<bool>(
     MaterialPageRoute<bool>(
       fullscreenDialog: true,
-      builder: (_) => _Hebrews30InAppPage(url: url!, title: pageTitle),
+      builder: (_) => _Hebrews30InAppPage(
+        url: startUrl,
+        title: pageTitle,
+        fallbackHref: target,
+      ),
     ),
   );
-  if (gaveUp == true && context.mounted) {
-    await openGenesis50InCustomTab(context, href: url);
+  if (useBrowser == true && context.mounted) {
+    await openGenesis50InCustomTab(context, href: target);
   }
 }
 
 class _Hebrews30InAppPage extends StatefulWidget {
-  const _Hebrews30InAppPage({required this.url, required this.title});
+  const _Hebrews30InAppPage({
+    required this.url,
+    required this.title,
+    required this.fallbackHref,
+  });
 
   final String url;
   final String title;
+  final String fallbackHref;
 
   @override
   State<_Hebrews30InAppPage> createState() => _Hebrews30InAppPageState();
@@ -113,11 +72,9 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
   WebViewController? _controller;
   var _loading = true;
   var _hadFirstPaint = false;
-  var _leaving = false;
-  var _probed = false;
-  String? _mainUrl;
-  Timer? _watchdog;
-  Timer? _blankCheck;
+  String? _error;
+  String? _loadUrl;
+  Timer? _slowHint;
 
   @override
   void initState() {
@@ -129,29 +86,22 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
 
   @override
   void dispose() {
-    _watchdog?.cancel();
-    _blankCheck?.cancel();
+    _slowHint?.cancel();
     super.dispose();
   }
 
-  void _armWatchdog() {
-    _watchdog?.cancel();
-    if (_hadFirstPaint || _leaving) return;
-    _watchdog = Timer(const Duration(seconds: 16), () {
-      if (!_hadFirstPaint) _failover();
+  void _armSlowHint() {
+    _slowHint?.cancel();
+    _slowHint = Timer(const Duration(seconds: 28), () {
+      if (!mounted || !_loading) return;
+      setState(() {
+        _error ??= '加载较慢，可继续等待、重试，或改用浏览器打开';
+      });
     });
   }
 
-  void _failover() {
-    if (_leaving || !mounted) return;
-    _leaving = true;
-    _watchdog?.cancel();
-    _blankCheck?.cancel();
-    Navigator.of(context).pop(true);
-  }
-
   Future<void> _close() async {
-    if (_leaving || !mounted) return;
+    if (!mounted) return;
     final c = _controller;
     if (c != null) {
       try {
@@ -161,43 +111,28 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
         }
       } catch (_) {}
     }
-    if (!mounted || _leaving) return;
-    _leaving = true;
-    _watchdog?.cancel();
-    _blankCheck?.cancel();
+    if (!mounted) return;
     Navigator.of(context).pop(false);
   }
 
-  void _scheduleBlankCheck() {
-    if (_probed || _leaving) return;
-    _probed = true;
-    _blankCheck?.cancel();
-    _blankCheck = Timer(const Duration(seconds: 5), () {
-      unawaited(_probeBlank());
-    });
+  void _openInBrowser() {
+    if (!mounted) return;
+    Navigator.of(context).pop(true);
   }
 
-  Future<void> _probeBlank() async {
-    if (_leaving || !mounted) return;
-    final c = _controller;
-    if (c == null) return;
-    try {
-      final raw = await c.runJavaScriptReturningResult(_blankProbeJs);
-      if (_leaving || !mounted) return;
-      final s = '$raw'.replaceAll('"', '').trim();
-      final parts = s.split(':');
-      final text = int.tryParse(parts.first) ?? 0;
-      final nodes = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
-      if (text < 2 && nodes < 8) _failover();
-    } catch (_) {
-      // 脚本不可用时留在 App 内，避免误开浏览器。
+  bool _isFatalMainFrameError(WebResourceError err) {
+    if (err.isForMainFrame != true) return false;
+    if (err.errorCode == -3) return false;
+    switch (err.errorType) {
+      case WebResourceErrorType.connect:
+      case WebResourceErrorType.hostLookup:
+      case WebResourceErrorType.failedSslHandshake:
+      case WebResourceErrorType.badUrl:
+      case WebResourceErrorType.timeout:
+        return true;
+      default:
+        return false;
     }
-  }
-
-  bool _sameDocument(String a, String b) {
-    final left = a.trim().split('#').first;
-    final right = b.trim().split('#').first;
-    return left.isNotEmpty && left == right;
   }
 
   Future<void> _configure(WebViewController controller) async {
@@ -206,33 +141,44 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
     await controller.setNavigationDelegate(
       NavigationDelegate(
         onPageStarted: (url) {
-          _mainUrl = url;
+          _loadUrl = url;
           if (!mounted) return;
-          setState(() => _loading = true);
-          _armWatchdog();
+          setState(() {
+            _loading = true;
+            _error = null;
+          });
+          _armSlowHint();
         },
         onPageFinished: (_) {
-          _watchdog?.cancel();
-          if (!mounted || _leaving) return;
+          _slowHint?.cancel();
+          if (!mounted) return;
           setState(() {
             _loading = false;
             _hadFirstPaint = true;
+            _error = null;
           });
-          _scheduleBlankCheck();
         },
         onWebResourceError: (err) {
-          if (err.isForMainFrame != true) return;
-          // 重定向会取消上一个主框架请求（Chromium ERR_ABORTED）。
-          if (err.errorCode == -3) return;
-          _failover();
+          if (!_isFatalMainFrameError(err)) return;
+          _slowHint?.cancel();
+          if (!mounted) return;
+          setState(() {
+            _loading = false;
+            _error = '页面加载失败，请检查网络后重试，或改用浏览器打开';
+          });
         },
         onHttpError: (err) {
           final code = err.response?.statusCode;
           if (code == null || code < 400) return;
           final req = err.request?.uri.toString() ?? '';
-          final main = _mainUrl ?? widget.url;
-          if (!_sameDocument(req, main)) return;
-          _failover();
+          final main = (_loadUrl ?? widget.url).split('#').first;
+          if (req.split('#').first != main) return;
+          _slowHint?.cancel();
+          if (!mounted) return;
+          setState(() {
+            _loading = false;
+            _error = '页面打开失败（$code），请重试或改用浏览器打开';
+          });
         },
         onNavigationRequest: (req) {
           final u = Uri.tryParse(req.url);
@@ -252,9 +198,13 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
     final platform = controller.platform;
     if (platform is AndroidWebViewController) {
       try {
+        await platform.setMixedContentMode(MixedContentMode.alwaysAllow);
+      } catch (_) {}
+      try {
         await platform.setUserAgent(
           'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 '
-          '(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+          '(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36 '
+          'PeiaiFlutter/1.1.1 android_hebrews30',
         );
       } catch (_) {}
       try {
@@ -272,17 +222,32 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
   Future<void> _start(String url) async {
     final controller = WebViewController();
     await _configure(controller);
-    if (!mounted || _leaving) return;
+    if (!mounted) return;
     setState(() {
       _controller = controller;
       _loading = true;
+      _error = null;
     });
-    _armWatchdog();
+    _armSlowHint();
     try {
       await controller.loadRequest(Uri.parse(url));
     } catch (_) {
-      _failover();
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = '页面加载失败，请检查网络后重试，或改用浏览器打开';
+      });
     }
+  }
+
+  void _retry() {
+    final url = widget.url;
+    setState(() {
+      _error = null;
+      _loading = true;
+      _hadFirstPaint = false;
+    });
+    unawaited(_start(url));
   }
 
   @override
@@ -290,7 +255,7 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop || _leaving) return;
+        if (didPop) return;
         unawaited(_close());
       },
       child: Scaffold(
@@ -305,11 +270,46 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
             icon: const Icon(Icons.close),
             onPressed: () => unawaited(_close()),
           ),
+          actions: [
+            TextButton(
+              onPressed: _openInBrowser,
+              child: const Text('浏览器打开'),
+            ),
+          ],
         ),
         body: Stack(
           children: [
             if (_controller != null) WebViewWidget(controller: _controller!),
-            if (_loading && !_hadFirstPaint)
+            if (_error != null)
+              ColoredBox(
+                color: AppColors.paper.withValues(alpha: 0.92),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: _retry,
+                          child: const Text('重试'),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: _openInBrowser,
+                          child: const Text('浏览器打开'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else if (_loading && !_hadFirstPaint)
               const ColoredBox(
                 color: AppColors.paper,
                 child: Center(
