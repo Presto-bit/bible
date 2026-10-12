@@ -16,7 +16,9 @@ from .daily_verse_react import (
     ensure_daily_verse_react_schema,
     preset_or_none,
 )
-from .daily_verse_warm_settings import get_warm_settings
+from .daily_verse_warm_settings import get_warm_settings, progress_knots_from_settings
+
+WarmTickMode = str  # "cron" | "manual" | "catch_up"
 
 logger = logging.getLogger(__name__)
 
@@ -86,25 +88,17 @@ def target_cap_for_date(settings: dict[str, Any], d: date) -> int:
     return min(cap_max, max(cap_min, round(raw * _day_jitter(d))))
 
 
-def day_progress_fraction(now: datetime) -> float:
-    """北京时间当日暖场进度 0..1（6:00 前为 0）。"""
+def day_progress_fraction(now: datetime, settings: dict[str, Any] | None = None) -> float:
+    """北京时间当日暖场进度 0..1（day_start_hour 前为 0）。"""
+    settings = settings or {}
+    start_h = float(settings.get("day_start_hour") if settings else 6)
     local = now.astimezone(CHINA_TZ)
     hour = local.hour + local.minute / 60.0 + local.second / 3600.0
-    if hour < 6.0:
+    if hour < start_h:
         return 0.0
-    knots = (
-        (6.0, 0.0),
-        (8.0, 0.14),
-        (10.0, 0.26),
-        (12.0, 0.38),
-        (14.0, 0.48),
-        (17.0, 0.62),
-        (19.0, 0.76),
-        (21.0, 0.90),
-        (23.0, 1.0),
-    )
+    knots = progress_knots_from_settings(settings) if settings else progress_knots_from_settings({})
     if hour >= knots[-1][0]:
-        return 1.0
+        return knots[-1][1]
     for i in range(len(knots) - 1):
         h0, p0 = knots[i]
         h1, p1 = knots[i + 1]
@@ -114,6 +108,45 @@ def day_progress_fraction(now: datetime) -> float:
             u = (hour - h0) / (h1 - h0)
             return p0 + (p1 - p0) * u
     return 0.0
+
+
+def _remaining_cron_slots_today(now: datetime, settings: dict[str, Any]) -> int:
+    local = now.astimezone(CHINA_TZ)
+    start_h = float(settings.get("day_start_hour") or 6)
+    end_h = float(settings.get("day_end_hour") or 23)
+    interval = max(1, int(settings.get("cron_interval_minutes") or 30))
+    hour = local.hour + local.minute / 60.0 + local.second / 3600.0
+    if hour < start_h:
+        window_min = (end_h - start_h) * 60.0
+        return max(1, int(window_min / interval))
+    if hour >= end_h:
+        return 1
+    remaining_min = (end_h - hour) * 60.0
+    return max(1, int(remaining_min / interval) + 1)
+
+
+def _writes_cap_for_tick(
+    *,
+    gap: int,
+    mode: WarmTickMode,
+    settings: dict[str, Any],
+    now: datetime,
+) -> int:
+    if gap <= 0:
+        return 0
+    if mode == "manual":
+        cap = int(settings.get("manual_max_writes") or 2)
+        return min(gap, cap)
+    if mode == "catch_up":
+        cap = int(settings.get("catch_up_max_writes") or 12)
+        return min(gap, cap)
+    cap = int(settings.get("cron_max_writes") or 8)
+    policy = settings.get("catch_up_policy") or "spread_by_remaining_slots"
+    if policy == "spread_by_remaining_slots":
+        slots = _remaining_cron_slots_today(now, settings)
+        spread_cap = max(1, (gap + slots - 1) // slots)
+        return min(gap, cap, spread_cap)
+    return min(gap, cap)
 
 
 def _rng_for(*parts: str) -> random.Random:
@@ -199,13 +232,15 @@ def _count_distinct_engagement(
     return int(row[0]) if row else 0
 
 
-def _persona_behavior(index: int, d: date) -> tuple[bool, bool]:
-    """(like, react) 固定 persona 倾向 + 日级抖动。"""
+def _persona_behavior(index: int, d: date, settings: dict[str, Any]) -> tuple[bool, bool]:
+    """(like, react) persona 倾向 + 日级抖动。"""
     r = _rng_for("behavior", synthetic_user_code(index), d.isoformat())
     roll = r.random()
-    if roll < 0.62:
+    p_like = float(settings.get("behavior_like_only") or 0.62)
+    p_react = float(settings.get("behavior_react_only") or 0.18)
+    if roll < p_like:
         return True, False
-    if roll < 0.82:
+    if roll < p_like + p_react:
         return False, True
     return True, True
 
@@ -215,12 +250,32 @@ def _pick_preset(index: int, d: date) -> str:
     return r.choices(PRESET_IDS, weights=PRESET_WEIGHTS, k=1)[0]
 
 
-def _random_created_at(now: datetime, rng: random.Random) -> datetime:
+def _random_created_at(
+    now: datetime,
+    rng: random.Random,
+    settings: dict[str, Any],
+) -> datetime:
     local = now.astimezone(CHINA_TZ)
-    back_min = rng.randint(5, 75)
-    ts = local - timedelta(minutes=back_min)
+    back_lo = int(settings.get("backdate_min_minutes") or 5)
+    back_hi = int(settings.get("backdate_max_minutes") or 75)
+    if back_hi < back_lo:
+        back_hi = back_lo
+    if settings.get("use_day_spread_timestamps"):
+        start_h = int(settings.get("day_start_hour") or 6)
+        day_start = local.replace(hour=start_h, minute=0, second=0, microsecond=0)
+        if local <= day_start:
+            ts = local - timedelta(minutes=back_lo)
+        else:
+            span_sec = max(60, int((local - day_start).total_seconds()))
+            offset = rng.randint(0, span_sec)
+            ts = day_start + timedelta(seconds=offset)
+    else:
+        back_min = rng.randint(back_lo, back_hi)
+        ts = local - timedelta(minutes=back_min)
     if ts.date() != local.date():
-        ts = local - timedelta(minutes=5)
+        ts = local - timedelta(minutes=back_lo)
+    if ts > local:
+        ts = local - timedelta(minutes=back_lo)
     return ts.astimezone(now.tzinfo) if now.tzinfo else ts
 
 
@@ -308,12 +363,16 @@ def run_warm_tick(
     *,
     verse_day: int,
     now: datetime | None = None,
-    max_writes: int = 8,
+    mode: WarmTickMode = "cron",
+    max_writes: int | None = None,
 ) -> dict[str, Any]:
     """执行一次暖场写入（cron 多次调用，分波推进）。"""
     settings = get_warm_settings(conn)
     if not settings.get("enabled"):
-        return {"ok": True, "skipped": "disabled"}
+        return {"ok": True, "skipped": "disabled", "mode": mode}
+
+    if mode not in ("cron", "manual", "catch_up"):
+        mode = "cron"
 
     now = now or datetime.now(CHINA_TZ)
     d = now.astimezone(CHINA_TZ).date()
@@ -327,21 +386,26 @@ def run_warm_tick(
 
     target_total = min(cap, real_u + max_boost)
     synthetic_budget = max(0, target_total - real_u)
-    progress = day_progress_fraction(now)
+    progress = day_progress_fraction(now, settings)
     expected_synthetic = int(synthetic_budget * progress)
-    to_add = max(0, expected_synthetic - synthetic_u)
-    to_add = min(to_add, max_writes)
+    gap = max(0, expected_synthetic - synthetic_u)
+    if max_writes is not None:
+        to_add = min(gap, max(1, int(max_writes)))
+    else:
+        to_add = _writes_cap_for_tick(gap=gap, mode=mode, settings=settings, now=now)
 
     if to_add <= 0:
         return {
             "ok": True,
             "skipped": "caught_up",
+            "mode": mode,
             "cap": cap,
             "real_u": real_u,
             "total_u": total_u,
             "synthetic_u": synthetic_u,
             "target_total": target_total,
             "progress": round(progress, 3),
+            "gap": gap,
         }
 
     candidates = _inactive_personas_today(conn, verse_day, d)[: to_add * 3]
@@ -351,11 +415,11 @@ def run_warm_tick(
         if personas_used >= to_add:
             break
         code = synthetic_user_code(idx)
-        do_like, do_react = _persona_behavior(idx, d)
+        do_like, do_react = _persona_behavior(idx, d, settings)
         if not do_like and not do_react:
             do_like = True
         rng = _rng_for("write", code, d.isoformat(), str(verse_day), str(personas_used))
-        created_at = _random_created_at(now, rng)
+        created_at = _random_created_at(now, rng, settings)
         wrote = False
         if do_like:
             if _insert_like(conn, verse_day=verse_day, user_code=code, created_at=created_at):
@@ -378,6 +442,7 @@ def run_warm_tick(
 
     return {
         "ok": True,
+        "mode": mode,
         "cap": cap,
         "real_u": real_u,
         "total_u": total_u,
@@ -385,6 +450,8 @@ def run_warm_tick(
         "target_total": target_total,
         "synthetic_budget": synthetic_budget,
         "progress": round(progress, 3),
+        "gap": gap,
+        "to_add": to_add,
         "personas_added": personas_used,
         "likes_written": likes_written,
         "reacts_written": reacts_written,

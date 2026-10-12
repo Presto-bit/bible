@@ -785,6 +785,11 @@ def admin_resolve_hero_b_link(
     return {"href": href}
 
 
+class DailyVerseWarmProgressKnot(BaseModel):
+    hour: float
+    progress: float
+
+
 class DailyVerseWarmSettingsBody(BaseModel):
     enabled: bool | None = None
     t0: str | None = None
@@ -792,6 +797,20 @@ class DailyVerseWarmSettingsBody(BaseModel):
     cap_min: int | None = None
     cap_max: int | None = None
     max_boost: int | None = None
+    cron_max_writes: int | None = None
+    manual_max_writes: int | None = None
+    catch_up_max_writes: int | None = None
+    catch_up_policy: str | None = None
+    day_start_hour: int | None = None
+    day_end_hour: int | None = None
+    progress_knots: list[DailyVerseWarmProgressKnot] | None = None
+    cron_interval_minutes: int | None = None
+    behavior_like_only: float | None = None
+    behavior_react_only: float | None = None
+    behavior_both: float | None = None
+    backdate_min_minutes: int | None = None
+    backdate_max_minutes: int | None = None
+    use_day_spread_timestamps: bool | None = None
 
 
 def _daily_verse_warm_status(conn) -> dict:
@@ -814,7 +833,7 @@ def _daily_verse_warm_status(conn) -> dict:
     real_u = _count_distinct_engagement(conn, verse_day=verse_day, synthetic_only=False)
     synthetic_u = _count_distinct_engagement(conn, verse_day=verse_day, synthetic_only=True)
     total_u = _count_distinct_engagement(conn, verse_day=verse_day, synthetic_only=None)
-    progress = day_progress_fraction(china_now())
+    progress = day_progress_fraction(china_now(), settings)
     max_boost = int(settings.get("max_boost") or 20)
     target_total = min(cap, real_u + max_boost)
     return {
@@ -866,7 +885,7 @@ def admin_patch_daily_verse_warm(
 @router.post("/ops/daily-verse-warm/run")
 def admin_run_daily_verse_warm(
     _phone: str = Depends(require_admin),
-    max_writes: int = Query(12, ge=1, le=30),
+    mode: str = Query("manual", pattern="^(manual|catch_up)$"),
 ) -> dict:
     from ..content.daily_clock import china_today, verse_day_for_date
     from ..content import loader
@@ -878,7 +897,7 @@ def admin_run_daily_verse_warm(
         verse_day = verse_day_for_date(china_today(), len(verses) or 366)
         pool = get_pool()
         with pool.connection() as conn:
-            tick = run_warm_tick(conn, verse_day=verse_day, max_writes=max_writes)
+            tick = run_warm_tick(conn, verse_day=verse_day, mode=mode)
             conn.commit()
             status = _daily_verse_warm_status(conn)
         return {"tick": tick, **status}

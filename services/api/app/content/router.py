@@ -318,7 +318,7 @@ def cron_daily_verse_warm(
     try:
         pool = get_pool()
         with pool.connection() as conn:
-            result = run_warm_tick(conn, verse_day=verse_day)
+            result = run_warm_tick(conn, verse_day=verse_day, mode="cron")
             conn.commit()
         return result
     except Exception as exc:
