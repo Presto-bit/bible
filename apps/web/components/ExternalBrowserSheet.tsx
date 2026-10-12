@@ -12,7 +12,10 @@ import {
   type ExternalBrowserOpenDetail,
 } from '@/lib/external_browser';
 import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
-import { resolveInviteCampaignEnterUrl } from '@/lib/genesis50_auth';
+import {
+  readRememberedGenesis50InviteCode,
+  resolveInviteCampaignEnterUrl,
+} from '@/lib/genesis50_auth';
 
 type BrowserState = {
   open: boolean;
@@ -22,6 +25,7 @@ type BrowserState = {
   chrome: ExternalBrowserChrome;
   inviteCampaign: ExternalBrowserInviteCampaign | null;
   inviteForm: boolean;
+  forceEmbed: boolean;
 };
 
 const CLOSED: BrowserState = {
@@ -32,6 +36,7 @@ const CLOSED: BrowserState = {
   chrome: 'app',
   inviteCampaign: null,
   inviteForm: false,
+  forceEmbed: false,
 };
 
 /**
@@ -51,9 +56,10 @@ export default function ExternalBrowserSheet() {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent<ExternalBrowserOpenDetail>).detail || {};
       const nextUrl = (detail.url || '').trim();
+      const forceEmbed = Boolean(detail.forceEmbed);
 
-      // 站内链接不应进入内嵌浏览器（避免 PWA 套 PWA + 双层壳）
-      if (nextUrl && toInternalAppPath(nextUrl)) {
+      // 站内链接不应进入内嵌浏览器（避免 PWA 套 PWA + 双层壳）；活动 embed 除外
+      if (nextUrl && !forceEmbed && toInternalAppPath(nextUrl)) {
         openCampaignHref(nextUrl);
         return;
       }
@@ -93,10 +99,15 @@ export default function ExternalBrowserSheet() {
           chrome,
           inviteCampaign,
           inviteForm,
+          forceEmbed: forceEmbed || (prev.open ? prev.forceEmbed : false),
         };
       });
-      if (detail.inviteCampaign?.code) {
-        setInviteCode((c) => c || detail.inviteCampaign!.code || '');
+      const preferredCode =
+        detail.inviteCampaign?.code ||
+        readRememberedGenesis50InviteCode() ||
+        '';
+      if (preferredCode) {
+        setInviteCode((c) => c || preferredCode);
       }
       if (nextUrl) {
         setFrameBlocked(false);

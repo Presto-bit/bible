@@ -25,6 +25,11 @@ export type ExternalBrowserOpenDetail = {
   inviteCampaign?: ExternalBrowserInviteCampaign;
   /** 自动鉴权失败时直接展示壳内邀请码表单（不先打开外站邀请页） */
   inviteForm?: boolean;
+  /**
+   * 为 true 时即使 URL 是本站路径也留在 iframe（活动 embed 代理）。
+   * 默认 false：站内 URL 会改走同窗导航，避免套娃。
+   */
+  forceEmbed?: boolean;
 };
 
 export function openExternalBrowser(detail: ExternalBrowserOpenDetail): void {
@@ -47,6 +52,7 @@ export function openExternalBrowser(detail: ExternalBrowserOpenDetail): void {
         chrome: detail.chrome === 'browser' ? 'browser' : 'app',
         inviteCampaign: detail.inviteCampaign,
         inviteForm: Boolean(detail.inviteForm),
+        forceEmbed: Boolean(detail.forceEmbed),
       } satisfies ExternalBrowserOpenDetail,
     }),
   );

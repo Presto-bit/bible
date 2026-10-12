@@ -10,6 +10,7 @@
 
 import { getUserName } from '@/lib/api';
 import { clientWithBasePath } from '@/lib/basePath';
+import { toCampaignEmbedUrl } from '@/lib/campaign_embed';
 import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 import { openExternalBrowser } from '@/lib/external_browser';
 
@@ -25,6 +26,8 @@ export const GENESIS50_BRIDGE_PATH = '/campaigns/genesis-50/enter';
 const G50_ANON_KEY = 'sb_publishable_aH3DWsTgZ4X0A4W_zJmyzw_wd7yk7pm';
 /** 运营未在链接里带 ?code= 时的默认邀请码 */
 const G50_DEFAULT_CODE = '0CIW43NR';
+/** 用户上次成功使用的邀请码（本机） */
+const INVITE_CODE_STORAGE_KEY = 'peiai.inviteCampaignCode.v1';
 
 export type G50Session = {
   access_token: string;
@@ -114,6 +117,26 @@ export function isGenesis50BridgeHref(href: string): boolean {
   }
 }
 
+export function rememberGenesis50InviteCode(code: string): void {
+  const c = (code || '').trim().toUpperCase();
+  if (!c || typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(INVITE_CODE_STORAGE_KEY, c);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readRememberedGenesis50InviteCode(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return (localStorage.getItem(INVITE_CODE_STORAGE_KEY) || '').trim().toUpperCase();
+  } catch {
+    return '';
+  }
+}
+
+/** 优先级：链接 ?code= → 本机上次成功码 → 默认码 */
 export function resolveGenesis50InviteCode(href: string): string {
   try {
     const u = new URL(normalizeHref(href));
@@ -124,6 +147,8 @@ export function resolveGenesis50InviteCode(href: string): string {
   } catch {
     /* ignore */
   }
+  const remembered = readRememberedGenesis50InviteCode();
+  if (remembered) return remembered;
   return G50_DEFAULT_CODE;
 }
 
@@ -248,13 +273,20 @@ export async function obtainGenesis50Session(code: string): Promise<G50Session> 
   }
 }
 
-/** 壳内邀请码一次进入：本域换 session 后返回可嵌入的外站 URL。 */
+/** PWA iframe：同站 embed + token（抑制引导弹窗、稳定 session）。 */
+export function buildGenesis50PwaOpenUrl(href: string, session: G50Session): string {
+  return toCampaignEmbedUrl(buildGenesis50AuthedUrl(href, session));
+}
+
+/** 壳内邀请码一次进入：本域换 session 后返回可嵌入的 URL。 */
 export async function resolveInviteCampaignEnterUrl(
   href: string,
   code: string,
 ): Promise<string> {
-  const session = await obtainGenesis50Session(code.trim().toUpperCase());
-  return buildGenesis50AuthedUrl(normalizeHref(href), session);
+  const normalized = code.trim().toUpperCase();
+  const session = await obtainGenesis50Session(normalized);
+  rememberGenesis50InviteCode(normalized);
+  return buildGenesis50PwaOpenUrl(normalizeHref(href), session);
 }
 
 /** 解析可打开的创世记 50 URL（桥接页 / PWA 共用）。 */
@@ -301,17 +333,20 @@ export function openGenesis50Authed(href: string): void {
     loading: true,
     chrome: 'app',
     inviteCampaign,
+    forceEmbed: true,
   });
 
   void (async () => {
     try {
       const session = await obtainGenesis50Session(code);
+      rememberGenesis50InviteCode(code);
       openExternalBrowser({
-        url: buildAuthedUrl(fallback, session),
+        url: buildGenesis50PwaOpenUrl(fallback, session),
         title,
         loading: false,
         chrome: 'app',
         inviteCampaign,
+        forceEmbed: true,
       });
     } catch (err) {
       console.warn('[genesis50] auto enter failed, show in-shell invite form', err);
@@ -323,6 +358,7 @@ export function openGenesis50Authed(href: string): void {
         chrome: 'app',
         inviteCampaign,
         inviteForm: true,
+        forceEmbed: true,
       });
     }
   })();
