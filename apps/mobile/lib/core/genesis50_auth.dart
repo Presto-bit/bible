@@ -1,6 +1,7 @@
 /// 创世记 50 天自动登录（对齐 `apps/web/lib/genesis50_auth.ts`）。
 ///
-/// Android：Flutter 鉴权 + Chrome Custom Tabs 打开原链接（open_genesis50_tab.dart）。
+/// Android 希伯来书 30：App 内全屏 WebView，失败再 Custom Tabs（open_hebrews30_page.dart）。
+/// Android 创世记 50：Flutter 鉴权 + Chrome Custom Tabs（open_genesis50_tab.dart）。
 /// Web 桥接页 `/campaigns/genesis-50/enter` 仍供 PWA / H5 内嵌浏览器。
 library;
 
@@ -108,7 +109,7 @@ bool _isInviteCampaignHost(String host) {
 bool isGenesis50Href(String href) {
   final t = href.trim().toLowerCase();
   if (t.contains('genesis-50') || t.contains('genesis50')) return true;
-  if (t.contains('hebrews-30') || t.contains('hebrews30')) return true;
+  if (isHebrews30Href(href)) return true;
   try {
     final u = Uri.parse(normalizeGenesis50Href(href));
     return _isInviteCampaignHost(u.host);
@@ -117,11 +118,22 @@ bool isGenesis50Href(String href) {
   }
 }
 
+/// 希伯来书 30 天活动外站（含桥接链 query 里的目标地址）。
+bool isHebrews30Href(String href) {
+  final t = href.trim().toLowerCase();
+  if (t.contains('hebrews-30') || t.contains('hebrews30')) return true;
+  try {
+    final u = Uri.parse(normalizeGenesis50Href(href));
+    final h = u.host.trim().toLowerCase();
+    return h == _hebrews30Host || h.endsWith('.$_hebrews30Host');
+  } catch (_) {
+    return false;
+  }
+}
+
 String inviteCampaignDisplayTitle(String href) {
   final t = href.trim().toLowerCase();
-  if (t.contains('hebrews-30') ||
-      t.contains('hebrews30') ||
-      t.contains('hebrews')) {
+  if (isHebrews30Href(href) || t.contains('hebrews')) {
     return '希伯来书 30 天';
   }
   try {
