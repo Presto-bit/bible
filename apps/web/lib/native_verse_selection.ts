@@ -186,29 +186,28 @@ export function rebuildPinnedFromEdges(
   return { verses, text, spans };
 }
 
-/** 触点映射到某节正文内的字符偏移（扩选拖动手柄）。 */
-export function verseCharAtPoint(
-  root: HTMLElement | null,
+function caretRangeAtPoint(doc: Document, x: number, y: number): Range | null {
+  if (typeof doc.caretRangeFromPoint === 'function') {
+    return doc.caretRangeFromPoint(x, y);
+  }
+  const pos = (
+    doc as Document & {
+      caretPositionFromPoint?: (px: number, py: number) => { offsetNode: Node; offset: number } | null;
+    }
+  ).caretPositionFromPoint?.(x, y);
+  if (!pos) return null;
+  const range = doc.createRange();
+  range.setStart(pos.offsetNode, pos.offset);
+  range.collapse(true);
+  return range;
+}
+
+function verseCharAtPointOnce(
+  root: HTMLElement,
   x: number,
   y: number,
 ): { verse: number; offset: number } | null {
-  if (!root || typeof document === 'undefined') return null;
-  const doc = root.ownerDocument;
-  let range: Range | null = null;
-  if (typeof doc.caretRangeFromPoint === 'function') {
-    range = doc.caretRangeFromPoint(x, y);
-  } else {
-    const pos = (
-      doc as Document & {
-        caretPositionFromPoint?: (px: number, py: number) => { offsetNode: Node; offset: number } | null;
-      }
-    ).caretPositionFromPoint?.(x, y);
-    if (pos) {
-      range = doc.createRange();
-      range.setStart(pos.offsetNode, pos.offset);
-      range.collapse(true);
-    }
-  }
+  const range = caretRangeAtPoint(root.ownerDocument, x, y);
   if (!range) return null;
   const node = range.startContainer;
   if (!root.contains(node)) return null;
@@ -224,6 +223,62 @@ export function verseCharAtPoint(
     return { verse, offset };
   }
   return { verse, offset: charOffsetInVerseBody(body, node, range.startOffset) };
+}
+
+/**
+ * 触点 → 经节字符偏移。
+ * 拖动手柄时触点常落在手柄上，需暂时关掉手柄命中并多点取样（贴近 iOS 跟手）。
+ */
+export function verseCharAtPoint(
+  root: HTMLElement | null,
+  x: number,
+  y: number,
+  opts?: { edge?: 'start' | 'end'; ignoreSelector?: string },
+): { verse: number; offset: number } | null {
+  if (!root || typeof document === 'undefined') return null;
+  const ignored: HTMLElement[] = [];
+  const selector = opts?.ignoreSelector ?? '.reader-sel-handle';
+  document.querySelectorAll(selector).forEach((el) => {
+    const h = el as HTMLElement;
+    ignored.push(h);
+    h.style.pointerEvents = 'none';
+  });
+  try {
+    const edge = opts?.edge;
+    const samples: Array<[number, number]> =
+      edge === 'start'
+        ? [
+          [x + 14, y + 10],
+          [x + 28, y + 6],
+          [x + 8, y],
+          [x, y + 18],
+          [x, y],
+          [x - 6, y + 8],
+        ]
+        : edge === 'end'
+          ? [
+            [x - 14, y + 10],
+            [x - 28, y + 6],
+            [x - 8, y],
+            [x, y - 10],
+            [x, y],
+            [x + 6, y + 8],
+          ]
+          : [
+            [x, y],
+            [x, y - 10],
+            [x, y + 10],
+            [x - 8, y],
+            [x + 8, y],
+          ];
+    for (const [sx, sy] of samples) {
+      const hit = verseCharAtPointOnce(root, sx, sy);
+      if (hit) return hit;
+    }
+    return null;
+  } finally {
+    for (const h of ignored) h.style.pointerEvents = '';
+  }
 }
 
 export type SelHandlePoint = { x: number; y: number; h: number };

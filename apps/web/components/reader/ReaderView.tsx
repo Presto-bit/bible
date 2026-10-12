@@ -2446,7 +2446,11 @@ export default function ReaderView({
       ev.stopPropagation();
     };
 
+    let finishLockUntil = 0;
     const finishAfterPointerUp = () => {
+      const now = Date.now();
+      if (now < finishLockUntil) return;
+      finishLockUntil = now + 120;
       window.clearTimeout(nativeCollapseTimerRef.current);
       nativeCollapseTimerRef.current = 0;
       if (autoCollapseNativeSel) {

@@ -1260,6 +1260,12 @@ body.reader-overlay-open .reader-page {
 }
 /* 触控/PWA/安卓壳 原生划选：user-select 保留放大镜+蓝底；touch-callout:none 隐藏长按菜单 */
 @media (hover: none) and (pointer: coarse), (display-mode: standalone), (display-mode: fullscreen) {
+  .reader-page,
+  .reader-page .reader-content,
+  .reader-page .reader-scroll-panel,
+  .reader-page .reader-turn-panel {
+    -webkit-touch-callout: none !important;
+  }
   /* 壳 document-start 会伪装 display-mode；粗指针手机亦命中 */
   .reader-page .verse-token,
   .reader-page .verse-inline,
@@ -1989,11 +1995,11 @@ body.reader-overlay-open .reader-page {
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
-/* PWA/触控：收起系统选区后自绘起止拖动手柄 */
+/* PWA/触控：收起系统选区后自绘起止拖动手柄（命中区加大，近似 iOS） */
 .reader-sel-handle {
   position: fixed;
   z-index: 92;
-  width: 28px;
+  width: 44px;
   margin: 0;
   padding: 0;
   border: none;
@@ -2004,6 +2010,7 @@ body.reader-overlay-open .reader-page {
   user-select: none;
   cursor: grab;
   -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 .reader-sel-handle::before {
   content: '';
@@ -2021,8 +2028,8 @@ body.reader-overlay-open .reader-page {
   content: '';
   position: absolute;
   left: 50%;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--reader-sel-handle, #3478f6);
   transform: translateX(-50%);
@@ -2030,17 +2037,27 @@ body.reader-overlay-open .reader-page {
   pointer-events: none;
 }
 .reader-sel-handle-start::after {
-  top: -12px;
+  top: -14px;
 }
 .reader-sel-handle-end::after {
-  bottom: -12px;
+  bottom: -14px;
 }
-.reader-sel-handle:active {
+.reader-sel-handle:active,
+body.reader-sel-handle-dragging .reader-sel-handle {
   cursor: grabbing;
 }
 .reader-sel-handle:focus-visible {
   outline: 2px solid var(--reader-sel-handle, #3478f6);
   outline-offset: 2px;
+}
+/* 拖动手柄时禁止页面滚动抢手势 */
+body.reader-sel-handle-dragging {
+  overflow: hidden;
+  touch-action: none;
+}
+body.reader-sel-handle-dragging .reader-content,
+body.reader-sel-handle-dragging .reader-scroll-panel {
+  touch-action: none !important;
 }
 /* 触控划选 pin：CSS Highlight API，不包裹词块、不改 DOM */
 ::highlight(verse-native-pinned) {

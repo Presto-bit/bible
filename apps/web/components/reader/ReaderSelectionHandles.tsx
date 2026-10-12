@@ -22,7 +22,7 @@ type Props = {
 };
 
 /**
- * PWA/触控：系统选区收起后，自绘起止手柄，拖动扩/缩选区。
+ * PWA/触控：系统选区收起后，自绘起止手柄，拖动扩/缩选区（跟手近似 iOS）。
  */
 export function ReaderSelectionHandles({
   rootRef,
@@ -38,11 +38,17 @@ export function ReaderSelectionHandles({
     pointerId: number;
     bounds: NonNullable<ReturnType<typeof pinnedSpanBounds>>;
   } | null>(null);
-  const rafRef = useRef(0);
+  const rafHitRef = useRef(0);
+  const pendingPointRef = useRef<{ x: number; y: number } | null>(null);
   const pinnedRef = useRef(pinned);
   pinnedRef.current = pinned;
+  const onAdjustRef = useRef(onAdjust);
+  onAdjustRef.current = onAdjust;
+  const onDragChangeRef = useRef(onDragChange);
+  onDragChangeRef.current = onDragChange;
 
   const refresh = useCallback(() => {
+    if (dragRef.current) return;
     const next = measureSelHandlePositions(rootRef.current);
     setPos(next);
   }, [rootRef]);
@@ -67,53 +73,90 @@ export function ReaderSelectionHandles({
     };
   }, [visible, pinned, refresh, rootRef]);
 
-  const applyAtPoint = useCallback(
-    (edge: Edge, x: number, y: number, base: NonNullable<ReturnType<typeof pinnedSpanBounds>>) => {
-      const hit = verseCharAtPoint(rootRef.current, x, y);
-      if (!hit) return;
-      const next =
-        edge === 'start'
-          ? rebuildPinnedFromEdges(
-            rootRef.current,
-            hit.verse,
-            hit.offset,
-            base.endVerse,
-            base.endOff,
-          )
-          : rebuildPinnedFromEdges(
-            rootRef.current,
-            base.startVerse,
-            base.startOff,
-            hit.verse,
-            hit.offset,
-          );
-      if (!next) return;
-      onAdjust(next);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = 0;
-        refresh();
+  const flushHit = useCallback(() => {
+    rafHitRef.current = 0;
+    const drag = dragRef.current;
+    const pt = pendingPointRef.current;
+    if (!drag || !pt) return;
+    const hit = verseCharAtPoint(rootRef.current, pt.x, pt.y, { edge: drag.edge });
+    if (!hit) return;
+    const next =
+      drag.edge === 'start'
+        ? rebuildPinnedFromEdges(
+          rootRef.current,
+          hit.verse,
+          hit.offset,
+          drag.bounds.endVerse,
+          drag.bounds.endOff,
+        )
+        : rebuildPinnedFromEdges(
+          rootRef.current,
+          drag.bounds.startVerse,
+          drag.bounds.startOff,
+          hit.verse,
+          hit.offset,
+        );
+    if (!next) return;
+    onAdjustRef.current(next);
+    // 拖动中手柄跟手指；松手后再量 DOM
+    const measured = measureSelHandlePositions(rootRef.current);
+    if (measured) {
+      setPos({
+        start:
+          drag.edge === 'start'
+            ? { x: pt.x, y: pt.y - measured.start.h / 2, h: measured.start.h }
+            : measured.start,
+        end:
+          drag.edge === 'end'
+            ? { x: pt.x, y: pt.y - measured.end.h / 2, h: measured.end.h }
+            : measured.end,
       });
-    },
-    [onAdjust, refresh, rootRef],
-  );
+    }
+  }, [rootRef]);
 
-  const endDrag = useCallback(
-    (e: React.PointerEvent) => {
+  const endDrag = useCallback((pointerId?: number) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (pointerId != null && drag.pointerId !== pointerId) return;
+    dragRef.current = null;
+    pendingPointRef.current = null;
+    if (rafHitRef.current) {
+      cancelAnimationFrame(rafHitRef.current);
+      rafHitRef.current = 0;
+    }
+    setLiveFinger(null);
+    document.body.classList.remove('reader-sel-handle-dragging');
+    onDragChangeRef.current?.(false);
+    requestAnimationFrame(() => {
+      const next = measureSelHandlePositions(rootRef.current);
+      setPos(next);
+    });
+  }, [rootRef]);
+
+  // document 级跟手：iOS 上按钮 pointermove 容易丢事件
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== e.pointerId) return;
-      dragRef.current = null;
-      setLiveFinger(null);
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {
-        /* ignore */
+      e.preventDefault();
+      pendingPointRef.current = { x: e.clientX, y: e.clientY };
+      setLiveFinger({ edge: drag.edge, x: e.clientX, y: e.clientY });
+      if (!rafHitRef.current) {
+        rafHitRef.current = requestAnimationFrame(flushHit);
       }
-      onDragChange?.(false);
-      refresh();
-    },
-    [onDragChange, refresh],
-  );
+    };
+    const onUp = (e: PointerEvent) => {
+      endDrag(e.pointerId);
+    };
+    document.addEventListener('pointermove', onMove, { capture: true, passive: false });
+    document.addEventListener('pointerup', onUp, { capture: true });
+    document.addEventListener('pointercancel', onUp, { capture: true });
+    return () => {
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onUp, true);
+      document.removeEventListener('pointercancel', onUp, true);
+    };
+  }, [endDrag, flushHit]);
 
   const onPointerDown = useCallback(
     (edge: Edge) => (e: React.PointerEvent) => {
@@ -124,27 +167,21 @@ export function ReaderSelectionHandles({
       e.preventDefault();
       e.stopPropagation();
       dragRef.current = { edge, pointerId: e.pointerId, bounds };
+      pendingPointRef.current = { x: e.clientX, y: e.clientY };
       setLiveFinger({ edge, x: e.clientX, y: e.clientY });
-      onDragChange?.(true);
+      document.body.classList.add('reader-sel-handle-dragging');
+      onDragChangeRef.current?.(true);
       try {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       } catch {
         /* ignore */
       }
+      // 立刻按落点调一次，给反馈
+      if (!rafHitRef.current) {
+        rafHitRef.current = requestAnimationFrame(flushHit);
+      }
     },
-    [onDragChange],
-  );
-
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      const drag = dragRef.current;
-      if (!drag || drag.pointerId !== e.pointerId) return;
-      e.preventDefault();
-      e.stopPropagation();
-      setLiveFinger({ edge: drag.edge, x: e.clientX, y: e.clientY });
-      applyAtPoint(drag.edge, e.clientX, e.clientY, drag.bounds);
-    },
-    [applyAtPoint],
+    [flushHit],
   );
 
   if (!visible || !pos) return null;
@@ -160,34 +197,30 @@ export function ReaderSelectionHandles({
 
   return (
     <>
-      <button
-        type="button"
+      <div
+        role="slider"
+        tabIndex={0}
         className="reader-sel-handle reader-sel-handle-start"
         aria-label="调整选区起点"
         style={{
           left: `${startPoint.x}px`,
           top: `${startPoint.y}px`,
-          height: `${Math.max(18, startPoint.h)}px`,
+          height: `${Math.max(22, startPoint.h)}px`,
         }}
         onPointerDown={onPointerDown('start')}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
         onClick={(e) => e.stopPropagation()}
       />
-      <button
-        type="button"
+      <div
+        role="slider"
+        tabIndex={0}
         className="reader-sel-handle reader-sel-handle-end"
         aria-label="调整选区终点"
         style={{
           left: `${endPoint.x}px`,
           top: `${endPoint.y}px`,
-          height: `${Math.max(18, endPoint.h)}px`,
+          height: `${Math.max(22, endPoint.h)}px`,
         }}
         onPointerDown={onPointerDown('end')}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
         onClick={(e) => e.stopPropagation()}
       />
     </>
