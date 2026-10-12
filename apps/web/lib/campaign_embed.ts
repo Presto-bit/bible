@@ -63,8 +63,9 @@ export function toCampaignEmbedUrl(targetHref: string): string {
         ? window.location.origin
         : 'https://2sc.prestoai.cn';
     const prefix = campaignEmbedPathPrefix(site);
-    const restPath = u.pathname === '/' ? '/' : u.pathname;
-    const embedPath = `${prefix}${restPath === '/' ? '/' : restPath}`;
+    // 根路径不要尾斜杠，避免 Next/Nginx 308 丢掉体验
+    const restPath = u.pathname.replace(/\/+$/, '') || '';
+    const embedPath = restPath ? `${prefix}${restPath}` : prefix;
     const out = new URL(embedPath, origin);
     out.search = u.search;
     out.hash = '';

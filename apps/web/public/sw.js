@@ -1,7 +1,7 @@
 // CACHE 名须在每次 web 发版时变化，否则 activate 不会清空旧 Cache Storage。
 // 生产镜像在 Dockerfile 内按 NEXT_PUBLIC_APP_VERSION 重写；本地可 scripts/bump_sw_cache.sh。
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v48';
+const CACHE = 'presto-bible-v49';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -481,6 +481,12 @@ self.addEventListener('fetch', (e) => {
   // 动态 API：仅网络，不读写 Cache Storage
   if (isDynamicRequest(url)) {
     e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // 活动同站 embed：仅网络。勿走 HTML 4.5s 回退壳，否则易把「活动页暂时无法加载」或首页壳塞进 iframe
+  if (relPath(url.pathname).startsWith('/campaigns/embed/')) {
+    e.respondWith(fetch(e.request, { cache: 'no-store' }));
     return;
   }
 
