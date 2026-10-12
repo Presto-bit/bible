@@ -83,7 +83,6 @@ import {
   resetReaderScroll,
   sectionRangeForVerse,
 } from '@/lib/reader_viewport';
-import { wordContainingOffset } from '@/lib/verse_words';
 import { useBibleListen } from '@/hooks/useBibleListen';
 import { useReaderDisplayPrefs } from '@/hooks/useReaderDisplayPrefs';
 import { useReaderChrome } from '@/hooks/useReaderChrome';
@@ -96,8 +95,6 @@ import {
 } from '@/lib/reader_chapter_load';
 import { scrollElementToBand } from '@/lib/listen_api';
 import {
-  caretWordAnchor,
-  charSpanForVerseInWordRange,
   textFromWordRange,
   wordRangeToSpan,
   wordRangesEqual,
@@ -116,11 +113,11 @@ import {
   recoverPinnedSpansFromText,
   recoverPinnedSpansFromVerseTexts,
   synthesizeFullVerseSpans,
-  verseCharAtPoint,
   type NativePinnedHighlight,
   type NativeVerseSelection,
 } from '@/lib/native_verse_selection';
-import { ReaderSelectionHandles } from '@/components/reader/ReaderSelectionHandles';
+import { ReaderTouchSelection } from '@/components/reader/ReaderTouchSelection';
+import type { SelRect } from '@/lib/touch_verse_selection';
 import { clearNativePinnedHighlight } from '@/lib/native_verse_highlight';
 import {
   cancelPendingChapterProgress,
@@ -508,6 +505,9 @@ export default function ReaderView({
   const wordRangeRef = useRef<WordRange | null>(null);
   const wordDragRafRef = useRef(0);
   const wordDragPendingRef = useRef<WordRange | null>(null);
+  /** 触控选区：叠加层矩形（视口坐标）与 DOM 原文 */
+  const touchSelRectsRef = useRef<SelRect[]>([]);
+  const [touchSelText, setTouchSelText] = useState('');
   /** 点「问小爱」时锁定选区文本，避免 iOS selectionchange 截断 */
   const selectionPinRef = useRef('');
 
@@ -822,15 +822,17 @@ export default function ReaderView({
   const maxV = sortedSel[sortedSel.length - 1];
   const selectionText = useMemo(
     () =>
-      resolveSelectionTextForAi({
-        verses,
-        wholeVerseSel,
-        wordRange,
-        nativeTouchSelect,
-        nativeSelection: activeNativeSelection,
-        formatVerse: formatVerseForReader,
-      }),
-    [verses, wholeVerseSel, wordRange, nativeTouchSelect, activeNativeSelection, formatVerseForReader],
+      !nativeTouchSelect && wordRange && touchSelText
+        ? touchSelText
+        : resolveSelectionTextForAi({
+          verses,
+          wholeVerseSel,
+          wordRange,
+          nativeTouchSelect,
+          nativeSelection: activeNativeSelection,
+          formatVerse: formatVerseForReader,
+        }),
+    [verses, wholeVerseSel, wordRange, nativeTouchSelect, activeNativeSelection, formatVerseForReader, touchSelText],
   );
   const refParam = hasSel
     ? selectionRef(book.id, chapter, sortedSel)
@@ -1048,28 +1050,11 @@ export default function ReaderView({
         return renderText(text, 'body');
       }
 
-      // 触控/PWA：连续字符蓝底（避免逐词半透明叠色）；命中靠 caretRangeFromPoint
-      if (wordRange) {
-        const spanSel = charSpanForVerseInWordRange(verseNum, text.length, wordRange);
-        if (spanSel) {
-          const lo = spanSel.start;
-          const hi = spanSel.end;
-          return (
-            <>
-              {lo > 0 ? renderText(text.slice(0, lo), 'pre') : null}
-              <span className="verse-sel-chars">
-                {renderText(text.slice(lo, hi), 'sel')}
-              </span>
-              {hi < text.length ? renderText(text.slice(hi), 'post') : null}
-            </>
-          );
-        }
-      }
+      // 触控/PWA：选区底色由 ReaderTouchSelection 叠加层绘制，经文 DOM 保持不变
       return renderText(text, 'body');
     },
     [
       renderVerseText,
-      wordRange,
       nativeTouchSelect,
       pinnedSpanByVerse,
       book.id,
@@ -1085,18 +1070,22 @@ export default function ReaderView({
     const lastEl = document.getElementById(`verse-anchor-${maxV}`);
     if (!firstEl) return;
     // 优先用字符/词选量测，手柄拖动后工具条更贴真实选区
-    const selNodes =
-      contentRef.current?.querySelectorAll('.verse-sel-chars, .verse-word.is-active');
+    const touchRects = !nativeTouchSelect ? touchSelRectsRef.current : [];
+    const selNodes: Array<{ left: number; right: number; top: number; bottom: number }> =
+      touchRects.length > 0
+        ? touchRects
+        : Array.from(
+          contentRef.current?.querySelectorAll('.verse-sel-chars, .verse-word.is-active') ?? [],
+        ).map((node) => (node as HTMLElement).getBoundingClientRect());
     let selTop: number;
     let selBottom: number;
     let selCenterX: number;
-    if (selNodes && selNodes.length > 0) {
+    if (selNodes.length > 0) {
       let left = Infinity;
       let right = -Infinity;
       selTop = Infinity;
       selBottom = -Infinity;
-      selNodes.forEach((node) => {
-        const r = (node as HTMLElement).getBoundingClientRect();
+      selNodes.forEach((r) => {
         left = Math.min(left, r.left);
         right = Math.max(right, r.right);
         selTop = Math.min(selTop, r.top);
@@ -2151,17 +2140,6 @@ export default function ReaderView({
   applyWordRangeRef.current = applyWordRange;
   wordRangeRef.current = wordRange;
 
-  const scheduleWordRangeDuringDrag = useCallback((anchor: WordAnchor, focus: WordAnchor) => {
-    wordDragPendingRef.current = { anchor, focus };
-    if (wordDragRafRef.current) return;
-    wordDragRafRef.current = requestAnimationFrame(() => {
-      wordDragRafRef.current = 0;
-      const pending = wordDragPendingRef.current;
-      if (!pending) return;
-      applyWordRangeRef.current(pending.anchor, pending.focus, { commit: false });
-    });
-  }, []);
-
   // 触控/PWA：同步系统原生划选；选区落定后收起系统菜单，保留应用工具条
   useEffect(() => {
     const root = contentRef.current;
@@ -2526,184 +2504,20 @@ export default function ReaderView({
     }
   }, [hasSel, nativeTouchSelect, nativeSelecting, nativePinnedHighlight]);
 
-  // 触控/PWA：应用内长按选词 + 按住拖动扩选（字符级跟手；不走系统划选）
+  // 触控/PWA：选区由 ReaderTouchSelection 接管；这里只挡系统划选与长按菜单
   useEffect(() => {
     const el = contentRef.current;
     if (!el || nativeTouchSelect) return;
-
-    type Press = {
-      pointerId: number;
-      x: number;
-      y: number;
-      anchor: WordAnchor;
-      armed: boolean;
-      lastFocus: WordAnchor | null;
-    };
-    let press: Press | null = null;
-    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const clearLongPress = () => {
-      if (longPressTimer != null) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    };
-
-    const setSelectingUi = (on: boolean) => {
-      el.classList.toggle('reader-word-selecting', on);
-      document.body.classList.toggle('reader-word-selecting', on);
-    };
-
-    /** 长按：吸附到词；拖动：字符光标 */
-    const hitWordSnap = (x: number, y: number): WordAnchor | null => {
-      const hit = verseCharAtPoint(el, x, y);
-      if (!hit) return null;
-      const body = el.querySelector(
-        `#verse-anchor-${hit.verse} .verse-text-body`,
-      ) as HTMLElement | null;
-      const full = body?.textContent ?? '';
-      const w = wordContainingOffset(full, hit.offset);
-      if (!w) return caretWordAnchor(hit.verse, hit.offset);
-      return { verse: hit.verse, start: w.start, end: w.end };
-    };
-
-    const hitCaret = (x: number, y: number): WordAnchor | null => {
-      // 多点取样：手指常压在工具条/手柄上，需往正文方向找
-      const samples: Array<[number, number]> = [
-        [x, y],
-        [x, y - 24],
-        [x, y - 48],
-        [x, y + 24],
-        [x - 16, y],
-        [x + 16, y],
-      ];
-      for (const [sx, sy] of samples) {
-        const hit = verseCharAtPoint(el, sx, sy);
-        if (hit) return caretWordAnchor(hit.verse, hit.offset);
-      }
-      return null;
-    };
-
-    const finishPress = () => {
-      clearLongPress();
-      setSelectingUi(false);
-      if (press?.armed) {
-        const pending = wordDragPendingRef.current;
-        if (pending) {
-          applyWordRangeRef.current(pending.anchor, pending.focus, { commit: false });
-        }
-        if (wordRangeRef.current) {
-          commitWordRangeProgress(wordRangeRef.current);
-          swipeIgnoreUntilRef.current = Date.now() + 320;
-          lastSelectAt.current = Date.now();
-        }
-      }
-      if (wordDragRafRef.current) {
-        cancelAnimationFrame(wordDragRafRef.current);
-        wordDragRafRef.current = 0;
-      }
-      wordDragPendingRef.current = null;
-      press = null;
-      window.getSelection()?.removeAllRanges();
-    };
-
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      if (document.body.classList.contains('reader-sel-handle-dragging')) return;
-      if (e.target instanceof Element && e.target.closest('.reader-sel-handle')) return;
-      // 已有选区时：点在蓝底上不开启新手势（留给手柄）；点空白由 dismiss 处理
-      if (
-        wordRangeRef.current
-        && e.target instanceof Element
-        && e.target.closest('.verse-sel-chars')
-      ) {
-        return;
-      }
-      const w = hitWordSnap(e.clientX, e.clientY);
-      if (!w) return;
-      window.getSelection()?.removeAllRanges();
-      clearLongPress();
-      press = {
-        pointerId: e.pointerId,
-        x: e.clientX,
-        y: e.clientY,
-        anchor: w,
-        armed: false,
-        lastFocus: null,
-      };
-      try {
-        el.setPointerCapture(e.pointerId);
-      } catch {
-        /* ignore */
-      }
-      longPressTimer = setTimeout(() => {
-        if (!press || press.pointerId !== e.pointerId) return;
-        press.armed = true;
-        setSelectingUi(true);
-        applyWordRangeRef.current(press.anchor, press.anchor);
-        lastSelectAt.current = Date.now();
-        swipeIgnoreUntilRef.current = Date.now() + 60_000;
-        try {
-          navigator.vibrate?.(12);
-        } catch {
-          /* ignore */
-        }
-      }, 380);
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      if (!press || press.pointerId !== e.pointerId) return;
-      const dist = Math.hypot(e.clientX - press.x, e.clientY - press.y);
-      if (!press.armed) {
-        if (dist > 12) {
-          clearLongPress();
-          press = null;
-          setSelectingUi(false);
-          try {
-            el.releasePointerCapture(e.pointerId);
-          } catch {
-            /* ignore */
-          }
-        }
-        return;
-      }
-      e.preventDefault();
-      const focus = hitCaret(e.clientX, e.clientY) ?? press.lastFocus;
-      if (!focus) return;
-      press.lastFocus = focus;
-      scheduleWordRangeDuringDrag(press.anchor, focus);
-    };
-
-    const onPointerUp = (e: PointerEvent) => {
-      if (!press || press.pointerId !== e.pointerId) return;
-      try {
-        el.releasePointerCapture(e.pointerId);
-      } catch {
-        /* ignore */
-      }
-      finishPress();
-    };
-
-    el.addEventListener('pointerdown', onPointerDown, { passive: true });
-    el.addEventListener('pointermove', onPointerMove, { passive: false });
-    el.addEventListener('pointerup', onPointerUp, { passive: true });
-    el.addEventListener('pointercancel', onPointerUp, { passive: true });
     const block = (ev: Event) => {
       if (el.contains(ev.target as Node)) ev.preventDefault();
     };
     el.addEventListener('selectstart', block, true);
     el.addEventListener('contextmenu', block, true);
     return () => {
-      clearLongPress();
-      setSelectingUi(false);
-      el.removeEventListener('pointerdown', onPointerDown);
-      el.removeEventListener('pointermove', onPointerMove);
-      el.removeEventListener('pointerup', onPointerUp);
-      el.removeEventListener('pointercancel', onPointerUp);
       el.removeEventListener('selectstart', block, true);
       el.removeEventListener('contextmenu', block, true);
     };
-  }, [book.id, chapter, swipeTurn, scheduleWordRangeDuringDrag, commitWordRangeProgress, nativeTouchSelect]);
+  }, [book.id, chapter, swipeTurn, nativeTouchSelect]);
 
   const selectWholeVerse = useCallback((verse: number) => {
     window.getSelection()?.removeAllRanges();
@@ -2717,42 +2531,35 @@ export default function ReaderView({
     swipeIgnoreUntilRef.current = Date.now() + 320;
   }, [book.id, chapter]);
 
-  const applyPinnedAdjust = useCallback((next: NativePinnedHighlight) => {
-    nativePinnedHighlightRef.current = next;
-    nativeSelectionRef.current = { verses: next.verses, text: next.text };
-    liveNativeSelectionRef.current = { verses: next.verses, text: next.text };
-    setNativePinnedHighlight(next);
-    setNativeSelection({ verses: next.verses, text: next.text });
-    setLiveNativeSelection({ verses: next.verses, text: next.text });
-    setWholeVerseSel([]);
-    setWordRange(null);
-    wordRangeRef.current = null;
-    lastSelectAt.current = Date.now();
-    swipeIgnoreUntilRef.current = Date.now() + 400;
-    markNativeSelectionCommitted();
-    requestAnimationFrame(() => updateFocusBarPosition());
-  }, [markNativeSelectionCommitted, updateFocusBarPosition]);
-
-  const applyWordHandleAdjust = useCallback((next: WordRange) => {
+  const onTouchSelChange = useCallback((next: WordRange, text: string) => {
     applyWordRangeRef.current(next.anchor, next.focus, { commit: false });
+    setTouchSelText(text);
     lastSelectAt.current = Date.now();
-    swipeIgnoreUntilRef.current = Date.now() + 400;
-    requestAnimationFrame(() => updateFocusBarPosition());
-  }, [updateFocusBarPosition]);
+  }, []);
 
-  const onSelHandleDragChange = useCallback((dragging: boolean) => {
-    if (dragging) {
-      swipeIgnoreUntilRef.current = Date.now() + 60_000;
-      lastSelectAt.current = Date.now();
-      return;
-    }
-    swipeIgnoreUntilRef.current = Date.now() + 400;
+  const onTouchSelCommit = useCallback(() => {
     lastSelectAt.current = Date.now();
-    if (wordRangeRef.current) {
-      commitWordRangeProgress(wordRangeRef.current);
-    }
-    requestAnimationFrame(() => updateFocusBarPosition());
-  }, [updateFocusBarPosition, commitWordRangeProgress]);
+    swipeIgnoreUntilRef.current = Date.now() + 400;
+    if (wordRangeRef.current) commitWordRangeProgress(wordRangeRef.current);
+  }, [commitWordRangeProgress]);
+
+  const onTouchSelGesture = useCallback((active: boolean) => {
+    swipeIgnoreUntilRef.current = Date.now() + (active ? 60_000 : 400);
+    lastSelectAt.current = Date.now();
+    if (active) turn.cancelDrag();
+  }, [turn.cancelDrag]);
+
+  const onTouchSelDismiss = useCallback(() => {
+    lastSelectAt.current = Date.now();
+    dismissNativeSelection();
+  }, [dismissNativeSelection]);
+
+  const updateFocusBarPositionRef = useRef(updateFocusBarPosition);
+  updateFocusBarPositionRef.current = updateFocusBarPosition;
+  const onTouchSelRects = useCallback((rects: SelRect[]) => {
+    touchSelRectsRef.current = rects;
+    requestAnimationFrame(() => updateFocusBarPositionRef.current());
+  }, []);
 
   const handleReaderContentClick = useCallback(
     (e: React.MouseEvent) => {
@@ -2768,12 +2575,13 @@ export default function ReaderView({
       if (t.closest('.proper-noun,[role="button"]')) return;
       const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
       if (hasSel || hasPinned || wordRangeRef.current) {
+        if (!nativeTouchSelect) return;
         // 松手后极短窗口忽略，避免抬手余波立刻关掉
         if (Date.now() - lastSelectAt.current < 400) return;
         dismissNativeSelection();
       }
     },
-    [hasSel, dismissNativeSelection],
+    [hasSel, dismissNativeSelection, nativeTouchSelect],
   );
 
   useEffect(() => {
@@ -2813,6 +2621,8 @@ export default function ReaderView({
       const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
       if (hasSel || hasPinned || wordRangeRef.current) {
         e.stopPropagation();
+        // 触控：轻点收起由 ReaderTouchSelection 在 touchend 处理
+        if (!nativeTouchSelect) return;
         const t = e.target as HTMLElement;
         // 点选区/手柄不取消，否则蓝点拖不动
         if (t.closest('.reader-sel-handle, .verse-sel-chars')) return;
@@ -2833,7 +2643,7 @@ export default function ReaderView({
       }
       // 无笔记的经文把点击交给 main，切换沉浸；勿 stopPropagation 导致「点了没反应」。
     },
-    [hasSel, chromeHidden, toggleChrome, handleVerseThoughtClick, dismissNativeSelection, thoughtsOn, chapterThoughts],
+    [hasSel, chromeHidden, toggleChrome, handleVerseThoughtClick, dismissNativeSelection, thoughtsOn, chapterThoughts, nativeTouchSelect],
   );
 
   useEffect(() => {
@@ -2892,6 +2702,7 @@ export default function ReaderView({
       if (t.closest('.reader-focus-bar')) return;
       if (t.closest('.reader-sel-handle')) return;
       if (t.closest('.verse-sel-chars')) return;
+      if (!nativeTouchSelect && contentRef.current?.contains(t)) return;
       if (document.body.classList.contains('reader-sel-handle-dragging')) return;
       if (document.body.classList.contains('reader-word-selecting')) return;
       if (t.closest('.reader-mark-wrap') || t.closest('.reader-mark-popover')) return;
@@ -2901,7 +2712,7 @@ export default function ReaderView({
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
-  }, [hasSel, autoCollapseNativeSel, dismissNativeSelection]);
+  }, [hasSel, autoCollapseNativeSel, dismissNativeSelection, nativeTouchSelect]);
 
   const prevHasSelRef = useRef(false);
   useEffect(() => {
@@ -3444,21 +3255,17 @@ export default function ReaderView({
       </div>
       ) : null}
 
-      {hasSel && !overlayOpen && autoCollapseNativeSel && (
-        <ReaderSelectionHandles
+      {!nativeTouchSelect && (
+        <ReaderTouchSelection
           rootRef={contentRef}
-          pinned={nativePinnedHighlight}
-          wordRange={wordRange}
-          visible={
-            Boolean(wordRange)
-            || (
-              Boolean(nativePinnedHighlight?.spans.length)
-              && (!nativeSelecting || Boolean(nativePinnedHighlight))
-            )
-          }
-          onAdjustPinned={applyPinnedAdjust}
-          onAdjustWord={applyWordHandleAdjust}
-          onDragChange={onSelHandleDragChange}
+          rootKey={`${swipeTurn ? 'turn' : 'scroll'}-${book.id}-${chapter}`}
+          enabled={paneActive && !overlayOpen}
+          range={wordRange}
+          onChange={onTouchSelChange}
+          onCommit={onTouchSelCommit}
+          onGestureChange={onTouchSelGesture}
+          onDismiss={onTouchSelDismiss}
+          onRects={onTouchSelRects}
         />
       )}
 

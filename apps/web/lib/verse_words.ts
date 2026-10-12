@@ -2,31 +2,25 @@
 
 export type VerseWordSlice = { text: string; start: number; end: number };
 
-/** 字符偏移落到的词边界（长按吸附）。 */
+/** 长按吸附：取偏移处的词（系统分词，不合并单字）；标点/空白退化为单字。 */
 export function wordContainingOffset(
   text: string,
   offset: number,
 ): VerseWordSlice | null {
-  const words = sliceVerseWords(text);
-  if (!words.length) {
-    if (!text.length) return null;
-    const o = Math.max(0, Math.min(offset, text.length - 1));
-    return { text: text.slice(o, o + 1), start: o, end: o + 1 };
-  }
-  for (const w of words) {
-    if (offset >= w.start && offset < w.end) return w;
-  }
-  // 落在词缝：取最近词
-  let best = words[0]!;
-  let bestDist = Math.abs(offset - best.start);
-  for (const w of words) {
-    const d = Math.min(Math.abs(offset - w.start), Math.abs(offset - w.end));
-    if (d < bestDist) {
-      best = w;
-      bestDist = d;
+  if (!text.length) return null;
+  const o = Math.max(0, Math.min(offset, text.length - 1));
+  const single = { text: text.slice(o, o + 1), start: o, end: o + 1 };
+  if (typeof Intl === 'undefined' || !('Segmenter' in Intl)) return single;
+  const seg = new Intl.Segmenter('zh', { granularity: 'word' });
+  for (const part of seg.segment(text)) {
+    const start = part.index;
+    const end = start + part.segment.length;
+    if (o >= start && o < end) {
+      if (!part.isWordLike || !part.segment.trim()) return single;
+      return { text: part.segment, start, end };
     }
   }
-  return best;
+  return single;
 }
 
 export function sliceVerseWords(text: string): VerseWordSlice[] {

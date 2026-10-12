@@ -2011,75 +2011,96 @@ body.reader-overlay-open .reader-page {
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
-/* PWA/触控：自绘起止拖动手柄（命中区加大，近似 iOS） */
+/* PWA/触控：应用内选区叠加层（同一行合并为一块，底色均匀） */
+.reader-sel-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 91;
+  pointer-events: none;
+}
+.reader-sel-rect {
+  position: fixed;
+  background: var(--reader-sel-bg, rgba(51, 144, 255, 0.26));
+  border-radius: 2px;
+  pointer-events: none;
+}
+/* 起止手柄：元素本身为命中区（上下各外扩 22px），竖线 + 圆点由伪元素绘制 */
 .reader-sel-handle {
   position: fixed;
   z-index: 92;
-  width: 56px;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  transform: translate(-50%, 0);
+  width: 44px;
+  transform: translateX(-50%);
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
-  cursor: grab;
   -webkit-tap-highlight-color: transparent;
-  outline: none;
-  /* 上下各多出一截，方便抓住圆点 */
-  margin-top: -20px;
-  padding-top: 20px;
-  padding-bottom: 20px;
-  box-sizing: content-box;
 }
 .reader-sel-handle::before {
   content: '';
   position: absolute;
   left: 50%;
-  top: 0;
-  bottom: 0;
+  top: 22px;
+  bottom: 22px;
   width: 2px;
-  transform: translateX(-50%);
+  margin-left: -1px;
   background: var(--reader-sel-handle, #3478f6);
   border-radius: 1px;
-  pointer-events: none;
 }
 .reader-sel-handle::after {
   content: '';
   position: absolute;
   left: 50%;
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
   border-radius: 50%;
   background: var(--reader-sel-handle, #3478f6);
-  transform: translateX(-50%);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
-  pointer-events: none;
 }
 .reader-sel-handle-start::after {
-  top: -14px;
+  top: 11px;
 }
 .reader-sel-handle-end::after {
-  bottom: -14px;
+  bottom: 11px;
 }
-.reader-sel-handle:active,
-body.reader-sel-handle-dragging .reader-sel-handle {
-  cursor: grabbing;
+body.reader-sel-handle-dragging .reader-focus-bar {
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
-.reader-sel-handle:focus-visible {
-  outline: 2px solid var(--reader-sel-handle, #3478f6);
-  outline-offset: 2px;
-}
-/* 拖动手柄时禁止页面滚动抢手势 */
-body.reader-sel-handle-dragging {
+/* 放大镜：克隆当前段落，按触点平移放大 */
+.reader-loupe {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 95;
+  width: 132px;
+  height: 56px;
+  border-radius: 28px;
   overflow: hidden;
-  touch-action: none;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--reader-bg, #fffcfa);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+  transition: opacity 0.12s ease;
+  will-change: transform, opacity;
 }
-body.reader-sel-handle-dragging .reader-content,
-body.reader-sel-handle-dragging .reader-scroll-panel {
-  touch-action: none !important;
+.reader-loupe-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
 }
+.reader-loupe-text {
+  position: relative;
+}
+.reader-loupe-text .verse-paragraph {
+  margin: 0 !important;
+}
+.reader-loupe-rects > div {
+  position: absolute;
+  background: var(--reader-sel-bg, rgba(51, 144, 255, 0.26));
+  border-radius: 2px;
+}
+
 /* 触控划选 pin：CSS Highlight API，不包裹词块、不改 DOM */
 ::highlight(verse-native-pinned) {
   background: var(--reader-sel-bg, rgba(51, 144, 255, 0.35));
