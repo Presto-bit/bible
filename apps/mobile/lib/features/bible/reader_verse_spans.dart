@@ -181,6 +181,7 @@ void appendReaderWordSpans({
   required double fontPx,
   required List<VerseWordSlice> words,
   required List<DictSpanHit> dictSpans,
+  ChapterDictUnderlinePlan? underlinePlan,
   WordRange? wordRange,
   required bool interactive,
   required bool selectionActive,
@@ -198,8 +199,8 @@ void appendReaderWordSpans({
 }) {
   final mark = markInfo?.mark;
   final merge = _MergeBuf();
-  // 渲染侧按节去重（权威）：不依赖可能过期的 span.showUnderline 缓存。
   // 同一 DictSpan（同 start）内多词块共用一次判定。
+  // 有章计划时用预计算结果（高频章内 / 其余节内）；否则回退节内去重。
   final seenDictUnderlineKeys = <String>{};
   final spanShowUnderline = <int, bool>{};
 
@@ -255,27 +256,32 @@ void appendReaderWordSpans({
     final dictHit = !selectionActive
         ? matchDictSpanAt(w.start, w.end, dictSpans)
         : null;
-    if (dictHit != null) {
-      final showDictLine = spanShowUnderline.putIfAbsent(dictHit.start, () {
+    // 仅「显式划线」命中可点开词典；无线 = 普通正文。
+    final bool showDictLink;
+    if (dictHit == null) {
+      showDictLink = false;
+    } else {
+      showDictLink = spanShowUnderline.putIfAbsent(dictHit.start, () {
+        final plan = underlinePlan;
+        if (plan != null) {
+          return plan.show(verse: verse, start: dictHit.start);
+        }
         final eid = dictHit.entity.id.isNotEmpty
             ? dictHit.entity.id
             : dictHit.entity.name;
-        final keys = <String>[eid, 't:${dictHit.name}'];
+        final keys = dictUnderlineClaimKeys(eid, dictHit.name);
         final show = !keys.any(seenDictUnderlineKeys.contains);
         if (show) seenDictUnderlineKeys.addAll(keys);
         return show;
       });
-      if (showDictLine) {
+      if (showDictLink) {
         wordStyle = readerDictSpanStyle(wordStyle, dictHit.entity);
-      } else {
-        wordStyle = wordStyle.copyWith(decoration: TextDecoration.none);
       }
     }
 
     final anchor = WordAnchor(verse: verse, start: w.start, end: w.end);
-    final needChip = dictHit != null;
 
-    if (needChip) {
+    if (showDictLink && dictHit != null) {
       merge.flush(spans, index);
       if (interactive) {
         spans.add(

@@ -22,7 +22,7 @@ import { parseMarkRef } from '@/lib/mark_ref';
 import { parseFeedHintFromSearchParams, type FeedActivityHint } from '@/lib/feed_activity';
 import {
   buildDictIndex,
-  claimDictUnderline,
+  claimTieredDictUnderline,
   dictMatchPattern,
   hasAlternateSenses,
   lookupDictCandidates,
@@ -193,12 +193,18 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   }, []);
 
   const renderVerseText = useCallback(
-    (text: string, keyBase: string, verse: number, seenEntityIds?: Set<string>) => {
+    (
+      text: string,
+      keyBase: string,
+      verse: number,
+      underlineSeen?: { verseSeen: Set<string>; chapterSeen: Set<string> },
+    ) => {
       const displayText = formatQuotesForDisplay(text, quoteDisplayMode);
       if (!properNounRe) return displayText;
       const parts = displayText.split(properNounRe);
       const ctx: DictContext = { bookId: book!.id, chapter, verse };
-      const seen = seenEntityIds ?? new Set<string>();
+      const verseSeen = underlineSeen?.verseSeen ?? new Set<string>();
+      const chapterSeen = underlineSeen?.chapterSeen ?? new Set<string>();
       return parts.map((part, i) => {
         const candidates = dictIndex.get(part);
         if (candidates?.length) {
@@ -208,11 +214,20 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
             return <span key={`${keyBase}-t${i}`}>{part}</span>;
           }
           const eid = picked.id || picked.name;
-          const showUnderline = claimDictUnderline(seen, eid, `t:${part}`);
+          const showUnderline = claimTieredDictUnderline(
+            verseSeen,
+            chapterSeen,
+            eid,
+            part,
+          );
+          // 无线 = 不可点，按普通正文渲染
+          if (!showUnderline) {
+            return <span key={`${keyBase}-t${i}`}>{part}</span>;
+          }
           return (
             <span
               key={`${keyBase}-pn${i}`}
-              className={properNounClass(picked, { showUnderline })}
+              className={properNounClass(picked, { showUnderline: true })}
               role="button"
               tabIndex={0}
               title={candidates.length > 1 ? '点击查看（可能有多义）' : '查看词典'}
@@ -603,6 +618,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         bookAbbr={catalogBookAbbr}
         onMainVersionChange={setMainVersionId}
         renderVerseText={renderVerseText}
+        dictIndex={dictIndex}
         quoteDisplayMode={quoteDisplayMode}
         onQuoteDisplayModeChange={handleQuoteDisplayModeChange}
         planMeta={planMeta}

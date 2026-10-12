@@ -21,6 +21,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     required this.dictIndex,
     required this.dictKeys,
     required this.dictRev,
+    this.underlinePlan,
     required this.inkColor,
     this.selectionAnchorVerse,
     this.selectionAnchorKey,
@@ -58,6 +59,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final Map<String, List<DictEntity>> dictIndex;
   final List<String> dictKeys;
   final int dictRev;
+  final ChapterDictUnderlinePlan? underlinePlan;
 
   /// 随阅读主题走（夜深为浅墨）；预览同源，避免翻章瞬间墨色跳变。
   final Color inkColor;
@@ -262,6 +264,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
                 dictIndex: widget.dictIndex,
                 dictKeys: widget.dictKeys,
                 dictRev: widget.dictRev,
+                underlinePlan: widget.underlinePlan,
                 notes: widget.notesByVerse[v.verse],
                 thoughtsCount: widget.thoughtsByVerse[v.verse] ?? 0,
                 hasMyThought: (widget.myThoughtsByVerse[v.verse] ?? 0) > 0,
@@ -485,6 +488,7 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
             fontPx: fontPx,
             words: words,
             dictSpans: dictSpans,
+            underlinePlan: widget.underlinePlan,
             wordRange: widget.wordRange,
             interactive: true,
             selectionActive: selectionActive,
@@ -583,6 +587,7 @@ class _MarginVerseRow extends ConsumerStatefulWidget {
     required this.dictIndex,
     required this.dictKeys,
     required this.dictRev,
+    this.underlinePlan,
     required this.notes,
     required this.thoughtsCount,
     required this.hasMyThought,
@@ -615,6 +620,7 @@ class _MarginVerseRow extends ConsumerStatefulWidget {
   final Map<String, List<DictEntity>> dictIndex;
   final List<String> dictKeys;
   final int dictRev;
+  final ChapterDictUnderlinePlan? underlinePlan;
   final List<Note>? notes;
   final int thoughtsCount;
   final bool hasMyThought;
@@ -723,6 +729,7 @@ class _MarginVerseRowState extends ConsumerState<_MarginVerseRow> {
       fontPx: fontPx,
       words: words,
       dictSpans: dictSpans,
+      underlinePlan: widget.underlinePlan,
       wordRange: wordRange,
       interactive: true,
       selectionActive: selectionActive,

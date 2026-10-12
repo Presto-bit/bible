@@ -170,7 +170,97 @@ class DictSpanHit {
   final String name;
 
   /// 同 [entity.id] 在本节内仅首次为 true；重复命中仍可点，但无可见划线。
+  /// 章级高频去重以 [ChapterDictUnderlinePlan] 为准。
   final bool showUnderline;
+}
+
+/// 高频专名：一章只显首次划线（耶稣/神/基督/耶和华等）。
+const kChapterScopedDictIds = {'jesus', 'god', '基督', '耶和华'};
+const kChapterScopedDictNames = {'耶稣', '基督', '弥赛亚', '神', '耶和华', 'God'};
+
+bool isChapterScopedDictKey({
+  required String entityId,
+  required String surfaceName,
+}) =>
+    kChapterScopedDictIds.contains(entityId) ||
+    kChapterScopedDictNames.contains(surfaceName);
+
+List<String> dictUnderlineClaimKeys(String entityId, String surfaceName) {
+  final keys = <String>[entityId];
+  final t = surfaceName.trim();
+  if (t.isNotEmpty) keys.add('t:$t');
+  return keys;
+}
+
+/// 分层去重：高频走 [chapterSeen]，其余走 [verseSeen]。
+bool claimTieredDictUnderline({
+  required Set<String> verseSeen,
+  required Set<String> chapterSeen,
+  required String entityId,
+  required String surfaceName,
+}) {
+  final keys = dictUnderlineClaimKeys(entityId, surfaceName);
+  if (keys.isEmpty) return false;
+  final chapterScope = isChapterScopedDictKey(
+    entityId: entityId,
+    surfaceName: surfaceName,
+  );
+  final bucket = chapterScope ? chapterSeen : verseSeen;
+  final show = !keys.any(bucket.contains);
+  if (show) {
+    bucket.addAll(keys);
+    if (chapterScope) verseSeen.addAll(keys);
+  }
+  return show;
+}
+
+/// 整章预计算：`$verse|$start` → 是否显式划线（兼容 ListView 乱序构建）。
+class ChapterDictUnderlinePlan {
+  ChapterDictUnderlinePlan(this._showByVerseStart);
+
+  final Map<String, bool> _showByVerseStart;
+
+  static String spanKey(int verse, int start) => '$verse|$start';
+
+  bool show({required int verse, required int start}) =>
+      _showByVerseStart[spanKey(verse, start)] ?? false;
+
+  static final empty = ChapterDictUnderlinePlan(const {});
+}
+
+/// 按经文章序预计算分层划线；[texts] 须与正文展示用同一套 quote 格式。
+ChapterDictUnderlinePlan buildChapterDictUnderlinePlan({
+  required List<({int verse, String text})> verses,
+  required Map<String, List<DictEntity>> index,
+  required List<String> sortedKeys,
+  required String bookId,
+  required int chapter,
+}) {
+  if (verses.isEmpty || sortedKeys.isEmpty) return ChapterDictUnderlinePlan.empty;
+  final chapterSeen = <String>{};
+  final out = <String, bool>{};
+  for (final v in verses) {
+    final verseSeen = <String>{};
+    final spans = dictSpansForText(
+      v.text,
+      index,
+      sortedKeys,
+      bookId: bookId,
+      chapter: chapter,
+      verse: v.verse,
+    );
+    for (final s in spans) {
+      final eid = s.entity.id.isNotEmpty ? s.entity.id : s.entity.name;
+      final show = claimTieredDictUnderline(
+        verseSeen: verseSeen,
+        chapterSeen: chapterSeen,
+        entityId: eid,
+        surfaceName: s.name,
+      );
+      out[ChapterDictUnderlinePlan.spanKey(v.verse, s.start)] = show;
+    }
+  }
+  return ChapterDictUnderlinePlan(out);
 }
 
 int scoreEntityForContext(

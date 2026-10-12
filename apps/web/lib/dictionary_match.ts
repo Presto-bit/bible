@@ -53,10 +53,24 @@ const ARTIFACT_ENTITY_IDS = new Set([
   '约柜', '会幕', '圣殿', '逾越节', '法柜',
 ]);
 
+/** 高频专名：一章只显首次划线。 */
+export const CHAPTER_SCOPED_DICT_IDS = new Set(['jesus', 'god', '基督', '耶和华']);
+export const CHAPTER_SCOPED_DICT_NAMES = new Set(['耶稣', '基督', '弥赛亚', '神', '耶和华', 'God']);
+
+export function isChapterScopedDictKey(entityId: string, surfaceName: string): boolean {
+  return CHAPTER_SCOPED_DICT_IDS.has(entityId) || CHAPTER_SCOPED_DICT_NAMES.has(surfaceName);
+}
+
+export function dictUnderlineClaimKeys(entityId: string, surfaceName: string): string[] {
+  const keys = [entityId];
+  const t = surfaceName.trim();
+  if (t) keys.push(`t:${t}`);
+  return keys;
+}
+
 /**
- * 同词条在一节内仅首次显式划线。
- * [seenIds] 由调用方按节持有并跨分块（家谱分号行等）共享。
- * keys 同时登记 entity.id 与表面字，避免同名不同 id 或缓存异常时重复画线。
+ * 登记 keys；任一已见则返回 false。
+ * 兼容旧调用：仅传入 seen + keys。
  */
 export function claimDictUnderline(seenIds: Set<string>, ...keys: string[]): boolean {
   const normalized = keys.map((k) => k.trim()).filter(Boolean);
@@ -64,6 +78,116 @@ export function claimDictUnderline(seenIds: Set<string>, ...keys: string[]): boo
   const show = !normalized.some((k) => seenIds.has(k));
   for (const k of normalized) seenIds.add(k);
   return show;
+}
+
+/** 分层去重：高频走 chapterSeen，其余走 verseSeen。 */
+export function claimTieredDictUnderline(
+  verseSeen: Set<string>,
+  chapterSeen: Set<string>,
+  entityId: string,
+  surfaceName: string,
+): boolean {
+  const keys = dictUnderlineClaimKeys(entityId, surfaceName);
+  if (!keys.length) return false;
+  const chapterScope = isChapterScopedDictKey(entityId, surfaceName);
+  const bucket = chapterScope ? chapterSeen : verseSeen;
+  const show = !keys.some((k) => bucket.has(k));
+  if (show) {
+    for (const k of keys) bucket.add(k);
+    if (chapterScope) for (const k of keys) verseSeen.add(k);
+  }
+  return show;
+}
+
+export type ChapterDictUnderlinePlan = {
+  /** `${verse}|${start}` → 是否显式划线 */
+  showAt: Map<string, boolean>;
+};
+
+export function chapterDictSpanKey(verse: number, start: number): string {
+  return `${verse}|${start}`;
+}
+
+/** 收集一节内可链词典跨度（与正文 split 同源）。 */
+export function dictSpansForVerseText(
+  text: string,
+  index: Map<string, DictEntity[]>,
+  ctx: DictContext,
+): { start: number; end: number; entity: DictEntity; name: string }[] {
+  const re = dictMatchPattern(index);
+  if (!re || !text) return [];
+  const local = new RegExp(re.source, 'g');
+  const out: { start: number; end: number; entity: DictEntity; name: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = local.exec(text)) !== null) {
+    const name = m[1] ?? m[0];
+    if (!name) continue;
+    const ranked = lookupDictCandidates(name, index, ctx);
+    const picked = ranked[0];
+    if (!picked || !shouldLinkDictEntity(ranked, picked, ctx)) continue;
+    out.push({
+      start: m.index,
+      end: m.index + name.length,
+      entity: picked,
+      name,
+    });
+  }
+  return out;
+}
+
+/** 按章序预计算分层划线（展示文本须与渲染同一套 quote 格式）。 */
+export function buildChapterDictUnderlinePlan(
+  verses: { verse: number; text: string }[],
+  index: Map<string, DictEntity[]>,
+  bookId: string,
+  chapter: number,
+): ChapterDictUnderlinePlan {
+  const chapterSeen = new Set<string>();
+  const showAt = new Map<string, boolean>();
+  for (const v of verses) {
+    const verseSeen = new Set<string>();
+    const ctx: DictContext = { bookId, chapter, verse: v.verse };
+    for (const s of dictSpansForVerseText(v.text, index, ctx)) {
+      const eid = s.entity.id || s.entity.name;
+      const show = claimTieredDictUnderline(verseSeen, chapterSeen, eid, s.name);
+      showAt.set(chapterDictSpanKey(v.verse, s.start), show);
+    }
+  }
+  return { showAt };
+}
+
+export function planShowsDictUnderline(
+  plan: ChapterDictUnderlinePlan | null | undefined,
+  verse: number,
+  start: number,
+): boolean | null {
+  if (!plan) return null;
+  const v = plan.showAt.get(chapterDictSpanKey(verse, start));
+  return v ?? null;
+}
+
+/**
+ * 每节渲染前：高频专名在本节约之前的章内已声明集合（不可变快照）。
+ * 渲染时复制进 Set，再与 verseSeen 做分层 claim，避免 List/Strict 乱序。
+ */
+export function buildChapterScopedClaimedBefore(
+  verses: { verse: number; text: string }[],
+  index: Map<string, DictEntity[]>,
+  bookId: string,
+  chapter: number,
+): Map<number, ReadonlySet<string>> {
+  const chapterSeen = new Set<string>();
+  const before = new Map<number, ReadonlySet<string>>();
+  for (const v of verses) {
+    before.set(v.verse, new Set(chapterSeen));
+    const verseSeen = new Set<string>();
+    const ctx: DictContext = { bookId, chapter, verse: v.verse };
+    for (const s of dictSpansForVerseText(v.text, index, ctx)) {
+      const eid = s.entity.id || s.entity.name;
+      claimTieredDictUnderline(verseSeen, chapterSeen, eid, s.name);
+    }
+  }
+  return before;
 }
 
 /** 读经正文词链样式：人物点线、地点虚线、物件波浪；重复命中无可见划线。 */

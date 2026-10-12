@@ -160,7 +160,7 @@ void main() {
     expect(spans.where((s) => s.showUnderline), hasLength(2));
   });
 
-  test('跨节各自重置首次划线', () {
+  test('匹配层跨节仍各自标记（章级去重在 Plan）', () {
     final index = buildDictIndex([entity('jesus', '耶稣')]);
     final keys = dictSortedKeys(index);
     final v1 = dictSpansForText(
@@ -181,5 +181,60 @@ void main() {
     );
     expect(v1.single.showUnderline, isTrue);
     expect(v2.single.showUnderline, isTrue);
+  });
+
+  test('分层：高频章内只首次，其余节内首次', () {
+    final index = buildDictIndex([
+      entity('jesus', '耶稣'),
+      entity('peter', '彼得'),
+    ]);
+    final keys = dictSortedKeys(index);
+    final plan = buildChapterDictUnderlinePlan(
+      verses: [
+        (verse: 1, text: '耶稣对彼得说'),
+        (verse: 2, text: '耶稣又对彼得说'),
+      ],
+      index: index,
+      sortedKeys: keys,
+      bookId: 'MAT',
+      chapter: 16,
+    );
+    expect(plan.show(verse: 1, start: 0), isTrue); // 耶稣
+    expect(plan.show(verse: 1, start: 3), isTrue); // 彼得
+    expect(plan.show(verse: 2, start: 0), isFalse); // 耶稣章内已见
+    expect(plan.show(verse: 2, start: 4), isTrue); // 彼得新节
+  });
+
+  test('claimTieredDictUnderline 高频走章桶', () {
+    final chapterSeen = <String>{};
+    final v1 = <String>{};
+    expect(
+      claimTieredDictUnderline(
+        verseSeen: v1,
+        chapterSeen: chapterSeen,
+        entityId: 'jesus',
+        surfaceName: '耶稣',
+      ),
+      isTrue,
+    );
+    final v2 = <String>{};
+    expect(
+      claimTieredDictUnderline(
+        verseSeen: v2,
+        chapterSeen: chapterSeen,
+        entityId: 'jesus',
+        surfaceName: '耶稣',
+      ),
+      isFalse,
+    );
+    expect(
+      claimTieredDictUnderline(
+        verseSeen: v2,
+        chapterSeen: chapterSeen,
+        entityId: 'peter',
+        surfaceName: '彼得',
+      ),
+      isTrue,
+    );
   });
 }

@@ -8,8 +8,10 @@ import {
   api,
   type BibleBook,
   type BibleVersion,
+  type DictEntity,
   type Verse,
 } from '@/lib/api';
+import { buildChapterScopedClaimedBefore } from '@/lib/dictionary_match';
 import { useToast } from '@/components/ui/ToastProvider';
 import PageBackBar from '@/components/PageBackBar';
 import { ChapterGuideTip } from '@/components/reader/ChapterGuideTip';
@@ -254,6 +256,7 @@ export default function ReaderView({
   onNavigate,
   bookAbbr,
   renderVerseText,
+  dictIndex = null,
   quoteDisplayMode = 'source',
   onQuoteDisplayModeChange,
   planMeta,
@@ -278,8 +281,9 @@ export default function ReaderView({
     text: string,
     keyBase: string,
     verse: number,
-    seenEntityIds?: Set<string>,
+    underlineSeen?: { verseSeen: Set<string>; chapterSeen: Set<string> },
   ) => React.ReactNode;
+  dictIndex?: Map<string, DictEntity[]> | null;
   quoteDisplayMode?: QuoteDisplayMode;
   onQuoteDisplayModeChange?: (mode: QuoteDisplayMode) => void;
   planMeta?: PlanReadingMeta | null;
@@ -946,6 +950,32 @@ export default function ReaderView({
     return highlightMap[selRef] ?? null;
   }, [highlightMap, selRef, book.id, chapter, sortedSel, selectionSpan]);
 
+  const chapterDictClaimedBefore = useMemo(() => {
+    if (!underlinesOn || !dictIndex || dictIndex.size === 0 || !verses.length) {
+      return new Map<number, ReadonlySet<string>>();
+    }
+    return buildChapterScopedClaimedBefore(
+      verses.map((v) => ({
+        verse: v.verse,
+        text: formatQuotesForDisplay(
+          verseDisplayText(v.verse, v.text),
+          quoteDisplayMode,
+        ),
+      })),
+      dictIndex,
+      book.id,
+      chapter,
+    );
+  }, [
+    underlinesOn,
+    dictIndex,
+    verses,
+    verseDisplayText,
+    quoteDisplayMode,
+    book.id,
+    chapter,
+  ]);
+
   const renderVerseBody = useCallback(
     (
       text: string,
@@ -956,10 +986,12 @@ export default function ReaderView({
     ) => {
       const span = markInfo?.span;
       const mark = markInfo?.mark ?? null;
-      // 同词条每节只显首次划线：分块（家谱分号行 / 划线前后）共享同一 seen 集
-      const seenEntityIds = new Set<string>();
+      // 分层去重：高频章内 / 其余节内；分块共享同一对 seen
+      const verseSeen = new Set<string>();
+      const chapterSeen = new Set(chapterDictClaimedBefore.get(verseNum) ?? []);
+      const underlineSeen = { verseSeen, chapterSeen };
       const renderText = (t: string, suffix: string) =>
-        renderVerseText(t, `${keyBase}-${suffix}`, verseNum, seenEntityIds);
+        renderVerseText(t, `${keyBase}-${suffix}`, verseNum, underlineSeen);
 
       if (span && mark && span.end > span.start && span.start >= 0 && span.end <= text.length) {
         const before = text.slice(0, span.start);
@@ -1051,14 +1083,23 @@ export default function ReaderView({
                   }
                 }}
               >
-                {renderVerseText(w.text, `${keyBase}-w${i}`, verseNum, seenEntityIds)}
+                {renderVerseText(w.text, `${keyBase}-w${i}`, verseNum, underlineSeen)}
               </span>
             );
           })}
         </>
       );
     },
-    [renderVerseText, wordRange, nativeTouchSelect, pinnedSpanByVerse, book.id, chapter, poetry],
+    [
+      renderVerseText,
+      wordRange,
+      nativeTouchSelect,
+      pinnedSpanByVerse,
+      book.id,
+      chapter,
+      poetry,
+      chapterDictClaimedBefore,
+    ],
   );
 
   const updateFocusBarPosition = useCallback(() => {
@@ -2368,8 +2409,7 @@ export default function ReaderView({
           setLiveNativeSelection(next);
           if (next) {
             nativeSelectionRef.current = next;
-            // 长按选词时手指未抬起也会出系统「拷贝/翻译」栏：短暂静置后 pin 并收起
-            if (autoCollapseNativeSel) scheduleCollapse(360);
+            // 手指未抬起：保持系统划选以便跟手扩选（类 iOS）；松手后再 pin，避免中途掐死拖动
           }
           return;
         }
@@ -2406,12 +2446,14 @@ export default function ReaderView({
       ev.stopPropagation();
     };
 
-    const onPointerUp = (e: PointerEvent | TouchEvent) => {
-      // 松手立刻打断系统栏；WebKit 偶发先清选区，双 rAF 再用缓存 pin
+    const finishAfterPointerUp = () => {
       window.clearTimeout(nativeCollapseTimerRef.current);
       nativeCollapseTimerRef.current = 0;
       if (autoCollapseNativeSel) {
+        // 同步 pin + 清系统选区，抢在 WebKit 弹出「拷贝/翻译」之前
         commitLiveSelection();
+        clearBrowserSelection();
+        root.classList.add('reader-sel-locked');
       }
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -2425,12 +2467,21 @@ export default function ReaderView({
               clearBrowserSelection();
               root.classList.add('reader-sel-locked');
             }
+            // 再清几拍，挡住系统栏晚到
+            window.setTimeout(clearBrowserSelection, 16);
+            window.setTimeout(clearBrowserSelection, 64);
+            window.setTimeout(clearBrowserSelection, 160);
+            window.setTimeout(clearBrowserSelection, 320);
           } else {
             commitLiveSelection();
           }
           if (nativeSelectingRef.current) setSelecting(false);
         });
       });
+    };
+
+    const onPointerUp = (e: PointerEvent | TouchEvent) => {
+      finishAfterPointerUp();
       if (e instanceof PointerEvent && e.pointerType === 'mouse' && isFinePointerUI()) {
         if (nativeSelectionRef.current) {
           suppressGhostClickUntil = Date.now() + 400;
@@ -2444,9 +2495,20 @@ export default function ReaderView({
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
+      // 拖动手柄时不要重新进入 selecting，否则会清掉 pin
+      if (document.body.classList.contains('reader-sel-handle-dragging')) return;
+      if (e.target instanceof Element && e.target.closest('.reader-sel-handle')) return;
       window.clearTimeout(nativeCollapseTimerRef.current);
       nativeCollapseTimerRef.current = 0;
       setSelecting(true);
+    };
+
+    // capture touchend：比 bubble 更早打断系统工具栏
+    const onTouchEndCapture = () => {
+      if (!autoCollapseNativeSel) return;
+      if (document.body.classList.contains('reader-sel-handle-dragging')) return;
+      if (!nativeSelectingRef.current && !browserHasNativeSelection()) return;
+      finishAfterPointerUp();
     };
 
     document.addEventListener('selectionchange', sync);
@@ -2457,6 +2519,7 @@ export default function ReaderView({
     root.addEventListener('touchend', onPointerUp, { passive: true });
     root.addEventListener('pointerup', onPointerUp, { passive: true });
     root.addEventListener('pointercancel', onPointerUp, { passive: true });
+    document.addEventListener('touchend', onTouchEndCapture, { capture: true, passive: true });
     return () => {
       root.removeEventListener('contextmenu', blockMenu, true);
       document.removeEventListener('contextmenu', blockMenu, true);
@@ -2465,6 +2528,7 @@ export default function ReaderView({
       root.removeEventListener('touchend', onPointerUp);
       root.removeEventListener('pointerup', onPointerUp);
       root.removeEventListener('pointercancel', onPointerUp);
+      document.removeEventListener('touchend', onTouchEndCapture, true);
       root.removeEventListener('click', blockGhostClick, true);
       if (raf) cancelAnimationFrame(raf);
       window.clearTimeout(nativeCollapseTimerRef.current);
@@ -2783,6 +2847,7 @@ export default function ReaderView({
       if (focusBarRef.current?.contains(t)) return;
       if (t.closest('.reader-focus-bar')) return;
       if (t.closest('.reader-sel-handle')) return;
+      if (document.body.classList.contains('reader-sel-handle-dragging')) return;
       if (t.closest('.reader-mark-wrap') || t.closest('.reader-mark-popover')) return;
       // 词典 / 可点控件：让 shell_tap 开层，勿先清选区抢手势
       if (t.closest('.proper-noun,[role="button"],.vsb-icon-btn')) return;

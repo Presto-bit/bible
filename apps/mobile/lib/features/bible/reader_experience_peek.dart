@@ -485,6 +485,25 @@ class _ChapterPeekContent extends StatelessWidget {
   String _textFor(Chapter source, int verse) =>
       source.verses.where((v) => v.verse == verse).firstOrNull?.text ?? '—';
 
+  ChapterDictUnderlinePlan _buildUnderlinePlan() {
+    if (!underlinesEnabled || dictKeys.isEmpty) {
+      return ChapterDictUnderlinePlan.empty;
+    }
+    return buildChapterDictUnderlinePlan(
+      verses: [
+        for (final v in primary.verses)
+          (
+            verse: v.verse,
+            text: formatQuotesForDisplay(v.text, quoteDisplay),
+          ),
+      ],
+      index: dictIndex,
+      sortedKeys: dictKeys,
+      bookId: book.id,
+      chapter: chapter,
+    );
+  }
+
   /// 与主文 `_ParagraphBlock` 同构：同样切词、同样逐词 WidgetSpan、同样下划线与
   /// 定宽间隙。预览若退化成整段 TextSpan，落地时断行会整体重排，观感就是「页面波动」。
   List<InlineSpan> _verseSpans(
@@ -493,6 +512,7 @@ class _ChapterPeekContent extends StatelessWidget {
     required bool showNumber,
     bool appendNoteIcon = false,
     bool proseIndent = false,
+    ChapterDictUnderlinePlan? underlinePlan,
   }) {
     final spans = <InlineSpan>[];
     if (proseIndent) {
@@ -563,6 +583,7 @@ class _ChapterPeekContent extends StatelessWidget {
       fontPx: fontPx,
       words: words,
       dictSpans: dictSpans,
+      underlinePlan: underlinePlan,
       interactive: false,
       selectionActive: selectionActive,
       markInfo: markInfo,
@@ -621,7 +642,10 @@ class _ChapterPeekContent extends StatelessWidget {
     );
   }
 
-  Widget _proseParagraph(VerseParagraph para) {
+  Widget _proseParagraph(
+    VerseParagraph para,
+    ChapterDictUnderlinePlan underlinePlan,
+  ) {
     final display = para.verses
         .map((v) => Verse(verse: v.verse, text: _textFor(primary, v.verse)))
         .toList();
@@ -670,6 +694,7 @@ class _ChapterPeekContent extends StatelessWidget {
                               verse,
                               style: _mainStyle,
                               showNumber: false,
+                              underlinePlan: underlinePlan,
                             ),
                           ),
                         ),
@@ -723,6 +748,7 @@ class _ChapterPeekContent extends StatelessWidget {
           showNumber: true,
           appendNoteIcon: true,
           proseIndent: indentHere,
+          underlinePlan: underlinePlan,
         ),
       );
     }
@@ -737,7 +763,10 @@ class _ChapterPeekContent extends StatelessWidget {
     );
   }
 
-  Widget _parallelParagraph(VerseParagraph para) {
+  Widget _parallelParagraph(
+    VerseParagraph para,
+    ChapterDictUnderlinePlan underlinePlan,
+  ) {
     final children = <Widget>[];
     var firstVerse = true;
     for (final layoutVerse in para.verses) {
@@ -759,6 +788,7 @@ class _ChapterPeekContent extends StatelessWidget {
               style: _mainStyle,
               showNumber: true,
               proseIndent: indentHere,
+              underlinePlan: underlinePlan,
             ),
           ),
         ),
@@ -799,6 +829,7 @@ class _ChapterPeekContent extends StatelessWidget {
     for (final paragraph in paragraphs) {
       rows.add(paragraph);
     }
+    final underlinePlan = _buildUnderlinePlan();
     final itemCount = rows.length;
     return ExcludeSemantics(
       child: ListView.builder(
@@ -817,8 +848,8 @@ class _ChapterPeekContent extends StatelessWidget {
           final row = rows[i - (headerBar != null ? 1 : 0)];
           return RepaintBoundary(
             child: parallel == null
-                ? _proseParagraph(row as VerseParagraph)
-                : _parallelParagraph(row as VerseParagraph),
+                ? _proseParagraph(row as VerseParagraph, underlinePlan)
+                : _parallelParagraph(row as VerseParagraph, underlinePlan),
           );
         },
       ),

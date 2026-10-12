@@ -2789,6 +2789,23 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       rows.add(para);
     }
 
+    final quoteMode = ref.watch(quoteDisplayProvider);
+    final underlinePlan = underlinesEnabled && dictKeys.isNotEmpty
+        ? buildChapterDictUnderlinePlan(
+            verses: [
+              for (final v in layoutChapter.verses)
+                (
+                  verse: v.verse,
+                  text: formatQuotesForDisplay(v.text, quoteMode),
+                ),
+            ],
+            index: dictIndex,
+            sortedKeys: dictKeys,
+            bookId: widget.book.id,
+            chapter: widget.chapter,
+          )
+        : ChapterDictUnderlinePlan.empty;
+
     VerseParagraph displayPara(VerseParagraph para) {
       if (identical(layoutChapter, ch)) return para;
       return VerseParagraph(
@@ -2912,6 +2929,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                 dictIndex: dictIndex,
                 dictKeys: dictKeys,
                 dictRev: dictRev,
+                underlinePlan: underlinePlan,
                 inkColor: theme.ink,
                 selectionAnchorVerse: _selectionAnchorVerse,
                 selectionAnchorKey: _selectionAnchorKey,
