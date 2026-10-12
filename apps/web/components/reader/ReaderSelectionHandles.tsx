@@ -6,55 +6,76 @@ import {
   pinnedSpanBounds,
   rebuildPinnedFromEdges,
   verseCharAtPoint,
+  wordAnchorFromPoint,
   type NativePinnedHighlight,
   type SelHandlePoint,
 } from '@/lib/native_verse_selection';
+import {
+  normalizeWordRange,
+  type WordAnchor,
+  type WordRange,
+} from '@/lib/selection_range';
 import { readerScrollEl } from '@/lib/reader_viewport';
 
 type Edge = 'start' | 'end';
 
 type Props = {
   rootRef: RefObject<HTMLElement | null>;
-  pinned: NativePinnedHighlight | null;
+  pinned?: NativePinnedHighlight | null;
+  wordRange?: WordRange | null;
   visible: boolean;
-  onAdjust: (next: NativePinnedHighlight) => void;
+  onAdjustPinned?: (next: NativePinnedHighlight) => void;
+  onAdjustWord?: (next: WordRange) => void;
   onDragChange?: (dragging: boolean) => void;
 };
 
 /**
- * PWA/触控：系统选区收起后，自绘起止手柄，拖动扩/缩选区（跟手近似 iOS）。
+ * PWA/触控：自绘起止手柄。
+ * - pinned：字符级 pin
+ * - wordRange：应用内词选（避免系统拷贝栏）
  */
 export function ReaderSelectionHandles({
   rootRef,
-  pinned,
+  pinned = null,
+  wordRange = null,
   visible,
-  onAdjust,
+  onAdjustPinned,
+  onAdjustWord,
   onDragChange,
 }: Props) {
+  const mode: 'word' | 'pinned' | null = wordRange
+    ? 'word'
+    : pinned?.spans.length
+      ? 'pinned'
+      : null;
   const [pos, setPos] = useState<{ start: SelHandlePoint; end: SelHandlePoint } | null>(null);
   const [liveFinger, setLiveFinger] = useState<{ edge: Edge; x: number; y: number } | null>(null);
   const dragRef = useRef<{
     edge: Edge;
     pointerId: number;
-    bounds: NonNullable<ReturnType<typeof pinnedSpanBounds>>;
+    pinnedBounds?: NonNullable<ReturnType<typeof pinnedSpanBounds>>;
+    wordFixed?: WordAnchor;
   } | null>(null);
   const rafHitRef = useRef(0);
   const pendingPointRef = useRef<{ x: number; y: number } | null>(null);
   const pinnedRef = useRef(pinned);
   pinnedRef.current = pinned;
-  const onAdjustRef = useRef(onAdjust);
-  onAdjustRef.current = onAdjust;
+  const wordRangeRef = useRef(wordRange);
+  wordRangeRef.current = wordRange;
+  const onAdjustPinnedRef = useRef(onAdjustPinned);
+  onAdjustPinnedRef.current = onAdjustPinned;
+  const onAdjustWordRef = useRef(onAdjustWord);
+  onAdjustWordRef.current = onAdjustWord;
   const onDragChangeRef = useRef(onDragChange);
   onDragChangeRef.current = onDragChange;
 
   const refresh = useCallback(() => {
     if (dragRef.current) return;
-    const next = measureSelHandlePositions(rootRef.current);
-    setPos(next);
+    setPos(measureSelHandlePositions(rootRef.current));
   }, [rootRef]);
 
   useEffect(() => {
-    if (!visible || !pinned?.spans.length) {
+    if (!visible || !mode) {
       setPos(null);
       setLiveFinger(null);
       return;
@@ -71,34 +92,45 @@ export function ReaderSelectionHandles({
       window.removeEventListener('resize', refresh);
       window.removeEventListener('scroll', refresh, true);
     };
-  }, [visible, pinned, refresh, rootRef]);
+  }, [visible, mode, pinned, wordRange, refresh, rootRef]);
 
   const flushHit = useCallback(() => {
     rafHitRef.current = 0;
     const drag = dragRef.current;
     const pt = pendingPointRef.current;
     if (!drag || !pt) return;
-    const hit = verseCharAtPoint(rootRef.current, pt.x, pt.y, { edge: drag.edge });
-    if (!hit) return;
-    const next =
-      drag.edge === 'start'
-        ? rebuildPinnedFromEdges(
-          rootRef.current,
-          hit.verse,
-          hit.offset,
-          drag.bounds.endVerse,
-          drag.bounds.endOff,
-        )
-        : rebuildPinnedFromEdges(
-          rootRef.current,
-          drag.bounds.startVerse,
-          drag.bounds.startOff,
-          hit.verse,
-          hit.offset,
-        );
-    if (!next) return;
-    onAdjustRef.current(next);
-    // 拖动中手柄跟手指；松手后再量 DOM
+
+    if (drag.wordFixed) {
+      const hit = wordAnchorFromPoint(rootRef.current, pt.x, pt.y);
+      if (!hit) return;
+      const next: WordRange =
+        drag.edge === 'start'
+          ? { anchor: hit, focus: drag.wordFixed }
+          : { anchor: drag.wordFixed, focus: hit };
+      onAdjustWordRef.current?.(next);
+    } else if (drag.pinnedBounds) {
+      const hit = verseCharAtPoint(rootRef.current, pt.x, pt.y, { edge: drag.edge });
+      if (!hit) return;
+      const next =
+        drag.edge === 'start'
+          ? rebuildPinnedFromEdges(
+            rootRef.current,
+            hit.verse,
+            hit.offset,
+            drag.pinnedBounds.endVerse,
+            drag.pinnedBounds.endOff,
+          )
+          : rebuildPinnedFromEdges(
+            rootRef.current,
+            drag.pinnedBounds.startVerse,
+            drag.pinnedBounds.startOff,
+            hit.verse,
+            hit.offset,
+          );
+      if (!next) return;
+      onAdjustPinnedRef.current?.(next);
+    }
+
     const measured = measureSelHandlePositions(rootRef.current);
     if (measured) {
       setPos({
@@ -128,12 +160,10 @@ export function ReaderSelectionHandles({
     document.body.classList.remove('reader-sel-handle-dragging');
     onDragChangeRef.current?.(false);
     requestAnimationFrame(() => {
-      const next = measureSelHandlePositions(rootRef.current);
-      setPos(next);
+      setPos(measureSelHandlePositions(rootRef.current));
     });
   }, [rootRef]);
 
-  // document 级跟手：iOS 上按钮 pointermove 容易丢事件
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       const drag = dragRef.current;
@@ -161,12 +191,22 @@ export function ReaderSelectionHandles({
   const onPointerDown = useCallback(
     (edge: Edge) => (e: React.PointerEvent) => {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
-      const cur = pinnedRef.current;
-      const bounds = cur ? pinnedSpanBounds(cur.spans) : null;
-      if (!bounds) return;
       e.preventDefault();
       e.stopPropagation();
-      dragRef.current = { edge, pointerId: e.pointerId, bounds };
+
+      if (wordRangeRef.current) {
+        const norm = normalizeWordRange(wordRangeRef.current);
+        dragRef.current = {
+          edge,
+          pointerId: e.pointerId,
+          wordFixed: edge === 'start' ? norm.focus : norm.anchor,
+        };
+      } else {
+        const bounds = pinnedRef.current ? pinnedSpanBounds(pinnedRef.current.spans) : null;
+        if (!bounds) return;
+        dragRef.current = { edge, pointerId: e.pointerId, pinnedBounds: bounds };
+      }
+
       pendingPointRef.current = { x: e.clientX, y: e.clientY };
       setLiveFinger({ edge, x: e.clientX, y: e.clientY });
       document.body.classList.add('reader-sel-handle-dragging');
@@ -176,7 +216,6 @@ export function ReaderSelectionHandles({
       } catch {
         /* ignore */
       }
-      // 立刻按落点调一次，给反馈
       if (!rafHitRef.current) {
         rafHitRef.current = requestAnimationFrame(flushHit);
       }
@@ -184,7 +223,7 @@ export function ReaderSelectionHandles({
     [flushHit],
   );
 
-  if (!visible || !pos) return null;
+  if (!visible || !mode || !pos) return null;
 
   const startPoint =
     liveFinger?.edge === 'start'

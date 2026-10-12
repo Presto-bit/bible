@@ -1258,7 +1258,10 @@ body.reader-overlay-open .reader-page {
   user-select: text;
   -webkit-touch-callout: none;
 }
-/* 触控/PWA/安卓壳 原生划选：user-select 保留放大镜+蓝底；touch-callout:none 隐藏长按菜单 */
+/*
+ * 触控/PWA/安卓壳：禁用系统划选（否则必出「拷贝/高亮/查阅」栏）。
+ * 选区改由应用内长按词选 + 自绘手柄完成。
+ */
 @media (hover: none) and (pointer: coarse), (display-mode: standalone), (display-mode: fullscreen) {
   .reader-page,
   .reader-page .reader-content,
@@ -1266,14 +1269,14 @@ body.reader-overlay-open .reader-page {
   .reader-page .reader-turn-panel {
     -webkit-touch-callout: none !important;
   }
-  /* 壳 document-start 会伪装 display-mode；粗指针手机亦命中 */
   .reader-page .verse-token,
   .reader-page .verse-inline,
   .reader-page .verse-text-body,
   .reader-page .verse-text-body *,
+  .reader-page .verse-word,
   .reader-page .verse-sel-chars {
-    -webkit-user-select: text;
-    user-select: text;
+    -webkit-user-select: none !important;
+    user-select: none !important;
     -webkit-touch-callout: none !important;
   }
 
@@ -1310,6 +1313,13 @@ body.reader-overlay-open .reader-page {
     -webkit-user-select: none !important;
     user-select: none !important;
     -webkit-touch-callout: none !important;
+  }
+
+  /* 长按已触发：禁滚，保证跟手扩选 */
+  .reader-content.reader-word-selecting,
+  .reader-content.reader-word-selecting .reader-scroll-panel,
+  .reader-content.reader-word-selecting .reader-turn-peek {
+    touch-action: none !important;
   }
 }
 .verse-word.is-active {

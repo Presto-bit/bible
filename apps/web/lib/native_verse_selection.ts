@@ -283,17 +283,10 @@ export function verseCharAtPoint(
 
 export type SelHandlePoint = { x: number; y: number; h: number };
 
-/** 根据 `.verse-sel-chars` 量测起止手柄锚点（fixed 坐标）。 */
-export function measureSelHandlePositions(
-  root: HTMLElement | null,
+function handlePointsFromRects(
+  firstRects: DOMRectList,
+  lastRects: DOMRectList,
 ): { start: SelHandlePoint; end: SelHandlePoint } | null {
-  if (!root) return null;
-  const nodes = root.querySelectorAll('.verse-sel-chars');
-  if (!nodes.length) return null;
-  const first = nodes[0] as HTMLElement;
-  const last = nodes[nodes.length - 1] as HTMLElement;
-  const firstRects = first.getClientRects();
-  const lastRects = last.getClientRects();
   if (!firstRects.length || !lastRects.length) return null;
   const a = firstRects[0]!;
   const b = lastRects[lastRects.length - 1]!;
@@ -301,6 +294,62 @@ export function measureSelHandlePositions(
     start: { x: a.left, y: a.top, h: a.height || 18 },
     end: { x: b.right, y: b.top, h: b.height || 18 },
   };
+}
+
+/** 根据 `.verse-sel-chars` 或 `.verse-word.is-active` 量测起止手柄锚点（fixed 坐标）。 */
+export function measureSelHandlePositions(
+  root: HTMLElement | null,
+): { start: SelHandlePoint; end: SelHandlePoint } | null {
+  if (!root) return null;
+  const chars = root.querySelectorAll('.verse-sel-chars');
+  if (chars.length) {
+    const first = chars[0] as HTMLElement;
+    const last = chars[chars.length - 1] as HTMLElement;
+    const points = handlePointsFromRects(first.getClientRects(), last.getClientRects());
+    if (points) return points;
+  }
+  const words = root.querySelectorAll('.verse-word.is-active');
+  if (!words.length) return null;
+  const first = words[0] as HTMLElement;
+  const last = words[words.length - 1] as HTMLElement;
+  return handlePointsFromRects(first.getClientRects(), last.getClientRects());
+}
+
+/** 触点下的词锚点（应用内词选 / 手柄拖动）。 */
+export function wordAnchorFromPoint(
+  root: HTMLElement | null,
+  x: number,
+  y: number,
+): { verse: number; start: number; end: number } | null {
+  if (!root || typeof document === 'undefined') return null;
+  const ignored: HTMLElement[] = [];
+  document.querySelectorAll('.reader-sel-handle').forEach((el) => {
+    const h = el as HTMLElement;
+    ignored.push(h);
+    h.style.pointerEvents = 'none';
+  });
+  try {
+    const samples: Array<[number, number]> = [
+      [x, y],
+      [x, y - 8],
+      [x, y + 8],
+      [x - 10, y],
+      [x + 10, y],
+    ];
+    for (const [sx, sy] of samples) {
+      const node = document.elementFromPoint(sx, sy);
+      const w = node?.closest('.verse-word') as HTMLElement | null;
+      if (!w || !root.contains(w)) continue;
+      const verse = Number(w.dataset.v);
+      const start = Number(w.dataset.s);
+      const end = Number(w.dataset.e);
+      if (!verse || Number.isNaN(start) || Number.isNaN(end)) continue;
+      return { verse, start, end };
+    }
+    return null;
+  } finally {
+    for (const h of ignored) h.style.pointerEvents = '';
+  }
 }
 
 /** 无精确 spans 时，用整节正文合成可拖 pin（兜底手柄）。 */
