@@ -12,6 +12,7 @@ import IdentityShell from '@/components/IdentityShell';
 import { ConfirmProvider } from '@/components/ui/ConfirmProvider';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { PasswordSheetProvider } from '@/components/ui/PasswordSheetProvider';
+import { SwrProvider } from '@/components/SwrProvider';
 import OfflineBar from '@/components/OfflineBar';
 import BottomTabs from '@/components/BottomTabs';
 import TabKeepAlive from '@/components/shell/TabKeepAlive';
@@ -173,6 +174,7 @@ export default function RootLayout({
         <ConfirmProvider>
           <ToastProvider>
           <PasswordSheetProvider>
+            <SwrProvider>
             <IdentityShell>
               <AppThemeShell />
               <OfflineBar />
@@ -191,6 +193,7 @@ export default function RootLayout({
               <PwaStandaloneShell />
               <DeferredShellOverlays />
             </IdentityShell>
+            </SwrProvider>
           </PasswordSheetProvider>
           </ToastProvider>
         </ConfirmProvider>

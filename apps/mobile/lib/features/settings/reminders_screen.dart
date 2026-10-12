@@ -33,6 +33,13 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
       hour: NotifPrefs.dailyHour(_prefs),
       minute: NotifPrefs.dailyMinute(_prefs),
     );
+    NotifPrefs.hydrateUnsetFromServer(_prefs).then((_) {
+      if (!mounted) return;
+      setState(() {
+        _enabled = NotifPrefs.dailyEnabled(_prefs);
+        _dnd = NotifPrefs.readingDnd(_prefs);
+      });
+    });
   }
 
   Future<void> _toggle(bool on) async {

@@ -23,6 +23,7 @@ import { GroupToast } from '@/components/group/GroupToast';
 import { ReportSheet, type ReportReason } from '@/components/social/ReportSheet';
 import { ForwardPickerSheet, type ForwardPayload } from '@/components/social/ForwardPickerSheet';
 import { ImChatSearch } from '@/components/social/ImChatSearch';
+import { ImJumpBottomButton } from '@/components/social/ImJumpBottomButton';
 import ErrorBanner from '@/components/ErrorBanner';
 import { api, effectiveId, type GeneratedPlan, type GroupDetail, type GroupMember, type GroupMessage, type PlanSummary } from '@/lib/api';
 import { scrollImChatToBottom } from '@/lib/use_im_composer_keyboard';
@@ -1161,21 +1162,16 @@ function GroupPageInner() {
       </div>
 
       {showJump ? (
-        <button
-          type="button"
-          className={`im-jump-bottom${selectMode ? ' is-selecting' : ''}${jumpUnread > 0 ? ' has-unread' : ''}`}
+        <ImJumpBottomButton
+          selectMode={selectMode}
+          jumpUnread={jumpUnread}
           onClick={() => {
             stickBottom.current = true;
             setShowJump(false);
             setJumpUnread(0);
             scrollImChatToBottom(feedWrapRef.current);
           }}
-        >
-          回到底部
-          {jumpUnread > 0 ? (
-            <span className="im-jump-badge">{jumpUnread > 99 ? '99+' : jumpUnread}</span>
-          ) : null}
-        </button>
+        />
       ) : null}
 
       {myOpenTask && !selectMode ? (

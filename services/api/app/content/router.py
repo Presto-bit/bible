@@ -1243,6 +1243,14 @@ def content_product_event(
     )
 
 
+@router.get("/client-defaults")
+def client_defaults() -> dict:
+    """双端共享默认规则（防 Web↔Flutter 漂移）：勿扰/提醒/首页轨道槽位。"""
+    from .client_defaults import client_defaults_payload
+
+    return client_defaults_payload()
+
+
 @router.get("/hero-b/link-catalog")
 def hero_b_link_catalog() -> dict:
     return {"catalog": LINK_CATALOG}

@@ -1,4 +1,4 @@
-/** 通知勿扰偏好（PRODUCT §23.7） */
+/** 通知勿扰偏好（PRODUCT §23.7）；默认值可被 /content/client-defaults 覆盖。 */
 
 const KEY = 'presto_notif_prefs_v1';
 
@@ -11,11 +11,25 @@ export type NotifPrefs = {
   streakRecall: boolean;
 };
 
-const DEFAULTS: NotifPrefs = {
+let DEFAULTS: NotifPrefs = {
   readingDnd: true,
   socialDigest: true,
   streakRecall: false,
 };
+
+/** 用服务端 client-defaults 刷新内存默认（不影响用户已写入的 localStorage）。 */
+export async function hydrateNotifDefaultsFromServer(): Promise<void> {
+  try {
+    const { fetchClientDefaults } = await import('./client_defaults');
+    const d = await fetchClientDefaults();
+    DEFAULTS = {
+      ...DEFAULTS,
+      readingDnd: d.reminders.reading_dnd_default,
+    };
+  } catch {
+    /* ignore */
+  }
+}
 
 function readStored(): Partial<NotifPrefs> {
   if (typeof window === 'undefined') return {};

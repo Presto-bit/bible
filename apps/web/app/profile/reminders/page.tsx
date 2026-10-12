@@ -73,20 +73,33 @@ export default function RemindersPage() {
   }, []);
 
   useEffect(() => {
-    const p = getReminder();
-    const g = getGroupEveningReminder();
-    setPref(p);
-    setGroupPref(g);
-    setNotif(getNotifPrefs());
-    setCustomHour(p.hour);
-    setCustomMinute(p.minute);
-    setGroupHour(g.hour);
-    setGroupMinute(g.minute);
-    const preset = SLOTS.some((s) => slotActive(p, s.hour, s.minute));
-    setCustomOpen(p.enabled && !preset);
-    reschedule();
-    rescheduleGroupEveningReminder();
-    rescheduleAllNotifications();
+    let cancelled = false;
+    void (async () => {
+      const { hydrateNotifDefaultsFromServer } = await import('@/lib/notif_prefs');
+      const { hydrateReminderDefaultsFromServer } = await import('@/lib/reminder');
+      await Promise.all([
+        hydrateNotifDefaultsFromServer(),
+        hydrateReminderDefaultsFromServer(),
+      ]);
+      if (cancelled) return;
+      const p = getReminder();
+      const g = getGroupEveningReminder();
+      setPref(p);
+      setGroupPref(g);
+      setNotif(getNotifPrefs());
+      setCustomHour(p.hour);
+      setCustomMinute(p.minute);
+      setGroupHour(g.hour);
+      setGroupMinute(g.minute);
+      const preset = SLOTS.some((s) => slotActive(p, s.hour, s.minute));
+      setCustomOpen(p.enabled && !preset);
+      reschedule();
+      rescheduleGroupEveningReminder();
+      rescheduleAllNotifications();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const patchNotif = async (patch: Partial<NotifPrefs>) => {

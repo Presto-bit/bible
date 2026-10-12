@@ -37,6 +37,8 @@ import { ImFilePreviewSheet } from '@/components/social/ImFilePreviewSheet';
 import { ImMediaAttachment, parseVoiceDurationHint } from '@/components/social/ImMediaAttachment';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
+import { ImTimeSep } from '@/components/social/ImTimeSep';
+import { ImReplyQuote } from '@/components/social/ImReplyQuote';
 import { collectMessageImages, downloadImAsset, shareImAsset } from '@/lib/im_media';
 import { detectImMediaKind } from '@/lib/im_av';
 import { buildShelfImPopoverActions } from '@/lib/im_shelf_actions';
@@ -468,17 +470,16 @@ function ChatBubble({
               )}
 
               {replyPreview ? (
-                <span
-                  className="group-msg-reply-quote is-tappable"
-                  role={replyPreview.id ? 'button' : undefined}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (replyPreview.id) focusMessageById(replyPreview.id);
-                  }}
-                >
-                  <span className="muted">{replyPreview.author}</span>
-                  <p>{replyPreview.snippet}</p>
-                </span>
+                <ImReplyQuote
+                  as="span"
+                  title={replyPreview.author}
+                  snippet={replyPreview.snippet}
+                  onActivate={
+                    replyPreview.id
+                      ? () => focusMessageById(replyPreview.id!)
+                      : undefined
+                  }
+                />
               ) : null}
 
               {isTaskDone && completeTitle ? (
@@ -955,9 +956,7 @@ export function GroupActivityFeed({
           ref={(node) => virt.measureRef(m.id, node)}
         >
           {showDay ? (
-            <div className="dm-day-sep" role="separator">
-              <span>{formatMsgDayLabel(dayKey)}</span>
-            </div>
+            <ImTimeSep label={formatMsgDayLabel(dayKey)} className="dm-day-sep" />
           ) : null}
           <ChatBubbleMemo
             gid={gid}

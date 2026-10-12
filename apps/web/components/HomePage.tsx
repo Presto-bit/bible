@@ -187,6 +187,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     setHeroArtReady(false);
   }, [heroIllustration]);
 
+  // 预拉双端默认规则（勿扰/轨道槽），失败忽略
+  useEffect(() => {
+    void import('@/lib/client_defaults').then((m) => m.fetchClientDefaults()).catch(() => {});
+  }, []);
+
   /** 开屏 2s 窗口内预解码 hero 壁纸（blob 预取 + 解码），减少撤遮罩后换肤跳变 */
   useEffect(() => {
     if (!heroIllustration) return;

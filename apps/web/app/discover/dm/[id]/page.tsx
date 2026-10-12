@@ -16,7 +16,6 @@ import {
   canRecallOwnMessage,
   copyMessageText,
   focusMessageById,
-  formatChatTimeSep,
   localDayKeyFromIso,
   replySnippet,
 } from '@/lib/im_ui';
@@ -61,6 +60,9 @@ import {
   takeMediaFile,
 } from '@/lib/im_send_queue';
 import { ImChatSearch } from '@/components/social/ImChatSearch';
+import { ImJumpBottomButton } from '@/components/social/ImJumpBottomButton';
+import { ImTimeSep } from '@/components/social/ImTimeSep';
+import { ImReplyQuote } from '@/components/social/ImReplyQuote';
 import {
   GROUP_CANNED_PHRASES,
   GROUP_EMOJIS,
@@ -1383,9 +1385,10 @@ function DmThreadPageInner() {
                 ref={(node) => virt.measureRef(m.id, node)}
               >
                 {showDay || showTimeSep ? (
-                  <div className={`dm-day-sep${showTimeSep && !showDay ? ' is-time' : ''}`} role="separator">
-                    <span>{formatChatTimeSep(m.created_at)}</span>
-                  </div>
+                  <ImTimeSep
+                    createdAt={m.created_at}
+                    className={`dm-day-sep${showTimeSep && !showDay ? ' is-time' : ''}`}
+                  />
                 ) : null}
                 <div
                   data-mid={m.id}
@@ -1459,20 +1462,10 @@ function DmThreadPageInner() {
                   ) : (
                     <>
                       {m.reply_to_id ? (
-                        <button
-                          type="button"
-                          className="group-msg-reply-quote is-tappable"
-                          disabled={!parent}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (parent) focusMessageById(parent.id);
-                          }}
-                        >
-                          <span className="muted">
-                            {parent ? '回复' : '原消息'}
-                          </span>
-                          <p>
-                            {parent
+                        <ImReplyQuote
+                          title={parent ? '回复' : '原消息'}
+                          snippet={
+                            parent
                               ? parent.recalled
                                 ? '消息已撤回'
                                 : replySnippet(
@@ -1480,9 +1473,11 @@ function DmThreadPageInner() {
                                     parent.kind,
                                     parent.attachments?.[0]?.file_name,
                                   )
-                              : '（暂未加载）'}
-                          </p>
-                        </button>
+                              : '（暂未加载）'
+                          }
+                          disabled={!parent}
+                          onActivate={parent ? () => focusMessageById(parent.id) : undefined}
+                        />
                       ) : null}
                       <ImMessageBody body={m.body} ref={m.ref} kind={m.kind} />
                       {m.attachments && m.attachments.length > 0 ? (
@@ -1625,16 +1620,11 @@ function DmThreadPageInner() {
           <div ref={endRef} />
         </div>
         {showJump ? (
-          <button
-            type="button"
-            className={`im-jump-bottom${selectMode ? ' is-selecting' : ''}${jumpUnread > 0 ? ' has-unread' : ''}`}
+          <ImJumpBottomButton
+            selectMode={selectMode}
+            jumpUnread={jumpUnread}
             onClick={jumpBottom}
-          >
-            回到底部
-            {jumpUnread > 0 ? (
-              <span className="im-jump-badge">{jumpUnread > 99 ? '99+' : jumpUnread}</span>
-            ) : null}
-          </button>
+          />
         ) : null}
       </div>
 

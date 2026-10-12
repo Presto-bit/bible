@@ -11,17 +11,32 @@ export interface ReminderPref {
 }
 
 const KEY = 'presto_reminder';
-const DEFAULT: ReminderPref = { enabled: false, hour: 8, minute: 0 };
+/** 可被 /content/client-defaults 覆盖（仅当本地未写过提醒时生效）。 */
+let DEFAULT: ReminderPref = { enabled: false, hour: 8, minute: 0 };
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 
+/** 用服务端默认刷新内存 DEFAULT.enabled（不影响已写入的 localStorage）。 */
+export async function hydrateReminderDefaultsFromServer(): Promise<void> {
+  try {
+    const { fetchClientDefaults } = await import('./client_defaults');
+    const d = await fetchClientDefaults();
+    DEFAULT = {
+      ...DEFAULT,
+      enabled: d.reminders.daily_reading_enabled_default,
+    };
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getReminder(): ReminderPref {
-  if (typeof window === 'undefined') return DEFAULT;
+  if (typeof window === 'undefined') return { ...DEFAULT };
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
-    return raw ? { ...DEFAULT, ...raw } : DEFAULT;
+    return raw ? { ...DEFAULT, ...raw } : { ...DEFAULT };
   } catch {
-    return DEFAULT;
+    return { ...DEFAULT };
   }
 }
 

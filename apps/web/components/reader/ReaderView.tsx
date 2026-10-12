@@ -31,7 +31,6 @@ import {
   getChapterVersesSync,
   loadChapterVerses,
 } from '@/lib/chapter_prefetch';
-import { bibleChapter } from '@/lib/bible_client';
 import {
   FALLBACK_PRIMARY_VERSION,
   isEnglishBibleVersion,
@@ -71,14 +70,7 @@ import {
   getMainVersion,
   getReadingLayout,
   getVerseNumberMode,
-  READER_THEMES,
-  setMainVersion,
-  setParallelVersion,
-  setReaderTheme,
-  setReadingLayout,
-  setVerseNumberMode,
   readerThemeBackground,
-  VERSE_NUMBER_MODES,
   type ReaderTheme,
   type ReadingLayout,
   type VerseNumberMode,
@@ -91,6 +83,15 @@ import {
 } from '@/lib/reader_viewport';
 import { sliceVerseWords } from '@/lib/verse_words';
 import { useBibleListen } from '@/hooks/useBibleListen';
+import { useReaderDisplayPrefs } from '@/hooks/useReaderDisplayPrefs';
+import { useReaderChrome } from '@/hooks/useReaderChrome';
+import { useReaderParallelVerses } from '@/hooks/useReaderParallelVerses';
+import { useReaderPeekPrefetch } from '@/hooks/useReaderPeekPrefetch';
+import {
+  loadChapterDisplayPayload,
+  peekCachedChapter,
+  peekCachedChineseChapter,
+} from '@/lib/reader_chapter_load';
 import { scrollElementToBand } from '@/lib/listen_api';
 import {
   textFromWordRange,
@@ -164,16 +165,14 @@ import {
   getReaderReturnHref,
   readerBackHref,
 } from '@/lib/reader_return';
-import { clearReaderChrome, restoreMainTabbar, unlockReaderSurface } from '@/lib/reader_chrome';
+import { clearReaderChrome, unlockReaderSurface } from '@/lib/reader_chrome';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { softRecoverShellTouch } from '@/lib/sheet_overlay';
 import { shellTapProps } from '@/lib/shell_tap';
 import { scheduleTabChrome } from '@/lib/tab_chrome';
 import {
   applyAppTheme,
-  getEffectiveReaderTheme,
   getReaderFollowApp,
-  setReaderFollowApp,
 } from '@/lib/app_theme';
 import ReaderChapterPeek from '@/components/reader/ReaderChapterPeek';
 import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
@@ -196,9 +195,6 @@ import {
   type HighlightColor,
 } from '@/lib/reader_highlights';
 import {
-  FONT_FAMILIES,
-  PAGE_TURN_MODES,
-  READING_MODES,
   fontFamilyCss,
   getFontFamily,
   getPageTurn,
@@ -207,12 +203,7 @@ import {
   getShowParallelDiff,
   getThoughtsOn,
   getUnderlinesOn,
-  setFontFamily,
-  setPageTurn,
   setReaderFontPx,
-  setReadingMode as persistReadingMode,
-  setShowParallelDiff as persistShowParallelDiff,
-  setThoughtsOn as persistThoughtsOn,
   setUnderlinesOn as persistUnderlinesOn,
   type PageTurnMode,
   type ReaderFontFamily,
@@ -220,7 +211,6 @@ import {
 } from '@/lib/reader_preferences';
 import {
   formatQuotesForDisplay,
-  QUOTE_DISPLAY_MODES,
   type QuoteDisplayMode,
 } from '@/lib/quote_display';
 import {
@@ -234,6 +224,7 @@ import {
 import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
 import VersionPickerPop from '@/components/reader/VersionPickerPop';
 import { ReaderLocPopover } from '@/components/reader/ReaderLocPopover';
+import ReaderSettingsPanel from '@/components/reader/ReaderSettingsPanel';
 
 const SummarySheet = dynamic(() => import('@/components/reader/SummarySheet'), { ssr: false });
 const VerseCompareSheet = dynamic(() => import('@/components/reader/VerseCompareSheet'), { ssr: false });
@@ -254,11 +245,6 @@ const ListenPlayerSheet = dynamic(
   () => import('@/components/reader/ListenPlayerSheet').then((m) => m.ListenPlayerSheet),
   { ssr: false },
 );
-const FONT_SIZES = [
-  { label: '中', px: 18 },
-  { label: '大', px: 20 },
-  { label: '特大', px: 24 },
-];
 const DEFAULT_FONT_PX = 18;
 
 export default function ReaderView({
@@ -304,40 +290,46 @@ export default function ReaderView({
   paneActive?: boolean;
 }) {
   const flashToast = useToast();
-  const paneWasActiveRef = useRef(false);
+  const displayPrefs = useReaderDisplayPrefs();
+  const {
+    fontPx,
+    setFontPx,
+    theme,
+    setTheme,
+    persistTheme,
+    verseNo,
+    setVerseNo,
+    layout,
+    setLayout,
+    parallelVer,
+    setParallelVer,
+    mainVersionId,
+    setMainVersionId,
+    readerFollow,
+    setReaderFollow,
+    syncThemeFromApp,
+  } = displayPrefs;
   const [verses, setVerses] = useState<Verse[]>([]);
   /** 中文和合本结构，用于段落断点（KJV 单栏/对照时与中文段落对齐）。 */
   const [layoutVerses, setLayoutVerses] = useState<Verse[]>([]);
-  const [parallelVerses, setParallelVerses] = useState<Verse[]>([]);
   const [wholeVerseSel, setWholeVerseSel] = useState<number[]>([]);
   const [versionLabel, setVersionLabel] = useState(
     VERSION_LABELS[FALLBACK_PRIMARY_VERSION] || '和合本',
   );
-  const [fontPx, setFontPx] = useState(DEFAULT_FONT_PX);
   const [showSettings, setShowSettings] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   const [checkedVers, setCheckedVers] = useState<string[]>(['cuvs']);
   const [versions, setVersions] = useState<BibleVersion[] | null>(null);
-  const [chromeHidden, setChromeHidden] = useState(false);
-  const [theme, setTheme] = useState<ReaderTheme>('morning');
-  const [verseNo, setVerseNo] = useState<VerseNumberMode>('inline');
-  const [layout, setLayout] = useState<ReadingLayout>('single');
-  const [parallelVer, setParallelVer] = useState('kjv');
-  const [mainVersionId, setMainVersionId] = useState<string | null>(null);
+  const { parallelVerses, parallelLoading, parallelError } = useReaderParallelVerses({
+    layout,
+    bookId: book.id,
+    chapter,
+    parallelVer,
+    versions,
+  });
   const [localizedBooks, setLocalizedBooks] = useState(books);
   const [chapterAnim, setChapterAnim] = useState('');
   const [verseTransitionOff, setVerseTransitionOff] = useState(false);
-  const [peekPrevBundle, setPeekPrevBundle] = useState<ChapterReaderBundle | null>(null);
-  const [peekNextBundle, setPeekNextBundle] = useState<ChapterReaderBundle | null>(null);
-  const [peekPrevBook, setPeekPrevBook] = useState<BibleBook | null>(null);
-  const [peekNextBook, setPeekNextBook] = useState<BibleBook | null>(null);
-  const [peekPrevChapter, setPeekPrevChapter] = useState(0);
-  const [peekNextChapter, setPeekNextChapter] = useState(0);
-  const peekFrozenRef = useRef(false);
-  const pendingPeekRef = useRef<{ prev: ChapterReaderBundle | null; next: ChapterReaderBundle | null }>({
-    prev: null,
-    next: null,
-  });
   const [chapterLoading, setChapterLoading] = useState(false);
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
   const [feedHintDismissed, setFeedHintDismissed] = useState(false);
@@ -379,8 +371,6 @@ export default function ReaderView({
     selectionText?: string;
   }>(null);
   const [versePreview, setVersePreview] = useState<null | { osis: string; label: string }>(null);
-  const [parallelLoading, setParallelLoading] = useState(false);
-  const [parallelError, setParallelError] = useState<string | null>(null);
   const [versionBanner, setVersionBanner] = useState<string | null>(null);
   const [bookCelebrate, setBookCelebrate] = useState(false);
   const [chapterBottomTick, setChapterBottomTick] = useState(0);
@@ -427,7 +417,6 @@ export default function ReaderView({
     taskTitle?: string;
   }>({});
   const [backHref, setBackHref] = useState<string | null>(null);
-  const [readerFollow, setReaderFollow] = useState(false);
   const [underlinesOn, setUnderlinesOn] = useState(true);
   const [thoughtsOn, setThoughtsOn] = useState(true);
   const [readingMode, setReadingMode] = useState<ReadingMode>('study');
@@ -442,9 +431,38 @@ export default function ReaderView({
   const [fontFamily, setFontFamilyState] = useState<ReaderFontFamily>('serif');
   const [pageTurn, setPageTurnState] = useState<PageTurnMode>('swipe');
   const swipeTurn = pageTurn === 'swipe';
+  const peek = useReaderPeekPrefetch({
+    books,
+    book,
+    chapter,
+    swipeTurn,
+    mainVersionId,
+    layout,
+    parallelVer,
+    planMeta,
+  });
+  const {
+    readerLocation,
+    planNavActive,
+    canNavPrev,
+    canNavNext,
+    bundleOpts,
+    peekPrevBundle,
+    peekNextBundle,
+    peekPrevBook,
+    peekNextBook,
+    peekPrevChapter,
+    peekNextChapter,
+    peekPrevPanelRef,
+    peekNextPanelRef,
+    peekFrozenRef,
+    prefetchTarget,
+    prefetchVicinity,
+    resetPeekPanelsScroll,
+    flushPendingPeek,
+    prefetchApproach,
+  } = peek;
   const contentRef = useRef<HTMLDivElement>(null);
-  const peekPrevPanelRef = useRef<HTMLDivElement>(null);
-  const peekNextPanelRef = useRef<HTMLDivElement>(null);
   const focusBarRef = useRef<HTMLDivElement>(null);
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
   const lastScrollTop = useRef(0);
@@ -724,6 +742,17 @@ export default function ReaderView({
   listenSheetOpenRef.current = listenSheetOpen;
   const overlayOpen = heavyOverlayOpen || locPopoverOpen || listenSheetOpen;
   overlayOpenRef.current = overlayOpen;
+  const { chromeHidden, setChromeHidden, toggleChrome } = useReaderChrome({
+    paneActive,
+    heavyOverlayOpen,
+    overlayOpen,
+    externalOverlayOpen,
+    listenSheetOpen,
+    listenSheetOpenRef,
+    overlayOpenRef,
+    closeListenSheet,
+    onTabToggle: () => setLocPopoverOpen(false),
+  });
   useEffect(() => {
     if (!listenSleepClosing || listenSheetOpen) return;
     flashToast(
@@ -1114,15 +1143,11 @@ export default function ReaderView({
         const id = next[0];
         if (id === primaryId) {
           setMainVersionId(null);
-          setMainVersion(null);
           setLayout('single');
-          setReadingLayout('single');
           setVersionLabel(primary?.label ?? primaryLabel);
         } else {
           setMainVersionId(id);
-          setMainVersion(id);
           setLayout('single');
-          setReadingLayout('single');
           setVersionLabel(versionDisplayLabel(id, list));
         }
       } else {
@@ -1131,17 +1156,14 @@ export default function ReaderView({
         const bottomId = next[1] ?? next.find((x) => x !== topId) ?? 'kjv';
         const topIsPrimary = topId === primaryId;
         setMainVersionId(topIsPrimary ? null : topId);
-        setMainVersion(topIsPrimary ? null : topId);
         setParallelVer(bottomId);
-        setParallelVersion(bottomId);
         setLayout('parallel');
-        setReadingLayout('parallel');
         setVersionLabel(
           `${versionDisplayLabel(topId, list)} · ${versionDisplayLabel(bottomId, list)}`,
         );
       }
     },
-    [versions],
+    [versions, setMainVersionId, setLayout, setParallelVer],
   );
 
   const applyMarkChoice = useCallback((color: HighlightColor) => {
@@ -1161,58 +1183,17 @@ export default function ReaderView({
     flashToast('已取消划线');
   }, [book.id, chapter, sortedSel, selectionSpan, flashToast]);
 
-  const resetPeekPanelsScroll = useCallback(() => {
-    resetReaderScroll(peekPrevPanelRef.current);
-    resetReaderScroll(peekNextPanelRef.current);
-  }, []);
-
   const scrollToChapterStart = useCallback(() => {
     requestAnimationFrame(() => {
       resetReaderScroll(contentRef.current);
     });
   }, []);
 
-  const toggleChrome = useCallback((source: 'content' | 'tab' = 'content') => {
-    if (source === 'tab') {
-      setLocPopoverOpen(false);
-      if (listenSheetOpenRef.current) {
-        closeListenSheet();
-      }
-      if (heavyOverlayOpen) return;
-      setChromeHidden((hidden) => !hidden);
-      return;
-    }
-    if (overlayOpenRef.current) return;
-    if (listenSheetOpenRef.current) {
-      closeListenSheet();
-    }
-    setChromeHidden((hidden) => !hidden);
-  }, [closeListenSheet, heavyOverlayOpen]);
-
   useEffect(() => {
-    if (!paneActive) return;
-    const onToggle = () => toggleChrome('tab');
-    window.addEventListener('peiai-reader-toggle-chrome', onToggle);
-    return () => window.removeEventListener('peiai-reader-toggle-chrome', onToggle);
-  }, [paneActive, toggleChrome]);
-
-  // 从其它 Tab 切回圣经时恢复顶栏，避免「搜索/概要」被沉浸态挡住。
-  useEffect(() => {
-    if (paneActive && !paneWasActiveRef.current) {
-      setChromeHidden(false);
-    }
-    paneWasActiveRef.current = paneActive;
-  }, [paneActive]);
-
-  useEffect(() => {
-    const syncTheme = () => {
-      setTheme(getEffectiveReaderTheme());
-      setReaderFollow(getReaderFollowApp());
-    };
-    syncTheme();
-    window.addEventListener('app-theme-change', syncTheme);
-    return () => window.removeEventListener('app-theme-change', syncTheme);
-  }, []);
+    syncThemeFromApp();
+    window.addEventListener('app-theme-change', syncThemeFromApp);
+    return () => window.removeEventListener('app-theme-change', syncThemeFromApp);
+  }, [syncThemeFromApp]);
 
   const readerWasActiveRef = useRef(false);
 
@@ -1276,39 +1257,6 @@ export default function ReaderView({
       applyAppTheme();
     };
   }, []);
-
-  useEffect(() => {
-    if (!paneActive) {
-      document.body.classList.remove('reader-immersive');
-      return;
-    }
-    if (chromeHidden) {
-      document.body.classList.add('reader-immersive');
-    } else {
-      document.body.classList.remove('reader-immersive');
-      restoreMainTabbar();
-    }
-  }, [chromeHidden, paneActive]);
-
-  useEffect(() => {
-    if (!paneActive || !listenSheetOpen) {
-      document.body.classList.remove('listen-sheet-open');
-      if (paneActive && !listenSheetOpen && !chromeHidden) restoreMainTabbar();
-      return;
-    }
-    setChromeHidden(false);
-    document.body.classList.add('listen-sheet-open');
-    return () => {
-      document.body.classList.remove('listen-sheet-open');
-      restoreMainTabbar();
-    };
-  }, [listenSheetOpen, paneActive, chromeHidden]);
-
-  // 半屏面板打开时显示顶栏与底部 Tab。
-  useEffect(() => {
-    if (externalOverlayOpen) setChromeHidden(true);
-    else if (overlayOpen) setChromeHidden(false);
-  }, [externalOverlayOpen, overlayOpen]);
 
   useEffect(() => {
     setVerseNo(getVerseNumberMode());
@@ -1457,98 +1405,6 @@ export default function ReaderView({
   }, [layout, parallelVer, mainVersionId, versions]);
 
   useEffect(() => {
-    if (layout !== 'parallel') {
-      setParallelVerses([]);
-      setParallelError(null);
-      setParallelLoading(false);
-      return;
-    }
-    setParallelLoading(true);
-    setParallelError(null);
-    void bibleChapter(book.id, chapter, parallelVer)
-      .then((verses) => {
-        if (!verses?.length) {
-          const label = versionDisplayLabel(parallelVer, versions);
-          setParallelError(`${label} 暂无经文`);
-          setParallelVerses([]);
-          return;
-        }
-        setParallelVerses(verses);
-        setParallelError(null);
-      })
-      .catch(() => {
-        const label = versionDisplayLabel(parallelVer, versions);
-        setParallelError(`${label} 加载失败`);
-        setParallelVerses([]);
-      })
-      .finally(() => setParallelLoading(false));
-  }, [layout, book.id, chapter, parallelVer, versions]);
-
-  const readerLocation = useMemo(() => ({ bookId: book.id, chapter }), [book.id, chapter]);
-
-  const planNavActive = Boolean(planMeta?.steps.length);
-  const canNavPrev = planNavActive
-    ? canPlanNav(books, planMeta!.steps, readerLocation, -1)
-    : canNavigateChapter(books, readerLocation, -1);
-  const canNavNext = planNavActive
-    ? canPlanNav(books, planMeta!.steps, readerLocation, 1)
-    : canNavigateChapter(books, readerLocation, 1);
-
-  const bundleOpts = useMemo(
-    () => ({
-      mainVersionId,
-      parallelVer: layout === 'parallel' ? parallelVer : null,
-    }),
-    [mainVersionId, layout, parallelVer],
-  );
-
-  const applyPeekBundle = useCallback((side: 'prev' | 'next', bundle: ChapterReaderBundle | null) => {
-    if (peekFrozenRef.current) {
-      pendingPeekRef.current[side] = bundle;
-      return;
-    }
-    if (side === 'prev') setPeekPrevBundle(bundle);
-    else setPeekNextBundle(bundle);
-    requestAnimationFrame(() => {
-      resetReaderScroll(side === 'prev' ? peekPrevPanelRef.current : peekNextPanelRef.current);
-    });
-  }, []);
-
-  const prefetchTarget = useCallback(
-    (bookId: string, ch: number) => {
-      prefetchChapterReaderBundle(bookId, ch, bundleOpts);
-    },
-    [bundleOpts],
-  );
-
-  const prefetchVicinity = useCallback(() => {
-    const resolveNav = (
-      b: BibleBook[],
-      loc: { bookId: string; chapter: number },
-      delta: number,
-    ) => (
-      planNavActive
-        ? resolvePlanNav(b, planMeta!.steps, loc, delta)
-        : resolveChapterNav(b, loc, delta)
-    );
-    if (swipeTurn) {
-      prefetchReaderVicinityBundles(books, book, chapter, bundleOpts, resolveNav, 2);
-    } else {
-      prefetchReaderVicinity(books, book, chapter, mainVersionId, (bookId, ch) => {
-        void loadChapterVerses(bookId, ch, mainVersionId);
-      }, 2);
-    }
-  }, [books, book, chapter, bundleOpts, swipeTurn, mainVersionId, planNavActive, planMeta]);
-
-  useEffect(() => {
-    if (!swipeTurn) return;
-    preloadSectionTitles(mainVersionId);
-    preloadParagraphRanges();
-    preloadDiscourseRanges();
-    preloadPoetryLines();
-  }, [swipeTurn]);
-
-  useEffect(() => {
     let cancelled = false;
     void discourseEntriesForChapterAsync(book.id, chapter).then((entries) => {
       if (!cancelled) setDiscourseEntries(entries.length ? entries : null);
@@ -1557,52 +1413,6 @@ export default function ReaderView({
       cancelled = true;
     };
   }, [book.id, chapter]);
-
-  useEffect(() => {
-    if (!swipeTurn) return;
-    let cancelled = false;
-    const prev = planNavActive
-      ? resolvePlanNav(books, planMeta!.steps, readerLocation, -1)
-      : resolveChapterNav(books, readerLocation, -1);
-    const next = planNavActive
-      ? resolvePlanNav(books, planMeta!.steps, readerLocation, 1)
-      : resolveChapterNav(books, readerLocation, 1);
-    setPeekPrevBook(prev?.book ?? null);
-    setPeekNextBook(next?.book ?? null);
-    setPeekPrevChapter(prev?.chapter ?? 0);
-    setPeekNextChapter(next?.chapter ?? 0);
-
-    const hydratePeek = async (
-      target: ReturnType<typeof resolveChapterNav>,
-      side: 'prev' | 'next',
-    ) => {
-      if (!target) {
-        applyPeekBundle(side, null);
-        return;
-      }
-      // 进入本章即预载邻章完整包；仅在齐备后一次性更新预览，避免分段排版跳动
-      const bundle = await loadChapterReaderBundle(target.book.id, target.chapter, bundleOpts);
-      if (!cancelled) applyPeekBundle(side, bundle);
-    };
-
-    void hydratePeek(prev, 'prev');
-    void hydratePeek(next, 'next');
-    prefetchVicinity();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    books,
-    book,
-    chapter,
-    swipeTurn,
-    readerLocation,
-    bundleOpts,
-    planNavActive,
-    planMeta,
-    applyPeekBundle,
-    prefetchVicinity,
-  ]);
 
   useEffect(() => {
     setVerseTransitionOff(true);
@@ -1629,8 +1439,7 @@ export default function ReaderView({
     cancelPendingChapterProgress();
     setChapterAnim(swipeTurn ? '' : 'chapter-enter');
 
-    const version = chapterCacheVersion(mainVersionId);
-    const cached = getCachedChapter(book.id, chapter, version);
+    const cached = peekCachedChapter(book.id, chapter, mainVersionId);
 
     const skipHydrate = skipChapterHydrateRef.current;
     if (skipHydrate) {
@@ -1656,8 +1465,7 @@ export default function ReaderView({
     const hasCached = Boolean(cached?.length);
     if (hasCached && cached) {
       // 有当前译本缓存：先快显；结构层仍尽量用和合本分段
-      const cnCached =
-        getCachedChapter(book.id, chapter, chapterCacheVersion(null)) ?? cached;
+      const cnCached = peekCachedChineseChapter(book.id, chapter) ?? cached;
       setLayoutVerses(cnCached);
       setVerses(cached);
       setChapterLoading(false);
@@ -1670,35 +1478,24 @@ export default function ReaderView({
     let cancelled = false;
     const load = async () => {
       try {
-        // 结构层始终取主译本（cuvs），勿把 NIV 缓存当作中文结构
-        const chineseVerses =
-          getCachedChapter(book.id, chapter, chapterCacheVersion(null))
-          ?? (await loadChapterVerses(book.id, chapter));
-        if (cancelled || !chineseVerses) {
-          if (!cancelled) {
-            if (!chineseVerses) flashToast('加载失败');
-            setChapterLoading(false);
-          }
+        const payload = await loadChapterDisplayPayload({
+          bookId: book.id,
+          chapter,
+          mainVersionId,
+          cachedCurrent: hasCached ? cached : null,
+          versions,
+        });
+        if (cancelled) return;
+        if (!payload) {
+          flashToast('加载失败');
+          setChapterLoading(false);
           return;
         }
-        setLayoutVerses(chineseVerses);
-        if (mainVersionId) {
-          const altVerses =
-            (hasCached && cached?.length ? cached : null)
-            ?? (await loadChapterVerses(book.id, chapter, mainVersionId));
-          if (cancelled) return;
-          if (!altVerses?.length) {
-            const verLabel = versionDisplayLabel(mainVersionId, versions);
-            setVersionBanner(`${verLabel} 暂无经文，请稍后刷新或换译本`);
-            setVerses([]);
-            flashToast(`${verLabel} 暂无经文`);
-          } else {
-            setVersionBanner(null);
-            setVerses(altVerses);
-          }
-        } else {
-          setVersionBanner(null);
-          setVerses(chineseVerses);
+        setLayoutVerses(payload.layoutVerses);
+        setVerses(payload.verses);
+        setVersionBanner(payload.emptyAltBanner);
+        if (payload.emptyAltBanner) {
+          flashToast(payload.emptyAltBanner.split('，')[0] || '暂无经文');
         }
         setChapterLoading(false);
         scheduleChapterProgress(
@@ -1711,7 +1508,7 @@ export default function ReaderView({
               m.maybePromptInstallAfterRead({ bookName: book.name, chapter });
             });
           },
-          { verseCount: chineseVerses?.length ?? 0 },
+          { verseCount: payload.layoutVerses.length },
         );
         setLastRead(book.id, chapter);
 
@@ -1758,7 +1555,7 @@ export default function ReaderView({
       cancelled = true;
       cancelPendingChapterProgress();
     };
-  }, [book, chapter, mainVersionId, bookAbbr, flashRef, flashNonce, swipeTurn, books, prefetchTarget]);
+  }, [book, chapter, mainVersionId, bookAbbr, flashRef, flashNonce, swipeTurn, books, prefetchTarget, versions]);
 
   useEffect(() => {
     const el = readerScrollEl(contentRef.current);
@@ -2108,13 +1905,7 @@ export default function ReaderView({
     blocked: overlayOpen || hasSel,
     ignoreUntilRef: swipeIgnoreUntilRef,
     onChapterChange: navigateByDelta,
-    onDragApproach: (delta) => {
-      const target = planNavActive
-        ? resolvePlanNav(books, planMeta!.steps, readerLocation, delta)
-        : resolveChapterNav(books, readerLocation, delta);
-      if (!target) return;
-      prefetchChapterReaderBundle(target.book.id, target.chapter, bundleOpts);
-    },
+    onDragApproach: prefetchApproach,
     onBoundary: (edge) => {
       if (planNavActive) {
         flashToast(edge === 'next' ? '已是今日计划最后一章' : '已是今日计划第一章');
@@ -2129,29 +1920,8 @@ export default function ReaderView({
     peekFrozenRef.current = frozen;
     if (turn.dragSide) resetPeekPanelsScroll();
     if (frozen) return;
-    const pending = pendingPeekRef.current;
-    if (pending.prev !== null) {
-      setPeekPrevBundle(pending.prev);
-      pendingPeekRef.current.prev = null;
-    }
-    if (pending.next !== null) {
-      setPeekNextBundle(pending.next);
-      pendingPeekRef.current.next = null;
-    }
-    requestAnimationFrame(resetPeekPanelsScroll);
-  }, [turn.dragSide, turn.animating, turn.offCenter, resetPeekPanelsScroll]);
-
-  useEffect(() => {
-    if (!swipeTurn) return;
-    resetPeekPanelsScroll();
-  }, [
-    swipeTurn,
-    peekPrevChapter,
-    peekNextChapter,
-    peekPrevBook?.id,
-    peekNextBook?.id,
-    resetPeekPanelsScroll,
-  ]);
+    flushPendingPeek();
+  }, [turn.dragSide, turn.animating, turn.offCenter, resetPeekPanelsScroll, flushPendingPeek, peekFrozenRef]);
 
   const markNativeSelectionCommitted = useCallback(() => {
     lastSelectAt.current = Date.now();
@@ -3717,133 +3487,42 @@ export default function ReaderView({
       )}
 
       {showSettings && (
-        <ReaderSheetPortal
+        <ReaderSettingsPanel
+          settingsTitle={ui.settings}
+          verseNoLabel={ui.verseNo}
+          parallelLayoutLabel={ui.parallelLayout}
+          singleLayoutLabel={ui.singleLayout}
+          fontSizeLabel={ui.fontSize}
           onClose={() => setShowSettings(false)}
-          sheetClassName="sheet card reader-settings-sheet"
-          title={<h3>{ui.settings}</h3>}
-        >
-            <p className="muted" style={{ fontSize: 12 }}>阅读模式</p>
-            <div className="font-pills">
-              {READING_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={`font-pill ${readingMode === m.id ? 'font-pill-active' : ''}`}
-                  onClick={() => {
-                    setReadingMode(m.id);
-                    persistReadingMode(m.id);
-                  }}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-            <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-              {READING_MODES.find((m) => m.id === readingMode)?.hint}
-            </p>
-            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>阅读器主题</p>
-            <div className="reader-theme-swatches">
-              {READER_THEMES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`reader-theme-swatch ${theme === t.id ? 'reader-theme-swatch-active' : ''}`}
-                  disabled={readerFollow}
-                  onClick={() => {
-                    setReaderFollow(false);
-                    setReaderFollowApp(false);
-                    setTheme(t.id);
-                    setReaderTheme(t.id);
-                  }}
-                >
-                  <span className={`reader-theme-preview reader-theme-preview-${t.id}`} aria-hidden />
-                  <span className="reader-theme-swatch-label">{t.label}</span>
-                  <span className="reader-theme-swatch-desc">{t.desc}</span>
-                </button>
-              ))}
-            </div>
-            <label className="appearance-follow-row" style={{ marginTop: 12 }}>
-              <span>跟随应用主题</span>
-              <input
-                type="checkbox"
-                checked={readerFollow}
-                onChange={(e) => {
-                  const on = e.target.checked;
-                  setReaderFollow(on);
-                  setReaderFollowApp(on);
-                  if (on) setTheme(getEffectiveReaderTheme());
-                }}
-              />
-            </label>
-            <Link href="/profile/appearance" className="muted" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-              更多外观选项 ›
-            </Link>
-            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>{ui.verseNo}</p>
-            <div className="font-pills">
-              {VERSE_NUMBER_MODES.map((m) => (
-                <button key={m.id} type="button" className={`font-pill ${verseNo === m.id ? 'font-pill-active' : ''}`} onClick={() => { setVerseNo(m.id); setVerseNumberMode(m.id); }}>{m.label}</button>
-              ))}
-            </div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>{ui.parallelLayout}</p>
-            <div className="font-pills">
-              <button type="button" className={`font-pill ${layout === 'single' ? 'font-pill-active' : ''}`} onClick={() => { setLayout('single'); setReadingLayout('single'); }}>{ui.singleLayout}</button>
-              <button type="button" className={`font-pill ${layout === 'parallel' ? 'font-pill-active' : ''}`} onClick={() => { setMainVersionId(null); setMainVersion(null); setLayout('parallel'); setReadingLayout('parallel'); setParallelVersion(parallelVer); }}>{ui.parallelLayout}</button>
-            </div>
-            {layout === 'parallel' && readingMode === 'study' ? (
-              <label className="reader-toggle-row" style={{ marginTop: 8 }}>
-                <span>显示措辞差异</span>
-                <input
-                  type="checkbox"
-                  checked={showParallelDiff}
-                  onChange={(e) => {
-                    setShowParallelDiff(e.target.checked);
-                    persistShowParallelDiff(e.target.checked);
-                  }}
-                />
-              </label>
-            ) : null}
-            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>{ui.fontSize}</p>
-            <div className="font-pills">
-              {FONT_SIZES.map((f) => (
-                <button key={f.px} type="button" className={`font-pill ${fontPx === f.px ? 'font-pill-active' : ''}`} onClick={() => { setFontPx(f.px); setReaderFontPx(f.px); }}>{f.label}</button>
-              ))}
-            </div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>字体样式</p>
-            <div className="font-pills">
-              {FONT_FAMILIES.map((f) => (
-                <button key={f.id} type="button" className={`font-pill ${fontFamily === f.id ? 'font-pill-active' : ''}`} onClick={() => { setFontFamilyState(f.id); setFontFamily(f.id); }}>{f.label}</button>
-              ))}
-            </div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>翻页方式</p>
-            <div className="font-pills">
-              {PAGE_TURN_MODES.map((m) => (
-                <button key={m.id} type="button" className={`font-pill ${pageTurn === m.id ? 'font-pill-active' : ''}`} onClick={() => { setPageTurnState(m.id); setPageTurn(m.id); }}>{m.label}</button>
-              ))}
-            </div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>显示选项</p>
-            <label className="reader-toggle-row">
-              <span>显示划线</span>
-              <input type="checkbox" checked={underlinesOn} onChange={(e) => { setUnderlinesOn(e.target.checked); persistUnderlinesOn(e.target.checked); }} />
-            </label>
-            <label className="reader-toggle-row">
-              <span>显示想法</span>
-              <input type="checkbox" checked={thoughtsOn} onChange={(e) => { setThoughtsOn(e.target.checked); persistThoughtsOn(e.target.checked); }} />
-            </label>
-            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>引号样式</p>
-            <div className="font-pills">
-              {QUOTE_DISPLAY_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={`font-pill ${quoteDisplayMode === m.id ? 'font-pill-active' : ''}`}
-                  title={m.hint}
-                  onClick={() => onQuoteDisplayModeChange?.(m.id)}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-        </ReaderSheetPortal>
+          readingMode={readingMode}
+          setReadingMode={setReadingMode}
+          theme={theme}
+          persistTheme={persistTheme}
+          setTheme={setTheme}
+          readerFollow={readerFollow}
+          setReaderFollow={setReaderFollow}
+          verseNo={verseNo}
+          setVerseNo={setVerseNo}
+          layout={layout}
+          setLayout={setLayout}
+          parallelVer={parallelVer}
+          setParallelVer={setParallelVer}
+          setMainVersionId={setMainVersionId}
+          showParallelDiff={showParallelDiff}
+          setShowParallelDiff={setShowParallelDiff}
+          fontPx={fontPx}
+          setFontPx={setFontPx}
+          fontFamily={fontFamily}
+          setFontFamilyState={setFontFamilyState}
+          pageTurn={pageTurn}
+          setPageTurnState={setPageTurnState}
+          underlinesOn={underlinesOn}
+          setUnderlinesOn={setUnderlinesOn}
+          thoughtsOn={thoughtsOn}
+          setThoughtsOn={setThoughtsOn}
+          quoteDisplayMode={quoteDisplayMode}
+          onQuoteDisplayModeChange={onQuoteDisplayModeChange}
+        />
       )}
 
       {aiSheet && aiSheetContext && (

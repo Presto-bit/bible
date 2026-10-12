@@ -7,6 +7,8 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'client_defaults.dart';
+
 class NotifPrefs {
   NotifPrefs._();
 
@@ -41,6 +43,21 @@ class NotifPrefs {
 
   static Future<void> setReadingDnd(SharedPreferences p, bool v) =>
       p.setBool(readingDndKey, v);
+
+  /// 仅当本地从未写过键时，用 `/content/client-defaults` 灌入默认。
+  static Future<void> hydrateUnsetFromServer(SharedPreferences p) async {
+    try {
+      final d = await fetchClientDefaults();
+      if (!p.containsKey(dailyEnabledKey)) {
+        await p.setBool(dailyEnabledKey, d.dailyReadingEnabledDefault);
+      }
+      if (!p.containsKey(readingDndKey)) {
+        await p.setBool(readingDndKey, d.readingDndDefault);
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
 }
 
 /// 读经勿扰偏好变更计数：H5 宿主监听后回写 localStorage。
