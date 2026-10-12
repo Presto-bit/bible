@@ -49,8 +49,15 @@ fi
 
 SECONDS=0
 android_flutter_pub_get
+if [[ "$FAST_BUILD" != "1" ]]; then
+  echo "全量官网包：Dart 混淆 + R8，首包/大改后常需 15–40 分钟；Gradle 阶段 CPU 低也正常。"
+  echo "若仅本机验证：FAST_BUILD=1 ./scripts/publish_flutter_apk.sh 或 ./scripts/build_flutter_apk_dev.sh fast"
+  export ORG_GRADLE_OFFLINE="${ORG_GRADLE_OFFLINE:-0}"
+fi
 echo "→ flutter build (${BUILD_ARGS[*]})"
-(cd "$MOBILE" && "$FLUTTER" "${BUILD_ARGS[@]}")
+# 避免 Flutter 子进程落到 IDE 沙箱 Gradle（与 .gradle-home 双 Daemon）
+(cd "$MOBILE/android" && env GRADLE_USER_HOME="$GRADLE_USER_HOME" ./gradlew --stop >/dev/null 2>&1) || true
+(cd "$MOBILE" && env GRADLE_USER_HOME="$GRADLE_USER_HOME" "$FLUTTER" "${BUILD_ARGS[@]}")
 echo "Build finished in ${SECONDS}s"
 
 APK_SRC="$MOBILE/build/app/outputs/flutter-apk/app-release.apk"

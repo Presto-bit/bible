@@ -6,7 +6,8 @@ set -euo pipefail
 _android_env_root="${_ANDROID_ENV_ROOT:?set _ANDROID_ENV_ROOT before source}"
 
 MOBILE="$_android_env_root/apps/mobile"
-GRADLE_USER_HOME="${GRADLE_USER_HOME:-$_android_env_root/.gradle-home}"
+# 固定仓库 .gradle-home；Agent/沙箱若改写会导致双 Daemon 抢锁、assembleRelease 长时间 0% CPU
+GRADLE_USER_HOME="$_android_env_root/.gradle-home"
 export GRADLE_USER_HOME
 
 FLUTTER="${FLUTTER_BIN:-flutter}"
@@ -53,13 +54,26 @@ if [[ -f "$_gradle_lock" ]]; then
   (cd "$MOBILE/android" && ./gradlew --stop >/dev/null 2>&1) || true
 fi
 
-# 依赖已在 .gradle-home 时默认离线，跳过 dl.google.com
+# 依赖已在 .gradle-home 时，快包可离线；全量 R8 官网包必须在线（离线缺构件会长时间假死）
 _android_deps_cached() {
-  [[ -n "$(find "$GRADLE_USER_HOME/caches/modules-2/files-2.1/com.android.tools.build/gradle/8.11.1" -name 'gradle-8.11.1.jar' -print -quit 2>/dev/null)" ]]
+  # R8 内嵌在 builder-8.11.1.jar；旧逻辑只查 gradle 插件 jar 不足以代表全量 release 可离线
+  local g b d
+  g="$(find "$GRADLE_USER_HOME/caches/modules-2/files-2.1/com.android.tools.build/gradle/8.11.1" -name 'gradle-8.11.1.jar' -print -quit 2>/dev/null)"
+  b="$(find "$GRADLE_USER_HOME/caches/modules-2/files-2.1/com.android.tools.build/builder/8.11.1" -name 'builder-8.11.1.jar' -print -quit 2>/dev/null)"
+  d="$(find "$GRADLE_USER_HOME/caches/modules-2/files-2.1/com.android.tools/desugar_jdk_libs/2.1.4" -name 'desugar_jdk_libs-2.1.4.jar' -print -quit 2>/dev/null)"
+  [[ -n "$g" && -n "$b" && -n "$d" ]]
 }
-if [[ "${ORG_GRADLE_OFFLINE:-0}" == "1" ]] || { [[ "${ORG_GRADLE_OFFLINE:-auto}" != "0" ]] && _android_deps_cached; }; then
+_fast="${FAST_BUILD:-0}"
+if [[ "${ORG_GRADLE_OFFLINE:-0}" == "1" ]]; then
   export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.offline=true"
-  echo "Gradle offline (cached deps in .gradle-home)"
+  echo "Gradle offline (ORG_GRADLE_OFFLINE=1)"
+elif [[ "$_fast" == "1" ]] && [[ "${ORG_GRADLE_OFFLINE:-auto}" != "0" ]] && _android_deps_cached; then
+  export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.offline=true"
+  echo "Gradle offline (FAST_BUILD + cached deps)"
+elif [[ "${ORG_GRADLE_OFFLINE:-auto}" == "0" ]]; then
+  echo "Gradle online (ORG_GRADLE_OFFLINE=0)"
+else
+  echo "Gradle online (full release / R8 — 首包约 15–40 分钟，关模拟器可加速)"
 fi
 
 # flutter_html 3.0.0 × html≥0.15.7：qs.matches 已移除，用仓库补丁覆盖 pub-cache
