@@ -377,7 +377,7 @@ def activation_deep_funnel(conn, start: date, end: date, *, within_days: int = 7
 
     def _count(names: tuple[str, ...]) -> int:
         row = conn.execute(
-            """
+            f"""
             WITH cohort AS (
               SELECT * FROM unnest(%s::text[], %s::date[]) AS c(user_code, reg_day)
             )
@@ -553,7 +553,7 @@ def activation_funnel(conn, start: date, end: date, *, within_days: int = 7) -> 
 
     def _count_with_events(names: tuple[str, ...]) -> int:
         row = conn.execute(
-            """
+            f"""
             WITH cohort AS (
               SELECT * FROM unnest(%s::text[], %s::date[]) AS c(user_code, reg_day)
             )
