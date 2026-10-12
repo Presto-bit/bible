@@ -15,8 +15,7 @@ import androidx.browser.customtabs.CustomTabsServiceConnection
 import androidx.browser.customtabs.CustomTabsSession
 
 /**
- * 创世记 50：全屏 Custom Tabs 打开活动站。
- * 希伯来书 30 先走 App 内 WebView（open_hebrews30_page.dart），失败再进这里。
+ * 创世记 50 / 希伯来书 30：全屏 Custom Tabs 打开活动站。
  *
  * 鸿蒙 / 华为 / 荣耀：优先华为系浏览器（机上 Chrome 常残缺，会导致外站
  * Supabase RPC 误报「网络问题」）；其它机型仍优先 Chrome。

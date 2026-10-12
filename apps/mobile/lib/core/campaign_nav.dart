@@ -3,7 +3,6 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -12,7 +11,6 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'genesis50_auth.dart';
 import 'open_h5.dart';
 import 'open_genesis50_tab.dart';
-import 'open_hebrews30_page.dart';
 import 'h5_whitelist.dart';
 import 'theme.dart';
 
@@ -39,20 +37,14 @@ String normalizeCampaignHref(String href) {
 Future<void> _openGenesis50External(
   BuildContext context, {
   required String href,
-  String? title,
 }) async {
-  if (!kIsWeb &&
-      defaultTargetPlatform == TargetPlatform.android &&
-      isHebrews30Href(href)) {
-    await openHebrews30InApp(context, href: href, title: title);
-    return;
-  }
+  // 创世记 50 / 希伯来书 30：Flutter 鉴权后 Custom Tabs（无 Chrome 时降级系统浏览器）。
+  // 系统 WebView 打不开这类外站，故不走 App 内 WebView。
   await openGenesis50InCustomTab(context, href: href);
 }
 
 /// 打开活动 / 推荐卡链接：站内 H5 或原生路由；真外链 App 内 WebView。
-/// 希伯来书 30（仅安卓）：App 内全屏 WebView，打不开再 Custom Tabs。
-/// 创世记 50：Flutter 鉴权 + Chrome Custom Tabs（Chrome 内核，隐藏地址栏）。
+/// 创世记 50 / 希伯来书 30：Flutter 鉴权 + Custom Tabs（无可用浏览器内核时降级系统浏览器）。
 Future<void> openCampaignHref(
   BuildContext context,
   String href, {
@@ -62,7 +54,7 @@ Future<void> openCampaignHref(
   if (raw.isEmpty || !context.mounted) return;
 
   if (isGenesis50BridgeHref(raw) || isGenesis50Href(raw)) {
-    await _openGenesis50External(context, href: raw, title: title);
+    await _openGenesis50External(context, href: raw);
     return;
   }
 
@@ -74,7 +66,7 @@ Future<void> openCampaignHref(
     );
     final full = '$pathOnly${u.hasQuery ? '?${u.query}' : ''}';
     if (isGenesis50BridgeHref(full)) {
-      await _openGenesis50External(context, href: full, title: title);
+      await _openGenesis50External(context, href: full);
       return;
     }
     if (openH5IfAllowed(context, full, title: title)) return;
@@ -100,7 +92,7 @@ Future<void> openCampaignHref(
       );
       final full = '$path${uri.hasQuery ? '?${uri.query}' : ''}';
       if (isGenesis50BridgeHref(raw) || isGenesis50BridgeHref(full)) {
-        await _openGenesis50External(context, href: raw, title: title);
+        await _openGenesis50External(context, href: raw);
         return;
       }
       if (openH5IfAllowed(context, full, title: title)) return;
@@ -108,7 +100,7 @@ Future<void> openCampaignHref(
       return;
     }
     if (isGenesis50Href(raw)) {
-      await _openGenesis50External(context, href: raw, title: title);
+      await _openGenesis50External(context, href: raw);
       return;
     }
     await Navigator.of(context).push(

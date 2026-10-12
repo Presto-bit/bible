@@ -1,7 +1,6 @@
 /// 创世记 50 天自动登录（对齐 `apps/web/lib/genesis50_auth.ts`）。
 ///
-/// Android 希伯来书 30：App 内 WebView 先走 [buildGenesis50BridgeUrl] 桥接页（open_hebrews30_page.dart）。
-/// Android 创世记 50：Flutter 鉴权 + Chrome Custom Tabs（open_genesis50_tab.dart）。
+/// Android 创世记 50 / 希伯来书 30：Flutter 鉴权后 Custom Tabs（open_genesis50_tab.dart）。
 /// Web 桥接页 `/campaigns/genesis-50/enter` 仍供 PWA / H5 内嵌浏览器。
 library;
 
