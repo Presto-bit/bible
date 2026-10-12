@@ -40,7 +40,7 @@ function ManuscriptRaster({
   onPaint?: () => void;
 }) {
   const { webp, fallback } = knowledgeRasterSources(path);
-  // WebP 优先（约 PNG 的 1/10）；缺文件再回退 PNG（部分 WebView 无 picture 回退）
+  // WebP 优先；缺文件再回退 PNG
   const [src, setSrc] = useState(() => webp || fallback);
   useEffect(() => {
     setSrc(webp || fallback);
@@ -51,10 +51,13 @@ function ManuscriptRaster({
       className="knowledge-viewer-img"
       src={src}
       alt={alt}
+      width={1080}
+      height={1920}
       draggable={false}
       decoding="async"
       loading={eager ? 'eager' : 'lazy'}
-      fetchPriority={eager ? 'high' : 'auto'}
+      fetchPriority={eager ? 'high' : 'low'}
+      sizes="100vw"
       onLoad={() => onPaint?.()}
       onError={() => {
         if (webp && src === webp && src !== fallback) {
@@ -80,6 +83,10 @@ function BackGlyph() {
 
 type ZoomState = { scale: number; x: number; y: number };
 
+/**
+ * 双击进入缩放；拖移用 DOM 直写 transform，避免 setState 每帧重渲大图。
+ * 未缩放时不绑非 passive touchmove，纵/横滑交给外层。
+ */
 function PinchZoomPane({
   children,
   enabled,
@@ -89,37 +96,49 @@ function PinchZoomPane({
   enabled: boolean;
   onZoomChange?: (zoomed: boolean) => void;
 }) {
-  const [z, setZ] = useState<ZoomState>({ scale: 1, x: 0, y: 0 });
-  const zRef = useRef(z);
-  zRef.current = z;
+  const [zoomed, setZoomed] = useState(false);
+  const zRef = useRef<ZoomState>({ scale: 1, x: 0, y: 0 });
+  const innerRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const pinch = useRef<{ startDist: number; startScale: number } | null>(null);
   const pan = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+  const lastTap = useRef(0);
+  const onZoomChangeRef = useRef(onZoomChange);
+  onZoomChangeRef.current = onZoomChange;
 
-  const apply = useCallback(
-    (next: ZoomState) => {
-      const scale = Math.min(4, Math.max(1, next.scale));
-      const capped =
-        scale <= 1.02
-          ? { scale: 1, x: 0, y: 0 }
-          : { scale, x: next.x, y: next.y };
-      setZ(capped);
-      onZoomChange?.(capped.scale > 1.02);
-    },
-    [onZoomChange],
-  );
+  const paint = useCallback((next: ZoomState) => {
+    const scale = Math.min(4, Math.max(1, next.scale));
+    const capped =
+      scale <= 1.02
+        ? { scale: 1, x: 0, y: 0 }
+        : { scale, x: next.x, y: next.y };
+    zRef.current = capped;
+    const el = innerRef.current;
+    if (el) {
+      el.style.transform = `translate3d(${capped.x}px, ${capped.y}px, 0) scale(${capped.scale})`;
+      el.style.willChange = capped.scale > 1.02 ? 'transform' : 'auto';
+    }
+    const isZ = capped.scale > 1.02;
+    setZoomed((prev) => {
+      if (prev === isZ) return prev;
+      onZoomChangeRef.current?.(isZ);
+      return isZ;
+    });
+  }, []);
+
+  const resetZoom = useCallback(() => {
+    paint({ scale: 1, x: 0, y: 0 });
+  }, [paint]);
 
   useEffect(() => {
-    if (!enabled) apply({ scale: 1, x: 0, y: 0 });
-  }, [enabled, apply]);
-
-  const hostRef = useRef<HTMLDivElement>(null);
+    if (!enabled) resetZoom();
+  }, [enabled, resetZoom]);
 
   useEffect(() => {
     const el = hostRef.current;
-    if (!el) return;
+    if (!el || !enabled) return;
 
     const onStart = (e: TouchEvent) => {
-      if (!enabled) return;
       if (e.touches.length === 2) {
         const a = e.touches[0];
         const b = e.touches[1];
@@ -139,14 +158,13 @@ function PinchZoomPane({
     };
 
     const onMove = (e: TouchEvent) => {
-      if (!enabled) return;
       if (e.touches.length === 2 && pinch.current) {
         e.preventDefault();
         const a = e.touches[0];
         const b = e.touches[1];
         const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
         if (pinch.current.startDist <= 0) return;
-        apply({
+        paint({
           ...zRef.current,
           scale: pinch.current.startScale * (dist / pinch.current.startDist),
         });
@@ -156,7 +174,7 @@ function PinchZoomPane({
         e.preventDefault();
         const dx = e.touches[0].clientX - pan.current.x;
         const dy = e.touches[0].clientY - pan.current.y;
-        apply({
+        paint({
           scale: zRef.current.scale,
           x: pan.current.ox + dx,
           y: pan.current.oy + dy,
@@ -169,19 +187,34 @@ function PinchZoomPane({
       if (e.touches.length === 0) pan.current = null;
     };
 
+    const onDoubleTap = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const now = Date.now();
+      if (now - lastTap.current < 280) {
+        e.preventDefault();
+        if (zRef.current.scale > 1.02) resetZoom();
+        else paint({ scale: 2.2, x: 0, y: 0 });
+        lastTap.current = 0;
+        return;
+      }
+      lastTap.current = now;
+    };
+
     el.addEventListener('touchstart', onStart, { passive: true });
-    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchstart', onDoubleTap, { passive: false });
+    // 仅缩放态需要非 passive；未缩放不拦截滚动
+    const moveOpts: AddEventListenerOptions = { passive: false };
+    el.addEventListener('touchmove', onMove, moveOpts);
     el.addEventListener('touchend', onEnd, { passive: true });
     el.addEventListener('touchcancel', onEnd, { passive: true });
     return () => {
       el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchstart', onDoubleTap);
       el.removeEventListener('touchmove', onMove);
       el.removeEventListener('touchend', onEnd);
       el.removeEventListener('touchcancel', onEnd);
     };
-  }, [enabled, apply]);
-
-  const zoomed = z.scale > 1.02;
+  }, [enabled, paint, resetZoom]);
 
   return (
     <div
@@ -189,10 +222,9 @@ function PinchZoomPane({
       className={`knowledge-viewer-zoom${zoomed ? ' is-zoomed' : ''}`}
     >
       <div
+        ref={innerRef}
         className="knowledge-viewer-zoom-inner"
-        style={{
-          transform: `translate3d(${z.x}px, ${z.y}px, 0) scale(${z.scale})`,
-        }}
+        style={{ transform: 'translate3d(0,0,0) scale(1)' }}
       >
         {children}
       </div>
@@ -208,8 +240,7 @@ function preloadSrc(src: string) {
 }
 
 /**
- * §19.14.17 小红书式全屏手稿查看：横滑翻页、双手缩放、返回、系统分享。
- * 打开默认全屏沉浸（第 1 页）；轻点切换顶栏；第一页再滑退出专题。
+ * §19.14.17 小红书式全屏手稿：一页一竖卷；横滑翻页；双击缩放。
  */
 export function KnowledgeManuscriptViewer({
   pages,
@@ -219,7 +250,6 @@ export function KnowledgeManuscriptViewer({
   onExitTopic,
 }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
-  /** 当前页竖卷（一页一竖卷） */
   const pageScrollRef = useRef<HTMLDivElement | null>(null);
   const commentsRef = useRef<HTMLElement | null>(null);
   const total = pages.length;
@@ -229,15 +259,11 @@ export function KnowledgeManuscriptViewer({
   const [pageZoomed, setPageZoomed] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(true);
   const [motionPhase, setMotionPhase] = useState<'enter' | 'ready' | 'leave'>('enter');
+  const [engageReady, setEngageReady] = useState(false);
+  const [neighborsReady, setNeighborsReady] = useState(false);
   const leavingRef = useRef(false);
   const revealedRef = useRef(false);
-  const [loaded, setLoaded] = useState<Record<number, boolean>>(() => {
-    const init: Record<number, boolean> = {};
-    for (let i = 0; i <= Math.min(total - 1, 1); i++) {
-      init[i] = true;
-    }
-    return init;
-  });
+  const [loaded, setLoaded] = useState<Record<number, boolean>>(() => ({ 0: true }));
   const edgeSwipe = useRef<{ x: number; y: number; atStart: boolean } | null>(null);
   const tapTrack = useRef<{ x: number; y: number; t: number } | null>(null);
   const suppressClick = useRef(false);
@@ -249,9 +275,9 @@ export function KnowledgeManuscriptViewer({
     indexRef.current = index;
   }, [index]);
 
-  // 横滑翻页后竖卷回到图顶
   useEffect(() => {
     pageScrollRef.current?.scrollTo({ top: 0 });
+    setPageZoomed(false);
   }, [index]);
 
   useEffect(() => {
@@ -259,14 +285,12 @@ export function KnowledgeManuscriptViewer({
     document.documentElement.style.overflow = 'hidden';
     if (document.body) document.body.style.overflow = 'hidden';
     return () => {
-      // 只卸 lock；expand 退场动画由 Host 收尾，勿在此 clearExpand
       document.documentElement.classList.remove('knowledge-viewer-lock');
       document.documentElement.style.removeProperty('overflow');
       document.body?.style.removeProperty('overflow');
     };
   }, []);
 
-  // 进场直接最终态；挂载即揭垫层（垫层 pointer-events:none，勿等首图）
   useEffect(() => {
     setMotionPhase('ready');
   }, []);
@@ -279,10 +303,27 @@ export function KnowledgeManuscriptViewer({
 
   useEffect(() => {
     revealShell();
-    // 兜底：若首帧 expand 会话尚未就绪，再揭一次
     const t = window.setTimeout(revealShell, 120);
     return () => window.clearTimeout(t);
   }, [revealShell]);
+
+  // 首屏只保当前图：评论与邻页延后，避免抢带宽/主线程
+  useEffect(() => {
+    setEngageReady(false);
+    setNeighborsReady(false);
+    const page = pageScrollRef.current;
+    const onScroll = () => {
+      if ((page?.scrollTop || 0) > 48) setEngageReady(true);
+    };
+    page?.addEventListener('scroll', onScroll, { passive: true });
+    const engageTimer = window.setTimeout(() => setEngageReady(true), 900);
+    const neighborTimer = window.setTimeout(() => setNeighborsReady(true), 280);
+    return () => {
+      page?.removeEventListener('scroll', onScroll);
+      window.clearTimeout(engageTimer);
+      window.clearTimeout(neighborTimer);
+    };
+  }, [index]);
 
   const softLeave = useCallback((done: () => void) => {
     if (leavingRef.current) return;
@@ -296,7 +337,6 @@ export function KnowledgeManuscriptViewer({
       return;
     }
     setMotionPhase('leave');
-    // 立刻回列表，由 Host 缩回盖住过渡（勿等满 300ms 再导航）
     window.setTimeout(done, collapsing ? 40 : 160);
   }, []);
 
@@ -308,6 +348,7 @@ export function KnowledgeManuscriptViewer({
 
   const scrollToComments = useCallback(() => {
     setChromeHidden(false);
+    setEngageReady(true);
     const el = commentsRef.current;
     const page = pageScrollRef.current;
     if (!el || !page) return;
@@ -315,7 +356,6 @@ export function KnowledgeManuscriptViewer({
     page.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }, []);
 
-  // 打开时滚到第一页
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el || didRestoreScroll.current) return;
@@ -334,23 +374,29 @@ export function KnowledgeManuscriptViewer({
     writeManuscriptPage(tourId, index);
   }, [tourId, index, total]);
 
-  // 邻页懒加载 + 预取
+  // 当前页立即加载；邻页等 neighborsReady
   useEffect(() => {
     setLoaded((prev) => {
-      const next = { ...prev };
-      for (let i = Math.max(0, index - 1); i <= Math.min(total - 1, index + 1); i++) {
-        next[i] = true;
+      const next = { ...prev, [index]: true };
+      if (neighborsReady) {
+        for (let i = Math.max(0, index - 1); i <= Math.min(total - 1, index + 1); i++) {
+          next[i] = true;
+        }
       }
       return next;
     });
-    for (let i = Math.max(0, index - 1); i <= Math.min(total - 1, index + 1); i++) {
+    const warm = neighborsReady
+      ? [index - 1, index, index + 1]
+      : [index];
+    for (const i of warm) {
+      if (i < 0 || i >= total) continue;
       const p = pages[i];
       if (!p?.src) continue;
       const { webp, fallback } = knowledgeRasterSources(p.src);
       if (webp) preloadSrc(webp);
       else preloadSrc(fallback);
     }
-  }, [index, pages, total]);
+  }, [index, pages, total, neighborsReady]);
 
   const syncIndex = useCallback(() => {
     const el = scrollerRef.current;
@@ -390,7 +436,6 @@ export function KnowledgeManuscriptViewer({
     const t = e.changedTouches[0];
     if (!t) return;
 
-    // 轻点：切换沉浸全屏（藏顶栏 / 页点）
     if (tap && !pageZoomed) {
       const dx = t.clientX - tap.x;
       const dy = t.clientY - tap.y;
@@ -402,7 +447,6 @@ export function KnowledgeManuscriptViewer({
       }
     }
 
-    // 第一页右滑退出专题（纵滑已交给 body 原生，勿再 hijack）
     if (!start?.atStart || pageZoomed) return;
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
@@ -522,7 +566,7 @@ export function KnowledgeManuscriptViewer({
           onTouchEnd={onScrollerTouchEnd}
         >
           {pages.map((p, i) => {
-            const near = Math.abs(i - index) <= 1;
+            const near = i === index || (neighborsReady && Math.abs(i - index) <= 1);
             const show = near && Boolean(loaded[i]);
             const isVideoPage = p.media?.type === 'video' && Boolean(p.media.url);
             const isCurrent = i === index;
@@ -548,52 +592,61 @@ export function KnowledgeManuscriptViewer({
                 >
                   {!near ? (
                     <span className="knowledge-viewer-img-placeholder" aria-hidden />
-                  ) : (
+                  ) : isCurrent && Boolean(p.src) && !p.text && !isVideoPage ? (
                     <PinchZoomPane
-                      enabled={isCurrent && Boolean(p.src) && !p.text && !isVideoPage}
-                      onZoomChange={(zoomed) => {
-                        if (isCurrent) setPageZoomed(zoomed);
+                      enabled
+                      onZoomChange={(z) => {
+                        if (isCurrent) setPageZoomed(z);
                       }}
                     >
                       {!show ? (
                         <span className="knowledge-viewer-img-placeholder" aria-hidden />
-                      ) : isVideoPage ? (
-                        // eslint-disable-next-line jsx-a11y/media-has-caption
-                        <video
-                          ref={isCurrent ? videoRef : undefined}
-                          className="knowledge-viewer-video-inline"
-                          src={knowledgeMediaUrl(p.media!.url)}
-                          playsInline
-                          controls
-                          preload={isCurrent ? 'metadata' : 'none'}
-                          poster={p.src ? knowledgeRasterSources(p.src).fallback : undefined}
-                          onEnded={() => setMediaPlaying(false)}
-                          onPause={() => setMediaPlaying(false)}
-                          onPlay={() => setMediaPlaying(true)}
-                        />
-                      ) : p.text ? (
-                        <article className="knowledge-viewer-text-leaf">
-                          <p className="knowledge-viewer-text-leaf-brand">彼爱 · 长文</p>
-                          {p.text.title ? <h3>{p.text.title}</h3> : null}
-                          {p.text.body
-                            .split(/\n\s*\n+/)
-                            .map((para) => para.trim())
-                            .filter(Boolean)
-                            .map((para, pi) => (
-                              <p key={pi}>{para}</p>
-                            ))}
-                        </article>
-                      ) : p.src ? (
+                      ) : (
                         <ManuscriptRaster
-                          path={p.src}
+                          path={p.src!}
                           alt={p.alt}
-                          eager={isCurrent}
+                          eager
                           onPaint={i === 0 ? revealShell : undefined}
                         />
-                      ) : (
-                        <span className="knowledge-viewer-img-placeholder" aria-hidden />
                       )}
                     </PinchZoomPane>
+                  ) : !show ? (
+                    <span className="knowledge-viewer-img-placeholder" aria-hidden />
+                  ) : isVideoPage ? (
+                    // eslint-disable-next-line jsx-a11y/media-has-caption
+                    <video
+                      ref={isCurrent ? videoRef : undefined}
+                      className="knowledge-viewer-video-inline"
+                      src={knowledgeMediaUrl(p.media!.url)}
+                      playsInline
+                      controls
+                      preload={isCurrent ? 'metadata' : 'none'}
+                      poster={p.src ? knowledgeRasterSources(p.src).fallback : undefined}
+                      onEnded={() => setMediaPlaying(false)}
+                      onPause={() => setMediaPlaying(false)}
+                      onPlay={() => setMediaPlaying(true)}
+                    />
+                  ) : p.text ? (
+                    <article className="knowledge-viewer-text-leaf">
+                      <p className="knowledge-viewer-text-leaf-brand">彼爱 · 长文</p>
+                      {p.text.title ? <h3>{p.text.title}</h3> : null}
+                      {p.text.body
+                        .split(/\n\s*\n+/)
+                        .map((para) => para.trim())
+                        .filter(Boolean)
+                        .map((para, pi) => (
+                          <p key={pi}>{para}</p>
+                        ))}
+                    </article>
+                  ) : p.src ? (
+                    <ManuscriptRaster
+                      path={p.src}
+                      alt={p.alt}
+                      eager={false}
+                      onPaint={undefined}
+                    />
+                  ) : (
+                    <span className="knowledge-viewer-img-placeholder" aria-hidden />
                   )}
 
                   {isCurrent && total > 1 ? (
@@ -605,12 +658,14 @@ export function KnowledgeManuscriptViewer({
                   ) : null}
                 </div>
 
-                {near ? (
+                {isCurrent ? (
                   <div className="knowledge-viewer-page-tail">
                     <p className="manuscript-comments-hint muted">
-                      {total > 1 ? '左右翻页 · 下滑看评论' : '下滑查看评论'}
+                      {total > 1
+                        ? '左右翻页 · 下滑看评论 · 双击放大'
+                        : '下滑查看评论 · 双击放大'}
                     </p>
-                    {tourId && isCurrent ? (
+                    {tourId && engageReady ? (
                       <ManuscriptPageEngagement
                         topicId={tourId}
                         pageKey={p.key}

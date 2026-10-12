@@ -1526,6 +1526,7 @@ html.knowledge-viewer-lock nav.tabbar {
   justify-content: center;
   box-sizing: border-box;
   background: #1f1a16;
+  contain: layout paint;
 }
 
 .knowledge-viewer:not(.is-chrome-hidden) .knowledge-viewer-stage {
@@ -1557,7 +1558,6 @@ html.knowledge-viewer-lock nav.tabbar {
   align-items: center;
   justify-content: center;
   transform-origin: center center;
-  will-change: transform;
 }
 
 .knowledge-viewer-img {

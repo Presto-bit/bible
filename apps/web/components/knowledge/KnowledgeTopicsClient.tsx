@@ -319,8 +319,22 @@ export function KnowledgeTopicsClient({
             const warmTopic = () => {
               if (!sourceId) return;
               void prefetchKnowledgeDetail(sourceId);
-              if (isJourneyManuscriptId(sourceId)) {
-                preloadRaster(journeyManuscriptCover(sourceId));
+              const cover =
+                sourceId && isJourneyManuscriptId(sourceId)
+                  ? journeyManuscriptCover(sourceId)
+                  : coverPath(row);
+              preloadRaster(cover);
+              // 按下即高优 preload 首图，抢在导航前占连接
+              const { webp, fallback } = knowledgeRasterSources(cover);
+              const href = webp || fallback;
+              if (href && !document.getElementById(`kx-card-${sourceId}`)) {
+                const link = document.createElement('link');
+                link.id = `kx-card-${sourceId}`;
+                link.rel = 'preload';
+                link.as = 'image';
+                link.href = href;
+                link.setAttribute('fetchpriority', 'high');
+                document.head.appendChild(link);
               }
             };
             return (

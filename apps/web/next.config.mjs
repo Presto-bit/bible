@@ -67,10 +67,20 @@ const nextConfig = {
           },
         ],
       },
+      // 探索手稿/封面：文件名固定，须强缓存；勿被下方 no-cache 通配拖慢每次打开
       {
-        // 排除静态插画壁纸（否则会覆盖为 no-cache，壳上背景常下失败）
+        source: '/knowledge/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400, immutable',
+          },
+        ],
+      },
+      {
+        // 排除静态插画壁纸与手稿图（否则会覆盖为 no-cache，壳上反复重下）
         source:
-          '/((?!_next/static|_next/image|favicon.ico|icon-|apple-touch|manifest|sw\\.js|daily-wallpapers/|rail-scenes/|illustrations/home/).*)',
+          '/((?!_next/static|_next/image|favicon.ico|icon-|apple-touch|manifest|sw\\.js|daily-wallpapers/|rail-scenes/|illustrations/home/|knowledge/).*)',
         headers: [{ key: 'Cache-Control', value: 'no-cache, must-revalidate' }],
       },
     ];

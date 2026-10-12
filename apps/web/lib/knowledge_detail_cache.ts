@@ -15,10 +15,23 @@ export type KnowledgeDetailBundle = {
 const bundleCache = new Map<string, KnowledgeDetailBundle>();
 const inflight = new Map<string, Promise<KnowledgeDetailBundle>>();
 
-function preloadRaster(path: string) {
+function preloadRaster(path: string, highPriority = false) {
   if (typeof window === 'undefined' || !path) return;
   const { webp, fallback } = knowledgeRasterSources(path);
   const primary = webp || fallback;
+  // 高优：用 link preload，比 Image() 更早占连接
+  if (highPriority && primary) {
+    const id = `kx-preload-${primary}`;
+    if (!document.getElementById(id)) {
+      const link = document.createElement('link');
+      link.id = id;
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = primary;
+      link.setAttribute('fetchpriority', 'high');
+      document.head.appendChild(link);
+    }
+  }
   const img = new Image();
   img.decoding = 'async';
   img.src = primary;
@@ -39,21 +52,19 @@ export function warmManuscriptRasters(
   if (typeof window === 'undefined') return;
   const id = (tourId || layout?.source?.id || layout?.id || '').trim();
   if (id && isJourneyManuscriptId(id)) {
-    preloadRaster(journeyManuscriptCover(id));
+    preloadRaster(journeyManuscriptCover(id), true);
     const orders = (layout?.beats || [])
       .map((b) => b.order)
       .filter((n): n is number => typeof n === 'number' && n > 0)
-      .slice(0, 2);
-    const warmOrders = orders.length > 0 ? orders : [1, 2];
-    for (const order of warmOrders) {
+      .slice(0, 1);
+    for (const order of orders) {
       const n = String(order).padStart(2, '0');
       preloadRaster(`/knowledge/infographics/${encodeURIComponent(id)}-s${n}.png`);
     }
   }
-  if (layout?.cover_image) preloadRaster(layout.cover_image);
-  for (const b of (layout?.beats || []).slice(0, 2)) {
-    if (b.vignette) preloadRaster(b.vignette);
-  }
+  if (layout?.cover_image) preloadRaster(layout.cover_image, !isJourneyManuscriptId(id));
+  const firstVignette = (layout?.beats || []).find((b) => b.vignette)?.vignette;
+  if (firstVignette) preloadRaster(firstVignette);
 }
 
 export function peekKnowledgeDetail(id: string): KnowledgeDetailBundle | null {
