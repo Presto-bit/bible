@@ -132,14 +132,13 @@ export function recoverPinnedSpansFromVerseTexts(
     }
     const idx = full.indexOf(picked);
     if (idx < 0) return [];
-    // 多处相同片段时不猜，交给上层保留旧 pin
-    if (full.indexOf(picked, idx + 1) >= 0) return [];
+    // 多处相同片段：仍取首次，保证 PWA pin 有可见底色（优于整节扩选）
     return [{ verse, start: idx, end: idx + picked.length }];
   }
 
   const joined = bodies.map((b) => b.text).join('');
   const idx = joined.indexOf(picked);
-  if (idx < 0 || joined.indexOf(picked, idx + 1) >= 0) return [];
+  if (idx < 0) return [];
 
   const spans: NativePinnedSpan[] = [];
   let cursor = 0;

@@ -11,13 +11,13 @@ describe('recoverPinnedSpansFromVerseTexts', () => {
     ).toEqual([{ verse: 1, start: 0, end: 3 }]);
   });
 
-  it('returns empty when the snippet appears more than once', () => {
+  it('uses the first occurrence when the snippet appears more than once', () => {
     expect(
       recoverPinnedSpansFromVerseTexts(
         [{ verse: 1, text: '爱是恒久忍耐，又有恩慈；爱是不嫉妒。' }],
         '爱是',
       ),
-    ).toEqual([]);
+    ).toEqual([{ verse: 1, start: 0, end: 2 }]);
   });
 
   it('recovers cross-verse contiguous selection', () => {

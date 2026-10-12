@@ -112,14 +112,11 @@ import {
   readNativePinnedHighlight,
   readNativeVerseSelection,
   recoverPinnedSpansFromText,
+  recoverPinnedSpansFromVerseTexts,
   type NativePinnedHighlight,
   type NativeVerseSelection,
 } from '@/lib/native_verse_selection';
-import {
-  applyNativePinnedHighlight,
-  clearNativePinnedHighlight,
-  supportsCssCustomHighlight,
-} from '@/lib/native_verse_highlight';
+import { clearNativePinnedHighlight } from '@/lib/native_verse_highlight';
 import {
   cancelPendingChapterProgress,
   confirmChapterProgress,
@@ -682,16 +679,31 @@ export default function ReaderView({
     }
     return [...wholeVerseSel].sort((a, b) => a - b);
   }, [wordRange, wholeVerseSel, nativeTouchSelect, activeNativeSelection]);
-  /** 仅双击/显式整节选使用行级底色；局部划选绝不扩成整节。 */
+  /**
+   * 行级底色仅用于：
+   * - 双击/显式整节选
+   * - pin 后仍拿不到字符 spans 的最后兜底（避免 PWA 选完既无底色也无工具条体感）
+   * 有精确 spans 时绝不扩成整节。
+   */
+  const nativeSelVersesFallback = useMemo(() => {
+    if (!nativeTouchSelect || nativeSelecting) return new Set<number>();
+    if (nativePinnedHighlight?.spans.length) return new Set<number>();
+    if (nativePinnedHighlight?.verses.length) {
+      return new Set(nativePinnedHighlight.verses);
+    }
+    return new Set<number>();
+  }, [nativeTouchSelect, nativeSelecting, nativePinnedHighlight]);
   const verseSelClass = useCallback(
-    (verse: number) => (wholeVerseSel.includes(verse) ? ' verse-sel-active' : ''),
-    [wholeVerseSel],
+    (verse: number) =>
+      wholeVerseSel.includes(verse) || nativeSelVersesFallback.has(verse)
+        ? ' verse-sel-active'
+        : '',
+    [wholeVerseSel, nativeSelVersesFallback],
   );
+  /** PWA/Safari 上 CSS Highlight 常不可见；统一用 DOM 字符底色，可靠且精确。 */
   const pinnedSpanByVerse = useMemo(() => {
     const map = new Map<number, { start: number; end: number }>();
     if (!nativePinnedHighlight?.spans.length || nativeSelecting) return map;
-    // CSS Highlight 可用时由 Highlight API 绘制，避免 DOM 再包一层叠色
-    if (supportsCssCustomHighlight()) return map;
     for (const span of nativePinnedHighlight.spans) {
       map.set(span.verse, { start: span.start, end: span.end });
     }
@@ -2158,6 +2170,16 @@ export default function ReaderView({
         spans = recoverPinnedSpansFromText(root, basic);
       }
       if (!spans.length) {
+        const verseTexts = basic.verses.map((verseNum) => {
+          const raw = verses.find((v) => v.verse === verseNum)?.text ?? '';
+          return {
+            verse: verseNum,
+            text: formatVerseForReader(verseNum, raw),
+          };
+        });
+        spans = recoverPinnedSpansFromVerseTexts(verseTexts, basic.text);
+      }
+      if (!spans.length) {
         const prev = nativePinnedHighlightRef.current;
         if (prev?.spans.length && prev.text.trim() === basic.text.trim()) {
           spans = prev.spans;
@@ -2193,12 +2215,8 @@ export default function ReaderView({
         wordRangeRef.current = null;
         lastSelectAt.current = Date.now();
         swipeIgnoreUntilRef.current = Date.now() + 320;
-        // 有精确 spans 才画底色；无 spans 不退回整节蓝底
-        if (pinned.spans.length) {
-          applyNativePinnedHighlight(root, pinned);
-        } else {
-          clearNativePinnedHighlight();
-        }
+        // 底色以 React DOM `.verse-sel-chars` 为准（Safari CSS Highlight 常不可见/易失效）。
+        clearNativePinnedHighlight();
       }
       // 清系统选区（藏拷贝/翻译栏）；应用蓝底与工具条保持到点工具或空白
       pinningRef.current = true;
@@ -2388,56 +2406,15 @@ export default function ReaderView({
       window.clearTimeout(nativeCollapseTimerRef.current);
       nativeCollapseTimerRef.current = 0;
     };
-  }, [book.id, chapter, swipeTurn, nativeTouchSelect, autoCollapseNativeSel, markNativeSelectionCommitted, verses]);
+  }, [book.id, chapter, swipeTurn, nativeTouchSelect, autoCollapseNativeSel, markNativeSelectionCommitted, verses, formatVerseForReader]);
 
-  // 触控 pin 高亮：DOM 稳定后绘制，不改动经文 React 树
+  // 触控 pin：底色改由 `.verse-sel-chars` DOM 绘制；此处只清掉易失效的 CSS Highlight 残留
   useEffect(() => {
-    const root = contentRef.current;
-    if (!root || !nativeTouchSelect) return;
-    if (
-      !hasSel
-      || nativeSelecting
-      || nativePinSuppressRef.current
-      || !nativePinnedHighlight?.spans.length
-    ) {
-      // 仅在无选区时清掉；选区仍在时保留已绘蓝底，避免 effect 重跑闪灭
-      if (!hasSel || nativePinSuppressRef.current) {
-        clearNativePinnedHighlight();
-      }
-      return;
+    if (!nativeTouchSelect) return;
+    if (!hasSel || nativePinSuppressRef.current) {
+      clearNativePinnedHighlight();
     }
-    const gen = nativePinGenRef.current;
-    const id = requestAnimationFrame(() => {
-      if (
-        !hasSelRef.current
-        || gen !== nativePinGenRef.current
-        || nativePinSuppressRef.current
-        || Date.now() < dismissUntilRef.current
-      ) {
-        if (nativePinSuppressRef.current || !hasSelRef.current) {
-          clearNativePinnedHighlight();
-        }
-        return;
-      }
-      const pin = nativePinnedHighlightRef.current;
-      if (!pin?.spans.length) {
-        if (!hasSelRef.current) clearNativePinnedHighlight();
-        return;
-      }
-      applyNativePinnedHighlight(root, pin);
-    });
-    return () => {
-      cancelAnimationFrame(id);
-    };
-  }, [
-    hasSel,
-    nativeTouchSelect,
-    nativeSelecting,
-    nativePinnedHighlight,
-    book.id,
-    chapter,
-    verses,
-  ]);
+  }, [hasSel, nativeTouchSelect, nativeSelecting, nativePinnedHighlight]);
 
   // 桌面：长按选词 + 拖动扩选（词块 + wordRange）
   useEffect(() => {
@@ -3142,7 +3119,7 @@ export default function ReaderView({
         {renderChapterHead()}
 
         <div
-          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating || turn.dragSide ? ' verse-transition-off' : ''}${!hasSel ? ' reader-sel-cleared' : ''}${hasSel && !nativeSelecting && autoCollapseNativeSel ? ' reader-sel-locked' : ''}`}
+          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating || turn.dragSide ? ' verse-transition-off' : ''}${!hasSel && !nativeSelecting ? ' reader-sel-cleared' : ''}${hasSel && !nativeSelecting && autoCollapseNativeSel ? ' reader-sel-locked' : ''}`}
           onContextMenu={(e) => e.preventDefault()}
           onClick={handleReaderContentClick}
         >
