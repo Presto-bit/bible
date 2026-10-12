@@ -1262,10 +1262,11 @@ body.reader-overlay-open .reader-page {
   .reader-page .verse-token,
   .reader-page .verse-inline,
   .reader-page .verse-text-body,
-  .reader-page .verse-text-body * {
+  .reader-page .verse-text-body *,
+  .reader-page .verse-sel-chars {
     -webkit-user-select: text;
     user-select: text;
-    -webkit-touch-callout: none;
+    -webkit-touch-callout: none !important;
   }
 
   .reader-page .verse-token::selection,
@@ -1296,7 +1297,8 @@ body.reader-overlay-open .reader-page {
   .reader-content.reader-sel-locked .verse-token,
   .reader-content.reader-sel-locked .verse-inline,
   .reader-content.reader-sel-locked .verse-text-body,
-  .reader-content.reader-sel-locked .verse-text-body * {
+  .reader-content.reader-sel-locked .verse-text-body *,
+  .reader-content.reader-sel-locked .verse-sel-chars {
     -webkit-user-select: none !important;
     user-select: none !important;
     -webkit-touch-callout: none !important;

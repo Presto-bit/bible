@@ -2125,8 +2125,10 @@ export default function ReaderView({
   useEffect(() => {
     const root = contentRef.current;
     if (!root || !nativeTouchSelect) return;
-    const blockMenu = (e: Event) => e.preventDefault();
-    root.addEventListener('contextmenu', blockMenu);
+    const blockMenu = (e: Event) => {
+      const t = e.target;
+      if (t instanceof Node && root.contains(t)) e.preventDefault();
+    };
     let raf = 0;
     const pinningRef = { current: false };
 
@@ -2195,7 +2197,10 @@ export default function ReaderView({
 
       if (pinned.text) {
         nativePinnedHighlightRef.current = pinned;
+        // pin 时结束 selecting，否则 React className 会剥掉 reader-sel-locked，系统栏又回来
+        nativeSelectingRef.current = false;
         flushSync(() => {
+          setNativeSelecting(false);
           setNativeSelection({
             verses: pinned.verses,
             text: pinned.text,
@@ -2227,6 +2232,7 @@ export default function ReaderView({
         window.setTimeout(clearBrowserSelection, 30);
         window.setTimeout(clearBrowserSelection, 120);
         window.setTimeout(clearBrowserSelection, 280);
+        window.setTimeout(clearBrowserSelection, 480);
         pinningRef.current = false;
       });
     };
@@ -2327,7 +2333,11 @@ export default function ReaderView({
         const next = readNativeVerseSelection(root);
         if (nativeSelectingRef.current) {
           setLiveNativeSelection(next);
-          if (next) nativeSelectionRef.current = next;
+          if (next) {
+            nativeSelectionRef.current = next;
+            // 长按选词时手指未抬起也会出系统「拷贝/翻译」栏：短暂静置后 pin 并收起
+            if (autoCollapseNativeSel) scheduleCollapse(360);
+          }
           return;
         }
         if (!next) {
@@ -2364,10 +2374,27 @@ export default function ReaderView({
     };
 
     const onPointerUp = (e: PointerEvent | TouchEvent) => {
-      // WebKit 松手时常先清系统选区，双 rAF 再读 + 缓存兜底
+      // 松手立刻打断系统栏；WebKit 偶发先清选区，双 rAF 再用缓存 pin
+      window.clearTimeout(nativeCollapseTimerRef.current);
+      nativeCollapseTimerRef.current = 0;
+      if (autoCollapseNativeSel) {
+        commitLiveSelection();
+      }
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          commitLiveSelection();
+          if (autoCollapseNativeSel) {
+            if (
+              nativeSelectionRef.current?.text
+              && !nativePinnedHighlightRef.current?.verses.length
+            ) {
+              collapseSystemSelection({ force: true });
+            } else if (browserHasNativeSelection()) {
+              clearBrowserSelection();
+              root.classList.add('reader-sel-locked');
+            }
+          } else {
+            commitLiveSelection();
+          }
           if (nativeSelectingRef.current) setSelecting(false);
         });
       });
@@ -2390,12 +2417,16 @@ export default function ReaderView({
     };
 
     document.addEventListener('selectionchange', sync);
+    // capture：拦住冒泡前的系统菜单手势
+    root.addEventListener('contextmenu', blockMenu, true);
+    document.addEventListener('contextmenu', blockMenu, true);
     root.addEventListener('pointerdown', onPointerDown, { passive: true });
     root.addEventListener('touchend', onPointerUp, { passive: true });
     root.addEventListener('pointerup', onPointerUp, { passive: true });
     root.addEventListener('pointercancel', onPointerUp, { passive: true });
     return () => {
-      root.removeEventListener('contextmenu', blockMenu);
+      root.removeEventListener('contextmenu', blockMenu, true);
+      document.removeEventListener('contextmenu', blockMenu, true);
       document.removeEventListener('selectionchange', sync);
       root.removeEventListener('pointerdown', onPointerDown);
       root.removeEventListener('touchend', onPointerUp);
@@ -3119,7 +3150,7 @@ export default function ReaderView({
         {renderChapterHead()}
 
         <div
-          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating || turn.dragSide ? ' verse-transition-off' : ''}${!hasSel && !nativeSelecting ? ' reader-sel-cleared' : ''}${hasSel && !nativeSelecting && autoCollapseNativeSel ? ' reader-sel-locked' : ''}`}
+          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating || turn.dragSide ? ' verse-transition-off' : ''}${!hasSel && !nativeSelecting ? ' reader-sel-cleared' : ''}${hasSel && autoCollapseNativeSel && (!nativeSelecting || Boolean(nativePinnedHighlight)) ? ' reader-sel-locked' : ''}`}
           onContextMenu={(e) => e.preventDefault()}
           onClick={handleReaderContentClick}
         >
