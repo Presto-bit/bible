@@ -660,24 +660,17 @@ export function KnowledgeManuscriptViewer({
                   ) : null}
                 </div>
 
-                {isCurrent ? (
+                {isCurrent && tourId && engageReady ? (
                   <div className="knowledge-viewer-page-tail">
-                    <p className="manuscript-comments-hint muted">
-                      {total > 1
-                        ? '左右翻页 · 下滑看评论 · 双击放大'
-                        : '下滑查看评论 · 双击放大'}
-                    </p>
-                    {tourId && engageReady ? (
-                      <ManuscriptPageEngagement
-                        topicId={tourId}
-                        pageKey={p.key}
-                        commentsRef={commentsRef}
-                        onScrollToComments={scrollToComments}
-                        chromeHidden={chromeHidden}
-                        shareBusy={shareBusy}
-                        onShare={() => void onShare()}
-                      />
-                    ) : null}
+                    <ManuscriptPageEngagement
+                      topicId={tourId}
+                      pageKey={p.key}
+                      commentsRef={commentsRef}
+                      onScrollToComments={scrollToComments}
+                      chromeHidden={chromeHidden}
+                      shareBusy={shareBusy}
+                      onShare={() => void onShare()}
+                    />
                   </div>
                 ) : null}
               </div>
