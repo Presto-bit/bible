@@ -55,7 +55,11 @@ export default function KnowledgeExpandHost() {
 
   useEffect(() => {
     const phase = session?.phase ?? null;
-    if (phase === phaseRef.current && phase !== 'idle') return;
+    // leave 期间仍要同步最新 origin（回列表后重算），但不能重开动效
+    if (phase === phaseRef.current && phase !== 'idle') {
+      if (session?.phase === 'leave') setLayer(session);
+      return;
+    }
     phaseRef.current = phase;
 
     if (!session) {
@@ -86,28 +90,24 @@ export default function KnowledgeExpandHost() {
     }
 
     if (session.phase === 'leave') {
-      // 始终同步最新 origin（列表重算后会再 emit）
       setLayer(session);
       if (reduced) {
         setVisual('fade');
         const t = window.setTimeout(() => finishKnowledgeCollapse(), REVEAL_FADE_MS);
         return () => window.clearTimeout(t);
       }
-      // 已在缩回途中仅更新原点，勿重开动效
-      if (visual === 'to') {
-        return;
-      }
-      // 先全屏盖住 Viewer，再缩回卡片；时长与 CSS is-to 对齐
+      if (visual === 'to') return;
+      // 先全屏盖住（等导航/列表就绪），再缩回；避免未盖住就缩 → 白屏
       setVisual('full');
-      let raf2 = 0;
-      const raf1 = window.requestAnimationFrame(() => {
-        raf2 = window.requestAnimationFrame(() => setVisual('to'));
-      });
-      const t = window.setTimeout(() => finishKnowledgeCollapse(), LEAVE_MS + 40);
+      const HOLD_FULL_MS = 130;
+      const toTimer = window.setTimeout(() => setVisual('to'), HOLD_FULL_MS);
+      const endTimer = window.setTimeout(
+        () => finishKnowledgeCollapse(),
+        HOLD_FULL_MS + LEAVE_MS + 40,
+      );
       return () => {
-        window.cancelAnimationFrame(raf1);
-        window.cancelAnimationFrame(raf2);
-        window.clearTimeout(t);
+        window.clearTimeout(toTimer);
+        window.clearTimeout(endTimer);
       };
     }
 

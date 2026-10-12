@@ -218,11 +218,28 @@ function refreshOriginFromCard(
 
 /** Viewer 关闭：壳层缩回卡片（尽量用当前列表卡位置，避免滚动后原点错位） */
 export function beginKnowledgeCollapse(): boolean {
-  const base = leaveOrigin || session?.origin || readPersistedOrigin();
-  if (!base) return false;
   const topicId = session?.topicId;
-  const origin = refreshOriginFromCard(topicId, base);
-  const cover = origin.cover || session?.cover || '';
+  const coverHint =
+    (leaveOrigin?.cover || session?.cover || session?.origin?.cover || '').trim() ||
+    peekKnowledgeExpandCover();
+  let base = leaveOrigin || session?.origin || readPersistedOrigin();
+  // 无原点时仍出全屏垫，避免 Viewer 卸掉后空一帧白屏
+  if (!base && typeof window !== 'undefined') {
+    base = {
+      x: 0,
+      y: 0,
+      w: Math.max(window.innerWidth, 1),
+      h: Math.max(window.innerHeight, 1),
+      radius: 0,
+      cover: coverHint || undefined,
+    };
+  }
+  if (!base) return false;
+  const origin = {
+    ...refreshOriginFromCard(topicId, base),
+    cover: coverHint || base.cover,
+  };
+  const cover = (origin.cover || coverHint || '').trim();
   leaveOrigin = origin;
   session = {
     phase: 'leave',

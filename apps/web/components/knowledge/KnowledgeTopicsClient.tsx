@@ -177,10 +177,11 @@ export function KnowledgeTopicsClient({
         setCollapseTopicId(null);
       }
     });
+    // 与 Host leave（约 130+340ms）对齐；会话结束时订阅会提前清
     const t = window.setTimeout(() => {
       setSoftReturn(false);
       setCollapseTopicId(null);
-    }, 420);
+    }, 520);
     return () => {
       window.cancelAnimationFrame(raf);
       unsub();

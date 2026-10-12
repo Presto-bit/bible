@@ -1098,7 +1098,8 @@ html.knowledge-viewer-lock nav.tabbar {
 .knowledge-expand-layer.is-to {
   transform: translate3d(var(--kx), var(--ky), 0) scale(var(--ksx), var(--ksy));
   border-radius: var(--kr, 16px);
-  opacity: 1;
+  /* 缩回末淡出，底下探索卡片直接露出来，避免卸垫后白一格 */
+  opacity: 0;
   transition:
     transform 340ms cubic-bezier(0.32, 0.72, 0.28, 1),
     border-radius 340ms ease,
@@ -1168,11 +1169,8 @@ html.knowledge-viewer-lock nav.tabbar {
   opacity: 1;
 }
 
-/* 软回列表：仅藏起目标卡，避免双影；其它卡保持可见 */
-.knowledge-topics-grid.is-expand-return .knowledge-topic-card.is-collapse-target {
-  opacity: 0;
-  transition: none;
-}
+/* 软回：不再把目标卡 opacity:0（垫层结束后会空一格白屏）；
+   缩回末尾垫层淡出，底下卡片自然露出来 */
 
 .knowledge-viewer {
   position: fixed;
@@ -1202,11 +1200,9 @@ html.knowledge-viewer-lock nav.tabbar {
     border-radius 380ms ease;
 }
 
-/* 退场：立刻让出画面给缩回垫层（垫层 z 更高） */
+/* 退场：Viewer 保持不透明，由更高 z 的垫层盖住，避免垫层未挂载时空一帧白屏 */
 .knowledge-viewer.is-leave {
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 60ms linear;
 }
 
 .knowledge-viewer.is-expand.is-leave.is-expand-to {
