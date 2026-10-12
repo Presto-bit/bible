@@ -903,6 +903,39 @@ export const api = {
   knowledgeLayouts: () => getJson<{ layouts: KnowledgeLayoutSummary[] }>('/content/knowledge-layouts'),
   knowledgeLayout: (id: string) =>
     getJson<{ layout: KnowledgeLayout }>(`/content/knowledge-layouts/${encodeURIComponent(id)}`),
+  knowledgePageEngagement: (topicId: string, pageKey: string) =>
+    authed<{
+      liked: boolean;
+      likesCount: number;
+      commentsCount: number;
+      comments: {
+        id: string;
+        userId: string;
+        displayName: string;
+        body: string;
+        createdAt?: string | null;
+      }[];
+    }>(
+      `/content/knowledge-layouts/${encodeURIComponent(topicId)}/pages/${encodeURIComponent(pageKey)}/engagement`,
+    ),
+  toggleKnowledgePageLike: (topicId: string, pageKey: string) =>
+    authed<{ liked: boolean; likesCount: number }>(
+      `/content/knowledge-layouts/${encodeURIComponent(topicId)}/pages/${encodeURIComponent(pageKey)}/like`,
+      { method: 'POST', body: {} },
+    ),
+  addKnowledgePageComment: (topicId: string, pageKey: string, body: string) =>
+    authed<{
+      comment: {
+        id: string;
+        userId: string;
+        displayName: string;
+        body: string;
+        createdAt?: string | null;
+      };
+    }>(
+      `/content/knowledge-layouts/${encodeURIComponent(topicId)}/pages/${encodeURIComponent(pageKey)}/comments`,
+      { method: 'POST', body: { body } },
+    ),
   knowledgeLayoutFromScripture: (body: {
     title: string;
     refs: string[];

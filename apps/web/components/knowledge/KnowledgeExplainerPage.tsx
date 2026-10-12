@@ -38,13 +38,14 @@ export function KnowledgeExplainerPage({
   const openFromQuery = searchParams.get('view') === '1';
   const fromHome = searchParams.get('from') === 'home';
   const shouldAutoOpen = autoOpen || openFromQuery;
-  const flowBack = useFlowBack(fromHome ? '/knowledge' : backHref);
+  const listHref = '/discover?pane=explore';
+  const flowBack = useFlowBack(fromHome ? listHref : backHref || listHref);
   const goTopics = useCallback(() => {
     markKnowledgeSoftReturn();
     markRouteNavigation();
-    router.replace('/knowledge');
+    router.replace(listHref);
   }, [router]);
-  /** 首页探索进入：关手稿/返回 → 专题列表，不回首页 */
+  /** 首页探索进入：关手稿/返回 → 发现·探索，不回首页 */
   const leave = useCallback(() => {
     markKnowledgeSoftReturn();
     flowBack();
@@ -54,7 +55,7 @@ export function KnowledgeExplainerPage({
 
   const title = layout.title || tour.title;
   const guide = layout.guide_one_liner || tour.subtitle || '';
-  const headerBackLabel = fromHome ? '知识专题' : backLabel;
+  const headerBackLabel = fromHome ? '探索' : backLabel;
 
   const pages = useMemo(() => manuscriptJourneyPages(layout), [layout]);
 

@@ -30,7 +30,7 @@ function sortLayouts(rows: KnowledgeLayoutSummary[]) {
 /** 管理员：专题下架 / 删除（笔记与行程） */
 export default function KnowledgeManagePage() {
   const router = useRouter();
-  const goBack = useFlowBack('/knowledge');
+  const goBack = useFlowBack('/discover?pane=explore');
   const confirm = useConfirm();
   const [ready, setReady] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -45,13 +45,13 @@ export default function KnowledgeManagePage() {
         if (cancelled) return;
         setIsAdmin(ok);
         setReady(true);
-        if (!ok) router.replace('/knowledge');
+        if (!ok) router.replace('/discover?pane=explore');
       })
       .catch(() => {
         if (cancelled) return;
         setIsAdmin(false);
         setReady(true);
-        router.replace('/knowledge');
+        router.replace('/discover?pane=explore');
       });
     return () => {
       cancelled = true;

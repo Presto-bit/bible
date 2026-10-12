@@ -76,7 +76,7 @@ const AssistantTab = dynamic(() => loadTab(() => import('@/components/tabs/Assis
   loading: () => paneLoading,
 });
 
-const DiscoverTab = dynamic(() => loadTab(() => import('@/components/tabs/DiscoverTab')), {
+const DiscoverHub = dynamic(() => loadTab(() => import('@/components/discover/DiscoverHub')), {
   ssr: false,
   loading: () => <DiscoverTabSkeleton />,
 });
@@ -85,7 +85,7 @@ const TAB_COMPONENTS: Record<KeepAliveTabId, React.ComponentType<{ paneActive?: 
   home: HomeTab,
   reader: ReaderTab,
   assistant: AssistantTab,
-  discover: DiscoverTab,
+  discover: DiscoverHub,
   profile: ProfileTab,
 };
 
@@ -239,7 +239,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!enabled) return;
     const prefetch = () => {
-      void import('@/components/tabs/DiscoverTab');
+      void import('@/components/discover/DiscoverHub');
     };
     const id =
       typeof window.requestIdleCallback === 'function'

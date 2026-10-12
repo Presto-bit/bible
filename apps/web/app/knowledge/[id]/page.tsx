@@ -24,11 +24,11 @@ export default function KnowledgeNotePage() {
   const noteId = decodeURIComponent(String(params.id || ''));
   const openFromQuery = searchParams.get('view') === '1';
   const fromHome = searchParams.get('from') === 'home';
-  const flowBack = useFlowBack('/knowledge');
+  const flowBack = useFlowBack('/discover?pane=explore');
   const goTopics = useCallback(() => {
     markKnowledgeSoftReturn();
     markRouteNavigation();
-    router.replace('/knowledge');
+    router.replace('/discover?pane=explore');
   }, [router]);
   const leave = useCallback(() => {
     markKnowledgeSoftReturn();

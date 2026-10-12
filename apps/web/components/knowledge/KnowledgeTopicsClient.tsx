@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
-import type { KnowledgeLayoutSummary } from '@/lib/api';
+import { api, type KnowledgeLayoutSummary } from '@/lib/api';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import { knowledgeLayoutViewHref } from '@/lib/topic_routes';
 import {
@@ -24,6 +24,7 @@ import {
   journeyListCover,
   journeyManuscriptCover,
 } from '@/lib/journey_covers';
+import '@/styles/discover_hub.css';
 
 function coverPath(row: KnowledgeLayoutSummary): string {
   const id = row.id || '';
@@ -82,22 +83,57 @@ function scheduleIdle(fn: () => void, timeout = 900): () => void {
 type FilterId = 'all' | 'journey' | 'note';
 
 type Props = {
-  initialLayouts: KnowledgeLayoutSummary[];
+  initialLayouts?: KnowledgeLayoutSummary[];
+  /** 嵌入发现壳：无返回/大标题；管理在筛选行；+ 底中 FAB */
+  discoverEmbed?: boolean;
+  paneActive?: boolean;
 };
 
 /**
  * 探索列表：1 行 2 卡封面流（点进直达全屏），对齐已拍板方案。
  */
-export function KnowledgeTopicsClient({ initialLayouts }: Props) {
-  const goBack = useFlowBack('/');
+export function KnowledgeTopicsClient({
+  initialLayouts = [],
+  discoverEmbed = false,
+  paneActive = true,
+}: Props) {
+  const goBack = useFlowBack(discoverEmbed ? '/discover' : '/');
   const [rows, setRows] = useState(initialLayouts);
   const [filter, setFilter] = useState<FilterId>('all');
   const [isAdmin, setIsAdmin] = useState(false);
   const [softReturn, setSoftReturn] = useState(false);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
 
   useEffect(() => {
     setRows(initialLayouts);
   }, [initialLayouts]);
+
+  useEffect(() => {
+    if (!paneActive) return;
+    if (initialLayouts.length > 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await api.knowledgeLayouts();
+        if (cancelled) return;
+        const list = Array.isArray(res.layouts) ? res.layouts : [];
+        setRows(
+          [...list].sort((a, b) => {
+            const ta = Date.parse(a.generated_at || '') || 0;
+            const tb = Date.parse(b.generated_at || '') || 0;
+            if (tb !== ta) return tb - ta;
+            return (a.title || a.id || '').localeCompare(b.title || b.id || '', 'zh');
+          }),
+        );
+        setLoadErr(null);
+      } catch {
+        if (!cancelled) setLoadErr('专题加载失败');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [paneActive, initialLayouts.length]);
 
   useEffect(() => {
     const soft = consumeKnowledgeSoftReturn();
@@ -138,74 +174,93 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
     return rows.filter((r) => !isNoteRow(r));
   }, [rows, filter]);
 
+  const Root = discoverEmbed ? 'div' : 'main';
+  const filters = (
+    <div className="knowledge-topics-filters" role="tablist" aria-label="筛选">
+      {(
+        [
+          ['all', '全部'],
+          ['journey', '行程'],
+          ['note', '笔记'],
+        ] as const
+      ).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={filter === id}
+          className={`knowledge-topics-filter${filter === id ? ' is-on' : ''}`}
+          onClick={() => setFilter(id)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <main
-      className={`container knowledge-topics-page${softReturn ? ' is-soft-return' : ''}`}
+    <Root
+      className={`${discoverEmbed ? '' : 'container '}knowledge-topics-page${discoverEmbed ? ' is-discover-embed' : ''}${softReturn ? ' is-soft-return' : ''}`}
     >
-      <header className="page-head knowledge-topics-head">
-        <PageBackBar onClick={goBack} label="首页" />
-        <h2 className="page-head-title">探索</h2>
-        {isAdmin ? (
-          <div className="page-head-actions knowledge-topics-admin-actions">
-            <Link
-              href="/knowledge/manage"
-              className="knowledge-topics-manage"
-              aria-label="管理专题"
-            >
+      {!discoverEmbed ? (
+        <>
+          <header className="page-head knowledge-topics-head">
+            <PageBackBar onClick={goBack} label="首页" />
+            <h2 className="page-head-title">探索</h2>
+            {isAdmin ? (
+              <div className="page-head-actions knowledge-topics-admin-actions">
+                <Link
+                  href="/knowledge/manage"
+                  className="knowledge-topics-manage"
+                  aria-label="管理专题"
+                >
+                  管理
+                </Link>
+                <Link
+                  href="/knowledge/new"
+                  className="icon-btn knowledge-topics-new"
+                  aria-label="新建手稿"
+                  title="新建"
+                >
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.25"
+                    strokeLinecap="round"
+                    aria-hidden
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </Link>
+              </div>
+            ) : (
+              <span className="knowledge-topics-new-spacer" aria-hidden />
+            )}
+          </header>
+          <p className="knowledge-topics-lead">点开即读</p>
+          {filters}
+        </>
+      ) : (
+        <div className="knowledge-topics-embed-tools">
+          {filters}
+          {isAdmin ? (
+            <Link href="/knowledge/manage" className="knowledge-topics-embed-manage">
               管理
             </Link>
-            <Link
-              href="/knowledge/new"
-              className="icon-btn knowledge-topics-new"
-              aria-label="新建手稿"
-              title="新建"
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.25"
-                strokeLinecap="round"
-                aria-hidden
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </Link>
-          </div>
-        ) : (
-          <span className="knowledge-topics-new-spacer" aria-hidden />
-        )}
-      </header>
-      <p className="knowledge-topics-lead">点开即读</p>
+          ) : null}
+        </div>
+      )}
 
-      <div className="knowledge-topics-filters" role="tablist" aria-label="筛选">
-        {(
-          [
-            ['all', '全部'],
-            ['journey', '行程'],
-            ['note', '笔记'],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={filter === id}
-            className={`knowledge-topics-filter${filter === id ? ' is-on' : ''}`}
-            onClick={() => setFilter(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {loadErr ? <p className="muted knowledge-topics-empty">{loadErr}</p> : null}
 
-      {visible.length === 0 ? (
+      {visible.length === 0 && !loadErr ? (
         <p className="muted knowledge-topics-empty">
           {rows.length === 0 ? '暂无专题，稍后再来看看。' : '此分类暂无内容。'}
         </p>
-      ) : (
+      ) : visible.length === 0 ? null : (
         <div
           className={`knowledge-topics-grid${softReturn ? ' is-expand-return' : ''}`}
         >
@@ -280,6 +335,17 @@ export function KnowledgeTopicsClient({ initialLayouts }: Props) {
           })}
         </div>
       )}
-    </main>
+
+      {discoverEmbed && isAdmin ? (
+        <Link
+          href="/knowledge/new"
+          className="knowledge-topics-fab"
+          aria-label="新建手稿"
+          title="新建"
+        >
+          +
+        </Link>
+      ) : null}
+    </Root>
   );
 }

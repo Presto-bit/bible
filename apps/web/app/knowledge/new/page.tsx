@@ -187,7 +187,7 @@ function folioRawToDraftPages(
 /** 管理员新建：册页条多页编辑（方案 A） */
 export default function KnowledgeNewNotePage() {
   const router = useRouter();
-  const goBack = useFlowBack('/knowledge');
+  const goBack = useFlowBack('/discover?pane=explore');
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [seedKind, setSeedKind] = useState<SeedKind | null>(null);
   const [title, setTitle] = useState('');

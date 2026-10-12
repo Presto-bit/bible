@@ -123,7 +123,14 @@ type SearchHit = {
   created_at?: string | null;
 };
 
-export default function DiscoverTab({ paneActive = true }: { paneActive?: boolean }) {
+export default function DiscoverTab({
+  paneActive = true,
+  hubEmbedded = false,
+}: {
+  paneActive?: boolean;
+  /** 嵌入发现壳：无「消息」大标题；通讯录置顶；「+」由壳提供 */
+  hubEmbedded?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const online = useOnline();
@@ -146,7 +153,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const plusRef = useRef<HTMLDivElement | null>(null);
   const messagesLoadedRef = useRef(false);
   const reloadGenRef = useRef(0);
-  const rootRef = useRef<HTMLElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const ptrContentRef = useRef<HTMLDivElement | null>(null);
   const ptrIndicatorRef = useRef<HTMLDivElement | null>(null);
   const ptrLabelRef = useRef<HTMLSpanElement | null>(null);
@@ -432,31 +439,35 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
   const searching = searchQ.trim().length > 0;
 
+  const rootClass = hubEmbedded
+    ? `discover-peers-pane${ptrRefreshing ? ' is-ptr-refreshing' : ''}`
+    : `container discover-page discover-im${ptrRefreshing ? ' is-ptr-refreshing' : ''}`;
+
   // 离线时与其它 Tab 一致：先出壳 + 离线提示，不因账号 ensure 挂起而整页打不开
   if (!online && account.status === 'loading') {
     return (
-      <main className="container discover-page discover-im">
+      <div className={hubEmbedded ? 'discover-peers-pane' : 'container discover-page discover-im'}>
         <p className="muted offline-page-hint">当前离线，消息需联网后刷新。</p>
         <div className="card card-2" style={{ marginTop: 12 }}>
           <p className="muted" style={{ fontSize: 14 }}>消息列表需联网后加载。</p>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (account.status === 'loading' && !effectiveId() && items.length === 0) {
     return (
-      <main className="container">
+      <div className={hubEmbedded ? 'discover-peers-pane' : 'container'}>
         <div className="card card-2">
           <p>正在准备本机账号…</p>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (account.status === 'timeout') {
     return (
-      <main className="container discover-page discover-im">
+      <div className={hubEmbedded ? 'discover-peers-pane' : 'container discover-page discover-im'}>
         {!online ? (
           <p className="muted offline-page-hint">当前离线，消息需联网后刷新。</p>
         ) : null}
@@ -469,14 +480,15 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
             前往我的 · 登录
           </Link>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main
+    <div
       ref={rootRef}
-      className={`container discover-page discover-im${ptrRefreshing ? ' is-ptr-refreshing' : ''}`}
+      className={rootClass}
+      role={hubEmbedded ? undefined : 'main'}
     >
       <div
         ref={ptrIndicatorRef}
@@ -491,77 +503,79 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       ) : null}
       {online && err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
 
-      <div className="discover-im-top">
-        <h1 className="discover-im-title">消息</h1>
-        <div className="discover-im-actions" ref={plusRef}>
-          <Pressable
-            className="discover-im-contacts"
-            aria-label="通讯录"
-            onTap={() => go('/discover/contacts')}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <circle cx="9" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
-              <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.8" />
-              <path
-                d="M3.5 19.5c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-              <path
-                d="M14.5 17.5c.4-1.8 1.8-3 3.5-3s3.1 1.2 3.5 3"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
-            {contactsBadge > 0 ? (
-              <span className="discover-im-contacts-badge">
-                {contactsBadge > 99 ? '99+' : contactsBadge}
-              </span>
+      {!hubEmbedded ? (
+        <div className="discover-im-top">
+          <h1 className="discover-im-title">消息</h1>
+          <div className="discover-im-actions" ref={plusRef}>
+            <Pressable
+              className="discover-im-contacts"
+              aria-label="通讯录"
+              onTap={() => go('/discover/contacts')}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <circle cx="9" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+                <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+                <path
+                  d="M3.5 19.5c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M14.5 17.5c.4-1.8 1.8-3 3.5-3s3.1 1.2 3.5 3"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+              {contactsBadge > 0 ? (
+                <span className="discover-im-contacts-badge">
+                  {contactsBadge > 99 ? '99+' : contactsBadge}
+                </span>
+              ) : null}
+            </Pressable>
+            <Pressable
+              className={`discover-im-plus${plusOpen ? ' is-open' : ''}`}
+              aria-label="更多"
+              aria-expanded={plusOpen}
+              onTap={() => setPlusOpen((v) => !v)}
+            >
+              ＋
+            </Pressable>
+            {plusOpen ? (
+              <div className="discover-im-plus-menu" role="menu">
+                <Pressable
+                  role="menuitem"
+                  onTap={() => {
+                    setPlusOpen(false);
+                    go('/group/create');
+                  }}
+                >
+                  新建群
+                </Pressable>
+                <Pressable
+                  role="menuitem"
+                  onTap={() => {
+                    setPlusOpen(false);
+                    go('/discover/join');
+                  }}
+                >
+                  加入群
+                </Pressable>
+                <Pressable
+                  role="menuitem"
+                  onTap={() => {
+                    setPlusOpen(false);
+                    go('/friend/add');
+                  }}
+                >
+                  加好友
+                </Pressable>
+              </div>
             ) : null}
-          </Pressable>
-          <Pressable
-            className={`discover-im-plus${plusOpen ? ' is-open' : ''}`}
-            aria-label="更多"
-            aria-expanded={plusOpen}
-            onTap={() => setPlusOpen((v) => !v)}
-          >
-            ＋
-          </Pressable>
-          {plusOpen ? (
-            <div className="discover-im-plus-menu" role="menu">
-              <Pressable
-                role="menuitem"
-                onTap={() => {
-                  setPlusOpen(false);
-                  go('/group/create');
-                }}
-              >
-                新建群
-              </Pressable>
-              <Pressable
-                role="menuitem"
-                onTap={() => {
-                  setPlusOpen(false);
-                  go('/discover/join');
-                }}
-              >
-                加入群
-              </Pressable>
-              <Pressable
-                role="menuitem"
-                onTap={() => {
-                  setPlusOpen(false);
-                  go('/friend/add');
-                }}
-              >
-                加好友
-              </Pressable>
-            </div>
-          ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="discover-im-search">
         <input
@@ -615,13 +629,53 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         </div>
       ) : null}
 
+      {!searching && hubEmbedded ? (
+        <div className="discover-contacts-pin">
+          <Pressable
+            className="discover-contacts-pin-row"
+            aria-label="通讯录"
+            onTap={() => go('/discover/contacts')}
+          >
+            <span className="discover-contacts-pin-icon" aria-hidden>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="9" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+                <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+                <path
+                  d="M3.5 19.5c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M14.5 17.5c.4-1.8 1.8-3 3.5-3s3.1 1.2 3.5 3"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+              {contactsBadge > 0 ? (
+                <span className="discover-contacts-pin-badge">
+                  {contactsBadge > 99 ? '99+' : contactsBadge}
+                </span>
+              ) : null}
+            </span>
+            <span className="discover-contacts-pin-label">通讯录</span>
+            <span className="discover-contacts-pin-chevron" aria-hidden>
+              ›
+            </span>
+          </Pressable>
+        </div>
+      ) : null}
+
       {!searching && (!loading || items.length > 0) ? (
         items.length === 0 && !(online && err) ? (
           <div className="discover-empty">
             <strong>{online ? '还没有消息' : '消息暂不可用'}</strong>
             <p className="muted">
               {online
-                ? '加好友后即可私信，也能一起读经。'
+                ? friends.length === 0
+                  ? '找一位同路人一起读，或先去探索专题。'
+                  : '从通讯录打个招呼，开始一段对话。'
                 : '当前离线，联网后即可刷新消息列表。'}
             </p>
             {online ? (
@@ -629,13 +683,15 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                 <button type="button" className="btn" onClick={() => go('/friend/add')}>
                   加好友
                 </button>
-                <button
-                  type="button"
-                  className="text-link"
-                  onClick={() => go('/discover/contacts')}
-                >
-                  通讯录 ›
-                </button>
+                {!hubEmbedded ? (
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => go('/discover/contacts')}
+                  >
+                    通讯录 ›
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -751,6 +807,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         )
       ) : null}
       </div>
-    </main>
+    </div>
   );
 }

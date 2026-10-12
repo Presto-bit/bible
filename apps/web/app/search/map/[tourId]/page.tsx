@@ -132,7 +132,7 @@ function MapStoryPageContent() {
         <KnowledgeExplainerPage
           tour={tour}
           layout={layout}
-          backHref="/knowledge"
+          backHref="/discover?pane=explore"
           backLabel="知识专题"
           autoOpen={openView}
         />
