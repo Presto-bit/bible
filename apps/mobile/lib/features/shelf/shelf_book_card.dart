@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
+import 'shelf_cover_cache.dart';
 import 'shelf_repository.dart';
 import 'shelf_toc.dart';
 
@@ -62,11 +63,21 @@ class ShelfBookCard extends StatelessWidget {
                     children: [
                       const ColoredBox(color: shelfBrandCoverBg),
                       if (resolvedCover.isNotEmpty)
-                        Image.network(
-                          resolvedCover,
-                          fit: BoxFit.cover,
-                          gaplessPlayback: true,
-                          errorBuilder: (_, __, ___) => const ShelfBrandCover(),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final dpr = MediaQuery.devicePixelRatioOf(context);
+                            final w = constraints.maxWidth;
+                            final cacheW = w.isFinite && w > 0
+                                ? (w * dpr).round().clamp(80, 600)
+                                : null;
+                            return ShelfCoverNetworkImage(
+                              url: resolvedCover,
+                              fit: BoxFit.cover,
+                              cacheWidth: cacheW,
+                              errorBuilder: (_, __, ___) =>
+                                  const ShelfBrandCover(),
+                            );
+                          },
                         )
                       else
                         const ShelfBrandCover(),

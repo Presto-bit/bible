@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 _COVER_W = 400
 _COVER_H = 533  # 3:4
+_COVER_SM_W = 200
+_COVER_SM_H = 267  # 3:4 列表缩略
 
 COVER_SOURCE_USER = "user"
 COVER_SOURCE_PDF = "pdf"
@@ -27,6 +29,25 @@ class CoverProtectedError(ValueError):
 def cover_storage_key_for_book(book_id: str) -> str:
     safe = re.sub(r"[^a-zA-Z0-9\-]", "", str(book_id))[:64] or "book"
     return f"cover-{safe}.webp"
+
+
+def cover_thumb_storage_key_for_book(book_id: str) -> str:
+    safe = re.sub(r"[^a-zA-Z0-9\-]", "", str(book_id))[:64] or "book"
+    return f"cover-{safe}-sm.webp"
+
+
+def cover_thumb_key_from_full(storage_key: str | None) -> str | None:
+    """cover-xxx.webp → cover-xxx-sm.webp；已是 -sm 则原样返回。"""
+    key = (storage_key or "").strip()
+    if not key:
+        return None
+    name = Path(key).name
+    if name.endswith("-sm.webp"):
+        return name
+    if name.lower().endswith(".webp"):
+        return name[:-5] + "-sm.webp"
+    stem = Path(name).stem
+    return f"{stem}-sm.webp"
 
 
 def cover_hue_from_title(title: str) -> int:
@@ -174,10 +195,49 @@ def render_pdf_first_page_webp(data: bytes, *, max_width: int = _COVER_W) -> byt
         return None
 
 
+def write_cover_thumb_bytes(book_id: str, data: bytes) -> str | None:
+    """从全尺寸封面字节写出列表缩略图；非法图则跳过。"""
+    try:
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(data))
+        img = img.convert("RGB")
+        img = img.resize((_COVER_SM_W, _COVER_SM_H), Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="WEBP", quality=78, method=4)
+        thumb = buf.getvalue()
+    except Exception:
+        return None
+    key = cover_thumb_storage_key_for_book(book_id)
+    path = shelf_dir() / key
+    path.write_bytes(thumb)
+    return key
+
+
+def ensure_cover_thumb(book_id: str, cover_key: str | None = None) -> str | None:
+    """保证列表缩略存在；已有则直接返回 key。"""
+    bid = str(book_id or "").strip()
+    if not bid:
+        return None
+    thumb_key = cover_thumb_storage_key_for_book(bid)
+    thumb_path = shelf_file_path(thumb_key)
+    if thumb_path.is_file():
+        return thumb_key
+    full_key = (cover_key or "").strip() or cover_storage_key_for_book(bid)
+    full_path = shelf_file_path(Path(full_key).name)
+    if not full_path.is_file():
+        return None
+    try:
+        return write_cover_thumb_bytes(bid, full_path.read_bytes())
+    except OSError:
+        return None
+
+
 def write_cover_bytes(book_id: str, data: bytes) -> str:
     key = cover_storage_key_for_book(book_id)
     path = shelf_dir() / key
     path.write_bytes(data)
+    write_cover_thumb_bytes(book_id, data)
     return key
 
 
@@ -328,6 +388,12 @@ def _delete_cover_file(book: dict[str, Any]) -> None:
     if existing:
         try:
             shelf_file_path(existing).unlink(missing_ok=True)
+        except OSError:
+            pass
+    bid = str(book.get("id") or "")
+    if bid:
+        try:
+            shelf_file_path(cover_thumb_storage_key_for_book(bid)).unlink(missing_ok=True)
         except OSError:
             pass
     book["cover_storage_key"] = None

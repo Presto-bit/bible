@@ -343,7 +343,11 @@ def shelf_platform_section(book_id: str, section_id: str) -> dict:
 
 
 @router.get("/platform/{book_id}/files/{storage_key}")
-def shelf_platform_asset(book_id: str, storage_key: str) -> FileResponse:
+def shelf_platform_asset(
+    book_id: str,
+    storage_key: str,
+    v: int | None = None,
+) -> FileResponse:
     """节内 PDF / 图片 / 视频等资源（storage_key 须在该书资产白名单内）。"""
     try:
         path = get_platform_asset_path(book_id, storage_key)
@@ -363,7 +367,15 @@ def shelf_platform_asset(book_id: str, storage_key: str) -> FileResponse:
     }.get(suffix, "application/octet-stream")
     headers: dict[str, str] = {}
     if storage_key.startswith("cover-"):
-        headers["Cache-Control"] = "private, max-age=300, must-revalidate"
+        # ?v= 为 mtime 破缓存；有版本号时可长期缓存
+        if v is not None and v > 0:
+            headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            headers["Cache-Control"] = "private, max-age=86400"
+        try:
+            headers["ETag"] = f'W/"{int(path.stat().st_mtime)}-{path.stat().st_size}"'
+        except OSError:
+            pass
     return FileResponse(path, media_type=media, filename=path.name, headers=headers)
 
 

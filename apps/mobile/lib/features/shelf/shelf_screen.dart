@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'shelf_book_card.dart';
+import 'shelf_cover_cache.dart';
 import 'shelf_library_store.dart';
 import 'shelf_manage_sheet.dart';
 import 'shelf_navigator.dart';
@@ -42,6 +43,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   List<ShelfUserGroup> _userGroups = const [];
   var _canAppendLesson = false;
   var _canManage = false;
+  String? _coverPrefetchKey;
 
   @override
   void initState() {
@@ -702,6 +704,26 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                 : _tab,
             _searchCtrl.text,
           );
+          final prefetchKey = books.take(9).map((b) => '${b.id}:${b.coverVersion}').join('|');
+          if (_coverPrefetchKey != prefetchKey) {
+            _coverPrefetchKey = prefetchKey;
+            final prefetchUrls = books
+                .take(9)
+                .map(
+                  (b) =>
+                      repo.coverUrl(
+                        b.id,
+                        b.coverStorageKey,
+                        coverVersion: b.coverVersion,
+                        thumb: true,
+                      ) ??
+                      '',
+                )
+                .where((u) => u.isNotEmpty);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              prefetchShelfCovers(prefetchUrls);
+            });
+          }
           return RefreshIndicator(
             onRefresh: () => _refresh(ref),
             child: CustomScrollView(
@@ -834,6 +856,7 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
                               book.id,
                               book.coverStorageKey,
                               coverVersion: book.coverVersion,
+                              thumb: true,
                             ),
                             progressRatio: _library.bookProgressRatio(book.id),
                             onTap: () => _openBook(book),

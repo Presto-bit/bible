@@ -110,3 +110,32 @@ def test_fit_cover_webp_dimensions():
     assert len(webp) > 100
     out = Image.open(io.BytesIO(webp))
     assert out.size == (400, 533)
+
+
+def test_write_cover_bytes_also_writes_thumb(tmp_path, monkeypatch):
+    from PIL import Image
+    import io
+
+    from app.shelf import cover_gen as cg
+
+    monkeypatch.setattr(cg, "shelf_dir", lambda: tmp_path)
+    monkeypatch.setattr(cg, "shelf_file_path", lambda key: tmp_path / Path(key).name)
+
+    img = Image.new("RGB", (400, 533), (120, 100, 90))
+    buf = io.BytesIO()
+    img.save(buf, format="WEBP", quality=80)
+    key = write_cover_bytes("book-thumb", buf.getvalue())
+    assert key == "cover-book-thumb.webp"
+    assert (tmp_path / key).is_file()
+    thumb = cg.cover_thumb_storage_key_for_book("book-thumb")
+    assert (tmp_path / thumb).is_file()
+    sm = Image.open(tmp_path / thumb)
+    assert sm.size == (200, 267)
+
+
+def test_cover_thumb_key_from_full():
+    from app.shelf.cover_gen import cover_thumb_key_from_full
+
+    assert cover_thumb_key_from_full("cover-abc.webp") == "cover-abc-sm.webp"
+    assert cover_thumb_key_from_full("cover-abc-sm.webp") == "cover-abc-sm.webp"
+    assert cover_thumb_key_from_full(None) is None

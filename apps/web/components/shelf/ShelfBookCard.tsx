@@ -12,13 +12,21 @@ import { shelfBookProgressRatio, shelfBookCardMetaLine } from '@/lib/shelf_libra
 type Props = {
   book: ShelfBookSummary;
   coverUrl?: string | null;
+  /** 首屏可见封面用 eager，其余 lazy */
+  coverPriority?: boolean;
   actionMenuOpen?: boolean;
   onActionMenu?: (book: ShelfBookSummary, anchorEl: HTMLElement) => void;
 };
 
 const LONG_PRESS_MS = 520;
 
-export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onActionMenu }: Props) {
+export default function ShelfBookCard({
+  book,
+  coverUrl,
+  coverPriority = false,
+  actionMenuOpen,
+  onActionMenu,
+}: Props) {
   const router = useRouter();
   const cardRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -115,7 +123,15 @@ export default function ShelfBookCard({ book, coverUrl, actionMenuOpen, onAction
       <div className="shelf-book-card-cover" style={{ position: 'relative' }}>
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={coverUrl} alt="" className="shelf-book-card-image" draggable={false} />
+          <img
+            src={coverUrl}
+            alt=""
+            className="shelf-book-card-image"
+            draggable={false}
+            loading={coverPriority ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchPriority={coverPriority ? 'high' : 'auto'}
+          />
         ) : (
           <ShelfBrandCover />
         )}

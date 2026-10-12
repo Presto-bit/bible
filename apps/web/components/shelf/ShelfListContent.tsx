@@ -124,6 +124,26 @@ export function ShelfListContent() {
     [items, activeTab, searchQuery, libraryTick],
   );
 
+  // 首屏封面预取（浏览器 HTTP 缓存 + 长 Cache-Control）
+  useEffect(() => {
+    if (typeof window === 'undefined' || visibleBooks.length === 0) return;
+    const urls = visibleBooks
+      .slice(0, 9)
+      .map((b) => shelfCoverUrl(b.id, b.cover_storage_key, b.cover_version, { size: 'thumb' }))
+      .filter((u): u is string => Boolean(u));
+    const imgs = urls.map((url) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = url;
+      return img;
+    });
+    return () => {
+      imgs.forEach((img) => {
+        img.src = '';
+      });
+    };
+  }, [visibleBooks]);
+
   const showUngrouped = useMemo(() => shelfUngroupedCount(items) > 0, [items, libraryTick]);
 
   return (
@@ -167,11 +187,14 @@ export function ShelfListContent() {
 
       {visibleBooks.length > 0 ? (
         <div className="shelf-grid shelf-library-grid">
-          {visibleBooks.map((book) => (
+          {visibleBooks.map((book, index) => (
             <ShelfBookCard
               key={book.id}
               book={book}
-              coverUrl={shelfCoverUrl(book.id, book.cover_storage_key, book.cover_version)}
+              coverUrl={shelfCoverUrl(book.id, book.cover_storage_key, book.cover_version, {
+                size: 'thumb',
+              })}
+              coverPriority={index < 9}
               actionMenuOpen={bookActionMenu?.book.id === book.id}
               onActionMenu={(b, anchorEl) => setBookActionMenu({ book: b, anchorEl })}
             />

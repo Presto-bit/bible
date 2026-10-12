@@ -13,6 +13,7 @@ import '../../core/activity_log.dart';
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/theme.dart';
 import 'shelf_brand_cover.dart';
+import 'shelf_cover_cache.dart';
 import 'shelf_library_store.dart';
 import 'shelf_post_sheets.dart';
 import 'shelf_posts_repository.dart';
@@ -143,10 +144,18 @@ class _ShelfBookDetailScreenState extends ConsumerState<ShelfBookDetailScreen> {
           coverVersion: book.coverVersion,
         );
     if (url != null && url.isNotEmpty) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const ShelfBrandCover(),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final dpr = MediaQuery.devicePixelRatioOf(context);
+          final w = constraints.maxWidth;
+          final cacheW = w.isFinite && w > 0 ? (w * dpr).round().clamp(120, 900) : null;
+          return ShelfCoverNetworkImage(
+            url: url,
+            fit: BoxFit.cover,
+            cacheWidth: cacheW,
+            errorBuilder: (_, __, ___) => const ShelfBrandCover(),
+          );
+        },
       );
     }
     return const ShelfBrandCover();

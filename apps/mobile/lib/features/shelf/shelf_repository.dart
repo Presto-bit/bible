@@ -455,14 +455,33 @@ class ShelfRepository {
     return '${AppConfig.baseUrl}/shelf/platform/${Uri.encodeComponent(bookId)}/files/$key';
   }
 
-  String? coverUrl(String bookId, String? coverStorageKey, {int? coverVersion}) {
-    final key = (coverStorageKey ?? '').trim();
+  /// 列表用 [thumb]=true（cover-*-sm.webp）；详情用全尺寸。
+  String? coverUrl(
+    String bookId,
+    String? coverStorageKey, {
+    int? coverVersion,
+    bool thumb = false,
+  }) {
+    var key = (coverStorageKey ?? '').trim();
     if (key.isEmpty) return null;
+    if (thumb) key = coverThumbStorageKey(key);
     final base = assetUrl(bookId, key);
     if (coverVersion != null && coverVersion > 0) {
       return '$base?v=$coverVersion';
     }
     return base;
+  }
+
+  /// cover-xxx.webp → cover-xxx-sm.webp
+  static String coverThumbStorageKey(String storageKey) {
+    final name = storageKey.split('/').last;
+    if (name.endsWith('-sm.webp')) return name;
+    if (name.toLowerCase().endsWith('.webp')) {
+      return '${name.substring(0, name.length - 5)}-sm.webp';
+    }
+    final dot = name.lastIndexOf('.');
+    final stem = dot > 0 ? name.substring(0, dot) : name;
+    return '$stem-sm.webp';
   }
 
   Future<Map<String, dynamic>> uploadBookCover(String bookId, String filePath, String filename) async {

@@ -124,11 +124,19 @@ def asset_allowed(book: dict[str, Any], storage_key: str, *, book_id: str | None
     if name in book_asset_keys(book):
         return True
     bid = book_id or str(book.get("id") or "")
-    if bid and name.startswith("cover-") and shelf_file_path(name).is_file():
-        from .cover_gen import cover_storage_key_for_book
+    if bid and name.startswith("cover-"):
+        from .cover_gen import (
+            cover_storage_key_for_book,
+            cover_thumb_storage_key_for_book,
+            ensure_cover_thumb,
+        )
 
-        if name == cover_storage_key_for_book(bid):
-            return True
+        allowed = {cover_storage_key_for_book(bid), cover_thumb_storage_key_for_book(bid)}
+        if name in allowed:
+            if name == cover_thumb_storage_key_for_book(bid) and not shelf_file_path(name).is_file():
+                ensure_cover_thumb(bid, cover_storage_key_for_book(bid))
+            if shelf_file_path(name).is_file():
+                return True
     if (book.get("book_type") or "") != "collection":
         return False
     for section in book.get("sections") or []:

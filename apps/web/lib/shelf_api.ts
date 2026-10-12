@@ -118,14 +118,25 @@ export function shelfAssetUrl(bookId: string, storageKey: string): string {
   return `${API_BASE}/shelf/platform/${encodeURIComponent(bookId)}/files/${key}`;
 }
 
+/** cover-xxx.webp → cover-xxx-sm.webp（列表缩略） */
+export function shelfCoverThumbKey(storageKey: string): string {
+  const name = storageKey.split('/').pop() || storageKey;
+  if (name.endsWith('-sm.webp')) return name;
+  if (/\.webp$/i.test(name)) return name.replace(/\.webp$/i, '-sm.webp');
+  const stem = name.replace(/\.[^.]+$/, '');
+  return `${stem}-sm.webp`;
+}
+
 export function shelfCoverUrl(
   bookId: string,
   coverStorageKey?: string | null,
   coverVersion?: number | null,
+  opts?: { size?: 'full' | 'thumb' },
 ): string | null {
   const key = (coverStorageKey || '').trim();
   if (!key) return null;
-  const base = shelfAssetUrl(bookId, key);
+  const resolved = opts?.size === 'thumb' ? shelfCoverThumbKey(key) : key;
+  const base = shelfAssetUrl(bookId, resolved);
   if (coverVersion != null && coverVersion > 0) {
     return `${base}?v=${coverVersion}`;
   }

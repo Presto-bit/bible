@@ -19,7 +19,14 @@ export default function ShelfCoverPlate({
     return (
       <div className={`${cls} shelf-cover-has-image`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={coverUrl} alt="" className="shelf-book-card-image" />
+        <img
+          src={coverUrl}
+          alt=""
+          className="shelf-book-card-image"
+          loading={size === 'detail' ? 'eager' : 'lazy'}
+          decoding="async"
+          fetchPriority={size === 'detail' ? 'high' : 'auto'}
+        />
       </div>
     );
   }
