@@ -7,7 +7,13 @@ const SESSION_KEY = 'beiai_discover_pane_v1';
 export function parseDiscoverPane(raw: string | null | undefined): DiscoverPaneId | null {
   const v = (raw || '').trim().toLowerCase();
   if (v === 'explore' || v === '知识' || v === '探索') return 'explore';
-  if (v === 'peers' || v === 'tongluren' || v === '同路人' || v === 'messages') {
+  if (
+    v === 'peers' ||
+    v === 'tongluren' ||
+    v === '同路人' ||
+    v === 'messages' ||
+    v === 'people'
+  ) {
     return 'peers';
   }
   return null;

@@ -17,51 +17,64 @@
   backdrop-filter: blur(8px);
 }
 
+/* 字级 Tab + 滑动短底线：同字号，无 |、无胶囊 */
 .discover-hub-seg-main {
   display: inline-flex;
-  align-items: baseline;
-  gap: 0;
+  align-items: center;
+  gap: 20px;
   min-width: 0;
+  position: relative;
+  padding-bottom: 2px;
 }
 
 .discover-hub-seg-btn {
   appearance: none;
   border: 0;
   background: transparent;
-  padding: 6px 2px;
+  padding: 6px 0 10px;
   margin: 0;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.25;
-  color: color-mix(in srgb, var(--ink, #1a1a1a) 42%, transparent);
+  color: color-mix(in srgb, var(--ink, #1a1a1a) 40%, transparent);
   font-weight: 500;
   cursor: pointer;
   position: relative;
-  transition: font-size 0.15s ease, color 0.15s ease;
+  transition: color 0.18s ease, font-weight 0.18s ease;
 }
 
 .discover-hub-seg-btn.is-on {
   color: var(--ink, #1a1a1a);
-  font-weight: 700;
-  font-size: 20px;
+  font-weight: 600;
 }
 
-.discover-hub-seg-btn.is-on::after {
-  content: '';
+.discover-hub-seg-ink {
   position: absolute;
-  left: 2px;
-  right: 2px;
-  bottom: 2px;
+  left: 0;
+  bottom: 0;
   height: 2px;
   border-radius: 1px;
   background: var(--ink, #1a1a1a);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(0);
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 120ms ease;
 }
 
-.discover-hub-pipe {
-  margin: 0 6px;
-  color: color-mix(in srgb, var(--ink, #1a1a1a) 28%, transparent);
-  font-size: 15px;
-  font-weight: 400;
-  user-select: none;
+.discover-hub-seg-ink.is-ready {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discover-hub-seg-ink {
+    transition: none;
+  }
+}
+
+.discover-hub-pane[hidden] {
+  display: none !important;
 }
 
 .discover-hub-seg-spacer {
@@ -199,6 +212,9 @@
 
 .knowledge-topics-page.is-discover-embed {
   padding-top: 0;
+  /* 与同路人同壳背景，去掉探索页独立暖色渐变 */
+  background: transparent !important;
+  min-height: 0;
 }
 
 .knowledge-topics-embed-tools {

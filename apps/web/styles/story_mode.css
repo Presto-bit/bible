@@ -1194,9 +1194,9 @@ html.knowledge-viewer-lock nav.tabbar {
     border-radius 380ms ease;
 }
 
+/* 退场勿先淡成透明：否则缩回前会闪白屏 */
 .knowledge-viewer.is-leave:not(.is-expand-to) {
-  opacity: 0;
-  transition: opacity 160ms ease;
+  opacity: 1;
   pointer-events: none;
 }
 

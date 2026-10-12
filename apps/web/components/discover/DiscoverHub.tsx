@@ -44,7 +44,30 @@ function DiscoverHubInner({
   const [resolved, setResolved] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
   const plusRef = useRef<HTMLDivElement | null>(null);
-  const manualRef = useRef(false);
+  const segMainRef = useRef<HTMLDivElement | null>(null);
+  const peersBtnRef = useRef<HTMLButtonElement | null>(null);
+  const exploreBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [ink, setInk] = useState({ left: 0, width: 0, ready: false });
+  /** 手动切换后忽略一次过期的 URL 回写 */
+  const ignoreUrlRef = useRef(false);
+
+  const updateInk = useCallback(() => {
+    const main = segMainRef.current;
+    const btn = pane === 'peers' ? peersBtnRef.current : exploreBtnRef.current;
+    if (!main || !btn) return;
+    const mr = main.getBoundingClientRect();
+    const br = btn.getBoundingClientRect();
+    setInk({ left: br.left - mr.left, width: br.width, ready: true });
+  }, [pane]);
+
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => updateInk());
+    window.addEventListener('resize', updateInk);
+    return () => {
+      window.cancelAnimationFrame(id);
+      window.removeEventListener('resize', updateInk);
+    };
+  }, [updateInk, resolved, pane]);
 
   const go = useCallback(
     (href: string) => {
@@ -53,20 +76,28 @@ function DiscoverHubInner({
     [router],
   );
 
-  const applyPane = useCallback(
-    (next: DiscoverPaneId, opts?: { manual?: boolean; syncUrl?: boolean }) => {
-      setPane(next);
-      writeDiscoverPaneSession(next);
-      if (opts?.manual) manualRef.current = true;
-      if (opts?.syncUrl !== false) {
-        const q = new URLSearchParams(searchParams?.toString() || '');
-        if (next === 'explore') q.set('pane', 'explore');
-        else q.delete('pane');
-        const qs = q.toString();
-        router.replace(qs ? `/discover?${qs}` : '/discover', { scroll: false });
-      }
+  const syncUrl = useCallback(
+    (next: DiscoverPaneId) => {
+      const q = new URLSearchParams(searchParams?.toString() || '');
+      q.set('pane', next);
+      const qs = q.toString();
+      router.replace(`/discover?${qs}`, { scroll: false });
     },
     [router, searchParams],
+  );
+
+  const applyPane = useCallback(
+    (next: DiscoverPaneId) => {
+      ignoreUrlRef.current = true;
+      setPane(next);
+      writeDiscoverPaneSession(next);
+      syncUrl(next);
+      // URL 追上后再允许外部深链改写
+      window.setTimeout(() => {
+        ignoreUrlRef.current = false;
+      }, 400);
+    },
+    [syncUrl],
   );
 
   useEffect(() => {
@@ -94,24 +125,29 @@ function DiscoverHubInner({
         count = 0;
       }
       if (cancelled) return;
-      // 当次会话曾切换则沿用；否则按有无好友
       const next = fromSession ?? defaultDiscoverPane(count);
       setPane(next);
       writeDiscoverPaneSession(next);
+      // 显式写入 pane，避免「无 query = 同路人」与手动切换打架
+      const q = new URLSearchParams(searchParams?.toString() || '');
+      q.set('pane', next);
+      router.replace(`/discover?${q.toString()}`, { scroll: false });
       setResolved(true);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [account.status, resolved, searchParams]);
+  }, [account.status, resolved, searchParams, router]);
 
+  // 只跟 URL，不跟 pane，避免「点同路人 → URL 未变 → 又被拉回探索」
   useEffect(() => {
+    if (ignoreUrlRef.current) return;
     const urlPane = parseDiscoverPane(searchParams?.get('pane'));
-    if (!urlPane || urlPane === pane) return;
-    setPane(urlPane);
+    if (!urlPane) return;
+    setPane((prev) => (prev === urlPane ? prev : urlPane));
     writeDiscoverPaneSession(urlPane);
-  }, [searchParams, pane]);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!plusOpen) return;
@@ -125,28 +161,39 @@ function DiscoverHubInner({
   return (
     <main className="container discover-page discover-hub discover-im">
       <div className="discover-hub-seg" role="tablist" aria-label="发现分段">
-        <div className="discover-hub-seg-main">
+        <div
+          ref={segMainRef}
+          className="discover-hub-seg-main"
+          data-pane={pane}
+        >
           <button
+            ref={peersBtnRef}
             type="button"
             role="tab"
             aria-selected={pane === 'peers'}
             className={`discover-hub-seg-btn${pane === 'peers' ? ' is-on' : ''}`}
-            onClick={() => applyPane('peers', { manual: true })}
+            onClick={() => applyPane('peers')}
           >
             同路人
           </button>
-          <span className="discover-hub-pipe" aria-hidden>
-            |
-          </span>
           <button
+            ref={exploreBtnRef}
             type="button"
             role="tab"
             aria-selected={pane === 'explore'}
             className={`discover-hub-seg-btn${pane === 'explore' ? ' is-on' : ''}`}
-            onClick={() => applyPane('explore', { manual: true })}
+            onClick={() => applyPane('explore')}
           >
             探索
           </button>
+          <span
+            className={`discover-hub-seg-ink${ink.ready ? ' is-ready' : ''}`}
+            aria-hidden
+            style={{
+              transform: `translateX(${ink.left}px)`,
+              width: ink.width,
+            }}
+          />
         </div>
         <span className="discover-hub-seg-spacer" aria-hidden />
         {pane === 'peers' ? (
@@ -194,15 +241,25 @@ function DiscoverHubInner({
         ) : null}
       </div>
 
-      {pane === 'peers' ? (
-        <DiscoverTab paneActive={paneActive && resolved} hubEmbedded />
-      ) : (
+      {/* 双栏常挂载，避免切换闪空 / 重复请求 */}
+      <div
+        className="discover-hub-pane"
+        hidden={pane !== 'peers'}
+        aria-hidden={pane !== 'peers'}
+      >
+        <DiscoverTab paneActive={paneActive && resolved && pane === 'peers'} hubEmbedded />
+      </div>
+      <div
+        className="discover-hub-pane"
+        hidden={pane !== 'explore'}
+        aria-hidden={pane !== 'explore'}
+      >
         <KnowledgeTopicsClient
           initialLayouts={initialLayouts}
           discoverEmbed
-          paneActive={paneActive && resolved}
+          paneActive={paneActive && resolved && pane === 'explore'}
         />
-      )}
+      </div>
     </main>
   );
 }

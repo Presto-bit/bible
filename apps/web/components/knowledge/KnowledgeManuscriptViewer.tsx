@@ -369,7 +369,21 @@ export function KnowledgeManuscriptViewer({
     return () => el.removeEventListener('scroll', onScroll);
   }, [syncIndex]);
 
+  // 纵滑需 preventDefault，React 合成事件默认 passive，改原生监听
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const move = (ev: TouchEvent) => {
+      if (!verticalPan.current?.active) return;
+      ev.preventDefault();
+    };
+    el.addEventListener('touchmove', move, { passive: false });
+    return () => el.removeEventListener('touchmove', move);
+  }, []);
+
   const verticalPan = useRef<{ y: number; active: boolean } | null>(null);
+  const vertRaf = useRef(0);
+  const vertPending = useRef(0);
 
   const onScrollerTouchStart = (e: ReactTouchEvent) => {
     if (pageZoomed || e.touches.length !== 1) {
@@ -386,6 +400,7 @@ export function KnowledgeManuscriptViewer({
     };
     tapTrack.current = { x: t.clientX, y: t.clientY, t: Date.now() };
     verticalPan.current = { y: t.clientY, active: false };
+    vertPending.current = 0;
   };
 
   const onScrollerTouchMove = (e: ReactTouchEvent) => {
@@ -398,18 +413,28 @@ export function KnowledgeManuscriptViewer({
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     if (!pan.active) {
-      if (Math.abs(dy) < 10 && Math.abs(dx) < 10) return;
+      if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
       // 纵向主导：把手势交给外层纵滑（进评论 / 回图顶）
-      if (Math.abs(dy) > Math.abs(dx) * 1.15) {
+      if (Math.abs(dy) > Math.abs(dx) * 1.05) {
         pan.active = true;
       } else {
         verticalPan.current = null;
         return;
       }
     }
+    // 锁定为纵滑，避免与横滑抢事件
+    e.preventDefault();
     const delta = pan.y - t.clientY;
     pan.y = t.clientY;
-    body.scrollTop += delta;
+    vertPending.current += delta;
+    if (vertRaf.current) return;
+    vertRaf.current = window.requestAnimationFrame(() => {
+      vertRaf.current = 0;
+      const bodyEl = bodyRef.current;
+      if (!bodyEl) return;
+      bodyEl.scrollTop += vertPending.current;
+      vertPending.current = 0;
+    });
   };
 
   const onScrollerTouchEnd = (e: ReactTouchEvent) => {
