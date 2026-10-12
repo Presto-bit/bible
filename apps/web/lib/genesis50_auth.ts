@@ -2,7 +2,7 @@
  *
  * 对方站点用邀请码换固定邮箱/密码登录 Supabase。我们在本域完成登录后，
  * 把 session 写进目标站 URL query（其 supabase-js detectSessionInUrl 会接收），
- * 从而跳过邀请码输入页。PWA 用壳内 iframe；token 放 query（不用 hash）。
+ * 从而跳过邀请码输入页。PWA 用壳内 iframe 直链活动站；token 放 query（不用 hash）。
  * 手动登录在彼爱壳内同源完成（一次点击），避免 iframe 内外站登录要点两次。
  *
  * 注意：同一邀请码对应同一账号；全员共用一码会进同一账号。
@@ -10,7 +10,6 @@
 
 import { getUserName } from '@/lib/api';
 import { clientWithBasePath } from '@/lib/basePath';
-import { toCampaignEmbedUrl } from '@/lib/campaign_embed';
 import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 import { openExternalBrowser } from '@/lib/external_browser';
 
@@ -273,9 +272,12 @@ export async function obtainGenesis50Session(code: string): Promise<G50Session> 
   }
 }
 
-/** PWA iframe：同站 embed + token（抑制引导弹窗、稳定 session）。 */
+/**
+ * PWA iframe 打开地址：活动站直链 + token。
+ * 曾用同站 embed 抑制引导弹窗，但与对方 SPA 路由冲突会出现「空白→有内容→再空白」，故改回直链。
+ */
 export function buildGenesis50PwaOpenUrl(href: string, session: G50Session): string {
-  return toCampaignEmbedUrl(buildGenesis50AuthedUrl(href, session));
+  return buildGenesis50AuthedUrl(href, session);
 }
 
 /** 壳内邀请码一次进入：本域换 session 后返回可嵌入的 URL。 */
@@ -333,7 +335,6 @@ export function openGenesis50Authed(href: string): void {
     loading: true,
     chrome: 'app',
     inviteCampaign,
-    forceEmbed: true,
   });
 
   void (async () => {
@@ -346,7 +347,6 @@ export function openGenesis50Authed(href: string): void {
         loading: false,
         chrome: 'app',
         inviteCampaign,
-        forceEmbed: true,
       });
     } catch (err) {
       console.warn('[genesis50] auto enter failed, show in-shell invite form', err);
@@ -358,7 +358,6 @@ export function openGenesis50Authed(href: string): void {
         chrome: 'app',
         inviteCampaign,
         inviteForm: true,
-        forceEmbed: true,
       });
     }
   })();
