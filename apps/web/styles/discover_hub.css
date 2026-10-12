@@ -73,8 +73,20 @@
   }
 }
 
-.discover-hub-pane[hidden] {
+.discover-hub-pane[hidden],
+.discover-hub-pane.is-off {
   display: none !important;
+}
+
+/* 嵌入壳：同路人列表与分段 Tab 间距（对齐 discover-page 左右内边距） */
+.discover-peers-pane {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.discover-peers-pane .discover-conv-list {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .discover-hub-seg-spacer {

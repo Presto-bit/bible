@@ -17,6 +17,7 @@ class DailyVerseWallpaperScreen extends StatelessWidget {
     required this.theme,
     this.liked = false,
     this.likeCount = 0,
+    this.reactsCount = 0,
     this.myReact,
     this.onToggleLike,
     this.onOpenReact,
@@ -30,6 +31,7 @@ class DailyVerseWallpaperScreen extends StatelessWidget {
   final String theme;
   final bool liked;
   final int likeCount;
+  final int reactsCount;
   final String? myReact;
   final VoidCallback? onToggleLike;
   final VoidCallback? onOpenReact;
@@ -166,7 +168,9 @@ class DailyVerseWallpaperScreen extends StatelessWidget {
                     ),
                     _DockBtn(
                       icon: Icons.chat_bubble_outline,
-                      label: myReact ?? '回应',
+                      label: reactsCount > 0
+                          ? '$reactsCount'
+                          : (myReact ?? '回应'),
                       active: myReact != null,
                       onTap: onOpenReact,
                     ),

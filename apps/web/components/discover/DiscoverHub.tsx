@@ -126,6 +126,17 @@ function DiscoverHubInner({
         count = 0;
       }
       if (cancelled) return;
+      const urlPane = parseDiscoverPane(
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('pane')
+          : null,
+      );
+      if (urlPane) {
+        setPane(urlPane);
+        writeDiscoverPaneSession(urlPane);
+        setResolved(true);
+        return;
+      }
       const next = fromSession ?? defaultDiscoverPane(count);
       setPane(next);
       writeDiscoverPaneSession(next);
@@ -250,8 +261,7 @@ function DiscoverHubInner({
 
       {/* 双栏常挂载，避免切换闪空 / 重复请求 */}
       <div
-        className="discover-hub-pane"
-        hidden={pane !== 'peers'}
+        className={`discover-hub-pane${pane !== 'peers' ? ' is-off' : ''}`}
         aria-hidden={pane !== 'peers'}
       >
         <DiscoverTab
@@ -261,14 +271,14 @@ function DiscoverHubInner({
         />
       </div>
       <div
-        className="discover-hub-pane"
-        hidden={pane !== 'explore'}
+        className={`discover-hub-pane${pane !== 'explore' ? ' is-off' : ''}`}
         aria-hidden={pane !== 'explore'}
       >
         <KnowledgeTopicsClient
           initialLayouts={initialLayouts}
           discoverEmbed
-          paneActive={paneActive && resolved && pane === 'explore'}
+          prefetchLayouts={Boolean(paneActive)}
+          paneActive={paneActive && pane === 'explore'}
         />
       </div>
     </main>

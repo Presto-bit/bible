@@ -1420,7 +1420,8 @@ class _VerseCardState extends ConsumerState<_VerseCard>
           theme: widget.theme,
           liked: _liked,
           likeCount: _likeCount,
-          myReact: _myReact?.label,
+          reactsCount: _reactsCount,
+          myReact: _myReact?.displayLabel,
           onToggleLike: _likeBusy
               ? null
               : () {
@@ -1633,9 +1634,9 @@ class _VerseCardState extends ConsumerState<_VerseCard>
                             const SizedBox(width: 4),
                             _HeroAction(
                               icon: Icons.chat_bubble_outline,
-                              label: _myReact?.emoji.isNotEmpty == true
-                                  ? _myReact!.emoji
-                                  : (_myReact?.label),
+                              label: _reactsCount > 0
+                                  ? '$_reactsCount'
+                                  : null,
                               active: _myReact != null,
                               onTap: _openReact,
                             ),

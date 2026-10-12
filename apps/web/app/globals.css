@@ -307,6 +307,27 @@ html.android-flutter-h5 body.pwa-standalone .app-body {
   overflow-y: auto;
 }
 
+/* Flutter WebView：保活 Tab 勿用 100dvh，否则发现·探索内容区高度为 0 / 不可滚 */
+html.android-flutter-h5 .tab-keep-pane.tab-keep-pane-active {
+  min-height: 0;
+  min-height: var(--peiai-vv-h, 100%);
+  height: auto;
+}
+
+html.android-flutter-h5 .tab-keep-pane.tab-keep-pane-active .discover-hub {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+html.android-flutter-h5 .tab-keep-pane.tab-keep-pane-active .discover-hub-pane:not(.is-off) {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* 已装在 App 内：不催安装 / 分享安装条 */
 html.android-flutter-h5 .share-pwa-bar,
 html.android-flutter-h5 [data-peiai-install-sheet],

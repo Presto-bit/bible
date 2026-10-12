@@ -114,6 +114,8 @@ type Props = {
   initialLayouts?: KnowledgeLayoutSummary[];
   /** 嵌入发现壳：无返回/大标题；管理在筛选行；+ 底中 FAB */
   discoverEmbed?: boolean;
+  /** 发现 Tab 可见时预拉列表（切到探索前就有数据） */
+  prefetchLayouts?: boolean;
   paneActive?: boolean;
 };
 
@@ -123,6 +125,7 @@ type Props = {
 export function KnowledgeTopicsClient({
   initialLayouts = EMPTY_LAYOUTS,
   discoverEmbed = false,
+  prefetchLayouts = false,
   paneActive = true,
 }: Props) {
   const goBack = useFlowBack(discoverEmbed ? '/discover' : '/');
@@ -168,7 +171,9 @@ export function KnowledgeTopicsClient({
   }, [initialLayouts]);
 
   useEffect(() => {
-    if (!paneActive) return;
+    const shouldLoad =
+      paneActive || (discoverEmbed && prefetchLayouts);
+    if (!shouldLoad) return;
     if (initialLayouts.length > 0) return;
     let cancelled = false;
     setLoading(true);
@@ -188,7 +193,7 @@ export function KnowledgeTopicsClient({
     return () => {
       cancelled = true;
     };
-  }, [paneActive, initialLayouts.length]);
+  }, [paneActive, prefetchLayouts, discoverEmbed, initialLayouts.length]);
 
   useEffect(() => {
     const soft = consumeKnowledgeSoftReturn();
