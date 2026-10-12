@@ -2,14 +2,16 @@
  *
  * 对方站点用邀请码换固定邮箱/密码登录 Supabase。我们在本域完成登录后，
  * 把 session 写进目标站 URL query（其 supabase-js detectSessionInUrl 会接收），
- * 从而跳过邀请码输入页。iOS PWA iframe 常丢弃 hash，故不用 fragment。
+ * 从而跳过邀请码输入页。iOS 走同源桥接整页跳转（不用 iframe，避免登录需点两次）；token 放 query 不用 hash。
  *
  * 注意：同一邀请码对应同一账号；全员共用一码会进同一账号。
  */
 
 import { getUserName } from '@/lib/api';
+import { clientWithBasePath } from '@/lib/basePath';
 import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 import { openExternalBrowser } from '@/lib/external_browser';
+import { isIOS } from '@/lib/pwa_platform';
 
 const G50_HOST = 'genesis-50.pages.dev';
 const HEBREWS30_HOST = 'hebrews-30.pages.dev';
@@ -94,7 +96,11 @@ export function buildGenesis50BridgeUrl(href: string): string {
     typeof window !== 'undefined' && window.location?.origin
       ? window.location.origin
       : 'https://2sc.prestoai.cn';
-  const u = new URL(GENESIS50_BRIDGE_PATH, origin);
+  const path =
+    typeof window !== 'undefined'
+      ? clientWithBasePath(GENESIS50_BRIDGE_PATH)
+      : GENESIS50_BRIDGE_PATH;
+  const u = new URL(path, origin);
   if (target) u.searchParams.set('href', target);
   return u.toString();
 }
@@ -257,7 +263,7 @@ export async function resolveGenesis50OpenUrl(href: string): Promise<string> {
   }
 }
 
-/** 应用内打开：PWA 用 iframe 鉴权；Flutter 壳走同源桥接页 + 全屏 WebView。 */
+/** 应用内打开：iOS / Flutter 走同源桥接整页跳转；其它 PWA 用 iframe 预鉴权后内嵌。 */
 export function openGenesis50Authed(href: string): void {
   if (typeof window === 'undefined') return;
   const title = inviteCampaignDisplayTitle(href);
@@ -269,6 +275,12 @@ export function openGenesis50Authed(href: string): void {
       loading: true,
       chrome: 'app',
     });
+    return;
+  }
+
+  // iOS（含主屏幕 PWA）：跨域 iframe 内 Supabase localStorage 不稳定，手动登录常需点两次
+  if (isIOS()) {
+    window.location.assign(buildGenesis50BridgeUrl(href));
     return;
   }
 
