@@ -55,6 +55,8 @@
 .discover-empty.is-compact{padding:18px 16px;margin-top:8px;}
 .discover-empty strong{display:block;font-size:16px;margin:0 0 6px;}
 .discover-empty .muted{margin:0;line-height:1.5;font-size:13px;}
+.discover-empty-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:14px;}
+.discover-empty-actions .text-link{font-size:13px;font-weight:600;}
 .discover-conv-skeleton{
   list-style:none;margin:8px 0 0;padding:0 16px;display:flex;flex-direction:column;gap:10px;
 }

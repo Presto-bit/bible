@@ -175,6 +175,7 @@ bool isHalfSheetAnswerDisplayable(
   final titles = _sectionTitles(text);
   switch (scene) {
     case AssistantScene.verseQuick:
+      if (outputPlan?.depth == 'oia_compact') return true;
       return titles.contains('摘要') ||
           titles.contains('经文解释') ||
           titles.contains('经文背景') ||
@@ -209,6 +210,13 @@ bool isHalfSheetAnswerComplete(
 ]) {
   final text = answer.trim();
   if (text.isEmpty || text.startsWith('⚠️')) return false;
+
+  if (outputPlan?.depth == 'oia_compact' &&
+      (outputPlan?.sections.isEmpty ?? true)) {
+    final minLen = outputPlan?.minComplete ?? 80;
+    if (text.length < minLen) return false;
+    return RegExp(r'[。！？.!?]$').hasMatch(text);
+  }
 
   if (outputPlan != null && outputPlan.sections.isNotEmpty) {
     final minLen = outputPlan.minComplete ?? 60;

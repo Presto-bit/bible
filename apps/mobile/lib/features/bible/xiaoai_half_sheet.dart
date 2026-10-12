@@ -123,7 +123,7 @@ class XiaoAiHalfSheet extends ConsumerStatefulWidget {
 }
 
 class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
-  static const _emptyAnswerMsg = '⚠️ 未收到回答，请重试';
+  static const _emptyAnswerMsg = '⚠️ 这一轮没有写出内容';
 
   late final AssistantScene _initialScene;
   late final String _selectionKey;
@@ -546,7 +546,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   t
                     ..answer = partial
                     ..busy = false
-                    ..streamIncomplete = false;
+                    ..streamIncomplete = true;
                 }
               });
               if (isHalfSheetAnswerComplete(partial, scene, span, plan)) {
@@ -654,7 +654,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                   ..citations = cites.isNotEmpty ? cites : t.citations
                   ..followups = followupItems
                   ..busy = false
-                  ..streamIncomplete = false
+                  ..streamIncomplete = document?.incomplete == true
                   ..useRag = useRag
                   ..kbId = kbId
                   ..kbName = kbName
@@ -1142,7 +1142,32 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
                 });
                 _startInitialTurn(isRetry: true);
               },
-              child: const Text('重试'),
+              child: const Text('再试一次'),
+            ),
+          ),
+        if (!hasError && !turn.busy && isLast && turn.streamIncomplete)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '这段还没写完',
+                  style: TextStyle(fontSize: 13, color: AppColors.inkFaint),
+                ),
+                TextButton(
+                  onPressed: () => _appendTurn(
+                    '请从中断处接着写完，不要重写已有内容。',
+                    turn.scene,
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('接着写'),
+                ),
+              ],
             ),
           ),
       ],

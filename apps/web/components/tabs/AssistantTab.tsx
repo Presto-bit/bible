@@ -119,6 +119,8 @@ interface Msg {
   instant?: boolean;
   cacheSource?: string;
   ragDegraded?: boolean;
+  /** 服务端终稿仍未收束：保留正文，主操作是接着写 */
+  incomplete?: boolean;
 }
 
 interface Session {
@@ -762,6 +764,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let streamSections: StreamSection[] = [];
     let gotDelta = false;
     let ragDegraded = false;
+    let answerIncomplete = false;
     const streamPerf = new AssistantStreamPerf({ surface: 'tab', scene });
     const applyAcc = () => {
       rafRef.current = null;
@@ -777,6 +780,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           && last.responseProfile === responseProfile
           && last.instant === instant
           && last.cacheSource === cacheSource
+          && last.incomplete === answerIncomplete
           && (last.streamSections?.length ?? 0) === streamSections.length
           && last.followups === serverFollowups
         ) {
@@ -802,6 +806,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           instant,
           cacheSource,
           ragDegraded,
+          incomplete: answerIncomplete,
         };
         return copy;
       });
@@ -998,6 +1003,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               instant = true;
               cacheSource = payload.cache_source ?? cacheSource;
             }
+            answerIncomplete = payload?.document?.meta?.incomplete === true;
           },
         },
         { signal: abortRef.current.signal, retryOnZeroDelta: false },
@@ -1050,6 +1056,25 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       scene,
       undefined,
       { historyBase: msgs.slice(0, userIdx) },
+    );
+  };
+
+  const continueAssistantAt = (assistantIdx: number) => {
+    if (busy) return;
+    const asst = msgs[assistantIdx];
+    if (!asst || asst.role !== 'assistant') return;
+    const scene = asst.scene && asst.scene in SCENES
+      ? (asst.scene as AssistantScene)
+      : undefined;
+    const nextMode = scene ? SCENES[scene].mode : mode;
+    void send(
+      '请从中断处接着写完，不要重写已有内容。',
+      nextMode,
+      ref || undefined,
+      '接着写',
+      scene,
+      undefined,
+      { historyBase: msgs.slice(0, assistantIdx + 1) },
     );
   };
 
@@ -1531,9 +1556,27 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                     <path d="M21 12a9 9 0 1 1-2.64-6.36" />
                     <polyline points="21 3 21 9 15 9" />
                   </svg>
-                  <span>重新生成</span>
+                  <span>{m.text.trim().startsWith('⚠️') ? '再试一次' : '重新生成'}</span>
                 </Pressable>
               ) : null;
+              const continueBtn =
+                m.role === 'assistant' &&
+                isLastAssistant &&
+                !busy &&
+                m.incomplete &&
+                m.text.trim() &&
+                !m.text.trim().startsWith('⚠️') ? (
+                  <div className="assistant-incomplete">
+                    <p className="muted">这段还没写完</p>
+                    <Pressable
+                      className="assistant-regen-btn"
+                      aria-label="接着写"
+                      onTap={() => continueAssistantAt(i)}
+                    >
+                      <span>接着写</span>
+                    </Pressable>
+                  </div>
+                ) : null;
               return (
               <div
                 key={i}
@@ -1606,6 +1649,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           }}
                         />
                       </div>
+                      {continueBtn}
                       {regenBtn}
                     </div>
                   ) : isStreaming ? (
@@ -1617,7 +1661,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                     />
                   ) : (
                     <div className="assistant-answer">
-                      <p className="assistant-regen-empty muted">生成未完成</p>
+                      <p className="assistant-regen-empty muted">这一轮没有写出内容</p>
                       {regenBtn}
                     </div>
                   )

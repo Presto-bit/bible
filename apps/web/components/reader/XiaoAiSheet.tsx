@@ -181,7 +181,7 @@ export default function XiaoAiSheet({
     selectionKey,
     userQuestion,
   });
-  const emptyAnswerMsg = '⚠️ 未收到回答，请重试';
+  const emptyAnswerMsg = '⚠️ 这一轮没有写出内容';
 
   useEffect(() => {
     lockedRef.current = {
@@ -613,7 +613,7 @@ export default function XiaoAiSheet({
               setTurns((prev) => {
                 const next = prev.map((t) =>
                   t.id === turnId
-                    ? { ...t, answer: partial, busy: false, streamIncomplete: false }
+                    ? { ...t, answer: partial, busy: false, streamIncomplete: true }
                     : t,
                 );
                 if (isHalfSheetAnswerComplete(partial, scene, verseSpan, outputPlan)) {
@@ -673,10 +673,12 @@ export default function XiaoAiSheet({
               );
               return;
             }
+            const answerIncomplete = payload?.document?.meta?.incomplete === true;
             const structOk =
-              scene === 'verse_full' || scene === 'verse_quick'
+              !answerIncomplete &&
+              (scene === 'verse_full' || scene === 'verse_quick'
                 ? isHalfSheetAnswerComplete(text, scene, verseSpan, outputPlan)
-                : true;
+                : true);
             const followups = normalizeFollowupItems(
               resolved.followups?.length
                 ? resolved.followups
@@ -696,7 +698,7 @@ export default function XiaoAiSheet({
                       citations: cites.length ? cites : t.citations,
                       followups,
                       busy: false,
-                      streamIncomplete: false,
+                      streamIncomplete: answerIncomplete,
                       useRag,
                       ragDegraded,
                       kbId,
@@ -1016,8 +1018,25 @@ export default function XiaoAiSheet({
                     className="half-sheet-action-btn"
                     onClick={() => setRetryKey((k) => k + 1)}
                   >
-                    重试
+                    再试一次
                   </button>
+                ) : null}
+                {!hasError && !turn.busy && isLast && turn.streamIncomplete ? (
+                  <div className="half-sheet-incomplete">
+                    <p className="muted">这段还没写完</p>
+                    <button
+                      type="button"
+                      className="half-sheet-action-btn"
+                      onClick={() =>
+                        appendTurn(
+                          '请从中断处接着写完，不要重写已有内容。',
+                          turn.scene,
+                        )
+                      }
+                    >
+                      接着写
+                    </button>
+                  </div>
                 ) : null}
               </div>
             );

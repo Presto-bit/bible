@@ -293,6 +293,13 @@
   flex-shrink: 0;
 }
 
+.half-sheet-incomplete {
+  margin-top: 10px;
+}
+.half-sheet-incomplete .muted {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
 .half-sheet-action-btn {
   flex: 1;
   display: flex;

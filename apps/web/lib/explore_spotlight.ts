@@ -87,6 +87,18 @@ export function manuscriptIdFromExploreHref(href: string): string {
   return '';
 }
 
+/** 发现·探索「本期」与首页第 4 坑同源：保罗优先，否则首条行程。 */
+export function pickExploreSpotlightLayout(
+  layouts: KnowledgeLayoutSummary[],
+): KnowledgeLayoutSummary | null {
+  if (!layouts.length) return null;
+  const paul = layouts.find(isPaulRow);
+  if (paul) return paul;
+  const journey = layouts.find((r) => !isNoteRow(r));
+  if (journey) return journey;
+  return layouts[0] ?? null;
+}
+
 /**
  * 今日探索默认保罗首发；列表无保罗时回退到首条行程，再回退首条。
  * dayKey 保留签名以兼容调用方。
@@ -95,12 +107,8 @@ export function pickExploreSpotlight(
   layouts: KnowledgeLayoutSummary[],
   _dayKey = chinaTodayYmd(),
 ): ExploreSpotlight | null {
-  if (!layouts.length) return null;
-  const paul = layouts.find(isPaulRow);
-  if (paul) return toSpotlight(paul);
-  const journey = layouts.find((r) => !isNoteRow(r));
-  if (journey) return toSpotlight(journey);
-  return toSpotlight(layouts[0]!, 0);
+  const row = pickExploreSpotlightLayout(layouts);
+  return row ? toSpotlight(row) : null;
 }
 
 export const DEFAULT_EXPLORE_SPOTLIGHT: ExploreSpotlight = {

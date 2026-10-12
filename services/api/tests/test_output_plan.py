@@ -51,12 +51,8 @@ def test_verse_quick_half_sheet_oia_compact():
         question="请解读：约 3:16",
     )
     assert plan["depth"] == "oia_compact"
-    assert plan["sections"] == [
-        "摘要",
-        "经文背景",
-        "经文解释",
-        "今日回应",
-    ]
+    assert plan["sections"] == []
+    assert plan["section_policy"] == "soft"
 
 
 def test_verse_quick_tab_oia_standard():
@@ -88,10 +84,5 @@ def test_half_sheet_oia_compact_plan_policy():
         verse_span=1,
         surface="half_sheet",
     )
-    assert plan["section_policy"] == "oia"
-    assert plan["sections"] == [
-        "摘要",
-        "经文背景",
-        "经文解释",
-        "今日回应",
-    ]
+    assert plan["section_policy"] == "soft"
+    assert plan["sections"] == []

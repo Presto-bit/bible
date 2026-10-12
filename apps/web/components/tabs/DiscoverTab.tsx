@@ -126,10 +126,13 @@ type SearchHit = {
 export default function DiscoverTab({
   paneActive = true,
   hubEmbedded = false,
+  onGoExplore,
 }: {
   paneActive?: boolean;
   /** 嵌入发现壳：无「消息」大标题；通讯录置顶；「+」由壳提供 */
   hubEmbedded?: boolean;
+  /** 空态次操作：切到探索工位 */
+  onGoExplore?: () => void;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -670,11 +673,11 @@ export default function DiscoverTab({
       {!searching && (!loading || items.length > 0) ? (
         items.length === 0 && !(online && err) ? (
           <div className="discover-empty">
-            <strong>{online ? '还没有消息' : '消息暂不可用'}</strong>
+            <strong>{online ? '还没有对话' : '消息暂不可用'}</strong>
             <p className="muted">
               {online
                 ? friends.length === 0
-                  ? '找一位同路人一起读，或先去探索专题。'
+                  ? '加一位同路人一起读。也可以先读一份手稿。'
                   : '从通讯录打个招呼，开始一段对话。'
                 : '当前离线，联网后即可刷新消息列表。'}
             </p>
@@ -683,7 +686,11 @@ export default function DiscoverTab({
                 <button type="button" className="btn" onClick={() => go('/friend/add')}>
                   加好友
                 </button>
-                {!hubEmbedded ? (
+                {onGoExplore ? (
+                  <button type="button" className="text-link" onClick={onGoExplore}>
+                    去探索 ›
+                  </button>
+                ) : !hubEmbedded ? (
                   <button
                     type="button"
                     className="text-link"

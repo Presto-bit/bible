@@ -308,15 +308,8 @@ def verse_explain_incomplete(
         return len(text) < floor
 
     if depth == "oia_compact":
-        expected = expected_sections or OIA_SECTIONS
-        if oia_sections_missing(titles, expected):
-            return True
-        if oia_thin_section_titles(text, depth=depth):
-            return True
-        summary = _section_text(text, "摘要")
-        if summary and summary_text_incomplete(summary.replace("\n", " ")):
-            return True
-        floor = min_complete if min_complete is not None else 180
+        # 半屏快懂：短 prose 写完即完整，不要求四段标题。
+        floor = min_complete if min_complete is not None else 80
         return len(text) < floor
 
     if depth in ("oia_standard", "oia_deep"):
@@ -415,6 +408,8 @@ def verse_needs_length_continuation(
     )
     if not incomplete:
         return False
+    if depth == "oia_compact":
+        return answer_ends_abruptly(body_text) or mid_bullet_truncated(body_text)
     titles = {s["title"] for s in extract_sections(body_text)}
     if expected_sections and _planned_sections_missing(titles, expected_sections):
         return True

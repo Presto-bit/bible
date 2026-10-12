@@ -18,7 +18,8 @@ def test_half_sheet_single_verse_oia_compact():
         surface="half_sheet",
     )
     assert prof.depth == "oia_compact"
-    assert prof.sections == ("摘要", "经文背景", "经文解释", "今日回应")
+    assert prof.sections == ()
+    assert prof.section_policy == "soft"
     plan = build_output_plan(
         "verse_full",
         question="请解读：约 3:16",
@@ -39,8 +40,7 @@ def test_half_sheet_multi_verse_still_oia_compact():
         surface="half_sheet",
     )
     assert prof.depth == "oia_compact"
-    assert "经文背景" in prof.sections
-    assert "今日回应" in prof.sections
+    assert prof.sections == ()
 
 
 def test_tab_single_verse_oia_standard():

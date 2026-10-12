@@ -1237,7 +1237,7 @@ def chat(
             yield _sse(
                 "error",
                 {
-                    "message": "未收到模型回应，请稍后重试",
+                    "message": "这一轮没有写出内容，请再试一次",
                     "retryable": True,
                 },
             )
@@ -1265,13 +1265,19 @@ def chat(
         if _body_incomplete and _surf in ("half_sheet", "prewarm", "assistant", "tab"):
             if _fill_depth in ("standard", None):
                 _fill_depth = "structure"
-        _should_fill = _depth in (
-            "deep",
-            "study",
-            "oia_compact",
-            "oia_standard",
-            "oia_deep",
-        ) or (scene in ("verse_full", "verse_quick") and _body_incomplete)
+        _compact_half = _depth == "oia_compact"
+        _should_fill = (
+            not _compact_half
+            and (
+                _depth in (
+                    "deep",
+                    "study",
+                    "oia_standard",
+                    "oia_deep",
+                )
+                or (scene in ("verse_full", "verse_quick") and _body_incomplete)
+            )
+        )
         _fill_attempted = False
         if _budget_left() > 3 and _should_fill:
             _fill_attempted = True
@@ -1308,7 +1314,12 @@ def chat(
             expected_sections=_dk.get("expected_sections"),
             min_complete=_dk.get("min_complete"),
         )
-        if incomplete and scene in ("verse_full", "verse_quick") and _budget_left() > 5:
+        if (
+            incomplete
+            and not _compact_half
+            and scene in ("verse_full", "verse_quick")
+            and _budget_left() > 5
+        ):
             try:
                 structured = try_structured_verse_answer(
                     messages,
@@ -1340,6 +1351,7 @@ def chat(
                 )
         if (
             incomplete
+            and not _compact_half
             and scene in ("verse_full", "verse_quick")
             and _budget_left() > 3
             and _fill_attempted
@@ -1376,7 +1388,12 @@ def chat(
                     expected_sections=_dk.get("expected_sections"),
                     min_complete=_dk.get("min_complete"),
                 )
-        if incomplete and scene in ("verse_full", "verse_quick") and _budget_left() > 6:
+        if (
+            incomplete
+            and not _compact_half
+            and scene in ("verse_full", "verse_quick")
+            and _budget_left() > 6
+        ):
             logger.warning(
                 "ai answer incomplete silent retry scene=%s span=%s depth=%s len=%s",
                 scene,
@@ -1413,7 +1430,12 @@ def chat(
                     expected_sections=_dk.get("expected_sections"),
                     min_complete=_dk.get("min_complete"),
                 )
-        if incomplete and scene in ("verse_full", "verse_quick") and _budget_left() > 3:
+        if (
+            incomplete
+            and not _compact_half
+            and scene in ("verse_full", "verse_quick")
+            and _budget_left() > 3
+        ):
             for _extra_depth in ("structure", "full"):
                 if not incomplete or _budget_left() <= 3:
                     break
@@ -1449,31 +1471,37 @@ def chat(
                         min_complete=_dk.get("min_complete"),
                     )
         if incomplete:
+            substantial = (
+                len(body_text.strip()) >= 24
+                and not body_text.strip().startswith("⚠️")
+            )
             logger.warning(
-                "ai answer incomplete final scene=%s span=%s depth=%s len=%s surface=%s",
+                "ai answer incomplete final scene=%s span=%s depth=%s len=%s surface=%s deliver=%s",
                 scene,
                 verse_span,
                 _depth,
                 len(body_text),
                 body.surface,
+                substantial,
             )
-            log_ai_request(
-                device_id=x_guest_id,
-                user_id=logged_in,
-                scene=scene,
-                mode=body.mode,
-                surface=body.surface,
-                status="error",
-            )
-            yield _sse(
-                "error",
-                {
-                    "message": "回答未能完整生成，请重新生成",
-                    "retryable": True,
-                    "code": "incomplete_answer",
-                },
-            )
-            return
+            if not substantial:
+                log_ai_request(
+                    device_id=x_guest_id,
+                    user_id=logged_in,
+                    scene=scene,
+                    mode=body.mode,
+                    surface=body.surface,
+                    status="error",
+                )
+                yield _sse(
+                    "error",
+                    {
+                        "message": "这一轮没有写出内容，请再试一次",
+                        "retryable": True,
+                        "code": "incomplete_answer",
+                    },
+                )
+                return
         document = document_from_cache_entry(body_text, followups=followups)
         done_timings: dict[str, int] = {"prepare_ms": prepare_ms}
         if first_token_ms is not None:

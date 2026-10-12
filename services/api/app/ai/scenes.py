@@ -53,17 +53,9 @@ SCENES: dict[str, SceneSpec] = {
         max_tokens=650,
         wants_followups=False,
         format_guide=(
-            f"{_MD}\n"
-            "OIA 四节顺序固定（半屏快懂）：\n"
-            "### 摘要\n"
-            "观察：1 句完整话（≤55 字），以「这节/本章」或主语起笔；主谓完整、以。收束，勿残缺起笔。\n"
-            "### 经文背景\n"
-            "背景：1 句，当时处境或与前后文/同卷主线的衔接。\n"
-            "### 经文解释\n"
-            f"解释：{_EXPLAIN_COMPACT}\n"
-            "### 今日回应\n"
-            "应用：1 句，温柔贴近生活的回应。\n"
-            "建议篇幅约 240–320 字；每节 prose 为主，不要列表堆砌。"
+            "半屏快懂：2–4 句完整 prose（约 120–220 字），直接说这节在说什么。\n"
+            "点出本节关键词或对象；句子以。收束。\n"
+            "不要 ### 标题，不要摘要/背景/解释/回应四段，不要列表堆砌。"
             "不要「相关追问」。"
         ),
     ),
@@ -372,13 +364,11 @@ def verse_scene_format_guide(
         return spec.format_guide if spec else ""
     span = max(1, int(verse_span or 1))
     if depth and depth.depth == "oia_compact":
-        lo, hi = depth.target_chars - 40, depth.soft_max
+        lo, hi = max(80, depth.target_chars - 40), depth.soft_max
         return (
-            f"{_MD}\n"
-            f"共 {span} 节：按主题归纳，不要逐节罗列。\n"
-            "OIA 四节各 1–2 句 prose：### 摘要 → ### 经文背景 → ### 经文解释 → ### 今日回应。\n"
-            f"经文解释：{_EXPLAIN_COMPACT}\n"
-            f"建议篇幅约 {lo}–{hi} 字。不要「相关追问」。"
+            f"共 {span} 节：按主题归纳成 2–4 句完整 prose，不要逐节罗列。\n"
+            "不要 ### 标题，不要四段模板。\n"
+            f"建议篇幅约 {lo}–{hi} 字。句子以。收束。不要「相关追问」。"
         )
     if depth and depth.depth in ("oia_standard", "oia_deep"):
         titles = " → ".join(f"### {t}" for t in depth.sections)

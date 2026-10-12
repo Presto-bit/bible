@@ -95,13 +95,34 @@ def test_answer_ends_abruptly_detects_cut():
     assert verse_needs_length_continuation("verse_full", body, finish_reason="length")
 
 
-def test_missing_oia_sections_triggers_continuation():
-    body = "### 摘要\n耶稣在旷野受试探，显明他顺服父的旨意。"
-    assert verse_needs_length_continuation(
-        "verse_full",
+def test_oia_compact_prose_complete_without_headings():
+    body = (
+        "这节说神爱世人，甚至将独生子赐下，叫一切信他的人不至灭亡，反得永生。"
+        "这里的「世界」指向神所爱的人；救恩出于神的赐下，而不是人自己的资格。"
+        "读的时候可以先抓住这一句：永生是被赐下的，不是挣来的。"
+    )
+    assert not verse_explain_incomplete(
+        "verse_quick",
         body,
-        verse_span=3,
         depth="oia_compact",
+        min_complete=80,
+    )
+    assert not verse_needs_length_continuation(
+        "verse_quick",
+        body,
+        depth="oia_compact",
+        finish_reason="stop",
+    )
+
+
+def test_missing_oia_sections_does_not_force_compact_continuation():
+    body = "这节说神爱世人，将独生子赐下，叫信的人得永生。"
+    assert not verse_needs_length_continuation(
+        "verse_quick",
+        body,
+        verse_span=1,
+        depth="oia_compact",
+        finish_reason="stop",
         expected_sections=("摘要", "经文背景", "经文解释", "今日回应"),
     )
 

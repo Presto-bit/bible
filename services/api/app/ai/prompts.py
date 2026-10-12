@@ -100,16 +100,11 @@ _BASE_COMPACT_HALF = (
 )
 
 _MARKDOWN_OUTPUT_COMPACT = (
-    "【Markdown · 半屏 OIA 快懂】\n"
-    "- **须一次性写全四节再停笔**，顺序固定，每节 1–2 句 prose（不要 - 列表堆砌）。\n"
-    "- ### 摘要 — 观察：1 句完整话（约 35–55 字），直接说经文核心；须以主语或「这节/本章」起笔，"
-    "主谓完整、以。收束；禁止残缺起笔（如「婚的比喻说明」「住一个误解」）。\n"
-    "- ### 经文背景 — 背景：当时处境、前后文或同卷主线的衔接（40–60 字，勿重复摘要）。\n"
-    "- ### 经文解释 — 解释：至少 2 句（合计 50–90 字）；"
-    "句 1 写上下文衔接 + 关键字句原意；句 2 写原读者（写作对象）或作者意图（至少其一）；"
-    "承接背景，勿重复背景事实。\n"
-    "- ### 今日回应 — 应用：温柔一句贴近生活的回应（≤50 字，非命令式清单）。\n"
-    "- 不要另开「段落脉络」小节；不要 HTML；不要「相关追问」。\n"
+    "【Markdown · 半屏快懂】\n"
+    "- 用 2–4 句完整 prose 说清「这节在说什么」，总篇幅约 120–220 字。\n"
+    "- **不要**使用 ### 标题，不要「摘要 / 经文背景 / 经文解释 / 今日回应」四段。\n"
+    "- 第一句直接点出本节关键词或对象；句子以。收束，禁止半句停笔。\n"
+    "- 不要 - 列表堆砌，不要 HTML，不要「相关追问」。\n"
 )
 
 _BASE_NO_RAG = (
@@ -228,12 +223,11 @@ def format_reader_context(ctx: dict | None) -> str:
 def depth_format_guide(profile: DepthProfile, scene_id: str, verse_span: int = 1) -> str:
     """R1：按 depth 选输出形态，覆盖 scene 默认教案式指引。"""
     if profile.depth == "oia_compact":
-        lo, hi = profile.target_chars - 40, profile.soft_max
+        lo, hi = max(80, profile.target_chars - 40), profile.soft_max
         return (
-            f"（半屏 OIA · 总篇幅约 {lo}–{hi} 字，勿复述本说明）\n"
-            "四节顺序：### 摘要 → ### 经文背景 → ### 经文解释 → ### 今日回应。\n"
-            "每节 1–2 句完整 prose；摘要须完整句；经文解释至少 2 句且含原意 + 对象或意图；"
-            "职责不重复；不要列表堆砌；不要「相关追问」。"
+            f"（半屏快懂 · 总篇幅约 {lo}–{hi} 字，勿复述本说明）\n"
+            "2–4 句完整 prose，直接说这节在说什么；点出关键词或对象。\n"
+            "不要 ### 标题，不要四段模板，不要列表；写完即停，句子以。收束。"
         )
     if profile.depth in ("oia_standard", "oia_deep"):
         lo, hi = profile.target_chars - 60, profile.soft_max

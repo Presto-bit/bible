@@ -164,15 +164,15 @@ def _narrow_chip_profile() -> DepthProfile:
 def _oia_compact_profile(verse_span: int) -> DepthProfile:
     span = max(1, int(verse_span or 1))
     if span <= 1:
-        target, soft, hard, min_c = 260, 320, 360, 180
+        target, soft, hard, min_c = 160, 220, 260, 80
     elif span <= 5:
-        target, soft, hard, min_c = 300, 360, 400, 200
+        target, soft, hard, min_c = 180, 240, 280, 90
     else:
-        target, soft, hard, min_c = 340, 400, 440, 220
+        target, soft, hard, min_c = 200, 260, 300, 100
     return DepthProfile(
         depth="oia_compact",
-        sections=OIA_SECTIONS,
-        section_policy="oia",
+        sections=(),
+        section_policy="soft",
         prefer_prose=True,
         target_chars=target,
         soft_max=soft,

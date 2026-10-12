@@ -57,6 +57,12 @@ export function isHalfSheetAnswerComplete(
   const text = answer.trim();
   if (!text || text.startsWith('⚠️')) return false;
 
+  if (outputPlan?.depth === 'oia_compact' && !outputPlan.sections?.length) {
+    const minLen = outputPlan.min_complete ?? 80;
+    if (text.length < minLen) return false;
+    return /[。！？.!?]$/.test(text);
+  }
+
   if (outputPlan?.sections?.length) {
     const minLen = outputPlan.min_complete ?? 60;
     if (text.length < minLen) return false;

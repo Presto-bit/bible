@@ -212,6 +212,8 @@
 
 .knowledge-topics-page.is-discover-embed {
   padding-top: 0;
+  padding-left: 16px;
+  padding-right: 16px;
   /* 与同路人同壳背景，去掉探索页独立暖色渐变 */
   background: transparent !important;
   min-height: 0;
@@ -221,7 +223,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 16px 14px;
+  padding: 4px 0 14px;
   background: transparent;
   color: inherit;
 }

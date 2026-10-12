@@ -254,7 +254,11 @@ function DiscoverHubInner({
         hidden={pane !== 'peers'}
         aria-hidden={pane !== 'peers'}
       >
-        <DiscoverTab paneActive={paneActive && resolved && pane === 'peers'} hubEmbedded />
+        <DiscoverTab
+          paneActive={paneActive && resolved && pane === 'peers'}
+          hubEmbedded
+          onGoExplore={() => applyPane('explore')}
+        />
       </div>
       <div
         className="discover-hub-pane"

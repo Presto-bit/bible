@@ -1856,6 +1856,62 @@ html.knowledge-overlay-lock nav.tabbar {
   text-align: center;
 }
 
+.knowledge-topics-empty-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 28px;
+}
+
+.knowledge-topics-empty-block .knowledge-topics-empty {
+  margin-top: 16px;
+}
+
+.knowledge-topics-empty-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-deep, #2f4a3a);
+  text-decoration: none;
+}
+
+.knowledge-topic-card-wrap.is-featured {
+  display: block;
+  margin: 0 0 12px;
+}
+
+.knowledge-topic-card.is-featured .knowledge-topic-card-media {
+  aspect-ratio: 16 / 10;
+}
+
+.knowledge-topic-card-kicker {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #f7f0e4;
+  background: rgba(38, 28, 20, 0.55);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.knowledge-topic-read-bridge {
+  display: block;
+  margin: 8px 2px 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--ink, #2c2825) 62%, transparent);
+  text-decoration: none;
+}
+
+.knowledge-topic-read-bridge:active {
+  color: var(--ink, #2c2825);
+}
+
 /* —— 专题管理（管理员） —— */
 .knowledge-manage-page {
   padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));

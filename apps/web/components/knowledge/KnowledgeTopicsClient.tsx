@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
@@ -31,7 +31,9 @@ import {
   journeyListCover,
   journeyManuscriptCover,
 } from '@/lib/journey_covers';
-import { prefetchKnowledgeDetail } from '@/lib/knowledge_detail_cache';
+import { peekKnowledgeDetail, prefetchKnowledgeDetail } from '@/lib/knowledge_detail_cache';
+import { pickExploreSpotlightLayout } from '@/lib/explore_spotlight';
+import { exploreReadBridge, firstManuscriptReadRef } from '@/lib/explore_read_bridge';
 import '@/styles/discover_hub.css';
 
 function coverPath(row: KnowledgeLayoutSummary): string {
@@ -134,8 +136,19 @@ export function KnowledgeTopicsClient({
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(initialLayouts.length === 0);
   const [overlay, setOverlay] = useState<KnowledgeTopicOverlayRequest | null>(null);
+  const [readBridge, setReadBridge] = useState<{
+    topicId: string;
+    href: string;
+    label: string;
+  } | null>(null);
   const router = useRouter();
-  const closeOverlay = useCallback(() => setOverlay(null), []);
+  const closeOverlay = useCallback(() => {
+    const id = overlay?.id;
+    setOverlay(null);
+    if (!id) return;
+    const bridge = exploreReadBridge(firstManuscriptReadRef(peekKnowledgeDetail(id)));
+    if (bridge) setReadBridge({ topicId: id, ...bridge });
+  }, [overlay]);
   const fallbackToRoute = useCallback(
     (href: string, replaceOverlayEntry: boolean) => {
       setOverlay(null);
@@ -241,8 +254,185 @@ export function KnowledgeTopicsClient({
     return rows.filter((r) => !isNoteRow(r));
   }, [rows, filter]);
 
+  const hasBothKinds = useMemo(() => {
+    let journey = false;
+    let note = false;
+    for (const row of rows) {
+      if (isNoteRow(row)) note = true;
+      else journey = true;
+      if (journey && note) return true;
+    }
+    return false;
+  }, [rows]);
+
+  const featured = useMemo(() => {
+    if (filter === 'note') return null;
+    const row = pickExploreSpotlightLayout(rows);
+    if (!row || isNoteRow(row)) return null;
+    return row;
+  }, [rows, filter]);
+
+  const gridRows = useMemo(() => {
+    if (!featured) return visible;
+    const fid = topicSourceId(featured) || featured.id;
+    return visible.filter((r) => {
+      const id = topicSourceId(r) || r.id;
+      return id !== fid && r.id !== featured.id;
+    });
+  }, [visible, featured]);
+
+  const warmTopic = useCallback((row: KnowledgeLayoutSummary) => {
+    const sourceId = topicSourceId(row);
+    if (!sourceId) return;
+    void prefetchKnowledgeDetail(sourceId);
+    const cover =
+      sourceId && isJourneyManuscriptId(sourceId)
+        ? journeyManuscriptCover(sourceId)
+        : coverPath(row);
+    preloadRaster(cover);
+    const { webp, fallback } = knowledgeRasterSources(cover);
+    const href = webp || fallback;
+    if (href && !document.getElementById(`kx-card-${sourceId}`)) {
+      const link = document.createElement('link');
+      link.id = `kx-card-${sourceId}`;
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = href;
+      link.setAttribute('fetchpriority', 'high');
+      document.head.appendChild(link);
+    }
+  }, []);
+
+  const openTopic = useCallback(
+    (e: MouseEvent<HTMLAnchorElement>, row: KnowledgeLayoutSummary) => {
+      const sourceId = topicSourceId(row);
+      const manuscriptCover =
+        sourceId && isJourneyManuscriptId(sourceId)
+          ? journeyManuscriptCover(sourceId)
+          : coverPath(row);
+      const href = knowledgeLayoutViewHref(row);
+      const cover = knowledgeRasterSources(coverPath(row));
+      const plain =
+        e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+      if (sourceId && plain && !overlay) {
+        e.preventDefault();
+        warmTopic(row);
+        const media = e.currentTarget.querySelector<HTMLElement>(
+          '.knowledge-topic-card-media',
+        );
+        const img = media?.querySelector('img');
+        const r = (media || e.currentTarget).getBoundingClientRect();
+        setOverlay({
+          id: sourceId,
+          note: isNoteRow(row),
+          title: row.title || row.id || '',
+          href,
+          ghostSrc: img?.currentSrc || img?.src || cover.fallback,
+          from: { x: r.left, y: r.top, w: r.width, h: r.height },
+          natural:
+            img && img.naturalWidth > 0
+              ? { w: img.naturalWidth, h: img.naturalHeight }
+              : null,
+        });
+        return;
+      }
+      startKnowledgeExpand({
+        el: e.currentTarget,
+        cover: manuscriptCover,
+        href,
+        topicId: sourceId,
+      });
+      preloadRaster(manuscriptCover);
+      warmTopic(row);
+    },
+    [overlay, warmTopic],
+  );
+
+  const renderTopicCard = (
+    row: KnowledgeLayoutSummary,
+    opts: { featured?: boolean; index: number },
+  ) => {
+    const sourceId = topicSourceId(row);
+    const meta = resolveKnowledgeTopicMeta(row);
+    const mediaBadge = knowledgeMediaBadge(meta.media);
+    const cover = knowledgeRasterSources(coverPath(row));
+    const href = knowledgeLayoutViewHref(row);
+    const bridge =
+      readBridge && (readBridge.topicId === sourceId || readBridge.topicId === row.id)
+        ? readBridge
+        : null;
+    return (
+      <div
+        key={row.id}
+        className={`knowledge-topic-card-wrap${opts.featured ? ' is-featured' : ''}`}
+      >
+        <Link
+          href={href}
+          prefetch
+          className={`knowledge-topic-card${opts.featured ? ' is-featured' : ''}${
+            collapseTopicId && collapseTopicId === sourceId ? ' is-collapse-target' : ''
+          }`}
+          data-knowledge-topic={sourceId || row.id}
+          aria-label={
+            opts.featured
+              ? `本期 ${row.title || row.id}，打开手稿`
+              : `${row.title || row.id}，打开手稿`
+          }
+          style={{ ['--stagger' as string]: Math.min(opts.index, 5) }}
+          onPointerEnter={() => warmTopic(row)}
+          onPointerDown={() => warmTopic(row)}
+          onFocus={() => warmTopic(row)}
+          onClick={(e) => openTopic(e, row)}
+        >
+          <span className="knowledge-topic-card-media" aria-hidden>
+            <picture>
+              {cover.webp ? <source type="image/webp" srcSet={cover.webp} /> : null}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="knowledge-topic-card-photo"
+                src={cover.fallback}
+                alt=""
+                loading={opts.featured || opts.index < 4 ? 'eager' : 'lazy'}
+                decoding="async"
+                fetchPriority={opts.featured || opts.index < 2 ? 'high' : 'auto'}
+              />
+            </picture>
+            <span className="knowledge-topic-card-veil" />
+            {opts.featured ? (
+              <span className="knowledge-topic-card-kicker">本期</span>
+            ) : (
+              <span className="knowledge-topic-card-seal">
+                {knowledgeKindLabel(meta.kind)}
+              </span>
+            )}
+            {mediaBadge ? (
+              <span className="knowledge-topic-card-media-badge">{mediaBadge}</span>
+            ) : null}
+            <span className="knowledge-topic-card-caption">
+              <strong className="knowledge-topic-card-title">
+                {opts.featured
+                  ? row.title || row.id || ''
+                  : shortTitle(row.title || row.id || '')}
+              </strong>
+              {row.guide_one_liner ? (
+                <span className="knowledge-topic-card-guide">
+                  {opts.featured ? row.guide_one_liner : shortHook(row.guide_one_liner)}
+                </span>
+              ) : null}
+            </span>
+          </span>
+        </Link>
+        {bridge ? (
+          <Link className="knowledge-topic-read-bridge" href={bridge.href}>
+            去读 {bridge.label}
+          </Link>
+        ) : null}
+      </div>
+    );
+  };
+
   const Root = discoverEmbed ? 'div' : 'main';
-  const filters = (
+  const filters = hasBothKinds ? (
     <div className="knowledge-topics-filters" role="tablist" aria-label="筛选">
       {(
         [
@@ -263,7 +453,7 @@ export function KnowledgeTopicsClient({
         </button>
       ))}
     </div>
-  );
+  ) : null;
 
   return (
     <Root
@@ -310,7 +500,7 @@ export function KnowledgeTopicsClient({
           <p className="knowledge-topics-lead">点开即读</p>
           {filters}
         </>
-      ) : (
+      ) : filters || isAdmin ? (
         <div className="knowledge-topics-embed-tools">
           {filters}
           {isAdmin ? (
@@ -329,7 +519,7 @@ export function KnowledgeTopicsClient({
             </div>
           ) : null}
         </div>
-      )}
+      ) : null}
 
       {loadErr ? <p className="muted knowledge-topics-empty">{loadErr}</p> : null}
 
@@ -338,135 +528,28 @@ export function KnowledgeTopicsClient({
       ) : null}
 
       {visible.length === 0 && !loadErr && !loading ? (
-        <p className="muted knowledge-topics-empty">
-          {rows.length === 0 ? '暂无专题，稍后再来看看。' : '此分类暂无内容。'}
-        </p>
-      ) : visible.length === 0 ? null : (
-        <div
-          className={`knowledge-topics-grid${softReturn ? ' is-expand-return' : ''}`}
-          data-collapse-topic={collapseTopicId || undefined}
-        >
-          {visible.map((row, i) => {
-            const sourceId = topicSourceId(row);
-            const meta = resolveKnowledgeTopicMeta(row);
-            const mediaBadge = knowledgeMediaBadge(meta.media);
-            const cover = knowledgeRasterSources(coverPath(row));
-            const stagger = Math.min(i, 5);
-            const href = knowledgeLayoutViewHref(row);
-            const warmTopic = () => {
-              if (!sourceId) return;
-              void prefetchKnowledgeDetail(sourceId);
-              const cover =
-                sourceId && isJourneyManuscriptId(sourceId)
-                  ? journeyManuscriptCover(sourceId)
-                  : coverPath(row);
-              preloadRaster(cover);
-              // 按下即高优 preload 首图，抢在导航前占连接
-              const { webp, fallback } = knowledgeRasterSources(cover);
-              const href = webp || fallback;
-              if (href && !document.getElementById(`kx-card-${sourceId}`)) {
-                const link = document.createElement('link');
-                link.id = `kx-card-${sourceId}`;
-                link.rel = 'preload';
-                link.as = 'image';
-                link.href = href;
-                link.setAttribute('fetchpriority', 'high');
-                document.head.appendChild(link);
-              }
-            };
-            return (
-              <div key={row.id} className="knowledge-topic-card-wrap">
-                <Link
-                  href={href}
-                  prefetch
-                  className={`knowledge-topic-card${
-                    collapseTopicId && collapseTopicId === sourceId
-                      ? ' is-collapse-target'
-                      : ''
-                  }`}
-                  data-knowledge-topic={sourceId || row.id}
-                  aria-label={`${row.title || row.id}，打开手稿`}
-                  style={{ ['--stagger' as string]: stagger }}
-                  onPointerEnter={warmTopic}
-                  onPointerDown={warmTopic}
-                  onFocus={warmTopic}
-                  onClick={(e) => {
-                    const manuscriptCover =
-                      sourceId && isJourneyManuscriptId(sourceId)
-                        ? journeyManuscriptCover(sourceId)
-                        : coverPath(row);
-                    const plain =
-                      e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
-                    if (sourceId && plain && !overlay) {
-                      e.preventDefault();
-                      warmTopic();
-                      const media = e.currentTarget.querySelector<HTMLElement>(
-                        '.knowledge-topic-card-media',
-                      );
-                      const img = media?.querySelector('img');
-                      const r = (media || e.currentTarget).getBoundingClientRect();
-                      setOverlay({
-                        id: sourceId,
-                        note: isNoteRow(row),
-                        title: row.title || row.id || '',
-                        href,
-                        ghostSrc: img?.currentSrc || img?.src || cover.fallback,
-                        from: { x: r.left, y: r.top, w: r.width, h: r.height },
-                        natural:
-                          img && img.naturalWidth > 0
-                            ? { w: img.naturalWidth, h: img.naturalHeight }
-                            : null,
-                      });
-                      return;
-                    }
-                    startKnowledgeExpand({
-                      el: e.currentTarget,
-                      cover: manuscriptCover,
-                      href,
-                      topicId: sourceId,
-                    });
-                    preloadRaster(manuscriptCover);
-                    warmTopic();
-                  }}
-                >
-                  <span className="knowledge-topic-card-media" aria-hidden>
-                    <picture>
-                      {cover.webp ? (
-                        <source type="image/webp" srcSet={cover.webp} />
-                      ) : null}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        className="knowledge-topic-card-photo"
-                        src={cover.fallback}
-                        alt=""
-                        loading={i < 4 ? 'eager' : 'lazy'}
-                        decoding="async"
-                        fetchPriority={i < 2 ? 'high' : 'auto'}
-                      />
-                    </picture>
-                    <span className="knowledge-topic-card-veil" />
-                    <span className="knowledge-topic-card-seal">
-                      {knowledgeKindLabel(meta.kind)}
-                    </span>
-                    {mediaBadge ? (
-                      <span className="knowledge-topic-card-media-badge">{mediaBadge}</span>
-                    ) : null}
-                    <span className="knowledge-topic-card-caption">
-                      <strong className="knowledge-topic-card-title">
-                        {shortTitle(row.title || row.id || '')}
-                      </strong>
-                      {row.guide_one_liner ? (
-                        <span className="knowledge-topic-card-guide">
-                          {shortHook(row.guide_one_liner)}
-                        </span>
-                      ) : null}
-                    </span>
-                  </span>
-                </Link>
-              </div>
-            );
-          })}
+        <div className="knowledge-topics-empty-block">
+          <p className="muted knowledge-topics-empty">
+            {rows.length === 0 ? '专题还在备稿。' : '此分类暂无内容。'}
+          </p>
+          {rows.length === 0 ? (
+            <Link className="knowledge-topics-empty-link" href="/">
+              去今日计划 ›
+            </Link>
+          ) : null}
         </div>
+      ) : visible.length === 0 ? null : (
+        <>
+          {featured ? renderTopicCard(featured, { featured: true, index: 0 }) : null}
+          {gridRows.length > 0 ? (
+            <div
+              className={`knowledge-topics-grid${softReturn ? ' is-expand-return' : ''}`}
+              data-collapse-topic={collapseTopicId || undefined}
+            >
+              {gridRows.map((row, i) => renderTopicCard(row, { index: i }))}
+            </div>
+          ) : null}
+        </>
       )}
 
       {overlay ? (
