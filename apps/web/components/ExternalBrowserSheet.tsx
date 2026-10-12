@@ -8,9 +8,11 @@ import {
   EXTERNAL_BROWSER_OPEN,
   openInSystemBrowser,
   type ExternalBrowserChrome,
+  type ExternalBrowserInviteCampaign,
   type ExternalBrowserOpenDetail,
 } from '@/lib/external_browser';
 import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
+import { resolveInviteCampaignEnterUrl } from '@/lib/genesis50_auth';
 
 type BrowserState = {
   open: boolean;
@@ -18,6 +20,8 @@ type BrowserState = {
   title: string;
   loading: boolean;
   chrome: ExternalBrowserChrome;
+  inviteCampaign: ExternalBrowserInviteCampaign | null;
+  inviteForm: boolean;
 };
 
 const CLOSED: BrowserState = {
@@ -26,16 +30,22 @@ const CLOSED: BrowserState = {
   title: '',
   loading: false,
   chrome: 'app',
+  inviteCampaign: null,
+  inviteForm: false,
 };
 
 /**
  * 真外链全屏内嵌浏览器：留在 PWA 壳内。
  * 若事件误带站内 URL，直接同窗跳转，不展示浏览器顶栏。
  * 默认 chrome=app：仅返回+标题；无网址 / 无「浏览器打开」。
+ * 邀请码活动：壳内同源表单一次进入，避免 iframe 内外站登录要点两次。
  */
 export default function ExternalBrowserSheet() {
   const [state, setState] = useState<BrowserState>(CLOSED);
   const [frameBlocked, setFrameBlocked] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -63,15 +73,36 @@ export default function ExternalBrowserSheet() {
               : prev.open
                 ? prev.chrome
                 : 'app';
+        const inviteCampaign =
+          detail.inviteCampaign !== undefined
+            ? detail.inviteCampaign || null
+            : prev.open
+              ? prev.inviteCampaign
+              : null;
+        const inviteForm =
+          typeof detail.inviteForm === 'boolean'
+            ? detail.inviteForm
+            : nextUrl
+              ? false
+              : prev.inviteForm;
         return {
           open: true,
-          url: nextUrl || prev.url,
+          url: nextUrl || (inviteForm ? '' : prev.url),
           title: (detail.title || '').trim() || prev.title || '网页',
           loading,
           chrome,
+          inviteCampaign,
+          inviteForm,
         };
       });
-      if (nextUrl) setFrameBlocked(false);
+      if (detail.inviteCampaign?.code) {
+        setInviteCode((c) => c || detail.inviteCampaign!.code || '');
+      }
+      if (nextUrl) {
+        setFrameBlocked(false);
+        setInviteError(null);
+      }
+      if (detail.inviteForm) setInviteError(null);
     };
     window.addEventListener(EXTERNAL_BROWSER_OPEN, onOpen);
     return () => window.removeEventListener(EXTERNAL_BROWSER_OPEN, onOpen);
@@ -90,7 +121,9 @@ export default function ExternalBrowserSheet() {
   const close = useCallback(() => {
     setState(CLOSED);
     setFrameBlocked(false);
-    // 同步剥 class，避免门户卸载帧差期间 pointer-events:none 锁死整页
+    setInviteBusy(false);
+    setInviteError(null);
+    setInviteCode('');
     try {
       document.documentElement.classList.remove('external-browser-open');
       document.body.classList.remove('external-browser-open');
@@ -108,13 +141,38 @@ export default function ExternalBrowserSheet() {
     return () => window.removeEventListener('keydown', onKey);
   }, [state.open, close]);
 
-  // 切主 Tab / 壳返回路径：卸掉会锁死 .app-body 点击的内嵌浏览器
   useEffect(() => {
     if (!state.open) return;
     const onAway = () => close();
     window.addEventListener('presto-tab-nav', onAway);
     return () => window.removeEventListener('presto-tab-nav', onAway);
   }, [state.open, close]);
+
+  const submitInvite = useCallback(async () => {
+    const campaign = state.inviteCampaign;
+    if (!campaign?.href) return;
+    const code = inviteCode.trim().toUpperCase();
+    if (!code) {
+      setInviteError('请输入邀请码');
+      return;
+    }
+    setInviteBusy(true);
+    setInviteError(null);
+    try {
+      const url = await resolveInviteCampaignEnterUrl(campaign.href, code);
+      setState((prev) => ({
+        ...prev,
+        url,
+        loading: false,
+        inviteForm: false,
+      }));
+      setFrameBlocked(false);
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : '进入失败，请检查邀请码后重试');
+    } finally {
+      setInviteBusy(false);
+    }
+  }, [state.inviteCampaign, inviteCode]);
 
   if (!state.open) return null;
 
@@ -127,6 +185,9 @@ export default function ExternalBrowserSheet() {
       return '';
     }
   })();
+
+  const showInvitePanel = Boolean(state.inviteForm || (!state.url && state.inviteCampaign));
+  const canShowInviteToggle = Boolean(state.inviteCampaign && state.url && !showInvitePanel);
 
   return (
     <AppBodyPortal onTabAway={close}>
@@ -147,7 +208,18 @@ export default function ExternalBrowserSheet() {
             </div>
             {hostLabel ? <div className="external-browser-host">{hostLabel}</div> : null}
           </div>
-          {appChrome ? (
+          {canShowInviteToggle ? (
+            <button
+              type="button"
+              className="external-browser-system"
+              onClick={() => {
+                setInviteError(null);
+                setState((prev) => ({ ...prev, inviteForm: true }));
+              }}
+            >
+              邀请码
+            </button>
+          ) : appChrome ? (
             <span className="external-browser-top-spacer" aria-hidden />
           ) : (
             <button
@@ -162,12 +234,12 @@ export default function ExternalBrowserSheet() {
         </header>
 
         <div className="external-browser-body">
-          {state.loading || !state.url ? (
+          {state.loading || (!state.url && !showInvitePanel) ? (
             <div className="external-browser-loading" aria-live="polite">
               <span className="external-browser-spinner" aria-hidden />
               <p>正在打开…</p>
             </div>
-          ) : (
+          ) : state.url && !showInvitePanel ? (
             <iframe
               key={state.url}
               className="external-browser-frame"
@@ -177,8 +249,53 @@ export default function ExternalBrowserSheet() {
               referrerPolicy="strict-origin-when-cross-origin"
               onError={() => setFrameBlocked(true)}
             />
-          )}
-          {frameBlocked && state.url ? (
+          ) : null}
+
+          {showInvitePanel && state.inviteCampaign ? (
+            <div className="external-browser-invite" aria-live="polite">
+              <p className="external-browser-invite-title">邀请码进入</p>
+              <p className="external-browser-invite-hint">
+                在彼爱内验证，点一次即可进入活动（无需在活动页反复登录）
+              </p>
+              <input
+                className="external-browser-invite-input"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                placeholder="8 位邀请码"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                maxLength={16}
+                disabled={inviteBusy}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void submitInvite();
+                }}
+              />
+              {inviteError ? (
+                <p className="external-browser-invite-error">{inviteError}</p>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn-primary external-browser-invite-submit"
+                disabled={inviteBusy || !inviteCode.trim()}
+                onClick={() => void submitInvite()}
+              >
+                {inviteBusy ? '进入中…' : '进入活动'}
+              </button>
+              {state.url ? (
+                <button
+                  type="button"
+                  className="text-link external-browser-invite-back"
+                  disabled={inviteBusy}
+                  onClick={() => setState((prev) => ({ ...prev, inviteForm: false }))}
+                >
+                  返回活动页
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {frameBlocked && state.url && !showInvitePanel ? (
             <div className="external-browser-fallback">
               <p>此页面无法在应用内显示</p>
               <button

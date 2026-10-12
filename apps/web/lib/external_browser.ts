@@ -7,6 +7,12 @@ export const EXTERNAL_BROWSER_OPEN = 'presto-external-browser-open';
 /** app：仅返回+标题（默认）；browser：显示域名与「浏览器打开」（兼容旧调用） */
 export type ExternalBrowserChrome = 'app' | 'browser';
 
+/** 邀请码活动：壳内同源鉴权（避免 iframe 内活动站登录要点两次） */
+export type ExternalBrowserInviteCampaign = {
+  href: string;
+  code?: string;
+};
+
 export type ExternalBrowserOpenDetail = {
   /** 目标 URL；loading 时可为空，稍后用同事件更新 */
   url?: string;
@@ -15,6 +21,10 @@ export type ExternalBrowserOpenDetail = {
   loading?: boolean;
   /** 顶栏形态；默认 app */
   chrome?: ExternalBrowserChrome;
+  /** 希伯来书 30 / 创世记 50 等：保留邀请上下文，供壳内表单一次进入 */
+  inviteCampaign?: ExternalBrowserInviteCampaign;
+  /** 自动鉴权失败时直接展示壳内邀请码表单（不先打开外站邀请页） */
+  inviteForm?: boolean;
 };
 
 export function openExternalBrowser(detail: ExternalBrowserOpenDetail): void {
@@ -35,6 +45,8 @@ export function openExternalBrowser(detail: ExternalBrowserOpenDetail): void {
         title,
         loading: Boolean(detail.loading),
         chrome: detail.chrome === 'browser' ? 'browser' : 'app',
+        inviteCampaign: detail.inviteCampaign,
+        inviteForm: Boolean(detail.inviteForm),
       } satisfies ExternalBrowserOpenDetail,
     }),
   );

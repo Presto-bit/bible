@@ -186,3 +186,72 @@ body.external-browser-open .app-body {
   color: var(--muted, #888);
 }
 
+.external-browser-invite {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 24px;
+  background: var(--bg, #fff);
+  text-align: center;
+}
+
+.external-browser-invite-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--ink, #222);
+}
+
+.external-browser-invite-hint {
+  margin: 0 0 8px;
+  max-width: 280px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted, #888);
+}
+
+.external-browser-invite-input {
+  width: min(280px, 100%);
+  min-height: 48px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--ink, #222) 14%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg, #fff) 96%, var(--ink, #222));
+  color: var(--ink, #222);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.external-browser-invite-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--ink, #222) 28%, transparent);
+  outline-offset: 1px;
+}
+
+.external-browser-invite-error {
+  margin: 0;
+  max-width: 280px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #b42318;
+}
+
+.external-browser-invite-submit {
+  width: min(280px, 100%);
+  min-height: 48px;
+  margin-top: 4px;
+}
+
+.external-browser-invite-back {
+  margin-top: 4px;
+  font-size: 13px;
+}
+

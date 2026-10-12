@@ -2,7 +2,8 @@
  *
  * 对方站点用邀请码换固定邮箱/密码登录 Supabase。我们在本域完成登录后，
  * 把 session 写进目标站 URL query（其 supabase-js detectSessionInUrl 会接收），
- * 从而跳过邀请码输入页。iOS 走同源桥接整页跳转（不用 iframe，避免登录需点两次）；token 放 query 不用 hash。
+ * 从而跳过邀请码输入页。PWA 用壳内 iframe；token 放 query（不用 hash）。
+ * 手动登录在彼爱壳内同源完成（一次点击），避免 iframe 内外站登录要点两次。
  *
  * 注意：同一邀请码对应同一账号；全员共用一码会进同一账号。
  */
@@ -11,7 +12,6 @@ import { getUserName } from '@/lib/api';
 import { clientWithBasePath } from '@/lib/basePath';
 import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 import { openExternalBrowser } from '@/lib/external_browser';
-import { isIOS } from '@/lib/pwa_platform';
 
 const G50_HOST = 'genesis-50.pages.dev';
 const HEBREWS30_HOST = 'hebrews-30.pages.dev';
@@ -26,7 +26,7 @@ const G50_ANON_KEY = 'sb_publishable_aH3DWsTgZ4X0A4W_zJmyzw_wd7yk7pm';
 /** 运营未在链接里带 ?code= 时的默认邀请码 */
 const G50_DEFAULT_CODE = '0CIW43NR';
 
-type G50Session = {
+export type G50Session = {
   access_token: string;
   refresh_token: string;
   expires_in?: number;
@@ -208,7 +208,7 @@ async function signUpWithInvite(code: string, nickname: string): Promise<G50Sess
   return data;
 }
 
-function buildAuthedUrl(href: string, session: G50Session): string {
+export function buildGenesis50AuthedUrl(href: string, session: G50Session): string {
   const u = new URL(normalizeHref(href));
   u.hash = '';
   // 清掉邀请参数，避免进入后又停在邀请码页
@@ -226,7 +226,12 @@ function buildAuthedUrl(href: string, session: G50Session): string {
   return u.toString();
 }
 
-async function obtainGenesis50Session(code: string): Promise<G50Session> {
+/** @deprecated 用 buildGenesis50AuthedUrl */
+function buildAuthedUrl(href: string, session: G50Session): string {
+  return buildGenesis50AuthedUrl(href, session);
+}
+
+export async function obtainGenesis50Session(code: string): Promise<G50Session> {
   try {
     return await signInWithInvite(code);
   } catch (signInErr) {
@@ -241,6 +246,15 @@ async function obtainGenesis50Session(code: string): Promise<G50Session> {
       }
     }
   }
+}
+
+/** 壳内邀请码一次进入：本域换 session 后返回可嵌入的外站 URL。 */
+export async function resolveInviteCampaignEnterUrl(
+  href: string,
+  code: string,
+): Promise<string> {
+  const session = await obtainGenesis50Session(code.trim().toUpperCase());
+  return buildGenesis50AuthedUrl(normalizeHref(href), session);
 }
 
 /** 解析可打开的创世记 50 URL（桥接页 / PWA 共用）。 */
@@ -263,7 +277,7 @@ export async function resolveGenesis50OpenUrl(href: string): Promise<string> {
   }
 }
 
-/** 应用内打开：iOS / Flutter 走同源桥接整页跳转；其它 PWA 用 iframe 预鉴权后内嵌。 */
+/** 应用内打开：PWA 壳内 iframe 预鉴权；Flutter 壳走同源桥接页。 */
 export function openGenesis50Authed(href: string): void {
   if (typeof window === 'undefined') return;
   const title = inviteCampaignDisplayTitle(href);
@@ -278,16 +292,16 @@ export function openGenesis50Authed(href: string): void {
     return;
   }
 
-  // iOS（含主屏幕 PWA）：跨域 iframe 内 Supabase localStorage 不稳定，手动登录常需点两次
-  if (isIOS()) {
-    window.location.assign(buildGenesis50BridgeUrl(href));
-    return;
-  }
-
   const code = resolveGenesis50InviteCode(href);
   const fallback = normalizeHref(href);
+  const inviteCampaign = { href: fallback, code };
 
-  openExternalBrowser({ title, loading: true, chrome: 'app' });
+  openExternalBrowser({
+    title,
+    loading: true,
+    chrome: 'app',
+    inviteCampaign,
+  });
 
   void (async () => {
     try {
@@ -297,19 +311,19 @@ export function openGenesis50Authed(href: string): void {
         title,
         loading: false,
         chrome: 'app',
+        inviteCampaign,
       });
     } catch (err) {
-      console.warn('[genesis50] auto enter failed, fallback plain embed', err);
-      // 仍内嵌打开；带 code 方便对方站内手动登录时少一步记忆
-      try {
-        const u = new URL(fallback);
-        if (!u.searchParams.get('code') && !u.searchParams.get('invite')) {
-          u.searchParams.set('code', code);
-        }
-        openExternalBrowser({ url: u.toString(), title, loading: false, chrome: 'app' });
-      } catch {
-        openExternalBrowser({ url: fallback, title, loading: false, chrome: 'app' });
-      }
+      console.warn('[genesis50] auto enter failed, show in-shell invite form', err);
+      // 不打开外站邀请页（iframe 内登录常需点两次）；改用彼爱壳内同源表单
+      openExternalBrowser({
+        url: '',
+        title,
+        loading: false,
+        chrome: 'app',
+        inviteCampaign,
+        inviteForm: true,
+      });
     }
   })();
 }
