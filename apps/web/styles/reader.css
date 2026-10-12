@@ -1977,6 +1977,14 @@ body.reader-overlay-open .reader-page {
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
+/* 无 CSS Highlight 时的字符级选区底色（精确到用户选中范围，不扩整节） */
+.verse-sel-chars {
+  background: var(--reader-sel-bg, rgba(51, 144, 255, 0.35));
+  color: inherit;
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
 /* 触控划选 pin：CSS Highlight API，不包裹词块、不改 DOM */
 ::highlight(verse-native-pinned) {
   background: var(--reader-sel-bg, rgba(51, 144, 255, 0.35));
@@ -1988,6 +1996,9 @@ body.reader-overlay-open .reader-page {
   color: inherit;
 }
 .reader-content.reader-sel-cleared .verse-sel-active {
+  background: transparent !important;
+}
+.reader-content.reader-sel-cleared .verse-sel-chars {
   background: transparent !important;
 }
 .reader-content.reader-sel-cleared .verse-word.is-active {

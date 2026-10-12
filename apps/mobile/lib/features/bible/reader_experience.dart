@@ -3252,30 +3252,102 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
       TextStyle? diffStyle,
       bool selected = false,
       Paint? selBg,
+      int? selStart,
+      int? selEnd,
     }) {
+      final hasCharSel =
+          selected &&
+          selBg != null &&
+          selStart != null &&
+          selEnd != null &&
+          selEnd > selStart;
       if (!showDiff || diffs.isEmpty) {
+        if (!hasCharSel) {
+          return [
+            TextSpan(
+              text: '$text ',
+              // 有 wordRange 时整节底色交给 overlay；对照无 overlay 才用 selStart/selEnd
+              style: selected && selStart == null
+                  ? base.copyWith(background: selBg)
+                  : base,
+            ),
+          ];
+        }
+        final lo = selStart.clamp(0, text.length);
+        final hi = selEnd.clamp(0, text.length);
         return [
+          if (lo > 0) TextSpan(text: text.substring(0, lo), style: base),
           TextSpan(
-            text: '$text ',
-            style: selected ? base.copyWith(background: selBg) : base,
+            text: text.substring(lo, hi),
+            style: base.copyWith(background: selBg),
           ),
+          if (hi < text.length)
+            TextSpan(text: text.substring(hi), style: base),
+          TextSpan(text: ' ', style: base),
         ];
       }
       final parts = renderTextWithDiffSpans(text, diffs);
-      return [
-        for (final p in parts)
+      if (!hasCharSel) {
+        return [
+          for (final p in parts)
+            TextSpan(
+              text: p.text,
+              style: p.diff
+                  ? (diffStyle ??
+                        base.copyWith(
+                          backgroundColor: const Color(0x22C4A35A),
+                          color: base.color,
+                        ))
+                  : (selected && selStart == null
+                        ? base.copyWith(background: selBg)
+                        : base),
+            ),
+          TextSpan(text: ' ', style: base),
+        ];
+      }
+      // 有 diff 时仍按字符选区切片上色（对照局部选）
+      final lo = selStart.clamp(0, text.length);
+      final hi = selEnd.clamp(0, text.length);
+      var cursor = 0;
+      final out = <InlineSpan>[];
+      for (final p in parts) {
+        final start = cursor;
+        final end = cursor + p.text.length;
+        cursor = end;
+        if (p.diff) {
+          out.add(
+            TextSpan(
+              text: p.text,
+              style: diffStyle ??
+                  base.copyWith(
+                    backgroundColor: const Color(0x22C4A35A),
+                    color: base.color,
+                  ),
+            ),
+          );
+          continue;
+        }
+        if (end <= lo || start >= hi) {
+          out.add(TextSpan(text: p.text, style: base));
+          continue;
+        }
+        final a = lo > start ? lo - start : 0;
+        final b = hi < end ? hi - start : p.text.length;
+        if (a > 0) {
+          out.add(TextSpan(text: p.text.substring(0, a), style: base));
+        }
+        out.add(
           TextSpan(
-            text: p.text,
-            style: p.diff
-                ? (diffStyle ??
-                      base.copyWith(
-                        backgroundColor: const Color(0x22C4A35A),
-                        color: base.color,
-                      ))
-                : (selected ? base.copyWith(background: selBg) : base),
+            text: p.text.substring(a, b),
+            style: base.copyWith(background: selBg),
           ),
-        TextSpan(text: ' ', style: base),
-      ];
+        );
+        if (b < p.text.length) {
+          out.add(TextSpan(text: p.text.substring(b), style: base));
+        }
+      }
+      out.add(TextSpan(text: ' ', style: base));
+      return out;
     }
 
     final pageTurn = ref.watch(readerPageTurnProvider);
@@ -3372,6 +3444,37 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                   Builder(
                     builder: (context) {
                       final isSel = _selected.contains(v.verse);
+                      final wr = _wordRange;
+                      int? selStart;
+                      int? selEnd;
+                      if (wr != null && isSel) {
+                        final chars = () {
+                          final n = normalizeWordRange(wr);
+                          if (!n.verses.contains(v.verse)) return null;
+                          final loV = n.anchor.verse;
+                          final hiV = n.focus.verse;
+                          if (loV == hiV) {
+                            final lo = n.anchor.start < n.focus.start
+                                ? n.anchor.start
+                                : n.focus.start;
+                            final hi = n.anchor.end > n.focus.end
+                                ? n.anchor.end
+                                : n.focus.end;
+                            return (lo, hi);
+                          }
+                          if (v.verse == loV) {
+                            return (n.anchor.start, 1 << 30);
+                          }
+                          if (v.verse == hiV) {
+                            return (0, n.focus.end);
+                          }
+                          return (0, 1 << 30);
+                        }();
+                        if (chars != null) {
+                          selStart = chars.$1;
+                          selEnd = chars.$2;
+                        }
+                      }
                       final mainT = verseText(primary, v.verse);
                       final parallelT = verseText(compare, v.verse);
                       final diff = showDiff
@@ -3402,22 +3505,57 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                               fontSize: fontPx * 0.65,
                               fontWeight: FontWeight.w700,
                               height: 1.0,
-                              background: isSel ? selBg : null,
+                              // 局部词选不给节号整块底色
+                              background: isSel && wr == null ? selBg : null,
                             ),
                           ),
                         );
                       }
                       if (diff.heavy) {
-                        versePrimary.add(
-                          TextSpan(
-                            text: '$mainT ',
-                            style: mainBase.copyWith(
-                              backgroundColor: isSel
-                                  ? AppColors.accentWash
-                                  : const Color(0x18B8860B),
+                        if (isSel && selStart != null && selEnd != null) {
+                          final lo = selStart.clamp(0, mainT.length);
+                          final hi = selEnd.clamp(0, mainT.length);
+                          if (lo > 0) {
+                            versePrimary.add(
+                              TextSpan(
+                                text: mainT.substring(0, lo),
+                                style: mainBase.copyWith(
+                                  backgroundColor: const Color(0x18B8860B),
+                                ),
+                              ),
+                            );
+                          }
+                          versePrimary.add(
+                            TextSpan(
+                              text: mainT.substring(lo, hi),
+                              style: mainBase.copyWith(
+                                backgroundColor: AppColors.accentWash,
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                          if (hi < mainT.length) {
+                            versePrimary.add(
+                              TextSpan(
+                                text: mainT.substring(hi),
+                                style: mainBase.copyWith(
+                                  backgroundColor: const Color(0x18B8860B),
+                                ),
+                              ),
+                            );
+                          }
+                          versePrimary.add(TextSpan(text: ' ', style: mainBase));
+                        } else {
+                          versePrimary.add(
+                            TextSpan(
+                              text: '$mainT ',
+                              style: mainBase.copyWith(
+                                backgroundColor: isSel && wr == null
+                                    ? AppColors.accentWash
+                                    : const Color(0x18B8860B),
+                              ),
+                            ),
+                          );
+                        }
                       } else {
                         versePrimary.addAll(
                           textSpans(
@@ -3426,6 +3564,8 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
                             base: mainBase,
                             selected: isSel,
                             selBg: selBg,
+                            selStart: selStart,
+                            selEnd: selEnd,
                           ),
                         );
                       }

@@ -111,6 +111,7 @@ import {
 import {
   readNativePinnedHighlight,
   readNativeVerseSelection,
+  recoverPinnedSpansFromText,
   type NativePinnedHighlight,
   type NativeVerseSelection,
 } from '@/lib/native_verse_selection';
@@ -155,7 +156,7 @@ import {
 import { renderDiscourseAwareBody } from '@/lib/discourse_verse_body';
 import { poetryLinesForVerse, preloadPoetryLines } from '@/lib/poetry_lines';
 import { renderPoetryLineBody } from '@/lib/poetry_verse_body';
-import { resolveSelectionTextForAi, versesForNativeLineHighlight, nativeSelectionCoversVerses } from '@/lib/reader_selection_text';
+import { resolveSelectionTextForAi } from '@/lib/reader_selection_text';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import { sectionMarkAt } from '@/lib/reader_section_marks';
 import { buildCheckinRef } from '@/lib/group_checkin';
@@ -681,21 +682,21 @@ export default function ReaderView({
     }
     return [...wholeVerseSel].sort((a, b) => a - b);
   }, [wordRange, wholeVerseSel, nativeTouchSelect, activeNativeSelection]);
-  const nativeSelVerses = useMemo(() => {
-    if (!nativeTouchSelect || nativeSelecting) return new Set<number>();
-    // pin 后保留蓝底：Highlight 不可用或 spans 不完整时用行级兜底
-    if (nativePinnedHighlight?.verses.length) {
-      if (!supportsCssCustomHighlight() || !nativePinnedHighlight.spans.length) {
-        return new Set(nativePinnedHighlight.verses);
-      }
-    }
-    if (nativePinnedHighlight?.spans.length) return new Set<number>();
-    return versesForNativeLineHighlight(verses, nativeSelection);
-  }, [nativeTouchSelect, nativeSelection, nativeSelecting, nativePinnedHighlight, verses]);
+  /** 仅双击/显式整节选使用行级底色；局部划选绝不扩成整节。 */
   const verseSelClass = useCallback(
-    (verse: number) => (wholeVerseSel.includes(verse) || nativeSelVerses.has(verse) ? ' verse-sel-active' : ''),
-    [wholeVerseSel, nativeSelVerses],
+    (verse: number) => (wholeVerseSel.includes(verse) ? ' verse-sel-active' : ''),
+    [wholeVerseSel],
   );
+  const pinnedSpanByVerse = useMemo(() => {
+    const map = new Map<number, { start: number; end: number }>();
+    if (!nativePinnedHighlight?.spans.length || nativeSelecting) return map;
+    // CSS Highlight 可用时由 Highlight API 绘制，避免 DOM 再包一层叠色
+    if (supportsCssCustomHighlight()) return map;
+    for (const span of nativePinnedHighlight.spans) {
+      map.set(span.verse, { start: span.start, end: span.end });
+    }
+    return map;
+  }, [nativePinnedHighlight, nativeSelecting]);
   const hasSel = sortedSel.length > 0;
   const hasSelRef = useRef(hasSel);
 
@@ -983,6 +984,20 @@ export default function ReaderView({
       }
 
       if (nativeTouchSelect) {
+        const pin = pinnedSpanByVerse.get(verseNum);
+        if (pin && pin.end > pin.start && pin.start < text.length) {
+          const lo = Math.max(0, pin.start);
+          const hi = Math.min(text.length, pin.end);
+          return (
+            <>
+              {lo > 0 ? renderText(text.slice(0, lo), 'pre') : null}
+              <span className="verse-sel-chars">
+                {renderText(text.slice(lo, hi), 'sel')}
+              </span>
+              {hi < text.length ? renderText(text.slice(hi), 'post') : null}
+            </>
+          );
+        }
         return renderText(text, 'body');
       }
 
@@ -1029,7 +1044,7 @@ export default function ReaderView({
         </>
       );
     },
-    [renderVerseText, wordRange, nativeTouchSelect, book.id, chapter, poetry],
+    [renderVerseText, wordRange, nativeTouchSelect, pinnedSpanByVerse, book.id, chapter, poetry],
   );
 
   const updateFocusBarPosition = useCallback(() => {
@@ -2133,15 +2148,30 @@ export default function ReaderView({
       if (!opts?.force && nativeSelectingRef.current) return;
       if (nativePinSuppressRef.current) return;
       if (Date.now() < dismissUntilRef.current) return;
-      const pinnedFromDom = readNativePinnedHighlight(root);
+      // 必须在 clearBrowserSelection 之前读 spans
+      let pinnedFromDom = readNativePinnedHighlight(root);
       const basic = resolveLiveSelection();
       if (!basic?.text) return;
-      const pinned: NativePinnedHighlight = pinnedFromDom ?? {
-        verses: basic.verses,
-        text: basic.text,
-        spans: [],
+
+      let spans = pinnedFromDom?.spans ?? [];
+      if (!spans.length) {
+        spans = recoverPinnedSpansFromText(root, basic);
+      }
+      if (!spans.length) {
+        const prev = nativePinnedHighlightRef.current;
+        if (prev?.spans.length && prev.text.trim() === basic.text.trim()) {
+          spans = prev.spans;
+          pinnedFromDom = prev;
+        }
+      }
+
+      const pinned: NativePinnedHighlight = {
+        verses: pinnedFromDom?.verses?.length ? pinnedFromDom.verses : basic.verses,
+        text: pinnedFromDom?.text || basic.text,
+        spans,
       };
-      if (pinned?.text) {
+
+      if (pinned.text) {
         nativePinnedHighlightRef.current = pinned;
         flushSync(() => {
           setNativeSelection({
@@ -2163,7 +2193,12 @@ export default function ReaderView({
         wordRangeRef.current = null;
         lastSelectAt.current = Date.now();
         swipeIgnoreUntilRef.current = Date.now() + 320;
-        applyNativePinnedHighlight(root, pinned);
+        // 有精确 spans 才画底色；无 spans 不退回整节蓝底
+        if (pinned.spans.length) {
+          applyNativePinnedHighlight(root, pinned);
+        } else {
+          clearNativePinnedHighlight();
+        }
       }
       // 清系统选区（藏拷贝/翻译栏）；应用蓝底与工具条保持到点工具或空白
       pinningRef.current = true;

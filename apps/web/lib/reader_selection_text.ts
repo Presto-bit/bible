@@ -1,5 +1,5 @@
 import type { NativeVerseSelection } from '@/lib/native_verse_selection';
-import { textFromWordRange, normalizeWordRange, type WordRange } from '@/lib/selection_range';
+import { textFromWordRange, type WordRange } from '@/lib/selection_range';
 
 type VerseSlice = { verse: number; text: string };
 
@@ -16,13 +16,11 @@ function joinVerseTexts(
     .join('');
 }
 
-const FULL_VERSE_RATIO = 0.85;
-
-/** 选区文本是否覆盖经节绝大部分（才用整节高亮） */
+/** 选区文本是否覆盖经节绝大部分（仅作语义判断，不再驱动行级蓝底）。 */
 export function nativeSelectionCoversVerses(
   verses: VerseSlice[],
   selection: NativeVerseSelection,
-  ratio = FULL_VERSE_RATIO,
+  ratio = 0.85,
 ): boolean {
   const full = joinVerseTexts(verses, selection.verses);
   const picked = selection.text.trim();
@@ -30,17 +28,19 @@ export function nativeSelectionCoversVerses(
   return picked.length >= full.length * ratio;
 }
 
-/** 触控原生划选：整节选中时对经节行加 verse-sel-active（有字符级 pin 时不用行级）。 */
+/**
+ * 触控原生划选：不再用 verse-sel-active 整节冒充局部选区。
+ * 局部底色只走 CSS Highlight / 字符级 DOM 包裹。
+ */
 export function versesForNativeLineHighlight(
-  verses: VerseSlice[],
-  selection: NativeVerseSelection | null,
+  _verses: VerseSlice[],
+  _selection: NativeVerseSelection | null,
 ): Set<number> {
-  if (!selection || !nativeSelectionCoversVerses(verses, selection)) return new Set();
-  return new Set(selection.verses);
+  return new Set();
 }
 
 /**
- * 问小爱用的选中文本：视觉整节高亮时传整节经文，避免 sel.toString() 只剩一个字。
+ * 问小爱用的选中文本：严格等于用户选区，不因短选区扩成整节。
  */
 export function resolveSelectionTextForAi(opts: {
   verses: VerseSlice[];
@@ -57,27 +57,16 @@ export function resolveSelectionTextForAi(opts: {
   }
 
   if (nativeTouchSelect && nativeSelection) {
-    const full = joinVerseTexts(verses, nativeSelection.verses, formatVerse);
     const picked = nativeSelection.text.trim();
-    if (!picked) return full;
-    if (nativeSelectionCoversVerses(verses, nativeSelection)) return full;
-    return picked;
+    if (picked) return picked;
+    return joinVerseTexts(verses, nativeSelection.verses, formatVerse);
   }
 
   if (wordRange) {
-    const rangeText = textFromWordRange(
+    return textFromWordRange(
       wordRange,
       (v) => verses.find((x) => x.verse === v)?.text ?? '',
     );
-    const { verses: nums, anchor } = normalizeWordRange(wordRange);
-    const full = joinVerseTexts(verses, nums, formatVerse);
-    if (full && rangeText.length < full.length * 0.85) {
-      const oneVerse = verses.find((x) => x.verse === anchor.verse)?.text ?? '';
-      if (rangeText.length <= 4 && oneVerse.length > rangeText.length * 2) {
-        return nums.length === 1 ? oneVerse : full;
-      }
-    }
-    return rangeText;
   }
 
   return '';
