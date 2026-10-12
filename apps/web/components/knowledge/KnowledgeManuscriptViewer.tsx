@@ -369,10 +369,13 @@ export function KnowledgeManuscriptViewer({
     return () => el.removeEventListener('scroll', onScroll);
   }, [syncIndex]);
 
+  const verticalPan = useRef<{ y: number; active: boolean } | null>(null);
+
   const onScrollerTouchStart = (e: ReactTouchEvent) => {
     if (pageZoomed || e.touches.length !== 1) {
       edgeSwipe.current = null;
       tapTrack.current = null;
+      verticalPan.current = null;
       return;
     }
     const t = e.touches[0];
@@ -382,18 +385,45 @@ export function KnowledgeManuscriptViewer({
       atStart: indexRef.current === 0,
     };
     tapTrack.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+    verticalPan.current = { y: t.clientY, active: false };
+  };
+
+  const onScrollerTouchMove = (e: ReactTouchEvent) => {
+    if (pageZoomed || e.touches.length !== 1) return;
+    const start = edgeSwipe.current;
+    const pan = verticalPan.current;
+    const body = bodyRef.current;
+    const t = e.touches[0];
+    if (!start || !pan || !body) return;
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (!pan.active) {
+      if (Math.abs(dy) < 10 && Math.abs(dx) < 10) return;
+      // 纵向主导：把手势交给外层纵滑（进评论 / 回图顶）
+      if (Math.abs(dy) > Math.abs(dx) * 1.15) {
+        pan.active = true;
+      } else {
+        verticalPan.current = null;
+        return;
+      }
+    }
+    const delta = pan.y - t.clientY;
+    pan.y = t.clientY;
+    body.scrollTop += delta;
   };
 
   const onScrollerTouchEnd = (e: ReactTouchEvent) => {
     const start = edgeSwipe.current;
     const tap = tapTrack.current;
+    const wasVertical = Boolean(verticalPan.current?.active);
     edgeSwipe.current = null;
     tapTrack.current = null;
+    verticalPan.current = null;
     const t = e.changedTouches[0];
     if (!t) return;
 
     // 轻点：切换沉浸全屏（藏顶栏 / 页点）
-    if (tap && !pageZoomed) {
+    if (tap && !pageZoomed && !wasVertical) {
       const dx = t.clientX - tap.x;
       const dy = t.clientY - tap.y;
       const dt = Date.now() - tap.t;
@@ -404,7 +434,7 @@ export function KnowledgeManuscriptViewer({
       }
     }
 
-    if (!start?.atStart || pageZoomed) return;
+    if (wasVertical || !start?.atStart || pageZoomed) return;
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     if (dx > 72 && Math.abs(dx) > Math.abs(dy) * 1.2) {
@@ -520,6 +550,7 @@ export function KnowledgeManuscriptViewer({
           ref={scrollerRef}
           className={`knowledge-viewer-scroller${pageZoomed ? ' is-zoom-locked' : ''}`}
           onTouchStart={onScrollerTouchStart}
+          onTouchMove={onScrollerTouchMove}
           onTouchEnd={onScrollerTouchEnd}
           onClick={(e) => {
             if (suppressClick.current) {

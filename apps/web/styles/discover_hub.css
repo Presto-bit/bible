@@ -8,7 +8,8 @@
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 4px 16px 10px;
+  padding: 4px 16px 18px;
+  margin-bottom: 6px;
   position: sticky;
   top: 0;
   z-index: 5;
@@ -35,11 +36,13 @@
   font-weight: 500;
   cursor: pointer;
   position: relative;
+  transition: font-size 0.15s ease, color 0.15s ease;
 }
 
 .discover-hub-seg-btn.is-on {
   color: var(--ink, #1a1a1a);
   font-weight: 700;
+  font-size: 20px;
 }
 
 .discover-hub-seg-btn.is-on::after {
@@ -202,7 +205,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 16px 10px;
+  padding: 4px 16px 14px;
+  background: transparent;
+  color: inherit;
 }
 
 .knowledge-topics-embed-tools .knowledge-topics-filters {
@@ -211,11 +216,19 @@
   margin: 0;
 }
 
+.knowledge-topics-embed-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
 .knowledge-topics-embed-manage {
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--muted, #6b6b6b);
+  color: color-mix(in srgb, var(--ink, #1a1a1a) 45%, transparent);
   font-size: 13px;
   padding: 6px 4px;
   cursor: pointer;
@@ -223,27 +236,25 @@
   text-decoration: none;
 }
 
-.knowledge-topics-fab {
-  position: fixed;
-  left: 50%;
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  z-index: 40;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
+.knowledge-topics-embed-new {
+  appearance: none;
   border: 0;
-  background: var(--ink, #1a1a1a);
-  color: var(--paper, #f7f3eb);
-  font-size: 28px;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink, #1a1a1a) 55%, transparent);
+  width: 28px;
+  height: 28px;
+  font-size: 22px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  flex-shrink: 0;
+  border-radius: 8px;
 }
 
-html.android-flutter-h5 .knowledge-topics-fab {
-  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+.knowledge-topics-page.is-discover-embed .knowledge-topics-filters {
+  margin-top: 0;
+  margin-bottom: 0;
+  gap: 4px;
 }

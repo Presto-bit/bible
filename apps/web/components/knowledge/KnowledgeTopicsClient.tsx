@@ -82,6 +82,17 @@ function scheduleIdle(fn: () => void, timeout = 900): () => void {
 
 type FilterId = 'all' | 'journey' | 'note';
 
+const EMPTY_LAYOUTS: KnowledgeLayoutSummary[] = [];
+
+function sortLayouts(list: KnowledgeLayoutSummary[]) {
+  return [...list].sort((a, b) => {
+    const ta = Date.parse(a.generated_at || '') || 0;
+    const tb = Date.parse(b.generated_at || '') || 0;
+    if (tb !== ta) return tb - ta;
+    return (a.title || a.id || '').localeCompare(b.title || b.id || '', 'zh');
+  });
+}
+
 type Props = {
   initialLayouts?: KnowledgeLayoutSummary[];
   /** 嵌入发现壳：无返回/大标题；管理在筛选行；+ 底中 FAB */
@@ -93,41 +104,44 @@ type Props = {
  * 探索列表：1 行 2 卡封面流（点进直达全屏），对齐已拍板方案。
  */
 export function KnowledgeTopicsClient({
-  initialLayouts = [],
+  initialLayouts = EMPTY_LAYOUTS,
   discoverEmbed = false,
   paneActive = true,
 }: Props) {
   const goBack = useFlowBack(discoverEmbed ? '/discover' : '/');
-  const [rows, setRows] = useState(initialLayouts);
+  const [rows, setRows] = useState(() =>
+    initialLayouts.length ? sortLayouts(initialLayouts) : EMPTY_LAYOUTS,
+  );
   const [filter, setFilter] = useState<FilterId>('all');
   const [isAdmin, setIsAdmin] = useState(false);
   const [softReturn, setSoftReturn] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(initialLayouts.length === 0);
 
   useEffect(() => {
-    setRows(initialLayouts);
+    // 仅当父级真正传入非空预取时同步；避免默认 [] 每渲新引用把已拉结果清空
+    if (initialLayouts.length > 0) {
+      setRows(sortLayouts(initialLayouts));
+      setLoading(false);
+    }
   }, [initialLayouts]);
 
   useEffect(() => {
     if (!paneActive) return;
     if (initialLayouts.length > 0) return;
     let cancelled = false;
+    setLoading(true);
     void (async () => {
       try {
         const res = await api.knowledgeLayouts();
         if (cancelled) return;
         const list = Array.isArray(res.layouts) ? res.layouts : [];
-        setRows(
-          [...list].sort((a, b) => {
-            const ta = Date.parse(a.generated_at || '') || 0;
-            const tb = Date.parse(b.generated_at || '') || 0;
-            if (tb !== ta) return tb - ta;
-            return (a.title || a.id || '').localeCompare(b.title || b.id || '', 'zh');
-          }),
-        );
+        setRows(sortLayouts(list));
         setLoadErr(null);
       } catch {
         if (!cancelled) setLoadErr('专题加载失败');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {
@@ -247,16 +261,30 @@ export function KnowledgeTopicsClient({
         <div className="knowledge-topics-embed-tools">
           {filters}
           {isAdmin ? (
-            <Link href="/knowledge/manage" className="knowledge-topics-embed-manage">
-              管理
-            </Link>
+            <div className="knowledge-topics-embed-admin">
+              <Link href="/knowledge/manage" className="knowledge-topics-embed-manage">
+                管理
+              </Link>
+              <Link
+                href="/knowledge/new"
+                className="knowledge-topics-embed-new"
+                aria-label="新建手稿"
+                title="新建"
+              >
+                +
+              </Link>
+            </div>
           ) : null}
         </div>
       )}
 
       {loadErr ? <p className="muted knowledge-topics-empty">{loadErr}</p> : null}
 
-      {visible.length === 0 && !loadErr ? (
+      {loading && rows.length === 0 ? (
+        <p className="muted knowledge-topics-empty">加载专题…</p>
+      ) : null}
+
+      {visible.length === 0 && !loadErr && !loading ? (
         <p className="muted knowledge-topics-empty">
           {rows.length === 0 ? '暂无专题，稍后再来看看。' : '此分类暂无内容。'}
         </p>
@@ -315,9 +343,6 @@ export function KnowledgeTopicsClient({
                     {mediaBadge ? (
                       <span className="knowledge-topic-card-media-badge">{mediaBadge}</span>
                     ) : null}
-                    {row.beat_count ? (
-                      <span className="knowledge-topic-card-count">{row.beat_count} 页</span>
-                    ) : null}
                     <span className="knowledge-topic-card-caption">
                       <strong className="knowledge-topic-card-title">
                         {shortTitle(row.title || row.id || '')}
@@ -335,17 +360,6 @@ export function KnowledgeTopicsClient({
           })}
         </div>
       )}
-
-      {discoverEmbed && isAdmin ? (
-        <Link
-          href="/knowledge/new"
-          className="knowledge-topics-fab"
-          aria-label="新建手稿"
-          title="新建"
-        >
-          +
-        </Link>
-      ) : null}
     </Root>
   );
 }

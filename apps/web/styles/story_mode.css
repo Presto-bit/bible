@@ -1335,9 +1335,11 @@ html.knowledge-viewer-lock nav.tabbar {
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
-  overscroll-behavior-x: none;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
+  /* 允许纵滑冒泡到 body，进入评论区；左右仍翻页 */
+  touch-action: pan-x pan-y;
   scrollbar-width: none;
 }
 
@@ -1691,21 +1693,34 @@ html.knowledge-viewer-lock nav.tabbar {
 }
 
 .knowledge-topics-filter {
-  border: 1px solid var(--stroke, #e8e4de);
+  border: 0;
   background: transparent;
-  color: var(--text-secondary, #6b6358);
-  border-radius: 999px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--ink, #2c2825) 45%, transparent);
+  border-radius: 0;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
 }
 
 .knowledge-topics-filter.is-on {
-  border-color: color-mix(in srgb, var(--primary, #5b6b4f) 45%, #e8e4de);
-  background: color-mix(in srgb, var(--primary, #5b6b4f) 12%, transparent);
-  color: var(--primary, #5b6b4f);
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink, #2c2825);
+  font-weight: 700;
+}
+
+.knowledge-topics-filter.is-on::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--ink, #2c2825);
 }
 
 .knowledge-topics-empty {
