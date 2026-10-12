@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { recoverPinnedSpansFromVerseTexts } from './native_verse_selection';
+import {
+  pinnedSpanBounds,
+  recoverPinnedSpansFromVerseTexts,
+} from './native_verse_selection';
 
 describe('recoverPinnedSpansFromVerseTexts', () => {
   it('recovers unique single-verse substring offsets', () => {
@@ -33,5 +36,25 @@ describe('recoverPinnedSpansFromVerseTexts', () => {
       { verse: 1, start: 1, end: 2 },
       { verse: 2, start: 0, end: 2 },
     ]);
+  });
+});
+
+describe('pinnedSpanBounds', () => {
+  it('reads start/end from multi-span pin', () => {
+    expect(
+      pinnedSpanBounds([
+        { verse: 2, start: 0, end: 3 },
+        { verse: 1, start: 4, end: 8 },
+      ]),
+    ).toEqual({
+      startVerse: 1,
+      startOff: 4,
+      endVerse: 2,
+      endOff: 3,
+    });
+  });
+
+  it('returns null for empty spans', () => {
+    expect(pinnedSpanBounds([])).toBeNull();
   });
 });

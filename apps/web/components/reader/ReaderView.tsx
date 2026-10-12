@@ -113,9 +113,11 @@ import {
   readNativeVerseSelection,
   recoverPinnedSpansFromText,
   recoverPinnedSpansFromVerseTexts,
+  synthesizeFullVerseSpans,
   type NativePinnedHighlight,
   type NativeVerseSelection,
 } from '@/lib/native_verse_selection';
+import { ReaderSelectionHandles } from '@/components/reader/ReaderSelectionHandles';
 import { clearNativePinnedHighlight } from '@/lib/native_verse_highlight';
 import {
   cancelPendingChapterProgress,
@@ -1064,13 +1066,33 @@ export default function ReaderView({
     const firstEl = document.getElementById(`verse-anchor-${minV}`);
     const lastEl = document.getElementById(`verse-anchor-${maxV}`);
     if (!firstEl) return;
-    const firstRect = firstEl.getBoundingClientRect();
-    const lastRect = lastEl?.getBoundingClientRect() ?? firstRect;
-    const selTop = Math.min(firstRect.top, lastRect.top);
-    const selBottom = Math.max(firstRect.bottom, lastRect.bottom);
-    const selCenterX = (
-      Math.min(firstRect.left, lastRect.left) + Math.max(firstRect.right, lastRect.right)
-    ) / 2;
+    // 优先用字符选区量测，手柄拖动后工具条更贴真实选区
+    const selNodes = contentRef.current?.querySelectorAll('.verse-sel-chars');
+    let selTop: number;
+    let selBottom: number;
+    let selCenterX: number;
+    if (selNodes && selNodes.length > 0) {
+      let left = Infinity;
+      let right = -Infinity;
+      selTop = Infinity;
+      selBottom = -Infinity;
+      selNodes.forEach((node) => {
+        const r = (node as HTMLElement).getBoundingClientRect();
+        left = Math.min(left, r.left);
+        right = Math.max(right, r.right);
+        selTop = Math.min(selTop, r.top);
+        selBottom = Math.max(selBottom, r.bottom);
+      });
+      selCenterX = (left + right) / 2;
+    } else {
+      const firstRect = firstEl.getBoundingClientRect();
+      const lastRect = lastEl?.getBoundingClientRect() ?? firstRect;
+      selTop = Math.min(firstRect.top, lastRect.top);
+      selBottom = Math.max(firstRect.bottom, lastRect.bottom);
+      selCenterX = (
+        Math.min(firstRect.left, lastRect.left) + Math.max(firstRect.right, lastRect.right)
+      ) / 2;
+    }
     const barH = focusBarRef.current?.offsetHeight ?? 56;
     const margin = 16;
     const systemMenuReserve = 0;
@@ -2188,6 +2210,17 @@ export default function ReaderView({
           pinnedFromDom = prev;
         }
       }
+      if (!spans.length) {
+        const synthesized = synthesizeFullVerseSpans(
+          root,
+          pinnedFromDom?.verses?.length ? pinnedFromDom.verses : basic.verses,
+          pinnedFromDom?.text || basic.text,
+        );
+        if (synthesized?.spans.length) {
+          spans = synthesized.spans;
+          pinnedFromDom = synthesized;
+        }
+      }
 
       const pinned: NativePinnedHighlight = {
         verses: pinnedFromDom?.verses?.length ? pinnedFromDom.verses : basic.verses,
@@ -2595,11 +2628,39 @@ export default function ReaderView({
     swipeIgnoreUntilRef.current = Date.now() + 320;
   }, [book.id, chapter]);
 
+  const applyPinnedAdjust = useCallback((next: NativePinnedHighlight) => {
+    nativePinnedHighlightRef.current = next;
+    nativeSelectionRef.current = { verses: next.verses, text: next.text };
+    liveNativeSelectionRef.current = { verses: next.verses, text: next.text };
+    setNativePinnedHighlight(next);
+    setNativeSelection({ verses: next.verses, text: next.text });
+    setLiveNativeSelection({ verses: next.verses, text: next.text });
+    setWholeVerseSel([]);
+    setWordRange(null);
+    wordRangeRef.current = null;
+    lastSelectAt.current = Date.now();
+    swipeIgnoreUntilRef.current = Date.now() + 400;
+    markNativeSelectionCommitted();
+    requestAnimationFrame(() => updateFocusBarPosition());
+  }, [markNativeSelectionCommitted, updateFocusBarPosition]);
+
+  const onSelHandleDragChange = useCallback((dragging: boolean) => {
+    if (dragging) {
+      swipeIgnoreUntilRef.current = Date.now() + 60_000;
+      lastSelectAt.current = Date.now();
+      return;
+    }
+    swipeIgnoreUntilRef.current = Date.now() + 400;
+    lastSelectAt.current = Date.now();
+    requestAnimationFrame(() => updateFocusBarPosition());
+  }, [updateFocusBarPosition]);
+
   const handleReaderContentClick = useCallback(
     (e: React.MouseEvent) => {
       if (focusBarRef.current?.contains(e.target as Node)) return;
       const t = e.target as HTMLElement;
       if (t.closest('.reader-focus-bar')) return;
+      if (t.closest('.reader-sel-handle')) return;
       // 词典专名：勿当「点空收起选区」，避免抢开层
       if (t.closest('.proper-noun,[role="button"]')) return;
       const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
@@ -2721,6 +2782,7 @@ export default function ReaderView({
       if (!(t instanceof Element)) return;
       if (focusBarRef.current?.contains(t)) return;
       if (t.closest('.reader-focus-bar')) return;
+      if (t.closest('.reader-sel-handle')) return;
       if (t.closest('.reader-mark-wrap') || t.closest('.reader-mark-popover')) return;
       // 词典 / 可点控件：让 shell_tap 开层，勿先清选区抢手势
       if (t.closest('.proper-noun,[role="button"],.vsb-icon-btn')) return;
@@ -3270,6 +3332,19 @@ export default function ReaderView({
         </button>
       </div>
       ) : null}
+
+      {hasSel && !overlayOpen && autoCollapseNativeSel && (
+        <ReaderSelectionHandles
+          rootRef={contentRef}
+          pinned={nativePinnedHighlight}
+          visible={
+            Boolean(nativePinnedHighlight?.spans.length)
+            && (!nativeSelecting || Boolean(nativePinnedHighlight))
+          }
+          onAdjust={applyPinnedAdjust}
+          onDragChange={onSelHandleDragChange}
+        />
+      )}
 
       {hasSel && !overlayOpen && (
         <div

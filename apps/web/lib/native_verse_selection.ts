@@ -110,6 +110,165 @@ function spansFromOffsets(
   return spans;
 }
 
+export type PinnedEdgeBounds = {
+  startVerse: number;
+  startOff: number;
+  endVerse: number;
+  endOff: number;
+};
+
+/** pin spans 的起止字符边界（用于拖动手柄扩选）。 */
+export function pinnedSpanBounds(spans: NativePinnedSpan[]): PinnedEdgeBounds | null {
+  if (!spans.length) return null;
+  const sorted = [...spans].sort((a, b) =>
+    a.verse !== b.verse ? a.verse - b.verse : a.start - b.start,
+  );
+  const first = sorted[0]!;
+  const last = sorted[sorted.length - 1]!;
+  return {
+    startVerse: first.verse,
+    startOff: first.start,
+    endVerse: last.verse,
+    endOff: last.end,
+  };
+}
+
+function textFromPinnedSpans(root: HTMLElement, spans: NativePinnedSpan[]): string {
+  const sorted = [...spans].sort((a, b) =>
+    a.verse !== b.verse ? a.verse - b.verse : a.start - b.start,
+  );
+  let out = '';
+  for (const span of sorted) {
+    const body = verseBodyElement(root, span.verse);
+    const full = body?.textContent ?? '';
+    out += full.slice(span.start, span.end);
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * 用起止字符边界重建 pin（拖动手柄时调用）。
+ * 保证 start≤end；跨节时中间节取全文。
+ */
+export function rebuildPinnedFromEdges(
+  root: HTMLElement | null,
+  startVerse: number,
+  startOff: number,
+  endVerse: number,
+  endOff: number,
+): NativePinnedHighlight | null {
+  if (!root) return null;
+  let sV = startVerse;
+  let eV = endVerse;
+  let sOff = Math.max(0, startOff);
+  let eOff = Math.max(0, endOff);
+  if (sV > eV || (sV === eV && sOff > eOff)) {
+    [sV, eV] = [eV, sV];
+    [sOff, eOff] = [eOff, sOff];
+  }
+  // 至少保留 1 字符，避免拖空导致工具条消失
+  if (sV === eV && eOff <= sOff) {
+    const body = verseBodyElement(root, sV);
+    const len = (body?.textContent ?? '').length;
+    if (len <= 0) return null;
+    if (sOff >= len) {
+      sOff = Math.max(0, len - 1);
+      eOff = len;
+    } else {
+      eOff = Math.min(len, sOff + 1);
+    }
+  }
+  const verses = Array.from({ length: eV - sV + 1 }, (_, i) => sV + i);
+  const spans = spansFromOffsets(root, verses, sV, eV, sOff, eOff);
+  if (!spans.length) return null;
+  const text = textFromPinnedSpans(root, spans);
+  if (!text) return null;
+  return { verses, text, spans };
+}
+
+/** 触点映射到某节正文内的字符偏移（扩选拖动手柄）。 */
+export function verseCharAtPoint(
+  root: HTMLElement | null,
+  x: number,
+  y: number,
+): { verse: number; offset: number } | null {
+  if (!root || typeof document === 'undefined') return null;
+  const doc = root.ownerDocument;
+  let range: Range | null = null;
+  if (typeof doc.caretRangeFromPoint === 'function') {
+    range = doc.caretRangeFromPoint(x, y);
+  } else {
+    const pos = (
+      doc as Document & {
+        caretPositionFromPoint?: (px: number, py: number) => { offsetNode: Node; offset: number } | null;
+      }
+    ).caretPositionFromPoint?.(x, y);
+    if (pos) {
+      range = doc.createRange();
+      range.setStart(pos.offsetNode, pos.offset);
+      range.collapse(true);
+    }
+  }
+  if (!range) return null;
+  const node = range.startContainer;
+  if (!root.contains(node)) return null;
+  const verse = verseFromNode(node, root);
+  if (verse == null) return null;
+  const body = verseBodyElement(root, verse);
+  if (!body) return null;
+  // 点到节号等正文外节点：落到最近正文
+  if (!body.contains(node) && node !== body) {
+    const len = (body.textContent ?? '').length;
+    const bodyRect = body.getBoundingClientRect();
+    const offset = x < bodyRect.left + bodyRect.width / 2 ? 0 : len;
+    return { verse, offset };
+  }
+  return { verse, offset: charOffsetInVerseBody(body, node, range.startOffset) };
+}
+
+export type SelHandlePoint = { x: number; y: number; h: number };
+
+/** 根据 `.verse-sel-chars` 量测起止手柄锚点（fixed 坐标）。 */
+export function measureSelHandlePositions(
+  root: HTMLElement | null,
+): { start: SelHandlePoint; end: SelHandlePoint } | null {
+  if (!root) return null;
+  const nodes = root.querySelectorAll('.verse-sel-chars');
+  if (!nodes.length) return null;
+  const first = nodes[0] as HTMLElement;
+  const last = nodes[nodes.length - 1] as HTMLElement;
+  const firstRects = first.getClientRects();
+  const lastRects = last.getClientRects();
+  if (!firstRects.length || !lastRects.length) return null;
+  const a = firstRects[0]!;
+  const b = lastRects[lastRects.length - 1]!;
+  return {
+    start: { x: a.left, y: a.top, h: a.height || 18 },
+    end: { x: b.right, y: b.top, h: b.height || 18 },
+  };
+}
+
+/** 无精确 spans 时，用整节正文合成可拖 pin（兜底手柄）。 */
+export function synthesizeFullVerseSpans(
+  root: HTMLElement | null,
+  verses: number[],
+  text: string,
+): NativePinnedHighlight | null {
+  if (!root || !verses.length) return null;
+  const spans: NativePinnedSpan[] = [];
+  for (const verse of verses) {
+    const body = verseBodyElement(root, verse);
+    const len = (body?.textContent ?? '').length;
+    if (len > 0) spans.push({ verse, start: 0, end: len });
+  }
+  if (!spans.length) return null;
+  return {
+    verses: [...verses].sort((a, b) => a - b),
+    text: text.trim() || textFromPinnedSpans(root, spans),
+    spans,
+  };
+}
+
 /**
  * 用选中文本在经节正文中定位字符范围（纯函数，便于单测）。
  * 只在能唯一/可靠匹配时返回 spans，避免误扩整节。

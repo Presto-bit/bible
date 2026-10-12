@@ -1989,6 +1989,59 @@ body.reader-overlay-open .reader-page {
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
+/* PWA/触控：收起系统选区后自绘起止拖动手柄 */
+.reader-sel-handle {
+  position: fixed;
+  z-index: 92;
+  width: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  transform: translate(-50%, 0);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: grab;
+  -webkit-tap-highlight-color: transparent;
+}
+.reader-sel-handle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--reader-sel-handle, #3478f6);
+  border-radius: 1px;
+  pointer-events: none;
+}
+.reader-sel-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--reader-sel-handle, #3478f6);
+  transform: translateX(-50%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+.reader-sel-handle-start::after {
+  top: -12px;
+}
+.reader-sel-handle-end::after {
+  bottom: -12px;
+}
+.reader-sel-handle:active {
+  cursor: grabbing;
+}
+.reader-sel-handle:focus-visible {
+  outline: 2px solid var(--reader-sel-handle, #3478f6);
+  outline-offset: 2px;
+}
 /* 触控划选 pin：CSS Highlight API，不包裹词块、不改 DOM */
 ::highlight(verse-native-pinned) {
   background: var(--reader-sel-bg, rgba(51, 144, 255, 0.35));
