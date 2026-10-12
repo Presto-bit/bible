@@ -16,6 +16,12 @@ import {
   isJourneyManuscriptId,
   journeyManuscriptCover,
 } from '@/lib/journey_covers';
+import {
+  peekKnowledgeDetail,
+  putKnowledgeDetail,
+  stubTourFromLayout,
+  warmManuscriptRasters,
+} from '@/lib/knowledge_detail_cache';
 
 function LoadingSilent({ tourId }: { tourId: string }) {
   const cover = useMemo(() => {
@@ -26,7 +32,12 @@ function LoadingSilent({ tourId }: { tourId: string }) {
     return peekKnowledgeExpandCover();
   }, [tourId]);
   const sources = cover ? knowledgeRasterSources(cover) : null;
+  const [src, setSrc] = useState(() => sources?.webp || sources?.fallback || '');
   const [stuck, setStuck] = useState(false);
+
+  useEffect(() => {
+    setSrc(sources?.webp || sources?.fallback || '');
+  }, [sources?.webp, sources?.fallback]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setStuck(true), 10000);
@@ -48,18 +59,17 @@ function LoadingSilent({ tourId }: { tourId: string }) {
 
   return (
     <div className="knowledge-expand-silent" aria-busy="true">
-      {sources ? (
+      {src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           className="knowledge-expand-silent-cover"
-          src={sources.fallback}
+          src={src}
           alt=""
           decoding="async"
           fetchPriority="high"
-          onError={(e) => {
-            const img = e.currentTarget;
-            if (sources.webp && img.src !== sources.webp) {
-              img.src = sources.webp;
+          onError={() => {
+            if (sources?.fallback && src !== sources.fallback) {
+              setSrc(sources.fallback);
             }
           }}
         />
@@ -75,9 +85,12 @@ function MapStoryPageContent() {
   const forceTour = searchParams.get('mode') === 'tour';
   const openView = searchParams.get('view') === '1';
 
-  const [tour, setTour] = useState<MapTour | null>(null);
-  const [layout, setLayout] = useState<KnowledgeLayout | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = tourId ? peekKnowledgeDetail(tourId) : null;
+  const [tour, setTour] = useState<MapTour | null>(() => cached?.tour ?? null);
+  const [layout, setLayout] = useState<KnowledgeLayout | null>(
+    () => cached?.layout ?? null,
+  );
+  const [loading, setLoading] = useState(() => !cached?.layout && !cached?.tour);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -86,44 +99,78 @@ function MapStoryPageContent() {
       setFailed(true);
       return;
     }
-    setLoading(true);
-    setFailed(false);
-    setTour(null);
-    setLayout(null);
 
-    // 预热手稿总图（与第 1 页 / 占位同一张）
-    if (isJourneyManuscriptId(tourId)) {
-      const warm = knowledgeRasterSources(journeyManuscriptCover(tourId));
-      const img = new Image();
-      img.decoding = 'async';
-      img.src = warm.webp || warm.fallback;
-      img.onerror = () => {
-        if (warm.webp) {
-          const fb = new Image();
-          fb.src = warm.fallback;
-        }
-      };
+    const warm = peekKnowledgeDetail(tourId);
+    if (warm?.layout || warm?.tour) {
+      if (warm.tour) setTour(warm.tour);
+      if (warm.layout) {
+        setLayout(warm.layout);
+        warmManuscriptRasters(warm.layout, tourId);
+      }
+      setLoading(false);
+      setFailed(false);
+    } else {
+      setLoading(true);
+      setFailed(false);
+      if (isJourneyManuscriptId(tourId)) {
+        warmManuscriptRasters(null, tourId);
+      }
     }
 
-    void Promise.all([
-      api.mapTour(tourId),
-      api.knowledgeLayout(tourId).catch(() => null),
-    ])
-      .then(([tourRes, layoutRes]) => {
-        setTour(tourRes.tour);
-        setLayout(layoutRes?.layout ?? null);
-      })
-      .catch(() => {
-        setTour(null);
-        setLayout(null);
+    let cancelled = false;
+    const layoutP = api
+      .knowledgeLayout(tourId)
+      .then((r) => r.layout)
+      .catch(() => null);
+    const tourP = api
+      .mapTour(tourId)
+      .then((r) => r.tour)
+      .catch(() => null);
+
+    // layout 先到先开手稿，勿被 mapTour 拖慢
+    void layoutP.then((nextLayout) => {
+      if (cancelled || !nextLayout) return;
+      setLayout(nextLayout);
+      warmManuscriptRasters(nextLayout, tourId);
+      const prev = peekKnowledgeDetail(tourId);
+      putKnowledgeDetail(tourId, {
+        tour: prev?.tour ?? null,
+        layout: nextLayout,
+      });
+      setLoading(false);
+    });
+
+    void tourP.then((nextTour) => {
+      if (cancelled || !nextTour) return;
+      setTour(nextTour);
+      const prev = peekKnowledgeDetail(tourId);
+      putKnowledgeDetail(tourId, {
+        tour: nextTour,
+        layout: prev?.layout ?? null,
+      });
+      if (!peekKnowledgeDetail(tourId)?.layout) setLoading(false);
+    });
+
+    void Promise.all([layoutP, tourP]).then(([nextLayout, nextTour]) => {
+      if (cancelled) return;
+      if (nextLayout || nextTour) {
+        putKnowledgeDetail(tourId, { tour: nextTour, layout: nextLayout });
+        setLoading(false);
+        return;
+      }
+      if (!peekKnowledgeDetail(tourId)?.layout && !peekKnowledgeDetail(tourId)?.tour) {
         setFailed(true);
-      })
-      .finally(() => setLoading(false));
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [tourId]);
 
   useEffect(() => {
     if (!failed) return;
-    // 加载失败时必须揭开/卸掉进场黑垫，否则整页黑屏且无法滚动
     revealKnowledgeExpand();
     releaseKnowledgeImmersiveChrome();
   }, [failed]);
@@ -144,7 +191,10 @@ function MapStoryPageContent() {
     );
   }
 
-  if (failed || !tour) {
+  const effectiveTour =
+    tour || (layout ? stubTourFromLayout(layout, tourId) : null);
+
+  if (failed || !effectiveTour) {
     return (
       <main className="container">
         <p className="muted">未找到该地图故事</p>
@@ -158,7 +208,7 @@ function MapStoryPageContent() {
     <main className={`container story-mode-page${useExplainer ? ' knowledge-explainer-page' : ''}`}>
       {useExplainer && layout ? (
         <KnowledgeExplainerPage
-          tour={tour}
+          tour={effectiveTour}
           layout={layout}
           backHref="/discover?pane=explore"
           backLabel="知识专题"

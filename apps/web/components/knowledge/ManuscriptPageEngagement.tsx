@@ -116,6 +116,24 @@ export function ManuscriptPageEngagement({
 
   return (
     <>
+      <nav
+        className={`manuscript-engage-dock${chromeHidden ? ' is-hidden' : ''}`}
+        aria-label="互动"
+      >
+        <button type="button" className={liked ? 'is-on' : undefined} onClick={() => void onLike()}>
+          <span aria-hidden>{liked ? '♥' : '♡'}</span>
+          <em>赞{likesCount > 0 ? ` ${likesCount}` : ''}</em>
+        </button>
+        <button type="button" onClick={() => onScrollToComments?.()}>
+          <span aria-hidden>💬</span>
+          <em>评论{comments.length > 0 ? ` ${comments.length}` : ''}</em>
+        </button>
+        <button type="button" disabled={shareBusy} onClick={onShare}>
+          <span aria-hidden>↑</span>
+          <em>分享</em>
+        </button>
+      </nav>
+
       <section
         ref={commentsRef as React.RefObject<HTMLElement>}
         id="manuscript-comments"
@@ -166,24 +184,6 @@ export function ManuscriptPageEngagement({
           </button>
         </div>
       </section>
-
-      <nav
-        className={`manuscript-engage-dock${chromeHidden ? ' is-hidden' : ''}`}
-        aria-label="互动"
-      >
-        <button type="button" className={liked ? 'is-on' : undefined} onClick={() => void onLike()}>
-          <span aria-hidden>{liked ? '♥' : '♡'}</span>
-          <em>赞{likesCount > 0 ? ` ${likesCount}` : ''}</em>
-        </button>
-        <button type="button" onClick={() => onScrollToComments?.()}>
-          <span aria-hidden>💬</span>
-          <em>评论{comments.length > 0 ? ` ${comments.length}` : ''}</em>
-        </button>
-        <button type="button" disabled={shareBusy} onClick={onShare}>
-          <span aria-hidden>↑</span>
-          <em>分享</em>
-        </button>
-      </nav>
     </>
   );
 }

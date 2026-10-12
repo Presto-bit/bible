@@ -1069,10 +1069,14 @@ html.knowledge-viewer-lock nav.tabbar {
   pointer-events: none;
 }
 
+/* hold/full 仅视觉垫住加载，勿挡下手稿触摸（否则黑垫压住 Viewer 导致滑不动） */
 .knowledge-expand-layer.is-from,
-.knowledge-expand-layer.is-full,
 .knowledge-expand-layer.is-to {
   pointer-events: auto;
+}
+
+.knowledge-expand-layer.is-full {
+  pointer-events: none;
 }
 
 .knowledge-expand-layer.is-from {
@@ -1262,7 +1266,6 @@ html.knowledge-viewer-lock nav.tabbar {
   padding-bottom: 28px;
 }
 
-.knowledge-viewer.is-chrome-hidden .knowledge-viewer-dots,
 .knowledge-viewer.is-chrome-hidden .knowledge-viewer-media-dock {
   opacity: 0;
   pointer-events: none;
@@ -1313,38 +1316,33 @@ html.knowledge-viewer-lock nav.tabbar {
   color: rgba(247, 243, 236, 0.62);
 }
 
-/* 纵滑：上手稿横滑区，下评论 */
+/* 一页一竖卷：外层横滑翻页，页内原生纵滑（图→导读→互动→评论） */
 .knowledge-viewer-body {
   position: relative;
   z-index: 1;
   flex: 1;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .knowledge-viewer-scroller {
   position: relative;
   z-index: 1;
-  flex: none;
-  height: min(100dvh, 100%);
-  min-height: calc(100dvh - 72px);
+  flex: 1;
+  min-height: 0;
+  height: 100%;
   display: flex;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
-  overscroll-behavior-y: auto;
+  overscroll-behavior-y: none;
   -webkit-overflow-scrolling: touch;
-  /* 允许纵滑冒泡到 body，进入评论区；左右仍翻页 */
+  /* 双轴放开：横翻页 / 纵交给页内 overflow */
   touch-action: pan-x pan-y;
   scrollbar-width: none;
-}
-
-.knowledge-viewer.is-chrome-hidden .knowledge-viewer-scroller {
-  min-height: 100dvh;
 }
 
 .knowledge-viewer-bar-spacer {
@@ -1354,14 +1352,19 @@ html.knowledge-viewer-lock nav.tabbar {
 
 .manuscript-comments-hint {
   margin: 0;
-  padding: 10px 16px 4px;
+  padding: 12px 16px 6px;
   font-size: 12px;
   text-align: center;
   opacity: 0.55;
 }
 
+.knowledge-viewer-page-tail {
+  flex: none;
+  background: #2a2420;
+}
+
 .manuscript-comments {
-  padding: 8px 16px calc(88px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  padding: 8px 16px calc(24px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   background: #2a2420;
   color: #f7f3ec;
 }
@@ -1432,27 +1435,26 @@ html.knowledge-viewer-lock nav.tabbar {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+/* 跟在图下、评论上（文档流）；沉浸时略淡，仍可点 */
 .manuscript-engage-dock {
-  position: fixed;
-  left: 0;
-  right: 0;
+  position: sticky;
   bottom: 0;
   z-index: 8;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
+  margin: 0;
   padding:
     10px 12px
     calc(10px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   background: rgba(31, 26, 22, 0.96);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: opacity 0.2s ease;
 }
 
 .manuscript-engage-dock.is-hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(10px);
+  opacity: 0.42;
 }
 
 .manuscript-engage-dock button {
@@ -1495,19 +1497,42 @@ html.knowledge-viewer-lock nav.tabbar {
   scroll-snap-align: start;
   scroll-snap-stop: always;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   padding: 0;
   box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-x pan-y;
+  scrollbar-width: none;
 }
 
-/* 非全屏：正文区在顶栏下方，图片完整可见 */
-.knowledge-viewer:not(.is-chrome-hidden) .knowledge-viewer-page {
-  padding: 8px 0 calc(28px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+.knowledge-viewer-page::-webkit-scrollbar {
+  display: none;
 }
 
-/* 默认全屏沉浸：贴边，无顶/底安全区留白 */
-.knowledge-viewer.is-chrome-hidden .knowledge-viewer-page {
+/* 首屏图区约占一屏，下滑进入导读/评论 */
+.knowledge-viewer-stage {
+  position: relative;
+  flex: none;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #1f1a16;
+}
+
+.knowledge-viewer:not(.is-chrome-hidden) .knowledge-viewer-stage {
+  padding: 8px 0 28px;
+}
+
+.knowledge-viewer.is-chrome-hidden .knowledge-viewer-stage {
   padding: 0;
 }
 
@@ -1518,7 +1543,7 @@ html.knowledge-viewer-lock nav.tabbar {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  touch-action: pan-x;
+  touch-action: pan-x pan-y;
 }
 
 .knowledge-viewer-zoom.is-zoomed {
@@ -1565,11 +1590,16 @@ html.knowledge-viewer-lock nav.tabbar {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   display: flex;
   justify-content: center;
   gap: 6px;
   pointer-events: none;
+  z-index: 2;
+}
+
+.knowledge-viewer.is-chrome-hidden .knowledge-viewer-dots {
+  opacity: 0.55;
 }
 
 .knowledge-viewer-dots span {

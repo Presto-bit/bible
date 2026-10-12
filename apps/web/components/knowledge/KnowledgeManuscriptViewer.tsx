@@ -40,13 +40,12 @@ function ManuscriptRaster({
   onPaint?: () => void;
 }) {
   const { webp, fallback } = knowledgeRasterSources(path);
-  // 先 PNG：缺 webp 时避免占连接导致首屏黑等
-  const [src, setSrc] = useState(fallback);
+  // WebP 优先（约 PNG 的 1/10）；缺文件再回退 PNG（部分 WebView 无 picture 回退）
+  const [src, setSrc] = useState(() => webp || fallback);
   useEffect(() => {
-    setSrc(fallback);
-  }, [fallback]);
+    setSrc(webp || fallback);
+  }, [webp, fallback]);
   return (
-    // 不用 <picture>+缺失 webp：部分 WebView 不回退到 PNG，整页空白
     // eslint-disable-next-line @next/next/no-img-element
     <img
       className="knowledge-viewer-img"
@@ -58,11 +57,10 @@ function ManuscriptRaster({
       fetchPriority={eager ? 'high' : 'auto'}
       onLoad={() => onPaint?.()}
       onError={() => {
-        if (webp && src !== webp) {
-          setSrc(webp);
+        if (webp && src === webp && src !== fallback) {
+          setSrc(fallback);
           return;
         }
-        if (src !== fallback) setSrc(fallback);
         onPaint?.();
       }}
     />
@@ -221,7 +219,8 @@ export function KnowledgeManuscriptViewer({
   onExitTopic,
 }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const bodyRef = useRef<HTMLDivElement>(null);
+  /** 当前页竖卷（一页一竖卷） */
+  const pageScrollRef = useRef<HTMLDivElement | null>(null);
   const commentsRef = useRef<HTMLElement | null>(null);
   const total = pages.length;
   const [index, setIndex] = useState(0);
@@ -250,9 +249,9 @@ export function KnowledgeManuscriptViewer({
     indexRef.current = index;
   }, [index]);
 
-  // 翻页后回到手稿图顶，避免停在上一页评论区
+  // 横滑翻页后竖卷回到图顶
   useEffect(() => {
-    bodyRef.current?.scrollTo({ top: 0 });
+    pageScrollRef.current?.scrollTo({ top: 0 });
   }, [index]);
 
   useEffect(() => {
@@ -267,7 +266,7 @@ export function KnowledgeManuscriptViewer({
     };
   }, []);
 
-  // 进场直接最终态；首图就绪后揭开壳层封面垫
+  // 进场直接最终态；挂载即揭垫层（垫层 pointer-events:none，勿等首图）
   useEffect(() => {
     setMotionPhase('ready');
   }, []);
@@ -279,15 +278,11 @@ export function KnowledgeManuscriptViewer({
   }, []);
 
   useEffect(() => {
-    // 非位图首页或超时：避免垫层一直盖住
-    const first = pages[0];
-    if (!first?.src) {
-      revealShell();
-      return;
-    }
-    const t = window.setTimeout(revealShell, 480);
+    revealShell();
+    // 兜底：若首帧 expand 会话尚未就绪，再揭一次
+    const t = window.setTimeout(revealShell, 120);
     return () => window.clearTimeout(t);
-  }, [pages, revealShell]);
+  }, [revealShell]);
 
   const softLeave = useCallback((done: () => void) => {
     if (leavingRef.current) return;
@@ -314,8 +309,10 @@ export function KnowledgeManuscriptViewer({
   const scrollToComments = useCallback(() => {
     setChromeHidden(false);
     const el = commentsRef.current;
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const page = pageScrollRef.current;
+    if (!el || !page) return;
+    const top = el.offsetTop - 12;
+    page.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }, []);
 
   // 打开时滚到第一页
@@ -350,9 +347,8 @@ export function KnowledgeManuscriptViewer({
       const p = pages[i];
       if (!p?.src) continue;
       const { webp, fallback } = knowledgeRasterSources(p.src);
-      // 先预热 PNG，避免缺失 webp 占满连接拖慢首屏
-      preloadSrc(fallback);
       if (webp) preloadSrc(webp);
+      else preloadSrc(fallback);
     }
   }, [index, pages, total]);
 
@@ -371,27 +367,10 @@ export function KnowledgeManuscriptViewer({
     return () => el.removeEventListener('scroll', onScroll);
   }, [syncIndex]);
 
-  // 纵滑需 preventDefault，React 合成事件默认 passive，改原生监听
-  useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const move = (ev: TouchEvent) => {
-      if (!verticalPan.current?.active) return;
-      ev.preventDefault();
-    };
-    el.addEventListener('touchmove', move, { passive: false });
-    return () => el.removeEventListener('touchmove', move);
-  }, []);
-
-  const verticalPan = useRef<{ y: number; active: boolean } | null>(null);
-  const vertRaf = useRef(0);
-  const vertPending = useRef(0);
-
   const onScrollerTouchStart = (e: ReactTouchEvent) => {
     if (pageZoomed || e.touches.length !== 1) {
       edgeSwipe.current = null;
       tapTrack.current = null;
-      verticalPan.current = null;
       return;
     }
     const t = e.touches[0];
@@ -401,56 +380,18 @@ export function KnowledgeManuscriptViewer({
       atStart: indexRef.current === 0,
     };
     tapTrack.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-    verticalPan.current = { y: t.clientY, active: false };
-    vertPending.current = 0;
-  };
-
-  const onScrollerTouchMove = (e: ReactTouchEvent) => {
-    if (pageZoomed || e.touches.length !== 1) return;
-    const start = edgeSwipe.current;
-    const pan = verticalPan.current;
-    const body = bodyRef.current;
-    const t = e.touches[0];
-    if (!start || !pan || !body) return;
-    const dx = t.clientX - start.x;
-    const dy = t.clientY - start.y;
-    if (!pan.active) {
-      if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
-      // 纵向主导：把手势交给外层纵滑（进评论 / 回图顶）
-      if (Math.abs(dy) > Math.abs(dx) * 1.05) {
-        pan.active = true;
-      } else {
-        verticalPan.current = null;
-        return;
-      }
-    }
-    // 锁定为纵滑，避免与横滑抢事件
-    e.preventDefault();
-    const delta = pan.y - t.clientY;
-    pan.y = t.clientY;
-    vertPending.current += delta;
-    if (vertRaf.current) return;
-    vertRaf.current = window.requestAnimationFrame(() => {
-      vertRaf.current = 0;
-      const bodyEl = bodyRef.current;
-      if (!bodyEl) return;
-      bodyEl.scrollTop += vertPending.current;
-      vertPending.current = 0;
-    });
   };
 
   const onScrollerTouchEnd = (e: ReactTouchEvent) => {
     const start = edgeSwipe.current;
     const tap = tapTrack.current;
-    const wasVertical = Boolean(verticalPan.current?.active);
     edgeSwipe.current = null;
     tapTrack.current = null;
-    verticalPan.current = null;
     const t = e.changedTouches[0];
     if (!t) return;
 
     // 轻点：切换沉浸全屏（藏顶栏 / 页点）
-    if (tap && !pageZoomed && !wasVertical) {
+    if (tap && !pageZoomed) {
       const dx = t.clientX - tap.x;
       const dy = t.clientY - tap.y;
       const dt = Date.now() - tap.t;
@@ -461,7 +402,8 @@ export function KnowledgeManuscriptViewer({
       }
     }
 
-    if (wasVertical || !start?.atStart || pageZoomed) return;
+    // 第一页右滑退出专题（纵滑已交给 body 原生，勿再 hijack）
+    if (!start?.atStart || pageZoomed) return;
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     if (dx > 72 && Math.abs(dx) > Math.abs(dy) * 1.2) {
@@ -572,104 +514,119 @@ export function KnowledgeManuscriptViewer({
         <span className="knowledge-viewer-bar-spacer" aria-hidden />
       </header>
 
-      <div ref={bodyRef} className="knowledge-viewer-body">
+      <div className="knowledge-viewer-body">
         <div
           ref={scrollerRef}
           className={`knowledge-viewer-scroller${pageZoomed ? ' is-zoom-locked' : ''}`}
           onTouchStart={onScrollerTouchStart}
-          onTouchMove={onScrollerTouchMove}
           onTouchEnd={onScrollerTouchEnd}
-          onClick={(e) => {
-            if (suppressClick.current) {
-              suppressClick.current = false;
-              return;
-            }
-            if (pageZoomed) return;
-            if ((e.target as HTMLElement).closest('button, a, video, audio, input')) return;
-            setChromeHidden((v) => !v);
-          }}
         >
           {pages.map((p, i) => {
             const near = Math.abs(i - index) <= 1;
             const show = near && Boolean(loaded[i]);
             const isVideoPage = p.media?.type === 'video' && Boolean(p.media.url);
+            const isCurrent = i === index;
             return (
-              <div key={p.key} className="knowledge-viewer-page">
-                {!near ? (
-                  <span className="knowledge-viewer-img-placeholder" aria-hidden />
-                ) : (
-                  <PinchZoomPane
-                    enabled={i === index && Boolean(p.src) && !p.text && !isVideoPage}
-                    onZoomChange={(zoomed) => {
-                      if (i === index) setPageZoomed(zoomed);
-                    }}
-                  >
-                    {!show ? (
-                      <span className="knowledge-viewer-img-placeholder" aria-hidden />
-                    ) : isVideoPage ? (
-                      // eslint-disable-next-line jsx-a11y/media-has-caption
-                      <video
-                        ref={i === index ? videoRef : undefined}
-                        className="knowledge-viewer-video-inline"
-                        src={knowledgeMediaUrl(p.media!.url)}
-                        playsInline
-                        controls
-                        preload={i === index ? 'metadata' : 'none'}
-                        poster={p.src ? knowledgeRasterSources(p.src).fallback : undefined}
-                        onEnded={() => setMediaPlaying(false)}
-                        onPause={() => setMediaPlaying(false)}
-                        onPlay={() => setMediaPlaying(true)}
+              <div
+                key={p.key}
+                ref={isCurrent ? pageScrollRef : undefined}
+                className="knowledge-viewer-page"
+              >
+                <div
+                  className="knowledge-viewer-stage"
+                  onClick={(e) => {
+                    if (suppressClick.current) {
+                      suppressClick.current = false;
+                      return;
+                    }
+                    if (pageZoomed) return;
+                    if ((e.target as HTMLElement).closest('button, a, video, audio, input')) {
+                      return;
+                    }
+                    setChromeHidden((v) => !v);
+                  }}
+                >
+                  {!near ? (
+                    <span className="knowledge-viewer-img-placeholder" aria-hidden />
+                  ) : (
+                    <PinchZoomPane
+                      enabled={isCurrent && Boolean(p.src) && !p.text && !isVideoPage}
+                      onZoomChange={(zoomed) => {
+                        if (isCurrent) setPageZoomed(zoomed);
+                      }}
+                    >
+                      {!show ? (
+                        <span className="knowledge-viewer-img-placeholder" aria-hidden />
+                      ) : isVideoPage ? (
+                        // eslint-disable-next-line jsx-a11y/media-has-caption
+                        <video
+                          ref={isCurrent ? videoRef : undefined}
+                          className="knowledge-viewer-video-inline"
+                          src={knowledgeMediaUrl(p.media!.url)}
+                          playsInline
+                          controls
+                          preload={isCurrent ? 'metadata' : 'none'}
+                          poster={p.src ? knowledgeRasterSources(p.src).fallback : undefined}
+                          onEnded={() => setMediaPlaying(false)}
+                          onPause={() => setMediaPlaying(false)}
+                          onPlay={() => setMediaPlaying(true)}
+                        />
+                      ) : p.text ? (
+                        <article className="knowledge-viewer-text-leaf">
+                          <p className="knowledge-viewer-text-leaf-brand">彼爱 · 长文</p>
+                          {p.text.title ? <h3>{p.text.title}</h3> : null}
+                          {p.text.body
+                            .split(/\n\s*\n+/)
+                            .map((para) => para.trim())
+                            .filter(Boolean)
+                            .map((para, pi) => (
+                              <p key={pi}>{para}</p>
+                            ))}
+                        </article>
+                      ) : p.src ? (
+                        <ManuscriptRaster
+                          path={p.src}
+                          alt={p.alt}
+                          eager={isCurrent}
+                          onPaint={i === 0 ? revealShell : undefined}
+                        />
+                      ) : (
+                        <span className="knowledge-viewer-img-placeholder" aria-hidden />
+                      )}
+                    </PinchZoomPane>
+                  )}
+
+                  {isCurrent && total > 1 ? (
+                    <div className="knowledge-viewer-dots" aria-hidden>
+                      {pages.map((dot, di) => (
+                        <span key={dot.key} className={di === index ? 'is-on' : undefined} />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                {near ? (
+                  <div className="knowledge-viewer-page-tail">
+                    <p className="manuscript-comments-hint muted">
+                      {total > 1 ? '左右翻页 · 下滑看评论' : '下滑查看评论'}
+                    </p>
+                    {tourId && isCurrent ? (
+                      <ManuscriptPageEngagement
+                        topicId={tourId}
+                        pageKey={p.key}
+                        commentsRef={commentsRef}
+                        onScrollToComments={scrollToComments}
+                        chromeHidden={chromeHidden}
+                        shareBusy={shareBusy}
+                        onShare={() => void onShare()}
                       />
-                    ) : p.text ? (
-                      <article className="knowledge-viewer-text-leaf">
-                        <p className="knowledge-viewer-text-leaf-brand">彼爱 · 长文</p>
-                        {p.text.title ? <h3>{p.text.title}</h3> : null}
-                        {p.text.body
-                          .split(/\n\s*\n+/)
-                          .map((para) => para.trim())
-                          .filter(Boolean)
-                          .map((para, pi) => (
-                            <p key={pi}>{para}</p>
-                          ))}
-                      </article>
-                    ) : p.src ? (
-                      <ManuscriptRaster
-                        path={p.src}
-                        alt={p.alt}
-                        eager={i === index}
-                        onPaint={i === 0 ? revealShell : undefined}
-                      />
-                    ) : (
-                      <span className="knowledge-viewer-img-placeholder" aria-hidden />
-                    )}
-                  </PinchZoomPane>
-                )}
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             );
           })}
         </div>
-
-        {total > 1 ? (
-          <div className="knowledge-viewer-dots" aria-hidden>
-            {pages.map((p, i) => (
-              <span key={p.key} className={i === index ? 'is-on' : undefined} />
-            ))}
-          </div>
-        ) : null}
-
-        <p className="manuscript-comments-hint muted">下滑查看评论</p>
-
-        {tourId && current ? (
-          <ManuscriptPageEngagement
-            topicId={tourId}
-            pageKey={current.key}
-            commentsRef={commentsRef}
-            onScrollToComments={scrollToComments}
-            chromeHidden={chromeHidden}
-            shareBusy={shareBusy}
-            onShare={() => void onShare()}
-          />
-        ) : null}
       </div>
 
       {pageMedia?.type === 'audio' ? (

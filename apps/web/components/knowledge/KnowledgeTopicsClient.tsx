@@ -24,6 +24,7 @@ import {
   journeyListCover,
   journeyManuscriptCover,
 } from '@/lib/journey_covers';
+import { prefetchKnowledgeDetail } from '@/lib/knowledge_detail_cache';
 import '@/styles/discover_hub.css';
 
 function coverPath(row: KnowledgeLayoutSummary): string {
@@ -34,14 +35,21 @@ function coverPath(row: KnowledgeLayoutSummary): string {
 function preloadRaster(path: string) {
   if (typeof window === 'undefined') return;
   const { webp, fallback } = knowledgeRasterSources(path);
-  if (webp) {
-    const a = new Image();
-    a.decoding = 'async';
-    a.src = webp;
+  const primary = webp || fallback;
+  const img = new Image();
+  img.decoding = 'async';
+  img.src = primary;
+  if (webp && primary === webp) {
+    img.onerror = () => {
+      const fb = new Image();
+      fb.decoding = 'async';
+      fb.src = fallback;
+    };
   }
-  const b = new Image();
-  b.decoding = 'async';
-  b.src = fallback;
+}
+
+function topicSourceId(row: KnowledgeLayoutSummary): string {
+  return (row.source?.id || row.id || '').trim();
 }
 
 function shortTitle(title: string): string {
@@ -163,18 +171,27 @@ export function KnowledgeTopicsClient({
     };
   }, []);
 
-  // 首屏可见卡封面 + 已知手稿首页预热，减轻点开卡顿
+  // 首屏可见卡：封面 + 手稿首页图 + 详情 JSON 预取
   useEffect(() => {
     const top = rows.slice(0, 4);
     for (const row of top) {
       preloadRaster(coverPath(row));
-      const id = row.source?.id || row.id;
+      const id = topicSourceId(row);
       if (id && isJourneyManuscriptId(id)) {
-        // 预热手稿总图（与进场占位/第 1 页一致），减轻点开后换图感
         preloadRaster(journeyManuscriptCover(id));
       }
     }
   }, [rows]);
+
+  useEffect(() => {
+    if (!paneActive || rows.length === 0) return;
+    return scheduleIdle(() => {
+      for (const row of rows.slice(0, 4)) {
+        const id = topicSourceId(row);
+        if (id) void prefetchKnowledgeDetail(id);
+      }
+    }, 1200);
+  }, [paneActive, rows]);
 
   useEffect(() => {
     return scheduleIdle(() => {
@@ -293,12 +310,19 @@ export function KnowledgeTopicsClient({
           className={`knowledge-topics-grid${softReturn ? ' is-expand-return' : ''}`}
         >
           {visible.map((row, i) => {
-            const sourceId = row.source?.id || row.id;
+            const sourceId = topicSourceId(row);
             const meta = resolveKnowledgeTopicMeta(row);
             const mediaBadge = knowledgeMediaBadge(meta.media);
             const cover = knowledgeRasterSources(coverPath(row));
             const stagger = Math.min(i, 5);
             const href = knowledgeLayoutViewHref(row);
+            const warmTopic = () => {
+              if (!sourceId) return;
+              void prefetchKnowledgeDetail(sourceId);
+              if (isJourneyManuscriptId(sourceId)) {
+                preloadRaster(journeyManuscriptCover(sourceId));
+              }
+            };
             return (
               <div key={row.id} className="knowledge-topic-card-wrap">
                 <Link
@@ -307,6 +331,9 @@ export function KnowledgeTopicsClient({
                   className="knowledge-topic-card"
                   aria-label={`${row.title || row.id}，打开手稿`}
                   style={{ ['--stagger' as string]: stagger }}
+                  onPointerEnter={warmTopic}
+                  onPointerDown={warmTopic}
+                  onFocus={warmTopic}
                   onClick={(e) => {
                     const manuscriptCover =
                       sourceId && isJourneyManuscriptId(sourceId)
@@ -319,6 +346,7 @@ export function KnowledgeTopicsClient({
                       topicId: sourceId,
                     });
                     preloadRaster(manuscriptCover);
+                    warmTopic();
                   }}
                 >
                   <span className="knowledge-topic-card-media" aria-hidden>
