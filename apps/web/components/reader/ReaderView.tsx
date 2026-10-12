@@ -274,7 +274,12 @@ export default function ReaderView({
   onNavigate: (book: BibleBook, chapter: number) => void;
   bookAbbr: (name: string, bookId?: string) => string;
   onMainVersionChange?: (versionId: string | null) => void;
-  renderVerseText: (text: string, keyBase: string, verse: number) => React.ReactNode;
+  renderVerseText: (
+    text: string,
+    keyBase: string,
+    verse: number,
+    seenEntityIds?: Set<string>,
+  ) => React.ReactNode;
   quoteDisplayMode?: QuoteDisplayMode;
   onQuoteDisplayModeChange?: (mode: QuoteDisplayMode) => void;
   planMeta?: PlanReadingMeta | null;
@@ -936,8 +941,10 @@ export default function ReaderView({
     ) => {
       const span = markInfo?.span;
       const mark = markInfo?.mark ?? null;
+      // 同词条每节只显首次划线：分块（家谱分号行 / 划线前后）共享同一 seen 集
+      const seenEntityIds = new Set<string>();
       const renderText = (t: string, suffix: string) =>
-        renderVerseText(t, `${keyBase}-${suffix}`, verseNum);
+        renderVerseText(t, `${keyBase}-${suffix}`, verseNum, seenEntityIds);
 
       if (span && mark && span.end > span.start && span.start >= 0 && span.end <= text.length) {
         const before = text.slice(0, span.start);
@@ -1015,7 +1022,7 @@ export default function ReaderView({
                   }
                 }}
               >
-                {renderVerseText(w.text, `${keyBase}-w${i}`, verseNum)}
+                {renderVerseText(w.text, `${keyBase}-w${i}`, verseNum, seenEntityIds)}
               </span>
             );
           })}

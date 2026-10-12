@@ -119,4 +119,67 @@ void main() {
     expect(spans, isNotEmpty);
     expect(spans.first.entity.type, 'place');
   });
+
+  test('同词条每节仅首次显式划线', () {
+    final index = buildDictIndex([entity('jesus', '耶稣')]);
+    final keys = dictSortedKeys(index);
+    final spans = dictSpansForText(
+      '耶稣看见他们，耶稣就对他们说',
+      index,
+      keys,
+      bookId: 'JHN',
+      chapter: 1,
+      verse: 38,
+    );
+    expect(spans.length, 2);
+    expect(spans.where((s) => s.showUnderline), hasLength(1));
+    expect(spans.first.showUnderline, isTrue);
+    expect(spans.last.showUnderline, isFalse);
+    expect(spans.every((s) => s.entity.id == 'jesus'), isTrue);
+  });
+
+  test('不同词条各留首次划线', () {
+    final index = buildDictIndex([
+      entity('jesus', '耶稣'),
+      entity('peter', '彼得'),
+    ]);
+    final keys = dictSortedKeys(index);
+    final spans = dictSpansForText(
+      '耶稣对彼得说，耶稣又对彼得说',
+      index,
+      keys,
+      bookId: 'MAT',
+      chapter: 16,
+      verse: 18,
+    );
+    expect(spans.length, 4);
+    expect(spans.where((s) => s.showUnderline).map((s) => s.entity.id).toSet(), {
+      'jesus',
+      'peter',
+    });
+    expect(spans.where((s) => s.showUnderline), hasLength(2));
+  });
+
+  test('跨节各自重置首次划线', () {
+    final index = buildDictIndex([entity('jesus', '耶稣')]);
+    final keys = dictSortedKeys(index);
+    final v1 = dictSpansForText(
+      '耶稣来了',
+      index,
+      keys,
+      bookId: 'JHN',
+      chapter: 1,
+      verse: 1,
+    );
+    final v2 = dictSpansForText(
+      '耶稣又来了',
+      index,
+      keys,
+      bookId: 'JHN',
+      chapter: 1,
+      verse: 2,
+    );
+    expect(v1.single.showUnderline, isTrue);
+    expect(v2.single.showUnderline, isTrue);
+  });
 }

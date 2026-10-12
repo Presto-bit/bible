@@ -251,8 +251,8 @@ void appendReaderWordSpans({
     final dictHit = !selectionActive
         ? matchDictSpanAt(w.start, w.end, dictSpans)
         : null;
-    if (dictHit != null) {
-      wordStyle = readerDictSpanStyle(wordStyle, dictHit.$1);
+    if (dictHit != null && dictHit.showUnderline) {
+      wordStyle = readerDictSpanStyle(wordStyle, dictHit.entity);
     }
 
     final anchor = WordAnchor(verse: verse, start: w.start, end: w.end);
@@ -272,9 +272,9 @@ void appendReaderWordSpans({
               isDict: true,
               onDictTap: !selectionActive
                   ? () => onOpenDict?.call(
-                      dictHit.$1,
-                      dictHit.$2,
-                      dictIndex[dictHit.$2] ?? [dictHit.$1],
+                      dictHit.entity,
+                      dictHit.name,
+                      dictIndex[dictHit.name] ?? [dictHit.entity],
                     )
                   : null,
               onDoubleTap: onStart == null

@@ -22,6 +22,7 @@ import { parseMarkRef } from '@/lib/mark_ref';
 import { parseFeedHintFromSearchParams, type FeedActivityHint } from '@/lib/feed_activity';
 import {
   buildDictIndex,
+  claimDictUnderline,
   dictMatchPattern,
   hasAlternateSenses,
   lookupDictCandidates,
@@ -192,11 +193,12 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   }, []);
 
   const renderVerseText = useCallback(
-    (text: string, keyBase: string, verse: number) => {
+    (text: string, keyBase: string, verse: number, seenEntityIds?: Set<string>) => {
       const displayText = formatQuotesForDisplay(text, quoteDisplayMode);
       if (!properNounRe) return displayText;
       const parts = displayText.split(properNounRe);
       const ctx: DictContext = { bookId: book!.id, chapter, verse };
+      const seen = seenEntityIds ?? new Set<string>();
       return parts.map((part, i) => {
         const candidates = dictIndex.get(part);
         if (candidates?.length) {
@@ -205,10 +207,12 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
           if (!picked || !shouldLinkDictEntity(ranked, picked, ctx)) {
             return <span key={`${keyBase}-t${i}`}>{part}</span>;
           }
+          const eid = picked.id || picked.name;
+          const showUnderline = claimDictUnderline(seen, eid);
           return (
             <span
               key={`${keyBase}-pn${i}`}
-              className={properNounClass(picked)}
+              className={properNounClass(picked, { showUnderline })}
               role="button"
               tabIndex={0}
               title={candidates.length > 1 ? '点击查看（可能有多义）' : '查看词典'}

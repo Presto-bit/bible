@@ -162,11 +162,15 @@ class DictSpanHit {
     required this.end,
     required this.entity,
     required this.name,
+    this.showUnderline = true,
   });
   final int start;
   final int end;
   final DictEntity entity;
   final String name;
+
+  /// 同 [entity.id] 在本节内仅首次为 true；重复命中仍可点，但无可见划线。
+  final bool showUnderline;
 }
 
 int scoreEntityForContext(
@@ -281,6 +285,7 @@ List<DictSpanHit> dictSpansForText(
   if (text.isEmpty || sortedKeys.isEmpty) return const [];
   final tokens = splitDictTokens(text, index, sortedKeys);
   final out = <DictSpanHit>[];
+  final seenEntityIds = <String>{};
   var cursor = 0;
   for (final t in tokens) {
     final start = text.indexOf(t.text, cursor);
@@ -321,8 +326,16 @@ List<DictSpanHit> dictSpansForText(
         cursor = end;
         continue;
       }
+      final eid = top.id.isNotEmpty ? top.id : top.name;
+      final showUnderline = seenEntityIds.add(eid);
       out.add(
-        DictSpanHit(start: start, end: end, entity: top, name: t.text),
+        DictSpanHit(
+          start: start,
+          end: end,
+          entity: top,
+          name: t.text,
+          showUnderline: showUnderline,
+        ),
       );
     }
     cursor = end;
@@ -411,14 +424,14 @@ List<DictSpanHit> cachedDictSpansForText(
 }
 
 /// 词块是否落在某词典跨度内（词级芯片点按打开词典）。
-(DictEntity, String)? matchDictSpanAt(
+DictSpanHit? matchDictSpanAt(
   int start,
   int end,
   List<DictSpanHit> spans,
 ) {
   for (final s in spans) {
     if (start < s.end && end > s.start) {
-      return (s.entity, s.name);
+      return s;
     }
   }
   return null;

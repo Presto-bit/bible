@@ -53,9 +53,23 @@ const ARTIFACT_ENTITY_IDS = new Set([
   '约柜', '会幕', '圣殿', '逾越节', '法柜',
 ]);
 
-/** 读经正文词链样式：人物点线、地点虚线、物件波浪 */
-export function properNounClass(entity: DictEntity): string {
+/**
+ * 同 entity.id 在一节内仅首次显式划线。
+ * [seenIds] 由调用方按节持有并跨分块（家谱分号行等）共享。
+ */
+export function claimDictUnderline(seenIds: Set<string>, entityId: string): boolean {
+  if (!entityId || seenIds.has(entityId)) return false;
+  seenIds.add(entityId);
+  return true;
+}
+
+/** 读经正文词链样式：人物点线、地点虚线、物件波浪；重复命中无可见划线。 */
+export function properNounClass(
+  entity: DictEntity,
+  opts?: { showUnderline?: boolean },
+): string {
   const base = 'proper-noun';
+  if (opts?.showUnderline === false) return `${base} proper-noun--quiet`;
   if (entity.type === 'person') return `${base} proper-noun--person`;
   if (entity.type === 'place') return `${base} proper-noun--place`;
   const eid = entity.id ?? entity.name;

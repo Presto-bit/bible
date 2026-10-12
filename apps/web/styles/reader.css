@@ -38,7 +38,11 @@
   text-decoration-color: color-mix(in srgb, var(--gold, #b8956a) 85%, transparent);
   text-decoration-thickness: 2px;
 }
-.proper-noun:not(.proper-noun--person):not(.proper-noun--place):not(.proper-noun--artifact) {
+/* 同词条本节内非首次：可点、无可见划线 */
+.proper-noun--quiet {
+  text-decoration: none;
+}
+.proper-noun:not(.proper-noun--quiet):not(.proper-noun--person):not(.proper-noun--place):not(.proper-noun--artifact) {
   text-decoration: underline dotted;
   text-decoration-color: color-mix(in srgb, var(--ink-muted, #8a7d6b) 75%, transparent);
   text-decoration-thickness: 2px;
