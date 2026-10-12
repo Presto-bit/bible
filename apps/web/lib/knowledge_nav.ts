@@ -197,10 +197,31 @@ export function dismissKnowledgeExpandLayer(): void {
   emit();
 }
 
-/** Viewer 关闭：壳层缩回卡片 */
+function refreshOriginFromCard(
+  topicId: string | undefined,
+  prev: KnowledgeExpandOrigin,
+): KnowledgeExpandOrigin {
+  if (typeof document === 'undefined' || !topicId) return prev;
+  try {
+    const safe = topicId.replace(/["\\]/g, '');
+    const el = document.querySelector(
+      `[data-knowledge-topic="${safe}"]`,
+    ) as HTMLElement | null;
+    if (!el) return prev;
+    const next = rectFromEl(el);
+    if (!next) return prev;
+    return { ...next, cover: prev.cover || next.cover };
+  } catch {
+    return prev;
+  }
+}
+
+/** Viewer 关闭：壳层缩回卡片（尽量用当前列表卡位置，避免滚动后原点错位） */
 export function beginKnowledgeCollapse(): boolean {
-  const origin = leaveOrigin || session?.origin || readPersistedOrigin();
-  if (!origin) return false;
+  const base = leaveOrigin || session?.origin || readPersistedOrigin();
+  if (!base) return false;
+  const topicId = session?.topicId;
+  const origin = refreshOriginFromCard(topicId, base);
   const cover = origin.cover || session?.cover || '';
   leaveOrigin = origin;
   session = {
@@ -208,8 +229,26 @@ export function beginKnowledgeCollapse(): boolean {
     origin,
     cover,
     href: session?.href,
-    topicId: session?.topicId,
+    topicId,
   };
+  emit();
+  return true;
+}
+
+/** 回到列表后重算缩回目标（keep-alive 隐藏时 rect 不准） */
+export function refreshKnowledgeLeaveOrigin(): boolean {
+  if (!session || session.phase !== 'leave') return false;
+  const next = refreshOriginFromCard(session.topicId, session.origin);
+  if (
+    next.x === session.origin.x &&
+    next.y === session.origin.y &&
+    next.w === session.origin.w &&
+    next.h === session.origin.h
+  ) {
+    return false;
+  }
+  leaveOrigin = next;
+  session = { ...session, origin: next };
   emit();
   return true;
 }
@@ -229,9 +268,7 @@ export function clearKnowledgeExpandOrigin(): void {
   emit();
 }
 
-/** 卸手稿沉浸壳：清 expand 垫层 + viewer-lock，避免返回搜索等页黑屏无法滚动 */
-export function releaseKnowledgeImmersiveChrome(): void {
-  clearKnowledgeExpandOrigin();
+function unlockKnowledgeViewerScroll(): void {
   if (typeof document === 'undefined') return;
   try {
     document.documentElement.classList.remove('knowledge-viewer-lock');
@@ -240,6 +277,16 @@ export function releaseKnowledgeImmersiveChrome(): void {
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * 卸手稿沉浸壳。
+ * 若正在 leave 缩回，只解 scroll lock，勿清会话（否则退出动画被掐断）。
+ */
+export function releaseKnowledgeImmersiveChrome(): void {
+  unlockKnowledgeViewerScroll();
+  if (session?.phase === 'leave') return;
+  clearKnowledgeExpandOrigin();
 }
 
 export function markKnowledgeSoftReturn(): void {

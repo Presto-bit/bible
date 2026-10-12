@@ -331,13 +331,15 @@ export function KnowledgeManuscriptViewer({
     const reduced =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // 先起缩回垫层，再藏 Viewer，避免闪白/闪深色
     const collapsing = beginKnowledgeCollapse();
-    if (reduced) {
-      done();
+    setMotionPhase('leave');
+    if (reduced || !collapsing) {
+      window.setTimeout(done, reduced ? 0 : 120);
       return;
     }
-    setMotionPhase('leave');
-    window.setTimeout(done, collapsing ? 40 : 160);
+    // 等 Host 画上全屏垫后再导航；缩回动画由 Host 继续
+    window.setTimeout(done, 70);
   }, []);
 
   const handleClose = useCallback(() => softLeave(onClose), [softLeave, onClose]);

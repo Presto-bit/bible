@@ -10,6 +10,7 @@ import { knowledgeLayoutViewHref } from '@/lib/topic_routes';
 import {
   consumeKnowledgeSoftReturn,
   getKnowledgeExpandSession,
+  refreshKnowledgeLeaveOrigin,
   startKnowledgeExpand,
   subscribeKnowledgeExpand,
 } from '@/lib/knowledge_nav';
@@ -123,6 +124,7 @@ export function KnowledgeTopicsClient({
   const [filter, setFilter] = useState<FilterId>('all');
   const [isAdmin, setIsAdmin] = useState(false);
   const [softReturn, setSoftReturn] = useState(false);
+  const [collapseTopicId, setCollapseTopicId] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(initialLayouts.length === 0);
 
@@ -160,12 +162,27 @@ export function KnowledgeTopicsClient({
   useEffect(() => {
     const soft = consumeKnowledgeSoftReturn();
     if (!soft) return;
+    const sess = getKnowledgeExpandSession();
+    setCollapseTopicId(sess?.topicId || null);
     setSoftReturn(true);
-    const unsub = subscribeKnowledgeExpand(() => {
-      if (!getKnowledgeExpandSession()) setSoftReturn(false);
+    // 列表已可见：重算缩回矩形，避免 keep-alive 隐藏时原点错位
+    const raf = window.requestAnimationFrame(() => {
+      refreshKnowledgeLeaveOrigin();
     });
-    const t = window.setTimeout(() => setSoftReturn(false), 420);
+    const unsub = subscribeKnowledgeExpand(() => {
+      const s = getKnowledgeExpandSession();
+      if (s?.phase === 'leave' && s.topicId) setCollapseTopicId(s.topicId);
+      if (!s) {
+        setSoftReturn(false);
+        setCollapseTopicId(null);
+      }
+    });
+    const t = window.setTimeout(() => {
+      setSoftReturn(false);
+      setCollapseTopicId(null);
+    }, 420);
     return () => {
+      window.cancelAnimationFrame(raf);
       unsub();
       window.clearTimeout(t);
     };
@@ -308,6 +325,7 @@ export function KnowledgeTopicsClient({
       ) : visible.length === 0 ? null : (
         <div
           className={`knowledge-topics-grid${softReturn ? ' is-expand-return' : ''}`}
+          data-collapse-topic={collapseTopicId || undefined}
         >
           {visible.map((row, i) => {
             const sourceId = topicSourceId(row);
@@ -342,7 +360,12 @@ export function KnowledgeTopicsClient({
                 <Link
                   href={href}
                   prefetch
-                  className="knowledge-topic-card"
+                  className={`knowledge-topic-card${
+                    collapseTopicId && collapseTopicId === sourceId
+                      ? ' is-collapse-target'
+                      : ''
+                  }`}
+                  data-knowledge-topic={sourceId || row.id}
                   aria-label={`${row.title || row.id}，打开手稿`}
                   style={{ ['--stagger' as string]: stagger }}
                   onPointerEnter={warmTopic}

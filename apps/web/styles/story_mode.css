@@ -1048,8 +1048,8 @@ html.knowledge-viewer-lock nav.tabbar {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1f1a16;
-  color: #f7f3ec;
+  background: var(--paper, #fffaf4);
+  color: var(--ink-soft, #666);
 }
 
 .knowledge-viewer-boot-msg {
@@ -1058,12 +1058,12 @@ html.knowledge-viewer-lock nav.tabbar {
   opacity: 0.72;
 }
 
-/* 壳层小红书式封面层（KnowledgeExpandHost） */
+/* 壳层小红书式封面层（KnowledgeExpandHost）——与外层纸色一致，勿深色 */
 .knowledge-expand-layer {
   position: fixed;
   inset: 0;
   z-index: 1300;
-  background: #1f1a16;
+  background: var(--paper, #fffaf4);
   overflow: hidden;
   transform-origin: top left;
   pointer-events: none;
@@ -1098,11 +1098,11 @@ html.knowledge-viewer-lock nav.tabbar {
 .knowledge-expand-layer.is-to {
   transform: translate3d(var(--kx), var(--ky), 0) scale(var(--ksx), var(--ksy));
   border-radius: var(--kr, 16px);
-  opacity: 0.92;
+  opacity: 1;
   transition:
-    transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
-    border-radius 300ms ease,
-    opacity 300ms ease;
+    transform 340ms cubic-bezier(0.32, 0.72, 0.28, 1),
+    border-radius 340ms ease,
+    opacity 340ms ease;
 }
 
 .knowledge-expand-layer.is-fade {
@@ -1122,16 +1122,21 @@ html.knowledge-viewer-lock nav.tabbar {
 }
 
 .knowledge-expand-layer-cover {
-  /* 与手稿最终态 contain 一致，避免垫图裁切 → 揭开后「跳一下」 */
+  /* 列表卡为 cover；缩回时用 cover 更贴卡片裁切 */
+  object-fit: cover;
+  object-position: center top;
+  background: var(--paper, #fffaf4);
+}
+
+.knowledge-expand-layer.is-full .knowledge-expand-layer-cover {
   object-fit: contain;
   object-position: center center;
-  background: #1f1a16;
 }
 
 .knowledge-expand-layer-fallback {
   position: absolute;
   inset: 0;
-  background: #2a231c;
+  background: var(--bg-soft, #f7f3eb);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1144,12 +1149,12 @@ html.knowledge-viewer-lock nav.tabbar {
   }
 }
 
-/* 目标页加载占位：与手稿同色，避免进场白闪 */
+/* 目标页加载占位：纸色，与探索外层一致 */
 .knowledge-expand-silent {
   position: fixed;
   inset: 0;
   z-index: 1190;
-  background: #1f1a16;
+  background: var(--paper, #fffaf4);
   pointer-events: none;
 }
 
@@ -1158,14 +1163,13 @@ html.knowledge-viewer-lock nav.tabbar {
   inset: 0;
   width: 100%;
   height: 100%;
-  /* 与 .knowledge-viewer-img 一致，避免占位裁切 ≠ 终稿 contain */
   object-fit: contain;
-  background: #1f1a16;
+  background: var(--paper, #fffaf4);
   opacity: 1;
 }
 
-/* 软回列表：缩回期间藏起原卡片，避免双影 */
-.knowledge-topics-grid.is-expand-return .knowledge-topic-card {
+/* 软回列表：仅藏起目标卡，避免双影；其它卡保持可见 */
+.knowledge-topics-grid.is-expand-return .knowledge-topic-card.is-collapse-target {
   opacity: 0;
   transition: none;
 }
@@ -1176,8 +1180,8 @@ html.knowledge-viewer-lock nav.tabbar {
   z-index: 1200;
   display: flex;
   flex-direction: column;
-  background: #1f1a16;
-  color: #f7f3ec;
+  background: var(--paper, #fffaf4);
+  color: var(--ink, #2c2825);
   overflow: hidden;
   padding: 0;
   opacity: 1;
@@ -1198,10 +1202,11 @@ html.knowledge-viewer-lock nav.tabbar {
     border-radius 380ms ease;
 }
 
-/* 退场勿先淡成透明：否则缩回前会闪白屏 */
-.knowledge-viewer.is-leave:not(.is-expand-to) {
-  opacity: 1;
+/* 退场：立刻让出画面给缩回垫层（垫层 z 更高） */
+.knowledge-viewer.is-leave {
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 60ms linear;
 }
 
 .knowledge-viewer.is-expand.is-leave.is-expand-to {
@@ -1239,7 +1244,8 @@ html.knowledge-viewer-lock nav.tabbar {
     calc(6px + var(--safe-top, env(safe-area-inset-top, 0px)))
     10px
     8px;
-  background: rgba(31, 26, 22, 0.98);
+  background: color-mix(in srgb, var(--paper, #fffaf4) 94%, transparent);
+  color: var(--ink, #2c2825);
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
@@ -1259,8 +1265,8 @@ html.knowledge-viewer-lock nav.tabbar {
   transform: translateY(-8px);
   background: linear-gradient(
     180deg,
-    rgba(31, 26, 22, 0.92) 0%,
-    rgba(31, 26, 22, 0.45) 60%,
+    color-mix(in srgb, var(--paper, #fffaf4) 92%, transparent) 0%,
+    color-mix(in srgb, var(--paper, #fffaf4) 45%, transparent) 60%,
     transparent 100%
   );
   padding-bottom: 28px;
@@ -1277,8 +1283,8 @@ html.knowledge-viewer-lock nav.tabbar {
   height: 44px;
   border: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: color-mix(in srgb, var(--ink, #2c2825) 8%, transparent);
+  color: var(--ink, #2c2825);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1298,6 +1304,7 @@ html.knowledge-viewer-lock nav.tabbar {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--ink, #2c2825);
 }
 
 .knowledge-viewer-head {
@@ -1313,7 +1320,7 @@ html.knowledge-viewer-lock nav.tabbar {
   font-size: 11px;
   font-weight: 550;
   letter-spacing: 0.04em;
-  color: rgba(247, 243, 236, 0.62);
+  color: color-mix(in srgb, var(--ink, #2c2825) 55%, transparent);
 }
 
 /* 一页一竖卷：外层横滑翻页，页内原生纵滑（图→导读→互动→评论） */
@@ -1360,13 +1367,13 @@ html.knowledge-viewer-lock nav.tabbar {
 
 .knowledge-viewer-page-tail {
   flex: none;
-  background: #2a2420;
+  background: var(--paper, #fffaf4);
 }
 
 .manuscript-comments {
   padding: 8px 16px calc(24px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
-  background: #2a2420;
-  color: #f7f3ec;
+  background: var(--paper, #fffaf4);
+  color: var(--ink, #2c2825);
 }
 
 .manuscript-comments-title {
@@ -1393,7 +1400,7 @@ html.knowledge-viewer-lock nav.tabbar {
 .manuscript-comments-item {
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--ink, #2c2825) 5%, var(--paper, #fffaf4));
 }
 
 .manuscript-comments-item p {
@@ -1430,9 +1437,9 @@ html.knowledge-viewer-lock nav.tabbar {
 .manuscript-comments-composer .search-input {
   flex: 1;
   min-width: 0;
-  background: rgba(255, 255, 255, 0.08);
-  color: #f7f3ec;
-  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--paper, #fffaf4);
+  color: var(--ink, #2c2825);
+  border-color: color-mix(in srgb, var(--ink, #2c2825) 14%, transparent);
 }
 
 /* 跟在图下、评论上（文档流）；沉浸时略淡，仍可点 */
@@ -1447,9 +1454,9 @@ html.knowledge-viewer-lock nav.tabbar {
   padding:
     10px 12px
     calc(10px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
-  background: rgba(31, 26, 22, 0.96);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--paper, #fffaf4) 96%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--ink, #2c2825) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink, #2c2825) 6%, transparent);
   transition: opacity 0.2s ease;
 }
 
@@ -1461,7 +1468,7 @@ html.knowledge-viewer-lock nav.tabbar {
   appearance: none;
   border: 0;
   background: transparent;
-  color: #f7f3ec;
+  color: var(--ink, #2c2825);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1525,7 +1532,7 @@ html.knowledge-viewer-lock nav.tabbar {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  background: #1f1a16;
+  background: var(--paper, #fffaf4);
   contain: layout paint;
 }
 
@@ -1606,13 +1613,13 @@ html.knowledge-viewer-lock nav.tabbar {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.28);
+  background: color-mix(in srgb, var(--ink, #2c2825) 28%, transparent);
 }
 
 .knowledge-viewer-dots span.is-on {
   width: 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
+  background: color-mix(in srgb, var(--ink, #2c2825) 72%, transparent);
 }
 
 /* —— 圣经知识专题列表：1 行 2 卡封面（点进直达全屏） —— */
@@ -2057,24 +2064,24 @@ html.knowledge-viewer-lock nav.tabbar {
 }
 
 .knowledge-viewer {
-  background: #1f1a16;
+  background: var(--paper, #fffaf4);
 }
 
 .knowledge-viewer-bar {
-  background: rgba(31, 26, 22, 0.98);
+  background: color-mix(in srgb, var(--paper, #fffaf4) 94%, transparent);
 }
 
 .knowledge-viewer.is-chrome-hidden .knowledge-viewer-bar {
   background: linear-gradient(
     180deg,
-    rgba(31, 26, 22, 0.94) 0%,
-    rgba(31, 26, 22, 0.5) 55%,
+    color-mix(in srgb, var(--paper, #fffaf4) 94%, transparent) 0%,
+    color-mix(in srgb, var(--paper, #fffaf4) 50%, transparent) 55%,
     transparent 100%
   );
 }
 
 .knowledge-viewer-icon-btn {
-  background: rgba(247, 243, 236, 0.1);
+  background: color-mix(in srgb, var(--ink, #2c2825) 8%, transparent);
   border-radius: 2px;
 }
 
@@ -2087,13 +2094,13 @@ html.knowledge-viewer-lock nav.tabbar {
   width: 4px;
   height: 4px;
   border-radius: 1px;
-  background: rgba(247, 243, 236, 0.28);
+  background: color-mix(in srgb, var(--ink, #2c2825) 28%, transparent);
 }
 
 .knowledge-viewer-dots span.is-on {
   width: 12px;
   border-radius: 1px;
-  background: color-mix(in srgb, #c4a574 80%, #fff8e8);
+  background: color-mix(in srgb, var(--accent-deep, #a65a3a) 70%, var(--ink, #2c2825));
 }
 
 .knowledge-viewer-media-dock {
@@ -2106,9 +2113,9 @@ html.knowledge-viewer-lock nav.tabbar {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 2px;
-  border: 1px solid rgba(247, 243, 236, 0.16);
-  background: rgba(31, 26, 22, 0.9);
-  color: #f7f3ec;
+  border: 1px solid color-mix(in srgb, var(--ink, #2c2825) 12%, transparent);
+  background: color-mix(in srgb, var(--paper, #fffaf4) 92%, transparent);
+  color: var(--ink, #2c2825);
 }
 
 .knowledge-viewer-media-dock[hidden] {
@@ -2119,10 +2126,10 @@ html.knowledge-viewer-lock nav.tabbar {
   flex: 0 0 auto;
   width: 36px;
   height: 36px;
-  border: 1px solid rgba(247, 243, 236, 0.28);
+  border: 1px solid color-mix(in srgb, var(--ink, #2c2825) 18%, transparent);
   border-radius: 2px;
-  background: rgba(247, 243, 236, 0.08);
-  color: #f7f3ec;
+  background: color-mix(in srgb, var(--ink, #2c2825) 6%, transparent);
+  color: var(--ink, #2c2825);
   font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.06em;
@@ -2133,7 +2140,7 @@ html.knowledge-viewer-lock nav.tabbar {
   flex: 1;
   font-size: 12px;
   line-height: 1.35;
-  color: rgba(247, 243, 236, 0.78);
+  color: color-mix(in srgb, var(--ink, #2c2825) 72%, transparent);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

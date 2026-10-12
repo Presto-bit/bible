@@ -14,7 +14,7 @@ import {
 } from '@/lib/knowledge_nav';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 
-const LEAVE_MS = 300;
+const LEAVE_MS = 340;
 const REVEAL_FADE_MS = 180;
 
 function styleVars(origin: KnowledgeExpandOrigin): CSSProperties {
@@ -86,18 +86,24 @@ export default function KnowledgeExpandHost() {
     }
 
     if (session.phase === 'leave') {
+      // 始终同步最新 origin（列表重算后会再 emit）
       setLayer(session);
       if (reduced) {
         setVisual('fade');
         const t = window.setTimeout(() => finishKnowledgeCollapse(), REVEAL_FADE_MS);
         return () => window.clearTimeout(t);
       }
+      // 已在缩回途中仅更新原点，勿重开动效
+      if (visual === 'to') {
+        return;
+      }
+      // 先全屏盖住 Viewer，再缩回卡片；时长与 CSS is-to 对齐
       setVisual('full');
       let raf2 = 0;
       const raf1 = window.requestAnimationFrame(() => {
         raf2 = window.requestAnimationFrame(() => setVisual('to'));
       });
-      const t = window.setTimeout(() => finishKnowledgeCollapse(), LEAVE_MS);
+      const t = window.setTimeout(() => finishKnowledgeCollapse(), LEAVE_MS + 40);
       return () => {
         window.cancelAnimationFrame(raf1);
         window.cancelAnimationFrame(raf2);
