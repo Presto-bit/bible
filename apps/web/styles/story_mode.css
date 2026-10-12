@@ -1043,6 +1043,101 @@ html.knowledge-viewer-lock nav.tabbar {
   pointer-events: none !important;
 }
 
+/* 列表内浮层：只锁滚动、藏底栏；不动 .app-body padding，下方列表不位移 */
+html.knowledge-overlay-lock,
+html.knowledge-overlay-lock body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+html.knowledge-overlay-lock .tabbar,
+html.knowledge-overlay-lock nav.tabbar {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.kx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  overflow: hidden;
+}
+
+.kx-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--paper, #fffaf4);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.kx-overlay.is-grow .kx-overlay-backdrop,
+.kx-overlay.is-shown .kx-overlay-backdrop,
+.kx-overlay.is-fade .kx-overlay-backdrop,
+.kx-overlay.is-measure .kx-overlay-backdrop {
+  opacity: 1;
+}
+
+.kx-overlay.is-shrink .kx-overlay-backdrop {
+  opacity: 0;
+  transition-duration: 300ms;
+}
+
+.kx-overlay.is-shrink {
+  pointer-events: none;
+}
+
+.kx-overlay-ghost {
+  position: absolute;
+  display: block;
+  object-fit: cover;
+  object-position: center top;
+  transform-origin: 0 0;
+  will-change: transform, clip-path;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.kx-overlay.is-grow .kx-overlay-ghost,
+.kx-overlay.is-shrink .kx-overlay-ghost {
+  transition:
+    transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    clip-path 300ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 120ms ease 200ms;
+}
+
+/* 落回卡片后淡出，露出卡上标题 */
+.kx-overlay.is-shrink .kx-overlay-ghost {
+  opacity: 0;
+}
+
+.kx-overlay.is-shrink.is-vanish .kx-overlay-ghost {
+  transition: opacity 220ms ease;
+}
+
+.kx-overlay-viewer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.kx-overlay.is-shown .kx-overlay-viewer {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kx-overlay-backdrop,
+  .kx-overlay-viewer,
+  .kx-overlay.is-grow .kx-overlay-ghost,
+  .kx-overlay.is-shrink .kx-overlay-ghost {
+    transition: none !important;
+  }
+}
+
 .knowledge-viewer-boot {
   min-height: 70dvh;
   display: flex;

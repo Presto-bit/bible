@@ -1,7 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import {
+  KnowledgeTopicOverlay,
+  type KnowledgeTopicOverlayRequest,
+} from '@/components/knowledge/KnowledgeTopicOverlay';
 import PageBackBar from '@/components/PageBackBar';
 import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import { api, type KnowledgeLayoutSummary } from '@/lib/api';
@@ -127,6 +133,18 @@ export function KnowledgeTopicsClient({
   const [collapseTopicId, setCollapseTopicId] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(initialLayouts.length === 0);
+  const [overlay, setOverlay] = useState<KnowledgeTopicOverlayRequest | null>(null);
+  const router = useRouter();
+  const closeOverlay = useCallback(() => setOverlay(null), []);
+  const fallbackToRoute = useCallback(
+    (href: string, replaceOverlayEntry: boolean) => {
+      setOverlay(null);
+      markRouteNavigation();
+      if (replaceOverlayEntry) router.replace(href);
+      else router.push(href);
+    },
+    [router],
+  );
 
   useEffect(() => {
     // 仅当父级真正传入非空预取时同步；避免默认 [] 每渲新引用把已拉结果清空
@@ -377,6 +395,30 @@ export function KnowledgeTopicsClient({
                       sourceId && isJourneyManuscriptId(sourceId)
                         ? journeyManuscriptCover(sourceId)
                         : coverPath(row);
+                    const plain =
+                      e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+                    if (sourceId && plain && !overlay) {
+                      e.preventDefault();
+                      warmTopic();
+                      const media = e.currentTarget.querySelector<HTMLElement>(
+                        '.knowledge-topic-card-media',
+                      );
+                      const img = media?.querySelector('img');
+                      const r = (media || e.currentTarget).getBoundingClientRect();
+                      setOverlay({
+                        id: sourceId,
+                        note: isNoteRow(row),
+                        title: row.title || row.id || '',
+                        href,
+                        ghostSrc: img?.currentSrc || img?.src || cover.fallback,
+                        from: { x: r.left, y: r.top, w: r.width, h: r.height },
+                        natural:
+                          img && img.naturalWidth > 0
+                            ? { w: img.naturalWidth, h: img.naturalHeight }
+                            : null,
+                      });
+                      return;
+                    }
                     startKnowledgeExpand({
                       el: e.currentTarget,
                       cover: manuscriptCover,
@@ -426,6 +468,15 @@ export function KnowledgeTopicsClient({
           })}
         </div>
       )}
+
+      {overlay ? (
+        <KnowledgeTopicOverlay
+          key={overlay.id}
+          req={overlay}
+          onClosed={closeOverlay}
+          onFallback={fallbackToRoute}
+        />
+      ) : null}
     </Root>
   );
 }

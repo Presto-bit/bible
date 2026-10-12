@@ -26,6 +26,11 @@ type Props = {
   onClose: () => void;
   /** 第一页再向「上一页」方向滑：退出专题 */
   onExitTopic: () => void;
+  /** 列表内浮层：进退场由外层负责，不走壳层垫层与整页锁版 */
+  managed?: boolean;
+  /** 首图已绘制（managed 时用于交叉淡入） */
+  onFirstPaint?: () => void;
+  shareUrl?: string;
 };
 
 function ManuscriptRaster({
@@ -248,6 +253,9 @@ export function KnowledgeManuscriptViewer({
   tourId,
   onClose,
   onExitTopic,
+  managed = false,
+  onFirstPaint,
+  shareUrl,
 }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const pageScrollRef = useRef<HTMLDivElement | null>(null);
@@ -281,31 +289,43 @@ export function KnowledgeManuscriptViewer({
   }, [index]);
 
   useEffect(() => {
-    document.documentElement.classList.add('knowledge-viewer-lock');
+    // 浮层模式不改壳层 padding，避免下方列表位移
+    const lockClass = managed ? 'knowledge-overlay-lock' : 'knowledge-viewer-lock';
+    document.documentElement.classList.add(lockClass);
     document.documentElement.style.overflow = 'hidden';
     if (document.body) document.body.style.overflow = 'hidden';
     return () => {
-      document.documentElement.classList.remove('knowledge-viewer-lock');
+      document.documentElement.classList.remove(lockClass);
       document.documentElement.style.removeProperty('overflow');
       document.body?.style.removeProperty('overflow');
     };
-  }, []);
+  }, [managed]);
 
   useEffect(() => {
     setMotionPhase('ready');
   }, []);
 
+  const onFirstPaintRef = useRef(onFirstPaint);
+  onFirstPaintRef.current = onFirstPaint;
+
   const revealShell = useCallback(() => {
     if (revealedRef.current) return;
     revealedRef.current = true;
-    revealKnowledgeExpand();
-  }, []);
+    if (managed) onFirstPaintRef.current?.();
+    else revealKnowledgeExpand();
+  }, [managed]);
 
+  // 首图绘制后再揭开封面垫，避免进场闪一帧空纸；慢网兜底
   useEffect(() => {
-    revealShell();
-    const t = window.setTimeout(revealShell, 120);
+    const first = pages[0];
+    if (!first?.src || first.text || first.media?.type === 'video') {
+      revealShell();
+      return;
+    }
+    const t = window.setTimeout(revealShell, managed ? 900 : 600);
     return () => window.clearTimeout(t);
-  }, [revealShell]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealShell, managed]);
 
   // 首屏只保当前图：评论与邻页延后，避免抢带宽/主线程
   useEffect(() => {
@@ -328,6 +348,10 @@ export function KnowledgeManuscriptViewer({
   const softLeave = useCallback((done: () => void) => {
     if (leavingRef.current) return;
     leavingRef.current = true;
+    if (managed) {
+      done();
+      return;
+    }
     const reduced =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -341,7 +365,7 @@ export function KnowledgeManuscriptViewer({
     // 等 Host 至少完成一次绘制后再 replace 列表
     const delay = collapsing ? 90 : 140;
     window.setTimeout(done, delay);
-  }, []);
+  }, [managed]);
 
   const handleClose = useCallback(() => softLeave(onClose), [softLeave, onClose]);
   const handleExitTopic = useCallback(
@@ -474,7 +498,7 @@ export function KnowledgeManuscriptViewer({
         const result = await shareOutbound({
           title,
           text: `${title} · 彼爱手稿`,
-          url: typeof window !== 'undefined' ? window.location.href : '',
+          url: shareUrl || (typeof window !== 'undefined' ? window.location.href : ''),
           file,
           allowDownload: true,
         });
@@ -483,7 +507,7 @@ export function KnowledgeManuscriptViewer({
         const result = await shareOutbound({
           title,
           text: `${title} · ${current.text?.body?.slice(0, 80) || '彼爱手稿'}`,
-          url: typeof window !== 'undefined' ? window.location.href : '',
+          url: shareUrl || (typeof window !== 'undefined' ? window.location.href : ''),
         });
         if (result === 'cancelled') return;
       }

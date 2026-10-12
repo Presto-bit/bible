@@ -16,6 +16,7 @@ import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 
 const LEAVE_MS = 340;
 const REVEAL_FADE_MS = 180;
+const HOLD_FULL_MAX_MS = 480;
 
 function styleVars(origin: KnowledgeExpandOrigin): CSSProperties {
   if (typeof window === 'undefined') return {};
@@ -57,7 +58,14 @@ export default function KnowledgeExpandHost() {
     const phase = session?.phase ?? null;
     // leave 期间仍要同步最新 origin（回列表后重算），但不能重开动效
     if (phase === phaseRef.current && phase !== 'idle') {
-      if (session?.phase === 'leave') setLayer(session);
+      if (session?.phase === 'leave') {
+        setLayer(session);
+        if (session.listReady && visual === 'full') {
+          // 等一帧让列表完成绘制再缩
+          const raf = window.requestAnimationFrame(() => setVisual('to'));
+          return () => window.cancelAnimationFrame(raf);
+        }
+      }
       return;
     }
     phaseRef.current = phase;
@@ -97,18 +105,10 @@ export default function KnowledgeExpandHost() {
         return () => window.clearTimeout(t);
       }
       if (visual === 'to') return;
-      // 先全屏盖住（等导航/列表就绪），再缩回；避免未盖住就缩 → 白屏
+      // 全屏盖住直到列表回到屏上（listReady），再缩回；不回列表时兜底超时
       setVisual('full');
-      const HOLD_FULL_MS = 130;
-      const toTimer = window.setTimeout(() => setVisual('to'), HOLD_FULL_MS);
-      const endTimer = window.setTimeout(
-        () => finishKnowledgeCollapse(),
-        HOLD_FULL_MS + LEAVE_MS + 40,
-      );
-      return () => {
-        window.clearTimeout(toTimer);
-        window.clearTimeout(endTimer);
-      };
+      const cap = window.setTimeout(() => setVisual('to'), HOLD_FULL_MAX_MS);
+      return () => window.clearTimeout(cap);
     }
 
     if (session.phase === 'idle') {
@@ -125,6 +125,12 @@ export default function KnowledgeExpandHost() {
     return;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
+
+  useEffect(() => {
+    if (visual !== 'to') return;
+    const t = window.setTimeout(() => finishKnowledgeCollapse(), LEAVE_MS + 40);
+    return () => window.clearTimeout(t);
+  }, [visual]);
 
   if (!mounted || visual === 'hidden' || !layer) return null;
 

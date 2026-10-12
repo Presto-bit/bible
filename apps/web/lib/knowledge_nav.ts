@@ -22,6 +22,8 @@ export type KnowledgeExpandSession = {
   cover: string;
   href?: string;
   topicId?: string;
+  /** leave：列表已挂载可见，垫层可开始缩回 */
+  listReady?: boolean;
 };
 
 type Listener = () => void;
@@ -256,18 +258,16 @@ export function beginKnowledgeCollapse(): boolean {
 export function refreshKnowledgeLeaveOrigin(): boolean {
   if (!session || session.phase !== 'leave') return false;
   const next = refreshOriginFromCard(session.topicId, session.origin);
-  if (
-    next.x === session.origin.x &&
-    next.y === session.origin.y &&
-    next.w === session.origin.w &&
-    next.h === session.origin.h
-  ) {
-    return false;
-  }
+  const moved =
+    next.x !== session.origin.x ||
+    next.y !== session.origin.y ||
+    next.w !== session.origin.w ||
+    next.h !== session.origin.h;
+  if (!moved && session.listReady) return false;
   leaveOrigin = next;
-  session = { ...session, origin: next };
+  session = { ...session, origin: next, listReady: true };
   emit();
-  return true;
+  return moved;
 }
 
 /** 退场动画结束，清会话 */
