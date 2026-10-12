@@ -116,6 +116,14 @@ export function isGenesis50BridgeHref(href: string): boolean {
   }
 }
 
+/** 当前页是否为邀请活动同源桥接（鉴权中转，不应弹「已有账号」等壳层干扰） */
+export function isGenesis50BridgeLocation(): boolean {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.replace(/\/$/, '');
+  const bridge = clientWithBasePath(GENESIS50_BRIDGE_PATH).replace(/\/$/, '');
+  return path === bridge;
+}
+
 export function rememberGenesis50InviteCode(code: string): void {
   const c = (code || '').trim().toUpperCase();
   if (!c || typeof window === 'undefined') return;

@@ -1,7 +1,7 @@
 /// 希伯来书 30 天：安卓 App 内全屏 WebView。
 ///
-/// 与 PWA 一致：先打开彼爱同源桥接页 `/campaigns/genesis-50/enter`，
-/// 由页内 JS 鉴权再 `location.replace` 到活动站（避免直链外站 + 过早空白检测）。
+/// 与创世记 50 Custom Tabs 一致：在 Flutter 侧完成邀请鉴权，再直链活动站
+///（不经彼爱桥接 Web 页，避免「已有账号？」弹窗与双重 loading 白屏）。
 /// 用户可选「浏览器打开」时再走 Custom Tabs。
 library;
 
@@ -15,7 +15,7 @@ import 'genesis50_auth.dart';
 import 'open_genesis50_tab.dart';
 import 'theme.dart';
 
-/// 先桥接页、再在 App 内打开；仅用户点「浏览器打开」时退回 Custom Tabs。
+/// App 内打开；仅用户点「浏览器打开」时退回 Custom Tabs。
 Future<void> openHebrews30InApp(
   BuildContext context, {
   required String href,
@@ -28,10 +28,6 @@ Future<void> openHebrews30InApp(
     return;
   }
 
-  final startUrl = isGenesis50BridgeHref(href)
-      ? normalizeGenesis50Href(href)
-      : buildGenesis50BridgeUrl(target);
-
   final passed = title?.trim() ?? '';
   final pageTitle = (passed.isNotEmpty && passed != '创世记 50 天')
       ? passed
@@ -42,9 +38,8 @@ Future<void> openHebrews30InApp(
     MaterialPageRoute<bool>(
       fullscreenDialog: true,
       builder: (_) => _Hebrews30InAppPage(
-        url: startUrl,
+        targetHref: target,
         title: pageTitle,
-        fallbackHref: target,
       ),
     ),
   );
@@ -55,14 +50,12 @@ Future<void> openHebrews30InApp(
 
 class _Hebrews30InAppPage extends StatefulWidget {
   const _Hebrews30InAppPage({
-    required this.url,
+    required this.targetHref,
     required this.title,
-    required this.fallbackHref,
   });
 
-  final String url;
+  final String targetHref;
   final String title;
-  final String fallbackHref;
 
   @override
   State<_Hebrews30InAppPage> createState() => _Hebrews30InAppPageState();
@@ -71,16 +64,18 @@ class _Hebrews30InAppPage extends StatefulWidget {
 class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
   WebViewController? _controller;
   var _loading = true;
+  var _resolving = true;
   var _hadFirstPaint = false;
   String? _error;
   String? _loadUrl;
+  String? _resolvedUrl;
   Timer? _slowHint;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_start(widget.url));
+      unawaited(_resolveAndLoad());
     });
   }
 
@@ -93,7 +88,7 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
   void _armSlowHint() {
     _slowHint?.cancel();
     _slowHint = Timer(const Duration(seconds: 28), () {
-      if (!mounted || !_loading) return;
+      if (!mounted || !_loading || _resolving) return;
       setState(() {
         _error ??= '加载较慢，可继续等待、重试，或改用浏览器打开';
       });
@@ -135,6 +130,9 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
     }
   }
 
+  String get _mainFrameUrl =>
+      (_loadUrl ?? _resolvedUrl ?? widget.targetHref).split('#').first;
+
   Future<void> _configure(WebViewController controller) async {
     await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
     await controller.setBackgroundColor(AppColors.paper);
@@ -171,8 +169,7 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
           final code = err.response?.statusCode;
           if (code == null || code < 400) return;
           final req = err.request?.uri.toString() ?? '';
-          final main = (_loadUrl ?? widget.url).split('#').first;
-          if (req.split('#').first != main) return;
+          if (req.split('#').first != _mainFrameUrl) return;
           _slowHint?.cancel();
           if (!mounted) return;
           setState(() {
@@ -204,7 +201,7 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
         await platform.setUserAgent(
           'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 '
           '(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36 '
-          'PeiaiFlutter/1.1.1 android_hebrews30',
+          'PeiaiFlutter/1.1.2 android_hebrews30',
         );
       } catch (_) {}
       try {
@@ -216,6 +213,33 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
       try {
         await platform.setMediaPlaybackRequiresUserGesture(false);
       } catch (_) {}
+    }
+  }
+
+  Future<void> _resolveAndLoad() async {
+    if (!mounted) return;
+    setState(() {
+      _resolving = true;
+      _loading = true;
+      _error = null;
+      _hadFirstPaint = false;
+      _controller = null;
+      _resolvedUrl = null;
+      _loadUrl = null;
+    });
+    try {
+      final url = await resolveGenesis50OpenUrl(widget.targetHref);
+      if (!mounted) return;
+      _resolvedUrl = url;
+      setState(() => _resolving = false);
+      await _start(url);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _resolving = false;
+        _loading = false;
+        _error = '进入活动失败，请检查网络后重试，或改用浏览器打开';
+      });
     }
   }
 
@@ -241,13 +265,32 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
   }
 
   void _retry() {
-    final url = widget.url;
-    setState(() {
-      _error = null;
-      _loading = true;
-      _hadFirstPaint = false;
-    });
-    unawaited(_start(url));
+    unawaited(_resolveAndLoad());
+  }
+
+  Widget _enteringOverlay({String? message}) {
+    return ColoredBox(
+      color: AppColors.paper,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            if (message != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                message,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -309,17 +352,10 @@ class _Hebrews30InAppPageState extends State<_Hebrews30InAppPage> {
                   ),
                 ),
               )
+            else if (_resolving)
+              _enteringOverlay(message: '正在进入活动…')
             else if (_loading && !_hadFirstPaint)
-              const ColoredBox(
-                color: AppColors.paper,
-                child: Center(
-                  child: SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                  ),
-                ),
-              )
+              _enteringOverlay()
             else if (_loading)
               const Align(
                 alignment: Alignment.topCenter,

@@ -29,6 +29,8 @@ import {
   restoreLocalReadingSnapshotIfNeeded,
 } from '@/lib/reading_durable';
 import { isStandalonePwa } from '@/lib/platform';
+import { isPeiaiFlutterH5Host } from '@/lib/android_host';
+import { isGenesis50BridgeLocation } from '@/lib/genesis50_auth';
 import { notifyLocalDataChanged } from '@/lib/local_data_events';
 import BadgeUnlockToast from '@/components/BadgeUnlockToast';
 import RestoreAccountSheet from '@/components/RestoreAccountSheet';
@@ -162,7 +164,9 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
         standalone &&
         !loggedInWithPwd &&
         !hasLocalReadingData() &&
-        !restoreDismissed;
+        !restoreDismissed &&
+        !isPeiaiFlutterH5Host() &&
+        !isGenesis50BridgeLocation();
 
       if (showRestore) {
         setRestoreSheet(true);
