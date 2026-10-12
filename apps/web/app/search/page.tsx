@@ -23,6 +23,7 @@ import { getMainVersion } from '@/lib/reader_settings';
 import { KnowledgeTopicCardBody } from '@/components/search/KnowledgeTopicCardBody';
 import { searchHitReaderHref } from '@/lib/search_reader_href';
 import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
+import { releaseKnowledgeImmersiveChrome } from '@/lib/knowledge_nav';
 
 const HISTORY_KEY = 'search_history';
 const SEARCH_PAGE_SIZE = 40;
@@ -253,6 +254,11 @@ export default function SearchPage() {
     const t = window.setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
   }, [query]);
+
+  useEffect(() => {
+    // 从手稿/探索返回搜索时，清掉可能残留的沉浸锁与黑垫层
+    releaseKnowledgeImmersiveChrome();
+  }, []);
 
   useEffect(() => {
     setHistory(loadHistory());

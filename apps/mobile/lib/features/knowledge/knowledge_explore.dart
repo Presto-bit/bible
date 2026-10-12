@@ -43,7 +43,7 @@ class KnowledgeHub extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return PaperCard(
-      onTap: () => openH5IfAllowed(context, '/knowledge'),
+      onTap: () => openH5IfAllowed(context, '/discover?pane=explore'),
       child: Row(
         children: [
           Icon(Icons.collections_bookmark_outlined,

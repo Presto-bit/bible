@@ -8,6 +8,8 @@ import { KnowledgeExplainerPage } from '@/components/knowledge/KnowledgeExplaine
 import {
   isKnowledgeExpandActive,
   peekKnowledgeExpandCover,
+  releaseKnowledgeImmersiveChrome,
+  revealKnowledgeExpand,
 } from '@/lib/knowledge_nav';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
 import {
@@ -24,6 +26,25 @@ function LoadingSilent({ tourId }: { tourId: string }) {
     return peekKnowledgeExpandCover();
   }, [tourId]);
   const sources = cover ? knowledgeRasterSources(cover) : null;
+  const [stuck, setStuck] = useState(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setStuck(true), 10000);
+    return () => window.clearTimeout(t);
+  }, [tourId]);
+
+  if (stuck) {
+    return (
+      <main className="container" style={{ paddingTop: 48 }}>
+        <p className="muted">加载较慢，请返回重试。</p>
+        <p style={{ marginTop: 12 }}>
+          <a className="text-link" href="/discover?pane=explore">
+            返回探索 ›
+          </a>
+        </p>
+      </main>
+    );
+  }
 
   return (
     <div className="knowledge-expand-silent" aria-busy="true">
@@ -99,6 +120,13 @@ function MapStoryPageContent() {
       })
       .finally(() => setLoading(false));
   }, [tourId]);
+
+  useEffect(() => {
+    if (!failed) return;
+    // 加载失败时必须揭开/卸掉进场黑垫，否则整页黑屏且无法滚动
+    revealKnowledgeExpand();
+    releaseKnowledgeImmersiveChrome();
+  }, [failed]);
 
   if (loading) {
     if (

@@ -229,6 +229,19 @@ export function clearKnowledgeExpandOrigin(): void {
   emit();
 }
 
+/** 卸手稿沉浸壳：清 expand 垫层 + viewer-lock，避免返回搜索等页黑屏无法滚动 */
+export function releaseKnowledgeImmersiveChrome(): void {
+  clearKnowledgeExpandOrigin();
+  if (typeof document === 'undefined') return;
+  try {
+    document.documentElement.classList.remove('knowledge-viewer-lock');
+    document.documentElement.style.removeProperty('overflow');
+    document.body?.style.removeProperty('overflow');
+  } catch {
+    /* ignore */
+  }
+}
+
 export function markKnowledgeSoftReturn(): void {
   try {
     sessionStorage.setItem(SOFT_RETURN_KEY, '1');

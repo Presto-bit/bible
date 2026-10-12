@@ -256,12 +256,14 @@ export function KnowledgeManuscriptViewer({
   }, [index]);
 
   useEffect(() => {
-    const prev = document.documentElement.style.overflow;
     document.documentElement.classList.add('knowledge-viewer-lock');
     document.documentElement.style.overflow = 'hidden';
+    if (document.body) document.body.style.overflow = 'hidden';
     return () => {
+      // 只卸 lock；expand 退场动画由 Host 收尾，勿在此 clearExpand
       document.documentElement.classList.remove('knowledge-viewer-lock');
-      document.documentElement.style.overflow = prev;
+      document.documentElement.style.removeProperty('overflow');
+      document.body?.style.removeProperty('overflow');
     };
   }, []);
 

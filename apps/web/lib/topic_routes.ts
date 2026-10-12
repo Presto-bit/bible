@@ -37,9 +37,9 @@ export function knowledgeLayoutViewHref(row: {
   return `${mapStoryHref(id)}?view=1`;
 }
 
-/** 圣经知识专题列表 */
+/** 圣经知识专题列表（发现 · 探索） */
 export function knowledgeTopicsHref() {
-  return '/knowledge';
+  return '/discover?pane=explore';
 }
 
 export function timelineStoryHref(tourId?: string) {

@@ -18,6 +18,7 @@ import {
   writeDiscoverPaneSession,
   type DiscoverPaneId,
 } from '@/lib/discover_pane';
+import { releaseKnowledgeImmersiveChrome } from '@/lib/knowledge_nav';
 
 type Props = {
   paneActive?: boolean;
@@ -157,6 +158,12 @@ function DiscoverHubInner({
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [plusOpen]);
+
+  useEffect(() => {
+    if (!paneActive || pane !== 'explore') return;
+    // 回到探索列表时卸掉可能卡住的手稿黑垫
+    releaseKnowledgeImmersiveChrome();
+  }, [paneActive, pane]);
 
   return (
     <main className="container discover-page discover-hub discover-im">

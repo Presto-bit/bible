@@ -73,7 +73,16 @@ export default function KnowledgeExpandHost() {
     if (session.phase === 'hold' || session.phase === 'enter') {
       setLayer(session);
       setVisual('full');
-      return;
+      // 进场垫层若超过 12s 仍未 reveal，自动卸掉，避免搜索等页黑屏卡死
+      const stuck = window.setTimeout(() => {
+        if (getKnowledgeExpandSession()?.phase === 'hold' ||
+            getKnowledgeExpandSession()?.phase === 'enter') {
+          finishKnowledgeCollapse();
+          setVisual('hidden');
+          setLayer(null);
+        }
+      }, 12000);
+      return () => window.clearTimeout(stuck);
     }
 
     if (session.phase === 'leave') {
