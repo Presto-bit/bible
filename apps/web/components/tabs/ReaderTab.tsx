@@ -208,7 +208,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
             return <span key={`${keyBase}-t${i}`}>{part}</span>;
           }
           const eid = picked.id || picked.name;
-          const showUnderline = claimDictUnderline(seen, eid);
+          const showUnderline = claimDictUnderline(seen, eid, `t:${part}`);
           return (
             <span
               key={`${keyBase}-pn${i}`}

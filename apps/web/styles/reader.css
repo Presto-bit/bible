@@ -39,8 +39,10 @@
   text-decoration-thickness: 2px;
 }
 /* 同词条本节内非首次：可点、无可见划线 */
-.proper-noun--quiet {
-  text-decoration: none;
+.proper-noun--quiet,
+.proper-noun.proper-noun--quiet {
+  text-decoration: none !important;
+  text-decoration-line: none !important;
 }
 .proper-noun:not(.proper-noun--quiet):not(.proper-noun--person):not(.proper-noun--place):not(.proper-noun--artifact) {
   text-decoration: underline dotted;

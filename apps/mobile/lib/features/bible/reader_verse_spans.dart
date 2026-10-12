@@ -198,6 +198,10 @@ void appendReaderWordSpans({
 }) {
   final mark = markInfo?.mark;
   final merge = _MergeBuf();
+  // 渲染侧按节去重（权威）：不依赖可能过期的 span.showUnderline 缓存。
+  // 同一 DictSpan（同 start）内多词块共用一次判定。
+  final seenDictUnderlineKeys = <String>{};
+  final spanShowUnderline = <int, bool>{};
 
   void addGaps(String gap) {
     merge.flush(spans, index);
@@ -251,8 +255,21 @@ void appendReaderWordSpans({
     final dictHit = !selectionActive
         ? matchDictSpanAt(w.start, w.end, dictSpans)
         : null;
-    if (dictHit != null && dictHit.showUnderline) {
-      wordStyle = readerDictSpanStyle(wordStyle, dictHit.entity);
+    if (dictHit != null) {
+      final showDictLine = spanShowUnderline.putIfAbsent(dictHit.start, () {
+        final eid = dictHit.entity.id.isNotEmpty
+            ? dictHit.entity.id
+            : dictHit.entity.name;
+        final keys = <String>[eid, 't:${dictHit.name}'];
+        final show = !keys.any(seenDictUnderlineKeys.contains);
+        if (show) seenDictUnderlineKeys.addAll(keys);
+        return show;
+      });
+      if (showDictLine) {
+        wordStyle = readerDictSpanStyle(wordStyle, dictHit.entity);
+      } else {
+        wordStyle = wordStyle.copyWith(decoration: TextDecoration.none);
+      }
     }
 
     final anchor = WordAnchor(verse: verse, start: w.start, end: w.end);

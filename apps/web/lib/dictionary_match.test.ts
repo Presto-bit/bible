@@ -19,6 +19,12 @@ describe('claimDictUnderline', () => {
     expect(claimDictUnderline(seen, 'peter')).toBe(true);
     expect(seen).toEqual(new Set(['jesus', 'peter']));
   });
+
+  it('表面字相同则去重（即使 entity id 不同）', () => {
+    const seen = new Set<string>();
+    expect(claimDictUnderline(seen, 'jesus', 't:耶稣')).toBe(true);
+    expect(claimDictUnderline(seen, 'jesus-alt', 't:耶稣')).toBe(false);
+  });
 });
 
 describe('properNounClass', () => {

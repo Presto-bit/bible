@@ -378,13 +378,16 @@ final readerDictIndexProvider = Provider<ReaderDictIndex?>((ref) {
 final _dictSpanCache = LinkedHashMap<String, List<DictSpanHit>>();
 const _dictSpanCacheMax = 512;
 
+/// 切分语义版本：变更 showUnderline 等字段语义时递增，避免热重载沿用旧缓存。
+const _dictSpanLogicRev = 2;
+
 String _dictSpanCacheKey({
   required int dictRev,
   required String bookId,
   required int chapter,
   required int verse,
   required String text,
-}) => '$dictRev|$bookId|$chapter|$verse|${text.hashCode}';
+}) => '$_dictSpanLogicRev|$dictRev|$bookId|$chapter|$verse|${text.hashCode}';
 
 /// 带容量上限的 LRU：同章滚动 / 壳层重建时复用切分结果。
 List<DictSpanHit> cachedDictSpansForText(

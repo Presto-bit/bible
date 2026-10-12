@@ -54,13 +54,16 @@ const ARTIFACT_ENTITY_IDS = new Set([
 ]);
 
 /**
- * 同 entity.id 在一节内仅首次显式划线。
+ * 同词条在一节内仅首次显式划线。
  * [seenIds] 由调用方按节持有并跨分块（家谱分号行等）共享。
+ * keys 同时登记 entity.id 与表面字，避免同名不同 id 或缓存异常时重复画线。
  */
-export function claimDictUnderline(seenIds: Set<string>, entityId: string): boolean {
-  if (!entityId || seenIds.has(entityId)) return false;
-  seenIds.add(entityId);
-  return true;
+export function claimDictUnderline(seenIds: Set<string>, ...keys: string[]): boolean {
+  const normalized = keys.map((k) => k.trim()).filter(Boolean);
+  if (!normalized.length) return false;
+  const show = !normalized.some((k) => seenIds.has(k));
+  for (const k of normalized) seenIds.add(k);
+  return show;
 }
 
 /** 读经正文词链样式：人物点线、地点虚线、物件波浪；重复命中无可见划线。 */
