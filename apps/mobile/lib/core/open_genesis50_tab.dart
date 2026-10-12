@@ -42,7 +42,7 @@ Future<bool> _openGenesis50TabNative(String url) async {
     });
     return true;
   } catch (_) {
-    // Custom Tabs 不可用时降级系统/小米浏览器（ACTION_VIEW）。
+    // Custom Tabs 不可用时降级系统浏览器（华为系优先华为浏览器，见 Genesis50CustomTabHelper）。
     return openInAppBrowser(raw);
   }
 }

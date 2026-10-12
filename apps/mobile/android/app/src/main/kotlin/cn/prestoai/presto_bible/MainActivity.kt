@@ -124,7 +124,9 @@ class MainActivity : FlutterFragmentActivity() {
     val extras = Bundle().apply {
       putBinder("android.support.customtabs.extra.SESSION", null)
     }
-    for (pkg in customTabPackages()) {
+    // 与 Genesis50 一致：华为系优先华为浏览器，避免残缺 Chrome。
+    for (pkg in Genesis50CustomTabHelper.preferredCustomTabPackages()) {
+      if (!isPackageInstalled(pkg)) continue
       try {
         startActivity(
           Intent(Intent.ACTION_VIEW, uri).apply {
@@ -138,6 +140,20 @@ class MainActivity : FlutterFragmentActivity() {
         // 试下一个浏览器
       }
     }
+    for (pkg in Genesis50CustomTabHelper.preferredSystemBrowserPackages()) {
+      if (!isPackageInstalled(pkg)) continue
+      try {
+        startActivity(
+          Intent(Intent.ACTION_VIEW, uri).apply {
+            setPackage(pkg)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          },
+        )
+        return
+      } catch (_: Exception) {
+        // 试下一个
+      }
+    }
     startActivity(
       Intent(Intent.ACTION_VIEW, uri).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -145,26 +161,13 @@ class MainActivity : FlutterFragmentActivity() {
     )
   }
 
-  private fun customTabPackages(): List<String> {
-    val preferred = listOf(
-      "com.android.chrome",
-      "com.google.android.apps.chrome",
-      "com.chrome.beta",
-      "com.android.browser",
-      "com.mi.globalbrowser",
-      "org.mozilla.firefox",
-      "com.microsoft.emmx",
-      "com.sec.android.app.sbrowser",
-    )
-    return preferred.filter { pkg ->
-      try {
-        packageManager.getPackageInfo(pkg, 0)
-        true
-      } catch (_: PackageManager.NameNotFoundException) {
-        false
-      }
+  private fun isPackageInstalled(pkg: String): Boolean =
+    try {
+      packageManager.getPackageInfo(pkg, 0)
+      true
+    } catch (_: PackageManager.NameNotFoundException) {
+      false
     }
-  }
 
   private fun hasMicrophonePermission(): Boolean =
     ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==

@@ -84,5 +84,9 @@
         <package android:name="org.mozilla.firefox" />
         <package android:name="com.microsoft.emmx" />
         <package android:name="com.sec.android.app.sbrowser" />
+        <!-- 鸿蒙 / 华为 / 荣耀：活动 Custom Tabs 优先用这些浏览器 -->
+        <package android:name="com.huawei.browser" />
+        <package android:name="com.hihonor.browser" />
+        <package android:name="com.huawei.hwbrowser" />
     </queries>
 </manifest>
