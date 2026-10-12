@@ -83,7 +83,7 @@ import {
   resetReaderScroll,
   sectionRangeForVerse,
 } from '@/lib/reader_viewport';
-import { sliceVerseWords } from '@/lib/verse_words';
+import { wordContainingOffset } from '@/lib/verse_words';
 import { useBibleListen } from '@/hooks/useBibleListen';
 import { useReaderDisplayPrefs } from '@/hooks/useReaderDisplayPrefs';
 import { useReaderChrome } from '@/hooks/useReaderChrome';
@@ -96,11 +96,11 @@ import {
 } from '@/lib/reader_chapter_load';
 import { scrollElementToBand } from '@/lib/listen_api';
 import {
+  caretWordAnchor,
+  charSpanForVerseInWordRange,
   textFromWordRange,
-  wordOverlapsRange,
   wordRangeToSpan,
   wordRangesEqual,
-  wordSelectionEdge,
   type WordAnchor,
   type WordRange,
 } from '@/lib/selection_range';
@@ -116,7 +116,7 @@ import {
   recoverPinnedSpansFromText,
   recoverPinnedSpansFromVerseTexts,
   synthesizeFullVerseSpans,
-  wordAnchorFromPoint,
+  verseCharAtPoint,
   type NativePinnedHighlight,
   type NativeVerseSelection,
 } from '@/lib/native_verse_selection';
@@ -1048,39 +1048,24 @@ export default function ReaderView({
         return renderText(text, 'body');
       }
 
-      // 触控/PWA：必须渲染 .verse-word，长按/拖动手柄才有命中目标
-      return (
-        <>
-          {sliceVerseWords(text).map((w, i) => {
-            const anchor: WordAnchor = { verse: verseNum, start: w.start, end: w.end };
-            const active = wordRange
-              ? wordOverlapsRange(verseNum, w.start, w.end, wordRange)
-              : false;
-            const edge = active && wordRange
-              ? wordSelectionEdge(verseNum, w.start, w.end, wordRange)
-              : null;
-            const cls = [
-              'verse-word',
-              active ? 'is-active' : '',
-              edge?.left ? 'sel-edge-left' : '',
-              edge?.right ? 'sel-edge-right' : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
-            return (
-              <span
-                key={`${keyBase}-w${i}`}
-                className={cls}
-                data-v={verseNum}
-                data-s={w.start}
-                data-e={w.end}
-              >
-                {renderVerseText(w.text, `${keyBase}-w${i}`, verseNum, underlineSeen)}
+      // 触控/PWA：连续字符蓝底（避免逐词半透明叠色）；命中靠 caretRangeFromPoint
+      if (wordRange) {
+        const spanSel = charSpanForVerseInWordRange(verseNum, text.length, wordRange);
+        if (spanSel) {
+          const lo = spanSel.start;
+          const hi = spanSel.end;
+          return (
+            <>
+              {lo > 0 ? renderText(text.slice(0, lo), 'pre') : null}
+              <span className="verse-sel-chars">
+                {renderText(text.slice(lo, hi), 'sel')}
               </span>
-            );
-          })}
-        </>
-      );
+              {hi < text.length ? renderText(text.slice(hi), 'post') : null}
+            </>
+          );
+        }
+      }
+      return renderText(text, 'body');
     },
     [
       renderVerseText,
@@ -2541,7 +2526,7 @@ export default function ReaderView({
     }
   }, [hasSel, nativeTouchSelect, nativeSelecting, nativePinnedHighlight]);
 
-  // 触控/PWA：应用内长按选词 + 按住拖动扩选（不走系统划选，避免拷贝/高亮/查阅栏）
+  // 触控/PWA：应用内长按选词 + 按住拖动扩选（字符级跟手；不走系统划选）
   useEffect(() => {
     const el = contentRef.current;
     if (!el || nativeTouchSelect) return;
@@ -2552,7 +2537,7 @@ export default function ReaderView({
       y: number;
       anchor: WordAnchor;
       armed: boolean;
-      expanded: boolean;
+      lastFocus: WordAnchor | null;
     };
     let press: Press | null = null;
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -2564,11 +2549,44 @@ export default function ReaderView({
       }
     };
 
-    const hitWord = (x: number, y: number) => wordAnchorFromPoint(el, x, y);
+    const setSelectingUi = (on: boolean) => {
+      el.classList.toggle('reader-word-selecting', on);
+      document.body.classList.toggle('reader-word-selecting', on);
+    };
+
+    /** 长按：吸附到词；拖动：字符光标 */
+    const hitWordSnap = (x: number, y: number): WordAnchor | null => {
+      const hit = verseCharAtPoint(el, x, y);
+      if (!hit) return null;
+      const body = el.querySelector(
+        `#verse-anchor-${hit.verse} .verse-text-body`,
+      ) as HTMLElement | null;
+      const full = body?.textContent ?? '';
+      const w = wordContainingOffset(full, hit.offset);
+      if (!w) return caretWordAnchor(hit.verse, hit.offset);
+      return { verse: hit.verse, start: w.start, end: w.end };
+    };
+
+    const hitCaret = (x: number, y: number): WordAnchor | null => {
+      // 多点取样：手指常压在工具条/手柄上，需往正文方向找
+      const samples: Array<[number, number]> = [
+        [x, y],
+        [x, y - 24],
+        [x, y - 48],
+        [x, y + 24],
+        [x - 16, y],
+        [x + 16, y],
+      ];
+      for (const [sx, sy] of samples) {
+        const hit = verseCharAtPoint(el, sx, sy);
+        if (hit) return caretWordAnchor(hit.verse, hit.offset);
+      }
+      return null;
+    };
 
     const finishPress = () => {
       clearLongPress();
-      el.classList.remove('reader-word-selecting');
+      setSelectingUi(false);
       if (press?.armed) {
         const pending = wordDragPendingRef.current;
         if (pending) {
@@ -2593,8 +2611,15 @@ export default function ReaderView({
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       if (document.body.classList.contains('reader-sel-handle-dragging')) return;
       if (e.target instanceof Element && e.target.closest('.reader-sel-handle')) return;
-      // 已有选区时点空白由 dismiss 处理；此处只接受落在词上
-      const w = hitWord(e.clientX, e.clientY);
+      // 已有选区时：点在蓝底上不开启新手势（留给手柄）；点空白由 dismiss 处理
+      if (
+        wordRangeRef.current
+        && e.target instanceof Element
+        && e.target.closest('.verse-sel-chars')
+      ) {
+        return;
+      }
+      const w = hitWordSnap(e.clientX, e.clientY);
       if (!w) return;
       window.getSelection()?.removeAllRanges();
       clearLongPress();
@@ -2604,7 +2629,7 @@ export default function ReaderView({
         y: e.clientY,
         anchor: w,
         armed: false,
-        expanded: false,
+        lastFocus: null,
       };
       try {
         el.setPointerCapture(e.pointerId);
@@ -2614,10 +2639,10 @@ export default function ReaderView({
       longPressTimer = setTimeout(() => {
         if (!press || press.pointerId !== e.pointerId) return;
         press.armed = true;
-        el.classList.add('reader-word-selecting');
+        setSelectingUi(true);
         applyWordRangeRef.current(press.anchor, press.anchor);
         lastSelectAt.current = Date.now();
-        swipeIgnoreUntilRef.current = Date.now() + 400;
+        swipeIgnoreUntilRef.current = Date.now() + 60_000;
         try {
           navigator.vibrate?.(12);
         } catch {
@@ -2630,11 +2655,10 @@ export default function ReaderView({
       if (!press || press.pointerId !== e.pointerId) return;
       const dist = Math.hypot(e.clientX - press.x, e.clientY - press.y);
       if (!press.armed) {
-        // 长按未触发前移动过远 → 当作滚动，取消选词
         if (dist > 12) {
           clearLongPress();
           press = null;
-          el.classList.remove('reader-word-selecting');
+          setSelectingUi(false);
           try {
             el.releasePointerCapture(e.pointerId);
           } catch {
@@ -2643,12 +2667,11 @@ export default function ReaderView({
         }
         return;
       }
-      // 已选中：跟手扩选（类 iOS 长按后拖动）
       e.preventDefault();
-      press.expanded = true;
-      const w = hitWord(e.clientX, e.clientY);
-      if (!w) return;
-      scheduleWordRangeDuringDrag(press.anchor, w);
+      const focus = hitCaret(e.clientX, e.clientY) ?? press.lastFocus;
+      if (!focus) return;
+      press.lastFocus = focus;
+      scheduleWordRangeDuringDrag(press.anchor, focus);
     };
 
     const onPointerUp = (e: PointerEvent) => {
@@ -2658,7 +2681,6 @@ export default function ReaderView({
       } catch {
         /* ignore */
       }
-      el.classList.remove('reader-word-selecting');
       finishPress();
     };
 
@@ -2666,7 +2688,6 @@ export default function ReaderView({
     el.addEventListener('pointermove', onPointerMove, { passive: false });
     el.addEventListener('pointerup', onPointerUp, { passive: true });
     el.addEventListener('pointercancel', onPointerUp, { passive: true });
-    // 阻断系统选区 / 菜单
     const block = (ev: Event) => {
       if (el.contains(ev.target as Node)) ev.preventDefault();
     };
@@ -2674,6 +2695,7 @@ export default function ReaderView({
     el.addEventListener('contextmenu', block, true);
     return () => {
       clearLongPress();
+      setSelectingUi(false);
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', onPointerUp);
@@ -2738,12 +2760,16 @@ export default function ReaderView({
       const t = e.target as HTMLElement;
       if (t.closest('.reader-focus-bar')) return;
       if (t.closest('.reader-sel-handle')) return;
+      // 点在选区蓝底上不取消（留给手柄拖动）
+      if (t.closest('.verse-sel-chars')) return;
+      if (document.body.classList.contains('reader-sel-handle-dragging')) return;
+      if (document.body.classList.contains('reader-word-selecting')) return;
       // 词典专名：勿当「点空收起选区」，避免抢开层
       if (t.closest('.proper-noun,[role="button"]')) return;
       const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
-      if (hasSel || hasPinned) {
-        // 松手后极短窗口忽略，避免抬手余波立刻关掉；之后点经文/空白均可收起
-        if (Date.now() - lastSelectAt.current < 280) return;
+      if (hasSel || hasPinned || wordRangeRef.current) {
+        // 松手后极短窗口忽略，避免抬手余波立刻关掉
+        if (Date.now() - lastSelectAt.current < 400) return;
         dismissNativeSelection();
       }
     },
@@ -2785,9 +2811,14 @@ export default function ReaderView({
   const handleVerseClick = useCallback(
     (e: React.MouseEvent, verse: number, text: string) => {
       const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
-      if (hasSel || hasPinned) {
+      if (hasSel || hasPinned || wordRangeRef.current) {
         e.stopPropagation();
-        if (Date.now() - lastSelectAt.current < 280) return;
+        const t = e.target as HTMLElement;
+        // 点选区/手柄不取消，否则蓝点拖不动
+        if (t.closest('.reader-sel-handle, .verse-sel-chars')) return;
+        if (document.body.classList.contains('reader-sel-handle-dragging')) return;
+        if (document.body.classList.contains('reader-word-selecting')) return;
+        if (Date.now() - lastSelectAt.current < 400) return;
         dismissNativeSelection();
         return;
       }
@@ -2850,17 +2881,19 @@ export default function ReaderView({
     return () => document.removeEventListener('copy', onCopy);
   }, [hasSel, dismissNativeSelection]);
 
-  // 触控上 click 偶发不触发：用 pointerdown 收起应用工具条（点空白/经文均可）
+  // 触控上 click 偶发不触发：用 pointerdown 收起；点选区/手柄不取消
   useEffect(() => {
     if (!hasSel || !autoCollapseNativeSel) return;
     const onPointerDown = (e: PointerEvent) => {
-      if (Date.now() - lastSelectAt.current < 280) return;
+      if (Date.now() - lastSelectAt.current < 450) return;
       const t = e.target;
       if (!(t instanceof Element)) return;
       if (focusBarRef.current?.contains(t)) return;
       if (t.closest('.reader-focus-bar')) return;
       if (t.closest('.reader-sel-handle')) return;
+      if (t.closest('.verse-sel-chars')) return;
       if (document.body.classList.contains('reader-sel-handle-dragging')) return;
+      if (document.body.classList.contains('reader-word-selecting')) return;
       if (t.closest('.reader-mark-wrap') || t.closest('.reader-mark-popover')) return;
       // 词典 / 可点控件：让 shell_tap 开层，勿先清选区抢手势
       if (t.closest('.proper-noun,[role="button"],.vsb-icon-btn')) return;

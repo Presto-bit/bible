@@ -315,42 +315,6 @@ export function measureSelHandlePositions(
   return handlePointsFromRects(first.getClientRects(), last.getClientRects());
 }
 
-/** 触点下的词锚点（应用内词选 / 手柄拖动）。 */
-export function wordAnchorFromPoint(
-  root: HTMLElement | null,
-  x: number,
-  y: number,
-): { verse: number; start: number; end: number } | null {
-  if (!root || typeof document === 'undefined') return null;
-  const ignored: HTMLElement[] = [];
-  document.querySelectorAll('.reader-sel-handle').forEach((el) => {
-    const h = el as HTMLElement;
-    ignored.push(h);
-    h.style.pointerEvents = 'none';
-  });
-  try {
-    const samples: Array<[number, number]> = [
-      [x, y],
-      [x, y - 8],
-      [x, y + 8],
-      [x - 10, y],
-      [x + 10, y],
-    ];
-    for (const [sx, sy] of samples) {
-      const node = document.elementFromPoint(sx, sy);
-      const w = node?.closest('.verse-word') as HTMLElement | null;
-      if (!w || !root.contains(w)) continue;
-      const verse = Number(w.dataset.v);
-      const start = Number(w.dataset.s);
-      const end = Number(w.dataset.e);
-      if (!verse || Number.isNaN(start) || Number.isNaN(end)) continue;
-      return { verse, start, end };
-    }
-    return null;
-  } finally {
-    for (const h of ignored) h.style.pointerEvents = '';
-  }
-}
 
 /** 无精确 spans 时，用整节正文合成可拖 pin（兜底手柄）。 */
 export function synthesizeFullVerseSpans(

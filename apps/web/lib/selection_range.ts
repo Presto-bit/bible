@@ -31,6 +31,37 @@ export function wordRangeToSpan(
   return { verses, span: null };
 }
 
+/** 某节在 wordRange 内的字符区间（用于连续蓝底，避免逐词叠色）。 */
+export function charSpanForVerseInWordRange(
+  verse: number,
+  textLen: number,
+  range: WordRange,
+): { start: number; end: number } | null {
+  const { verses, anchor, focus } = normalizeWordRange(range);
+  if (!verses.includes(verse) || textLen <= 0) return null;
+  let start = 0;
+  let end = textLen;
+  if (anchor.verse === focus.verse) {
+    start = Math.min(anchor.start, focus.start);
+    end = Math.max(anchor.end, focus.end);
+  } else if (verse === anchor.verse) {
+    start = anchor.start;
+    end = textLen;
+  } else if (verse === focus.verse) {
+    start = 0;
+    end = focus.end;
+  }
+  start = Math.max(0, Math.min(start, textLen));
+  end = Math.max(start, Math.min(end, textLen));
+  return end > start ? { start, end } : null;
+}
+
+/** 光标式锚点（扩选/拖动手柄按字符跟手）。 */
+export function caretWordAnchor(verse: number, offset: number): WordAnchor {
+  const o = Math.max(0, offset);
+  return { verse, start: o, end: o };
+}
+
 export function textFromWordRange(
   range: WordRange,
   verseText: (verse: number) => string,

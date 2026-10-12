@@ -1315,11 +1315,16 @@ body.reader-overlay-open .reader-page {
     -webkit-touch-callout: none !important;
   }
 
-  /* 长按已触发：禁滚，保证跟手扩选 */
+  /* 长按已触发：禁滚，保证跟手扩选；藏工具条/手柄免挡手指 */
   .reader-content.reader-word-selecting,
   .reader-content.reader-word-selecting .reader-scroll-panel,
   .reader-content.reader-word-selecting .reader-turn-peek {
     touch-action: none !important;
+  }
+  body.reader-word-selecting .reader-focus-bar,
+  body.reader-word-selecting .reader-sel-handle {
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 }
 .verse-word.is-active {
@@ -1999,17 +2004,18 @@ body.reader-overlay-open .reader-page {
 }
 /* 无 CSS Highlight 时的字符级选区底色（精确到用户选中范围，不扩整节） */
 .verse-sel-chars {
-  background: var(--reader-sel-bg, rgba(51, 144, 255, 0.35));
+  /* 用不透明浅蓝，避免多段叠色发深 */
+  background: var(--reader-sel-bg-solid, #c8ddff);
   color: inherit;
   border-radius: 4px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
-/* PWA/触控：收起系统选区后自绘起止拖动手柄（命中区加大，近似 iOS） */
+/* PWA/触控：自绘起止拖动手柄（命中区加大，近似 iOS） */
 .reader-sel-handle {
   position: fixed;
   z-index: 92;
-  width: 44px;
+  width: 56px;
   margin: 0;
   padding: 0;
   border: none;
@@ -2021,6 +2027,11 @@ body.reader-overlay-open .reader-page {
   cursor: grab;
   -webkit-tap-highlight-color: transparent;
   outline: none;
+  /* 上下各多出一截，方便抓住圆点 */
+  margin-top: -20px;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  box-sizing: content-box;
 }
 .reader-sel-handle::before {
   content: '';

@@ -6,11 +6,11 @@ import {
   pinnedSpanBounds,
   rebuildPinnedFromEdges,
   verseCharAtPoint,
-  wordAnchorFromPoint,
   type NativePinnedHighlight,
   type SelHandlePoint,
 } from '@/lib/native_verse_selection';
 import {
+  caretWordAnchor,
   normalizeWordRange,
   type WordAnchor,
   type WordRange,
@@ -101,12 +101,13 @@ export function ReaderSelectionHandles({
     if (!drag || !pt) return;
 
     if (drag.wordFixed) {
-      const hit = wordAnchorFromPoint(rootRef.current, pt.x, pt.y);
+      const hit = verseCharAtPoint(rootRef.current, pt.x, pt.y, { edge: drag.edge });
       if (!hit) return;
+      const caret = caretWordAnchor(hit.verse, hit.offset);
       const next: WordRange =
         drag.edge === 'start'
-          ? { anchor: hit, focus: drag.wordFixed }
-          : { anchor: drag.wordFixed, focus: hit };
+          ? { anchor: caret, focus: drag.wordFixed }
+          : { anchor: drag.wordFixed, focus: caret };
       onAdjustWordRef.current?.(next);
     } else if (drag.pinnedBounds) {
       const hit = verseCharAtPoint(rootRef.current, pt.x, pt.y, { edge: drag.edge });
@@ -196,10 +197,21 @@ export function ReaderSelectionHandles({
 
       if (wordRangeRef.current) {
         const norm = normalizeWordRange(wordRangeRef.current);
+        // 固定端用字符边界，便于与拖动端 caret 组 range
+        const fixedStart: WordAnchor = {
+          verse: norm.anchor.verse,
+          start: norm.anchor.start,
+          end: norm.anchor.start,
+        };
+        const fixedEnd: WordAnchor = {
+          verse: norm.focus.verse,
+          start: norm.focus.end,
+          end: norm.focus.end,
+        };
         dragRef.current = {
           edge,
           pointerId: e.pointerId,
-          wordFixed: edge === 'start' ? norm.focus : norm.anchor,
+          wordFixed: edge === 'start' ? fixedEnd : fixedStart,
         };
       } else {
         const bounds = pinnedRef.current ? pinnedSpanBounds(pinnedRef.current.spans) : null;
