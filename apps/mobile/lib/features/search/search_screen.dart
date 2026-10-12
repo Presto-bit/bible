@@ -10,7 +10,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/app_shell.dart';
 import '../../core/api_client.dart';
-import '../../core/open_h5.dart';
 import '../../core/ref_label.dart' show formatGroupRefLabel;
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
@@ -335,31 +334,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           if (!hasSearchQuery) ...[
             const SizedBox(height: 14),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    '知识探索',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => openH5IfAllowed(context, '/knowledge'),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text(
-                    '探索专题 ›',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                ),
-              ],
+            const Text(
+              '圣经知识',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: AppColors.ink,
+              ),
             ),
             const SizedBox(height: 8),
             const KnowledgeHub(),

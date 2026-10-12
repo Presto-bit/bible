@@ -10,6 +10,7 @@ import { KnowledgeManuscriptViewer } from '@/components/knowledge/KnowledgeManus
 import {
   isKnowledgeExpandActive,
   markKnowledgeSoftReturn,
+  peekKnowledgeExpandCover,
   startKnowledgeExpand,
 } from '@/lib/knowledge_nav';
 import { knowledgeRasterSources } from '@/lib/knowledge_media_url';
@@ -82,8 +83,27 @@ export default function KnowledgeNotePage() {
   }, [openFromQuery, noteId]);
 
   if (loading) {
-    if (openFromQuery || isKnowledgeExpandActive()) {
-      return <div className="knowledge-expand-silent" aria-busy="true" />;
+    if (openFromQuery || isKnowledgeExpandActive() || peekKnowledgeExpandCover()) {
+      const cover = peekKnowledgeExpandCover();
+      const sources = cover ? knowledgeRasterSources(cover) : null;
+      return (
+        <div className="knowledge-expand-silent" aria-busy="true">
+          {sources ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="knowledge-expand-silent-cover"
+              src={sources.fallback}
+              alt=""
+              decoding="async"
+              onError={(e) => {
+                if (sources.webp && e.currentTarget.src !== sources.webp) {
+                  e.currentTarget.src = sources.webp;
+                }
+              }}
+            />
+          ) : null}
+        </div>
+      );
     }
     return (
       <main className="container">

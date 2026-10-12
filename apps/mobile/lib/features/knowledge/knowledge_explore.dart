@@ -42,68 +42,31 @@ class KnowledgeHub extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final items = <(String, IconData, VoidCallback)>[
-      (
-        '探索专题',
-        Icons.collections_bookmark_outlined,
-        () => openH5IfAllowed(context, '/knowledge'),
-      ),
-      (
-        '出埃及故事',
-        Icons.auto_stories_outlined,
-        () => openH5IfAllowed(context, '/search/series/exodus'),
-      ),
-      (
-        '地图故事',
-        Icons.map_outlined,
-        () => openH5IfAllowed(context, '/search/map/exodus-wilderness?view=1'),
-      ),
-      (
-        '历史时间线',
-        Icons.timeline,
-        () => context.push('/search/timeline/life-of-jesus'),
-      ),
-      (
-        '关系专题',
-        Icons.hub_outlined,
-        () => context.push('/search/graph/exodus-core'),
-      ),
-      (
-        '圣经图鉴',
-        Icons.account_tree_outlined,
-        () => context.push('/search/diagrams/tabernacle-layout'),
-      ),
-      (
-        '圣经词典',
-        Icons.menu_book_outlined,
-        () => context.push('/dictionary'),
-      ),
-    ];
-    return SizedBox(
-      height: 108,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) {
-          final (label, icon, onTap) = items[i];
-          return SizedBox(
-            width: 132,
-            child: PaperCard(
-              onTap: onTap,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(icon, color: AppColors.accentDeep, size: 22),
-                  const Spacer(),
-                  Text(label,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 14)),
-                ],
-              ),
+    return PaperCard(
+      onTap: () => openH5IfAllowed(context, '/knowledge'),
+      child: Row(
+        children: [
+          Icon(Icons.collections_bookmark_outlined,
+              color: AppColors.accentDeep, size: 22),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '探索专题',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  '行程与笔记手稿，点开即读',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+          const Icon(Icons.chevron_right, color: AppColors.inkFaint, size: 20),
+        ],
       ),
     );
   }

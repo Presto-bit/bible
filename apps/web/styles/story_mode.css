@@ -1012,6 +1012,37 @@ html.knowledge-viewer-lock body {
   overscroll-behavior: none;
 }
 
+/* 全屏手稿：去掉壳层 safe-top / 底栏垫，避免顶留白与「不全屏」 */
+html.knowledge-viewer-lock .app-body,
+html.knowledge-viewer-lock body.pwa-standalone .app-body,
+html.android-flutter-h5.knowledge-viewer-lock .app-body,
+html.android-flutter-h5.knowledge-viewer-lock body.pwa-standalone .app-body {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  overflow: hidden !important;
+}
+
+html.android-flutter-h5.knowledge-viewer-lock,
+html.android-flutter-h5.knowledge-viewer-lock body {
+  height: var(--peiai-vv-h, 100%) !important;
+  min-height: var(--peiai-vv-h, 100%) !important;
+  overflow: hidden !important;
+}
+
+html.android-flutter-h5.knowledge-viewer-lock .app-body {
+  height: var(--peiai-vv-h, 100%) !important;
+  max-height: var(--peiai-vv-h, 100%) !important;
+  min-height: var(--peiai-vv-h, 100%) !important;
+}
+
+html.knowledge-viewer-lock .tabbar,
+html.knowledge-viewer-lock nav.tabbar {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 .knowledge-viewer-boot {
   min-height: 70dvh;
   display: flex;
@@ -1087,8 +1118,10 @@ html.knowledge-viewer-lock body {
 }
 
 .knowledge-expand-layer-cover {
-  object-fit: cover;
-  object-position: center top;
+  /* 与手稿最终态 contain 一致，避免垫图裁切 → 揭开后「跳一下」 */
+  object-fit: contain;
+  object-position: center center;
+  background: #1f1a16;
 }
 
 .knowledge-expand-layer-fallback {
@@ -1189,7 +1222,7 @@ html.knowledge-viewer-lock body {
   }
 }
 
-/* 非全屏：顶栏占位，不压在图片上 */
+/* 非全屏：顶栏占位，不压在图片上（用 --safe-top，含 Flutter shell-inset） */
 .knowledge-viewer-bar {
   position: relative;
   z-index: 6;
@@ -1199,7 +1232,7 @@ html.knowledge-viewer-lock body {
   align-items: center;
   gap: 8px;
   padding:
-    calc(6px + env(safe-area-inset-top, 0px))
+    calc(6px + var(--safe-top, env(safe-area-inset-top, 0px)))
     10px
     8px;
   background: rgba(31, 26, 22, 0.98);
@@ -1318,17 +1351,18 @@ html.knowledge-viewer-lock body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 0 calc(28px + env(safe-area-inset-bottom, 0px));
+  padding: 0;
   box-sizing: border-box;
 }
 
 /* 非全屏：正文区在顶栏下方，图片完整可见 */
 .knowledge-viewer:not(.is-chrome-hidden) .knowledge-viewer-page {
-  padding-top: 8px;
+  padding: 8px 0 calc(28px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
+/* 默认全屏沉浸：贴边，无顶/底安全区留白 */
 .knowledge-viewer.is-chrome-hidden .knowledge-viewer-page {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding: 0;
 }
 
 .knowledge-viewer-zoom {
@@ -1366,6 +1400,13 @@ html.knowledge-viewer-lock body {
   pointer-events: none;
 }
 
+.knowledge-viewer.is-chrome-hidden .knowledge-viewer-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+}
+
 .knowledge-viewer-img-placeholder {
   display: block;
   width: min(72vw, 280px);
@@ -1401,7 +1442,8 @@ html.knowledge-viewer-lock body {
 /* —— 圣经知识专题列表：1 行 2 卡封面（点进直达全屏） —— */
 
 .knowledge-topics-page.container {
-  padding-top: 10px;
+  /* 顶距只交给 .app-body --safe-top，避免再垫一层 */
+  padding-top: 0;
   padding-bottom: 28px;
   overflow-x: clip;
   overflow-y: visible;

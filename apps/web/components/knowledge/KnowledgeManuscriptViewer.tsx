@@ -14,6 +14,7 @@ import { isShareAbortError, shareOutbound } from '@/lib/share_outbound';
 import type { ManuscriptFolioPage } from '@/components/knowledge/KnowledgeManuscriptFolio';
 import {
   beginKnowledgeCollapse,
+  revealKnowledgeExpand,
 } from '@/lib/knowledge_nav';
 
 type Props = {
@@ -30,16 +31,19 @@ function ManuscriptRaster({
   path,
   alt,
   eager,
+  onPaint,
 }: {
   path: string;
   alt: string;
   eager?: boolean;
+  onPaint?: () => void;
 }) {
   const { webp, fallback } = knowledgeRasterSources(path);
-  const [src, setSrc] = useState(webp || fallback);
+  // 先 PNG：缺 webp 时避免占连接导致首屏黑等
+  const [src, setSrc] = useState(fallback);
   useEffect(() => {
-    setSrc(webp || fallback);
-  }, [webp, fallback]);
+    setSrc(fallback);
+  }, [fallback]);
   return (
     // 不用 <picture>+缺失 webp：部分 WebView 不回退到 PNG，整页空白
     // eslint-disable-next-line @next/next/no-img-element
@@ -50,8 +54,15 @@ function ManuscriptRaster({
       draggable={false}
       decoding="async"
       loading={eager ? 'eager' : 'lazy'}
+      fetchPriority={eager ? 'high' : 'auto'}
+      onLoad={() => onPaint?.()}
       onError={() => {
+        if (webp && src !== webp) {
+          setSrc(webp);
+          return;
+        }
         if (src !== fallback) setSrc(fallback);
+        onPaint?.();
       }}
     />
   );
@@ -210,7 +221,7 @@ function preloadSrc(src: string) {
 
 /**
  * §19.14.17 小红书式全屏手稿查看：横滑翻页、双手缩放、返回、系统分享。
- * 打开默认第一页；轻点图片切换沉浸（藏顶栏）；第一页再滑退出专题。
+ * 打开默认全屏沉浸（第 1 页）；轻点切换顶栏；第一页再滑退出专题。
  */
 export function KnowledgeManuscriptViewer({
   pages,
@@ -228,6 +239,7 @@ export function KnowledgeManuscriptViewer({
   const [chromeHidden, setChromeHidden] = useState(true);
   const [motionPhase, setMotionPhase] = useState<'enter' | 'ready' | 'leave'>('enter');
   const leavingRef = useRef(false);
+  const revealedRef = useRef(false);
   const [loaded, setLoaded] = useState<Record<number, boolean>>(() => {
     const init: Record<number, boolean> = {};
     for (let i = 0; i <= Math.min(total - 1, 1); i++) {
@@ -256,10 +268,27 @@ export function KnowledgeManuscriptViewer({
     };
   }, []);
 
-  // 进场直接最终态，无封面放大垫场
+  // 进场直接最终态；首图就绪后揭开壳层封面垫
   useEffect(() => {
     setMotionPhase('ready');
   }, []);
+
+  const revealShell = useCallback(() => {
+    if (revealedRef.current) return;
+    revealedRef.current = true;
+    revealKnowledgeExpand();
+  }, []);
+
+  useEffect(() => {
+    // 非位图首页或超时：避免垫层一直盖住
+    const first = pages[0];
+    if (!first?.src) {
+      revealShell();
+      return;
+    }
+    const t = window.setTimeout(revealShell, 480);
+    return () => window.clearTimeout(t);
+  }, [pages, revealShell]);
 
   const softLeave = useCallback((done: () => void) => {
     if (leavingRef.current) return;
@@ -553,6 +582,7 @@ export function KnowledgeManuscriptViewer({
                       path={p.src}
                       alt={p.alt}
                       eager={i === index}
+                      onPaint={i === 0 ? revealShell : undefined}
                     />
                   ) : (
                     <span className="knowledge-viewer-img-placeholder" aria-hidden />

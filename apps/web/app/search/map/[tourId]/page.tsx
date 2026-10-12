@@ -31,13 +31,14 @@ function LoadingSilent({ tourId }: { tourId: string }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           className="knowledge-expand-silent-cover"
-          src={sources.webp || sources.fallback}
+          src={sources.fallback}
           alt=""
           decoding="async"
+          fetchPriority="high"
           onError={(e) => {
             const img = e.currentTarget;
-            if (sources.fallback && img.src !== sources.fallback) {
-              img.src = sources.fallback;
+            if (sources.webp && img.src !== sources.webp) {
+              img.src = sources.webp;
             }
           }}
         />
@@ -133,6 +134,7 @@ function MapStoryPageContent() {
           layout={layout}
           backHref="/knowledge"
           backLabel="知识专题"
+          autoOpen={openView}
         />
       ) : (
         <MapStoryMode tourId={tourId} backHref="/search/map" backLabel="地图故事" />

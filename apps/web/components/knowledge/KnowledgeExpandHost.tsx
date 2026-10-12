@@ -5,6 +5,7 @@ import '@/styles/story_mode.css';
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  dismissKnowledgeExpandLayer,
   finishKnowledgeCollapse,
   getKnowledgeExpandSession,
   subscribeKnowledgeExpand,
@@ -38,7 +39,8 @@ function useExpandSession(): KnowledgeExpandSession | null {
 }
 
 /**
- * 壳层封面层：进场不再放大（手稿直接最终态）；仅退场缩回卡片。
+ * 壳层封面层：进场 hold 全屏垫住加载；退场缩回卡片。
+ * portal 到 body（勿走 AppBodyPortal，否则会被 Viewer 压住）。
  */
 export default function KnowledgeExpandHost() {
   const session = useExpandSession();
@@ -53,11 +55,11 @@ export default function KnowledgeExpandHost() {
 
   useEffect(() => {
     const phase = session?.phase ?? null;
-    if (phase === phaseRef.current) return;
+    if (phase === phaseRef.current && phase !== 'idle') return;
     phaseRef.current = phase;
 
-    if (!session || session.phase !== 'leave') {
-      if (visual !== 'hidden') {
+    if (!session) {
+      if (visual !== 'hidden' && visual !== 'fade') {
         setVisual('hidden');
         setLayer(null);
       }
@@ -68,24 +70,44 @@ export default function KnowledgeExpandHost() {
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    setLayer(session);
-    if (reduced) {
+    if (session.phase === 'hold' || session.phase === 'enter') {
+      setLayer(session);
+      setVisual('full');
+      return;
+    }
+
+    if (session.phase === 'leave') {
+      setLayer(session);
+      if (reduced) {
+        setVisual('fade');
+        const t = window.setTimeout(() => finishKnowledgeCollapse(), REVEAL_FADE_MS);
+        return () => window.clearTimeout(t);
+      }
+      setVisual('full');
+      let raf2 = 0;
+      const raf1 = window.requestAnimationFrame(() => {
+        raf2 = window.requestAnimationFrame(() => setVisual('to'));
+      });
+      const t = window.setTimeout(() => finishKnowledgeCollapse(), LEAVE_MS);
+      return () => {
+        window.cancelAnimationFrame(raf1);
+        window.cancelAnimationFrame(raf2);
+        window.clearTimeout(t);
+      };
+    }
+
+    if (session.phase === 'idle') {
       setVisual('fade');
-      const t = window.setTimeout(() => finishKnowledgeCollapse(), REVEAL_FADE_MS);
+      const t = window.setTimeout(() => {
+        setVisual('hidden');
+        setLayer(null);
+        dismissKnowledgeExpandLayer();
+        phaseRef.current = null;
+      }, REVEAL_FADE_MS);
       return () => window.clearTimeout(t);
     }
 
-    setVisual('full');
-    let raf2 = 0;
-    const raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(() => setVisual('to'));
-    });
-    const t = window.setTimeout(() => finishKnowledgeCollapse(), LEAVE_MS);
-    return () => {
-      window.cancelAnimationFrame(raf1);
-      window.cancelAnimationFrame(raf2);
-      window.clearTimeout(t);
-    };
+    return;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 

@@ -10,40 +10,16 @@ import {
   api,
   type BibleSearchHit,
   type BibleVersion,
-  type MapTour,
-  type TimelineTour,
 } from '@/lib/api';
 import { bibleSearch } from '@/lib/bible_client';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
-  diagramTourHref,
-  FEATURED_DIAGRAM,
-  FEATURED_GRAPH_TOPIC,
-  FEATURED_MAP_TOUR,
-  FEATURED_TIMELINE_TOUR,
-  graphTopicHref,
-  mapStoryHref,
   knowledgeTopicsHref,
   SEARCH_HOT_KEYWORDS,
-  timelineStoryHref,
 } from '@/lib/topic_routes';
 import { TopicNavCard } from '@/components/search/TopicNavCard';
 import { getMainVersion } from '@/lib/reader_settings';
-import {
-  knowledgeCountMeta,
-  knowledgeKindCta,
-  tourHook,
-} from '@/lib/knowledge_story';
-import { EXODUS_STORY, exodusCoverHref } from '@/lib/exodus_series';
-import {
-  getKnowledgeProgress,
-  knowledgeProgressLabel,
-} from '@/lib/knowledge_progress';
-import {
-  getStoryAlbumProgress,
-  resumeStoryAlbum,
-} from '@/lib/story_album_progress';
 import { KnowledgeTopicCardBody } from '@/components/search/KnowledgeTopicCardBody';
 import { searchHitReaderHref } from '@/lib/search_reader_href';
 import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
@@ -252,9 +228,6 @@ export default function SearchPage() {
   const [hits, setHits] = useState<BibleSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [mapTours, setMapTours] = useState<MapTour[]>([]);
-  const [timelineTours, setTimelineTours] = useState<TimelineTour[]>([]);
-  const [toursReady, setToursReady] = useState(false);
   const [scopeTab, setScopeTab] = useState<ScopeTab>('all');
   const [searchVersion, setSearchVersion] = useState('cuvs');
   const [versions, setVersions] = useState<BibleVersion[]>([]);
@@ -264,8 +237,6 @@ export default function SearchPage() {
   const [totalNt, setTotalNt] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [seriesProgressHint, setSeriesProgressHint] = useState('');
-  const [seriesHref, setSeriesHref] = useState(exodusCoverHref());
 
   const flushQuery = (next: string) => {
     setQuery(next);
@@ -295,36 +266,23 @@ export default function SearchPage() {
       const next = saveHistory(q);
       if (next) setHistory(next);
     }
-    setSeriesHref(exodusCoverHref());
-    const album = getStoryAlbumProgress(EXODUS_STORY.id);
-    if (album?.seriesDone) {
-      setSeriesProgressHint('系列已走完 · 可再看一遍');
-    } else if (album && (album.episodeIndex > 0 || album.beatIndex > 0)) {
-      const resume = resumeStoryAlbum(EXODUS_STORY.id, EXODUS_STORY.episodes.length);
-      const ep = EXODUS_STORY.episodes[resume.episodeIndex];
-      setSeriesProgressHint(
-          ep
-          ? `继续第 ${resume.episodeIndex + 1} 章 · ${ep.title}`
-          : `约 ${EXODUS_STORY.minutes} 分钟`,
-      );
-    } else {
-      setSeriesProgressHint(
-        `${EXODUS_STORY.episodes.length} 章 · 约 ${EXODUS_STORY.minutes} 分钟`,
-      );
-    }
-    void Promise.all([
-      api.mapTours().then((d) => setMapTours(d.tours ?? [])).catch(() => setMapTours([])),
-      api.timelineTours().then((d) => setTimelineTours(d.tours ?? [])).catch(() => setTimelineTours([])),
-      api.versions().then((d) => {
+    void api
+      .versions()
+      .then((d) => {
         const list = (d.versions ?? []).filter((v) => v.available !== false);
-        setVersions(list.length ? list : [
-          { id: 'cuvs', label: '和合本', available: true, primary: true },
-          { id: 'cnv', label: '新译本', available: true, primary: false },
-          { id: 'contemporary', label: '当代译本', available: true, primary: false },
-          { id: 'kjv', label: 'King James Version', available: true, primary: false },
-          { id: 'niv', label: 'NIV', available: true, primary: false },
-        ]);
-      }).catch(() => {
+        setVersions(
+          list.length
+            ? list
+            : [
+                { id: 'cuvs', label: '和合本', available: true, primary: true },
+                { id: 'cnv', label: '新译本', available: true, primary: false },
+                { id: 'contemporary', label: '当代译本', available: true, primary: false },
+                { id: 'kjv', label: 'King James Version', available: true, primary: false },
+                { id: 'niv', label: 'NIV', available: true, primary: false },
+              ],
+        );
+      })
+      .catch(() => {
         setVersions([
           { id: 'cuvs', label: '和合本', available: true, primary: true },
           { id: 'cnv', label: '新译本', available: true, primary: false },
@@ -332,8 +290,7 @@ export default function SearchPage() {
           { id: 'kjv', label: 'King James Version', available: true, primary: false },
           { id: 'niv', label: 'NIV', available: true, primary: false },
         ]);
-      }),
-    ]).finally(() => setToursReady(true));
+      });
   }, []);
 
   const searchQ = debouncedQuery.trim();
@@ -515,160 +472,20 @@ export default function SearchPage() {
               探索专题 ›
             </Link>
           </div>
-          <div className="story-entry-scroll rail">
-            <TopicNavCard
-              href={knowledgeTopicsHref()}
-              className="rail-card card card-2 story-tour-card story-entry-card"
-              ariaLabel="探索专题手稿"
-            >
-              <KnowledgeTopicCardBody
-                badge="探索专题"
-                badgeClassName="story-tour-badge-series"
-                title="手稿封面流"
-                hook="行程与笔记，点开即读"
-                meta="地图 · 笔记"
-                cta="去看看 ›"
-              />
-            </TopicNavCard>
-
-            <TopicNavCard
-              href={seriesHref}
-              className="rail-card card card-2 story-tour-card story-entry-card story-series-card"
-              ariaLabel={EXODUS_STORY.title}
-            >
-              <KnowledgeTopicCardBody
-                badge="旗舰系列"
-                badgeClassName="story-tour-badge-series"
-                title={EXODUS_STORY.title}
-                hook={EXODUS_STORY.hook}
-                meta={seriesProgressHint || `约 ${EXODUS_STORY.minutes} 分钟`}
-                cta={
-                  seriesProgressHint.includes('继续')
-                    ? '继续故事 ›'
-                    : seriesProgressHint.includes('已走完')
-                      ? '再看一遍 ›'
-                      : '开始故事 ›'
-                }
-              />
-            </TopicNavCard>
-
-            {(() => {
-              const featuredMap =
-                mapTours.find((t) => t.id === FEATURED_MAP_TOUR) ?? mapTours[0];
-              const mapStops = featuredMap?.stops?.length ?? 0;
-              const row = featuredMap
-                ? getKnowledgeProgress('map', featuredMap.id)
-                : null;
-              const progress =
-                row && (row.completed || row.step > 0)
-                  ? knowledgeProgressLabel(row, '站')
-                  : null;
-              return (
-                <TopicNavCard
-                  href={mapStoryHref(featuredMap?.id)}
-                  className="rail-card card card-2 story-tour-card story-entry-card"
-                  ariaLabel={featuredMap?.title ?? '地图故事'}
-                >
-                  <KnowledgeTopicCardBody
-                    badge="地图故事"
-                    title={featuredMap?.title ?? '圣经地理路线'}
-                    hook={
-                      toursReady
-                        ? (tourHook(featuredMap?.id) || featuredMap?.subtitle)
-                        : null
-                    }
-                    meta={
-                      toursReady
-                        ? (featuredMap
-                          ? knowledgeCountMeta(mapStops, 'map')
-                          : '暂无内容，稍后再来')
-                        : '正在载入…'
-                    }
-                    progress={progress}
-                    cta={
-                      progress && !row?.completed
-                        ? '继续走 ›'
-                        : knowledgeKindCta('map')
-                    }
-                  />
-                </TopicNavCard>
-              );
-            })()}
-
-            <TopicNavCard
-              href={diagramTourHref(FEATURED_DIAGRAM)}
-              className="rail-card card card-2 story-tour-card story-entry-card"
-              ariaLabel="会幕平面图"
-            >
-              <KnowledgeTopicCardBody
-                badge="图鉴馆"
-                badgeClassName="story-tour-badge-diagram"
-                title="会幕平面图"
-                hook={tourHook(FEATURED_DIAGRAM)}
-                meta={knowledgeCountMeta(4, 'diagram')}
-                cta={knowledgeKindCta('diagram')}
-              />
-            </TopicNavCard>
-
-            <TopicNavCard
-              href={graphTopicHref(FEATURED_GRAPH_TOPIC)}
-              className="rail-card card card-2 story-tour-card story-entry-card"
-              ariaLabel="出埃及核心人物"
-            >
-              <KnowledgeTopicCardBody
-                badge="关系专题"
-                badgeClassName="story-tour-badge-graph"
-                title="出埃及核心人物"
-                hook={tourHook(FEATURED_GRAPH_TOPIC)}
-                meta={knowledgeCountMeta(5, 'graph')}
-                cta={knowledgeKindCta('graph')}
-              />
-            </TopicNavCard>
-
-            {(() => {
-              const featuredTl =
-                timelineTours.find((t) => t.id === FEATURED_TIMELINE_TOUR) ?? timelineTours[0];
-              const n = featuredTl?.events?.length ?? 0;
-              const row = featuredTl
-                ? getKnowledgeProgress('timeline', featuredTl.id)
-                : null;
-              const progress =
-                row && (row.completed || row.step > 0)
-                  ? knowledgeProgressLabel(row, '个节点')
-                  : null;
-              return (
-                <TopicNavCard
-                  href={timelineStoryHref(featuredTl?.id)}
-                  className="rail-card card card-2 story-tour-card story-entry-card"
-                  ariaLabel={featuredTl?.title ?? '时间线'}
-                >
-                  <KnowledgeTopicCardBody
-                    badge="时间故事"
-                    badgeClassName="story-tour-badge-time"
-                    title={featuredTl?.title ?? '时间线'}
-                    hook={
-                      toursReady
-                        ? (tourHook(featuredTl?.id) || featuredTl?.subtitle)
-                        : null
-                    }
-                    meta={
-                      toursReady
-                        ? (featuredTl
-                          ? knowledgeCountMeta(n, 'timeline')
-                          : '暂无内容，稍后再来')
-                        : '正在载入…'
-                    }
-                    progress={progress}
-                    cta={
-                      progress && !row?.completed
-                        ? '继续走 ›'
-                        : knowledgeKindCta('timeline')
-                    }
-                  />
-                </TopicNavCard>
-              );
-            })()}
-          </div>
+          <TopicNavCard
+            href={knowledgeTopicsHref()}
+            className="card card-2 story-tour-card"
+            ariaLabel="探索专题手稿"
+          >
+            <KnowledgeTopicCardBody
+              badge="探索专题"
+              badgeClassName="story-tour-badge-series"
+              title="手稿封面流"
+              hook="行程与笔记，点开即读"
+              meta="统一入口 · 点开即读"
+              cta="去看看 ›"
+            />
+          </TopicNavCard>
         </section>
       )}
 

@@ -144,7 +144,7 @@ export type StartKnowledgeExpandArgs = {
   topicId?: string;
 };
 
-/** 点击卡片：只记缩回原点，进场不再播封面放大（直接出最终手稿态） */
+/** 点击卡片：全屏封面垫住路由加载（无 FLIP 放大）；退场仍缩回卡片 */
 export function startKnowledgeExpand(args: StartKnowledgeExpandArgs): boolean {
   if (typeof window === 'undefined') return false;
   const origin = args.el ? rectFromEl(args.el) : null;
@@ -152,15 +152,14 @@ export function startKnowledgeExpand(args: StartKnowledgeExpandArgs): boolean {
   const cover = (args.cover || '').trim();
   origin.cover = cover || undefined;
   leaveOrigin = { ...origin };
-  // 不进入 enter/hold：进场由 Viewer 直接展示最终态；Host 仅负责 leave 缩回
-  session = null;
-  persistSession({
-    phase: 'idle',
+  session = {
+    phase: 'hold',
     origin,
     cover,
     href: args.href,
     topicId: args.topicId,
-  });
+  };
+  persistSession(session);
   emit();
   return true;
 }
