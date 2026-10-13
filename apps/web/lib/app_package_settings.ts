@@ -270,7 +270,7 @@ export function resolveAppPackageRow(opts?: {
   if (platform === 'ios-safari' || platform === 'ios-other') {
     return {
       title: '添加到主屏幕',
-      hint: '点 Safari 右侧 ···，选「添加到主屏幕」',
+      hint: '右侧 ··· → 共享 → 查看更多 → 添加到主屏幕',
       action: 'install_sheet',
       latestVersion: latest,
     };

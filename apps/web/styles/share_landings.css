@@ -275,7 +275,7 @@ body.share-landing-active .tabbar {
 /* —— 产品邀请落地 / 轻触达 —— */
 .invite-app-page {
   padding-top: 28px;
-  padding-bottom: 96px;
+  padding-bottom: calc(220px + var(--safe-bottom));
   max-width: 560px;
 }
 
@@ -454,8 +454,8 @@ body.share-landing-active .tabbar {
 }
 
 .daily-verse-share-page {
-  /* 继承 share-landing-page；仅保留轻微差异 */
-  padding-bottom: calc(48px + var(--safe-bottom));
+  /* 继承 share-landing-page；底部留给同步出现的提示卡片 */
+  padding-bottom: calc(220px + var(--safe-bottom));
 }
 
 .daily-verse-share-page .eyebrow {

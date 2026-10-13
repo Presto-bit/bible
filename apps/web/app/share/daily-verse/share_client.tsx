@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { captureAcquisitionFromLocation } from '@/lib/acquisition';
 import { api, type DailyVerse } from '@/lib/api';
@@ -65,13 +66,11 @@ export function DailyVerseShareClient({ day }: { day?: number }) {
       </blockquote>
       <p className="muted share-landing-support daily-verse-share-meta">和合本 · {BRAND_TAGLINE}</p>
 
-      <ShareLandingCtas
-        installLabel="保存到主屏幕"
-        secondary={[
-          { href: '/', label: `打开${BRAND_NAME}首页` },
-          { href: '/reader', label: '去读经' },
-        ]}
-      />
+      <p className="share-landing-support">
+        <Link className="text-link" href="/reader">
+          去读经
+        </Link>
+      </p>
     </>
   );
 }

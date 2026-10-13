@@ -76,7 +76,7 @@ export function SharePwaGuide({
     return (
       <WechatEscapeCoach
         softCloseOnly
-        skipLabel="先看看内容"
+        skipLabel="收起"
         /* 收起不写 1 天冷却、不卸载；粘性条可再开全屏指引 */
         onDismissPassive={softDismiss}
         onSoftClose={() => {
@@ -104,7 +104,7 @@ export function SharePwaGuide({
   const desc = android
     ? '装好后，在桌面打开「彼爱」'
     : ios
-      ? '点右侧 ···，选「添加到主屏幕」'
+      ? '右侧 ··· → 共享 → 查看更多 → 添加到主屏幕'
       : '在浏览器菜单里安装';
   const cta = android ? '下载安装包' : ios ? '看怎么添加' : '去安装';
 

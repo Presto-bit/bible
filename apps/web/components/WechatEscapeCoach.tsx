@@ -78,16 +78,6 @@ export function WechatEscapeCoach({
     };
   }, [android, toast]);
 
-  // 全屏态锁滚动，粘性条释放
-  useEffect(() => {
-    if (phase !== 'coach') return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [phase]);
-
   const onCopy = async () => {
     if (copyBusy) return;
     setCopyBusy(true);
@@ -137,16 +127,8 @@ export function WechatEscapeCoach({
     <div
       className="wechat-escape-coach"
       role="dialog"
-      aria-modal="true"
       aria-labelledby="wechat-escape-title"
     >
-      <button
-        type="button"
-        className="wechat-escape-scrim"
-        aria-label={skipLabel}
-        onClick={softCloseOnly ? minimize : onDismissPassive}
-      />
-
       <div className="wechat-escape-arrow" aria-hidden>
         <span className="wechat-escape-arrow-tip">点这里 ···</span>
         <svg className="wechat-escape-arrow-svg" viewBox="0 0 80 96" width="76" height="90">

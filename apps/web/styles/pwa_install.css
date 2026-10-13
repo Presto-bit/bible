@@ -263,18 +263,28 @@
 .ios-install-coach-menu li {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   padding: 9px 12px;
   font-size: 14px;
+  color: var(--ink, #243028);
+}
+
+.ios-install-coach-menu-n {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent-deep, #4f6b5d);
+  background: color-mix(in srgb, var(--accent-deep, #4f6b5d) 12%, transparent);
 }
 
 .ios-install-coach-menu li + li {
   border-top: 1px solid color-mix(in srgb, var(--accent-deep, #4f6b5d) 12%, transparent);
-}
-
-.ios-install-coach-menu-skip {
-  color: var(--muted, #7a867f);
 }
 
 .ios-install-coach-menu-pick {
@@ -283,14 +293,9 @@
   background: color-mix(in srgb, var(--accent-deep, #4f6b5d) 10%, transparent);
 }
 
-.ios-install-coach-menu-tag {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.ios-install-coach-menu-skip .ios-install-coach-menu-tag {
-  font-weight: 600;
+.ios-install-coach-menu-pick .ios-install-coach-menu-n {
+  color: #fff;
+  background: var(--accent-deep, #4f6b5d);
 }
 
 .ios-install-coach-hint {

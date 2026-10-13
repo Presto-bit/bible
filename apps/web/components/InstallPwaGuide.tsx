@@ -316,7 +316,7 @@ export function InstallPwaSheet({
               {busy ? '正在准备…' : '下载安装包'}
             </button>
             <button type="button" className="text-link install-landing-coach-dismiss" onClick={softClose}>
-              先看这篇
+              收起
             </button>
           </div>
         </div>

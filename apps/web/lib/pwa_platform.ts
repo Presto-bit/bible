@@ -90,26 +90,15 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
     case 'ios-safari':
       // UI 主路径为 IosSafariInstallCoach；此处供分享页等纯文案兜底
       return [
-        {
-          title: '点右侧 ···',
-          detail: 'Safari 屏幕右侧，不是底栏中间的分享按钮',
-        },
-        {
-          title: '点「添加到主屏幕」',
-          detail: '菜单里有「共享」「查看更多」「添加到主屏幕」，只点最后一项',
-        },
-        {
-          title: '右上角「添加」',
-          detail: '确认名称「彼爱」后点添加',
-        },
+        { title: '点右侧 ···', detail: 'Safari 屏幕右侧' },
+        { title: '点「共享」', detail: '在刚打开的菜单里' },
+        { title: '点「查看更多」', detail: '接着往下找' },
+        { title: '点「添加到主屏幕」', detail: '再点右上角「添加」，名称是「彼爱」' },
       ];
     case 'ios-other':
       return [
         { title: '用 Safari 打开', detail: '复制链接，粘贴到 Safari' },
-        {
-          title: '点右侧 ···',
-          detail: '选「添加到主屏幕」，不要点「共享」或「查看更多」',
-        },
+        { title: '点右侧 ···', detail: '然后点「共享」→「查看更多」→「添加到主屏幕」' },
       ];
     case 'android-chrome':
       return [
