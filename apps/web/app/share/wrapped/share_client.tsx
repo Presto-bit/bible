@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { captureAcquisitionFromLocation } from '@/lib/acquisition';
-import { BRAND_NAME } from '@/lib/brand';
 import { ShareLandingCtas } from '@/components/ShareLandingCtas';
 
 export function WrappedShareClient({ period }: { period: 'month' | 'year' }) {
@@ -10,13 +9,18 @@ export function WrappedShareClient({ period }: { period: 'month' | 'year' }) {
     captureAcquisitionFromLocation();
   }, []);
 
+  const href = `/wrapped?period=${period}`;
+
   return (
     <ShareLandingCtas
-      installLabel="保存到主屏幕"
-      secondary={[
-        { href: `/wrapped?period=${period}`, label: '查看我的回顾' },
-        { href: '/', label: `打开${BRAND_NAME}` },
-      ]}
+      preferContentPrimary
+      contentPrimary={{
+        label: '查看这段回顾',
+        onClick: () => {
+          window.location.assign(href);
+        },
+      }}
+      secondary={[{ href: '/', label: '进入首页' }]}
     />
   );
 }

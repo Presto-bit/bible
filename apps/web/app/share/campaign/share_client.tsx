@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { captureAcquisitionFromLocation } from '@/lib/acquisition';
-import { BRAND_NAME } from '@/lib/brand';
 import { ShareLandingCtas } from '@/components/ShareLandingCtas';
 
 export function CampaignShareClient({
@@ -22,10 +21,14 @@ export function CampaignShareClient({
 
   return (
     <ShareLandingCtas
-      installLabel="保存到主屏幕"
-      secondary={[
-        { href, label: campaignId ? '打开活动' : `打开${BRAND_NAME}` },
-      ]}
+      preferContentPrimary
+      contentPrimary={{
+        label: campaignId ? '打开活动' : '进入首页',
+        onClick: () => {
+          window.location.assign(href);
+        },
+      }}
+      secondary={campaignId ? [{ href: '/', label: '进入首页' }] : []}
     />
   );
 }

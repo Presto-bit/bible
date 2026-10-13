@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { captureAcquisitionFromLocation } from '@/lib/acquisition';
 import { api, type DailyVerse } from '@/lib/api';
-import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
-import { formatDailyVerseQuote } from '@/lib/daily_verse_display';
+import { BRAND_NAME } from '@/lib/brand';
+import { dailyVerseReaderHref, formatDailyVerseQuote } from '@/lib/daily_verse_display';
+import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
+import WallpaperBg from '@/components/home/WallpaperBg';
 import { ShareLandingCtas } from '@/components/ShareLandingCtas';
 
 export function DailyVerseShareClient({ day }: { day?: number }) {
@@ -42,7 +44,7 @@ export function DailyVerseShareClient({ day }: { day?: number }) {
   }, [day]);
 
   if (loading) {
-    return <p className="muted">正在打开今日经文…</p>;
+    return <p className="muted daily-verse-real-loading">正在打开今日经文…</p>;
   }
 
   if (err || !verse?.text) {
@@ -50,27 +52,41 @@ export function DailyVerseShareClient({ day }: { day?: number }) {
       <>
         <p className="muted">{err || '暂时无法加载经文'}</p>
         <ShareLandingCtas
-          secondary={[
-            { href: '/', label: `打开${BRAND_NAME}` },
-          ]}
+          preferContentPrimary
+          contentPrimary={{
+            label: '进入首页',
+            onClick: () => {
+              window.location.assign('/');
+            },
+          }}
+          secondary={[{ href: '/', label: `打开${BRAND_NAME}` }]}
         />
       </>
     );
   }
 
-  return (
-    <>
-      <p className="share-landing-cite daily-verse-share-ref">{verse.ref || '每日经文'}</p>
-      <blockquote className="share-landing-verse">
-        <p className="share-landing-verse-text">{formatDailyVerseQuote(verse.text)}</p>
-      </blockquote>
-      <p className="muted share-landing-support daily-verse-share-meta">和合本 · {BRAND_TAGLINE}</p>
+  const readerHref = dailyVerseReaderHref(verse);
+  const wallpaper = dailyVerseWallpaperUrl(verse.day, 'full');
 
-      <p className="share-landing-support">
-        <Link className="text-link" href="/reader">
-          去读经
+  return (
+    <section className="daily-verse-real" aria-label={verse.ref || '每日经文'}>
+      <WallpaperBg src={wallpaper} className="daily-verse-real-bg" fetchPriority="high" alt="" />
+      <div className="daily-verse-real-scrim" aria-hidden />
+      <Link href={readerHref || '/'} className="daily-verse-real-copy">
+        <p className="daily-verse-real-kicker">每日经文</p>
+        <p className="daily-verse-real-text">{formatDailyVerseQuote(verse.text)}</p>
+        {verse.ref ? <p className="daily-verse-real-ref">{verse.ref}</p> : null}
+      </Link>
+      <div className="daily-verse-real-enter">
+        <Link className="btn btn-primary" href="/">
+          进入首页
         </Link>
-      </p>
-    </>
+        {readerHref ? (
+          <Link className="btn daily-verse-real-read" href={readerHref}>
+            阅读这节
+          </Link>
+        ) : null}
+      </div>
+    </section>
   );
 }

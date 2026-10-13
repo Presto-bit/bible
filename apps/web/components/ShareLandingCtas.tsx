@@ -11,7 +11,6 @@ import {
   wechatInstallSecondaryHint,
   wechatOpenBrowserToast,
 } from '@/lib/wechat_open_browser';
-import { hasWechatEscapeIntent } from '@/lib/wechat_escape';
 import { useToast } from '@/components/ui/ToastProvider';
 
 type Props = {
@@ -108,7 +107,7 @@ export function ShareLandingCtas({
     );
   }
 
-  if (preferContentPrimary && contentPrimary && !hasWechatEscapeIntent()) {
+  if (preferContentPrimary && contentPrimary) {
     return (
       <div className="share-landing-ctas">
         <button type="button" className="btn btn-primary" onClick={contentPrimary.onClick}>

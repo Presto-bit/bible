@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { captureAcquisitionFromLocation } from '@/lib/acquisition';
 import { ShareLandingCtas } from '@/components/ShareLandingCtas';
@@ -69,6 +70,7 @@ export function ShelfShareClient({ bookId }: { bookId: string }) {
 
   return (
     <>
+      <Link href={openHref} className="shelf-share-card-link">
       <article className="shelf-share-card">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -84,13 +86,19 @@ export function ShelfShareClient({ bookId }: { bookId: string }) {
           <p className="muted shelf-share-book-hint">在彼爱书架安静读完</p>
         </div>
       </article>
+      </Link>
 
       <ShareLandingCtas
-        installLabel="保存到主屏幕"
+        preferContentPrimary
+        contentPrimary={{
+          label: '打开这本书',
+          onClick: () => {
+            window.location.assign(openHref);
+          },
+        }}
         secondary={[
-          { href: openHref, label: '打开这本书' },
+          { href: '/', label: '进入首页' },
           { href: '/shelf', label: '逛逛书架' },
-          { href: '/', label: `打开${BRAND_NAME}首页` },
         ]}
       />
     </>

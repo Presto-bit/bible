@@ -86,13 +86,8 @@ export default async function DailyVerseSharePage({
   const day = Number.isFinite(dayRaw) && dayRaw > 0 ? dayRaw : undefined;
 
   return (
-    <main className="container share-landing-page daily-verse-share-page">
+    <main className="daily-verse-share-page">
       <SharePwaGuide variant="daily" />
-      <p className="eyebrow">{BRAND_NAME}</p>
-      <h1 className="share-landing-title daily-verse-share-title">今日经文</h1>
-      <p className="muted share-landing-support daily-verse-share-support">
-        来自朋友的分享 · {BRAND_TAGLINE}
-      </p>
       <DailyVerseShareClient day={day} />
     </main>
   );
