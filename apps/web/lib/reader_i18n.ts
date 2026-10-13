@@ -88,6 +88,8 @@ export type CatalogUiCopy = {
   chaptersTab: string;
   ot: string;
   nt: string;
+  otTab: string;
+  ntTab: string;
   chaptersUnit: string;
   chaptersTotal: string;
   switchBook: string;
@@ -107,6 +109,8 @@ const CATALOG_ZH: CatalogUiCopy = {
   chaptersTab: '章节',
   ot: '旧约',
   nt: '新约',
+  otTab: '旧约',
+  ntTab: '新约',
   chaptersUnit: '章',
   chaptersTotal: '共',
   switchBook: '换卷 ›',
@@ -126,6 +130,8 @@ const CATALOG_EN: CatalogUiCopy = {
   chaptersTab: 'Chapters',
   ot: 'Old Testament',
   nt: 'New Testament',
+  otTab: 'Old',
+  ntTab: 'New',
   chaptersUnit: ' ch',
   chaptersTotal: '',
   switchBook: 'All books ›',

@@ -610,10 +610,10 @@ html.perf-lite .home-page .home-today-tile-tag {
 }
 
 .reader-catalog-page .catalog-abbr {
-  font-size: clamp(28px, 7vw, 36px);
-  font-weight: 650;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.2;
 }
 
 /* ─── W7：发现 IM 会话行 ─── */

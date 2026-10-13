@@ -10,6 +10,7 @@ import { catalogUi } from '@/lib/reader_i18n';
 import { getLastRead } from '@/lib/reading';
 
 type CatalogTab = 'books' | 'chapters';
+type TestamentPick = 'ot' | 'nt';
 
 type CatalogProps = {
   books: BibleBook[];
@@ -38,6 +39,7 @@ function CatalogView({
 }: CatalogProps) {
   const ui = catalogUi(englishUI);
   const [tab, setTab] = useState<CatalogTab>('books');
+  const [testament, setTestament] = useState<TestamentPick>('nt');
   const [pickWarn, setPickWarn] = useState<string | null>(null);
   const [selectedBookId, setSelectedBookId] = useState(
     () => currentBookId || books[0]?.id || '',
@@ -50,6 +52,13 @@ function CatalogView({
   useEffect(() => {
     if (currentBookId) setSelectedBookId(currentBookId);
   }, [currentBookId]);
+
+  useEffect(() => {
+    const id = currentBookId || (!planSteps?.length ? getLastRead()?.bookId : '') || '';
+    const book = books.find((b) => b.id === id);
+    if (!book) return;
+    setTestament(book.testament.toUpperCase().startsWith('O') ? 'ot' : 'nt');
+  }, [books, currentBookId, planSteps]);
 
   useEffect(() => {
     if (!selectedBookId && books[0]) setSelectedBookId(books[0].id);
@@ -89,12 +98,14 @@ function CatalogView({
     setPickWarn(null);
   };
 
-  const renderBookGroup = (label: string, list: BibleBook[]) => {
+  const renderBookGroup = (label: string, list: BibleBook[], showLabel = true) => {
     const items = planBookIds ? list.filter((b) => planBookIds.has(b.id)) : list;
     if (!items.length) return null;
     return (
     <>
-      <p className="section-label tab-section-label catalog-section-label">{label}</p>
+      {showLabel ? (
+        <p className="section-label tab-section-label catalog-section-label">{label}</p>
+      ) : null}
       <div className="catalog-grid">
         {items.map((b) => (
           <button
@@ -107,12 +118,14 @@ function CatalogView({
               planBookIds && !planBookIds.has(b.id) ? ' catalog-card-disabled' : ''
             }`}
             onClick={() => pickBook(b)}
+            aria-label={
+              englishUI
+                ? `${b.name}, ${b.chapter_count} chapters`
+                : `${b.name}，${b.chapter_count}章`
+            }
+            title={b.name}
           >
             <span className="catalog-abbr">{bookAbbr(b.name, b.id)}</span>
-            <span className="catalog-name">{b.name}</span>
-            <span className="catalog-ch">
-              {englishUI ? `${b.chapter_count}${ui.chaptersUnit}` : `${b.chapter_count} ${ui.chaptersUnit.trim()}`}
-            </span>
           </button>
         ))}
       </div>
@@ -202,8 +215,23 @@ function CatalogView({
 
       {tab === 'books' ? (
         <>
-          {ot.length > 0 && renderBookGroup(ui.ot, ot)}
-          {nt.length > 0 && renderBookGroup(ui.nt, nt)}
+          <div className="seg-tabs catalog-testament-tabs" role="tablist" aria-label={ui.booksTab}>
+            <button
+              type="button"
+              className={`seg-tab${testament === 'ot' ? ' seg-tab-active' : ''}`}
+              onClick={() => setTestament('ot')}
+            >
+              {ui.otTab}
+            </button>
+            <button
+              type="button"
+              className={`seg-tab${testament === 'nt' ? ' seg-tab-active' : ''}`}
+              onClick={() => setTestament('nt')}
+            >
+              {ui.ntTab}
+            </button>
+          </div>
+          {testament === 'ot' ? renderBookGroup(ui.ot, ot, false) : renderBookGroup(ui.nt, nt, false)}
         </>
       ) : selectedBook ? (
         <div className="catalog-chapters-panel">
