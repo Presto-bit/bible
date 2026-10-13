@@ -36,9 +36,8 @@ export function InviteAppClient({
     return (
       <section className="invite-app-section" aria-labelledby="invite-save-title">
         <h2 id="invite-save-title" className="invite-app-section-title">
-          保存到主屏幕，下次一点就开
+          {installHeadline(platform)}
         </h2>
-        <p className="muted invite-app-save-lead">{installHeadline(platform)}</p>
         <ol className="invite-app-steps">
           {steps.map((s, i) => (
             <li key={`${s.title}-${i}`} className="invite-app-step">

@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * 分享漏斗：识别 fw=1，强化系统浏览器安装；记住装后深链。
+ * 分享漏斗：识别 fw=1，记住装后深链，静默去掉参数。
+ * 安装/添加到主屏幕由落地页自己的提示承担，这里不再弹第二层。
  */
 
 import { Suspense, useEffect } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { detectInstallPlatform } from '@/lib/pwa_platform';
 import { isShareLandingPath } from '@/lib/share_pwa_guide';
 import { bootstrapFromWechatParam, notePostInstallPath } from '@/lib/wechat_escape';
@@ -14,13 +14,12 @@ import { bootstrapFromWechatParam, notePostInstallPath } from '@/lib/wechat_esca
 function ShareFunnelBootstrapInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   useEffect(() => {
     const platform = detectInstallPlatform();
     const result = bootstrapFromWechatParam(searchParams);
 
-    // 微信内必须保留 ?fw=1，供「在浏览器打开」带参；只在系统浏览器落地再剥参
+    // 微信内必须保留 ?fw=1，供「在浏览器打开」带参；系统浏览器落地后静默剥掉，不整页再跳一次
     if (
       result.stripQuery
       && platform !== 'inapp'
@@ -29,25 +28,15 @@ function ShareFunnelBootstrapInner() {
       const u = new URL(window.location.href);
       if (u.searchParams.has('fw')) {
         u.searchParams.delete('fw');
-        router.replace(`${u.pathname}${u.search}${u.hash}`);
+        const next = `${u.pathname}${u.search}${u.hash}`;
+        window.history.replaceState(window.history.state, '', next);
       }
     }
 
     if (isShareLandingPath(pathname)) {
       notePostInstallPath();
     }
-
-    if (result.shouldBoostInstall && platform !== 'inapp' && platform !== 'standalone') {
-      // 从微信逃出（fw=1 或会话标记）后尽快接上安装引导（iOS 指尖 / 安卓下载）
-      const t = window.setTimeout(() => openPwaInstallSheet(), 220);
-      // 再补一次，防止首帧 platform 未就绪
-      const t2 = window.setTimeout(() => openPwaInstallSheet(), 900);
-      return () => {
-        window.clearTimeout(t);
-        window.clearTimeout(t2);
-      };
-    }
-  }, [pathname, searchParams, router]);
+  }, [pathname, searchParams]);
 
   return null;
 }

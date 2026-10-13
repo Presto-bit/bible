@@ -45,10 +45,9 @@ export function ShareLandingCtas({
   if (!platform) return null;
 
   const resolvedInstallLabel =
-    installLabel ??
-    (platform === 'android-chrome' || platform === 'android-other'
-      ? '下载并安装彼爱'
-      : '保存到主屏幕');
+    platform === 'android-chrome' || platform === 'android-other'
+      ? '下载安装包'
+      : (installLabel && installLabel !== '保存到主屏幕' ? installLabel : '添加到主屏幕');
 
   if (platform === 'standalone') {
     return (

@@ -269,8 +269,8 @@ export function resolveAppPackageRow(opts?: {
 
   if (platform === 'ios-safari' || platform === 'ios-other') {
     return {
-      title: '保存到主屏幕',
-      hint: 'Safari · 约 10 秒 · 像 App 一样打开',
+      title: '添加到主屏幕',
+      hint: '点 Safari 右侧 ···，选「添加到主屏幕」',
       action: 'install_sheet',
       latestVersion: latest,
     };

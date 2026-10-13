@@ -91,20 +91,24 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
       // UI 主路径为 IosSafariInstallCoach；此处供分享页等纯文案兜底
       return [
         {
-          title: '点底栏「共享」↑',
-          detail: 'Safari 底栏中间，不是发给朋友',
+          title: '点右侧 ···',
+          detail: 'Safari 屏幕右侧，不是底栏中间的分享按钮',
         },
         {
-          title: '添加到主屏幕 → 添加',
-          detail: '菜单里向下滑找到，确认名称「彼爱」即可',
+          title: '点「添加到主屏幕」',
+          detail: '菜单里有「共享」「查看更多」「添加到主屏幕」，只点最后一项',
+        },
+        {
+          title: '右上角「添加」',
+          detail: '确认名称「彼爱」后点添加',
         },
       ];
     case 'ios-other':
       return [
-        { title: '建议用 Safari 打开', detail: '复制链接，粘贴到 Safari 更稳；也可继续用当前浏览器' },
+        { title: '用 Safari 打开', detail: '复制链接，粘贴到 Safari' },
         {
-          title: '点工具栏「共享」',
-          detail: 'Chrome / Edge 等也是 ↑「共享」或「⋯」里的共享，再选「添加到主屏幕」',
+          title: '点右侧 ···',
+          detail: '选「添加到主屏幕」，不要点「共享」或「查看更多」',
         },
       ];
     case 'android-chrome':
@@ -135,25 +139,13 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
       // 只催逃逸；安装细节等出微信后再讲
       if (typeof navigator !== 'undefined' && isIOS()) {
         return [
-          {
-            title: '点右上角 ···',
-            detail: '选「在 Safari 打开」或「在默认浏览器中打开」',
-          },
-          {
-            title: '用 Safari 打开本页',
-            detail: '打开后会再教你保存到主屏幕',
-          },
+          { title: '点右上角 ···', detail: '微信右上角，不是 Safari 里的菜单' },
+          { title: '在 Safari 打开', detail: '打开后就是这篇分享，再按页面提示添加到主屏幕' },
         ];
       }
       return [
-        {
-          title: '点右上角 ···',
-          detail: '选「在浏览器打开」或「用默认浏览器打开」',
-        },
-        {
-          title: '用系统浏览器打开本页',
-          detail: '打开后即可下载安装彼爱',
-        },
+        { title: '点右上角 ···', detail: '微信右上角' },
+        { title: '在浏览器打开', detail: '打开后就是这篇分享，再下载安装包' },
       ];
     case 'desktop':
       return [
@@ -170,16 +162,16 @@ export function installHeadline(platform: InstallPlatform): string {
   switch (platform) {
     case 'inapp':
       return isIOS()
-        ? '先在 Safari 打开'
-        : '先在浏览器打开';
+        ? '点右上角 ···，在 Safari 打开'
+        : '点右上角 ···，在浏览器打开';
     case 'ios-safari':
-      return '保存到主屏幕，像打开 App 一样读经';
+      return '添加到主屏幕';
     case 'ios-other':
-      return '建议在 Safari 中保存到主屏幕';
+      return '用 Safari 打开后，点右侧 ···';
     case 'android-chrome':
-      return '安装彼爱 App（下载安装包），像独立 App 一样用';
+      return '安装彼爱';
     case 'android-other':
-      return '安装彼爱 App：直接下载安装包，不跳应用商店';
+      return '安装彼爱';
     case 'desktop':
       return '把读经记录保存到桌面 App，重装后也能找回';
     default:

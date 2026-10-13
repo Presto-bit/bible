@@ -1,6 +1,5 @@
-/** 微信 / QQ 等内置浏览器：引导到系统浏览器后再安装 */
+/** 微信 / QQ 等内置浏览器：只引导到系统浏览器，安装在落地页再说 */
 
-import { BRAND_NAME } from './brand';
 import { isAndroid, isIOS } from './pwa_platform';
 import { toCanonicalShareUrl } from './share_site';
 import {
@@ -59,16 +58,13 @@ export function wechatOpenBrowserToast(copied: boolean): string {
 }
 
 export function wechatInstallPrimaryLabel(): string {
-  if (isAndroid()) return '复制链接 · 用浏览器打开后安装';
-  return '复制链接 · 用 Safari 打开后保存';
+  if (isAndroid()) return '复制链接，在浏览器打开';
+  return '复制链接，在 Safari 打开';
 }
 
 export function wechatInstallSecondaryHint(): string {
   const open = openMenuLabel();
-  if (isAndroid()) {
-    return `微信里下不了安装包。点右上角 ··· →「${open}」，再下载装${BRAND_NAME}`;
-  }
-  return `微信里装不了。点右上角 ··· →「${open}」，打开后再继续`;
+  return `点右上角 ··· →「${open}」。打开后就是当前这篇。`;
 }
 
 export function wechatMaskTitle(): string {
@@ -77,8 +73,5 @@ export function wechatMaskTitle(): string {
 
 export function wechatMaskDesc(): string {
   const open = openMenuLabel();
-  if (isAndroid()) {
-    return `微信里无法下载安装包。点右上角 ···，选「${open}」。打开后会引导下载安装${BRAND_NAME}。`;
-  }
-  return `微信里无法安装。点右上角 ···，选「${open}」。打开后会继续引导你保存${BRAND_NAME}。`;
+  return `点右上角 ···，选「${open}」。`;
 }

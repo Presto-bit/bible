@@ -51,6 +51,7 @@ import {
   noteInstallPromptShown,
   PWA_INSTALL_DISMISS_KEY,
   setAndroidAutoSheetOpen,
+  setInstallCoachVisible,
   setIosAutoSheetOpen,
 } from '@/lib/pwa_install_prompt';
 import {
@@ -111,7 +112,9 @@ export function InstallPwaSheet({
   context?: PwaInstallContext | null;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const toast = useToast();
+  const shareLanding = isShareLandingPath(pathname);
   const [platform, setPlatform] = useState<InstallPlatform>(() => detectInstallPlatform());
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
   const [busy, setBusy] = useState(false);
@@ -133,6 +136,17 @@ export function InstallPwaSheet({
       setAndroidInstalled(false);
     }
   }, [open, platformProp]);
+
+  useEffect(() => {
+    const show =
+      open &&
+      shareLanding &&
+      platform !== 'inapp' &&
+      platform !== 'standalone' &&
+      platform !== 'desktop';
+    setInstallCoachVisible(show);
+    return () => setInstallCoachVisible(false);
+  }, [open, platform, shareLanding]);
 
   useEffect(() => {
     if (!open) return;
@@ -182,12 +196,14 @@ export function InstallPwaSheet({
 
   if (isIosSafari) {
     return (
-      <IosSafariInstallCoach
-        resumeLabel={resumeLabel}
-        softCloseOnly={softCloseOnly}
-        onDismissPassive={dismissPassive}
-        onSoftClose={softClose}
-      />
+      <AppBodyPortal onTabAway={softClose}>
+        <IosSafariInstallCoach
+          resumeLabel={resumeLabel}
+          softCloseOnly={softCloseOnly}
+          onDismissPassive={dismissPassive}
+          onSoftClose={softClose}
+        />
+      </AppBodyPortal>
     );
   }
 
@@ -273,6 +289,42 @@ export function InstallPwaSheet({
     onClose();
   };
 
+  if (isAndroid && shareLanding) {
+    return (
+      <AppBodyPortal onTabAway={softClose}>
+      <div className="install-landing-coach" role="dialog" aria-labelledby="android-install-coach-title">
+        <div className="install-landing-coach-body">
+          <div className="install-landing-coach-card">
+            <button
+              type="button"
+              className="ios-install-coach-close"
+              aria-label="关闭"
+              onClick={softClose}
+            >
+              ✕
+            </button>
+            <strong id="android-install-coach-title" className="install-landing-coach-title">
+              安装彼爱
+            </strong>
+            <p className="install-landing-coach-lead">装好后，在桌面打开「彼爱」</p>
+            <button
+              type="button"
+              className="btn btn-block"
+              disabled={busy}
+              onClick={() => void runAndroidApkInstall()}
+            >
+              {busy ? '正在准备…' : '下载安装包'}
+            </button>
+            <button type="button" className="text-link install-landing-coach-dismiss" onClick={softClose}>
+              先看这篇
+            </button>
+          </div>
+        </div>
+      </div>
+      </AppBodyPortal>
+    );
+  }
+
   return (
     <AppBodyPortal onTabAway={softClose}>
     <div className="sheet-backdrop" data-dismiss-on-tab-nav onClick={softClose}>
@@ -317,7 +369,7 @@ export function InstallPwaSheet({
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
             {isAndroid
               ? '安装完成后打开桌面「彼爱」图标，即可回到刚才读的地方。'
-              : '保存到主屏幕后，打开图标即可回到刚才读的地方。'}
+              : '添加到主屏幕后，打开图标即可回到刚才读的地方。'}
           </p>
         ) : null}
         {isAndroid ? (
@@ -515,6 +567,11 @@ export default function InstallBanner() {
       setIosAutoSheetOpen(false);
       return;
     }
+    // 分享页的微信逃逸由 SharePwaGuide 独占，避免和安装层叠两张
+    if (onShareLanding && platform === 'inapp') {
+      setSheetOpen(false);
+      return;
+    }
     if (isAutoInstallPlatform) {
       const iosSuppressed = isIosBrowserPlatform && isIosInstallAutoSuppressed();
       const androidSuppressed =
@@ -566,6 +623,7 @@ export default function InstallBanner() {
     isAndroidPlatform,
     isIosBrowserPlatform,
     androidInstalled,
+    onShareLanding,
   ]);
 
   // 探测到已装 → 硬认领，永久关掉自动 Sheet

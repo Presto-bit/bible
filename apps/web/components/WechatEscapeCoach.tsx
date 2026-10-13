@@ -27,13 +27,7 @@ type Props = {
 
 /**
  * 微信 / QQ 内置浏览器：只做一件事——逃到系统浏览器。
- * 安装 / 加主屏幕等出微信后再引导。
- *
- * 强化点：
- * 1. 当前 URL 注入 fw=1 → 「在浏览器打开」带参，出微信即强化安装
- * 2. 入场自动复制链接，减少一步
- * 3. 分步路径 + 顶部脉冲指引
- * 4. 收起后留粘性条，可一键再出全屏
+ * 不在这里讲安装。安装等系统浏览器打开这篇之后再说。
  */
 export function WechatEscapeCoach({
   softCloseOnly = false,
@@ -131,9 +125,7 @@ export function WechatEscapeCoach({
         <button type="button" className="wechat-escape-chip" onClick={expand}>
           <span className="wechat-escape-chip-dot" aria-hidden />
           <span className="wechat-escape-chip-text">
-            {android
-              ? '微信装不了 · 用浏览器打开后下载安装'
-              : '微信装不了 · 用 Safari 打开后再保存'}
+            {android ? '点右上角 ···，在浏览器打开' : '点右上角 ···，在 Safari 打开'}
           </span>
           <span className="wechat-escape-chip-cta">打开指引</span>
         </button>
@@ -185,16 +177,12 @@ export function WechatEscapeCoach({
                 {PWA_HOME_NAME}
               </strong>
               <span className="muted wechat-escape-sub">
-                {android ? '微信内无法下载安装包' : '微信内无法保存到主屏幕'}
+                {android ? '微信里下不了安装包' : '微信里加不了主屏幕'}
               </span>
             </div>
           </div>
 
-          <p className="wechat-escape-headline">
-            {copied
-              ? `链接已复制 · 现在点右上角 ···`
-              : `必须先在${browserName}打开`}
-          </p>
+          <p className="wechat-escape-headline">点右上角 ···</p>
 
           <ol className="wechat-escape-steps" aria-label="操作步骤">
             <li>
@@ -209,28 +197,12 @@ export function WechatEscapeCoach({
                 选「<strong>{openLabel}</strong>」
               </span>
             </li>
-            <li>
-              <span className="wechat-escape-step-n">3</span>
-              <span>
-                {android ? (
-                  <>
-                    在浏览器里 <strong>下载并安装</strong>
-                  </>
-                ) : (
-                  <>
-                    再按提示 <strong>添加到主屏幕</strong>
-                  </>
-                )}
-              </span>
-            </li>
           </ol>
 
           <p className="muted wechat-escape-hint">
             {copied
-              ? `也可粘贴到${browserName}打开同一链接`
-              : android
-                ? '不装 App 也能先看内容；要装必须先出微信'
-                : '不保存也能先看内容；要常驻主屏幕必须先出微信'}
+              ? `链接已复制，也可粘贴到${browserName}。打开后就是这篇。`
+              : '打开后就是这篇，不用再确认一次。'}
           </p>
 
           <button

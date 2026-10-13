@@ -89,5 +89,7 @@ export function isShareLandingPath(pathname: string | null | undefined): boolean
     || p.startsWith('/share/campaign/')
     || p === '/share/wrapped'
     || p.startsWith('/share/wrapped/')
+    || p === '/share/shelf'
+    || p.startsWith('/share/shelf/')
   );
 }

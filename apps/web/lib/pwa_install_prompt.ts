@@ -135,6 +135,25 @@ function isSessionConsumed(): boolean {
 let iosAutoSheetOpen = false;
 let iosAutoDismissedThisLoad = false;
 
+/** 分享落地：安装/逃逸教练正在盖住内容时，底栏不再叠第二条 */
+let installCoachVisible = false;
+const installCoachListeners = new Set<() => void>();
+
+export function subscribeInstallCoachVisible(listener: () => void): () => void {
+  installCoachListeners.add(listener);
+  return () => installCoachListeners.delete(listener);
+}
+
+export function getInstallCoachVisible(): boolean {
+  return installCoachVisible;
+}
+
+export function setInstallCoachVisible(open: boolean): void {
+  if (installCoachVisible === open) return;
+  installCoachVisible = open;
+  installCoachListeners.forEach((listener) => listener());
+}
+
 export function getIosAutoSheetOpen(): boolean {
   return iosAutoSheetOpen;
 }

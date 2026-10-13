@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { WechatEscapeCoach } from '@/components/WechatEscapeCoach';
 import {
@@ -8,9 +8,14 @@ import {
   isSharePwaDismissed,
   noteSharePwaShown,
 } from '@/lib/share_pwa_guide';
-import { detectInstallPlatform, type InstallPlatform } from '@/lib/pwa_platform';
-import { BRAND_NAME } from '@/lib/brand';
-import { isAndroid } from '@/lib/pwa_platform';
+import { detectInstallPlatform, isAndroid, type InstallPlatform } from '@/lib/pwa_platform';
+import {
+  getInstallCoachVisible,
+  isAndroidAutoInstallDismissedThisLoad,
+  isAndroidTwaInstallClaimed,
+  isIosAutoInstallDismissedThisLoad,
+  subscribeInstallCoachVisible,
+} from '@/lib/pwa_install_prompt';
 
 /**
  * 分享落地页安装引导：
@@ -26,6 +31,11 @@ export function SharePwaGuide({
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [hidden, setHidden] = useState(true);
   const [ready, setReady] = useState(false);
+  const coachVisible = useSyncExternalStore(
+    subscribeInstallCoachVisible,
+    getInstallCoachVisible,
+    () => false,
+  );
 
   useEffect(() => {
     const p = detectInstallPlatform();
@@ -54,7 +64,7 @@ export function SharePwaGuide({
     return () => window.clearTimeout(t);
   }, [variant]);
 
-  if (!ready || hidden || !platform || platform === 'standalone') return null;
+  if (!platform || platform === 'standalone') return null;
 
   const softDismiss = () => {
     dismissSharePwaGuide();
@@ -62,6 +72,7 @@ export function SharePwaGuide({
   };
 
   if (platform === 'inapp') {
+    if (!ready || hidden) return null;
     return (
       <WechatEscapeCoach
         softCloseOnly
@@ -76,45 +87,29 @@ export function SharePwaGuide({
   }
 
   const android = isAndroid();
-  const title = android
-    ? variant === 'invite'
-      ? `安装${BRAND_NAME}，一起读`
-      : variant === 'daily'
-        ? `喜欢这节？安装${BRAND_NAME}`
-        : variant === 'campaign'
-          ? `想参加？先安装${BRAND_NAME}`
-          : variant === 'wrapped'
-            ? `留下足迹？安装${BRAND_NAME}`
-            : variant === 'shelf'
-              ? `喜欢这本书？安装${BRAND_NAME}`
-              : `喜欢这段？安装${BRAND_NAME}`
-    : variant === 'invite'
-      ? `保存${BRAND_NAME}到主屏幕`
-      : variant === 'daily'
-        ? `喜欢这节经文？保存${BRAND_NAME}到主屏幕`
-        : variant === 'campaign'
-          ? `想参加？保存${BRAND_NAME}到主屏幕`
-          : variant === 'wrapped'
-            ? `留下足迹？保存${BRAND_NAME}到主屏幕`
-            : variant === 'shelf'
-              ? `喜欢这本书？保存${BRAND_NAME}到主屏幕`
-              : `喜欢这段？保存${BRAND_NAME}到主屏幕`;
+  const ios =
+    platform === 'ios-safari' || platform === 'ios-other';
+  if (android && isAndroidTwaInstallClaimed()) return null;
+  if (ios || android) {
+    const coachDismissed = ios
+      ? isIosAutoInstallDismissedThisLoad()
+      : isAndroidAutoInstallDismissedThisLoad();
+    // 教练在时页面已经打开；关掉之后才留一条，避免两层提示
+    if (coachVisible || !coachDismissed) return null;
+  }
+
+  if (!ready || hidden) return null;
+
+  const title = android ? '安装彼爱' : ios ? '添加到主屏幕' : '安装彼爱';
   const desc = android
-    ? '下载安装包安装 · 比「添加到主屏幕」更稳'
-    : variant === 'invite'
-      ? '陪你读经，也帮你读懂 · 下次一点就开'
-      : variant === 'daily'
-        ? '每天一节经文 · 下次一点就开'
-        : variant === 'campaign'
-          ? '活动提醒与共读 · 下次一点就开'
-          : variant === 'wrapped'
-            ? '记录你的读经年/月 · 下次一点就开'
-            : variant === 'shelf'
-              ? '安静读完这一本 · 下次一点就开'
-              : '下次一点就开 · 离线也能读经';
+    ? '装好后，在桌面打开「彼爱」'
+    : ios
+      ? '点右侧 ···，选「添加到主屏幕」'
+      : '在浏览器菜单里安装';
+  const cta = android ? '下载安装包' : ios ? '看怎么添加' : '去安装';
 
   return (
-    <div className="share-pwa-bar share-pwa-bar-bottom" role="region" aria-label={android ? '安装彼爱' : '保存到主屏幕'}>
+    <div className="share-pwa-bar share-pwa-bar-bottom" role="region" aria-label={title}>
       <button
         type="button"
         className="share-pwa-bar-main"
@@ -126,7 +121,7 @@ export function SharePwaGuide({
         <span className="share-pwa-bar-desc">{desc}</span>
       </button>
       <button type="button" className="btn share-pwa-bar-cta" onClick={() => openPwaInstallSheet()}>
-        {android ? '去安装' : '看怎么保存'}
+        {cta}
       </button>
       <button type="button" className="share-pwa-bar-x" onClick={softDismiss} aria-label="关闭">
         ✕
