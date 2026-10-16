@@ -3399,6 +3399,8 @@ html.pwa-standalone .discover-page {
 .home-hero-carousel-slide {
   flex: 0 0 100%;
   min-width: 0;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .home-hero-carousel-slide .hero-verse {
@@ -3441,6 +3443,10 @@ button.hero-b-campaign {
   min-height: clamp(var(--hero-verse-base-h, 16.5rem), 60vw, var(--hero-verse-max-h, 21.75rem));
   object-fit: cover;
   display: block;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
 }
 
 .hero-b-campaign-badge {
@@ -3818,6 +3824,12 @@ button.hero-b-campaign {
   min-height: 100%;
   opacity: 1;
   visibility: visible;
+  /* 禁止长按拖出图片幽灵 / 系统拖放 */
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+  touch-action: none;
 }
 
 .hero-scene.hero-scene-has-art {

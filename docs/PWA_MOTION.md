@@ -15,7 +15,7 @@
 | `press.scale` | `Pressable` + `.peiai-pressable` |
 | `feedback.pop` | `.peiai-feedback-pop` / 首页 like pop |
 | `reader.turn` | `useReaderPageTurn`（320ms spring） |
-| `hero.shared` | `.peiai-vt-hero` + View Transitions |
+| `hero.shared` | 临时 `.peiai-vt-hero.is-vt-active`（勿常驻 `view-transition-name`，否则图会逃出 overflow） |
 
 ## Token
 

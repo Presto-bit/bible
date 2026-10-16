@@ -1125,7 +1125,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       <HomeHeroCarousel
         verseSlide={(
       <div
-        className={`card card-3 hero-verse peiai-vt-hero${heroArtReady ? ' hero-verse-has-art' : ' hero-verse-plain'}${heroIllustration && !heroArtReady ? ' hero-verse-art-loading' : ''} ${heroThemeClass(dv?.theme)}`}
+        className={`card card-3 hero-verse${heroArtReady ? ' hero-verse-has-art' : ' hero-verse-plain'}${heroIllustration && !heroArtReady ? ' hero-verse-art-loading' : ''} ${heroThemeClass(dv?.theme)}`}
         aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
         onClick={openVerseWallpaper}
         onContextMenu={(e) => e.preventDefault()}

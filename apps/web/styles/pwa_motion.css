@@ -220,8 +220,44 @@
   }
 }
 
-.peiai-vt-hero {
+/* 仅在真正启动 VT 时临时加 class；常驻 view-transition-name 会让子图逃出 overflow 裁剪 */
+.peiai-vt-hero.is-vt-active {
   view-transition-name: peiai-hero-verse;
+}
+
+/* ─── 读经小爱半屏：入场必须保留 translateX(-50%)，勿用通用 peiai-sheet-rise ─── */
+@keyframes peiai-reader-ai-sheet-rise {
+  from {
+    transform: translateX(-50%) translateY(100%);
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reader-ai-half-sheet.peiai-reader-ai-sheet {
+    animation: peiai-reader-ai-sheet-rise var(--peiai-motion-spring) both;
+  }
+}
+
+.reader-ai-half-sheet.peiai-reader-ai-sheet.is-dragging {
+  animation: none;
+}
+
+.reader-ai-half-sheet.peiai-reader-ai-sheet.is-settling {
+  animation: none;
+  transition: transform var(--peiai-motion-spring);
+}
+
+/* 覆盖 globals `.sheet { animation: sheetSlideUp }` */
+.sheet.reader-ai-half-sheet.peiai-reader-ai-sheet {
+  animation: peiai-reader-ai-sheet-rise var(--peiai-motion-spring) both;
+}
+
+.sheet.reader-ai-half-sheet.peiai-reader-ai-sheet.is-dragging,
+.sheet.reader-ai-half-sheet.peiai-reader-ai-sheet.is-settling {
+  animation: none;
 }
 
 /* ─── 成就解锁 400ms ─── */
@@ -255,6 +291,7 @@
   .tab-keep-pane.tab-keep-pane-active,
   .peiai-motion-sheet-backdrop,
   .peiai-motion-sheet-panel,
+  .reader-ai-half-sheet.peiai-reader-ai-sheet,
   .discover-stagger-enter .discover-stagger-item,
   .peiai-feedback-pop,
   .badge-unlock-toast,
@@ -265,9 +302,20 @@
   .reader-page.listen-sheet-open .reader-content {
     animation: none !important;
     transition: none !important;
-    transform: none !important;
     filter: none !important;
     opacity: 1 !important;
+  }
+
+  /* 小爱半屏减动效仍须保留水平居中 */
+  .reader-ai-half-sheet.peiai-reader-ai-sheet {
+    transform: translateX(-50%) !important;
+  }
+
+  .reader-page.reader-ai-sheet-open .reader-turn-viewport,
+  .reader-page.listen-sheet-open .reader-turn-viewport,
+  .reader-page.reader-ai-sheet-open .reader-content,
+  .reader-page.listen-sheet-open .reader-content {
+    transform: none !important;
   }
 
   .peiai-pressable.is-pressed,

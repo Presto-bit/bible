@@ -891,7 +891,7 @@ export default function XiaoAiSheet({
         className={[
           'half-sheet',
           'reader-ai-half-sheet',
-          'peiai-motion-sheet-panel',
+          'peiai-reader-ai-sheet',
           sheetDrag.dragging ? 'is-dragging' : '',
           sheetDrag.settling ? 'is-settling' : '',
         ]
