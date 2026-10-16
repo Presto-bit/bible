@@ -3578,14 +3578,21 @@ PUT  /settings/reminders
 
 ### 19.7 动效规范
 
+> **完整规格：** `docs/PWA_MOTION.md`（Motion System v1 · Phase A–C）。Web/PWA 与嵌 H5 以该文档为准；下表为摘要。
+
 | 场景 | 动效 |
 |------|------|
-| Tab 切换 | 无动画或 150ms 淡入 |
-| 阅读翻页 | **水平滑动** 跟手；章切换 **200ms** 淡入新章 |
+| Tab 切换 | 内容区 **160ms** fade；底栏无位移动画 |
+| 二级路由 | **nav.push** 右→左进入；左缘返回 **跟手** + spring 回弹/提交 |
+| 半屏 Sheet | 升起 spring；下拖跟手关闭（`MotionSheet` / `ReaderSheetPortal`） |
+| 统一按压 | `Pressable` scale（主 0.97 / 图标 0.96 / 大卡 0.995） |
+| 阅读翻页 | **水平滑动** 跟手；松手 **320ms** spring 吸附 |
 | 顶栏沉浸 | 350ms opacity；AI FAB **不** 跟随隐藏 |
 | 选中经文条 | 120ms scale 0.96→1 + fade |
-| 成就解锁 | 400ms 徽章 scale + 轻 haptic；**无** 全屏 confetti |
-| 主题切换 | 200ms  cross-fade 背景色 |
+| 成就解锁 | **400ms** 徽章 scale + 轻 haptic；**无** 全屏 confetti |
+| View Transition | 支持时二级路由 root 推移；每日经文 `peiai-vt-hero` |
+| 主题切换 | 200ms cross-fade 背景色 |
+| 减动效 | 遵守 `prefers-reduced-motion` |
 
 ### 19.8 参考与差异化
 

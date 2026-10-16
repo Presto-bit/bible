@@ -1,0 +1,285 @@
+/**
+ * 彼爱 PWA Motion System v1
+ * 导航跟手 · Sheet 拖关 · 统一按压 · Tab fade · stagger · View Transitions · 成就弹
+ * Token：design_tokens.css（--peiai-motion-*）
+ */
+
+/* ─── 统一按压 ─── */
+.peiai-pressable {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform var(--peiai-motion-fast), opacity var(--peiai-motion-fast);
+  transform-origin: center;
+}
+
+.peiai-pressable[data-press='icon'] {
+  --_press: var(--peiai-press-scale-icon);
+}
+.peiai-pressable[data-press='card'] {
+  --_press: var(--peiai-press-scale-card);
+}
+.peiai-pressable[data-press='default'],
+.peiai-pressable:not([data-press]) {
+  --_press: var(--peiai-press-scale);
+}
+
+.peiai-pressable.is-pressed:not(:disabled),
+.peiai-pressable[data-pressed='1']:not(:disabled) {
+  transform: scale(var(--_press, var(--peiai-press-scale)));
+  opacity: 0.92;
+}
+
+/* ─── 微反馈 pop ─── */
+@keyframes peiai-feedback-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.peiai-feedback-pop {
+  animation: peiai-feedback-pop 0.28s var(--peiai-motion-spring-curve) both;
+}
+
+/* ─── 二级页进入（nav.push） ─── */
+.page-enter-soft {
+  animation: peiai-nav-push-in var(--peiai-motion-enter) both;
+}
+
+@keyframes peiai-nav-push-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--peiai-nav-push-x));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 左缘跟手拖拽中 */
+.peiai-edge-swipe-target {
+  will-change: transform;
+  box-shadow: -8px 0 32px color-mix(in srgb, var(--ink, #191919) 12%, transparent);
+}
+
+.peiai-edge-swipe-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  background: color-mix(in srgb, #000 28%, transparent);
+  opacity: 0;
+  transition: none;
+}
+
+/* ─── Tab 内容区 fade（覆盖 polish 较长 enter） ─── */
+@media (prefers-reduced-motion: no-preference) {
+  .tab-keep-pane.tab-keep-pane-active {
+    animation: peiai-tab-fade-in var(--peiai-tab-fade, 0.16s) ease both;
+  }
+}
+
+@keyframes peiai-tab-fade-in {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+/* ─── MotionSheet ─── */
+.peiai-motion-sheet-backdrop {
+  animation: peiai-sheet-scrim-in var(--peiai-motion-normal) ease both;
+}
+
+.peiai-motion-sheet-backdrop.is-dragging {
+  animation: none;
+  transition: none;
+}
+
+.peiai-motion-sheet-panel {
+  animation: peiai-sheet-rise var(--peiai-motion-spring) both;
+  will-change: transform;
+  touch-action: pan-y;
+}
+
+/* 覆盖 globals `.sheet { animation: sheetSlideUp }` 避免双动画 */
+.sheet.peiai-motion-sheet-panel {
+  animation: peiai-sheet-rise var(--peiai-motion-spring) both;
+}
+
+.peiai-motion-sheet-backdrop[data-align='center'] .sheet.peiai-motion-sheet-panel {
+  animation: peiai-sheet-center-in var(--peiai-motion-spring) both;
+}
+
+.peiai-motion-sheet-panel.is-dragging {
+  animation: none;
+  transition: none;
+}
+
+.peiai-motion-sheet-panel.is-settling {
+  transition: transform var(--peiai-motion-spring);
+}
+
+@keyframes peiai-sheet-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes peiai-sheet-rise {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.peiai-motion-sheet-backdrop[data-align='center'] .peiai-motion-sheet-panel {
+  animation: peiai-sheet-center-in var(--peiai-motion-spring) both;
+  border-radius: 18px;
+  margin: 24px;
+  max-width: 360px;
+  width: calc(100% - 48px);
+}
+
+@keyframes peiai-sheet-center-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 读经 Sheet：拖动时 scrim 跟透明度（由 inline style 控） */
+.reader-sheet-backdrop.is-sheet-dragging {
+  animation: none;
+  transition: none;
+}
+
+.reader-sheet-backdrop .sheet.is-settling {
+  transition: transform var(--peiai-motion-spring);
+}
+
+/* ─── 发现列表 stagger ─── */
+@media (prefers-reduced-motion: no-preference) {
+  .discover-stagger-enter .discover-stagger-item {
+    animation: peiai-stagger-in var(--peiai-motion-enter) ease both;
+    animation-delay: calc(var(--stagger-i, 0) * var(--peiai-stagger-step));
+  }
+}
+
+/* ─── 左滑行弹簧吸附 ─── */
+.swipe-reveal-content {
+  transition: transform var(--peiai-motion-spring);
+}
+
+.swipe-reveal-content.is-dragging {
+  transition: none;
+}
+
+/* ─── 读经半屏让位（小爱 / 听读打开时） ─── */
+@media (prefers-reduced-motion: no-preference) {
+  .reader-page.reader-ai-sheet-open .reader-turn-viewport,
+  .reader-page.listen-sheet-open .reader-turn-viewport,
+  .reader-page.reader-ai-sheet-open .reader-content:not(.reader-content-turn),
+  .reader-page.listen-sheet-open .reader-content:not(.reader-content-turn) {
+    transition: transform var(--peiai-motion-enter), filter var(--peiai-motion-enter);
+    transform: scale(0.985);
+    filter: brightness(0.97);
+    transform-origin: center top;
+  }
+}
+
+/* ─── View Transitions（支持时） ─── */
+@supports (view-transition-name: none) {
+  ::view-transition-old(root) {
+    animation: peiai-vt-old 0.28s var(--peiai-motion-spring-curve) both;
+  }
+  ::view-transition-new(root) {
+    animation: peiai-vt-new 0.32s var(--peiai-motion-spring-curve) both;
+  }
+
+  ::view-transition-old(peiai-hero-verse),
+  ::view-transition-new(peiai-hero-verse) {
+    animation-duration: 0.36s;
+    animation-timing-function: var(--peiai-motion-spring-curve);
+    mix-blend-mode: normal;
+    height: 100%;
+    overflow: clip;
+  }
+}
+
+@keyframes peiai-vt-old {
+  to {
+    opacity: 0;
+    transform: translateX(-6%);
+  }
+}
+
+@keyframes peiai-vt-new {
+  from {
+    opacity: 0;
+    transform: translateX(10%);
+  }
+}
+
+.peiai-vt-hero {
+  view-transition-name: peiai-hero-verse;
+}
+
+/* ─── 成就解锁 400ms ─── */
+@keyframes peiai-badge-unlock {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px) scale(0.88);
+  }
+  55% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.badge-unlock-toast {
+  animation: peiai-badge-unlock 0.4s var(--peiai-motion-spring-curve) both;
+}
+
+.badge-unlock-icon {
+  display: inline-block;
+  animation: peiai-feedback-pop 0.4s var(--peiai-motion-spring-curve) 0.08s both;
+}
+
+/* ─── reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-soft,
+  .tab-keep-pane.tab-keep-pane-active,
+  .peiai-motion-sheet-backdrop,
+  .peiai-motion-sheet-panel,
+  .discover-stagger-enter .discover-stagger-item,
+  .peiai-feedback-pop,
+  .badge-unlock-toast,
+  .badge-unlock-icon,
+  .reader-page.reader-ai-sheet-open .reader-turn-viewport,
+  .reader-page.listen-sheet-open .reader-turn-viewport,
+  .reader-page.reader-ai-sheet-open .reader-content,
+  .reader-page.listen-sheet-open .reader-content {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+  }
+
+  .peiai-pressable.is-pressed,
+  .peiai-pressable[data-pressed='1'] {
+    transform: none;
+    opacity: 0.85;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-old(peiai-hero-verse),
+  ::view-transition-new(peiai-hero-verse) {
+    animation: none !important;
+  }
+}

@@ -26,7 +26,8 @@ const FORCE_RATIO_PREV = 0.18;
 const AXIS_RATIO = 1.15;
 const AXIS_MIN_PX = 8;
 const EDGE_RESIST = 0.28;
-const ANIM_MS = 280;
+const ANIM_MS = 320;
+const ANIM_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 const PREFETCH_RATIO = 0.04;
 const BOUNDARY_RATIO = 0.1;
 /** is-turning + touch-action:none 硬超时，防粘死 */
@@ -84,7 +85,7 @@ export function useReaderPageTurn({
     setOffCenter(Math.abs(px) > 0.5);
     const el = trackRef.current;
     if (!el) return;
-    el.style.transition = withAnim ? `transform ${ANIM_MS}ms ease-out` : 'none';
+    el.style.transition = withAnim ? `transform ${ANIM_MS}ms ${ANIM_EASE}` : 'none';
     el.style.transform = `translateX(calc(-33.3333% + ${px}px))`;
   }, []);
 

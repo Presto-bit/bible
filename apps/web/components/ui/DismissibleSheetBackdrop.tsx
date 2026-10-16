@@ -52,8 +52,11 @@ export default function DismissibleSheetBackdrop({
 
   const body = (
     <div
-      className={['sheet-backdrop', className].filter(Boolean).join(' ')}
+      className={['sheet-backdrop', 'peiai-motion-sheet-backdrop', className]
+        .filter(Boolean)
+        .join(' ')}
       data-dismiss-on-tab-nav
+      data-align={align}
       role={role}
       onClick={handleBackdropClick}
       style={mergedStyle}

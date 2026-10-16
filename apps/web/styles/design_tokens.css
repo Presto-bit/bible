@@ -36,8 +36,15 @@
   --peiai-motion-fast: 0.14s cubic-bezier(0.25, 0.8, 0.25, 1);
   --peiai-motion-normal: 0.22s cubic-bezier(0.22, 0.8, 0.22, 1);
   --peiai-motion-enter: 0.32s cubic-bezier(0.22, 0.84, 0.22, 1);
+  /* 跟手松手 / 按压回弹 / sheet 抛出 */
+  --peiai-motion-spring: 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+  --peiai-motion-spring-curve: cubic-bezier(0.16, 1, 0.3, 1);
   --peiai-stagger-step: 48ms;
-  --peiai-press-scale: 0.978;
+  --peiai-press-scale: 0.97;
+  --peiai-press-scale-icon: 0.96;
+  --peiai-press-scale-card: 0.995;
+  --peiai-tab-fade: 0.16s cubic-bezier(0.22, 0.8, 0.22, 1);
+  --peiai-nav-push-x: 12%;
   --peiai-layer-l1: 1;
   --peiai-layer-l2: 0.94;
   --peiai-layer-l3: 0.88;

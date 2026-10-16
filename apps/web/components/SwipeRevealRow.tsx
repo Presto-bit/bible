@@ -51,6 +51,7 @@ export function SwipeRevealRow({
   const openThreshold = Math.min(36, revealPx / 2);
 
   const [offset, setOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const offsetRef = useRef(0);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
@@ -111,6 +112,7 @@ export function SwipeRevealRow({
       startY.current = t.clientY;
       baseOffset.current = offsetRef.current;
       dragging.current = true;
+      setIsDragging(true);
       axisLock.current = null;
       suppressClick.current = offsetRef.current < -10;
     };
@@ -138,6 +140,7 @@ export function SwipeRevealRow({
     const onEnd = () => {
       if (!dragging.current) return;
       dragging.current = false;
+      setIsDragging(false);
       const wasX = axisLock.current === 'x';
       axisLock.current = null;
       const cur = offsetRef.current;
@@ -229,8 +232,11 @@ export function SwipeRevealRow({
       ) : null}
       <div
         ref={contentRef}
-        className="swipe-reveal-content"
-        style={{ transform: `translateX(${offset}px)` }}
+        className={`swipe-reveal-content${isDragging ? ' is-dragging' : ''}`}
+        style={{
+          transform: `translateX(${offset}px)`,
+          transition: isDragging ? 'none' : undefined,
+        }}
         onClick={finePointer ? handleContentClick : undefined}
         onPointerUp={finePointer ? undefined : handleContentPointerUp}
       >

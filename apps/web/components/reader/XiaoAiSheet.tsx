@@ -3,6 +3,7 @@
 import { SheetCloseButton } from '@/components/PageBackBar';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSheetDrag } from '@/lib/use_sheet_drag';
 import { api, chatStream, type Citation } from '@/lib/api';
 import AnswerView from '@/components/assistant/AnswerView';
 import type { AnswerSection } from '@/lib/assistant_sections';
@@ -860,20 +861,52 @@ export default function XiaoAiSheet({
   };
 
   const stopBubble = (e: React.SyntheticEvent) => e.stopPropagation();
+  const sheetDrag = useSheetDrag({
+    onClose,
+    enabled: true,
+    baseTransform: 'translateX(-50%)',
+  });
+  // 拖拽钩子的 bodyRef 与滚动容器合并：内容到顶才能下拖关闭
+  const setScrollAndDragBody = useCallback(
+    (node: HTMLDivElement | null) => {
+      scrollRef.current = node;
+      sheetDrag.bodyRef.current = node;
+    },
+    [sheetDrag.bodyRef],
+  );
 
   const sheet = (
     <div className="reader-ai-portal" data-dismiss-on-tab-nav>
-      <div className="reader-ai-shield" aria-hidden onPointerDown={stopBubble} />
       <div
-        className="half-sheet reader-ai-half-sheet"
+        className="reader-ai-shield"
+        aria-hidden
+        onPointerDown={stopBubble}
+        style={
+          sheetDrag.scrimOpacity != null
+            ? { opacity: sheetDrag.scrimOpacity }
+            : undefined
+        }
+      />
+      <div
+        className={[
+          'half-sheet',
+          'reader-ai-half-sheet',
+          'peiai-motion-sheet-panel',
+          sheetDrag.dragging ? 'is-dragging' : '',
+          sheetDrag.settling ? 'is-settling' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         role="dialog"
         aria-modal="true"
         aria-label="小爱解经"
+        style={sheetDrag.panelStyle}
         onClick={stopBubble}
         onMouseDown={stopBubble}
         onPointerDown={stopBubble}
+        {...sheetDrag.handlers}
       >
-        <div className="half-sheet-head reader-ai-half-head">
+        <div className="half-sheet-head reader-ai-half-head" ref={sheetDrag.headRef}>
           <div className="half-sheet-grab" aria-hidden />
           <div className="half-sheet-title">
             <strong className="reader-ai-head-title">小爱解经</strong>
@@ -882,7 +915,7 @@ export default function XiaoAiSheet({
           </div>
         </div>
 
-        <div className="half-sheet-body reader-ai-half-body" ref={scrollRef}>
+        <div className="half-sheet-body reader-ai-half-body" ref={setScrollAndDragBody}>
           {turns.map((turn, index) => {
             const isLast = index === turns.length - 1;
             const rawAnswer = stripHalfSheetIncompleteNotice(turn.answer);

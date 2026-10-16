@@ -38,6 +38,7 @@ import { userLsGet, userLsSet } from '@/lib/user_storage';
 import { notifyDiscoverUnreadChanged } from '@/lib/discover_unread';
 import { Pressable } from '@/components/ui/Pressable';
 import { shellTapProps } from '@/lib/shell_tap';
+import { peiaiDiscoverStaggerProps, peiaiStaggerDurationMs } from '@/lib/peiai_motion';
 
 const CONV_CACHE_KEY = 'presto_discover_conv_cache_v1';
 
@@ -162,6 +163,20 @@ export default function DiscoverTab({
   const ptrLabelRef = useRef<HTMLSpanElement | null>(null);
   const reducedMotion = usePrefersReducedMotion();
   const cacheHydratedRef = useRef(false);
+  const [staggerEnter, setStaggerEnter] = useState(true);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      setStaggerEnter(false);
+      return;
+    }
+    if (!staggerEnter || items.length === 0) return;
+    const t = window.setTimeout(
+      () => setStaggerEnter(false),
+      peiaiStaggerDurationMs(Math.min(items.length, 12)),
+    );
+    return () => window.clearTimeout(t);
+  }, [staggerEnter, items.length, reducedMotion]);
 
   useEffect(() => {
     if (cacheHydratedRef.current) return;
@@ -703,9 +718,15 @@ export default function DiscoverTab({
             ) : null}
           </div>
         ) : (
-          <ul className="discover-conv-list">
-            {items.map((it) => {
+          <ul
+            className={`discover-conv-list${staggerEnter && !reducedMotion ? ' discover-stagger-enter' : ''}`}
+          >
+            {items.map((it, index) => {
               const key = `${it.scope}:${it.ref_id}`;
+              const stagger = peiaiDiscoverStaggerProps(
+                Math.min(index, 11),
+                staggerEnter && !reducedMotion,
+              );
               const canState = it.scope === 'group' || it.scope === 'dm';
               const peerFriend =
                 it.scope === 'dm' && it.peer_user_id
@@ -767,7 +788,15 @@ export default function DiscoverTab({
               return (
                 <li
                   key={key}
-                  className={`discover-conv-li${(it.unread || 0) > 0 ? ' is-unread' : ''}${navigatingKey === key ? ' is-navigating' : ''}`}
+                  className={[
+                    'discover-conv-li',
+                    (it.unread || 0) > 0 ? 'is-unread' : '',
+                    navigatingKey === key ? 'is-navigating' : '',
+                    stagger.className,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  style={stagger.style}
                 >
                   {canState ? (
                     <SwipeRevealRow

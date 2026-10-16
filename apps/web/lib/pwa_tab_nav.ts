@@ -11,6 +11,7 @@ import {
   type KeepAliveTabId,
 } from './tab_keep_alive';
 import { clientWithBasePath, withBasePath } from './basePath';
+import { runWithViewTransition } from './peiai_motion';
 
 type NavSource = 'tab' | 'route';
 
@@ -172,8 +173,10 @@ export function navigateAppHref(
     // IM 线程 / 搜索：直接进页，勿挡 progress / 过渡壳
     if (isDirectSecondaryNav(pathOnly)) {
       markRouteNavigation();
-      router.push(normalized);
-      window.dispatchEvent(new Event('presto-tab-nav'));
+      runWithViewTransition(() => {
+        router.push(normalized);
+        window.dispatchEvent(new Event('presto-tab-nav'));
+      });
       return;
     }
     beginPendingSecondaryNav(pathOnly);
@@ -181,10 +184,12 @@ export function navigateAppHref(
     if (!isProgressExemptSecondary(pathOnly)) {
       beginSoftNavProgress(normalized);
     }
-    router.push(normalized);
-    window.dispatchEvent(new Event('presto-tab-nav'));
-    window.requestAnimationFrame(() => {
+    runWithViewTransition(() => {
+      router.push(normalized);
       window.dispatchEvent(new Event('presto-tab-nav'));
+      window.requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('presto-tab-nav'));
+      });
     });
     return;
   }
@@ -196,12 +201,14 @@ export function navigateAppHref(
   ) {
     beginSoftNavProgress(normalized);
   }
-  router.push(normalized);
-  if (typeof window !== 'undefined' && isTabKeepAliveEnabled()) {
-    window.requestAnimationFrame(() => {
-      window.dispatchEvent(new Event('presto-tab-nav'));
-    });
-  }
+  runWithViewTransition(() => {
+    router.push(normalized);
+    if (typeof window !== 'undefined' && isTabKeepAliveEnabled()) {
+      window.requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('presto-tab-nav'));
+      });
+    }
+  });
 }
 
 /**

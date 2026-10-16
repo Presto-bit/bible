@@ -4,6 +4,7 @@ import '../styles/brand_splash.css';
 import './globals.css';
 import '../styles/shared_chrome.css';
 import '../styles/pwa_polish.css';
+import '../styles/pwa_motion.css';
 import { AppThemeShell } from '@/components/AppThemeShell';
 import PwaRegister from '@/components/PwaRegister';
 import PwaStandaloneShell from '@/components/PwaStandaloneShell';
@@ -19,6 +20,7 @@ import TabKeepAlive from '@/components/shell/TabKeepAlive';
 import DeferredShellOverlays from '@/components/shell/DeferredShellOverlays';
 import SoftNavProgress from '@/components/shell/SoftNavProgress';
 import SoftNavTransitionShell from '@/components/shell/SoftNavTransitionShell';
+import PageTransitionHost from '@/components/shell/PageTransitionHost';
 import BrandSplash from '@/components/shell/BrandSplash';
 import ShellNavBridge from '@/components/ShellNavBridge';
 import KnowledgeExpandHost from '@/components/knowledge/KnowledgeExpandHost';
@@ -180,6 +182,7 @@ export default function RootLayout({
               <OfflineBar />
               <SoftNavProgress />
               <SoftNavTransitionShell />
+              <PageTransitionHost />
               <KnowledgeExpandHost />
               <BrandSplash />
               <div className="app-body">
