@@ -121,6 +121,8 @@ export function HomeTodayTile({
             loading={priority ? 'eager' : 'lazy'}
             decoding="async"
             fetchPriority={priority ? 'high' : 'auto'}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
             onError={() => setImgFailed(true)}
           />
         ) : (

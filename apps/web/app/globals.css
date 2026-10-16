@@ -1411,6 +1411,9 @@ html:not([data-app-theme]) .card {
 }
 
 .home-today-tile {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -1480,6 +1483,12 @@ html:not([data-app-theme]) .card {
   object-fit: cover;
   object-position: center 45%;
   filter: contrast(1.04) saturate(0.9);
+  /* 禁长按拖出图片幽灵（iOS/安卓 WebView） */
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+  touch-action: none;
 }
 
 .home-today-tile-img-fallback {
@@ -1654,6 +1663,10 @@ html:not([data-app-theme]) .card {
   object-fit: cover;
   object-position: center 28%;
   border: 0;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
   /* 去掉 filter/scale/translateZ：部分 WebView 滤镜层空白、铺不满 */
   filter: none;
   transform: none;
