@@ -243,7 +243,7 @@ def test_build_messages_oia_compact_half_sheet():
     )
     assert prof.depth == "oia_compact"
     sys = msgs[0]["content"]
-    assert "2–4 句" in sys
+    assert "3–5 句" in sys
     assert "不要 ### 标题" in sys
     assert "四段" in sys
 

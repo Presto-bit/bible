@@ -196,6 +196,7 @@ class DoneEvent extends ChatEvent {
     this.document,
     this.conversationId,
     this.streamComplete = true,
+    this.rewritten = false,
   });
   final int length;
   final String text;
@@ -204,6 +205,9 @@ class DoneEvent extends ChatEvent {
   final AnswerDocument? document;
   final String? conversationId;
   final bool streamComplete;
+
+  /// 终稿经服务端补全/重写，须以 document 为准。
+  final bool rewritten;
 }
 
 class ErrorEvent extends ChatEvent {

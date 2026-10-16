@@ -102,7 +102,9 @@ function isStructuredLine(line: string): boolean {
   return false;
 }
 
-function breakLongPlainBlocks(text: string, maxSentences = 2, minBreakLen = 56): string {
+const FULL_SENTENCE_END_RE = /[。！？][」』”’）)]*$/;
+
+function breakLongPlainBlocks(text: string, maxSentences = 3, minBreakLen = 80): string {
   const lines = text.split('\n');
   const out: string[] = [];
   let i = 0;
@@ -126,14 +128,27 @@ function breakLongPlainBlocks(text: string, maxSentences = 2, minBreakLen = 56):
     }
     const withBreaks = softBreakSentences(joined);
     const sentences = withBreaks.split('\n').map((s) => s.trim()).filter(Boolean);
-    if (sentences.length <= maxSentences) {
+    const groups: string[] = [];
+    let cur = '';
+    let full = 0;
+    for (const s of sentences) {
+      cur += s;
+      if (FULL_SENTENCE_END_RE.test(s)) full += 1;
+      if (full >= maxSentences) {
+        groups.push(cur);
+        cur = '';
+        full = 0;
+      }
+    }
+    if (cur) groups.push(cur);
+    if (groups.length <= 1) {
       out.push(joined);
       continue;
     }
-    for (let j = 0; j < sentences.length; j += maxSentences) {
-      out.push(sentences.slice(j, j + maxSentences).join(''));
-      if (j + maxSentences < sentences.length) out.push('');
-    }
+    groups.forEach((g, j) => {
+      out.push(g);
+      if (j < groups.length - 1) out.push('');
+    });
   }
   return out.join('\n');
 }

@@ -79,6 +79,15 @@ List<String> sectionTitlesInMarkdown(String text) {
   return titles;
 }
 
+/// 正文末尾是否以句末标点收束（忽略末尾脚注与追问区）。
+bool endsCleanly(String text) {
+  final body = bodyText(text)
+      .replaceFirst(RegExp(r'(?:\s*\[\d{1,2}\])+\s*$'), '')
+      .trimRight();
+  if (body.isEmpty) return false;
+  return RegExp(r'[。！？!?…”」』）)*]$').hasMatch(body);
+}
+
 /// done 终稿：归一化 document 与流式正文取更完整者，避免终态只剩摘要。
 String pickStreamDoneText({
   required String documentText,
@@ -92,6 +101,11 @@ String pickStreamDoneText({
   if (doc.isEmpty) return stream;
   if (stream.isEmpty) return doc;
   if (sectionPolicy == 'lead_only') return doc;
+  if (endsCleanly(doc) &&
+      !endsCleanly(stream) &&
+      doc.length >= stream.length * 0.6) {
+    return doc;
+  }
 
   final docSections = sectionTitlesInMarkdown(doc).length;
   final streamSections = sectionTitlesInMarkdown(stream).length;
@@ -121,6 +135,7 @@ ResolvedDoneAnswer resolveDoneAnswer(
   AnswerDocument? document,
   SectionStreamAccumulator? sectionStream,
   String? sectionPolicy,
+  bool rewritten = false,
 }) {
   final streamBuilt =
       (sectionStream?.active ?? false) ? sectionStream!.toMarkdown().trim() : '';
@@ -136,7 +151,9 @@ ResolvedDoneAnswer resolveDoneAnswer(
   );
   final hasDocument =
       document != null && document.markdown.trim().isNotEmpty;
-  final bestText = hasDocument
+  final bestText = hasDocument && rewritten
+      ? base.text
+      : hasDocument
       ? pickStreamDoneText(
           documentText: base.text,
           streamBuilt: streamBuilt,

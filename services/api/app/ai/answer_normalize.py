@@ -108,6 +108,11 @@ def _trim_chars(text: str, limit: int, *, hard: bool = False) -> str:
     cap = limit if hard else max(limit * 2, limit + 40)
     if len(s) <= cap:
         return s
+    if not hard:
+        window = s[:cap]
+        end = max(window.rfind(p) for p in "。！？")
+        if end >= limit // 2:
+            return window[: end + 1]
     cut = s[:limit]
     for i in range(len(cut) - 1, max(8, len(cut) - 12), -1):
         if cut[i] in "，、；。！？":
@@ -447,9 +452,10 @@ def normalize_answer_markdown(
                 prior_section_texts.extend(_split_sentences(trimmed))
             continue
         if format_only or _keep_section_prose(title, depth=depth, prefer_prose=prefer_prose):
-            prose = chunk.replace("\n\n", "\n").strip()
-            if not format_only and len(prose) > bud.item_max * (6 if depth == "flash" else 4):
-                prose = _trim_chars(prose, bud.item_max * (6 if depth == "flash" else 4))
+            prose = chunk.strip()
+            prose_cap = max(bud.item_max * (6 if depth == "flash" else 4), soft_max or 0)
+            if not format_only and depth != "followup" and len(prose) > prose_cap:
+                prose = _trim_chars(prose, prose_cap)
             parts.append(prose)
             parts.append("")
             if oia_depth and prose:
@@ -497,7 +503,7 @@ def normalize_answer_markdown(
             hard_cap = soft_max + 80
 
         if hard_cap and len(normalized_body) > hard_cap:
-            if depth in ("flash", "standard", None):
+            if depth in ("flash", "standard", "followup", None):
                 pass
             else:
                 while len(normalized_body) > hard_cap and _trim_incomplete_tail_bullet(parts):

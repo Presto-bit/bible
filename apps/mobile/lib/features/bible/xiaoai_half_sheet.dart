@@ -593,6 +593,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               :final streamComplete,
               :final text,
               :final document,
+              :final rewritten,
             ):
             if (chatSettled) break;
             streamPerf.onDone();
@@ -606,6 +607,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<XiaoAiHalfSheet> {
               document: document,
               sectionStream: sectionStream,
               sectionPolicy: _turnFor(turnId)?.outputPlan?.sectionPolicy,
+              rewritten: rewritten,
             );
             final resolvedText = resolved.text.trim();
             final pendingTrim = pending.trim();

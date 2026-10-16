@@ -45,7 +45,7 @@ def test_effective_budget_scales_with_span():
 
 
 def test_max_tokens_narrow():
-    assert max_tokens_for_scene("chat_explain", narrow=True) == 400
+    assert max_tokens_for_scene("chat_explain", narrow=True) == 520
 
 
 def test_length_continuation_skipped_when_complete():
@@ -216,3 +216,48 @@ def test_format_only_preserves_long_bullet():
     preserved = normalize_answer_markdown(raw, "verse_full", format_only=True)
     assert long_item in preserved
     assert long_item not in trimmed
+
+
+def test_long_bullet_trimmed_at_sentence_not_dropped():
+    long_item = "耶稣在门徒面前亲自屈身服事。" * 14 + "这一条最后没有句号"
+    raw = f"### 摘要\n耶稣为门徒洗脚。\n\n### 经文要旨\n- {long_item}\n"
+    out = normalize_answer_markdown(raw, "chat_understand")
+    lines = [ln for ln in out.split("\n") if ln.startswith("- ")]
+    assert lines
+    assert lines[-1].endswith("。")
+
+
+def test_followup_prose_keeps_paragraphs_untrimmed():
+    para = "保罗在这里说的知足，是在基督里学会的功课。" * 8
+    raw = f"### 摘要\n知足是学来的。\n\n### 正文\n{para}\n\n{para}"
+    out = normalize_answer_markdown(raw, "chat_general", depth="followup", prefer_prose=True)
+    assert out.count(para) == 2
+    assert "\n\n" + para in out
+
+
+def test_followup_question_not_forced_narrow():
+    from app.ai.chat import _is_narrow_followup
+    from app.ai.depth_router import resolve_depth
+
+    q = "这里的“义”是什么意思？"
+    assert _is_narrow_followup(q, has_prior_turns=True, scene_id="chat_explain") is False
+    assert _is_narrow_followup("用一句话概括", has_prior_turns=True, scene_id="chat_explain")
+    prof = resolve_depth("chat_explain", q, has_prior_turns=True, surface="assistant")
+    assert prof.depth == "followup"
+
+
+def test_rag_query_follows_question_intent():
+    from app.ai.chat import _rag_query
+
+    assert "字义" in _rag_query("约翰福音 3:16", "这里的“世人”是什么意思？")
+    assert "应用" in _rag_query("腓立比书 4:13", "今天我们该怎么实践？")
+    default = _rag_query("约翰福音 3:16", "请解读：约翰福音 3:16")
+    assert "请解读" not in default and "写作目的" in default
+
+
+def test_drop_weak_hits_keeps_relevant():
+    from app.ai.chat import _drop_weak_hits
+
+    hits = [{"score": 0.9}, {"score": 0.6}, {"score": 0.2}]
+    assert [h["score"] for h in _drop_weak_hits(hits)] == [0.9, 0.6]
+    assert _drop_weak_hits([{"score": 0.1}]) == [{"score": 0.1}]

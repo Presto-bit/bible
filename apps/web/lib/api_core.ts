@@ -1142,6 +1142,8 @@ export interface ChatDonePayload {
   word_count?: number;
   /** 服务端归一化后的完整 Markdown（流结束后 merge 展示） */
   text?: string;
+  /** 终稿经服务端补全/重写，与流式正文不同，须以 document 为准 */
+  rewritten?: boolean;
   followups?: string[];
   sections?: { id: string; title: string }[];
   lead?: string;

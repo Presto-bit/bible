@@ -900,6 +900,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               :final text,
               :final document,
               :final conversationId,
+              :final rewritten,
             ):
               streamSettled = true;
               deltaFlush?.cancel();
@@ -921,6 +922,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 doneFollowups: followups,
                 document: document,
                 sectionStream: sectionStream,
+                rewritten: rewritten,
               );
               if (resolved.text.trim().isNotEmpty) {
                 setState(() => reply.content = resolved.text.trim());

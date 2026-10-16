@@ -44,6 +44,13 @@ export function sectionTitlesInMarkdown(text: string): string[] {
   return titles;
 }
 
+/** 正文末尾是否以句末标点收束（忽略末尾脚注与追问区）。 */
+export function endsCleanly(text: string): boolean {
+  const body = bodyText(text).replace(/(?:\s*\[\d{1,2}\])+\s*$/, '').trimEnd();
+  if (!body) return false;
+  return /[。！？!?…”」』）)*]$/.test(body);
+}
+
 /** done 终稿：归一化 document 与流式正文取更完整者，避免终态只剩摘要。 */
 export function pickStreamDoneText(opts: {
   documentText: string;
@@ -57,6 +64,7 @@ export function pickStreamDoneText(opts: {
   if (!stream) return doc;
   if (opts.sectionPolicy === 'lead_only') return doc;
 
+  if (endsCleanly(doc) && !endsCleanly(stream) && doc.length >= stream.length * 0.6) return doc;
   const docSections = sectionTitlesInMarkdown(doc).length;
   const streamSections = sectionTitlesInMarkdown(stream).length;
   if (streamSections > docSections) return stream;
@@ -85,7 +93,9 @@ export function resolveDoneAnswer(
   const effectiveStream = streamBuilt || streamed;
   const base = resolveDoneAnswerCore(effectiveStream, payload);
   const hasDocument = Boolean(payload?.document?.markdown?.trim());
-  const bestText = hasDocument
+  const bestText = hasDocument && payload?.rewritten
+    ? base.text
+    : hasDocument
     ? pickStreamDoneText({
       documentText: base.text,
       streamBuilt,

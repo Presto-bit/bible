@@ -109,13 +109,15 @@ def resolve_depth(
                 return _oia_supplement_profile()
             if half:
                 return _oia_compact_profile(span)
+            if has_prior_turns and not wants_deep:
+                return _followup_profile()
             if wants_deep and span >= 6:
                 return _oia_standard_profile(span, with_outline=True)
             return _oia_standard_profile(span)
-        if not wants_expanded_answer(q) and (
-            narrow or (len(q) <= 28 and has_prior_turns and _OIA_DEEP_Q.search(q))
-        ):
+        if narrow and not wants_expanded_answer(q):
             return _narrow_chip_profile()
+        if has_prior_turns and scene_id in ("chat_general", "chat_understand", "chat_apply"):
+            return _followup_profile()
         if scene_id in ("chat_apply", "chat_understand", "chat_compare", "chat_original"):
             return _standard_chat_profile(scene_id)
         return _standard_chat_profile(scene_id)
@@ -154,21 +156,35 @@ def _narrow_chip_profile() -> DepthProfile:
         sections=("摘要",),
         section_policy="lead_only",
         prefer_prose=True,
-        target_chars=160,
-        soft_max=200,
-        hard_max=240,
+        target_chars=200,
+        soft_max=280,
+        hard_max=340,
         min_complete=60,
+    )
+
+
+def _followup_profile() -> DepthProfile:
+    """多轮追问：直接回应本问，不重套四节模板，也不压成一句话。"""
+    return DepthProfile(
+        depth="followup",
+        sections=(),
+        section_policy="soft",
+        prefer_prose=True,
+        target_chars=380,
+        soft_max=560,
+        hard_max=None,
+        min_complete=120,
     )
 
 
 def _oia_compact_profile(verse_span: int) -> DepthProfile:
     span = max(1, int(verse_span or 1))
     if span <= 1:
-        target, soft, hard, min_c = 160, 220, 260, 80
+        target, soft, hard, min_c = 240, 320, 380, 100
     elif span <= 5:
-        target, soft, hard, min_c = 180, 240, 280, 90
+        target, soft, hard, min_c = 270, 360, 420, 110
     else:
-        target, soft, hard, min_c = 200, 260, 300, 100
+        target, soft, hard, min_c = 300, 380, 440, 120
     return DepthProfile(
         depth="oia_compact",
         sections=(),

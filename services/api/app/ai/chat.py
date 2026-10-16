@@ -23,7 +23,7 @@ from .scenes import NO_RAG_SURFACES, resolve_scene
 
 logger = logging.getLogger(__name__)
 
-SNIPPET_CHARS = 260
+SNIPPET_CHARS = 380
 MAX_CITATIONS = 3  # 正文脚标少而精（产品 P0）
 
 
@@ -87,12 +87,25 @@ def _sanitize_history(history: list[dict] | None) -> list[dict[str, str]]:
     return out
 
 
+_DEFAULT_ASK_RE = re.compile(r"^请(?:解读|解释)[：:].*$")
+_RAG_INTENT_HINTS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"原文|希腊|希伯来|字义|词义|什么意思|指什么|译本|翻译"), "原文 字义 词语 译法"),
+    (re.compile(r"应用|生活|怎么做|如何|实践|今天|现代|我们"), "属灵意义 教导 应用"),
+    (re.compile(r"背景|历史|当时|文化|习俗|地理|为什么"), "历史处境 文化背景 原读者"),
+    (re.compile(r"关系|对比|呼应|预表|应验|旧约|新约"), "串珠 呼应 预表 应验"),
+)
+
+
 def _rag_query(
     passage_display: str,
     question: str | None,
 ) -> str:
-    base = f"{passage_display} {question or ''}".strip()
-    return f"{base} 原读者 写作目的 历史处境 上下文".strip()
+    q = (question or "").strip()
+    if _DEFAULT_ASK_RE.match(q):
+        q = ""
+    hints = [hint for pat, hint in _RAG_INTENT_HINTS if q and pat.search(q)]
+    suffix = " ".join(hints[:2]) or "原读者 写作目的 历史处境 上下文"
+    return f"{passage_display} {q} {suffix}".strip()
 
 
 def _retrieve_hits(
@@ -108,7 +121,7 @@ def _retrieve_hits(
 
     types = source_types or PLATFORM_SOURCE_TYPES
     try:
-        return retrieve_for_passage(
+        hits = retrieve_for_passage(
             query,
             book_name=book_name,
             book_id=book_id,
@@ -119,6 +132,20 @@ def _retrieve_hits(
     except Exception as exc:
         logger.warning("注释检索不可用，降级无脚注：%s", exc)
         return []
+    return _drop_weak_hits(hits)
+
+
+_WEAK_HIT_RATIO = 0.45
+
+
+def _drop_weak_hits(hits: list[dict]) -> list[dict]:
+    """分数为候选集内归一化值：明显弱于最佳命中的注释不进提示词，减少跑题脚注。"""
+    if len(hits) <= 1:
+        return hits
+    top = max(float(h.get("score") or 0) for h in hits)
+    if top <= 0:
+        return hits
+    return [h for h in hits if float(h.get("score") or 0) >= top * _WEAK_HIT_RATIO]
 
 
 def _is_narrow_followup(
@@ -134,9 +161,7 @@ def _is_narrow_followup(
         return False
     if wants_expanded_answer(q):
         return False
-    if len(q) <= 72:
-        return True
-    hints = ("字内", "简短", "概括", "一句话", "用更短", "再简")
+    hints = ("字内", "简短", "简单说", "概括", "一句话", "用更短", "再简", "精简")
     return any(h in q for h in hints)
 
 
@@ -184,7 +209,7 @@ def prepare(
     rag_timed_out = False
     passage_context = ""
     if ref and spec.id in ("verse_full", "verse_quick", "chat_explain"):
-        ctx_max = 120 if (surface or "").strip().lower() in {"half_sheet", "prewarm"} else 280
+        ctx_max = 200 if (surface or "").strip().lower() in {"half_sheet", "prewarm"} else 320
         passage_context = passage_context_brief(ref, max_chars=ctx_max)
 
     if use_rag and ref:

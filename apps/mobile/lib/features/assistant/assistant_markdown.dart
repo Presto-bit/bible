@@ -80,11 +80,10 @@ String prepareAssistantMarkdown(String text, {required bool streaming}) {
   if (streaming) {
     raw = stripTrailingReferences(raw);
     raw = joinOrphanFootnotes(raw);
-    return raw;
   }
   raw = promoteSectionLabels(raw);
   raw = normalizeOrderedLists(raw);
-  return breakLongPlainBlocks(raw);
+  return streaming ? raw : breakLongPlainBlocks(raw);
 }
 
 /// 半屏解读折叠态：提取摘要/概览首句（兼容 Markdown 与旧【摘要】）。

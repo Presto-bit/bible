@@ -1278,9 +1278,8 @@ def chat(
                 or (scene in ("verse_full", "verse_quick") and _body_incomplete)
             )
         )
-        _fill_attempted = False
+        rewritten = False
         if _budget_left() > 3 and _should_fill:
-            _fill_attempted = True
             filled = section_fill_once(
                 messages,
                 body_probe,
@@ -1303,6 +1302,7 @@ def chat(
                     prefer_prose=bool(_dk.get("prefer_prose")),
                     format_only=True,
                 )
+                rewritten = True
         body_text, followups = split_body_and_followups(text)
         if followups:
             yield _sse("followups", {"items": followups})
@@ -1318,81 +1318,8 @@ def chat(
             incomplete
             and not _compact_half
             and scene in ("verse_full", "verse_quick")
-            and _budget_left() > 5
-        ):
-            try:
-                structured = try_structured_verse_answer(
-                    messages,
-                    scene or "",
-                    max_tokens=min(max_tokens, 900),
-                    verse_span=verse_span,
-                )
-            except Exception:
-                logger.exception("structured recover on incomplete scene=%s", scene)
-                structured = None
-            if structured and structured.strip():
-                text = normalize_answer_markdown(
-                    merge_continuation_sections(structured.strip()),
-                    scene or "",
-                    narrow=narrow,
-                    verse_span=verse_span,
-                    depth=_depth,
-                    soft_max=_dk.get("soft_max"),
-                    prefer_prose=bool(_dk.get("prefer_prose")),
-                )
-                body_text, followups = split_body_and_followups(text)
-                incomplete = answer_marked_incomplete(
-                    scene or "",
-                    body_text,
-                    verse_span=verse_span,
-                    depth=_depth,
-                    expected_sections=_dk.get("expected_sections"),
-                    min_complete=_dk.get("min_complete"),
-                )
-        if (
-            incomplete
-            and not _compact_half
-            and scene in ("verse_full", "verse_quick")
-            and _budget_left() > 3
-            and _fill_attempted
-            and _fill_depth != "structure"
-        ):
-            filled = section_fill_once(
-                messages,
-                body_text,
-                scene or "",
-                narrow=narrow,
-                max_tokens=min(max_tokens // 2, 700),
-                verse_span=verse_span,
-                depth="structure",
-                planned_sections=_dk.get("expected_sections"),
-                min_complete=_dk.get("min_complete"),
-            )
-            if filled and filled.strip():
-                text = normalize_answer_markdown(
-                    filled,
-                    scene or "",
-                    narrow=narrow,
-                    verse_span=verse_span,
-                    depth=_depth,
-                    soft_max=_dk.get("soft_max"),
-                    prefer_prose=bool(_dk.get("prefer_prose")),
-                    format_only=True,
-                )
-                body_text, followups = split_body_and_followups(text)
-                incomplete = answer_marked_incomplete(
-                    scene or "",
-                    body_text,
-                    verse_span=verse_span,
-                    depth=_depth,
-                    expected_sections=_dk.get("expected_sections"),
-                    min_complete=_dk.get("min_complete"),
-                )
-        if (
-            incomplete
-            and not _compact_half
-            and scene in ("verse_full", "verse_quick")
             and _budget_left() > 6
+            and len(body_text.strip()) < int(_dk.get("min_complete") or 160)
         ):
             logger.warning(
                 "ai answer incomplete silent retry scene=%s span=%s depth=%s len=%s",
@@ -1421,6 +1348,7 @@ def chat(
                     soft_max=_dk.get("soft_max"),
                     prefer_prose=bool(_dk.get("prefer_prose")),
                 )
+                rewritten = True
                 body_text, followups = split_body_and_followups(text)
                 incomplete = answer_marked_incomplete(
                     scene or "",
@@ -1430,46 +1358,6 @@ def chat(
                     expected_sections=_dk.get("expected_sections"),
                     min_complete=_dk.get("min_complete"),
                 )
-        if (
-            incomplete
-            and not _compact_half
-            and scene in ("verse_full", "verse_quick")
-            and _budget_left() > 3
-        ):
-            for _extra_depth in ("structure", "full"):
-                if not incomplete or _budget_left() <= 3:
-                    break
-                extra = section_fill_once(
-                    messages,
-                    body_text,
-                    scene or "",
-                    narrow=narrow,
-                    max_tokens=min(max_tokens, 900),
-                    verse_span=verse_span,
-                    depth=_extra_depth,
-                    planned_sections=_dk.get("expected_sections"),
-                    min_complete=_dk.get("min_complete"),
-                )
-                if extra and extra.strip():
-                    text = normalize_answer_markdown(
-                        extra,
-                        scene or "",
-                        narrow=narrow,
-                        verse_span=verse_span,
-                        depth=_depth,
-                        soft_max=_dk.get("soft_max"),
-                        prefer_prose=bool(_dk.get("prefer_prose")),
-                        format_only=True,
-                    )
-                    body_text, followups = split_body_and_followups(text)
-                    incomplete = answer_marked_incomplete(
-                        scene or "",
-                        body_text,
-                        verse_span=verse_span,
-                        depth=_depth,
-                        expected_sections=_dk.get("expected_sections"),
-                        min_complete=_dk.get("min_complete"),
-                    )
         if incomplete:
             substantial = (
                 len(body_text.strip()) >= 24
@@ -1536,6 +1424,7 @@ def chat(
                 scene=scene or "",
                 conversation_id=conversation_id,
                 timings=done_timings,
+                rewritten=rewritten,
             ),
         )
         append_turns(

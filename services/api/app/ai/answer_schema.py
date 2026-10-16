@@ -133,14 +133,14 @@ SCENE_BUDGETS: dict[str, SceneBudget] = {
 
 NARROW_BUDGET = SceneBudget(
     total_chars=180,
-    max_tokens=400,
+    max_tokens=520,
     summary_max=30,
     item_max=50,
     min_bullets=2,
     max_bullets=3,
 )
 
-HISTORY_CHAT_MAX_TOKENS = 700
+HISTORY_CHAT_MAX_TOKENS = 1100
 
 # 允许散文段（非 bullets）的小节 — 主题问答正文等
 PROSE_SECTION_TITLES = frozenset(

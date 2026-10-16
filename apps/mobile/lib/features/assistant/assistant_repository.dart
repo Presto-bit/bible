@@ -317,6 +317,7 @@ class AssistantRepository {
           document: document,
           conversationId: data['conversation_id'] as String?,
           streamComplete: data['streamComplete'] != false,
+          rewritten: data['rewritten'] == true,
         );
       case 'error':
         return ErrorEvent(

@@ -415,11 +415,13 @@ bool _isStructuredLine(String line) {
   return false;
 }
 
-/// 将无 Markdown 结构的长段落拆成 2 句一段，提升扫读性。
+final _fullSentenceEndRe = RegExp(r'[。！？][」』”’）)]*$');
+
+/// 将无 Markdown 结构的长段落按整句拆成最多 3 句一段，提升扫读性。
 String breakLongPlainBlocks(
   String text, {
-  int maxSentences = 2,
-  int minBreakLen = 72,
+  int maxSentences = 3,
+  int minBreakLen = 80,
 }) {
   final lines = text.split('\n');
   final out = <String>[];
@@ -450,14 +452,26 @@ String breakLongPlainBlocks(
         .map((s) => s.trim())
         .where((s) => s.isNotEmpty)
         .toList();
-    if (sentences.length <= maxSentences) {
+    final groups = <String>[];
+    var cur = '';
+    var full = 0;
+    for (final s in sentences) {
+      cur += s;
+      if (_fullSentenceEndRe.hasMatch(s)) full += 1;
+      if (full >= maxSentences) {
+        groups.add(cur);
+        cur = '';
+        full = 0;
+      }
+    }
+    if (cur.isNotEmpty) groups.add(cur);
+    if (groups.length <= 1) {
       out.add(joined);
       continue;
     }
-    for (var j = 0; j < sentences.length; j += maxSentences) {
-      final end = (j + maxSentences).clamp(0, sentences.length);
-      out.add(sentences.sublist(j, end).join());
-      if (end < sentences.length) out.add('');
+    for (var j = 0; j < groups.length; j++) {
+      out.add(groups[j]);
+      if (j < groups.length - 1) out.add('');
     }
   }
   return out.join('\n');

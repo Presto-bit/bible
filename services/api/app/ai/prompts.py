@@ -34,21 +34,32 @@ _ANTI_REASONING = (
 )
 
 _NARROW = (
-    "篇幅与问题匹配：Chip 追问宜极精炼（2–3 条要点）；单节快读宜短；"
-    "各小节用 - 列表写满要点即停，不要重复已说内容，也不要为凑字而啰嗦。\n"
+    "篇幅与问题匹配：先正面回答读者问的那一点，再按需要展开；"
+    "简单问题简短作答，需要解释的问题要讲透，不要只给结论。"
+    "不要重复已说内容，也不要为凑字而啰嗦；写完最后一句再停笔。\n"
 )
 
 _NARROW_FOLLOWUP = (
-    "本次为短追问：请直接回应，结构为 ### 摘要（≤30 字）+ 2–3 条 - 要点；"
-    "总篇幅约 120–180 字，不要背景铺垫，不要相关追问。\n"
+    "本次读者要求简短：请直接回应，结构为 ### 摘要（1 句完整话）+ 2–3 条 - 要点；"
+    "总篇幅约 160–260 字，不要背景铺垫，不要相关追问。\n"
 )
 
 _MARKDOWN_OUTPUT_SOFT = (
     "【Markdown 规范 · 快懂】\n"
     "- 先写 ### 摘要（1–2 句白话，≤50 字）。\n"
-    "- 其后可用 1–2 个自然段补充要点；**不强制**列表与小标题。\n"
+    "- 其后用 2–3 个短自然段（每段 2–3 句）或少量 - 要点补充；**不强制**列表与小标题。\n"
     "- 关键术语可加粗；引用经文可用 *斜体*。\n"
-    "- 不要输出【参考资料】或 HTML；半屏不要「相关追问」。\n"
+    "- 不要输出【参考资料】或 HTML。\n"
+)
+
+_MARKDOWN_OUTPUT_FOLLOWUP = (
+    "【Markdown 规范 · 追问】\n"
+    "- 第一段用 1–2 句直接回答本次问题，不要标题，不要复述问题。\n"
+    "- 其后用 2–3 个短自然段（每段 2–3 句）展开理由、经文依据或例子；"
+    "要点并列时可改用 3–4 条 - 列表，每条 1–2 句完整话。\n"
+    "- 需要分层时最多用 2 个 ### 小标题；不要套「摘要/经文背景/经文解释/今日回应」四段模板。\n"
+    "- 关键术语可加粗；引用经文用 > 引用块或 *斜体*，并注明章节。\n"
+    "- 不要输出【参考资料】或 HTML。\n"
 )
 
 _MARKDOWN_OUTPUT = (
@@ -58,8 +69,8 @@ _MARKDOWN_OUTPUT = (
     "- 小节标题用三级标题 ###，标题用中文（如 ### 摘要），不要用【】包裹标题。\n"
     "- 结构顺序：**必须先写 ### 摘要（章/卷导读则用 ### 本章概览 或 ### 卷概览）**，"
     "写完整首句后再写其它小节。\n"
-    "- **除摘要/概览外，各小节内容必须用 - 无序列表输出要点**（每条一句）；"
-    "禁止连续超过 2 句的散文段。\n"
+    "- **除摘要/概览外，各小节内容用 - 无序列表输出要点**，每条 1–2 句完整话，"
+    "先点题再说理由；不要只写标题式短语，也不要写成大段散文。\n"
     "- 有序列表统一用「1. 」（不要用「1、」或圈号）。\n"
     "- 关键术语用 **加粗**；引用经文原文可用 *斜体* 或 > 引用块。\n"
     "- 引用【背景注释】时用行内脚注 [1][2]，序号须与注释列表一致。\n"
@@ -101,7 +112,7 @@ _BASE_COMPACT_HALF = (
 
 _MARKDOWN_OUTPUT_COMPACT = (
     "【Markdown · 半屏快懂】\n"
-    "- 用 2–4 句完整 prose 说清「这节在说什么」，总篇幅约 120–220 字。\n"
+    "- 用 3–5 句完整 prose 说清「这节在说什么、为什么这样说」，可分 2 个短段落。\n"
     "- **不要**使用 ### 标题，不要「摘要 / 经文背景 / 经文解释 / 今日回应」四段。\n"
     "- 第一句直接点出本节关键词或对象；句子以。收束，禁止半句停笔。\n"
     "- 不要 - 列表堆砌，不要 HTML，不要「相关追问」。\n"
@@ -226,7 +237,8 @@ def depth_format_guide(profile: DepthProfile, scene_id: str, verse_span: int = 1
         lo, hi = max(80, profile.target_chars - 40), profile.soft_max
         return (
             f"（半屏快懂 · 总篇幅约 {lo}–{hi} 字，勿复述本说明）\n"
-            "2–4 句完整 prose，直接说这节在说什么；点出关键词或对象。\n"
+            "3–5 句完整 prose，可分 2 个短段落：先直接说这节在说什么，点出关键词或对象，"
+            "再用 1–2 句说明它在上下文里的意思。\n"
             "不要 ### 标题，不要四段模板，不要列表；写完即停，句子以。收束。"
         )
     if profile.depth in ("oia_standard", "oia_deep"):
@@ -247,8 +259,15 @@ def depth_format_guide(profile: DepthProfile, scene_id: str, verse_span: int = 1
         lo, hi = profile.target_chars - 40, profile.soft_max
         return (
             "（输出形态：Chip 短追问，勿复述本说明）\n"
-            f"### 摘要（≤30 字）+ 2–3 条 - 要点；总篇幅约 {lo}–{hi} 字。\n"
+            f"### 摘要（1 句完整话）+ 2–3 条 - 要点；总篇幅约 {lo}–{hi} 字。\n"
             "不要重复上文 OIA 四步；不要「相关追问」。"
+        )
+    if profile.depth == "followup":
+        lo, hi = profile.target_chars - 80, profile.soft_max
+        return (
+            f"（输出形态：多轮追问 · 总篇幅约 {lo}–{hi} 字，勿复述本说明）\n"
+            "紧扣读者这一次的问题作答；先给直接答案，再展开依据与意义。"
+            "问题需要更多篇幅时可以写长一些，但每段都要有新信息。"
         )
     if profile.depth == "study":
         return (
@@ -325,6 +344,8 @@ def build_messages(
     ]
     if compact_half:
         system_parts.append(_MARKDOWN_OUTPUT_COMPACT)
+    elif depth and depth.depth == "followup":
+        system_parts.append(_MARKDOWN_OUTPUT_FOLLOWUP)
     elif depth and depth.prefer_prose:
         system_parts.append(_MARKDOWN_OUTPUT_SOFT)
     else:
