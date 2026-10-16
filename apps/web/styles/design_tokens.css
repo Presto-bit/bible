@@ -40,11 +40,12 @@
   --peiai-motion-spring: 0.42s cubic-bezier(0.16, 1, 0.3, 1);
   --peiai-motion-spring-curve: cubic-bezier(0.16, 1, 0.3, 1);
   --peiai-stagger-step: 48ms;
-  --peiai-press-scale: 0.97;
-  --peiai-press-scale-icon: 0.96;
-  --peiai-press-scale-card: 0.995;
+  /* 按压钝一档：缩放更克制，滚动擦过时不抢眼 */
+  --peiai-press-scale: 0.985;
+  --peiai-press-scale-icon: 0.978;
+  --peiai-press-scale-card: 0.998;
   --peiai-tab-fade: 0.16s cubic-bezier(0.22, 0.8, 0.22, 1);
-  --peiai-nav-push-x: 12%;
+  --peiai-nav-push-x: 10%;
   --peiai-layer-l1: 1;
   --peiai-layer-l2: 0.94;
   --peiai-layer-l3: 0.88;

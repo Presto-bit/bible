@@ -4,7 +4,9 @@ import { useCallback, useRef, useState, type CSSProperties, type TouchEvent as R
 import { SHEET_DISMISS_DY } from '@/lib/reader_gesture';
 import { prefersReducedMotion } from '@/lib/peiai_motion';
 
-const DRAG_CAP = 220;
+const DRAG_CAP = 240;
+/** 快速下甩关闭速度门槛（px/s）；钝一档 */
+const DISMISS_VELOCITY = 1100;
 
 type Options = {
   onClose: () => void;
@@ -93,7 +95,7 @@ export function useSheetDrag({ onClose, enabled = true, baseTransform = '' }: Op
       }
       const startY = touchStartY.current;
       const dy = startY != null ? (e.changedTouches[0]?.clientY ?? startY) - startY : 0;
-      const fast = velocity.current > 700;
+      const fast = velocity.current > DISMISS_VELOCITY;
       const shouldClose = draggingDown.current && (dy > SHEET_DISMISS_DY || fast);
       if (shouldClose) {
         setDragging(false);

@@ -14,10 +14,12 @@ type EdgeSwipeBackOptions = {
   preferHistoryBack?: boolean;
 };
 
-const EDGE_PX = 24;
-const MIN_DX = 72;
-const MAX_DY = 48;
-const COMMIT_RATIO = 0.28;
+/** 钝一档：更窄起手、更晚跟手、更高提交，减少误触返回 */
+const EDGE_PX = 18;
+const MIN_DX = 110;
+const MAX_DY = 40;
+const COMMIT_RATIO = 0.36;
+const FOLLOW_DX = 22;
 
 function findSwipeTarget(): HTMLElement | null {
   const main = document.querySelector('main');
@@ -159,7 +161,7 @@ export function useEdgeSwipeBack({
           clearVisual(true);
           return;
         }
-        if (dx > 10) {
+        if (dx > FOLLOW_DX) {
           tracking.current.following = true;
           ensureVisual();
         }

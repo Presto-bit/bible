@@ -13,7 +13,7 @@ import { heroBCampaignImageSrc } from '@/lib/hero_b_campaign';
 import { markHeroReturnToVerse } from '@/lib/hero_b_nav';
 
 const ROTATE_MS = 9000;
-const SWIPE_THRESHOLD_PX = 48;
+const SWIPE_THRESHOLD_PX = 64;
 
 type Props = {
   verseSlide: ReactNode;

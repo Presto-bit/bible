@@ -16,15 +16,16 @@ import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
  * - 提交阈值：大位移 OR 够快；上一页（右滑）略松
  * - 专有名词/按钮：composedPath + 邻点让路，避免「点词典没反应」
  */
-const THRESHOLD_NEXT = 0.13;
-const THRESHOLD_PREV = 0.09;
-const VELOCITY_MIN = 0.12;
-const VELOCITY_MIN_PREV = 0.09;
+/** 钝一档：更高位移/速度门槛，轴向更严，减少竖滚误翻 */
+const THRESHOLD_NEXT = 0.18;
+const THRESHOLD_PREV = 0.14;
+const VELOCITY_MIN = 0.18;
+const VELOCITY_MIN_PREV = 0.14;
 /** 大滑动：忽略速度强制翻页 */
-const FORCE_RATIO_NEXT = 0.24;
-const FORCE_RATIO_PREV = 0.18;
-const AXIS_RATIO = 1.15;
-const AXIS_MIN_PX = 8;
+const FORCE_RATIO_NEXT = 0.30;
+const FORCE_RATIO_PREV = 0.24;
+const AXIS_RATIO = 1.35;
+const AXIS_MIN_PX = 12;
 const EDGE_RESIST = 0.28;
 const ANIM_MS = 320;
 const ANIM_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';

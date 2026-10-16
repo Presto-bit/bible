@@ -16,8 +16,8 @@ export const READER_INTERACTIVE_SEL =
 /** 半屏挂上后忽略遮罩关闭（同按压 click 落到 backdrop） */
 export const SHEET_OPEN_GUARD_MS = 400;
 
-/** 底部 Sheet / 朗读条下滑关闭阈值（与 ReaderSheetPortal 一致） */
-export const SHEET_DISMISS_DY = 72;
+/** 底部 Sheet / 朗读条下滑关闭阈值（与 ReaderSheetPortal 一致；钝一档防轻甩误关） */
+export const SHEET_DISMISS_DY = 110;
 
 /** 迷你条上滑展开专注层阈值 */
 export const AUDIO_MINI_EXPAND_DY = 48;

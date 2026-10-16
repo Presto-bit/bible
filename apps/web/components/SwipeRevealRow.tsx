@@ -48,7 +48,8 @@ export function SwipeRevealRow({
         ? [{ label: deleteLabel, onClick: onDelete, tone: 'danger' }]
         : [];
   const revealPx = Math.max(BTN_PX, resolved.length * BTN_PX);
-  const openThreshold = Math.min(36, revealPx / 2);
+  /** 钝一档：需拖更远才吸到打开档 */
+  const openThreshold = Math.min(52, Math.max(44, revealPx / 2.4));
 
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
