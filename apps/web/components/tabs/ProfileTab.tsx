@@ -18,7 +18,6 @@ import {
   ensureAccountReady,
   getDisplayName,
   getUserName,
-  guestId,
   hasPassword,
 } from '@/lib/api';
 import {
@@ -88,7 +87,7 @@ import { Pressable } from '@/components/ui/Pressable';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_status';
 import { syncNow } from '@/lib/sync';
-import { pushProfileAvatar, pushProfileBio } from '@/lib/profile_sync';
+import { pushProfileAvatar } from '@/lib/profile_sync';
 import {
   accountDataStatus,
   canCloudSync,
@@ -117,7 +116,6 @@ import {
 import { peekShelfListCache } from '@/lib/shelf_cache';
 
 const AVATAR_KEY = 'profile_avatar';
-const BIO_KEY = 'profile_bio';
 const SHORTCUT_KEY = 'presto_profile_shortcut';
 
 type ShortcutTone = 'challenge' | 'remind' | 'offline' | 'cache';
@@ -392,16 +390,9 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const confirm = useConfirm();
   const toast = useToast();
   const router = useRouter();
-  const [uid, setUid] = useState<string | null>(() =>
-    typeof window !== 'undefined' ? currentUserId() : null,
-  );
-  const [gid, setGid] = useState<string>(() =>
-    typeof window !== 'undefined' ? guestId() : '',
-  );
   const [mins, setMins] = useState(() =>
     typeof window !== 'undefined' ? todayMinutes() : 0,
   );
-  const [idCopied, setIdCopied] = useState(false);
   const [avatarId, setAvatarId] = useState(() => {
     if (typeof window === 'undefined') return 'a1';
     const saved = userLsGet(AVATAR_KEY);
@@ -414,11 +405,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [name, setName] = useState(() =>
     typeof window !== 'undefined' ? getDisplayName() : '',
   );
-  const [bio, setBio] = useState(() =>
-    typeof window !== 'undefined' ? (userLsGet(BIO_KEY) || '') : '',
-  );
   const [dataStatus, setDataStatus] = useState<string | null>(null);
-  const [bioEditing, setBioEditing] = useState(false);
   const [nameEditing, setNameEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [nameBusy, setNameBusy] = useState(false);
@@ -629,8 +616,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   useEffect(() => {
     let cancelled = false;
     const applyLocalProfile = () => {
-      setUid(currentUserId());
-      setGid(guestId());
       const saved = userLsGet(AVATAR_KEY);
       if (saved && isCustomAvatarId(saved)) {
         const normalized = normalizeCustomAvatarId(saved);
@@ -643,7 +628,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         setAvatarId(saved || defaultAvatarId(effectiveId() || undefined));
       }
       setName(getDisplayName());
-      setBio(userLsGet(BIO_KEY) || '');
       setMins(todayMinutes());
       setWeekMins(weekMinutesTotal());
       setStreak(buildReport().monthDays);
@@ -741,7 +725,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setWeekMins(weekMinutesTotal());
       setStreak(buildReport().monthDays);
       setName(getDisplayName());
-      setBio(userLsGet(BIO_KEY) || '');
       refreshFootprintLocal();
       void computeBadgesWithUnlock().then((list) => {
         setBadges(list);
@@ -800,13 +783,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     );
     if (hasPassword()) clearProfilePasswordNudge();
   };
-  const saveBio = (v: string) => {
-    const t = v.slice(0, 15);
-    setBio(t);
-    userLsSet(BIO_KEY, t);
-    pushProfileBio(t);
-  };
-
   const beginEditName = () => {
     const cur = (getUserName() || '').trim();
     // 系统名/空名：留空方便自设，避免用户以为必须改一两个字
@@ -814,7 +790,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       !cur || isSystemGeneratedUsername(cur) ? '' : cur,
     );
     setNameEditing(true);
-    setBioEditing(false);
   };
 
   const saveDisplayName = async () => {
@@ -885,19 +860,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     } finally {
       setAvatarUploading(false);
       if (avatarFileRef.current) avatarFileRef.current.value = '';
-    }
-  };
-
-  const idValue = uid || gid;
-
-  const copyId = async () => {
-    if (!idValue) return;
-    try {
-      await navigator.clipboard.writeText(idValue);
-      setIdCopied(true);
-      setTimeout(() => setIdCopied(false), 1600);
-    } catch {
-      // ignore
     }
   };
 
@@ -1096,39 +1058,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   return (
     <main className="container profile-page">
       <header className="profile-head profile-greet-head">
-        <div className="profile-head-top">
-          <div className="profile-head-actions">
-            <Pressable
-              className="icon-btn profile-head-icon-btn"
-              aria-label="分享 App，邀请朋友一起读"
-              softRecover
-              beforePointerTap={clearBlockingOverlays}
-              onTap={() => void inviteFriends()}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <path d="M8.59 13.51 15.42 17.49" />
-                <path d="M15.41 6.51 8.59 10.49" />
-              </svg>
-            </Pressable>
-            <Pressable
-              className="icon-btn profile-head-icon-btn"
-              aria-label="设置"
-              softRecover
-              beforePointerTap={clearBlockingOverlays}
-              phase="up"
-              onTap={() => openSettings()}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            </Pressable>
-          </div>
-        </div>
-
         <div className="profile-identity">
           <Pressable
             className={`profile-avatar-btn${avatarUploading ? ' is-uploading' : ''}`}
@@ -1196,41 +1125,36 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             {dataStatus ? (
               <p className="muted profile-data-status">{dataStatus}</p>
             ) : null}
-            {bioEditing ? (
-              <div className="profile-bio-edit-wrap">
-                <input
-                  className="book-chip profile-bio-input"
-                  placeholder="一句话签名（≤15 字）"
-                  value={bio}
-                  maxLength={15}
-                  autoFocus
-                  onChange={(e) => saveBio(e.target.value)}
-                  onBlur={() => setBioEditing(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') setBioEditing(false);
-                  }}
-                />
-                <span className="muted profile-bio-count">{bio.length}/15</span>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="profile-bio-edit"
-                onClick={() => setBioEditing(true)}
-                aria-label="编辑签名"
-              >
-                <span className={`profile-bio-text${bio.trim() ? '' : ' is-empty'}`}>
-                  {bio.trim() ? bio : '点击添加签名'}
-                </span>
-              </button>
-            )}
-            {idValue ? (
-              <p className="profile-meta-line muted">
-                <button type="button" className="profile-id-inline" onClick={() => void copyId()}>
-                  {idCopied ? '已复制' : `ID ${idValue}`}
-                </button>
-              </p>
-            ) : null}
+          </div>
+          <div className="profile-head-actions">
+            <Pressable
+              className="icon-btn profile-head-icon-btn"
+              aria-label="分享 App，邀请朋友一起读"
+              softRecover
+              beforePointerTap={clearBlockingOverlays}
+              onTap={() => void inviteFriends()}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.59 13.51 15.42 17.49" />
+                <path d="M15.41 6.51 8.59 10.49" />
+              </svg>
+            </Pressable>
+            <Pressable
+              className="icon-btn profile-head-icon-btn"
+              aria-label="设置"
+              softRecover
+              beforePointerTap={clearBlockingOverlays}
+              phase="up"
+              onTap={() => openSettings()}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </Pressable>
           </div>
         </div>
       </header>

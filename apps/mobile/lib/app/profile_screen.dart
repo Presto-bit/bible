@@ -495,7 +495,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         userPrefGetString(prefs, 'onboarding_name') ??
         auth.displayName ??
         '读经伙伴';
-    final bio = userPrefGetString(prefs, 'profile_bio') ?? '愿日日亲近主话';
     final userId = session.userId ?? session.guestId;
     final avatarId =
         _avatarOverride ??
@@ -593,10 +592,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             peiaiTabContentBottomPad(context, includeSafe: false),
           ),
           children: [
-            // 顶栏：右侧 [分享][设置] 分组（分享在设置左边）
+            // 身份行：[头像][昵称] …… [分享][设置]
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Spacer(),
+                GestureDetector(
+                  onTap: () => _pickAvatar(avatarId),
+                  child: ClipOval(child: AvatarBubble(id: avatarId, size: 72)),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _editField(
+                      title: '昵称',
+                      key: 'onboarding_name',
+                      current: name,
+                    ),
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                        letterSpacing: -0.46,
+                      ),
+                    ),
+                  ),
+                ),
                 IconButton(
                   tooltip: '分享彼爱',
                   constraints: _topBarIconConstraints,
@@ -610,74 +634,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   padding: const EdgeInsets.all(12),
                   onPressed: _settingsOpening ? null : _openSettings,
                   icon: const Icon(Icons.settings_outlined, size: 22),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            // Hero
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: () => _pickAvatar(avatarId),
-                  child: ClipOval(child: AvatarBubble(id: avatarId, size: 72)),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: () => _editField(
-                          title: '昵称',
-                          key: 'onboarding_name',
-                          current: name,
-                        ),
-                        child: Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.w700,
-                            height: 1.2,
-                            letterSpacing: -0.46,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      GestureDetector(
-                        onTap: () => _editField(
-                          title: '个性签名',
-                          key: 'profile_bio',
-                          current: bio == '愿日日亲近主话' ? '' : bio,
-                          maxLines: 2,
-                          maxLength: 15,
-                        ),
-                        child: Text(
-                          bio.isEmpty || bio == '愿日日亲近主话' ? '点击添加签名' : bio,
-                          style: TextStyle(
-                            color: AppColors.inkFaint,
-                            fontSize: 14,
-                            fontStyle: bio.isEmpty || bio == '愿日日亲近主话'
-                                ? FontStyle.italic
-                                : FontStyle.normal,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      GestureDetector(
-                        onTap: () => _copyId(userId),
-                        child: Text(
-                          _idCopied ? '已复制' : 'ID $userId',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _idCopied
-                                ? AppColors.accentDeep
-                                : AppColors.inkFaint,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
