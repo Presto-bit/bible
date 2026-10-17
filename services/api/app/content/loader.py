@@ -326,8 +326,7 @@ def section_titles_index_localized(
 # ── 阅读段落边界（CNV paragraphs.json） ──
 POETRY_BOOKS = frozenset(
     {
-        "PSA", "PRO", "ECC", "SNG", "LAM", "AMO", "MIC", "HAB", "ZEP", "NAH",
-        "HAG", "ZEC", "MAL", "JOB",
+        "PSA", "PRO", "ECC", "SNG", "LAM", "MIC", "HAB", "ZEP", "NAH", "JOB",
     }
 )
 

@@ -15,8 +15,7 @@ OUT_PATH = ROOT / "data/bible/cnv/poetry_lines.json"
 
 POETRY_BOOKS = frozenset(
     {
-        "PSA", "PRO", "ECC", "SNG", "LAM", "AMO", "MIC", "HAB", "ZEP", "NAH",
-        "HAG", "ZEC", "MAL", "JOB",
+        "PSA", "PRO", "ECC", "SNG", "LAM", "MIC", "HAB", "ZEP", "NAH", "JOB",
     }
 )
 

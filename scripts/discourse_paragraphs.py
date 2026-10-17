@@ -12,8 +12,7 @@ CUVS_VERSES_PATH = ROOT / "data/bible/cuvs/verses.json"
 
 POETRY_BOOKS = frozenset(
     {
-        "PSA", "PRO", "ECC", "SNG", "LAM", "AMO", "MIC", "HAB", "ZEP", "NAH",
-        "HAG", "ZEC", "MAL", "JOB",
+        "PSA", "PRO", "ECC", "SNG", "LAM", "MIC", "HAB", "ZEP", "NAH", "JOB",
     }
 )
 PROPHET_BOOKS = frozenset(

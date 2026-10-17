@@ -28,14 +28,10 @@ POETRY_BOOKS = frozenset(
         "ECC",
         "SNG",
         "LAM",
-        "AMO",
         "MIC",
         "HAB",
         "ZEP",
         "NAH",
-        "HAG",
-        "ZEC",
-        "MAL",
         "JOB",
     }
 )

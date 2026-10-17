@@ -14,8 +14,7 @@ export interface VerseParagraph {
 export type ParagraphRange = [number, number];
 
 const POETRY_BOOKS = new Set([
-  'PSA', 'PRO', 'ECC', 'SNG', 'LAM', 'AMO', 'MIC', 'HAB', 'ZEP', 'NAH',
-  'HAG', 'ZEC', 'MAL', 'JOB',
+  'PSA', 'PRO', 'ECC', 'SNG', 'LAM', 'MIC', 'HAB', 'ZEP', 'NAH', 'JOB',
 ]);
 
 const MIN_VERSES = 2;
