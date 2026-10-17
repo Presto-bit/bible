@@ -64,13 +64,33 @@ function ringOf(p: BookProgress | undefined, total: number) {
   };
 }
 
-function waveLayout(count: number) {
-  const step = count > 80 ? 58 : count > 40 ? 72 : 86;
-  const points = Array.from({ length: count }, (_, i) => ({
-    x: 168 + Math.sin(i * 0.85) * 92,
-    y: 36 + i * step,
-  }));
-  return { points, width: 340, height: Math.max(240, 88 + count * step) };
+/** 来回折返。章节把章号放进圆环，一行排得更密，长卷不再拉成梯子。 */
+function snakeLayout(count: number, dense: boolean) {
+  if (count <= 0) {
+    return { points: [] as { x: number; y: number }[], width: 320, height: 240, ringOffset: 23, ringSize: 46 };
+  }
+  const cols = dense
+    ? (count > 80 ? 9 : count > 40 ? 8 : Math.min(6, count))
+    : 4;
+  const colW = !dense ? 86 : cols >= 9 ? 42 : cols >= 8 ? 46 : 56;
+  const rowH = !dense ? 96 : cols >= 9 ? 44 : cols >= 8 ? 48 : 56;
+  const ringSize = !dense ? 46 : cols >= 9 ? 34 : cols >= 8 ? 40 : 44;
+  const padX = dense ? 14 : 48;
+  const padY = dense ? 8 : 16;
+  const rows = Math.ceil(count / cols);
+  const points = Array.from({ length: count }, (_, i) => {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    const xCol = row % 2 === 0 ? col : cols - 1 - col;
+    return { x: padX + xCol * colW, y: padY + row * rowH };
+  });
+  return {
+    points,
+    width: padX * 2 + Math.max(0, cols - 1) * colW,
+    height: padY + rows * rowH + (dense ? 8 : 12),
+    ringOffset: ringSize / 2,
+    ringSize,
+  };
 }
 
 function chapterState(ch: number, read: Set<number>, complete: boolean, nextOpen: number) {
@@ -134,14 +154,6 @@ export default function JourneyMap() {
     };
   }, []);
 
-  useEffect(() => {
-    const width = stageRef.current?.clientWidth ?? 360;
-    const next = { x: Math.max(12, (width - 340) / 2), y: 12, scale: 1 };
-    viewRef.current = next;
-    setView(next);
-    setPicked(null);
-  }, [side, bookId]);
-
   const totals = useMemo(() => {
     const m: Record<string, number> = {};
     for (const b of books) m[b.id] = b.chapter_count;
@@ -156,7 +168,15 @@ export default function JourneyMap() {
   const list = books.filter((b) => (side === 'ot' ? isOt(b) : !isOt(b)));
   const openBook = books.find((b) => b.id === bookId) ?? null;
   const nodes = openBook ? openBook.chapter_count : list.length;
-  const layout = waveLayout(nodes);
+  const layout = snakeLayout(nodes, Boolean(openBook));
+
+  useEffect(() => {
+    const stageW = stageRef.current?.clientWidth ?? 360;
+    const next = { x: Math.max(8, (stageW - layout.width) / 2), y: 8, scale: 1 };
+    viewRef.current = next;
+    setView(next);
+    setPicked(null);
+  }, [side, bookId, layout.width]);
   const bookProgress = openBook ? progress[openBook.id] : undefined;
   const bookComplete = Boolean(
     bookProgress && bookProgress.passes >= 1 && bookProgress.distinctChapters === 0,
@@ -354,16 +374,24 @@ export default function JourneyMap() {
         {failed && <p className="journey-note">{failed}</p>}
         {!failed && books.length === 0 && <p className="journey-note">正在打开旅程</p>}
         {books.length > 0 && (
-          <div
-            className="journey-world"
+            <div
+            className={`journey-world${openBook ? ' is-chapter' : ''}${layout.ringSize <= 34 ? ' is-tight' : ''}`}
             style={{
               width: layout.width,
               height: layout.height,
               transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+              ['--ch-ring' as string]: `${layout.ringSize}px`,
             }}
           >
-            <svg className="journey-path" width={layout.width} height={layout.height} aria-hidden>
-              <polyline points={layout.points.map((p) => `${p.x},${p.y + 20}`).join(' ')} />
+            <svg
+              className={`journey-path${openBook ? ' is-chapter' : ''}`}
+              width={layout.width}
+              height={layout.height}
+              aria-hidden
+            >
+              <polyline
+                points={layout.points.map((p) => `${p.x},${p.y + layout.ringOffset}`).join(' ')}
+              />
             </svg>
             {openBook
               ? Array.from({ length: openBook.chapter_count }, (_, i) => {
@@ -374,7 +402,7 @@ export default function JourneyMap() {
                     <button
                       key={ch}
                       type="button"
-                      className={`journey-node${st.here ? ' is-here' : ''}`}
+                      className={`journey-node is-chapter${st.here ? ' is-here' : ''}`}
                       style={{ left: point.x, top: point.y }}
                       data-journey-node=""
                       data-kind="chapter"
@@ -382,8 +410,8 @@ export default function JourneyMap() {
                     >
                       <span className="journey-ring" style={{ ['--p' as string]: st.progress }}>
                         <i />
+                        <b>{ch}</b>
                       </span>
-                      <span className="journey-node-label">{ch}</span>
                     </button>
                   );
                 })
@@ -402,12 +430,13 @@ export default function JourneyMap() {
                       data-kind="book"
                       data-id={b.id}
                     >
-                      {section ? <span className="journey-section">{section}</span> : null}
                       <span className="journey-ring" style={{ ['--p' as string]: ring.progress }}>
                         <i />
                       </span>
                       <span className="journey-node-label">{label}</span>
-                      {ring.progress === 0 ? (
+                      {section ? (
+                        <span className="journey-node-sub">{section}</span>
+                      ) : ring.progress === 0 ? (
                         <span className="journey-node-sub">{b.chapter_count} 章</span>
                       ) : null}
                     </button>
@@ -416,7 +445,7 @@ export default function JourneyMap() {
             {openBook && pickedPoint && pickedState && picked ? (
               <div
                 className="journey-chip"
-                style={{ left: pickedPoint.x, top: pickedPoint.y + 72 }}
+                style={{ left: pickedPoint.x, top: pickedPoint.y + layout.ringSize + 10 }}
                 onPointerDown={(e) => e.stopPropagation()}
               >
                 <strong>
