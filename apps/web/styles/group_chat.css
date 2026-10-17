@@ -1192,7 +1192,7 @@
 .plan-day-complete-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--tabbar-h) + 16px);
+  bottom: calc(var(--tabbar-h) + 12px);
   transform: translateX(-50%);
   width: min(360px, calc(100vw - 36px));
   z-index: 110;
@@ -3336,9 +3336,9 @@ body.im-keyboard .group-wechat-composer.im-composer-dock{
   bottom: auto;
   padding-bottom: 4px;
 }
-body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
+body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(0,100%,0);}
 body.im-plus-sheet .tabbar,
-body.im-mention-sheet .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
+body.im-mention-sheet .tabbar{opacity:0;pointer-events:none;transform:translate3d(0,100%,0);}
 body.im-plus-sheet .group-page-checkin,
 body.im-mention-sheet .group-page-checkin,
 body.im-plus-sheet .dm-page,

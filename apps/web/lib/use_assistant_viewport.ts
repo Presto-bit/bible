@@ -28,7 +28,7 @@ function pinDocScroll() {
   if (app instanceof HTMLElement) app.scrollTop = 0;
 }
 
-/** 底栏真正占位：视口底 → 浮动胶囊顶（含 float-gap） */
+/** 底栏真正占位：视口底 → 贴底栏顶（对齐 --tabbar-h） */
 function readTabbarReservePx(): number {
   const layoutH = Math.round(window.innerHeight || 0);
   const el = document.querySelector('.tabbar');

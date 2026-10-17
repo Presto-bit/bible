@@ -59,7 +59,7 @@
 .badge-unlock-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(72px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  bottom: calc(var(--tabbar-h) + 12px);
   transform: translateX(-50%);
   z-index: 9999;
   display: flex;

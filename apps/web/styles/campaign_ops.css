@@ -1584,7 +1584,7 @@ body.ops-canvas-resizing iframe {
 .ops-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(72px + var(--safe-bottom));
+  bottom: calc(var(--tabbar-h) + 12px);
   transform: translateX(-50%);
   z-index: 40;
   max-width: min(90vw, 360px);

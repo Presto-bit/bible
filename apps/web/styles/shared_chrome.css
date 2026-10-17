@@ -163,7 +163,7 @@
 .app-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(72px + var(--safe-bottom));
+  bottom: calc(var(--tabbar-h) + 12px);
   transform: translateX(-50%);
   z-index: 420;
   background: rgba(0, 0, 0, 0.78);
@@ -1001,7 +1001,7 @@ textarea.input {
   left: 0;
   right: 0;
   top: 0;
-  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  bottom: var(--tabbar-h);
   z-index: 900;
   pointer-events: auto;
   display: flex;

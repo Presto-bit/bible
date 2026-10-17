@@ -5,11 +5,7 @@ body.verse-full-open {
   overflow: hidden;
 }
 body.verse-full-open .tabbar {
-  transform: translate3d(
-    -50%,
-    calc(100% + var(--tabbar-float-gap) + var(--tabbar-safe) + 16px),
-    0
-  );
+  transform: translate3d(0, 100%, 0);
   opacity: 0;
   pointer-events: none;
 }
