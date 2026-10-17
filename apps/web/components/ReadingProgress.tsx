@@ -1,13 +1,18 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, type BibleBook } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import type { BibleBook } from '@/lib/api';
+import { bibleBooks } from '@/lib/bible_client';
 import {
   bookProgressMap,
   formatBookProgressLabel,
   lastChapterOf,
+  readEvents,
   type BookProgress,
 } from '@/lib/reading';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { Pressable } from '@/components/ui/Pressable';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useVerticalSwipeDismiss } from '@/lib/use_vertical_swipe_dismiss';
 
@@ -43,12 +48,10 @@ function bookHref(bookId: string): string {
 
 export default function ReadingProgress({
   variant = 'card',
-  summary,
 }: {
   variant?: 'card' | 'footprint';
-  /** footprint 格自定义预览文案 */
-  summary?: string;
 }) {
+  const router = useRouter();
   const [books, setBooks] = useState<BibleBook[]>([]);
   const [open, setOpen] = useState(false);
   const [rev, setRev] = useState(0);
@@ -59,7 +62,7 @@ export default function ReadingProgress({
   });
 
   useEffect(() => {
-    api.books().then((d) => setBooks(d.books)).catch(() => setBooks([]));
+    bibleBooks().then(setBooks).catch(() => setBooks([]));
   }, []);
 
   useEffect(() => {
@@ -93,6 +96,24 @@ export default function ReadingProgress({
     () => Object.values(progress).filter((p) => p.passes >= 1).length,
     [progress],
   );
+  const lastFinished = useMemo(() => {
+    const events = readEvents();
+    let bestTs = -1;
+    let name = '';
+    for (const b of books) {
+      const p = progress[b.id];
+      if (!p || p.passes < 1) continue;
+      let ts = 0;
+      for (const e of events) {
+        if (e.book === b.id && e.ts > ts) ts = e.ts;
+      }
+      if (ts >= bestTs) {
+        bestTs = ts;
+        name = b.name;
+      }
+    }
+    return name;
+  }, [books, progress, rev]);
   const overallPct =
     totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0;
 
@@ -130,40 +151,34 @@ export default function ReadingProgress({
   return (
     <>
       {variant === 'footprint' ? (
-        <button
-          type="button"
+        <Pressable
           className="profile-footprint-trigger is-journey"
-          onClick={() => {
-            setRev((r) => r + 1);
-            setOpen(true);
+          press="card"
+          aria-label="打开读经旅程"
+          onTap={() => {
+            markRouteNavigation();
+            router.push('/profile/journey');
           }}
         >
+          <svg className="journey-card-art" viewBox="0 0 160 120" aria-hidden>
+            <circle cx="108" cy="78" r="30" fill="none" stroke="var(--accent, #8fa88a)" strokeWidth="12" />
+            <rect x="118" y="52" width="52" height="52" rx="14" fill="var(--dawn-gold, #d4a056)" />
+            <circle cx="148" cy="28" r="22" fill="var(--accent-deep, #4a6b52)" />
+          </svg>
           <span className="profile-footprint-label">
-            <span className="profile-footprint-kind-row">
-              <span className="profile-footprint-glyph" aria-hidden>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="6.5" cy="17.5" r="2" />
-                  <circle cx="17.5" cy="6.5" r="2" />
-                  <path d="M8.2 16.2 15.8 7.8" />
-                </svg>
-              </span>
-              <span className="profile-footprint-kind">旅程</span>
-            </span>
-            <span
-              className="profile-footprint-corner-ring"
-              style={{ ['--pct' as string]: overallPct }}
-              aria-hidden
-            >
-              {overallPct}%
-            </span>
+            <span className="profile-footprint-kind">旅程</span>
           </span>
           <span className="profile-footprint-body">
-            <strong className={`profile-footprint-value${overallPct > 0 || summary ? '' : ' is-empty'}`}>
-              {summary
-                || (overallPct > 0 ? `通读 ${overallPct}%` : '开始一段旅程')}
-            </strong>
+            <span className="journey-card-copy">
+              <strong className={`profile-footprint-value${doneBooks > 0 ? '' : ' is-empty'}`}>
+                {doneBooks > 0 ? `${doneBooks} 卷已走完` : '还没有走完的卷'}
+              </strong>
+              <span className="journey-card-sub">
+                {lastFinished ? `最近完成 ${lastFinished}` : `全经 ${totalBooks || 66} 卷`}
+              </span>
+            </span>
           </span>
-        </button>
+        </Pressable>
       ) : (
         <button
           type="button"

@@ -414,7 +414,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [streak, setStreak] = useState(0);
   const [weekMins, setWeekMins] = useState(0);
   const [journeyPct, setJourneyPct] = useState(0);
-  const [journeyReadBooks, setJourneyReadBooks] = useState(0);
   const [thoughtCount, setThoughtCount] = useState(0);
   const [thoughtPreview, setThoughtPreview] = useState('');
   const [badgePreviewIcons, setBadgePreviewIcons] = useState<string[]>([]);
@@ -687,15 +686,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         const readBooks = Object.values(progress).filter(
           (p) => p.passes >= 1 || p.distinctChapters > 0,
         ).length;
-        setJourneyReadBooks(readBooks);
         setJourneyPct(totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0);
         refreshFootprintLocal();
       })
       .catch(() => {
-        if (!cancelled) {
-          setJourneyPct(0);
-          setJourneyReadBooks(0);
-        }
+        if (!cancelled) setJourneyPct(0);
       });
     return () => {
       cancelled = true;
@@ -747,7 +742,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         const readBooks = Object.values(progress).filter(
           (p) => p.passes >= 1 || p.distinctChapters > 0,
         ).length;
-        setJourneyReadBooks(readBooks);
         setJourneyPct(totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0);
         refreshFootprintLocal();
       }).catch(() => {});
@@ -1341,17 +1335,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           }
           return (
             <div
-              className={`profile-footprint-cell profile-footprint-cell-progress tone-journey${journeyPct > 0 ? '' : ' is-empty'}`}
+              className="profile-footprint-cell profile-footprint-cell-progress tone-journey"
               role="listitem"
             >
-              <ReadingProgress
-                variant="footprint"
-                summary={
-                  journeyPct > 0
-                    ? `通读 ${journeyPct}% · ${journeyReadBooks} 卷`
-                    : undefined
-                }
-              />
+              <ReadingProgress variant="footprint" />
             </div>
           );
         })()}

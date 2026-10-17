@@ -715,6 +715,38 @@
   padding-right: 2px;
 }
 
+.profile-page .journey-card-art {
+  position: absolute;
+  right: -22px;
+  top: -8px;
+  width: 128px;
+  height: 120px;
+  pointer-events: none;
+}
+
+.profile-page .profile-footprint-trigger.is-journey .profile-footprint-label,
+.profile-page .profile-footprint-trigger.is-journey .journey-card-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 72%;
+}
+
+.profile-page .journey-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.profile-page .journey-card-sub {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--muted, #6b6b6b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .profile-page .profile-shortcut-block {
   display: flex;
   flex-direction: column;

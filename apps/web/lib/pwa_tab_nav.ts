@@ -104,6 +104,7 @@ const PROGRESS_EXEMPT_SECONDARY_PREFIXES = [
   '/profile/settings',
   '/profile/appearance',
   '/profile/reminders',
+  '/profile/journey',
   '/notes',
   '/shelf',
 ] as const;
