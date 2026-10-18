@@ -10,7 +10,69 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const SUPABASE_ORIGIN = 'https://ytiwfmufekvxdgyaokae.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_aH3DWsTgZ4X0A4W_zJmyzw_wd7yk7pm';
+const DEFAULT_INVITE_CODE = '0CIW43NR';
 const HTML_STALE_MS = 5 * 60 * 1000;
+const SESSION_STALE_MS = 45 * 60 * 1000;
+
+type CachedInviteSession = {
+  session: Record<string, unknown>;
+  fetchedAt: number;
+};
+
+const sessionCache = new Map<string, CachedInviteSession>();
+const sessionInflight = new Map<string, Promise<Record<string, unknown> | null>>();
+
+async function obtainServerInviteSession(
+  rawCode?: string | null,
+): Promise<Record<string, unknown> | null> {
+  const code = (rawCode || '').trim().toUpperCase() || DEFAULT_INVITE_CODE;
+  const cached = sessionCache.get(code);
+  if (cached && Date.now() - cached.fetchedAt < SESSION_STALE_MS) {
+    return cached.session;
+  }
+  const pending = sessionInflight.get(code);
+  if (pending) return pending;
+
+  const job = (async () => {
+    const email = `${code.toLowerCase()}@invite.local`;
+    const password = `G50-${code}`;
+    const headers = {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    };
+    try {
+      const res = await fetch(
+        `${SUPABASE_ORIGIN}/auth/v1/token?grant_type=password`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ email, password }),
+          cache: 'no-store',
+          signal: AbortSignal.timeout(8000),
+        },
+      );
+      if (res.ok) {
+        const data = (await res.json()) as Record<string, unknown>;
+        if (data.access_token && data.refresh_token) {
+          sessionCache.set(code, { session: data, fetchedAt: Date.now() });
+          return data;
+        }
+      }
+    } catch (err) {
+      console.warn('[campaign-embed] server invite sign-in failed', code, err);
+    }
+    return cached?.session ?? null;
+  })();
+
+  sessionInflight.set(code, job);
+  try {
+    return await job;
+  } finally {
+    sessionInflight.delete(code);
+  }
+}
 
 function embedPathPrefix(site: CampaignEmbedSite, requestUrl: URL): string {
   const marker = `/campaigns/embed/${site}`;
@@ -88,6 +150,9 @@ function isImmutableAsset(upstreamPath: string): boolean {
  * 1) Vite preload helper 把依赖拼成 `"/" + dep`（站点根）；挂在 embed 前缀下会 404 → 改写到 prefix 下。
  * 2) 活动站把 Supabase API 指到了 `https://<site>.pages.dev/api`，国内手机直连 pages.dev 常卡死 →
  *    改写为同源 `${location.origin}${prefix}/api`，由本路由直接转发到 Supabase。
+ * 3) React Router `<Router>` 默认 `basename="/"`，而浏览器 `window.location.pathname` 是
+ *    `[LegacyUnforgeable]` 无法在 prototype 上重写，导致 `/campaigns/embed/<site>` 落入 `*` 路由渲染 null 白屏 →
+ *    直接把 `<Router>` 的默认 `basename` 改写为 `prefix`。
  */
 function rewriteEmbedJs(js: string, prefix: string): string {
   const apiExpr = `(location.origin+${JSON.stringify(`${prefix}/api`)})`;
@@ -103,6 +168,10 @@ function rewriteEmbedJs(js: string, prefix: string): string {
     .replace(
       /([`"'])https:\/\/(?:hebrews-30|genesis-50)\.pages\.dev\/api\1/g,
       apiExpr,
+    )
+    .replace(
+      /basename:(\w+)=(["`'])\/\2/g,
+      (_m, arg: string) => `basename:${arg}=${JSON.stringify(prefix)}`,
     );
 }
 
@@ -205,8 +274,9 @@ async function getSiteHtml(
   return fetchAndCacheSiteHtml(site, prefix, request);
 }
 
-// 模块加载后立即在后台预热两个活动站首页与首屏 JS/CSS，首个用户打开即命中内存。
+// 模块加载后立即在后台预热两个活动站首页、首屏 JS/CSS 与默认邀请码登录态，首个用户打开即命中内存。
 setTimeout(() => {
+  void obtainServerInviteSession(DEFAULT_INVITE_CODE);
   for (const site of Object.keys(CAMPAIGN_EMBED_SITES) as CampaignEmbedSite[]) {
     const prefix = `${BASE_PATH}/campaigns/embed/${site}`.replace(/\/$/, '');
     void fetchAndCacheSiteHtml(site, prefix);
@@ -319,9 +389,17 @@ async function proxyCampaignEmbed(
 
   // SPA 页面路由（`/`、`/1`、`/0` 等）：直接用内存缓存的 index.html 注入登录态返回，0ms 首包。
   if (isSpaRoutePath(upstreamPath)) {
-    const html = await getSiteHtml(site, prefix, request);
+    const hasUrlTokens =
+      Boolean(reqUrl.searchParams.get('access_token')) &&
+      Boolean(reqUrl.searchParams.get('refresh_token'));
+    const codeParam =
+      reqUrl.searchParams.get('code') || reqUrl.searchParams.get('invite');
+    const [html, fallbackSession] = await Promise.all([
+      getSiteHtml(site, prefix, request),
+      hasUrlTokens ? Promise.resolve(null) : obtainServerInviteSession(codeParam),
+    ]);
     if (html) {
-      const rewritten = rewriteCampaignEmbedHtml(html, prefix);
+      const rewritten = rewriteCampaignEmbedHtml(html, prefix, fallbackSession);
       return new Response(rewritten, {
         status: 200,
         headers: {

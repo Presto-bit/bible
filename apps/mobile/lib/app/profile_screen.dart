@@ -38,8 +38,6 @@ import '../features/notes/notes_repository.dart' show profileSyncProvider;
 import '../features/notes/notes_screen.dart';
 import '../features/bible/offline_download_sheet.dart';
 import '../features/bible/offline_bible.dart';
-import '../features/plans/plan_reading.dart';
-import '../features/plans/plans_repository.dart';
 import '../core/widgets/paper_card.dart';
 import '../core/notifications.dart';
 import '../core/notif_prefs.dart';
@@ -429,49 +427,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _openJourney() async {
-    final progress = ref.read(planProgressMapProvider).asData?.value ?? {};
-    final activeEntry = progress.entries
-        .where((e) => e.value.status == 'active' && e.value.day > 0)
-        .toList()
-      ..sort((a, b) => b.value.updatedAtMs.compareTo(a.value.updatedAtMs));
-    if (activeEntry.isNotEmpty) {
-      final activeId = activeEntry.first.key;
-      final planDay = activeEntry.first.value.day;
-      final featured = (ref.read(plansListProvider).asData?.value ?? const [])
-          .where((p) => p.planId == activeId)
-          .firstOrNull;
-      final gen = (ref.read(generatedPlansProvider).asData?.value ?? const [])
-          .where((g) => g.id == activeId)
-          .firstOrNull;
-      if (featured != null && !featured.isPrayer && mounted) {
-        await openPlanReading(
-          context,
-          ref,
-          ref.read(prefsProvider),
-          planId: featured.planId,
-          planTitle: featured.title,
-          day: planDay,
-          totalDays: featured.days,
-          source: 'featured',
-        );
-        return;
-      }
-      if (gen != null && mounted) {
-        await openPlanReading(
-          context,
-          ref,
-          ref.read(prefsProvider),
-          planId: gen.id,
-          planTitle: gen.title,
-          day: planDay,
-          totalDays: gen.daysCount,
-          source: 'generated',
-        );
-        return;
-      }
-    }
-    if (!mounted) return;
+  void _openJourney() {
     openReadingProgressCatalog(context, ref);
   }
 
@@ -482,9 +438,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final prefs = ref.watch(prefsProvider);
     final todayMin = ref.watch(todayReadingProvider);
     final review = ref.watch(reviewDataProvider);
-    ref.watch(planProgressMapProvider);
-    ref.watch(plansListProvider);
-    ref.watch(generatedPlansProvider);
     final books = ref.watch(booksProvider).value ?? const <BibleBook>[];
     final thoughts = ref.watch(myThoughtsProvider);
     final badgeCount = ref
@@ -866,9 +819,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   kind: '旅程',
                   tone: _FootprintTone.journey,
                   count: 0,
+                  cornerPct: journeyPct,
                   value: journeyPct > 0
                       ? '通读 $journeyPct% · $journeyReadBooks 卷'
-                      : '开始通读计划',
+                      : '开始一段旅程',
                   empty: journeyPct == 0,
                   onTap: _openJourney,
                 ),
@@ -1015,6 +969,7 @@ class _FootprintCell extends StatelessWidget {
     this.hideValue = false,
     this.isNew = false,
     this.badgeIcons = const [],
+    this.cornerPct,
   });
 
   final String kind;
@@ -1025,6 +980,7 @@ class _FootprintCell extends StatelessWidget {
   final bool hideValue;
   final bool isNew;
   final List<String> badgeIcons;
+  final int? cornerPct;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
@@ -1110,7 +1066,39 @@ class _FootprintCell extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (count > 0)
+                    if (cornerPct != null)
+                      SizedBox(
+                        width: 34,
+                        height: 34,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            SizedBox(
+                              width: 34,
+                              height: 34,
+                              child: CircularProgressIndicator(
+                                value: (cornerPct!.clamp(0, 100)) / 100,
+                                strokeWidth: 3,
+                                backgroundColor: AppColors.inkFaint.withValues(
+                                  alpha: 0.24,
+                                ),
+                                valueColor: const AlwaysStoppedAnimation(
+                                  Color(0xFF6B8CAE),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '$cornerPct%',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.inkSoft,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (count > 0)
                       Text(
                         '$count',
                         style: const TextStyle(

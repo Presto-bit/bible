@@ -38,20 +38,15 @@ Future<void> _openGenesis50External(
   BuildContext context, {
   required String href,
 }) async {
-  // 创世记 50 / 希伯来书 30：Flutter 鉴权后经彼爱同域代理在 App 内 WebView 打开（对齐 PWA）。
+  // 创世记 50 / 希伯来书 30：直接走彼爱同域代理在 App 内 WebView 打开（服务端已缓存并预写完整 session）。
   final target = resolveGenesis50RawTarget(href);
   if (target.isEmpty || !context.mounted) return;
-  String? authed;
   await Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => _ExternalBrowserPage(
+        url: toCampaignEmbedUrl(target),
         title: inviteCampaignDisplayTitle(target),
-        resolveUrl: () async {
-          authed = await resolveGenesis50OpenUrl(target);
-          return toCampaignEmbedUrl(authed!);
-        },
-        onOpenInBrowser: (ctx) =>
-            openGenesis50InCustomTab(ctx, href: authed ?? target),
+        onOpenInBrowser: (ctx) => openGenesis50InCustomTab(ctx, href: target),
       ),
     ),
   );
@@ -151,16 +146,12 @@ bool looksLikeCampaignHref(String href) {
 
 class _ExternalBrowserPage extends StatefulWidget {
   const _ExternalBrowserPage({
-    this.url = '',
+    required this.url,
     required this.title,
-    this.resolveUrl,
     this.onOpenInBrowser,
   });
   final String url;
   final String title;
-
-  /// 打开前需异步换取地址（如活动鉴权）；期间显示加载态。
-  final Future<String> Function()? resolveUrl;
 
   /// 加载失败时提供「用浏览器打开」。
   final Future<void> Function(BuildContext context)? onOpenInBrowser;
@@ -188,22 +179,8 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   }
 
   Future<void> _open() async {
-    var url = widget.url;
-    final resolve = widget.resolveUrl;
-    if (resolve != null) {
-      try {
-        url = await resolve();
-      } catch (_) {
-        if (!mounted) return;
-        setState(() {
-          _loading = false;
-          _error = '进入活动失败，请检查网络后重试';
-        });
-        return;
-      }
-    }
     if (!mounted) return;
-    await _startWebView(url);
+    await _startWebView(widget.url);
   }
 
   @override

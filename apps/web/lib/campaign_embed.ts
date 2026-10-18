@@ -93,20 +93,24 @@ export function isCampaignEmbedHref(href: string): boolean {
   }
 }
 
-/** 注入：预写 session / 关闭引导与更新弹窗；pathname shim 让 SPA 路由以为在根路径。 */
-export function buildCampaignEmbedBootScript(pathPrefix: string): string {
-  const P = JSON.stringify(pathPrefix.replace(/\/$/, '') || pathPrefix);
-  return `<script>(function(){var P=${P};try{localStorage.setItem("g50-onboarding-seen","1");localStorage.setItem("g50-whatsnew-seen-count","99");var q=new URLSearchParams(location.search);var at=q.get("access_token"),rt=q.get("refresh_token");if(at&&rt){var ei=Number(q.get("expires_in")||3600);var ea=Number(q.get("expires_at"))||(Math.floor(Date.now()/1000)+ei);var s=JSON.stringify({access_token:at,refresh_token:rt,expires_in:ei,expires_at:ea,token_type:q.get("token_type")||"bearer"});var ks=["sb-ytiwfmufekvxdgyaokae-auth-token","sb-hebrews-30-auth-token","sb-genesis-50-auth-token","sb-"+location.hostname.split(".")[0]+"-auth-token"];for(var i=0;i<ks.length;i++)localStorage.setItem(ks[i],s);}}catch(e){}try{var d=Object.getOwnPropertyDescriptor(Location.prototype,"pathname");if(d&&d.get){Object.defineProperty(Location.prototype,"pathname",{configurable:!0,enumerable:!0,get:function(){var p=d.get.call(this);return p.indexOf(P)===0?(p.slice(P.length)||"/"):p}})}var w=function(fn){return function(state,title,url){if(typeof url==="string"&&url.charAt(0)==="/"&&url.indexOf(P)!==0){url=P+(url==="/"?"/":url)}return fn.call(this,state,title,url)}};history.pushState=w(history.pushState);history.replaceState=w(history.replaceState);}catch(e){}})();</script>`;
+/** 注入：预写完整 session（含 JWT 解码出的 user，防 supabase-js Tl() Proxy 抛错）并清掉 URL token 参数。 */
+export function buildCampaignEmbedBootScript(
+  pathPrefix: string,
+  fallbackSession?: Record<string, unknown> | null,
+): string {
+  const FB = fallbackSession ? JSON.stringify(fallbackSession) : 'null';
+  return `<script>(function(){var FB=${FB};try{localStorage.setItem("g50-onboarding-seen","1");localStorage.setItem("g50-whatsnew-seen-count","99");var q=new URLSearchParams(location.search);var at=q.get("access_token")||(FB&&FB.access_token)||"",rt=q.get("refresh_token")||(FB&&FB.refresh_token)||"";if(at&&rt){var ei=Number(q.get("expires_in")||(FB&&FB.expires_in)||3600);var ea=Number(q.get("expires_at")||(FB&&FB.expires_at))||(Math.floor(Date.now()/1000)+ei);var u=(FB&&FB.user)||null;if(!u){try{var b64=at.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");while(b64.length%4)b64+="=";var pl=JSON.parse(decodeURIComponent(escape(atob(b64))));if(pl&&pl.sub){u={id:pl.sub,aud:pl.aud||"authenticated",role:pl.role||"authenticated",email:pl.email||"",phone:pl.phone||"",app_metadata:pl.app_metadata||{},user_metadata:pl.user_metadata||{},identities:[],created_at:new Date().toISOString(),updated_at:new Date().toISOString()};}}catch(e){}}var sObj={access_token:at,refresh_token:rt,expires_in:ei,expires_at:ea,token_type:q.get("token_type")||(FB&&FB.token_type)||"bearer"};if(u)sObj.user=u;var s=JSON.stringify(sObj);var ks=["sb-ytiwfmufekvxdgyaokae-auth-token","sb-hebrews-30-auth-token","sb-genesis-50-auth-token","sb-"+location.hostname.split(".")[0]+"-auth-token"];for(var i=0;i<ks.length;i++){localStorage.setItem(ks[i],s);if(u)localStorage.setItem(ks[i]+"-user",JSON.stringify({user:u}));}if(u){try{var g50=JSON.parse(localStorage.getItem("g50-auth")||"{}");if(!g50||!g50.state||!g50.state.supabaseUser){localStorage.setItem("g50-auth",JSON.stringify({state:{supabaseUser:u,profile:(g50&&g50.state&&g50.state.profile)||null},version:0}));}}catch(e){}}try{["access_token","refresh_token","expires_in","expires_at","token_type","type","code","invite"].forEach(function(k){q.delete(k);});var qs=q.toString();history.replaceState(history.state,"",location.pathname+(qs?"?"+qs:"")+location.hash);}catch(e){}}}catch(e){}})();</script>`;
 }
 
 export function rewriteCampaignEmbedHtml(
   html: string,
   pathPrefix: string,
+  fallbackSession?: Record<string, unknown> | null,
 ): string {
   const prefix = pathPrefix.replace(/\/$/, '') || pathPrefix;
   let out = html;
   out = out.replace(/(src|href)=(["'])\/(?!\/)/g, `$1=$2${prefix}/`);
-  const boot = buildCampaignEmbedBootScript(prefix);
+  const boot = buildCampaignEmbedBootScript(prefix, fallbackSession);
   if (out.includes('<head>')) {
     out = out.replace('<head>', `<head>${boot}`);
   } else if (out.includes('<body>')) {

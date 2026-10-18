@@ -77,15 +77,35 @@ void _showReadingProgressCatalog(
         maxChildSize: 0.92,
         builder: (_, controller) => ListView(
           controller: controller,
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
           children: [
-            const Center(
-              child: Text(
-                '读经目录',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
+            Row(
+              children: [
+                const Text(
+                  '读经目录',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: AppColors.accentDeep,
+                  ),
+                  onPressed: () => Navigator.of(ctx).maybePop(),
+                  child: const Text(
+                    '关闭',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             if (ot.isNotEmpty)
               _CatalogSection(
                 title: '旧约',
@@ -219,10 +239,10 @@ class _CatalogSection extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 1.55,
+            crossAxisCount: 4,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 6,
+            mainAxisExtent: 68,
           ),
           itemCount: books.length,
           itemBuilder: (_, i) {
@@ -231,27 +251,29 @@ class _CatalogSection extends StatelessWidget {
             final st = _stateOf(p);
             final displaySt =
                 st == _BookState.reread ? _BookState.reading : st;
+            final borderColor = switch (displaySt) {
+              _BookState.done => AppColors.accentDeep,
+              _BookState.reading => AppColors.accent,
+              _ => AppColors.line,
+            };
             return GestureDetector(
               onTap: () => onTap(b),
               child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 decoration: BoxDecoration(
                   color: displaySt == _BookState.done
                       ? AppColors.accentWash
                       : AppColors.surface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: displaySt == _BookState.todo
-                        ? AppColors.line
-                        : AppColors.accentDeep,
-                    width: displaySt == _BookState.todo ? 1 : 1.5,
-                  ),
+                  border: Border.all(color: borderColor, width: 1),
                 ),
                 child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
                     if (displaySt != _BookState.todo)
                       Positioned(
-                        top: 6,
-                        right: 6,
+                        top: -2,
+                        right: 2,
                         child: Container(
                           width: 7,
                           height: 7,
@@ -263,30 +285,50 @@ class _CatalogSection extends StatelessWidget {
                           ),
                         ),
                       ),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(bibleBookAbbr(b.name),
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            bibleBookAbbr(b.name),
+                            maxLines: 1,
+                            overflow: TextOverflow.clip,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                height: 1.2,
-                                color: AppColors.ink)),
-                        const SizedBox(height: 2),
-                        Text(b.name,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              height: 1.1,
+                              letterSpacing: -0.4,
+                              color: AppColors.accentDeep,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            b.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
-                                fontSize: 10, color: AppColors.inkSoft)),
-                        const SizedBox(height: 1),
-                        Text(
+                              fontSize: 9,
+                              height: 1.15,
+                              color: AppColors.inkSoft,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
                             formatBookProgressLabel(p, b.chapterCount),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                                fontSize: 9, color: AppColors.inkFaint)),
-                      ],
+                              fontSize: 9,
+                              height: 1.15,
+                              color: AppColors.inkFaint,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
