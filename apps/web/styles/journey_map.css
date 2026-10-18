@@ -82,8 +82,13 @@
   stroke-linejoin: round;
 }
 
-.journey-path.is-chapter polyline {
-  stroke-width: 5;
+.journey-section {
+  position: absolute;
+  transform: translate(-50%, -130%);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint, #8e8e93);
+  pointer-events: none;
 }
 
 .journey-node {
@@ -115,11 +120,6 @@
   );
 }
 
-.journey-ring i,
-.journey-ring b {
-  grid-area: 1 / 1;
-}
-
 .journey-ring i {
   width: 34px;
   height: 34px;
@@ -127,43 +127,8 @@
   background: #fff;
 }
 
-.journey-ring b {
-  place-self: center;
-  z-index: 1;
-  font-style: normal;
-  font-weight: 650;
-  font-size: 12px;
-  line-height: 1;
-  color: var(--ink, #1c1c1e);
-}
-
-.journey-node.is-chapter {
-  width: var(--ch-ring, 40px);
-  height: var(--ch-ring, 40px);
-  margin-left: calc(var(--ch-ring, 40px) / -2);
-}
-
-.journey-node.is-chapter .journey-ring,
-.journey-node.is-chapter .journey-ring i {
-  width: var(--ch-ring, 40px);
-  height: var(--ch-ring, 40px);
-}
-
-.journey-node.is-chapter .journey-ring i {
-  width: calc(var(--ch-ring, 40px) - 8px);
-  height: calc(var(--ch-ring, 40px) - 8px);
-}
-
-.journey-world.is-tight .journey-ring b {
-  font-size: 10px;
-}
-
 .journey-node.is-here .journey-ring {
   box-shadow: 0 0 0 4px var(--accent-wash, rgba(143, 168, 138, 0.28));
-}
-
-.journey-node.is-chapter.is-here .journey-ring {
-  box-shadow: 0 0 0 2px var(--accent-wash, rgba(143, 168, 138, 0.28));
 }
 
 .journey-node-label {

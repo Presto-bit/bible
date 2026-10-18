@@ -565,21 +565,6 @@ export function computeBookProgressFromEvents(
   return { passes, remainderPct, distinctChapters };
 }
 
-/** 当前这一遍里已经读过的章（整卷读完并停在遍与遍之间时为空）。 */
-export function currentPassChapters(book: string, total: number): number[] {
-  if (total <= 0) return [];
-  const bookEvents = readEvents()
-    .filter((e) => e.book === book)
-    .sort((a, b) => a.ts - b.ts);
-  const current = new Set<number>();
-  for (const e of bookEvents) {
-    if (e.chapter < 1 || e.chapter > total) continue;
-    current.add(e.chapter);
-    if (current.size >= total) current.clear();
-  }
-  return [...current].sort((a, b) => a - b);
-}
-
 /** 旅程目录卷卡文案（PRODUCT §1.7：`{遍数}+{进度%}` 或 `通读`）。 */
 export function formatBookProgressLabel(
   p: BookProgress | undefined,

@@ -16,7 +16,6 @@ export const PROFILE_SECONDARY_PATHS = [
   '/profile/reminders',
   '/profile/appearance',
   '/profile/licenses',
-  '/profile/journey',
 ] as const;
 
 /**

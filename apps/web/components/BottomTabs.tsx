@@ -85,7 +85,6 @@ const SECONDARY_PREFIXES = [
   '/profile/reminders',
   '/profile/appearance',
   '/profile/licenses',
-  '/profile/journey',
   '/admin',
   '/campaigns',
   '/discover/groups',
