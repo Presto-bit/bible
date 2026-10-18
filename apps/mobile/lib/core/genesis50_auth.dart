@@ -215,21 +215,34 @@ Genesis50Session _parseSession(Map data) {
   );
 }
 
+List<String> _authBaseUrls() => [
+  '${AppConfig.webBaseUrl}/campaigns/embed/hebrews-30/api',
+  _g50SupabaseUrl,
+];
+
 Future<Genesis50Session> _signInWithInvite(Dio dio, String code) async {
-  final res = await dio.post<Map<String, dynamic>>(
-    '$_g50SupabaseUrl/auth/v1/token?grant_type=password',
-    data: {'email': _inviteEmail(code), 'password': _invitePassword(code)},
-    options: Options(headers: _authHeaders()),
-  );
-  final data = res.data ?? {};
-  if (res.statusCode == null ||
-      res.statusCode! < 200 ||
-      res.statusCode! >= 300) {
-    throw StateError(
-      '${data['error_description'] ?? data['msg'] ?? data['error'] ?? '登录失败'}',
-    );
+  Object? lastErr;
+  for (final base in _authBaseUrls()) {
+    try {
+      final res = await dio.post<Map<String, dynamic>>(
+        '$base/auth/v1/token?grant_type=password',
+        data: {'email': _inviteEmail(code), 'password': _invitePassword(code)},
+        options: Options(headers: _authHeaders()),
+      );
+      final data = res.data ?? {};
+      if (res.statusCode == null ||
+          res.statusCode! < 200 ||
+          res.statusCode! >= 300) {
+        throw StateError(
+          '${data['error_description'] ?? data['msg'] ?? data['error'] ?? '登录失败'}',
+        );
+      }
+      return _parseSession(data);
+    } catch (e) {
+      lastErr = e;
+    }
   }
-  return _parseSession(data);
+  throw lastErr ?? StateError('登录失败');
 }
 
 Future<Genesis50Session> _signUpWithInvite(
@@ -237,40 +250,48 @@ Future<Genesis50Session> _signUpWithInvite(
   String code,
   String nickname,
 ) async {
-  final res = await dio.post<Map<String, dynamic>>(
-    '$_g50SupabaseUrl/auth/v1/signup',
-    data: {
-      'email': _inviteEmail(code),
-      'password': _invitePassword(code),
-      'data': {'nickname': nickname},
-    },
-    options: Options(headers: _authHeaders()),
-  );
-  final data = res.data ?? {};
-  if (res.statusCode == null ||
-      res.statusCode! < 200 ||
-      res.statusCode! >= 300) {
-    throw StateError(
-      '${data['error_description'] ?? data['msg'] ?? data['message'] ?? data['error'] ?? '注册失败'}',
-    );
-  }
-  final session = _parseSession(data);
-  try {
-    await dio.post(
-      '$_g50SupabaseUrl/rest/v1/rpc/complete_registration',
-      data: {
-        'invite_code': code.trim().toUpperCase(),
-        'user_nickname': nickname.trim().isEmpty ? '同行者' : nickname.trim(),
-      },
-      options: Options(
-        headers: {
-          ..._authHeaders(bearer: session.accessToken),
-          'Prefer': 'return=minimal',
+  Object? lastErr;
+  for (final base in _authBaseUrls()) {
+    try {
+      final res = await dio.post<Map<String, dynamic>>(
+        '$base/auth/v1/signup',
+        data: {
+          'email': _inviteEmail(code),
+          'password': _invitePassword(code),
+          'data': {'nickname': nickname},
         },
-      ),
-    );
-  } catch (_) {}
-  return session;
+        options: Options(headers: _authHeaders()),
+      );
+      final data = res.data ?? {};
+      if (res.statusCode == null ||
+          res.statusCode! < 200 ||
+          res.statusCode! >= 300) {
+        throw StateError(
+          '${data['error_description'] ?? data['msg'] ?? data['message'] ?? data['error'] ?? '注册失败'}',
+        );
+      }
+      final session = _parseSession(data);
+      try {
+        await dio.post(
+          '$base/rest/v1/rpc/complete_registration',
+          data: {
+            'invite_code': code.trim().toUpperCase(),
+            'user_nickname': nickname.trim().isEmpty ? '同行者' : nickname.trim(),
+          },
+          options: Options(
+            headers: {
+              ..._authHeaders(bearer: session.accessToken),
+              'Prefer': 'return=minimal',
+            },
+          ),
+        );
+      } catch (_) {}
+      return session;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr ?? StateError('注册失败');
 }
 
 Future<Genesis50Session> obtainGenesis50Session(
@@ -282,8 +303,8 @@ Future<Genesis50Session> obtainGenesis50Session(
       dio ??
       Dio(
         BaseOptions(
-          connectTimeout: const Duration(seconds: 15),
-          receiveTimeout: const Duration(seconds: 20),
+          connectTimeout: const Duration(seconds: 6),
+          receiveTimeout: const Duration(seconds: 8),
           validateStatus: (_) => true,
         ),
       );
@@ -305,17 +326,19 @@ Future<Genesis50Session> obtainGenesis50Session(
 /// 与 PWA `buildAuthedUrl` 一致：token 放 query（iframe / WebView 均可靠）。
 String buildGenesis50AuthedUrl(String href, Genesis50Session session) {
   final u = Uri.parse(normalizeGenesis50Href(href));
+  final expiresIn = session.expiresIn ?? 3600;
+  final expiresAt =
+      session.expiresAt ??
+      (DateTime.now().millisecondsSinceEpoch ~/ 1000 + expiresIn);
   final q = Map<String, String>.from(u.queryParameters)
     ..remove('code')
     ..remove('invite')
     ..['access_token'] = session.accessToken
     ..['refresh_token'] = session.refreshToken
-    ..['expires_in'] = '${session.expiresIn ?? 3600}'
+    ..['expires_in'] = '$expiresIn'
+    ..['expires_at'] = '$expiresAt'
     ..['token_type'] = session.tokenType ?? 'bearer'
     ..['type'] = 'magiclink';
-  if (session.expiresAt != null) {
-    q['expires_at'] = '${session.expiresAt}';
-  }
   return u.replace(queryParameters: q, fragment: '').toString();
 }
 
