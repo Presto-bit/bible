@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, type BibleBook } from '@/lib/api';
+import type { BibleBook } from '@/lib/api';
+import { bibleBooks } from '@/lib/bible_client';
 import {
   bookProgressMap,
   formatBookProgressLabel,
@@ -59,7 +60,7 @@ export default function ReadingProgress({
   });
 
   useEffect(() => {
-    api.books().then((d) => setBooks(d.books)).catch(() => setBooks([]));
+    bibleBooks().then(setBooks).catch(() => setBooks([]));
   }, []);
 
   useEffect(() => {

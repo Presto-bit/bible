@@ -690,6 +690,26 @@
   position: relative;
 }
 
+.reading-journey-sheet .catalog-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.reading-journey-sheet .catalog-card {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: auto;
+  min-height: 68px;
+  padding: 8px 4px;
+}
+
+.reading-journey-sheet .catalog-abbr,
+.reading-journey-sheet .catalog-name,
+.reading-journey-sheet .catalog-ch {
+  width: 100%;
+}
+
 .profile-page .profile-footprint-corner-ring {
   --pct: 0;
   flex-shrink: 0;
