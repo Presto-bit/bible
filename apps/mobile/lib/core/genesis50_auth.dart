@@ -130,6 +130,30 @@ bool isHebrews30Href(String href) {
   }
 }
 
+/// 活动站 → 彼爱同域代理（对齐 web `toCampaignEmbedUrl`）。
+///
+/// pages.dev 国内直连常 20s+ 拉不完主包，WebView 会一直白屏；
+/// 走 `/campaigns/embed/<site>` 由服务端代拉，并在页头预写 session。
+String toCampaignEmbedUrl(String href) {
+  final raw = normalizeGenesis50Href(href);
+  try {
+    final u = Uri.parse(raw);
+    final site = isHebrews30Href(raw)
+        ? 'hebrews-30'
+        : (_isInviteCampaignHost(u.host) ? 'genesis-50' : null);
+    if (site == null) return raw;
+    final rest = u.path.replaceAll(RegExp(r'/+$'), '');
+    final out = Uri.parse(
+      '${AppConfig.webBaseUrl}/campaigns/embed/$site$rest',
+    );
+    return out
+        .replace(queryParameters: u.hasQuery ? u.queryParameters : null)
+        .toString();
+  } catch (_) {
+    return raw;
+  }
+}
+
 String inviteCampaignDisplayTitle(String href) {
   final t = href.trim().toLowerCase();
   if (isHebrews30Href(href) || t.contains('hebrews')) {

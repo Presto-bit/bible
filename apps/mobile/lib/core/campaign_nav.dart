@@ -38,13 +38,27 @@ Future<void> _openGenesis50External(
   BuildContext context, {
   required String href,
 }) async {
-  // 创世记 50 / 希伯来书 30：Flutter 鉴权后 Custom Tabs（无 Chrome 时降级系统浏览器）。
-  // 系统 WebView 打不开这类外站，故不走 App 内 WebView。
-  await openGenesis50InCustomTab(context, href: href);
+  // 创世记 50 / 希伯来书 30：Flutter 鉴权后经彼爱同域代理在 App 内 WebView 打开（对齐 PWA）。
+  final target = resolveGenesis50RawTarget(href);
+  if (target.isEmpty || !context.mounted) return;
+  String? authed;
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => _ExternalBrowserPage(
+        title: inviteCampaignDisplayTitle(target),
+        resolveUrl: () async {
+          authed = await resolveGenesis50OpenUrl(target);
+          return toCampaignEmbedUrl(authed!);
+        },
+        onOpenInBrowser: (ctx) =>
+            openGenesis50InCustomTab(ctx, href: authed ?? target),
+      ),
+    ),
+  );
 }
 
 /// 打开活动 / 推荐卡链接：站内 H5 或原生路由；真外链 App 内 WebView。
-/// 创世记 50 / 希伯来书 30：Flutter 鉴权 + Custom Tabs（无可用浏览器内核时降级系统浏览器）。
+/// 创世记 50 / 希伯来书 30：Flutter 鉴权 + 同域代理 App 内 WebView（失败可改用浏览器）。
 Future<void> openCampaignHref(
   BuildContext context,
   String href, {
@@ -137,17 +151,27 @@ bool looksLikeCampaignHref(String href) {
 
 class _ExternalBrowserPage extends StatefulWidget {
   const _ExternalBrowserPage({
-    required this.url,
+    this.url = '',
     required this.title,
+    this.resolveUrl,
+    this.onOpenInBrowser,
   });
   final String url;
   final String title;
+
+  /// 打开前需异步换取地址（如活动鉴权）；期间显示加载态。
+  final Future<String> Function()? resolveUrl;
+
+  /// 加载失败时提供「用浏览器打开」。
+  final Future<void> Function(BuildContext context)? onOpenInBrowser;
 
   @override
   State<_ExternalBrowserPage> createState() => _ExternalBrowserPageState();
 }
 
 class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
+  static const _slowError = '页面加载较慢，请重试';
+
   WebViewController? _controller;
   var _loading = true;
   var _hadFirstPaint = false;
@@ -158,8 +182,27 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_startWebView(widget.url));
+      unawaited(_open());
     });
+  }
+
+  Future<void> _open() async {
+    var url = widget.url;
+    final resolve = widget.resolveUrl;
+    if (resolve != null) {
+      try {
+        url = await resolve();
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = '进入活动失败，请检查网络后重试';
+        });
+        return;
+      }
+    }
+    if (!mounted) return;
+    await _startWebView(url);
   }
 
   @override
@@ -173,7 +216,11 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     _loadWatchdog = Timer(const Duration(seconds: 18), () {
       if (!mounted) return;
       if (!_loading) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        // 首屏都没出来就别留白屏，给重试 / 浏览器出口。
+        if (!_hadFirstPaint) _error ??= _slowError;
+      });
     });
   }
 
@@ -197,6 +244,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
           setState(() {
             _loading = false;
             _hadFirstPaint = true;
+            if (_error == _slowError) _error = null;
           });
         },
         onWebResourceError: (err) {
@@ -262,12 +310,27 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
       _error = null;
       _loading = true;
     });
-    unawaited(_startWebView(widget.url));
+    unawaited(_open());
+  }
+
+  Future<void> _onBack() async {
+    final c = _controller;
+    if (c != null && _error == null && await c.canGoBack()) {
+      await c.goBack();
+      return;
+    }
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final openInBrowser = widget.onOpenInBrowser;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_onBack());
+      },
+      child: Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
         title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -298,6 +361,13 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
                         onPressed: _retry,
                         child: const Text('重试'),
                       ),
+                      if (openInBrowser != null) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => openInBrowser(context),
+                          child: const Text('用浏览器打开'),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -327,6 +397,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
               child: LinearProgressIndicator(minHeight: 2),
             ),
         ],
+      ),
       ),
     );
   }

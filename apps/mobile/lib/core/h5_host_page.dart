@@ -193,8 +193,8 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     final h = peiaiTabBarOverlayExtent(context, includeSafe: true);
     return '''
     root.style.setProperty('--shell-inset-bottom', '${safeRaw.toStringAsFixed(1)}px');
-    root.style.setProperty('--tabbar-inner', '56px');
-    root.style.setProperty('--tabbar-float-gap', '12px');
+    root.style.setProperty('--tabbar-inner', '${kPeiaiTabBarInner.toStringAsFixed(0)}px');
+    root.style.setProperty('--tabbar-float-gap', '0px');
     root.style.setProperty('--tabbar-safe', '${safeRaw.toStringAsFixed(1)}px');
     root.style.setProperty('--tabbar-h', '${h.toStringAsFixed(1)}px');
 ''';

@@ -181,10 +181,31 @@ List<VerseParagraph> groupVersesIntoParagraphs(
   final ranges = normalizeParagraphRanges(
     bookId,
     (paragraphRanges != null && paragraphRanges.isNotEmpty)
-        ? paragraphRanges
+        ? splitRangesAtSections(paragraphRanges, sectionStarts)
         : computeParagraphRanges(bookId, verses, sectionStarts),
   );
   return paragraphsFromRanges(verses, ranges);
+}
+
+/// 小标题必须落在段首：段中出现小标题时在其前断段，否则标题会接在上一节文字后面。
+List<ParagraphRange> splitRangesAtSections(
+  List<ParagraphRange> ranges,
+  List<int> sectionStarts,
+) {
+  if (sectionStarts.isEmpty) return ranges;
+  final starts = sectionStarts.toSet();
+  final out = <ParagraphRange>[];
+  for (final (start, end) in ranges) {
+    var segStart = start;
+    for (var n = start + 1; n <= end; n++) {
+      if (starts.contains(n)) {
+        out.add((segStart, n - 1));
+        segStart = n;
+      }
+    }
+    out.add((segStart, end));
+  }
+  return out;
 }
 
 List<ParagraphRange> parseParagraphRangesJson(List<dynamic> raw) {
