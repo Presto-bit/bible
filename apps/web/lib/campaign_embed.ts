@@ -93,6 +93,15 @@ export function isCampaignEmbedHref(href: string): boolean {
   }
 }
 
+/**
+ * 安卓 WebView 在文档加载完成前如果发生 pushState/replaceState，会丢掉 onPageFinished。
+ * App 只靠这个回调撤掉「正在打开」遮罩，于是页面其实已经画出来，18 秒后仍提示「加载较慢」。
+ * 加载完成前把地址更新先攒起来，完成后再一次性补上。
+ */
+export function buildHistoryHoldScript(): string {
+  return `<script>(function(){var ps=history.pushState,rs=history.replaceState,q=[],live=false;function wrap(fn,k){return function(){if(live)return fn.apply(history,arguments);q.push([k,arguments]);};}history.pushState=wrap(ps,"p");history.replaceState=wrap(rs,"r");function flush(){if(live)return;live=true;history.pushState=ps;history.replaceState=rs;for(var i=0;i<q.length;i++){try{(q[i][0]==="p"?ps:rs).apply(history,q[i][1]);}catch(e){}}q=[];}window.addEventListener("load",function(){setTimeout(flush,2000);});setTimeout(flush,8000);})();</script>`;
+}
+
 /** 注入：预写完整 session（含 JWT 解码出的 user，防 supabase-js Tl() Proxy 抛错）并清掉 URL token 参数。 */
 export function buildCampaignEmbedBootScript(
   pathPrefix: string,
@@ -112,7 +121,7 @@ export function rewriteCampaignEmbedHtml(
   // 安卓 WebView 的 onPageFinished 会等 favicon（现拉 pages.dev 常超时）；无 icon 声明时又会去请求根 /favicon.ico（404）。
   out = out.replace(/<link\b[^>]*\brel=(["'])(?:shortcut )?icon\1[^>]*>\s*/gi, '');
   out = out.replace(/(src|href)=(["'])\/(?!\/)/g, `$1=$2${prefix}/`);
-  const boot = `<link rel="icon" href="data:,">${buildCampaignEmbedBootScript(prefix, fallbackSession)}`;
+  const boot = `<link rel="icon" href="data:,">${buildHistoryHoldScript()}${buildCampaignEmbedBootScript(prefix, fallbackSession)}`;
   if (out.includes('<head>')) {
     out = out.replace('<head>', `<head>${boot}`);
   } else if (out.includes('<body>')) {
