@@ -108,9 +108,10 @@ async function fetchUpstream(
   url: string,
   request?: Request,
   timeoutMs = 8000,
+  attempts = 2,
 ): Promise<Response> {
   let lastErr: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     try {
       return await fetch(url, {
         method: 'GET',
@@ -411,9 +412,17 @@ async function proxyCampaignEmbed(
     return fallbackUpstreamHtml(upstream.toString());
   }
 
+  if (/^\/(?:favicon\.(?:svg|ico|png)|apple-touch-icon[^/]*\.png)$/i.test(upstreamPath)) {
+    return new Response(null, {
+      status: 204,
+      headers: { 'Cache-Control': 'public, max-age=86400' },
+    });
+  }
+
   let upstreamRes: Response;
   try {
-    upstreamRes = await fetchUpstream(upstream.toString(), request);
+    // 非 hash 静态资源不在缓存里，只能现拉 pages.dev；快速失败，别把 WebView 的加载完成拖到 15s+。
+    upstreamRes = await fetchUpstream(upstream.toString(), request, 4000, 1);
   } catch (err) {
     console.warn('[campaign-embed] upstream fetch failed', site, upstream.toString(), err);
     return new Response('Upstream Timeout', { status: 504 });

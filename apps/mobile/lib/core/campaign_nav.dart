@@ -169,6 +169,11 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   String? _error;
   Timer? _loadWatchdog;
   Timer? _blankCheck;
+  Timer? _paintPoll;
+
+  static const _contentProbeJs =
+      "(function(){var b=document.body;if(!b)return 0;"
+      "return (b.innerText||'').trim().length+b.querySelectorAll('img,svg,canvas').length;})()";
 
   @override
   void initState() {
@@ -187,7 +192,38 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   void dispose() {
     _loadWatchdog?.cancel();
     _blankCheck?.cancel();
+    _paintPoll?.cancel();
     super.dispose();
+  }
+
+  Future<bool> _hasContent(WebViewController controller) async {
+    try {
+      final r = await controller.runJavaScriptReturningResult(_contentProbeJs);
+      return (num.tryParse('$r'.replaceAll('"', '')) ?? 0) > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _markPainted() {
+    _paintPoll?.cancel();
+    if (!mounted || _hadFirstPaint) return;
+    setState(() {
+      _hadFirstPaint = true;
+      if (_error == _slowError) _error = null;
+    });
+  }
+
+  /// 安卓 WebView 的 onPageFinished 会被慢子资源拖住，页面早已渲染却仍盖着遮罩；按 DOM 内容判断首屏。
+  void _startPaintPoll(WebViewController controller) {
+    _paintPoll?.cancel();
+    _paintPoll = Timer.periodic(const Duration(milliseconds: 600), (t) async {
+      if (!mounted || _hadFirstPaint) {
+        t.cancel();
+        return;
+      }
+      if (await _hasContent(controller)) _markPainted();
+    });
   }
 
   /// SPA 脚本失败时 onPageFinished 照常触发，页面却一直空白。
@@ -196,10 +232,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     _blankCheck = Timer(const Duration(seconds: 8), () async {
       if (!mounted || _error != null) return;
       try {
-        final r = await controller.runJavaScriptReturningResult(
-          "(function(){var b=document.body;if(!b)return 0;"
-          "return (b.innerText||'').trim().length+b.querySelectorAll('img,svg,canvas').length;})()",
-        );
+        final r = await controller.runJavaScriptReturningResult(_contentProbeJs);
         final n = num.tryParse('$r'.replaceAll('"', '')) ?? 1;
         if (n > 0 || !mounted) return;
         setState(() => _error = _slowError);
@@ -209,9 +242,14 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
 
   void _armLoadWatchdog() {
     _loadWatchdog?.cancel();
-    _loadWatchdog = Timer(const Duration(seconds: 18), () {
+    _loadWatchdog = Timer(const Duration(seconds: 18), () async {
       if (!mounted) return;
       if (!_loading) return;
+      final c = _controller;
+      if (!_hadFirstPaint && c != null && await _hasContent(c)) {
+        _markPainted();
+      }
+      if (!mounted) return;
       setState(() {
         _loading = false;
         // 首屏都没出来就别留白屏，给重试 / 浏览器出口。
@@ -236,6 +274,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
         },
         onPageFinished: (_) {
           _loadWatchdog?.cancel();
+          _paintPoll?.cancel();
           if (!mounted) return;
           setState(() {
             _loading = false;
@@ -290,6 +329,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
       _loading = true;
     });
     _armLoadWatchdog();
+    _startPaintPoll(controller);
     try {
       await controller.loadRequest(Uri.parse(url));
     } catch (_) {

@@ -109,6 +109,8 @@ export function rewriteCampaignEmbedHtml(
 ): string {
   const prefix = pathPrefix.replace(/\/$/, '') || pathPrefix;
   let out = html;
+  // 安卓 WebView 的 onPageFinished 会等 favicon；它只能现拉 pages.dev，国内服务器常卡到超时。
+  out = out.replace(/<link\b[^>]*\brel=(["'])(?:shortcut )?icon\1[^>]*>\s*/gi, '');
   out = out.replace(/(src|href)=(["'])\/(?!\/)/g, `$1=$2${prefix}/`);
   const boot = buildCampaignEmbedBootScript(prefix, fallbackSession);
   if (out.includes('<head>')) {
