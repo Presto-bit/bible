@@ -1882,6 +1882,7 @@ html.knowledge-overlay-lock nav.tabbar {
 
 .knowledge-topic-card.is-featured .knowledge-topic-card-media {
   aspect-ratio: 16 / 10;
+  min-height: 200px;
 }
 
 .knowledge-topic-card-kicker {
@@ -2041,8 +2042,6 @@ html.knowledge-overlay-lock nav.tabbar {
     0 1px 0 rgba(255, 255, 255, 0.35) inset,
     0 8px 20px rgba(59, 47, 36, 0.08);
   -webkit-tap-highlight-color: transparent;
-  content-visibility: auto;
-  contain: layout paint style;
   animation: knowledge-topic-in 240ms ease both;
   animation-delay: calc(var(--stagger, 0) * 28ms);
 }
@@ -2075,6 +2074,7 @@ html.knowledge-overlay-lock nav.tabbar {
   display: block;
   width: 100%;
   aspect-ratio: 3 / 4;
+  min-height: 210px;
   overflow: hidden;
   background: #e6d7b8;
 }

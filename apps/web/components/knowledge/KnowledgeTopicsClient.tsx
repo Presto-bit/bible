@@ -34,6 +34,7 @@ import {
 import { peekKnowledgeDetail, prefetchKnowledgeDetail } from '@/lib/knowledge_detail_cache';
 import { pickExploreSpotlightLayout } from '@/lib/explore_spotlight';
 import { exploreReadBridge, firstManuscriptReadRef } from '@/lib/explore_read_bridge';
+import { shellTapProps } from '@/lib/shell_tap';
 import '@/styles/discover_hub.css';
 
 function coverPath(row: KnowledgeLayoutSummary): string {
@@ -174,9 +175,10 @@ export function KnowledgeTopicsClient({
     const shouldLoad =
       paneActive || (discoverEmbed && prefetchLayouts);
     if (!shouldLoad) return;
-    if (initialLayouts.length > 0) return;
+    if (initialLayouts.length > 0 || rows.length > 0) return;
     let cancelled = false;
     setLoading(true);
+    setLoadErr(null);
     void (async () => {
       try {
         const res = await api.knowledgeLayouts();
@@ -193,7 +195,7 @@ export function KnowledgeTopicsClient({
     return () => {
       cancelled = true;
     };
-  }, [paneActive, prefetchLayouts, discoverEmbed, initialLayouts.length]);
+  }, [paneActive, prefetchLayouts, discoverEmbed, initialLayouts.length, rows.length]);
 
   useEffect(() => {
     const soft = consumeKnowledgeSoftReturn();
@@ -452,7 +454,7 @@ export function KnowledgeTopicsClient({
           role="tab"
           aria-selected={filter === id}
           className={`knowledge-topics-filter${filter === id ? ' is-on' : ''}`}
-          onClick={() => setFilter(id)}
+          {...shellTapProps({ onTap: () => setFilter(id) })}
         >
           {label}
         </button>

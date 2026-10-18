@@ -21,7 +21,7 @@
 .discover-hub-seg-main {
   display: inline-flex;
   align-items: center;
-  gap: 20px;
+  gap: 32px;
   min-width: 0;
   position: relative;
   padding-bottom: 2px;
@@ -31,7 +31,7 @@
   appearance: none;
   border: 0;
   background: transparent;
-  padding: 6px 0 10px;
+  padding: 6px 4px 10px;
   margin: 0;
   font-size: 16px;
   line-height: 1.25;
@@ -39,7 +39,13 @@
   font-weight: 500;
   cursor: pointer;
   position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition: color 0.18s ease, font-weight 0.18s ease;
+}
+
+.discover-hub-seg-btn + .discover-hub-seg-btn {
+  margin-left: 8px;
 }
 
 .discover-hub-seg-btn.is-on {

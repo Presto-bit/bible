@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import DiscoverTab from '@/components/tabs/DiscoverTab';
 import { KnowledgeTopicsClient } from '@/components/knowledge/KnowledgeTopicsClient';
 import { Pressable } from '@/components/ui/Pressable';
+import { shellTapProps } from '@/lib/shell_tap';
 import { api, type KnowledgeLayoutSummary } from '@/lib/api';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { useAccountReady } from '@/lib/use_account_ready';
@@ -79,12 +80,14 @@ function DiscoverHubInner({
 
   const syncUrl = useCallback(
     (next: DiscoverPaneId) => {
-      const q = new URLSearchParams(searchParams?.toString() || '');
+      if (typeof window === 'undefined') return;
+      const q = new URLSearchParams(window.location.search);
       q.set('pane', next);
       const qs = q.toString();
-      router.replace(`/discover?${qs}`, { scroll: false });
+      const pathname = window.location.pathname || '/discover';
+      window.history.replaceState(window.history.state, '', `${pathname}?${qs}`);
     },
-    [router, searchParams],
+    [],
   );
 
   const applyPane = useCallback(
@@ -141,16 +144,14 @@ function DiscoverHubInner({
       setPane(next);
       writeDiscoverPaneSession(next);
       // 显式写入 pane，避免「无 query = 同路人」与手动切换打架
-      const q = new URLSearchParams(searchParams?.toString() || '');
-      q.set('pane', next);
-      router.replace(`/discover?${q.toString()}`, { scroll: false });
+      syncUrl(next);
       setResolved(true);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [account.status, resolved, searchParams, router]);
+  }, [account.status, resolved, searchParams, syncUrl]);
 
   // 只跟 URL，不跟 pane，避免「点同路人 → URL 未变 → 又被拉回探索」
   useEffect(() => {
@@ -190,7 +191,7 @@ function DiscoverHubInner({
             role="tab"
             aria-selected={pane === 'peers'}
             className={`discover-hub-seg-btn${pane === 'peers' ? ' is-on' : ''}`}
-            onClick={() => applyPane('peers')}
+            {...shellTapProps({ onTap: () => applyPane('peers') })}
           >
             同路人
           </button>
@@ -200,7 +201,7 @@ function DiscoverHubInner({
             role="tab"
             aria-selected={pane === 'explore'}
             className={`discover-hub-seg-btn${pane === 'explore' ? ' is-on' : ''}`}
-            onClick={() => applyPane('explore')}
+            {...shellTapProps({ onTap: () => applyPane('explore') })}
           >
             探索
           </button>

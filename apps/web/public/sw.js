@@ -484,9 +484,8 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 活动同站 embed：仅网络。勿走 HTML 4.5s 回退壳，否则易把「活动页暂时无法加载」或首页壳塞进 iframe
+  // 活动同站 embed：直接交还浏览器原生请求（保留 /assets 强缓存，勿走 HTML 4.5s 回退壳）
   if (relPath(url.pathname).startsWith('/campaigns/embed/')) {
-    e.respondWith(fetch(e.request, { cache: 'no-store' }));
     return;
   }
 
