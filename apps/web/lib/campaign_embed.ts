@@ -154,17 +154,34 @@ go.addEventListener("click",function(){
     .catch(function(){err.textContent="进入失败，请检查邀请码后重试";go.disabled=false;go.textContent="进入活动";});
 });
 var moreGuard=0;
-document.addEventListener("pointerup",function(e){
-  var el=e.target&&e.target.closest?e.target.closest("button"):null;
-  if(!el||el===btn)return;
-  if((el.textContent||"").indexOf("更多")<0)return;
-  moreGuard=Date.now()+700;
-  setTimeout(function(){if(!document.querySelector(".topbar .fixed.inset-0,.fixed.inset-0"))el.click();},60);
-},true);
+var swallowBackdrop=0;
+function isMore(el){
+  if(!el||el===btn)return false;
+  if((el.getAttribute("title")||"")==="更多")return true;
+  var t=(el.textContent||"").replace(/\\s/g,"");
+  return t==="更多";
+}
+function moreBox(){return document.querySelector(".fixed.inset-0");}
+function armMore(){moreGuard=Date.now()+900;swallowBackdrop=1;}
+function openMore(el){
+  armMore();
+  if(moreBox())return;
+  el.click();
+}
+document.addEventListener("touchend",function(e){
+  var raw=e.target;
+  var el=raw&&raw.closest?raw.closest("button"):null;
+  if(!isMore(el))return;
+  e.preventDefault();
+  openMore(el);
+},{capture:true,passive:false});
 document.addEventListener("click",function(e){
-  if(Date.now()>moreGuard)return;
-  var el=e.target;
-  if(el&&el.classList&&el.classList.contains("fixed")&&el.classList.contains("inset-0")){e.stopPropagation();e.preventDefault();}
+  var raw=e.target;
+  var el=raw&&raw.closest?raw.closest("button"):null;
+  if(isMore(el)){armMore();return;}
+  if(!swallowBackdrop||Date.now()>moreGuard)return;
+  var box=raw&&raw.closest?raw.closest(".fixed.inset-0"):null;
+  if(box&&raw===box){swallowBackdrop=0;e.preventDefault();e.stopPropagation();}
 },true);
 function mount(){place();}
 if(document.body)mount();else document.addEventListener("DOMContentLoaded",mount);
