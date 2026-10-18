@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
@@ -162,6 +163,8 @@ class _ExternalBrowserPage extends StatefulWidget {
 
 class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   static const _slowError = '页面加载较慢，请重试';
+  static const _invitePrefsKey = 'peiai_campaign_code';
+  static final _inviteCodePattern = RegExp(r'^[A-Z0-9]{4,16}$');
 
   WebViewController? _controller;
   var _loading = true;
@@ -326,7 +329,129 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     }
   }
 
+  Uri _shellUrl(String url) {
+    final u = Uri.parse(url);
+    final q = Map<String, String>.from(u.queryParameters);
+    q['peiai_shell'] = '1';
+    return u.replace(queryParameters: q);
+  }
+
+  Future<void> _writeInviteCookie(String code) async {
+    final host = Uri.tryParse(widget.url)?.host ?? '';
+    if (host.isEmpty) return;
+    await WebViewCookieManager().setCookie(
+      WebViewCookie(
+        name: _invitePrefsKey,
+        value: code,
+        domain: host,
+        path: '/',
+      ),
+    );
+  }
+
+  Future<void> _showInviteDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = (prefs.getString(_invitePrefsKey) ?? '').toUpperCase();
+    if (!mounted) return;
+    final field = TextEditingController(text: saved);
+    var busy = false;
+    var error = '';
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (ctx, setLocal) {
+              Future<void> submit() async {
+                final code = field.text.replaceAll(RegExp(r'\s'), '').toUpperCase();
+                if (!_inviteCodePattern.hasMatch(code)) {
+                  setLocal(() => error = '请输入邀请码');
+                  return;
+                }
+                setLocal(() {
+                  busy = true;
+                  error = '';
+                });
+                try {
+                  await verifyGenesis50InviteCode(code);
+                  await prefs.setString(_invitePrefsKey, code);
+                  await _writeInviteCookie(code);
+                  final c = _controller;
+                  if (c != null) {
+                    await c.runJavaScript(
+                      "document.cookie='$_invitePrefsKey=$code; Path=/; Max-Age=31536000; SameSite=Lax';"
+                      "try{localStorage.setItem('$_invitePrefsKey','$code');}catch(e){}"
+                      "try{sessionStorage.removeItem('peiai-code-sync');}catch(e){}"
+                      "var u=new URL(location.href);"
+                      "['access_token','refresh_token','expires_in','expires_at','token_type','type','code','invite'].forEach(function(k){u.searchParams.delete(k);});"
+                      "u.searchParams.set('code','$code');"
+                      "location.replace(u.toString());",
+                    );
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
+                } catch (_) {
+                  if (!ctx.mounted) return;
+                  setLocal(() {
+                    busy = false;
+                    error = '邀请码不正确';
+                  });
+                }
+              }
+
+              return AlertDialog(
+                title: const Text('邀请码'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: field,
+                      autofocus: true,
+                      textCapitalization: TextCapitalization.characters,
+                      maxLength: 16,
+                      enabled: !busy,
+                      decoration: const InputDecoration(
+                        hintText: '8 位邀请码',
+                        counterText: '',
+                      ),
+                      onSubmitted: (_) => unawaited(submit()),
+                    ),
+                    if (error.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        error,
+                        style: const TextStyle(color: Color(0xFFB42318), fontSize: 13),
+                      ),
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: busy ? null : () => Navigator.pop(ctx),
+                    child: const Text('取消'),
+                  ),
+                  FilledButton(
+                    onPressed: busy ? null : () => unawaited(submit()),
+                    child: Text(busy ? '进入中…' : '进入活动'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      field.dispose();
+    }
+  }
+
   Future<void> _startWebView(String url) async {
+    final page = _shellUrl(url);
+    final prefs = await SharedPreferences.getInstance();
+    final saved = (prefs.getString(_invitePrefsKey) ?? '').toUpperCase();
+    if (_inviteCodePattern.hasMatch(saved)) {
+      await _writeInviteCookie(saved);
+    }
     final controller = WebViewController();
     await _configureController(controller);
     if (!mounted) return;
@@ -337,9 +462,9 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     });
     _armLoadWatchdog();
     _startPaintPoll(controller);
-    _mainFrameUrl = url;
+    _mainFrameUrl = page.toString();
     try {
-      await controller.loadRequest(Uri.parse(url));
+      await controller.loadRequest(page);
     } catch (_) {
       _loadWatchdog?.cancel();
       if (!mounted) return;
@@ -383,6 +508,12 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => unawaited(_showInviteDialog()),
+            child: const Text('邀请码'),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,

@@ -323,6 +323,18 @@ Future<Genesis50Session> obtainGenesis50Session(
   }
 }
 
+/// 只校验邀请码，不注册新用户。
+Future<void> verifyGenesis50InviteCode(String code) async {
+  final client = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 6),
+      receiveTimeout: const Duration(seconds: 8),
+      validateStatus: (_) => true,
+    ),
+  );
+  await _signInWithInvite(client, code);
+}
+
 /// 与 PWA `buildAuthedUrl` 一致：token 放 query（iframe / WebView 均可靠）。
 String buildGenesis50AuthedUrl(String href, Genesis50Session session) {
   final u = Uri.parse(normalizeGenesis50Href(href));
