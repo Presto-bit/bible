@@ -8,7 +8,7 @@ import {
   isSharePwaDismissed,
   noteSharePwaShown,
 } from '@/lib/share_pwa_guide';
-import { useIosAddToHomeGuide } from '@/lib/ios_home_screen_guide';
+import { useIosAddToHomeGuide } from '@/lib/use_ios_add_to_home_guide';
 import { detectInstallPlatform, isAndroid, type InstallPlatform } from '@/lib/pwa_platform';
 import {
   getInstallCoachVisible,

@@ -8,8 +8,6 @@
  * - 横屏、iPad：共享在右上角。iPad 机型不在 UA 里，只能靠 iPad / 桌面版 UA 判断。
  */
 
-import { useEffect, useState } from 'react';
-
 export type IosA2hsAnchor = 'bottom-right' | 'bottom-center' | 'bottom-left' | 'top-right';
 
 export type IosA2hsMark = 'more' | 'share' | 'menu';
@@ -165,19 +163,4 @@ export function readIosGuideEnv(): IosGuideEnv {
 
 export function currentIosAddToHomeGuide(): IosAddToHomeGuide {
   return resolveIosAddToHomeGuide(readIosGuideEnv());
-}
-
-/** 跟随横竖屏切换步骤。首帧用 iOS 26 紧凑路径，避免服务端和浏览器首屏不一致。 */
-export function useIosAddToHomeGuide(): IosAddToHomeGuide {
-  const [guide, setGuide] = useState(() =>
-    typeof window === 'undefined' ? IOS_ADD_TO_HOME_FALLBACK : currentIosAddToHomeGuide(),
-  );
-  useEffect(() => {
-    const update = () => setGuide(currentIosAddToHomeGuide());
-    update();
-    const mq = window.matchMedia('(orientation: landscape)');
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-  return guide;
 }

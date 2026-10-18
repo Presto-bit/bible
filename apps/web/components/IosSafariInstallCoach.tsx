@@ -1,7 +1,8 @@
 'use client';
 
 import { PWA_HOME_NAME } from '@/lib/pwa_brand';
-import { useIosAddToHomeGuide, type IosA2hsMark } from '@/lib/ios_home_screen_guide';
+import { type IosA2hsMark } from '@/lib/ios_home_screen_guide';
+import { useIosAddToHomeGuide } from '@/lib/use_ios_add_to_home_guide';
 
 type Props = {
   resumeLabel?: string;
