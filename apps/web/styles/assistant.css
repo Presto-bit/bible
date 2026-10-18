@@ -504,10 +504,12 @@ body.assistant-active .assistant-page {
   /* height / padding overridden by keyboard state when focused */
 }
 /* 键盘态见上方 body.assistant-keyboard 规则 */
-.assistant-composer {
+.assistant-composer.assistant-composer {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  /* 14px 是死区，不属于 chip 热区，避免点输入框上沿误发。
+     双类名压过后加载的同选择器，避免 gap 被盖回 8px。 */
+  gap: 14px;
   flex-shrink: 0;
   z-index: 4;
   background: var(--paper);
@@ -518,13 +520,18 @@ body.assistant-active .assistant-page {
 .empty-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
   margin-top: 4px;
   max-width: 340px;
 }
 .empty-pills .font-pill {
   flex: 0 0 auto;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 14px;
 }
 .assistant-title-btn {
   display: inline-flex;
@@ -578,6 +585,18 @@ body.assistant-active .assistant-page {
 }
 .chip-swipe-item:disabled {
   opacity: 0.5;
+}
+/* 只加高小爱这排；群聊共用 .chip-swipe-item，不跟着重排 */
+.assistant-composer .chip-swipe {
+  gap: 10px;
+  padding: 2px 2px 0;
+}
+.assistant-composer .chip-swipe-item {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 8px 14px;
 }
 /* 历史会话项 */
 .history-item-row {
@@ -1095,7 +1114,7 @@ body.assistant-active .assistant-page {
 .followup-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px;
   margin-top: 8px;
 }
 .followup-chip {
@@ -1103,7 +1122,9 @@ body.assistant-active .assistant-page {
   background: var(--surface);
   color: var(--ink);
   border-radius: 14px;
-  padding: 5px 12px;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 8px 14px;
   font-size: 13px;
   cursor: pointer;
   text-align: left;

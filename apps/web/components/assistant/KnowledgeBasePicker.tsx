@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Pressable } from '@/components/ui/Pressable';
 
 export const DEFAULT_KB_ID = 'platform';
 
@@ -92,18 +93,19 @@ export function KnowledgeBasePicker({ disabled, variant = 'embed' }: Props) {
   if (variant === 'embed') {
     return (
       <div className="kb-picker kb-picker-embed">
-        <button
-          type="button"
+        <Pressable
           className="compose-kb-inner"
           disabled={disabled}
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-label="当前使用：平台参考库"
           title="当前使用：平台参考库"
-          onClick={() => setOpen((v) => !v)}
+          phase="up"
+          press={false}
+          onTap={() => setOpen((v) => !v)}
         >
           <KbSourceIcon />
-        </button>
+        </Pressable>
         {menu}
       </div>
     );

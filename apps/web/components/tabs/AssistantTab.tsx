@@ -1315,6 +1315,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             key={c.label}
             className="chip-swipe-item"
             disabled={busy}
+            phase="up"
             onTap={() => send(c.q, c.mode, undefined, c.label, c.scene)}
           >
             {c.label}
@@ -1372,6 +1373,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             <Pressable
               className="compose-stop-inner is-active"
               aria-label="停止生成"
+              phase="up"
+              press={false}
               onTap={cancelStream}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -1382,6 +1385,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             <Pressable
               className="compose-mode-inner"
               aria-label={voiceMode ? '切换键盘' : '切换语音'}
+              phase="up"
+              press={false}
               onTap={() => setVoiceMode((v) => !v)}
             >
               {voiceMode ? (
@@ -1491,6 +1496,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       key={c.label}
                       className="font-pill"
                       disabled={busy}
+                      phase="up"
                       onTap={() => send(c.q, c.mode, undefined, c.label, c.scene)}
                     >
                       {c.label}
@@ -1732,6 +1738,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                             key={q}
                             className="followup-chip"
                             disabled={busy}
+                            phase="up"
                             onTap={() => {
                               const priorScene =
                                 m.scene && m.scene in SCENES
