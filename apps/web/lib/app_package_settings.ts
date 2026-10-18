@@ -7,6 +7,7 @@ import {
   type AndroidTwaMeta,
 } from '@/lib/android_twa';
 import { getPeiaiFlutterH5Version, isPeiaiFlutterH5Host } from '@/lib/android_host';
+import { currentIosAddToHomeGuide } from '@/lib/ios_home_screen_guide';
 import {
   detectInstallPlatform,
   isAndroid,
@@ -270,7 +271,7 @@ export function resolveAppPackageRow(opts?: {
   if (platform === 'ios-safari' || platform === 'ios-other') {
     return {
       title: '添加到主屏幕',
-      hint: '右侧 ··· → 共享 → 查看更多 → 添加到主屏幕',
+      hint: currentIosAddToHomeGuide().summary,
       action: 'install_sheet',
       latestVersion: latest,
     };

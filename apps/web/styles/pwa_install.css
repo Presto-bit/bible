@@ -145,7 +145,7 @@
   font-size: 13px;
 }
 
-/* ── iOS Safari：非模态，页面可滚；箭头指向右侧 ··· ── */
+/* ── iOS Safari：非模态，页面可滚；箭头按系统指向 ··· / 中间共享 / 左侧菜单 ── */
 .ios-install-coach,
 .install-landing-coach {
   position: fixed;
@@ -196,6 +196,51 @@
   letter-spacing: 0.12em;
   box-shadow: 0 6px 18px rgba(20, 28, 24, 0.28);
   animation: ios-install-coach-bob 1.35s ease-in-out infinite;
+}
+
+.ios-install-coach-anchor-btn.is-word {
+  letter-spacing: 0.02em;
+  font-size: 15px;
+}
+
+.ios-install-coach-anchor-btn svg {
+  display: block;
+}
+
+/* iOS 27 紧凑栏：共享在网址左侧，避开最左的返回键 */
+.ios-install-coach.is-anchor-bottom-left .ios-install-coach-anchor {
+  right: auto;
+  left: 62px;
+}
+
+.ios-install-coach.is-anchor-bottom-left .ios-install-coach-body {
+  left: 124px;
+  right: 12px;
+}
+
+/* iOS 18 及更早：共享在底部正中，卡片抬到箭头上方 */
+.ios-install-coach.is-anchor-bottom-center .ios-install-coach-anchor {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.ios-install-coach.is-anchor-bottom-center .ios-install-coach-body {
+  right: 12px;
+  bottom: 72px;
+}
+
+/* 横屏 / iPad：共享在右上角 */
+.ios-install-coach.is-anchor-top-right .ios-install-coach-anchor {
+  top: calc(8px + var(--safe-top, 0px));
+  right: calc(8px + var(--safe-right, 0px));
+  bottom: auto;
+}
+
+.ios-install-coach.is-anchor-top-right .ios-install-coach-body {
+  top: calc(64px + var(--safe-top, 0px));
+  right: calc(12px + var(--safe-right, 0px));
+  bottom: auto;
 }
 
 .ios-install-coach-body,
@@ -298,10 +343,15 @@
   background: var(--accent-deep, #4f6b5d);
 }
 
-.ios-install-coach-hint {
+.ios-install-coach-hint,
+.ios-install-coach-alt {
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.ios-install-coach-alt {
+  margin-top: 4px;
 }
 
 .ios-install-coach-dismiss,

@@ -6,6 +6,7 @@ import {
   isPeiaiAndroidShell as isPeiaiAndroidShellFromHost,
   isPeiaiAndroidWebViewShell,
 } from '@/lib/android_host';
+import { currentIosAddToHomeGuide } from '@/lib/ios_home_screen_guide';
 
 export type InstallPlatform =
   | 'ios-safari'
@@ -89,17 +90,14 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
   switch (platform) {
     case 'ios-safari':
       // UI 主路径为 IosSafariInstallCoach；此处供分享页等纯文案兜底
-      return [
-        { title: '点右侧 ···', detail: 'Safari 屏幕右侧' },
-        { title: '点「共享」', detail: '在刚打开的菜单里' },
-        { title: '点「查看更多」', detail: '接着往下找' },
-        { title: '点「添加到主屏幕」', detail: '再点右上角「添加」，名称是「彼爱」' },
-      ];
-    case 'ios-other':
+      return currentIosAddToHomeGuide().steps.map((step) => ({ ...step }));
+    case 'ios-other': {
+      const guide = currentIosAddToHomeGuide();
       return [
         { title: '用 Safari 打开', detail: '复制链接，粘贴到 Safari' },
-        { title: '点右侧 ···', detail: '然后点「共享」→「查看更多」→「添加到主屏幕」' },
+        { title: guide.steps[0]?.title ?? '按页面提示添加', detail: guide.summary },
       ];
+    }
     case 'android-chrome':
       return [
         { title: '点「下载并安装」', detail: '直接下载彼爱安装包，不跳应用商店' },
@@ -156,7 +154,7 @@ export function installHeadline(platform: InstallPlatform): string {
     case 'ios-safari':
       return '添加到主屏幕';
     case 'ios-other':
-      return '用 Safari 打开后，点右侧 ···';
+      return `用 Safari 打开后，${currentIosAddToHomeGuide().steps[0]?.title ?? '按页面提示添加'}`;
     case 'android-chrome':
       return '安装彼爱';
     case 'android-other':

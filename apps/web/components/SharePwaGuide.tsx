@@ -8,6 +8,7 @@ import {
   isSharePwaDismissed,
   noteSharePwaShown,
 } from '@/lib/share_pwa_guide';
+import { useIosAddToHomeGuide } from '@/lib/ios_home_screen_guide';
 import { detectInstallPlatform, isAndroid, type InstallPlatform } from '@/lib/pwa_platform';
 import {
   getInstallCoachVisible,
@@ -31,6 +32,7 @@ export function SharePwaGuide({
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [hidden, setHidden] = useState(true);
   const [ready, setReady] = useState(false);
+  const iosGuide = useIosAddToHomeGuide();
   const coachVisible = useSyncExternalStore(
     subscribeInstallCoachVisible,
     getInstallCoachVisible,
@@ -104,7 +106,7 @@ export function SharePwaGuide({
   const desc = android
     ? '装好后，在桌面打开「彼爱」'
     : ios
-      ? '右侧 ··· → 共享 → 查看更多 → 添加到主屏幕'
+      ? iosGuide.summary
       : '在浏览器菜单里安装';
   const cta = android ? '下载安装包' : ios ? '看怎么添加' : '去安装';
 
