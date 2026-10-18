@@ -6,6 +6,7 @@
  * 用法（需能访问 pages.dev 的网络）：node scripts/sync-campaign-snapshots.mjs
  * 活动站发版后重跑一次并提交 public/campaign-snapshots。
  */
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -87,4 +88,23 @@ async function syncSite(site, origin) {
 
 for (const [site, origin] of Object.entries(SITES)) {
   await syncSite(site, origin);
+}
+
+// 国行系统 WebView 跑不了 type=module。再打一份普通脚本，文件名带站点，供 embed 页替换入口。
+const esbuild = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'node_modules', '.bin', 'esbuild');
+for (const site of Object.keys(SITES)) {
+  const assets = path.join(ROOT, site, 'assets');
+  const entries = (await fs.readdir(assets)).filter((name) => /^index-.*\.js$/.test(name));
+  if (entries.length !== 1) throw new Error(`${site}: expected one index-*.js, got ${entries.join(',')}`);
+  const token = site.replace(/-/g, '');
+  const out = path.join(assets, `embed-classic-${token}.js`);
+  const result = spawnSync(esbuild, [
+    path.join(assets, entries[0]),
+    '--bundle',
+    '--format=iife',
+    '--target=chrome64',
+    `--outfile=${out}`,
+  ], { stdio: 'inherit' });
+  if (result.status !== 0) process.exit(result.status ?? 1);
+  console.log(`[${site}] classic bundle ${path.basename(out)}`);
 }

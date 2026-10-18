@@ -121,7 +121,16 @@ export function rewriteCampaignEmbedHtml(
   // 安卓 WebView 的 onPageFinished 会等 favicon（现拉 pages.dev 常超时）；无 icon 声明时又会去请求根 /favicon.ico（404）。
   out = out.replace(/<link\b[^>]*\brel=(["'])(?:shortcut )?icon\1[^>]*>\s*/gi, '');
   out = out.replace(/(src|href)=(["'])\/(?!\/)/g, `$1=$2${prefix}/`);
-  const boot = `<link rel="icon" href="data:,">${buildHistoryHoldScript()}${buildCampaignEmbedBootScript(prefix, fallbackSession)}`;
+  // 小米等国行系统 WebView 加载 type=module / modulepreload 会一直空白，load 也不结束。
+  // 改成一份已打包的普通脚本，浏览器打开的那条路不受影响。
+  out = out.replace(/<link\b[^>]*\brel=(["'])modulepreload\1[^>]*>\s*/gi, '');
+  out = out.replace(/<script\b[^>]*\btype=(["'])module\1[^>]*>\s*<\/script>\s*/gi, '');
+  out = out.replace(/\s+crossorigin(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi, '');
+  const classicName = prefix.includes('hebrews-30')
+    ? 'embed-classic-hebrews30.js'
+    : 'embed-classic-genesis50.js';
+  const classic = `<script defer src="${prefix}/assets/${classicName}"></script>`;
+  const boot = `<link rel="icon" href="data:,">${buildHistoryHoldScript()}${buildCampaignEmbedBootScript(prefix, fallbackSession)}${classic}`;
   if (out.includes('<head>')) {
     out = out.replace('<head>', `<head>${boot}`);
   } else if (out.includes('<body>')) {

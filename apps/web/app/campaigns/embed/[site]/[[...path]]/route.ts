@@ -209,6 +209,11 @@ function isImmutableAsset(upstreamPath: string): boolean {
 function rewriteEmbedJs(js: string, prefix: string): string {
   const apiExpr = `(location.origin+${JSON.stringify(`${prefix}/api`)})`;
   return js
+    .replace(/import_meta\s*=\s*\{\s*\}/g, 'import_meta={url:(document.currentScript&&document.currentScript.src)||location.href}')
+    .replace(
+      /function\s*\((\w+)\)\s*\{(?:\s*)return\s*([`"'])\/\2\s*\+\s*\1\s*;?\s*\}/g,
+      (_m, arg: string) => `function(${arg}){return ${JSON.stringify(`${prefix}/`)}+${arg}}`,
+    )
     .replace(
       /function\((\w+)\)\{return\s*([`"'])\/\2\s*\+\s*\1\}/g,
       (_m, arg: string) => `function(${arg}){return ${JSON.stringify(`${prefix}/`)}+${arg}}`,
@@ -222,7 +227,7 @@ function rewriteEmbedJs(js: string, prefix: string): string {
       apiExpr,
     )
     .replace(
-      /basename:(\w+)=(["`'])\/\2/g,
+      /basename:\s*(\w+)\s*=\s*(["'`])\/\2/g,
       (_m, arg: string) => `basename:${arg}=${JSON.stringify(prefix)}`,
     );
 }
