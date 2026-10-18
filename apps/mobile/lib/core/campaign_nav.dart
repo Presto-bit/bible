@@ -384,7 +384,9 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Stack(
+      body: SafeArea(
+        top: false,
+        child: Stack(
         children: [
           if (_controller != null) WebViewWidget(controller: _controller!),
           if (_error != null)
@@ -442,6 +444,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
               child: LinearProgressIndicator(minHeight: 2),
             ),
         ],
+        ),
       ),
       ),
     );

@@ -14,6 +14,17 @@ export const dynamic = 'force-dynamic';
 const SUPABASE_ORIGIN = 'https://ytiwfmufekvxdgyaokae.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_aH3DWsTgZ4X0A4W_zJmyzw_wd7yk7pm';
 const DEFAULT_INVITE_CODE = '0CIW43NR';
+const INVITE_CODE_COOKIE = 'peiai_campaign_code';
+
+function inviteCodeFromRequest(request: Request, reqUrl: URL): string | null {
+  const fromQuery = reqUrl.searchParams.get('code') || reqUrl.searchParams.get('invite');
+  if (fromQuery && fromQuery.trim()) return fromQuery.trim();
+  const cookie = request.headers.get('cookie') || '';
+  const match = cookie.match(
+    new RegExp(`(?:^|;\\s*)${INVITE_CODE_COOKIE}=([A-Za-z0-9]{4,16})`),
+  );
+  return match ? match[1] : null;
+}
 const HTML_STALE_MS = 5 * 60 * 1000;
 const SESSION_STALE_MS = 45 * 60 * 1000;
 
@@ -467,8 +478,7 @@ async function proxyCampaignEmbed(
     const hasUrlTokens =
       Boolean(reqUrl.searchParams.get('access_token')) &&
       Boolean(reqUrl.searchParams.get('refresh_token'));
-    const codeParam =
-      reqUrl.searchParams.get('code') || reqUrl.searchParams.get('invite');
+    const codeParam = inviteCodeFromRequest(request, reqUrl);
     const [html, fallbackSession] = await Promise.all([
       getSiteHtml(site, prefix, request),
       hasUrlTokens ? Promise.resolve(null) : obtainServerInviteSession(codeParam),
