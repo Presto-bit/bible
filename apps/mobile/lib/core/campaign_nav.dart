@@ -170,6 +170,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   Timer? _loadWatchdog;
   Timer? _blankCheck;
   Timer? _paintPoll;
+  String? _mainFrameUrl;
 
   static const _contentProbeJs =
       "(function(){var b=document.body;if(!b)return 0;"
@@ -263,7 +264,8 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     await controller.setBackgroundColor(AppColors.paper);
     await controller.setNavigationDelegate(
       NavigationDelegate(
-        onPageStarted: (_) {
+        onPageStarted: (url) {
+          _mainFrameUrl = url;
           if (mounted) {
             setState(() {
               _loading = true;
@@ -295,6 +297,11 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
         onHttpError: (err) {
           final code = err.response?.statusCode;
           if (code == null || code < 400) return;
+          // 子资源（favicon、接口等）4xx 不算整页打开失败。
+          final reqUrl = err.request?.uri.toString();
+          if (reqUrl != null && _mainFrameUrl != null && reqUrl != _mainFrameUrl) {
+            return;
+          }
           _loadWatchdog?.cancel();
           if (!mounted) return;
           setState(() {
@@ -330,6 +337,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
     });
     _armLoadWatchdog();
     _startPaintPoll(controller);
+    _mainFrameUrl = url;
     try {
       await controller.loadRequest(Uri.parse(url));
     } catch (_) {
