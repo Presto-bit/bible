@@ -67,6 +67,41 @@ class DailyVerseReactFeedItem {
   }
 }
 
+/// 对齐 Web `DailyVerseReactSheet.feedTimeLabel`：`相对时间 · HH:mm`
+String formatDailyVerseFeedTime(String iso) {
+  final raw = iso.trim();
+  if (raw.isEmpty) return '';
+  final DateTime dt;
+  try {
+    dt = DateTime.parse(raw).toLocal();
+  } catch (_) {
+    return '';
+  }
+  final now = DateTime.now();
+  final m = now.difference(dt).inMinutes;
+  final String rel;
+  if (m < 1) {
+    rel = '刚刚';
+  } else if (m < 60) {
+    rel = '$m 分钟前';
+  } else {
+    final h = m ~/ 60;
+    if (h < 24) {
+      rel = '$h 小时前';
+    } else {
+      final d = h ~/ 24;
+      if (d < 30) {
+        rel = '$d 天前';
+      } else {
+        rel = '${dt.year}/${dt.month}/${dt.day}';
+      }
+    }
+  }
+  final at =
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  return '$rel · $at';
+}
+
 /// 离线兜底（与 web `daily_verse_react_presets.ts` 对齐）。
 const kFallbackReactEmojis = <DailyVerseReactPreset>[
   DailyVerseReactPreset(id: 'emoji:pray', kind: 'emoji', emoji: '🙏', label: '祷告'),
@@ -358,6 +393,8 @@ class _DailyVerseReactSheetBodyState
                                 const Divider(height: 1),
                             itemBuilder: (_, i) {
                               final it = _feed[i];
+                              final timeLabel =
+                                  formatDailyVerseFeedTime(it.createdAt);
                               return ListTile(
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
@@ -367,10 +404,10 @@ class _DailyVerseReactSheetBodyState
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14),
                                 ),
-                                subtitle: it.createdAt.isEmpty
+                                subtitle: timeLabel.isEmpty
                                     ? null
                                     : Text(
-                                        it.createdAt,
+                                        timeLabel,
                                         style: const TextStyle(
                                             fontSize: 11,
                                             color: AppColors.inkFaint),
