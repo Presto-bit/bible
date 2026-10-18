@@ -5,6 +5,8 @@ import {
   type CampaignEmbedSite,
 } from '@/lib/campaign_embed';
 import { BASE_PATH } from '@/lib/basePath';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -133,6 +135,55 @@ async function fetchUpstream(
   throw lastErr instanceof Error ? lastErr : new Error('upstream fetch failed');
 }
 
+/** `scripts/sync-campaign-snapshots.mjs` 产出；国内服务器连 pages.dev 不稳，优先读盘。 */
+const SNAPSHOT_ROOT = path.join(process.cwd(), 'public', 'campaign-snapshots');
+
+const SNAPSHOT_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+};
+
+async function readSnapshot(
+  site: CampaignEmbedSite,
+  upstreamPath: string,
+): Promise<{ body: Buffer; contentType: string } | null> {
+  const siteDir = path.join(SNAPSHOT_ROOT, site);
+  const rel = upstreamPath === '/' ? 'index.html' : upstreamPath.replace(/^\/+/, '');
+  const file = path.resolve(siteDir, rel);
+  if (!file.startsWith(`${siteDir}${path.sep}`)) return null;
+  try {
+    const body = await readFile(file);
+    const ext = path.extname(file).toLowerCase();
+    return { body, contentType: SNAPSHOT_TYPES[ext] || 'application/octet-stream' };
+  } catch {
+    return null;
+  }
+}
+
+function siteForUpstreamUrl(url: string): CampaignEmbedSite | null {
+  for (const [site, origin] of Object.entries(CAMPAIGN_EMBED_SITES)) {
+    if (url.startsWith(origin)) return site as CampaignEmbedSite;
+  }
+  return null;
+}
+
 type CachedAsset = { body: Uint8Array; contentType: string };
 type CachedHtml = { html: string; fetchedAt: number };
 
@@ -188,14 +239,24 @@ async function loadImmutableAsset(
   if (pending) return pending;
   const job = (async () => {
     try {
-      const res = await fetchUpstream(upstreamUrl, request, 25000);
-      if (!res.ok) return null;
-      const contentType = res.headers.get('content-type') || '';
+      let contentType: string;
+      let raw: Uint8Array;
+      const site = siteForUpstreamUrl(upstreamUrl);
+      const snap = site ? await readSnapshot(site, new URL(upstreamUrl).pathname) : null;
+      if (snap) {
+        contentType = snap.contentType;
+        raw = new Uint8Array(snap.body);
+      } else {
+        const res = await fetchUpstream(upstreamUrl, request, 25000);
+        if (!res.ok) return null;
+        contentType = res.headers.get('content-type') || '';
+        raw = new Uint8Array(await res.arrayBuffer());
+      }
       let body: Uint8Array;
       if (contentType.includes('javascript') || upstreamUrl.endsWith('.js')) {
-        body = new TextEncoder().encode(rewriteEmbedJs(await res.text(), prefix));
+        body = new TextEncoder().encode(rewriteEmbedJs(new TextDecoder().decode(raw), prefix));
       } else {
-        body = new Uint8Array(await res.arrayBuffer());
+        body = raw;
       }
       const entry = { body, contentType };
       if (assetCache.size >= ASSET_CACHE_MAX) {
@@ -263,7 +324,15 @@ async function getSiteHtml(
   prefix: string,
   request?: Request,
 ): Promise<string | null> {
-  const cached = htmlCache.get(site);
+  let cached = htmlCache.get(site);
+  if (!cached) {
+    const snap = await readSnapshot(site, '/');
+    if (snap) {
+      // 快照 HTML 与快照 assets 同版本，钉住不再回源，避免上游换 hash 后又去现拉 pages.dev。
+      cached = { html: snap.body.toString('utf8'), fetchedAt: Number.POSITIVE_INFINITY };
+      htmlCache.set(site, cached);
+    }
+  }
   if (cached) {
     if (Date.now() - cached.fetchedAt > HTML_STALE_MS) {
       void fetchAndCacheSiteHtml(site, prefix, request);
@@ -280,7 +349,7 @@ setTimeout(() => {
   void obtainServerInviteSession(DEFAULT_INVITE_CODE);
   for (const site of Object.keys(CAMPAIGN_EMBED_SITES) as CampaignEmbedSite[]) {
     const prefix = `${BASE_PATH}/campaigns/embed/${site}`.replace(/\/$/, '');
-    void fetchAndCacheSiteHtml(site, prefix);
+    void getSiteHtml(site, prefix);
   }
 }, 50);
 
@@ -417,6 +486,18 @@ async function proxyCampaignEmbed(
       status: 204,
       headers: { 'Cache-Control': 'public, max-age=86400' },
     });
+  }
+
+  const snap = await readSnapshot(site, upstreamPath);
+  if (snap) {
+    const isJs = snap.contentType.includes('javascript');
+    return new Response(
+      isJs ? rewriteEmbedJs(snap.body.toString('utf8'), prefix) : new Uint8Array(snap.body),
+      {
+        status: 200,
+        headers: { 'Content-Type': snap.contentType, 'Cache-Control': 'public, max-age=3600' },
+      },
+    );
   }
 
   let upstreamRes: Response;
