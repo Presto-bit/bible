@@ -2410,22 +2410,7 @@ class ReaderChapterBodyState extends ConsumerState<ReaderChapterBody>
           '${widget.book.id.toUpperCase()}.${widget.chapter}';
       _lockedParagraphRanges = paragraphRanges;
     }
-    final poetry = const {
-      'PSA',
-      'PRO',
-      'ECC',
-      'SNG',
-      'LAM',
-      'AMO',
-      'MIC',
-      'HAB',
-      'ZEP',
-      'NAH',
-      'HAG',
-      'ZEC',
-      'MAL',
-      'JOB',
-    }.contains(widget.book.id.toUpperCase());
+    final poetry = isPoetryBook(widget.book.id);
 
     final compareId = widget.compareVersionId;
     final notesByVerse = ref

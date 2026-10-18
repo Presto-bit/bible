@@ -20,8 +20,7 @@ class VerseParagraph {
 typedef ParagraphRange = (int start, int end);
 
 const _poetryBooks = {
-  'PSA', 'PRO', 'ECC', 'SNG', 'LAM', 'AMO', 'MIC', 'HAB', 'ZEP', 'NAH',
-  'HAG', 'ZEC', 'MAL', 'JOB',
+  'PSA', 'PRO', 'ECC', 'SNG', 'LAM', 'MIC', 'HAB', 'ZEP', 'NAH', 'JOB',
 };
 
 const _maxVerses = 6;

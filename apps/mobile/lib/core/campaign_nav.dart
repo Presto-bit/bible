@@ -177,6 +177,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   var _hadFirstPaint = false;
   String? _error;
   Timer? _loadWatchdog;
+  Timer? _blankCheck;
 
   @override
   void initState() {
@@ -208,7 +209,25 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
   @override
   void dispose() {
     _loadWatchdog?.cancel();
+    _blankCheck?.cancel();
     super.dispose();
+  }
+
+  /// SPA 脚本失败时 onPageFinished 照常触发，页面却一直空白。
+  void _armBlankCheck(WebViewController controller) {
+    _blankCheck?.cancel();
+    _blankCheck = Timer(const Duration(seconds: 8), () async {
+      if (!mounted || _error != null) return;
+      try {
+        final r = await controller.runJavaScriptReturningResult(
+          "(function(){var b=document.body;if(!b)return 0;"
+          "return (b.innerText||'').trim().length+b.querySelectorAll('img,svg,canvas').length;})()",
+        );
+        final n = num.tryParse('$r'.replaceAll('"', '')) ?? 1;
+        if (n > 0 || !mounted) return;
+        setState(() => _error = _slowError);
+      } catch (_) {}
+    });
   }
 
   void _armLoadWatchdog() {
@@ -246,6 +265,7 @@ class _ExternalBrowserPageState extends State<_ExternalBrowserPage> {
             _hadFirstPaint = true;
             if (_error == _slowError) _error = null;
           });
+          if (widget.onOpenInBrowser != null) _armBlankCheck(controller);
         },
         onWebResourceError: (err) {
           if (!(err.isForMainFrame ?? true)) return;

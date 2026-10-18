@@ -62,6 +62,81 @@ async function fetchUpstream(url: string, request: Request): Promise<Response> {
   throw lastErr instanceof Error ? lastErr : new Error('upstream fetch failed');
 }
 
+type CachedAsset = { body: Uint8Array; contentType: string };
+
+const ASSET_CACHE_MAX = 400;
+const assetCache = new Map<string, CachedAsset>();
+const assetInflight = new Map<string, Promise<CachedAsset | null>>();
+
+/** Vite 带 hash 的产物不可变，可长期缓存。 */
+function isImmutableAsset(upstreamPath: string): boolean {
+  return /^\/assets\/.+-[A-Za-z0-9_-]{6,}\.[a-z0-9]+$/i.test(upstreamPath);
+}
+
+/**
+ * Vite preload helper 把依赖拼成 `"/" + dep`（站点根）；挂在 embed 前缀下会 404，
+ * CSS 预加载失败即抛错 → 懒加载页面整页白屏。
+ */
+function rewriteEmbedJs(js: string, prefix: string): string {
+  return js
+    .replace(
+      /function\((\w+)\)\{return\s*([`"'])\/\2\s*\+\s*\1\}/g,
+      (_m, arg: string) => `function(${arg}){return ${JSON.stringify(`${prefix}/`)}+${arg}}`,
+    )
+    .replace(
+      /\((\w+)\)=>([`"'])\/\2\s*\+\s*\1(?=[,;)}])/g,
+      (_m, arg: string) => `(${arg})=>${JSON.stringify(`${prefix}/`)}+${arg}`,
+    );
+}
+
+async function loadImmutableAsset(
+  upstreamUrl: string,
+  request: Request,
+  prefix: string,
+): Promise<CachedAsset | null> {
+  const hit = assetCache.get(upstreamUrl);
+  if (hit) return hit;
+  const pending = assetInflight.get(upstreamUrl);
+  if (pending) return pending;
+  const job = (async () => {
+    try {
+      const res = await fetchUpstream(upstreamUrl, request);
+      if (!res.ok) return null;
+      const contentType = res.headers.get('content-type') || '';
+      let body: Uint8Array;
+      if (contentType.includes('javascript')) {
+        body = new TextEncoder().encode(rewriteEmbedJs(await res.text(), prefix));
+      } else {
+        body = new Uint8Array(await res.arrayBuffer());
+      }
+      const entry = { body, contentType };
+      if (assetCache.size >= ASSET_CACHE_MAX) {
+        const oldest = assetCache.keys().next().value;
+        if (oldest) assetCache.delete(oldest);
+      }
+      assetCache.set(upstreamUrl, entry);
+      return entry;
+    } catch (err) {
+      console.warn('[campaign-embed] asset fetch failed', upstreamUrl, err);
+      return null;
+    } finally {
+      assetInflight.delete(upstreamUrl);
+    }
+  })();
+  assetInflight.set(upstreamUrl, job);
+  return job;
+}
+
+/** 首页 HTML 返回时后台预热首屏资源，避免 WebView 串行等 pages.dev。 */
+function warmHtmlAssets(html: string, upstreamOrigin: string, request: Request, prefix: string) {
+  const re = /(?:src|href)=["'](\/assets\/[^"']+)["']/g;
+  for (const m of html.matchAll(re)) {
+    const path = m[1];
+    if (!isImmutableAsset(path)) continue;
+    void loadImmutableAsset(new URL(path, upstreamOrigin).toString(), request, prefix);
+  }
+}
+
 async function proxyCampaignEmbed(
   request: Request,
   site: string,
@@ -76,6 +151,20 @@ async function proxyCampaignEmbed(
   const upstreamPath = subPath ? `/${subPath}` : '/';
   const upstream = new URL(upstreamPath, upstreamOrigin);
   upstream.search = reqUrl.search;
+  const prefix = embedPathPrefix(site, reqUrl);
+
+  if (isImmutableAsset(upstreamPath)) {
+    const asset = await loadImmutableAsset(upstream.toString(), request, prefix);
+    if (asset) {
+      return new Response(asset.body, {
+        status: 200,
+        headers: {
+          'Content-Type': asset.contentType || 'application/octet-stream',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      });
+    }
+  }
 
   let upstreamRes: Response;
   try {
@@ -91,7 +180,6 @@ async function proxyCampaignEmbed(
   }
 
   const contentType = upstreamRes.headers.get('content-type') || '';
-  const prefix = embedPathPrefix(site, reqUrl);
 
   if (contentType.includes('text/html') || upstreamPath === '/') {
     const html = await upstreamRes.text();
@@ -99,6 +187,7 @@ async function proxyCampaignEmbed(
     if (!contentType.includes('text/html') && !html.trimStart().toLowerCase().startsWith('<!doctype')) {
       return fallbackUpstreamHtml(upstream.toString());
     }
+    warmHtmlAssets(html, upstreamOrigin, request, prefix);
     const rewritten = rewriteCampaignEmbedHtml(html, prefix);
     return new Response(rewritten, {
       status: 200,
@@ -115,6 +204,13 @@ async function proxyCampaignEmbed(
   if (cacheControl) headers.set('Cache-Control', cacheControl);
   else if (contentType.includes('javascript') || contentType.includes('css')) {
     headers.set('Cache-Control', 'public, max-age=86400');
+  }
+
+  if (contentType.includes('javascript')) {
+    return new Response(rewriteEmbedJs(await upstreamRes.text(), prefix), {
+      status: upstreamRes.status,
+      headers,
+    });
   }
 
   return new Response(upstreamRes.body, {

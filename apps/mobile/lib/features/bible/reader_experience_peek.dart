@@ -445,22 +445,7 @@ class _ChapterPeekContent extends StatelessWidget {
   final QuoteDisplayMode quoteDisplay;
   final List<(int, int)>? paragraphRanges;
 
-  bool get _poetry => const {
-    'PSA',
-    'PRO',
-    'ECC',
-    'SNG',
-    'LAM',
-    'AMO',
-    'MIC',
-    'HAB',
-    'ZEP',
-    'NAH',
-    'HAG',
-    'ZEC',
-    'MAL',
-    'JOB',
-  }.contains(book.id.toUpperCase());
+  bool get _poetry => isPoetryBook(book.id);
 
   TextStyle get _mainStyle {
     final stack = readerFontStack(family: fontFamily, english: english);
