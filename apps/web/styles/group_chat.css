@@ -1571,6 +1571,7 @@ body:has(.dm-page) .app-body {
   min-height: 0;
   overflow-x: clip;
   overflow-y: auto;
+  overflow-anchor: none;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   overscroll-behavior-x: none;
@@ -3285,6 +3286,7 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
   min-height:0;
   height:auto;
   overflow-y:auto;
+  overflow-anchor:none;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
   display:flex;

@@ -22,7 +22,7 @@ import { ImChatSearch } from '@/components/social/ImChatSearch';
 import { ImJumpBottomButton } from '@/components/social/ImJumpBottomButton';
 import ErrorBanner from '@/components/ErrorBanner';
 import { api, effectiveId, type GeneratedPlan, type GroupDetail, type GroupMember, type GroupMessage, type PlanSummary } from '@/lib/api';
-import { pinImListToEnd, scrollImChatToBottom, usePinChatToLatest } from '@/lib/use_im_composer_keyboard';
+import { pinImListToEnd, scrollImChatToBottom, usePinChatToLatest, isImPinLocked } from '@/lib/use_im_composer_keyboard';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
 import { requestInviteNudge } from '@/lib/invite_nudge';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
@@ -332,6 +332,7 @@ function GroupPageInner() {
   }, [gid, markGroupRead]);
 
   const groupInitialPinned = useRef(false);
+  const userMoved = useRef(false);
   useEffect(() => {
     groupInitialPinned.current = false;
   }, [gid]);
@@ -346,10 +347,6 @@ function GroupPageInner() {
     }
     if (!stickBottom.current) return;
     pinImListToEnd(el);
-    const id = requestAnimationFrame(() => {
-      if (stickBottom.current) pinImListToEnd(feedWrapRef.current);
-    });
-    return () => cancelAnimationFrame(id);
   }, [feed.length, feedFilter, gid, searchParams]);
 
   usePinChatToLatest(
@@ -363,14 +360,31 @@ function GroupPageInner() {
     const wrap = feedWrapRef.current;
     if (!wrap) return;
     const onScroll = () => {
+      if (isImPinLocked()) return;
       const dist = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight;
+      if (!userMoved.current) {
+        if (stickBottom.current) pinImListToEnd(wrap);
+        return;
+      }
       stickBottom.current = dist < 100;
-      if (stickBottom.current) setJumpUnread(0);
+      if (stickBottom.current) {
+        userMoved.current = false;
+        setJumpUnread(0);
+      }
       const nextJump = dist > 140;
       setShowJump((prev) => (prev === nextJump ? prev : nextJump));
     };
+    const markUser = () => {
+      userMoved.current = true;
+    };
     wrap.addEventListener('scroll', onScroll, { passive: true });
-    return () => wrap.removeEventListener('scroll', onScroll);
+    wrap.addEventListener('wheel', markUser, { passive: true });
+    wrap.addEventListener('touchmove', markUser, { passive: true });
+    return () => {
+      wrap.removeEventListener('scroll', onScroll);
+      wrap.removeEventListener('wheel', markUser);
+      wrap.removeEventListener('touchmove', markUser);
+    };
   }, [detail]);
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import {
   useState,
   type RefObject,
 } from 'react';
+import { isImPinLocked, pinImListToEnd } from '@/lib/use_im_composer_keyboard';
 
 const DEFAULT_ESTIMATE = 96;
 const DEFAULT_OVERSCAN = 14;
@@ -51,6 +52,7 @@ export function useImVirtualList(opts: {
   const [tick, setTick] = useState(0);
   /** 进入会话先看最新；用户上翻超过一截后才跟真实滚动位置。 */
   const followEndRef = useRef(true);
+  const userMovedRef = useRef(false);
 
   const sizeOf = useCallback(
     (key: string) => sizesRef.current.get(key) ?? estimateSize,
@@ -140,20 +142,40 @@ export function useImVirtualList(opts: {
     refresh();
   }, [refresh, count, enabled]);
 
+  useLayoutEffect(() => {
+    if (!followEndRef.current) return;
+    pinImListToEnd(scrollRef.current);
+  }, [scrollRef, range, count, tick]);
+
   useEffect(() => {
     if (!enabled) return;
     const el = scrollRef.current;
     if (!el) return;
     const onScroll = () => {
+      if (isImPinLocked()) return;
       const scroller = scrollRef.current;
-      if (scroller) {
-        const dist = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-        if (dist > 220) followEndRef.current = false;
-        else if (dist < 48) followEndRef.current = true;
+      if (!scroller) {
+        refresh();
+        return;
+      }
+      const dist = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+      if (!userMovedRef.current) {
+        if (followEndRef.current) pinImListToEnd(scroller);
+        return;
+      }
+      if (dist > 220) followEndRef.current = false;
+      else if (dist < 48) {
+        followEndRef.current = true;
+        userMovedRef.current = false;
       }
       refresh();
     };
+    const markUser = () => {
+      userMovedRef.current = true;
+    };
     el.addEventListener('scroll', onScroll, { passive: true });
+    el.addEventListener('wheel', markUser, { passive: true });
+    el.addEventListener('touchmove', markUser, { passive: true });
     const ro =
       typeof ResizeObserver !== 'undefined'
         ? new ResizeObserver(() => refresh())
@@ -161,6 +183,8 @@ export function useImVirtualList(opts: {
     ro?.observe(el);
     return () => {
       el.removeEventListener('scroll', onScroll);
+      el.removeEventListener('wheel', markUser);
+      el.removeEventListener('touchmove', markUser);
       ro?.disconnect();
     };
   }, [enabled, scrollRef, refresh, count]);

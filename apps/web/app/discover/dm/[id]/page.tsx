@@ -40,7 +40,7 @@ import { collectMessageImages, downloadImAsset, shareImAsset } from '@/lib/im_me
 import { detectImMediaKind } from '@/lib/im_av';
 import { buildShelfImPopoverActions } from '@/lib/im_shelf_actions';
 import { useToast } from '@/components/ui/ToastProvider';
-import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift, usePinChatToLatest, pinImListToEnd } from '@/lib/use_im_composer_keyboard';
+import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift, usePinChatToLatest, pinImListToEnd, isImPinLocked } from '@/lib/use_im_composer_keyboard';
 import {
   formatVoiceDurationLabel,
   useVoiceRecorder,
@@ -453,6 +453,7 @@ function DmThreadPageInner() {
   }, [threadId]);
 
   const initialPinned = useRef(false);
+  const userMoved = useRef(false);
 
   useEffect(() => {
     initialPinned.current = false;
@@ -467,10 +468,6 @@ function DmThreadPageInner() {
     }
     if (!stickBottom.current) return;
     pinImListToEnd(el);
-    const id = requestAnimationFrame(() => {
-      if (stickBottom.current) pinImListToEnd(listRef.current);
-    });
-    return () => cancelAnimationFrame(id);
   }, [msgs.length, activeFocus, threadId]);
 
   usePinChatToLatest(
@@ -510,11 +507,19 @@ function DmThreadPageInner() {
   }, [online, threadId]);
 
   const onListScroll = () => {
+    if (isImPinLocked()) return;
     const el = listRef.current;
     if (!el) return;
     const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (!userMoved.current) {
+      if (stickBottom.current) pinImListToEnd(el);
+      return;
+    }
     stickBottom.current = dist < 80;
-    if (stickBottom.current) setJumpUnread(0);
+    if (stickBottom.current) {
+      userMoved.current = false;
+      setJumpUnread(0);
+    }
     const nextJump = dist > 120;
     setShowJump((prev) => (prev === nextJump ? prev : nextJump));
   };
@@ -1312,6 +1317,12 @@ function DmThreadPageInner() {
           ref={listRef}
           className="dm-msg-list"
           onScroll={onListScroll}
+          onWheel={() => {
+            userMoved.current = true;
+          }}
+          onTouchMove={() => {
+            userMoved.current = true;
+          }}
         >
           <div ref={loadMoreRef} className="group-feed-load-sentinel" aria-hidden>
             {loadingMore ? <span className="muted">加载更早消息…</span> : null}

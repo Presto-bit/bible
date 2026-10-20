@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 
@@ -36,13 +36,20 @@ function pinDocScroll() {
 }
 
 const scrollBottomLastAt = new WeakMap<HTMLElement, number>();
+let imPinLock = 0;
 
-/** 同步贴到底，供进入会话的 layout 阶段使用，避免先闪到旧消息。 */
+export function isImPinLocked(): boolean {
+  return imPinLock > 0;
+}
+
+/** 同步贴到底。期间的 scroll 事件不算用户上翻。 */
 export function pinImListToEnd(el: HTMLElement | null | undefined) {
   if (!el) return;
   const max = Math.max(0, el.scrollHeight - el.clientHeight);
   if (Math.abs(el.scrollTop - max) < 1) return;
+  imPinLock += 1;
   el.scrollTop = max;
+  imPinLock -= 1;
 }
 
 export function scrollImChatToBottom(
@@ -139,12 +146,10 @@ export function usePinChatToLatest(
     if (!enabled) return;
     const el = getElRef.current();
     if (!el) return;
-    const pin = () => {
+    const ro = new ResizeObserver(() => {
       if (!stickRef.current) return;
       pinImListToEnd(el);
-    };
-    pin();
-    const ro = new ResizeObserver(() => pin());
+    });
     ro.observe(el);
     for (const child of Array.from(el.children)) {
       if (child instanceof HTMLElement) ro.observe(child);
@@ -250,6 +255,21 @@ export function useImComposerKeyboard(
   const focusedRef = useRef(composerFocused);
   focusedRef.current = composerFocused;
 
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const vv = window.visualViewport;
+    body.classList.add('im-vv-shell');
+    openBaselineRef.current = Math.round(
+      Math.max(window.innerHeight || 0, vv?.height ?? 0),
+    );
+    const m = computeShellMetrics(focusedRef.current, openBaselineRef.current);
+    lastShellRef.current = { top: m.top, h: m.h };
+    root.style.setProperty('--im-shell-top', `${m.top}px`);
+    root.style.setProperty('--im-shell-h', `${m.h}px`);
+    root.style.setProperty('--im-kb-inset', '0px');
+  }, []);
+
   useEffect(() => {
     const root = document.documentElement;
     const body = document.body;
@@ -298,15 +318,12 @@ export function useImComposerKeyboard(
       });
     };
 
-    sync();
     vv?.addEventListener('resize', sync);
     vv?.addEventListener('scroll', sync);
     window.addEventListener('resize', sync);
-    const t = window.setTimeout(sync, 120);
 
     return () => {
       cancelAnimationFrame(raf);
-      window.clearTimeout(t);
       vv?.removeEventListener('resize', sync);
       vv?.removeEventListener('scroll', sync);
       window.removeEventListener('resize', sync);
@@ -314,7 +331,7 @@ export function useImComposerKeyboard(
     };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const m = computeShellMetrics(composerFocused, openBaselineRef.current);
     const root = document.documentElement;
     const body = document.body;
@@ -331,7 +348,6 @@ export function useImComposerKeyboard(
           window.visualViewport?.height ?? 0,
         ),
       );
-      pinDocScroll();
       setInset(0);
       return;
     }
