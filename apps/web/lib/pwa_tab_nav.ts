@@ -170,9 +170,15 @@ export function navigateAppHref(
     if (pendingSecondaryTarget === pathOnly) {
       return;
     }
-    // IM 线程 / 搜索：直接进页，勿挡 progress / 过渡壳
+    // IM 线程 / 搜索：直接进页，勿挡 progress / 过渡壳。
+    // 私聊和群聊再跳过 View Transition，避免列表先滑一下再进聊天。
     if (isDirectSecondaryNav(pathOnly)) {
       markRouteNavigation();
+      if (isDiscoverImThreadPath(pathOnly)) {
+        router.push(normalized, { scroll: false });
+        window.dispatchEvent(new Event('presto-tab-nav'));
+        return;
+      }
       runWithViewTransition(() => {
         router.push(normalized);
         window.dispatchEvent(new Event('presto-tab-nav'));
@@ -194,6 +200,10 @@ export function navigateAppHref(
     return;
   }
   markRouteNavigation();
+  if (isDiscoverImThreadPath(pathOnly)) {
+    router.push(normalized, { scroll: false });
+    return;
+  }
   if (
     !isDirectSecondaryNav(pathOnly)
     && !isProgressExemptSecondary(pathOnly)

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, startTransition, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { GroupActivityFeed } from '@/components/group/GroupActivityFeed';
 import { GroupMemberProfileSheet } from '@/components/group/GroupMemberProfileSheet';
@@ -22,7 +22,7 @@ import { ImChatSearch } from '@/components/social/ImChatSearch';
 import { ImJumpBottomButton } from '@/components/social/ImJumpBottomButton';
 import ErrorBanner from '@/components/ErrorBanner';
 import { api, effectiveId, type GeneratedPlan, type GroupDetail, type GroupMember, type GroupMessage, type PlanSummary } from '@/lib/api';
-import { scrollImChatToBottom, usePinChatToLatest } from '@/lib/use_im_composer_keyboard';
+import { pinImListToEnd, scrollImChatToBottom, usePinChatToLatest } from '@/lib/use_im_composer_keyboard';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
 import { requestInviteNudge } from '@/lib/invite_nudge';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
@@ -336,18 +336,21 @@ function GroupPageInner() {
     groupInitialPinned.current = false;
   }, [gid]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!feed.length) return;
     if (searchParams.get('focusMsg')) return;
+    const el = feedWrapRef.current;
     if (!groupInitialPinned.current) {
       groupInitialPinned.current = true;
       stickBottom.current = true;
-      scrollImChatToBottom(feedWrapRef.current);
-      return;
     }
     if (!stickBottom.current) return;
-    scrollImChatToBottom(feedWrapRef.current);
-  }, [feed.length, searchParams]);
+    pinImListToEnd(el);
+    const id = requestAnimationFrame(() => {
+      if (stickBottom.current) pinImListToEnd(feedWrapRef.current);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [feed.length, feedFilter, gid, searchParams]);
 
   usePinChatToLatest(
     () => feedWrapRef.current,
@@ -1253,6 +1256,10 @@ function GroupPageInner() {
         boundPlanId={safeDetail.plan_id}
         boundPlanTitle={safeDetail.plan_title}
         onBindPlan={bindPlan}
+        onOpenPrayer={() => {
+          setComposerMode(null);
+          openPrayer();
+        }}
         onCheckin={handleCheckin}
         onCreateTask={handleCreateTask}
         onOpenSettings={() => {

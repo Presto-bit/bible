@@ -1581,11 +1581,18 @@ body:has(.dm-page) .app-body {
   touch-action: pan-y;
 }
 .group-checkin-feed-inner {
-  flex: 1;
-  min-height: 0;
+  flex: 1 0 auto;
+  min-height: min-content;
   overflow: visible;
   padding: 0;
   background: transparent;
+}
+/* 消息高度交给外层 group-checkin-scroll，避免内层自己滚在旧消息 */
+.group-checkin-scroll > .group-feed-wrap {
+  overflow: visible;
+  background: transparent;
+  flex: 1 0 auto;
+  min-height: min-content;
 }
 .group-today-focus {
   margin: 0;
@@ -3285,6 +3292,9 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
   gap:2px;
   padding:4px 0 12px;
 }
+.dm-msg-list > *{
+  flex-shrink:0;
+}
 /* 输入栏：文档流贴壳底；底色铺满到物理底边，安全区只垫高输入行，避免「悬空空白」 */
 .dm-composer-dock.im-composer-bar,
 .group-wechat-composer.im-composer-dock{
@@ -4128,6 +4138,22 @@ html.perf-lite .im-msg-popover {
   gap: 2px;
   min-height: 40vh;
 }
+.group-task-prayer-entry{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  width:100%;
+  margin:0 0 12px;
+  padding:12px 14px;
+  border:0;
+  border-radius:12px;
+  background:var(--accent-wash, #e8efe9);
+  color:var(--ink, #1a1a1a);
+  text-align:left;
+  cursor:pointer;
+}
+.group-task-prayer-entry .muted{font-size:13px;}
 .group-chat-block{
   display: flex;
   flex-direction: column;

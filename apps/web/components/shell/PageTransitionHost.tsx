@@ -16,6 +16,7 @@ export default function PageTransitionHost() {
     if (prev.current === pathname) return;
     prev.current = pathname;
     if (prefersReducedMotion()) return;
+    if (pathname.startsWith('/discover/dm/') || pathname.startsWith('/discover/group/')) return;
     const main = document.querySelector('main');
     if (!main) return;
     main.classList.remove('page-enter-soft');

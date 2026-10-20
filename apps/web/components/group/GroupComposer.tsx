@@ -75,6 +75,7 @@ type Props = {
   boundPlanId?: string | null;
   boundPlanTitle?: string | null;
   onBindPlan?: (planId: string | null) => Promise<void>;
+  onOpenPrayer?: () => void;
   /** 从加号入口进入时锁定模式，隐藏 Tab */
   forcedMode?: Mode;
 };
@@ -107,6 +108,7 @@ export function GroupComposer({
   boundPlanId,
   boundPlanTitle,
   onBindPlan,
+  onOpenPrayer,
   forcedMode,
 }: Props) {
   const canTask = canPostTask ?? isOwner;
@@ -666,6 +668,16 @@ export function GroupComposer({
 
       {mode === 'task' ? (
         <>
+          {onOpenPrayer ? (
+            <button
+              type="button"
+              className="group-task-prayer-entry"
+              onClick={onOpenPrayer}
+            >
+              <span>代祷清单</span>
+              <span className="muted">查看和新建代祷</span>
+            </button>
+          ) : null}
           <div className="chip-swipe group-chip-swipe" style={{ marginBottom: 8 }}>
             {GROUP_TASK_TEMPLATES.map((t) => (
               <button

@@ -49,6 +49,8 @@ export function useImVirtualList(opts: {
   const sizesRef = useRef(new Map<string, number>());
   const measureRaf = useRef(0);
   const [tick, setTick] = useState(0);
+  /** 进入会话先看最新；用户上翻超过一截后才跟真实滚动位置。 */
+  const followEndRef = useRef(true);
 
   const sizeOf = useCallback(
     (key: string) => sizesRef.current.get(key) ?? estimateSize,
@@ -70,7 +72,7 @@ export function useImVirtualList(opts: {
     const el = scrollRef.current;
     const scrollTop = el?.scrollTop ?? Math.max(0, total);
     const viewport = el?.clientHeight ?? 640;
-    const nearBottom = !el || total - scrollTop - viewport < 180;
+    const nearBottom = followEndRef.current || !el || total - scrollTop - viewport < 180;
 
     let start: number;
     let end: number;
@@ -142,7 +144,15 @@ export function useImVirtualList(opts: {
     if (!enabled) return;
     const el = scrollRef.current;
     if (!el) return;
-    const onScroll = () => refresh();
+    const onScroll = () => {
+      const scroller = scrollRef.current;
+      if (scroller) {
+        const dist = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+        if (dist > 220) followEndRef.current = false;
+        else if (dist < 48) followEndRef.current = true;
+      }
+      refresh();
+    };
     el.addEventListener('scroll', onScroll, { passive: true });
     const ro =
       typeof ResizeObserver !== 'undefined'

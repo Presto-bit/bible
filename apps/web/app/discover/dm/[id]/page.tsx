@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Suspense, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { api, contentAssetUrl, effectiveId, ensureAccountReady, type DmMessage } from '@/lib/api';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
@@ -40,7 +40,7 @@ import { collectMessageImages, downloadImAsset, shareImAsset } from '@/lib/im_me
 import { detectImMediaKind } from '@/lib/im_av';
 import { buildShelfImPopoverActions } from '@/lib/im_shelf_actions';
 import { useToast } from '@/components/ui/ToastProvider';
-import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift, usePinChatToLatest } from '@/lib/use_im_composer_keyboard';
+import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift, usePinChatToLatest, pinImListToEnd } from '@/lib/use_im_composer_keyboard';
 import {
   formatVoiceDurationLabel,
   useVoiceRecorder,
@@ -458,27 +458,20 @@ function DmThreadPageInner() {
     initialPinned.current = false;
   }, [threadId]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!msgs.length || activeFocus) return;
     const el = listRef.current;
-    const pin = (smooth: boolean) => {
-      if (el) {
-        if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-        else el.scrollTop = el.scrollHeight;
-        return;
-      }
-      endRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
-    };
     if (!initialPinned.current) {
       initialPinned.current = true;
       stickBottom.current = true;
-      pin(false);
-      requestAnimationFrame(() => pin(false));
-      return;
     }
     if (!stickBottom.current) return;
-    pin(false);
-  }, [msgs.length, activeFocus]);
+    pinImListToEnd(el);
+    const id = requestAnimationFrame(() => {
+      if (stickBottom.current) pinImListToEnd(listRef.current);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [msgs.length, activeFocus, threadId]);
 
   usePinChatToLatest(
     () => listRef.current,

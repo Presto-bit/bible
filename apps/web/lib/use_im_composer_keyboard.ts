@@ -37,6 +37,14 @@ function pinDocScroll() {
 
 const scrollBottomLastAt = new WeakMap<HTMLElement, number>();
 
+/** 同步贴到底，供进入会话的 layout 阶段使用，避免先闪到旧消息。 */
+export function pinImListToEnd(el: HTMLElement | null | undefined) {
+  if (!el) return;
+  const max = Math.max(0, el.scrollHeight - el.clientHeight);
+  if (Math.abs(el.scrollTop - max) < 1) return;
+  el.scrollTop = max;
+}
+
 export function scrollImChatToBottom(
   el: HTMLElement | null | undefined,
   opts?: { gentle?: boolean },
@@ -46,18 +54,13 @@ export function scrollImChatToBottom(
   const last = scrollBottomLastAt.get(el) ?? 0;
   if (now - last < (opts?.gentle ? 120 : 64)) return;
   scrollBottomLastAt.set(el, now);
-  const pin = () => {
-    const max = Math.max(0, el.scrollHeight - el.clientHeight);
-    el.scrollTop = max;
-  };
+  const pin = () => pinImListToEnd(el);
   if (opts?.gentle) {
-    requestAnimationFrame(pin);
+    pin();
     return;
   }
-  requestAnimationFrame(() => {
-    pin();
-    requestAnimationFrame(pin);
-  });
+  pin();
+  requestAnimationFrame(pin);
 }
 
 function findComposerBar(): HTMLElement | null {
@@ -138,7 +141,7 @@ export function usePinChatToLatest(
     if (!el) return;
     const pin = () => {
       if (!stickRef.current) return;
-      scrollImChatToBottom(el, { gentle: true });
+      pinImListToEnd(el);
     };
     pin();
     const ro = new ResizeObserver(() => pin());
