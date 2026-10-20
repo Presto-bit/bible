@@ -331,28 +331,73 @@ function GroupPageInner() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [gid, markGroupRead]);
 
-  const groupInitialPinned = useRef(false);
   const userMoved = useRef(false);
+  const [listSettled, setListSettled] = useState(false);
+
   useEffect(() => {
-    groupInitialPinned.current = false;
+    userMoved.current = false;
+    stickBottom.current = true;
+    setListSettled(false);
   }, [gid]);
 
   useLayoutEffect(() => {
     if (!feed.length) return;
-    if (searchParams.get('focusMsg')) return;
-    const el = feedWrapRef.current;
-    if (!groupInitialPinned.current) {
-      groupInitialPinned.current = true;
-      stickBottom.current = true;
+    if (searchParams.get('focusMsg')) {
+      setListSettled(true);
+      return;
     }
-    if (!stickBottom.current) return;
+    const el = feedWrapRef.current;
+    stickBottom.current = true;
     pinImListToEnd(el);
   }, [feed.length, feedFilter, gid, searchParams]);
+
+  /** 共读条 / 输入栏 / 气泡高度晚到：短窗口内反复贴底，贴稳后再允许加载更早消息 */
+  useEffect(() => {
+    if (!feed.length || searchParams.get('focusMsg')) {
+      setListSettled(true);
+      return;
+    }
+    let cancelled = false;
+    const pin = () => {
+      if (cancelled || userMoved.current) return;
+      stickBottom.current = true;
+      pinImListToEnd(feedWrapRef.current);
+    };
+    pin();
+    const raf = requestAnimationFrame(() => {
+      pin();
+      requestAnimationFrame(pin);
+    });
+    const t1 = window.setTimeout(pin, 50);
+    const t2 = window.setTimeout(pin, 160);
+    const t3 = window.setTimeout(() => {
+      pin();
+      if (!cancelled) setListSettled(true);
+    }, 280);
+    const main = document.querySelector('.group-page-checkin');
+    const wrap = feedWrapRef.current;
+    const ro =
+      typeof ResizeObserver !== 'undefined' && main && wrap
+        ? new ResizeObserver(() => {
+            if (!userMoved.current) pin();
+          })
+        : null;
+    if (main) ro?.observe(main);
+    if (wrap) ro?.observe(wrap);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      ro?.disconnect();
+    };
+  }, [feed.length, feedFilter, gid, searchParams, detail?.plan_id, detail?.my_checked_in_today]);
 
   usePinChatToLatest(
     () => feedWrapRef.current,
     stickBottom,
-    `${gid}:${feed.length}:${feedFilter}`,
+    `${gid}:${feed.length}:${feedFilter}:${listSettled ? 1 : 0}`,
     !searchParams.get('focusMsg'),
   );
 
@@ -385,7 +430,7 @@ function GroupPageInner() {
       wrap.removeEventListener('wheel', markUser);
       wrap.removeEventListener('touchmove', markUser);
     };
-  }, [detail]);
+  }, [detail, gid]);
 
   useEffect(() => {
     const last = feed[feed.length - 1];
@@ -1158,7 +1203,10 @@ function GroupPageInner() {
         )}
       </div>
 
-      <div className="group-checkin-scroll" ref={feedWrapRef}>
+      <div
+        className={`group-checkin-scroll${listSettled || !feed.length ? '' : ' is-entering'}`}
+        ref={feedWrapRef}
+      >
         {!online ? (
           <p className="muted offline-page-hint" style={{ padding: '0 16px' }}>
             当前离线：打卡可排队，闲聊需联网。
@@ -1173,6 +1221,7 @@ function GroupPageInner() {
             members={asGroupMembers(detail.members)}
             hasMore={hasMore}
             loadingMore={loadingMore}
+            loadMoreEnabled={listSettled && !searchParams.get('focusMsg')}
             onLoadMore={loadMore}
             onOpenComposer={() => setComposerMode('checkin')}
             onReact={react}

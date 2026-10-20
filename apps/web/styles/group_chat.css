@@ -1581,19 +1581,22 @@ body:has(.dm-page) .app-body {
   gap: 10px;
   touch-action: pan-y;
 }
-.group-checkin-feed-inner {
-  flex: 1 0 auto;
-  min-height: min-content;
-  overflow: visible;
-  padding: 0;
-  background: transparent;
+.group-checkin-scroll.is-entering,
+.dm-msg-list.is-entering {
+  opacity: 0;
 }
 /* 消息高度交给外层 group-checkin-scroll，避免内层自己滚在旧消息 */
-.group-checkin-scroll > .group-feed-wrap {
-  overflow: visible;
+.group-page-checkin .group-feed-wrap,
+.group-page-checkin .group-checkin-feed-inner,
+.group-page-checkin .group-chat-feed-wrap {
+  overflow: visible !important;
   background: transparent;
-  flex: 1 0 auto;
-  min-height: min-content;
+  flex: 0 0 auto;
+  min-height: 0;
+  height: auto;
+}
+.group-page-checkin .group-chat-feed {
+  min-height: 0;
 }
 .group-today-focus {
   margin: 0;

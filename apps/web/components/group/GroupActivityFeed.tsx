@@ -722,6 +722,8 @@ type Props = {
   onToggleSelect?: (mid: string) => void;
   onEnterSelect?: (mid: string) => void;
   feedFilter?: 'all' | 'coread' | 'file';
+  /** 首屏贴底完成前勿拉更早消息，否则会停在旧消息并抖动 */
+  loadMoreEnabled?: boolean;
 };
 
 export function GroupActivityFeed({
@@ -749,6 +751,7 @@ export function GroupActivityFeed({
   onToggleSelect,
   onEnterSelect,
   feedFilter = 'all',
+  loadMoreEnabled = true,
 }: Props) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const fallbackScrollRef = useRef<HTMLDivElement>(null);
@@ -916,21 +919,22 @@ export function GroupActivityFeed({
     itemKeys: rowKeys,
     scrollRef,
     pinKeys: virtPinKeys,
+    resetKey: gid,
   });
 
   useEffect(() => {
-    if (!hasMore || !onLoadMore) return;
+    if (!loadMoreEnabled || !hasMore || !onLoadMore) return;
     const el = loadMoreRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && !loadingMore) onLoadMore();
       },
-      { root: scrollRef.current, rootMargin: '120px' },
+      { root: scrollRef.current, rootMargin: '80px' },
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasMore, loadingMore, onLoadMore, scrollRef]);
+  }, [loadMoreEnabled, hasMore, loadingMore, onLoadMore, scrollRef]);
 
   if (chrono.length === 0) {
     return (

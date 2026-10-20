@@ -34,6 +34,8 @@ export function useImVirtualList(opts: {
   estimateSize?: number;
   overscan?: number;
   enabled?: boolean;
+  /** 换会话时清高度缓存并重新贴底 */
+  resetKey?: string;
   /** 强制保留挂载（焦点落地 / 长按菜单） */
   pinKeys?: Array<string | null | undefined>;
 }): ImVirtualListResult {
@@ -43,6 +45,7 @@ export function useImVirtualList(opts: {
     estimateSize = DEFAULT_ESTIMATE,
     overscan = DEFAULT_OVERSCAN,
     pinKeys,
+    resetKey,
   } = opts;
   const count = itemKeys.length;
   const enabled = opts.enabled ?? count >= ENABLE_AT;
@@ -53,6 +56,13 @@ export function useImVirtualList(opts: {
   /** 进入会话先看最新；用户上翻超过一截后才跟真实滚动位置。 */
   const followEndRef = useRef(true);
   const userMovedRef = useRef(false);
+
+  useLayoutEffect(() => {
+    followEndRef.current = true;
+    userMovedRef.current = false;
+    sizesRef.current.clear();
+    setTick((n) => n + 1);
+  }, [resetKey]);
 
   const sizeOf = useCallback(
     (key: string) => sizesRef.current.get(key) ?? estimateSize,
@@ -178,7 +188,10 @@ export function useImVirtualList(opts: {
     el.addEventListener('touchmove', markUser, { passive: true });
     const ro =
       typeof ResizeObserver !== 'undefined'
-        ? new ResizeObserver(() => refresh())
+        ? new ResizeObserver(() => {
+            refresh();
+            if (followEndRef.current) pinImListToEnd(el);
+          })
         : null;
     ro?.observe(el);
     return () => {

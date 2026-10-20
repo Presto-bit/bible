@@ -19,6 +19,15 @@ type Props = {
   onOpenPinned?: () => void;
 };
 
+function readClosed(closeKey: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(closeKey) === '1';
+  } catch {
+    return false;
+  }
+}
+
 /** 今日共读条：有计划、未完成任务或今日打卡进度才出现；可当天关闭。 */
 export function GroupCoreadStickyBar({
   detail,
@@ -44,23 +53,13 @@ export function GroupCoreadStickyBar({
   const planLabel = detail.plan_title?.trim() || (openTasks.length ? '今日任务' : '今日共读');
   const dayKey = localDayKey(new Date());
   const closeKey = `group-sticky-closed:${detail.id || ''}:${dayKey}`;
-  const [closed, setClosed] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [closed, setClosed] = useState(() => readClosed(closeKey));
 
   useEffect(() => {
-    if (!detail.id) {
-      setReady(true);
-      return;
-    }
-    try {
-      setClosed(localStorage.getItem(closeKey) === '1');
-    } catch {
-      setClosed(false);
-    }
-    setReady(true);
-  }, [detail.id, closeKey]);
+    setClosed(readClosed(closeKey));
+  }, [closeKey]);
 
-  if (!hasContent || !ready || closed) return null;
+  if (!hasContent || closed) return null;
 
   const closeBar = () => {
     setClosed(true);

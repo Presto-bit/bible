@@ -245,6 +245,7 @@ function DmThreadPageInner() {
     itemKeys: msgKeys,
     scrollRef: listRef,
     pinKeys: virtPinKeys,
+    resetKey: threadId,
   });
 
   useEffect(() => {
@@ -452,44 +453,87 @@ function DmThreadPageInner() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [threadId]);
 
-  const initialPinned = useRef(false);
   const userMoved = useRef(false);
+  const [listSettled, setListSettled] = useState(false);
 
   useEffect(() => {
-    initialPinned.current = false;
+    userMoved.current = false;
+    stickBottom.current = true;
+    setListSettled(false);
   }, [threadId]);
 
   useLayoutEffect(() => {
-    if (!msgs.length || activeFocus) return;
-    const el = listRef.current;
-    if (!initialPinned.current) {
-      initialPinned.current = true;
-      stickBottom.current = true;
+    if (!msgs.length) return;
+    if (activeFocus) {
+      setListSettled(true);
+      return;
     }
-    if (!stickBottom.current) return;
-    pinImListToEnd(el);
+    stickBottom.current = true;
+    pinImListToEnd(listRef.current);
+  }, [msgs.length, activeFocus, threadId]);
+
+  useEffect(() => {
+    if (!msgs.length || activeFocus) {
+      setListSettled(true);
+      return;
+    }
+    let cancelled = false;
+    const pin = () => {
+      if (cancelled || userMoved.current) return;
+      stickBottom.current = true;
+      pinImListToEnd(listRef.current);
+    };
+    pin();
+    const raf = requestAnimationFrame(() => {
+      pin();
+      requestAnimationFrame(pin);
+    });
+    const t1 = window.setTimeout(pin, 50);
+    const t2 = window.setTimeout(pin, 160);
+    const t3 = window.setTimeout(() => {
+      pin();
+      if (!cancelled) setListSettled(true);
+    }, 280);
+    const page = document.querySelector('.dm-page');
+    const wrap = listRef.current;
+    const ro =
+      typeof ResizeObserver !== 'undefined' && page && wrap
+        ? new ResizeObserver(() => {
+            if (!userMoved.current) pin();
+          })
+        : null;
+    if (page) ro?.observe(page);
+    if (wrap) ro?.observe(wrap);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      ro?.disconnect();
+    };
   }, [msgs.length, activeFocus, threadId]);
 
   usePinChatToLatest(
     () => listRef.current,
     stickBottom,
-    `${threadId}:${msgs.length}`,
+    `${threadId}:${msgs.length}:${listSettled ? 1 : 0}`,
     !activeFocus,
   );
 
   useEffect(() => {
-    if (!hasMore) return;
+    if (!listSettled || activeFocus || !hasMore) return;
     const el = loadMoreRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && !loadingMoreRef.current) void loadMore();
       },
-      { root: listRef.current, rootMargin: '120px' },
+      { root: listRef.current, rootMargin: '80px' },
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasMore, loadMore]);
+  }, [listSettled, activeFocus, hasMore, loadMore]);
 
   useEffect(() => {
     if (!online) {
@@ -1315,7 +1359,7 @@ function DmThreadPageInner() {
       <div className="dm-page-body">
         <div
           ref={listRef}
-          className="dm-msg-list"
+          className={`dm-msg-list${listSettled || !msgs.length ? '' : ' is-entering'}`}
           onScroll={onListScroll}
           onWheel={() => {
             userMoved.current = true;
