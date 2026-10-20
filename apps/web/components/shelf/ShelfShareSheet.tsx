@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
-import Avatar, { defaultAvatarId } from '@/components/Avatar';
+import { GroupMark } from '@/components/discover/GroupMark';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import {
   ImContactPicker,
@@ -348,13 +348,7 @@ export default function ShelfShareSheet({
                           size={48}
                         />
                       ) : (
-                        <span
-                          className="friend-avatar im-contact-recent-avatar"
-                          style={{ width: 48, height: 48 }}
-                          aria-hidden
-                        >
-                          <Avatar id={defaultAvatarId(t.gid)} size={48} />
-                        </span>
+                        <GroupMark size={48} />
                       )}
                       <span className="im-contact-recent-name">{t.label}</span>
                     </button>

@@ -45,6 +45,7 @@ function DiscoverHubInner({
   const [pane, setPane] = useState<DiscoverPaneId>('peers');
   const [resolved, setResolved] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const plusRef = useRef<HTMLDivElement | null>(null);
   const segMainRef = useRef<HTMLDivElement | null>(null);
   const peersBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -94,6 +95,7 @@ function DiscoverHubInner({
     (next: DiscoverPaneId) => {
       ignoreUrlRef.current = true;
       setPane(next);
+      if (next !== 'peers') setSearchOpen(false);
       writeDiscoverPaneSession(next);
       syncUrl(next);
       // URL 追上后再允许外部深链改写
@@ -159,6 +161,7 @@ function DiscoverHubInner({
     const urlPane = parseDiscoverPane(searchParams?.get('pane'));
     if (!urlPane) return;
     setPane((prev) => (prev === urlPane ? prev : urlPane));
+    if (urlPane !== 'peers') setSearchOpen(false);
     writeDiscoverPaneSession(urlPane);
   }, [searchParams]);
 
@@ -216,6 +219,21 @@ function DiscoverHubInner({
         </div>
         <span className="discover-hub-seg-spacer" aria-hidden />
         {pane === 'peers' ? (
+          <div className="discover-hub-actions">
+            <Pressable
+              className={`discover-hub-search${searchOpen ? ' is-open' : ''}`}
+              aria-label="搜索会话"
+              aria-pressed={searchOpen}
+              onTap={() => {
+                setPlusOpen(false);
+                setSearchOpen((v) => !v);
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <circle cx="11" cy="11" r="6.25" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M16 16.5 20 20.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </Pressable>
           <div className="discover-hub-plus-wrap" ref={plusRef}>
             <Pressable
               className={`discover-hub-plus${plusOpen ? ' is-open' : ''}`}
@@ -257,6 +275,7 @@ function DiscoverHubInner({
               </div>
             ) : null}
           </div>
+          </div>
         ) : null}
       </div>
 
@@ -268,6 +287,8 @@ function DiscoverHubInner({
         <DiscoverTab
           paneActive={paneActive && resolved && pane === 'peers'}
           hubEmbedded
+          searchOpen={searchOpen}
+          onSearchClose={() => setSearchOpen(false)}
           onGoExplore={() => applyPane('explore')}
         />
       </div>

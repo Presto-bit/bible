@@ -10,15 +10,11 @@ import { GroupNavBar } from '@/components/group/GroupNavBar';
 import { GroupPageSkeleton } from '@/components/group/GroupPageSkeleton';
 import { GroupSettingsSheet, type GroupSettingsPane } from '@/components/group/GroupSettingsSheet';
 import { GroupPrayerSheet } from '@/components/group/GroupPrayerSheet';
-import { GroupPrayerBanner } from '@/components/group/GroupPrayerBanner';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
 import { GroupCoreadStickyBar } from '@/components/group/GroupCoreadStickyBar';
-import { GroupMyTaskPin } from '@/components/group/GroupMyTaskPin';
 import { GroupProfileCard } from '@/components/group/GroupProfileCard';
 import { GroupCheckinWallSheet } from '@/components/group/GroupCheckinWallSheet';
 import { GroupInviteSheet } from '@/components/group/GroupInviteSheet';
-import { GroupAnnounceBar } from '@/components/group/GroupAnnounceBar';
-import { GroupPinnedTaskBar } from '@/components/group/GroupPinnedTaskBar';
 import { GroupToast } from '@/components/group/GroupToast';
 import { ReportSheet, type ReportReason } from '@/components/social/ReportSheet';
 import { ForwardPickerSheet, type ForwardPayload } from '@/components/social/ForwardPickerSheet';
@@ -26,7 +22,7 @@ import { ImChatSearch } from '@/components/social/ImChatSearch';
 import { ImJumpBottomButton } from '@/components/social/ImJumpBottomButton';
 import ErrorBanner from '@/components/ErrorBanner';
 import { api, effectiveId, type GeneratedPlan, type GroupDetail, type GroupMember, type GroupMessage, type PlanSummary } from '@/lib/api';
-import { scrollImChatToBottom } from '@/lib/use_im_composer_keyboard';
+import { scrollImChatToBottom, usePinChatToLatest } from '@/lib/use_im_composer_keyboard';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
 import { requestInviteNudge } from '@/lib/invite_nudge';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
@@ -57,6 +53,7 @@ function GroupPageInner() {
   const [focusOverride, setFocusOverride] = useState<string | null>(null);
   const activeFocus = focusOverride || focusMsg;
   const [searchOpen, setSearchOpen] = useState(false);
+  const [feedFilter, setFeedFilter] = useState<'all' | 'coread' | 'file'>('all');
   const [forwardItems, setForwardItems] = useState<ForwardPayload[] | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -83,7 +80,6 @@ function GroupPageInner() {
     count: 0,
     title: null,
   });
-  const [prayerBannerDismissed, setPrayerBannerDismissed] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [wallOpen, setWallOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -202,9 +198,6 @@ function GroupPageInner() {
       const r = await api.listGroupPrayers(gid, 'open');
       const pending = (r.items || []).filter((it) => !it.claimed_by_me);
       const nextCount = pending.length;
-      if (nextCount === 0 || nextCount > prayerPendingCountRef.current) {
-        setPrayerBannerDismissed(false);
-      }
       prayerPendingCountRef.current = nextCount;
       setPrayerPending({
         count: nextCount,
@@ -302,7 +295,6 @@ function GroupPageInner() {
   useEffect(() => {
     const t = window.setTimeout(() => {
       void refreshPrayerPending();
-      setPrayerBannerDismissed(false);
     }, 480);
     return () => window.clearTimeout(t);
   }, [refreshPrayerPending]);
@@ -356,6 +348,13 @@ function GroupPageInner() {
     if (!stickBottom.current) return;
     scrollImChatToBottom(feedWrapRef.current);
   }, [feed.length, searchParams]);
+
+  usePinChatToLatest(
+    () => feedWrapRef.current,
+    stickBottom,
+    `${gid}:${feed.length}:${feedFilter}`,
+    !searchParams.get('focusMsg'),
+  );
 
   useEffect(() => {
     const wrap = feedWrapRef.current;
@@ -982,6 +981,24 @@ function GroupPageInner() {
     setSettingsOpen(true);
   };
 
+  const bindPlan = async (planId: string | null) => {
+    setBusy(true);
+    try {
+      await api.updateGroup(
+        gid,
+        planId ? { plan_id: planId } : { clear_plan: true },
+      );
+      setPlanDraft(planId || '');
+      showToast(planId ? '群计划已更新' : '已取消群计划');
+      setComposerMode(null);
+      await reload();
+    } catch (e) {
+      showToast(errorMessage(e, '绑定失败'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const myOpenTask =
     tasks.find((t) => t.id === safeDetail.pinned_task_id && !t.completed)
     || tasks.find((t) => t.pinned && !t.completed)
@@ -1057,66 +1074,84 @@ function GroupPageInner() {
             <span className="im-select-toolbar-spacer" aria-hidden />
           </div>
         ) : (
-          <GroupAnnounceBar
-            text={safeDetail.announcement || ''}
-            onOpen={() => openSettings('profile')}
-          />
+          <>
+            <div className="group-feed-filter" role="tablist" aria-label="消息筛选">
+              {([
+                ['all', '全部'],
+                ['coread', '打卡与任务'],
+                ['file', '文件'],
+              ] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={feedFilter === id}
+                  className={`group-feed-filter-btn${feedFilter === id ? ' is-on' : ''}`}
+                  onClick={() => {
+                    setFeedFilter(id);
+                    if (stickBottom.current) {
+                      scrollImChatToBottom(feedWrapRef.current);
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <GroupCoreadStickyBar
+              detail={safeDetail}
+              tasks={tasks}
+              announcement={safeDetail.announcement}
+              prayerCount={prayerPending.count}
+              pinnedTitle={
+                (() => {
+                  const pinned = tasks.find((t) => t.id === safeDetail.pinned_task_id)
+                    || tasks.find((t) => t.pinned);
+                  if (!pinned || pinned.id === myOpenTask?.id) return null;
+                  return pinned.title;
+                })()
+              }
+              onCheckin={() => setComposerMode('checkin')}
+              onOpenWall={() => setWallOpen(true)}
+              onOpenCard={() => setCardOpen(true)}
+              onOpenAnnounce={() => openSettings('profile')}
+              onOpenPrayer={() => openPrayer()}
+              onOpenPinned={() => {
+                const pinned = tasks.find((t) => t.id === safeDetail.pinned_task_id)
+                  || tasks.find((t) => t.pinned);
+                if (!pinned) return;
+                setTaskComplete({
+                  taskId: pinned.id,
+                  title: pinned.title,
+                  ref: pinned.ref,
+                  completion_rule: pinned.completion_rule,
+                });
+              }}
+              onGoTask={() => {
+                if (!myOpenTask) return;
+                setTaskComplete({
+                  taskId: myOpenTask.id,
+                  title: myOpenTask.title,
+                  ref: myOpenTask.ref,
+                  completion_rule: myOpenTask.completion_rule,
+                });
+              }}
+            />
+          </>
         )}
       </div>
 
       <div className="group-checkin-scroll" ref={feedWrapRef}>
-        {(() => {
-          const pinned =
-            tasks.find((t) => t.id === safeDetail.pinned_task_id)
-            || tasks.find((t) => t.pinned);
-          return pinned ? (
-            <GroupPinnedTaskBar
-              gid={gid}
-              task={pinned}
-              onComplete={(taskId, title, ref) => {
-                setTaskComplete({
-                  taskId,
-                  title,
-                  ref,
-                  completion_rule: pinned.completion_rule,
-                });
-              }}
-            />
-          ) : null;
-        })()}
-        <GroupCoreadStickyBar
-          detail={safeDetail}
-          tasks={tasks}
-          onCheckin={() => setComposerMode('checkin')}
-          onOpenWall={() => setWallOpen(true)}
-          onOpenCard={() => setCardOpen(true)}
-          onGoTask={() => {
-            if (!myOpenTask) return;
-            setTaskComplete({
-              taskId: myOpenTask.id,
-              title: myOpenTask.title,
-              ref: myOpenTask.ref,
-              completion_rule: myOpenTask.completion_rule,
-            });
-          }}
-        />
-        {!prayerBannerDismissed && prayerPending.count > 0 ? (
-          <GroupPrayerBanner
-            count={prayerPending.count}
-            previewTitle={prayerPending.title}
-            onOpen={() => openPrayer()}
-            onDismiss={() => setPrayerBannerDismissed(true)}
-          />
-        ) : null}
         {!online ? (
           <p className="muted offline-page-hint" style={{ padding: '0 16px' }}>
             当前离线：打卡可排队，闲聊需联网。
           </p>
         ) : null}
-        <div className="group-feed-wrap group-checkin-feed-inner group-chat-feed-wrap">
+        <div className="group-feed-wrap group-checkin-feed-inner group-chat-feed-wrap" data-im-feed>
           <GroupActivityFeed
             gid={gid}
             messages={feed}
+            feedFilter={feedFilter}
             isOwner={isStaff}
             members={asGroupMembers(detail.members)}
             hasMore={hasMore}
@@ -1174,21 +1209,6 @@ function GroupPageInner() {
         />
       ) : null}
 
-      {myOpenTask && !selectMode ? (
-        <GroupMyTaskPin
-          gid={gid}
-          task={myOpenTask}
-          onComplete={(taskId, title, ref) => {
-            setTaskComplete({
-              taskId,
-              title,
-              ref,
-              completion_rule: myOpenTask.completion_rule,
-            });
-          }}
-        />
-      ) : null}
-
       <GroupComposerBar
         gid={gid}
         disabled={busy || selectMode}
@@ -1196,12 +1216,13 @@ function GroupPageInner() {
         online={online}
         allowChat={allowChat && !selectMode}
         canPostTask={isStaff}
+        checkedInToday={Boolean(safeDetail.my_checked_in_today)}
         members={members}
         replyTo={replyTarget}
         onClearReply={() => setReplyTarget(null)}
         onRestoreReply={(r) => setReplyTarget(r)}
         onOpenMode={(mode) => setComposerMode(mode)}
-        onOpenPrayer={openPrayer}
+        onOpenWall={() => setWallOpen(true)}
         onChat={handleChat}
         onChatMedia={handleChatMedia}
         getScrollEl={() => feedWrapRef.current}
@@ -1227,6 +1248,11 @@ function GroupPageInner() {
         members={members}
         busy={busy}
         groupName={detail.name}
+        plans={plans}
+        generatedPlans={generatedPlans}
+        boundPlanId={safeDetail.plan_id}
+        boundPlanTitle={safeDetail.plan_title}
+        onBindPlan={bindPlan}
         onCheckin={handleCheckin}
         onCreateTask={handleCreateTask}
         onOpenSettings={() => {
@@ -1326,6 +1352,20 @@ function GroupPageInner() {
         onMembersChanged={reload}
         onDetailChanged={reload}
         onOpenPrayer={() => openPrayer()}
+        pinnedTaskTitle={
+          (tasks.find((t) => t.id === safeDetail.pinned_task_id) || tasks.find((t) => t.pinned))?.title
+        }
+        onOpenPinnedTask={() => {
+          const pinned = tasks.find((t) => t.id === safeDetail.pinned_task_id)
+            || tasks.find((t) => t.pinned);
+          if (!pinned) return;
+          setTaskComplete({
+            taskId: pinned.id,
+            title: pinned.title,
+            ref: pinned.ref,
+            completion_rule: pinned.completion_rule,
+          });
+        }}
       />
 
       <GroupPrayerSheet

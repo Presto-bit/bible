@@ -60,6 +60,12 @@ function taskCompleteTitle(body: string | null | undefined): string | null {
   return idx >= 0 ? rest.slice(0, idx) : rest;
 }
 
+function passesFeedFilter(m: GroupMessage, filter: 'all' | 'coread' | 'file'): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'coread') return m.kind === 'checkin' || m.kind === 'task' || m.kind === 'plan';
+  return m.kind === 'file';
+}
+
 function dedupeMilestones(items: GroupMessage[]): GroupMessage[] {
   let milestoneSeen = false;
   let needsFilter = false;
@@ -715,6 +721,7 @@ type Props = {
   selectedIds?: Set<string>;
   onToggleSelect?: (mid: string) => void;
   onEnterSelect?: (mid: string) => void;
+  feedFilter?: 'all' | 'coread' | 'file';
 };
 
 export function GroupActivityFeed({
@@ -741,6 +748,7 @@ export function GroupActivityFeed({
   selectedIds,
   onToggleSelect,
   onEnterSelect,
+  feedFilter = 'all',
 }: Props) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const fallbackScrollRef = useRef<HTMLDivElement>(null);
@@ -861,8 +869,8 @@ export function GroupActivityFeed({
         break;
       }
     }
-    return dedupeMilestones(sorted);
-  }, [messages]);
+    return dedupeMilestones(sorted).filter((m) => passesFeedFilter(m, feedFilter));
+  }, [messages, feedFilter]);
 
   const rows = useMemo(() => {
     return chrono.map((m, idx) => {
@@ -924,12 +932,16 @@ export function GroupActivityFeed({
     return () => obs.disconnect();
   }, [hasMore, loadingMore, onLoadMore, scrollRef]);
 
-  if (messages.length === 0) {
+  if (chrono.length === 0) {
     return (
       <div className="group-activity-empty group-chat-empty">
-        <strong>还没有消息</strong>
-        <p className="muted">打个招呼，或完成今日阅读后来打卡。</p>
-        {onOpenComposer ? (
+        <strong>{feedFilter === 'all' ? '还没有消息' : '这类消息还没有'}</strong>
+        <p className="muted">
+          {feedFilter === 'all'
+            ? '打个招呼，或完成今日阅读后来打卡。'
+            : '换回「全部」可以看到其他消息。'}
+        </p>
+        {feedFilter === 'all' && onOpenComposer ? (
           <button type="button" className="btn" onClick={onOpenComposer}>
             发第一条打卡
           </button>
@@ -942,7 +954,7 @@ export function GroupActivityFeed({
     <div className="group-chat-feed" ref={scrollParentRef ? undefined : fallbackScrollRef}>
       <div ref={loadMoreRef} className="group-feed-load-sentinel" aria-hidden>
         {loadingMore ? <span className="muted">加载更早消息…</span> : null}
-        {!hasMore && chrono.length > 12 ? <span className="muted">没有更早消息了</span> : null}
+        {!hasMore && messages.length > 0 ? <span className="muted">仅保留近 30 天</span> : null}
       </div>
 
       {virt.paddingTop > 0 ? (

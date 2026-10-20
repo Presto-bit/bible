@@ -84,6 +84,15 @@ export function IconClose({ className }: IconProps) {
   );
 }
 
+export function IconVerse({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+      <path d="M6 4.5h4.5A2.5 2.5 0 0 1 13 7v12.5A2 2 0 0 0 11 17.5H6V4.5Z" {...stroke} />
+      <path d="M18 4.5h-4.5A2.5 2.5 0 0 0 11 7v12.5A2 2 0 0 1 13 17.5H18V4.5Z" {...stroke} />
+    </svg>
+  );
+}
+
 export function IconMic({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" width="20" height="20" aria-hidden>

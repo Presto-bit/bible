@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, effectiveId, ensureAccountReady, type Group } from '@/lib/api';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
-import Avatar, { defaultAvatarId } from '@/components/Avatar';
+import { GroupMark } from '@/components/discover/GroupMark';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { useOnline, isBrowserOnline } from '@/lib/use_online';
 
@@ -140,9 +140,7 @@ export default function DiscoverContactsGroupsPane() {
                 className="discover-conv-row"
                 onClick={() => go(`/discover/group/${g.id}`)}
               >
-                <span className="friend-avatar" style={{ width: 40, height: 40, flexShrink: 0 }} aria-hidden>
-                  <Avatar id={defaultAvatarId(g.id)} size={40} />
-                </span>
+                <GroupMark size={40} />
                 <div className="discover-conv-main">
                   <strong>{g.name}</strong>
                   <p className="muted discover-conv-sub">

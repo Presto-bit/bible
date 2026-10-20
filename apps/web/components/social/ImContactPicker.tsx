@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SheetCloseButton } from '@/components/PageBackBar';
-import Avatar, { defaultAvatarId } from '@/components/Avatar';
+import { GroupMark } from '@/components/discover/GroupMark';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { api, type ConversationItem, type Friend } from '@/lib/api';
 import { friendDisplayName } from '@/lib/friend_label';
@@ -172,9 +172,7 @@ export function ImContactPicker({
         {t.type === 'dm' ? (
           <FriendAvatar friend={{ user_id: t.peerId, avatar_id: t.avatarId }} size={40} />
         ) : (
-          <span className="friend-avatar" style={{ width: 40, height: 40, flexShrink: 0 }} aria-hidden>
-            <Avatar id={defaultAvatarId(t.gid)} size={40} />
-          </span>
+          <GroupMark size={40} />
         )}
         <span className="im-contact-main">
           <strong>{t.label}</strong>
@@ -235,9 +233,7 @@ export function ImContactPicker({
                       {t.type === 'dm' ? (
                         <FriendAvatar friend={{ user_id: t.peerId, avatar_id: t.avatarId }} size={48} />
                       ) : (
-                        <span className="friend-avatar im-contact-recent-avatar" style={{ width: 48, height: 48 }} aria-hidden>
-                          <Avatar id={defaultAvatarId(t.gid)} size={48} />
-                        </span>
+                        <GroupMark size={48} />
                       )}
                       <span className="im-contact-recent-name">{t.label}</span>
                     </button>

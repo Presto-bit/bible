@@ -3841,3 +3841,13 @@ mark.shelf-sel-pinned {
 .shelf-note-hub-loading {
   padding: 24px 16px;
 }
+
+.group-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--accent-wash, #e8efe9);
+  color: var(--accent-deep, #2f4a3a);
+}

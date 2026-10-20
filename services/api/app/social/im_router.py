@@ -15,6 +15,7 @@ from ..auth.session import get_current_user, try_get_current_user
 from ..auth.user_code import pick_user_code, uuid_for_code
 from ..config import get_settings
 from ..db import get_pool
+from ..time_cn import CN_TODAY_SQL, cn_day_sql
 from . import access
 from .im_schema import ensure_social_im_v12, ensure_social_im_v12_pool
 from .blob_store import get_blob_store, normalize_object_key
@@ -848,6 +849,40 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 })
             except Exception:
                 continue
+
+        group_ids = [i["ref_id"] for i in items if i.get("scope") == "group"]
+        if group_ids:
+            try:
+                day_expr = cn_day_sql("gm.created_at")
+                rows = conn.execute(
+                    f"""
+                    SELECT g.id::text,
+                           (g.plan_id IS NOT NULL),
+                           EXISTS (
+                             SELECT 1 FROM group_message gm
+                             WHERE gm.group_id = g.id
+                               AND gm.user_id = %s
+                               AND gm.kind = 'checkin'
+                               AND {day_expr} = {CN_TODAY_SQL}
+                           )
+                    FROM social_group g
+                    WHERE g.id = ANY(%s::uuid[])
+                    """,
+                    (user_id, group_ids),
+                ).fetchall()
+                flags = {str(r[0]): (bool(r[1]), bool(r[2])) for r in rows}
+                for it in items:
+                    if it.get("scope") != "group":
+                        continue
+                    has_plan, checked = flags.get(str(it["ref_id"]), (False, False))
+                    if has_plan and not checked:
+                        it["badge"] = "待打卡"
+            except Exception:
+                logger.exception("annotate group checkin badge")
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
 
     # inbox 置顶；其余置顶优先再按时间
     inbox = [i for i in items if i["scope"].startswith("inbox")]

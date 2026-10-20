@@ -18,9 +18,9 @@ export const DEFAULT_RULE_BY_TYPE: Record<GroupTaskType, GroupCompletionRule> = 
 };
 
 export const COMPLETION_RULE_OPTIONS: Array<{ id: GroupCompletionRule; label: string }> = [
-  { id: 'tap', label: '点完成即可' },
-  { id: 'checkin_text', label: '必须留言' },
-  { id: 'checkin_ref', label: '须关联经文' },
+  { id: 'tap', label: '点一下完成' },
+  { id: 'checkin_text', label: '写一句' },
+  { id: 'checkin_ref', label: '附上经文' },
   { id: 'read_done', label: '读完确认' },
 ];
 

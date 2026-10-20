@@ -17,7 +17,6 @@ import {
 } from '@/lib/api';
 import { useAccountReady } from '@/lib/use_account_ready';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
-import Avatar, { defaultAvatarId } from '@/components/Avatar';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
@@ -39,6 +38,8 @@ import { notifyDiscoverUnreadChanged } from '@/lib/discover_unread';
 import { Pressable } from '@/components/ui/Pressable';
 import { shellTapProps } from '@/lib/shell_tap';
 import { peiaiDiscoverStaggerProps, peiaiStaggerDurationMs } from '@/lib/peiai_motion';
+import { GroupMark } from '@/components/discover/GroupMark';
+import { splitConvKind } from '@/lib/conv_preview';
 
 const CONV_CACHE_KEY = 'presto_discover_conv_cache_v1';
 
@@ -101,11 +102,7 @@ function ConversationAvatar({
     );
   }
   if (it.scope === 'group') {
-    return (
-      <span className="friend-avatar" style={{ width: 40, height: 40, flexShrink: 0 }} aria-hidden>
-        <Avatar id={defaultAvatarId(it.ref_id)} size={40} />
-      </span>
-    );
+    return <GroupMark size={40} />;
   }
   return (
     <span className={`discover-conv-avatar scope-${it.scope}`} aria-hidden>
@@ -128,12 +125,16 @@ export default function DiscoverTab({
   paneActive = true,
   hubEmbedded = false,
   onGoExplore,
+  searchOpen = false,
+  onSearchClose,
 }: {
   paneActive?: boolean;
   /** 嵌入发现壳：无「消息」大标题；通讯录置顶；「+」由壳提供 */
   hubEmbedded?: boolean;
   /** 空态次操作：切到探索工位 */
   onGoExplore?: () => void;
+  searchOpen?: boolean;
+  onSearchClose?: () => void;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -147,6 +148,12 @@ export default function DiscoverTab({
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQ, setSearchQ] = useState('');
+  const showSearch = !hubEmbedded || searchOpen;
+
+  useEffect(() => {
+    if (showSearch) return;
+    setSearchQ('');
+  }, [showSearch]);
   const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
   const [searchBusy, setSearchBusy] = useState(false);
   const [searchErr, setSearchErr] = useState<string | null>(null);
@@ -595,13 +602,20 @@ export default function DiscoverTab({
         </div>
       ) : null}
 
+      {showSearch ? (
       <div className="discover-im-search">
         <input
           className="search-input"
           value={searchQ}
           placeholder="搜索会话名或近 30 天消息…"
+          autoFocus={hubEmbedded && searchOpen}
           onChange={(e) => setSearchQ(e.target.value)}
         />
+        {hubEmbedded && onSearchClose ? (
+          <button type="button" className="text-link discover-im-search-cancel" onClick={onSearchClose}>
+            取消
+          </button>
+        ) : null}
         {searchBusy ? <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>搜索中…</p> : null}
         {searchErr ? (
           <ErrorBanner message={searchErr} onRetry={() => setSearchQ((q) => q)} />
@@ -622,6 +636,7 @@ export default function DiscoverTab({
           </ul>
         ) : null}
       </div>
+      ) : null}
 
       {loading && items.length === 0 ? (
         <ul className="discover-conv-skeleton" aria-hidden>
@@ -743,7 +758,11 @@ export default function DiscoverTab({
                   : it.title;
               void remarkTick;
               void draftTick;
-              const subtitle = convListSubtitle(it);
+              const subtitleRaw = convListSubtitle(it);
+              const draftOrFail = subtitleRaw.startsWith('[草稿]') || subtitleRaw === '有消息发送失败';
+              const split = draftOrFail ? { kind: null as string | null, text: subtitleRaw } : splitConvKind(subtitleRaw);
+              const kindChip = it.badge === '待打卡' && !draftOrFail ? '待打卡' : split.kind;
+              const subtitle = split.text;
               const subTone = subtitle.startsWith('[草稿]')
                 ? ' is-draft'
                 : subtitle === '有消息发送失败'
@@ -766,6 +785,11 @@ export default function DiscoverTab({
                       ) : null}
                     </div>
                     <div className="discover-conv-sub-row">
+                      {kindChip ? (
+                        <span className={`discover-conv-kind${kindChip === '待打卡' ? ' is-pending' : ''}`}>
+                          {kindChip}
+                        </span>
+                      ) : null}
                       <p className={`muted discover-conv-sub${subTone}`}>
                         {subtitle}
                       </p>

@@ -1,10 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { Suspense, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
-import PageBackBar from '@/components/PageBackBar';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { api, contentAssetUrl, effectiveId, ensureAccountReady, type DmMessage } from '@/lib/api';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import type { ReportReason } from '@/components/social/ReportSheet';
@@ -20,6 +18,10 @@ import {
   replySnippet,
 } from '@/lib/im_ui';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
+import { ImThreadNav } from '@/components/social/ImThreadNav';
+import { ImVersePickSheet } from '@/components/social/ImVersePickSheet';
+import { ImComposerDock } from '@/components/social/ImComposerDock';
+import { imAttachAccept, imAttachError, imAttachIsVideo, type ImAttachSlot } from '@/lib/im_attach_rules';
 import {
   IconClose,
   IconFile,
@@ -27,6 +29,7 @@ import {
   IconKeyboard,
   IconMic,
   IconPlus,
+  IconVerse,
 } from '@/components/social/ImComposerIcons';
 import type { ImLightboxImage } from '@/components/social/ImImageLightbox';
 import { ImMediaAttachment, parseVoiceDurationHint } from '@/components/social/ImMediaAttachment';
@@ -37,8 +40,7 @@ import { collectMessageImages, downloadImAsset, shareImAsset } from '@/lib/im_me
 import { detectImMediaKind } from '@/lib/im_av';
 import { buildShelfImPopoverActions } from '@/lib/im_shelf_actions';
 import { useToast } from '@/components/ui/ToastProvider';
-import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift } from '@/lib/use_im_composer_keyboard';
-import { useHoldToTalk } from '@/lib/use_hold_to_talk';
+import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift, usePinChatToLatest } from '@/lib/use_im_composer_keyboard';
 import {
   formatVoiceDurationLabel,
   useVoiceRecorder,
@@ -113,11 +115,14 @@ function formatSize(bytes?: number | null): string {
 
 function DmThreadPageInner() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const focusMsg = searchParams.get('focusMsg');
   const [focusOverride, setFocusOverride] = useState<string | null>(null);
   const activeFocus = focusOverride || focusMsg;
   const [searchOpen, setSearchOpen] = useState(false);
+  const [verseOpen, setVerseOpen] = useState(false);
+  const attachSlotRef = useRef<ImAttachSlot>('image');
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const hasMoreRef = useRef(false);
@@ -174,7 +179,7 @@ function DmThreadPageInner() {
   const longPressFired = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const composerBarRef = useRef<HTMLDivElement | null>(null);
+  const composerBarRef = useRef<HTMLElement | null>(null);
   const [plusOpen, setPlusOpen] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
@@ -475,6 +480,13 @@ function DmThreadPageInner() {
     pin(false);
   }, [msgs.length, activeFocus]);
 
+  usePinChatToLatest(
+    () => listRef.current,
+    stickBottom,
+    `${threadId}:${msgs.length}`,
+    !activeFocus,
+  );
+
   useEffect(() => {
     if (!hasMore) return;
     const el = loadMoreRef.current;
@@ -704,42 +716,16 @@ function DmThreadPageInner() {
     },
     onError: (msg) => setErr(msg),
   });
-  const stt = useHoldToTalk({
-    onResult: (spoken) => {
-      void (async () => {
-        if (!online) {
-          setErr('当前离线，联网后再发送');
-          return;
-        }
-        const body = spoken.trim();
-        if (!body || sending || uploading) return;
-        const ok = await sendBody(body, replyTo?.id);
-        if (ok) {
-          clearImDraft('dm', threadId);
-          setReplyTo(null);
-        }
-      })();
-    },
-    onUnsupported: () => {
-      setErr('当前浏览器不支持语音输入，请用键盘');
-      setVoiceMode(false);
-    },
-  });
-  const useRecorder = voiceRecorderSupported();
-  const recording = useRecorder ? recorder.recording : stt.recording;
-  const cancelArmed = useRecorder ? recorder.cancelArmed : stt.cancelArmed;
-  const startVoice = useRecorder ? recorder.startVoice : stt.startVoice;
-  const onVoiceMove = useRecorder ? recorder.onVoiceMove : stt.onVoiceMove;
-  const endVoice = useRecorder ? recorder.endVoice : stt.endVoice;
+  const recording = recorder.recording;
+  const cancelArmed = recorder.cancelArmed;
+  const startVoice = recorder.startVoice;
+  const onVoiceMove = recorder.onVoiceMove;
+  const endVoice = recorder.endVoice;
   const voiceHoldLabel = recording
     ? cancelArmed
       ? '松开取消'
-      : useRecorder
-        ? `松开发送 ${recorder.elapsedSec || 1}″ · 上滑取消`
-        : '松开发送 · 上滑取消'
-    : useRecorder
-      ? '按住 说话'
-      : '按住 说话（转文字）';
+      : `松开发送 ${recorder.elapsedSec || 1}″ · 上滑取消`
+    : '按住 说话';
 
   useEffect(() => {
     const last = msgs[msgs.length - 1];
@@ -891,9 +877,18 @@ function DmThreadPageInner() {
     if (!files?.length || !threadId || uploading || !uid || !online) return;
     const file = files[0];
     if (!file) return;
+    const problem = imAttachError(file, attachSlotRef.current);
+    if (problem) {
+      setErr(problem);
+      setPlusOpen(false);
+      return;
+    }
+    setErr(null);
     setPlusOpen(false);
     const previewUrl =
-      file.type.startsWith('image/') || file.type.startsWith('video/')
+      file.type.startsWith('image/')
+      || file.type.startsWith('video/')
+      || imAttachIsVideo(file)
         ? URL.createObjectURL(file)
         : null;
     setPending((prev) => {
@@ -1290,34 +1285,20 @@ function DmThreadPageInner() {
 
   return (
     <main className="dm-page">
-      <header className="dm-page-head">
-        <PageBackBar href="/discover" label="消息" />
-        <h1 className="dm-page-title">{title}</h1>
-        {!selectMode ? (
-          <div className="dm-page-actions">
-            <button
-              type="button"
-              className="icon-btn dm-page-search"
-              aria-label="搜索聊天记录"
-              onClick={() => setSearchOpen(true)}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
-                <path d="M16.2 16.2L20 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </button>
-            {peerUserId ? (
-              <Link href={`/discover/friends/${peerUserId}`} className="dm-page-profile text-link">
-                资料
-              </Link>
-            ) : (
-              <span className="dm-page-profile-slot" aria-hidden />
-            )}
-          </div>
-        ) : (
-          <span className="dm-page-profile-slot" aria-hidden />
-        )}
-      </header>
+      <ImThreadNav
+        className="dm-page-head"
+        title={title}
+        items={[
+          { id: 'search', label: '搜索聊天记录', onSelect: () => setSearchOpen(true) },
+          ...(peerUserId
+            ? [{
+                id: 'profile',
+                label: '资料',
+                onSelect: () => router.push(`/discover/friends/${peerUserId}`),
+              }]
+            : []),
+        ]}
+      />
 
       {selectMode ? (
         <div className="im-select-toolbar">
@@ -1341,7 +1322,7 @@ function DmThreadPageInner() {
         >
           <div ref={loadMoreRef} className="group-feed-load-sentinel" aria-hidden>
             {loadingMore ? <span className="muted">加载更早消息…</span> : null}
-            {!hasMore && msgs.length > 12 ? <span className="muted">没有更早消息了</span> : null}
+            {!hasMore && msgs.length > 0 ? <span className="muted">仅保留近 30 天</span> : null}
           </div>
           {threadBooting && msgs.length === 0 ? (
             <ImThreadSkeleton variant="dm" />
@@ -1628,9 +1609,11 @@ function DmThreadPageInner() {
         ) : null}
       </div>
 
-      <div
-        ref={composerBarRef}
-        className={`im-composer-bar dm-composer-dock im-composer-dock${plusOpen ? ' is-plus-open' : ''}${selectMode ? ' is-select-dock' : ''}`}
+      <ImComposerDock
+        barRef={composerBarRef}
+        className="dm-composer-dock"
+        plusOpen={plusOpen}
+        selectMode={selectMode}
       >
         {selectMode ? (
           <div className="im-select-dock">
@@ -1728,6 +1711,11 @@ function DmThreadPageInner() {
             disabled={!online || sending || uploading}
             aria-label={voiceMode ? '切换键盘' : '切换语音'}
             onClick={() => {
+              if (!voiceRecorderSupported()) {
+                setErr('当前浏览器不支持录音，请用键盘');
+                setVoiceMode(false);
+                return;
+              }
               setVoiceMode((v) => {
                 const next = !v;
                 if (next) {
@@ -1779,9 +1767,23 @@ function DmThreadPageInner() {
             <button
               type="button"
               className="im-plus-item"
+              onClick={() => {
+                setPlusOpen(false);
+                setVerseOpen(true);
+              }}
+            >
+              <span className="im-plus-icon" aria-hidden>
+                <IconVerse />
+              </span>
+              <span>经文</span>
+            </button>
+            <button
+              type="button"
+              className="im-plus-item"
               disabled={uploading || sending || !online}
               onClick={() => {
-                setPlusAccept('image/jpeg,image/png,image/webp,image/gif');
+                attachSlotRef.current = 'image';
+                setPlusAccept(imAttachAccept('image'));
                 setPlusOpen(false);
                 requestAnimationFrame(() => fileInputRef.current?.click());
               }}
@@ -1796,26 +1798,8 @@ function DmThreadPageInner() {
               className="im-plus-item"
               disabled={uploading || sending || !online}
               onClick={() => {
-                setPlusAccept(
-                  'video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/wav,audio/aac,audio/ogg,.mp4,.mov,.webm,.mp3,.m4a,.wav',
-                );
-                setPlusOpen(false);
-                requestAnimationFrame(() => fileInputRef.current?.click());
-              }}
-            >
-              <span className="im-plus-icon" aria-hidden>
-                <IconMic />
-              </span>
-              <span>音视频</span>
-            </button>
-            <button
-              type="button"
-              className="im-plus-item"
-              disabled={uploading || sending || !online}
-              onClick={() => {
-                setPlusAccept(
-                  'image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv',
-                );
+                attachSlotRef.current = 'doc';
+                setPlusAccept(imAttachAccept('doc'));
                 setPlusOpen(false);
                 requestAnimationFrame(() => fileInputRef.current?.click());
               }}
@@ -1842,11 +1826,11 @@ function DmThreadPageInner() {
           </>
         )}
         <ImVoiceRecordHud
-          open={Boolean(recording && useRecorder)}
+          open={recording}
           cancelArmed={cancelArmed}
-          elapsedSec={useRecorder ? recorder.elapsedSec : 0}
+          elapsedSec={recorder.elapsedSec}
         />
-      </div>
+      </ImComposerDock>
 
       {actionMsg && !actionMsg.recalled && actionItems.length > 0 ? (
         <ImMsgActionPopover
@@ -1911,6 +1895,18 @@ function DmThreadPageInner() {
           exitSelectMode();
         }}
         onDone={() => setErr(null)}
+      />
+
+      <ImVersePickSheet
+        open={verseOpen}
+        onClose={() => setVerseOpen(false)}
+        onSend={async ({ ref, body }) => {
+          if (!threadId) return;
+          if (!online) throw new Error('当前离线，联网后再发送');
+          await api.sendDm(threadId, { kind: 'verse', ref, body });
+          stickBottom.current = true;
+          await reload();
+        }}
       />
 
       <ImChatSearch

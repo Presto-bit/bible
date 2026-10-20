@@ -14,14 +14,14 @@ import {
   matchAtQuery,
   type PendingAttach,
 } from '@/lib/im_composer';
-import { displayMemberName } from '@/lib/group_ui';
+import { imAttachAccept, imAttachError, imAttachIsVideo, type ImAttachSlot } from '@/lib/im_attach_rules';
+import { ImComposerDock } from '@/components/social/ImComposerDock';
 import {
   useImComposerKeyboard,
   useImComposerHeightSync,
   scrollImChatToBottom,
   clearImKeyboardLift,
 } from '@/lib/use_im_composer_keyboard';
-import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import {
   formatVoiceDurationLabel,
   useVoiceRecorder,
@@ -30,6 +30,7 @@ import {
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
 import { ImVoiceRecordHud } from '@/components/social/ImVoiceRecordHud';
 import { MemberAvatar } from '@/components/group/MemberAvatar';
+import { displayMemberName } from '@/lib/group_ui';
 import {
   IconCheckin,
   IconClose,
@@ -40,7 +41,6 @@ import {
   IconMic,
   IconPlan,
   IconPlus,
-  IconPrayer,
   IconTask,
 } from '@/components/social/ImComposerIcons';
 
@@ -61,8 +61,8 @@ type Props = {
   /** 从草稿恢复回复条 */
   onRestoreReply?: (reply: { id: string; author: string; snippet: string }) => void;
   onOpenMode: (mode: ComposerActionMode) => void;
-  /** 打开代祷清单；compose=true 时直接进入新建 */
-  onOpenPrayer?: (opts?: { compose?: boolean }) => void;
+  onOpenWall?: () => void;
+  checkedInToday?: boolean;
   onChat?: (body: string, opts?: { mentions?: string[]; replyToId?: string }) => Promise<void>;
   onChatMedia?: (payload: {
     storage_key: string;
@@ -98,7 +98,8 @@ export function GroupComposerBar({
   onClearReply,
   onRestoreReply,
   onOpenMode,
-  onOpenPrayer,
+  onOpenWall,
+  checkedInToday = false,
   onChat,
   onChatMedia,
   getScrollEl,
@@ -126,7 +127,6 @@ export function GroupComposerBar({
   const barRef = useRef<HTMLElement | null>(null);
   const imageRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const avRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredRef = useRef<string | null>(null);
@@ -408,32 +408,6 @@ export function GroupComposerBar({
     }
   };
 
-  const sendVoice = async (spoken: string) => {
-    if (!allowChat || !onChat || locked || !spoken.trim()) return;
-    if (!online) {
-      setErr('当前离线，联网后再发送');
-      return;
-    }
-    const body = spoken.trim();
-    if (!body) return;
-    setErr(null);
-    setSending(true);
-    setPanelOpen(false);
-    try {
-      await onChat(body, {
-        mentions: mentionPayload(),
-        replyToId: replyTo?.id,
-      });
-      clearImDraft('group', gid);
-      clearMentions();
-      onClearReply?.();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSending(false);
-    }
-  };
-
   const sendVoiceFile = async (file: File, durationSec: number) => {
     if (!allowChat || !onChatMedia || locked) return;
     if (!online) {
@@ -482,28 +456,13 @@ export function GroupComposerBar({
     },
     onError: (msg) => setErr(msg),
   });
-  const stt = useHoldToTalk({
-    onResult: (t) => {
-      void sendVoice(t);
-    },
-    onUnsupported: () => {
-      setErr('当前浏览器不支持语音输入，请用键盘');
-      setVoiceMode(false);
-    },
-  });
-  const { recording, cancelArmed, startVoice, onVoiceMove, endVoice } = useRecorder
-    ? recorder
-    : stt;
-  const elapsedSec = useRecorder && 'elapsedSec' in recorder ? recorder.elapsedSec : 0;
+  const { recording, cancelArmed, startVoice, onVoiceMove, endVoice } = recorder;
+  const elapsedSec = recorder.elapsedSec;
   const voiceHoldLabel = recording
     ? cancelArmed
       ? '松开取消'
-      : useRecorder
-        ? `松开发送${elapsedSec ? ` ${elapsedSec}″` : ''} · 上滑取消`
-        : '松开发送 · 上滑取消'
-    : useRecorder
-      ? '按住 说话'
-      : '按住 说话（转文字）';
+      : `松开发送${elapsedSec ? ` ${elapsedSec}″` : ''} · 上滑取消`
+    : '按住 说话';
 
   const clearPending = () => {
     setPending((prev) => {
@@ -512,13 +471,22 @@ export function GroupComposerBar({
     });
   };
 
-  const queueFiles = (files: FileList | null) => {
+  const queueFiles = (files: FileList | null, slot: ImAttachSlot) => {
     if (!files?.length || !onChatMedia || locked) return;
     const file = files[0];
     if (!file) return;
+    const problem = imAttachError(file, slot);
+    if (problem) {
+      setErr(problem);
+      setPanelOpen(false);
+      return;
+    }
+    setErr(null);
     setPanelOpen(false);
     const previewUrl =
-      file.type.startsWith('image/') || file.type.startsWith('video/')
+      file.type.startsWith('image/')
+      || file.type.startsWith('video/')
+      || imAttachIsVideo(file)
         ? URL.createObjectURL(file)
         : null;
     setPending((prev) => {
@@ -607,11 +575,14 @@ export function GroupComposerBar({
   }, [sheetOpen]);
 
   return (
-    <footer
-      ref={(el) => {
+    <ImComposerDock
+      barRef={(el) => {
         barRef.current = el;
       }}
-      className={`im-composer-bar group-wechat-composer im-composer-dock${panelOpen ? ' is-plus-open' : ''}${showSuggest ? ' is-mention-open' : ''}${selectMode ? ' is-select-dock' : ''}`}
+      className="group-wechat-composer"
+      plusOpen={panelOpen}
+      mentionOpen={showSuggest}
+      selectMode={selectMode}
     >
       {selectMode ? (
         <div className="im-select-dock">
@@ -801,6 +772,11 @@ export function GroupComposerBar({
               disabled={!canType || sending || uploading}
               aria-label={voiceMode ? '切换键盘' : '切换语音'}
               onClick={() => {
+                if (!voiceRecorderSupported()) {
+                  setErr('当前浏览器不支持录音，请用键盘');
+                  setVoiceMode(false);
+                  return;
+                }
                 setVoiceMode((v) => {
                   const next = !v;
                   if (next) {
@@ -854,11 +830,44 @@ export function GroupComposerBar({
 
       {panelOpen ? (
         <div className="im-plus-panel" role="menu">
-          <button type="button" className="im-plus-item" onClick={() => openMode('checkin')}>
+          <button
+            type="button"
+            className="im-plus-item"
+            onClick={() => {
+              if (checkedInToday) {
+                setPanelOpen(false);
+                onOpenWall?.();
+                return;
+              }
+              openMode('checkin');
+            }}
+          >
             <span className="im-plus-icon" aria-hidden>
               <IconCheckin />
             </span>
-            <span>打卡</span>
+            <span>{checkedInToday ? '今日已打卡' : '打卡'}</span>
+          </button>
+          <button
+            type="button"
+            className="im-plus-item"
+            disabled={uploading || busy || sending || !allowChat || !online}
+            onClick={() => imageRef.current?.click()}
+          >
+            <span className="im-plus-icon" aria-hidden>
+              <IconImage />
+            </span>
+            <span>图片</span>
+          </button>
+          <button
+            type="button"
+            className="im-plus-item"
+            disabled={uploading || busy || sending || !allowChat || !online}
+            onClick={() => fileRef.current?.click()}
+          >
+            <span className="im-plus-icon" aria-hidden>
+              <IconFile />
+            </span>
+            <span>文件</span>
           </button>
           {canPostTask ? (
             <button type="button" className="im-plus-item" onClick={() => openMode('task')}>
@@ -876,91 +885,28 @@ export function GroupComposerBar({
               <span>群计划</span>
             </button>
           ) : null}
-          {onOpenPrayer ? (
-            <button
-              type="button"
-              className="im-plus-item"
-              onClick={() => {
-                setPanelOpen(false);
-                onOpenPrayer({ compose: true });
-              }}
-            >
-              <span className="im-plus-icon" aria-hidden>
-                <IconPrayer />
-              </span>
-              <span>代祷</span>
-            </button>
-          ) : null}
-          {allowChat && online ? (
-            <>
-              <button
-                type="button"
-                className="im-plus-item"
-                disabled={uploading || busy || sending}
-                onClick={() => imageRef.current?.click()}
-              >
-                <span className="im-plus-icon" aria-hidden>
-                  <IconImage />
-                </span>
-                <span>图片</span>
-              </button>
-              <button
-                type="button"
-                className="im-plus-item"
-                disabled={uploading || busy || sending}
-                onClick={() => avRef.current?.click()}
-              >
-                <span className="im-plus-icon" aria-hidden>
-                  <IconMic />
-                </span>
-                <span>音视频</span>
-              </button>
-              <button
-                type="button"
-                className="im-plus-item"
-                disabled={uploading || busy || sending}
-                onClick={() => fileRef.current?.click()}
-              >
-                <span className="im-plus-icon" aria-hidden>
-                  <IconFile />
-                </span>
-                <span>文件</span>
-              </button>
-            </>
-          ) : null}
         </div>
       ) : null}
 
       <input
         ref={imageRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept={imAttachAccept('image')}
         hidden
         tabIndex={-1}
         onChange={(e) => {
-          queueFiles(e.target.files);
-          e.target.value = '';
-        }}
-      />
-      <input
-        ref={avRef}
-        type="file"
-        accept="video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/wav,audio/aac,audio/ogg,.mp4,.mov,.webm,.mp3,.m4a,.wav"
-        hidden
-        tabIndex={-1}
-        onChange={(e) => {
-          queueFiles(e.target.files);
+          queueFiles(e.target.files, 'image');
           e.target.value = '';
         }}
       />
       <input
         ref={fileRef}
         type="file"
-        accept="application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv"
+        accept={imAttachAccept('doc')}
         hidden
         tabIndex={-1}
         onChange={(e) => {
-          queueFiles(e.target.files);
+          queueFiles(e.target.files, 'doc');
           e.target.value = '';
         }}
       />
@@ -971,6 +917,6 @@ export function GroupComposerBar({
         cancelArmed={cancelArmed}
         elapsedSec={elapsedSec}
       />
-    </footer>
+    </ImComposerDock>
   );
 }

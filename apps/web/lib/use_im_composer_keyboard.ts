@@ -119,6 +119,37 @@ export function teardownImViewportShell() {
   pinDocScroll();
 }
 
+/**
+ * 人在底部时，输入栏变高、消息变高、共读条开关都重新对齐到最后一条。
+ * 已经上翻则不动。
+ */
+export function usePinChatToLatest(
+  getEl: () => HTMLElement | null,
+  stickRef: { current: boolean },
+  watchKey: string,
+  enabled = true,
+) {
+  const getElRef = useRef(getEl);
+  getElRef.current = getEl;
+
+  useEffect(() => {
+    if (!enabled) return;
+    const el = getElRef.current();
+    if (!el) return;
+    const pin = () => {
+      if (!stickRef.current) return;
+      scrollImChatToBottom(el, { gentle: true });
+    };
+    pin();
+    const ro = new ResizeObserver(() => pin());
+    ro.observe(el);
+    for (const child of Array.from(el.children)) {
+      if (child instanceof HTMLElement) ro.observe(child);
+    }
+    return () => ro.disconnect();
+  }, [enabled, stickRef, watchKey]);
+}
+
 export function useImComposerHeightSync(
   barRef?: { current: HTMLElement | null },
 ) {

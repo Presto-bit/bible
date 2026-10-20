@@ -100,6 +100,34 @@
   min-width: 8px;
 }
 
+.discover-hub-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.discover-hub-search {
+  appearance: none;
+  border: 0;
+  background: var(--card, #f3f1ec);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--ink, #1a1a1a);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.discover-hub-search.is-open {
+  background: var(--accent-wash, #e8efe9);
+  color: var(--accent-deep, #2f4a3a);
+}
+
 .discover-hub-plus {
   appearance: none;
   border: 0;

@@ -44,6 +44,8 @@ type Props = {
   onMembersChanged: () => void;
   onDetailChanged?: () => void;
   onOpenPrayer?: () => void;
+  pinnedTaskTitle?: string | null;
+  onOpenPinnedTask?: () => void;
 };
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
@@ -106,6 +108,8 @@ export function GroupSettingsSheet({
   onMembersChanged,
   onDetailChanged,
   onOpenPrayer,
+  pinnedTaskTitle,
+  onOpenPinnedTask,
 }: Props) {
   const [pane, setPane] = useState<GroupSettingsPane>('home');
   const [chatBusy, setChatBusy] = useState(false);
@@ -203,6 +207,16 @@ export function GroupSettingsSheet({
                 onClick={() => {
                   onClose();
                   onOpenPrayer();
+                }}
+              />
+            ) : null}
+            {pinnedTaskTitle && onOpenPinnedTask ? (
+              <NavRow
+                label="置顶任务"
+                hint={pinnedTaskTitle}
+                onClick={() => {
+                  onClose();
+                  onOpenPinnedTask();
                 }}
               />
             ) : null}

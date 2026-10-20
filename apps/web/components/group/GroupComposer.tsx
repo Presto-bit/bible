@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, type GroupMember, type GroupTask } from '@/lib/api';
-import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_BODY_MAX, normalizeCheckinBody, buildCheckinRef } from '@/lib/group_checkin';
+import { api, type GeneratedPlan, type GroupMember, type GroupTask, type PlanSummary } from '@/lib/api';
+import { GROUP_CHECKIN_BODY_MAX, buildCheckinRef } from '@/lib/group_checkin';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
   COMPLETION_RULE_OPTIONS,
   DEFAULT_RULE_BY_TYPE,
-  DUE_PRESETS,
   GROUP_TASK_TEMPLATES,
-  GROUP_TASK_TYPES,
   resolveDueAt,
   type DuePreset,
   type GroupCompletionRule,
@@ -71,6 +70,11 @@ type Props = {
   }) => Promise<void>;
   /** 打开群设置（绑定共读计划） */
   onOpenSettings?: () => void;
+  plans?: PlanSummary[];
+  generatedPlans?: GeneratedPlan[];
+  boundPlanId?: string | null;
+  boundPlanTitle?: string | null;
+  onBindPlan?: (planId: string | null) => Promise<void>;
   /** 从加号入口进入时锁定模式，隐藏 Tab */
   forcedMode?: Mode;
 };
@@ -98,7 +102,11 @@ export function GroupComposer({
   onChatMedia,
   replyTo = null,
   onClearReply,
-  onOpenSettings,
+  plans = [],
+  generatedPlans = [],
+  boundPlanId,
+  boundPlanTitle,
+  onBindPlan,
   forcedMode,
 }: Props) {
   const canTask = canPostTask ?? isOwner;
@@ -124,7 +132,10 @@ export function GroupComposer({
   const [taskBody, setTaskBody] = useState('');
   const [taskType, setTaskType] = useState<GroupTaskType>('custom');
   const [completionRule, setCompletionRule] = useState<GroupCompletionRule>('checkin_text');
-  const [duePreset, setDuePreset] = useState<DuePreset>('days3');
+  const [duePreset, setDuePreset] = useState<DuePreset>('today');
+  const [taskMore, setTaskMore] = useState(false);
+  const [pickRefOpen, setPickRefOpen] = useState(false);
+  const [bindingPlan, setBindingPlan] = useState(false);
   const [templateId, setTemplateId] = useState<string | undefined>();
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<PendingAttach[]>([]);
@@ -172,8 +183,11 @@ export function GroupComposer({
       taskTitle: taskTitleParam || undefined,
     }).then((refs) => {
       setFootprints(refs);
+      const fromPlan = refs.find((f) => f.source === 'plan');
       const fromTask = refs.find((f) => f.source === 'task');
-      if (fromTask) {
+      if (!taskId && fromPlan) {
+        setSelectedRef(fromPlan.ref);
+      } else if (fromTask) {
         setSelectedRef(fromTask.ref);
       }
       if (taskId) {
@@ -201,7 +215,8 @@ export function GroupComposer({
     setTaskBody('');
     setTaskType('custom');
     setCompletionRule('checkin_text');
-    setDuePreset('days3');
+    setDuePreset('today');
+    setTaskMore(false);
     setTemplateId(undefined);
     setAssigneeIds([]);
     setAttachments([]);
@@ -217,7 +232,7 @@ export function GroupComposer({
       await onCheckin({
         ref: effectiveRef || undefined,
         task_id: selectedTaskId || undefined,
-        body: normalizeCheckinBody(body),
+        body: body.trim() || undefined,
       });
       resetCheckin();
     } catch (e) {
@@ -294,7 +309,7 @@ export function GroupComposer({
         series_due_hours: 24,
       });
       resetTaskForm();
-      setMode('checkin');
+      if (!forcedMode) setMode('checkin');
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
@@ -381,6 +396,26 @@ export function GroupComposer({
     }
   };
 
+  const planOptions = [
+    ...plans.map((p) => ({ id: p.plan_id, title: p.title })),
+    ...generatedPlans
+      .filter((p) => !plans.some((x) => x.plan_id === p.id))
+      .map((p) => ({ id: p.id, title: p.title })),
+  ];
+
+  const bindPlan = async (planId: string | null) => {
+    if (!onBindPlan || bindingPlan) return;
+    setBindingPlan(true);
+    setErr(null);
+    try {
+      await onBindPlan(planId);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '绑定失败');
+    } finally {
+      setBindingPlan(false);
+    }
+  };
+
   const hideTabs = Boolean(forcedMode);
 
   return (
@@ -426,16 +461,32 @@ export function GroupComposer({
 
       {mode === 'plan' ? (
         <div className="group-composer-section">
-          <p className="muted" style={{ marginTop: 0, lineHeight: 1.5 }}>
-            主/管可在群设置中绑定共读计划；绑定后全员可见今日进度。
-          </p>
-          <button
-            type="button"
-            className="btn btn-block"
-            onClick={() => onOpenSettings?.()}
-          >
-            打开群设置绑定计划
-          </button>
+          <p className="group-composer-label">当前计划</p>
+          <p className="group-checkin-ref">{boundPlanTitle?.trim() || '未绑定'}</p>
+          <div className="chip-swipe group-chip-swipe">
+            <button
+              type="button"
+              className={`group-chip chip-swipe-item${!boundPlanId ? ' selected' : ''}`}
+              disabled={bindingPlan}
+              onClick={() => void bindPlan(null)}
+            >
+              不绑定
+            </button>
+            {planOptions.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`group-chip chip-swipe-item${boundPlanId === p.id ? ' selected' : ''}`}
+                disabled={bindingPlan}
+                onClick={() => void bindPlan(p.id)}
+              >
+                {p.title}
+              </button>
+            ))}
+          </div>
+          {planOptions.length === 0 ? (
+            <p className="muted">还没有可绑定的计划。</p>
+          ) : null}
         </div>
       ) : null}
 
@@ -526,9 +577,46 @@ export function GroupComposer({
 
       {mode === 'checkin' ? (
         <>
-          {openTasks.length > 0 && (
+          <div className="group-composer-section">
+            <div className="group-composer-label">经文</div>
+            <p className={effectiveRef ? 'group-checkin-ref' : 'muted'}>
+              {effectiveRef ? formatGroupRefLabel(effectiveRef) : '先选一节经文'}
+            </p>
+            <button type="button" className="text-link" onClick={() => setPickRefOpen((v) => !v)}>
+              {pickRefOpen ? '收起' : '换一节'}
+            </button>
+            {pickRefOpen ? (
+              footprintGroups.length > 0 ? (
+                footprintGroups.map((g) => (
+                  <div key={g.source} className="group-footprint-group">
+                    <span className="group-footprint-source">{g.label}</span>
+                    <div className="chip-swipe group-chip-swipe">
+                      {g.items.map((f) => (
+                        <button
+                          key={`${f.source}-${f.ref}`}
+                          type="button"
+                          className={`group-chip chip-swipe-item${selectedRef === f.ref ? ' selected' : ''}`}
+                          onClick={() => {
+                            setSelectedRef(f.ref);
+                            setSelectedTaskId(null);
+                            setPickRefOpen(false);
+                          }}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="muted">读过或收藏的经节会出现在这里。</p>
+              )
+            ) : null}
+          </div>
+
+          {openTasks.length > 0 ? (
             <div className="group-composer-section">
-              <div className="group-composer-label">关联任务</div>
+              <div className="group-composer-label">挂到这个任务</div>
               <div className="chip-swipe group-chip-swipe">
                 {openTasks.map((t) => (
                   <button
@@ -536,8 +624,9 @@ export function GroupComposer({
                     type="button"
                     className={`group-chip chip-swipe-item${selectedTaskId === t.id ? ' selected' : ''}`}
                     onClick={() => {
-                      setSelectedTaskId(selectedTaskId === t.id ? null : t.id);
-                      if (selectedTaskId !== t.id) setSelectedRef(null);
+                      const next = selectedTaskId === t.id ? null : t.id;
+                      setSelectedTaskId(next);
+                      if (next) setSelectedRef(null);
                     }}
                   >
                     {t.title}
@@ -545,70 +634,24 @@ export function GroupComposer({
                 ))}
               </div>
             </div>
-          )}
-
-          <div className="group-composer-section">
-            <div className="group-composer-label">关联经文</div>
-            {footprintGroups.length > 0 ? (
-              footprintGroups.map((g) => (
-                <div key={g.source} className="group-footprint-group">
-                  <span className="group-footprint-source">{g.label}</span>
-                  <div className="chip-swipe group-chip-swipe">
-                    {g.items.map((f) => (
-                      <button
-                        key={`${f.source}-${f.ref}`}
-                        type="button"
-                        className={`group-chip chip-swipe-item${selectedRef === f.ref ? ' selected' : ''}`}
-                        onClick={() => {
-                          setSelectedRef(selectedRef === f.ref ? null : f.ref);
-                          if (selectedRef !== f.ref) setSelectedTaskId(null);
-                        }}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="muted" style={{ fontSize: 12, margin: '4px 0' }}>
-                读经或收藏经节后，会出现在这里供快速关联。
-              </p>
-            )}
-          </div>
-
-          <div className="group-composer-section">
-            <div className="group-composer-label">快捷感想</div>
-            <div className="chip-swipe group-chip-swipe">
-              {GROUP_CHECKIN_CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`group-chip chip-swipe-item${body === chip ? ' selected' : ''}`}
-                  onClick={() => onBodyInput(body === chip ? '' : chip)}
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
-          </div>
+          ) : null}
 
           <div className="group-composer-section group-composer-section-compose">
             <div className="group-composer-label-row">
-              <span className="group-composer-label">写感想</span>
+              <span className="group-composer-label">写一句</span>
               <span className="muted group-composer-char-count">{body.length}/{GROUP_CHECKIN_BODY_MAX}</span>
             </div>
             <textarea
               key={bodyNonce}
               className="group-composer-text search-input compose-textarea"
-              rows={3}
-              placeholder="写下今天的感受（可选）"
+              rows={2}
+              placeholder="可空。空着只发经文"
               value={body}
               maxLength={GROUP_CHECKIN_BODY_MAX}
               onChange={(e) => onBodyInput(e.target.value)}
             />
           </div>
-
+          {!canSendCheckin ? <p className="muted">先选一节经文</p> : null}
           <button
             type="button"
             className="btn group-composer-send"
@@ -619,7 +662,9 @@ export function GroupComposer({
             {busy ? '发送中…' : '发送打卡'}
           </button>
         </>
-      ) : (
+      ) : null}
+
+      {mode === 'task' ? (
         <>
           <div className="chip-swipe group-chip-swipe" style={{ marginBottom: 8 }}>
             {GROUP_TASK_TEMPLATES.map((t) => (
@@ -639,203 +684,220 @@ export function GroupComposer({
               </button>
             ))}
           </div>
-
-          <div className="group-composer-section">
-            <div className="group-composer-label">类型</div>
-            <div className="chip-swipe group-chip-swipe">
-              {GROUP_TASK_TYPES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`group-chip chip-swipe-item${taskType === t.id ? ' selected' : ''}`}
-                  onClick={() => {
-                    setTemplateId(undefined);
-                    applyType(t.id);
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <input
             className="search-input"
             placeholder="任务标题"
             value={taskTitle}
             onChange={(e) => setTaskTitle(e.target.value)}
           />
-          <input
-            className="search-input"
-            style={{ marginTop: 8 }}
-            placeholder="关联经文（可选，如 JHN.3）"
-            value={taskRef}
-            onChange={(e) => setTaskRef(e.target.value)}
-          />
-          <textarea
-            className="group-composer-text search-input compose-textarea"
-            style={{ marginTop: 8 }}
-            rows={2}
-            placeholder="说明（可选）"
-            value={taskBody}
-            maxLength={2000}
-            onChange={(e) => setTaskBody(e.target.value.slice(0, 2000))}
-          />
-
-          <div className="group-composer-section" style={{ marginTop: 10 }}>
+          <div className="group-composer-section">
+            <div className="group-composer-label">经文</div>
+            <p className={taskRef ? 'group-checkin-ref' : 'muted'}>
+              {taskRef ? formatGroupRefLabel(taskRef) : '不关联经文'}
+            </p>
+            <button type="button" className="text-link" onClick={() => setPickRefOpen((v) => !v)}>
+              {pickRefOpen ? '收起' : '选择经文'}
+            </button>
+            {pickRefOpen ? (
+              footprintGroups.length > 0 ? (
+                footprintGroups.map((g) => (
+                  <div key={`task-${g.source}`} className="group-footprint-group">
+                    <span className="group-footprint-source">{g.label}</span>
+                    <div className="chip-swipe group-chip-swipe">
+                      {g.items.map((f) => (
+                        <button
+                          key={`task-${f.source}-${f.ref}`}
+                          type="button"
+                          className={`group-chip chip-swipe-item${taskRef === f.ref ? ' selected' : ''}`}
+                          onClick={() => {
+                            setTaskRef(f.ref);
+                            setPickRefOpen(false);
+                          }}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="muted">读过或收藏的经节会出现在这里。</p>
+              )
+            ) : null}
+            {taskRef ? (
+              <button type="button" className="text-link" onClick={() => setTaskRef('')}>
+                不关联经文
+              </button>
+            ) : null}
+          </div>
+          <div className="group-composer-section">
             <div className="group-composer-label">截止</div>
             <div className="chip-swipe group-chip-swipe">
-              {DUE_PRESETS.map((p) => (
+              {([
+                ['today', '今天'],
+                ['days3', '三天后'],
+                ['none', '不设'],
+              ] as const).map(([id, label]) => (
                 <button
-                  key={p.id}
+                  key={id}
                   type="button"
-                  className={`group-chip chip-swipe-item${duePreset === p.id ? ' selected' : ''}`}
-                  onClick={() => setDuePreset(p.id)}
+                  className={`group-chip chip-swipe-item${duePreset === id ? ' selected' : ''}`}
+                  onClick={() => setDuePreset(id)}
                 >
-                  {p.label}
+                  {label}
                 </button>
               ))}
             </div>
           </div>
-
-          <div className="group-composer-section">
-            <div className="group-composer-label">完成标准</div>
-            <div className="chip-swipe group-chip-swipe">
-              {COMPLETION_RULE_OPTIONS.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  className={`group-chip chip-swipe-item${completionRule === r.id ? ' selected' : ''}`}
-                  onClick={() => setCompletionRule(r.id)}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {members.length > 0 && (
-            <div className="group-composer-section">
-              <div className="group-composer-label">指派（空=全群）</div>
-              <div className="chip-swipe group-chip-swipe">
-                {members
-                  .filter((m) => m.user_id)
-                  .map((m) => (
+          <button type="button" className="text-link" onClick={() => setTaskMore((v) => !v)}>
+            {taskMore ? '收起更多' : '更多'}
+          </button>
+          {taskMore ? (
+            <>
+              <textarea
+                className="group-composer-text search-input compose-textarea"
+                style={{ marginTop: 8 }}
+                rows={2}
+                placeholder="说明（可选）"
+                value={taskBody}
+                maxLength={2000}
+                onChange={(e) => setTaskBody(e.target.value.slice(0, 2000))}
+              />
+              <div className="group-composer-section">
+                <div className="group-composer-label">完成方式</div>
+                <div className="chip-swipe group-chip-swipe">
+                  {COMPLETION_RULE_OPTIONS.map((r) => (
                     <button
-                      key={m.user_id}
+                      key={r.id}
                       type="button"
-                      className={`group-chip chip-swipe-item${assigneeIds.includes(m.user_id!) ? ' selected' : ''}`}
-                      onClick={() => toggleAssignee(m.user_id!)}
+                      className={`group-chip chip-swipe-item${completionRule === r.id ? ' selected' : ''}`}
+                      onClick={() => setCompletionRule(r.id)}
                     >
-                      {m.name}
+                      {r.label}
                     </button>
                   ))}
+                </div>
               </div>
-            </div>
-          )}
-
-          <div className="group-composer-section">
-            <div className="group-composer-label-row">
-              <span className="group-composer-label">附件（图片/PDF，最多 3）</span>
-              <label className="font-pill" style={{ cursor: uploading ? 'wait' : 'pointer' }}>
-                {uploading ? '上传中…' : '添加'}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  multiple
-                  hidden
-                  disabled={uploading || attachments.length >= 3}
-                  onChange={(e) => {
-                    void onPickFiles(e.target.files);
-                    e.target.value = '';
-                  }}
-                />
-              </label>
-            </div>
-            {attachments.length > 0 && (
-              <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12 }}>
-                {attachments.map((a) => (
-                  <li key={a.url}>
-                    {a.file_name}
-                    <button
-                      type="button"
-                      className="muted"
-                      style={{ marginLeft: 8, border: 0, background: 'none', cursor: 'pointer' }}
-                      onClick={() => setAttachments((prev) => prev.filter((x) => x.url !== a.url))}
-                    >
-                      移除
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="group-composer-section">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-              <input
-                type="checkbox"
-                checked={seriesDays >= 2}
-                onChange={(e) => setSeriesDays(e.target.checked ? 7 : 0)}
-              />
-              系列任务（按天解锁）
-            </label>
-            {seriesDays >= 2 && (
-              <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                共{' '}
-                <input
-                  type="number"
-                  min={2}
-                  max={30}
-                  value={seriesDays}
-                  onChange={(e) => setSeriesDays(Math.max(2, Math.min(30, Number(e.target.value) || 2)))}
-                  style={{ width: 52 }}
-                />{' '}
-                天 · 每天截止 24 小时
-              </p>
-            )}
-          </div>
-
-          <div className="group-composer-section">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-              <input
-                type="checkbox"
-                checked={scheduleLater}
-                onChange={(e) => setScheduleLater(e.target.checked)}
-              />
-              定时发布
-            </label>
-            {scheduleLater && (
-              <input
-                type="datetime-local"
-                className="search-input"
-                style={{ marginTop: 6 }}
-                value={publishLocal}
-                onChange={(e) => setPublishLocal(e.target.value)}
-              />
-            )}
-          </div>
-
+              {members.length > 0 ? (
+                <div className="group-composer-section">
+                  <div className="group-composer-label">指派（空=全群）</div>
+                  <div className="chip-swipe group-chip-swipe">
+                    {members.filter((m) => m.user_id).map((m) => (
+                      <button
+                        key={m.user_id}
+                        type="button"
+                        className={`group-chip chip-swipe-item${assigneeIds.includes(m.user_id!) ? ' selected' : ''}`}
+                        onClick={() => toggleAssignee(m.user_id!)}
+                      >
+                        {m.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <div className="group-composer-section">
+                <div className="group-composer-label-row">
+                  <span className="group-composer-label">附件（图片/PDF，最多 3）</span>
+                  <label className="font-pill" style={{ cursor: uploading ? 'wait' : 'pointer' }}>
+                    {uploading ? '上传中…' : '添加'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      multiple
+                      hidden
+                      disabled={uploading || attachments.length >= 3}
+                      onChange={(e) => {
+                        void onPickFiles(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+                {attachments.length > 0 ? (
+                  <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12 }}>
+                    {attachments.map((a) => (
+                      <li key={a.url}>
+                        {a.file_name}
+                        <button
+                          type="button"
+                          className="muted"
+                          style={{ marginLeft: 8, border: 0, background: 'none', cursor: 'pointer' }}
+                          onClick={() => setAttachments((prev) => prev.filter((x) => x.url !== a.url))}
+                        >
+                          移除
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+              <div className="group-composer-section">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={seriesDays >= 2}
+                    onChange={(e) => setSeriesDays(e.target.checked ? 7 : 0)}
+                  />
+                  连续几天
+                </label>
+                {seriesDays >= 2 ? (
+                  <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                    共{' '}
+                    <input
+                      type="number"
+                      min={2}
+                      max={30}
+                      value={seriesDays}
+                      onChange={(e) => setSeriesDays(Math.max(2, Math.min(30, Number(e.target.value) || 2)))}
+                      style={{ width: 52 }}
+                    />{' '}
+                    天
+                  </p>
+                ) : null}
+              </div>
+              <div className="group-composer-section">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={scheduleLater}
+                    onChange={(e) => setScheduleLater(e.target.checked)}
+                  />
+                  定时发布
+                </label>
+                {scheduleLater ? (
+                  <input
+                    type="datetime-local"
+                    className="search-input"
+                    style={{ marginTop: 6 }}
+                    value={publishLocal}
+                    onChange={(e) => setPublishLocal(e.target.value)}
+                  />
+                ) : null}
+              </div>
+            </>
+          ) : null}
           <button
             type="button"
             className="btn group-composer-send"
-            style={{ background: 'var(--gold)' }}
             disabled={!canSendTask || busy}
             onClick={sendTask}
           >
             {busy ? '发布中…' : seriesDays >= 2 ? `发布系列（${seriesDays} 天）` : scheduleLater ? '预约发布' : '发布任务'}
           </button>
-          {groupName ? (
-            <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>发布到「{groupName}」</p>
-          ) : null}
         </>
-      )}
+      ) : null}
 
       {err && mode !== 'chat' ? <p className="group-composer-err" role="alert">{err}</p> : null}
       <p className="group-composer-hint muted">
-        {allowChat
-          ? '可发闲聊、图片与 PDF/Office；打卡请挂经文或任务'
-          : '本群已关闭闲聊，可发打卡与任务'}
+        {mode === 'checkin'
+          ? '打卡需要挂上经文或任务'
+          : mode === 'task'
+            ? '任务发给全员。完成方式、指派和定时在「更多」里'
+            : mode === 'plan'
+              ? '点选后立即绑定到本群'
+              : allowChat
+                ? '可发文字、图片、视频和文件'
+                : '本群已关闭闲聊，可发打卡与任务'}
       </p>
     </div>
   );

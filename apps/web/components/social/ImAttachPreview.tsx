@@ -1,6 +1,7 @@
 'use client';
 
 import { formatFileSize, type PendingAttach } from '@/lib/im_composer';
+import { imAttachIsVideo } from '@/lib/im_attach_rules';
 import { IconFile } from '@/components/social/ImComposerIcons';
 
 type Props = {
@@ -23,8 +24,8 @@ export function ImAttachPreview({
   onConfirm,
 }: Props) {
   const { file, previewUrl } = pending;
-  const isImg = file.type.startsWith('image/');
-  const isVideo = file.type.startsWith('video/');
+  const isVideo = file.type.startsWith('video/') || imAttachIsVideo(file);
+  const isImg = !isVideo && file.type.startsWith('image/');
   const isAudio = file.type.startsWith('audio/');
 
   return (
@@ -35,6 +36,8 @@ export function ImAttachPreview({
           <img src={previewUrl} alt="" className="im-attach-preview-thumb" />
         ) : isVideo && previewUrl ? (
           <video src={previewUrl} className="im-attach-preview-thumb" muted playsInline preload="metadata" />
+        ) : isAudio && previewUrl ? (
+          <audio src={previewUrl} controls preload="metadata" className="im-attach-preview-audio" />
         ) : (
           <div className="im-attach-preview-file">
             <IconFile />
