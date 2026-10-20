@@ -12,6 +12,7 @@ import { getUserName } from '@/lib/api';
 import { clientWithBasePath } from '@/lib/basePath';
 import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 import { openExternalBrowser } from '@/lib/external_browser';
+import { friendlyError } from '@/lib/friendly_error';
 
 const G50_HOST = 'genesis-50.pages.dev';
 const HEBREWS30_HOST = 'hebrews-30.pages.dev';
@@ -19,6 +20,10 @@ const HEBREWS30_HOST = 'hebrews-30.pages.dev';
 /** 走同一 Supabase 邀请码鉴权的外站域名 */
 const INVITE_CAMPAIGN_HOSTS = [G50_HOST, HEBREWS30_HOST] as const;
 const G50_SUPABASE_URL = 'https://ytiwfmufekvxdgyaokae.supabase.co';
+/** 与安卓一致：先走彼爱同源转发，避免新系统 Safari 直连 Supabase 预检被掐成 Load failed */
+const INVITE_PROXY_API = '/campaigns/embed/hebrews-30/api';
+const INVITE_NETWORK_ERROR = '网络不太稳定，请检查连接后重试';
+const INVITE_CREDENTIAL_ERROR = '邀请码不正确';
 /** 同源桥接页：安卓 WebView 先打开彼爱域，再 replace 到外站（与 PWA iframe 鉴权同路径） */
 export const GENESIS50_BRIDGE_PATH = '/campaigns/genesis-50/enter';
 /** 对方前端公开 anon key（与 genesis-50 包内一致） */
@@ -48,12 +53,71 @@ function normalizeHref(href: string): string {
   return normalizeGenesis50Href(href);
 }
 
-function authHeaders(): HeadersInit {
+function authHeaders(bearer?: string): Record<string, string> {
   return {
     apikey: G50_ANON_KEY,
-    Authorization: `Bearer ${G50_ANON_KEY}`,
+    Authorization: `Bearer ${bearer || G50_ANON_KEY}`,
     'Content-Type': 'application/json',
   };
+}
+
+type InviteAuthPayload = Partial<G50Session> & {
+  error?: string;
+  error_description?: string;
+  msg?: string;
+  message?: string;
+};
+
+function inviteAuthBases(): string[] {
+  const proxy = clientWithBasePath(INVITE_PROXY_API).replace(/\/$/, '');
+  return proxy === G50_SUPABASE_URL ? [G50_SUPABASE_URL] : [proxy, G50_SUPABASE_URL];
+}
+
+/** 代理已经问到 Supabase 并得到明确拒绝时，不再改走直连。 */
+function isDefinitiveAuthStatus(status: number): boolean {
+  return status === 400 || status === 401 || status === 403 || status === 409 || status === 422;
+}
+
+async function readAuthPayload(res: Response): Promise<InviteAuthPayload> {
+  try {
+    return (await res.json()) as InviteAuthPayload;
+  } catch {
+    return {};
+  }
+}
+
+function sessionFromPayload(data: InviteAuthPayload): G50Session | null {
+  if (!data.access_token || !data.refresh_token) return null;
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_in: data.expires_in,
+    expires_at: data.expires_at,
+    token_type: data.token_type,
+  };
+}
+
+async function postInviteAuth(
+  path: string,
+  body: unknown,
+  headers: Record<string, string>,
+): Promise<{ res: Response; data: InviteAuthPayload }> {
+  for (const base of inviteAuthBases()) {
+    try {
+      const res = await fetch(`${base}${path}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        cache: 'no-store',
+      });
+      if (res.ok || isDefinitiveAuthStatus(res.status)) {
+        return { res, data: await readAuthPayload(res) };
+      }
+    } catch {
+      /* 连接被掐断时换下一条；凭证错误已在上面返回 */
+    }
+  }
+  throw new Error(INVITE_NETWORK_ERROR);
 }
 
 function isInviteCampaignHost(hostname: string): boolean {
@@ -179,65 +243,60 @@ function guessNickname(): string {
 }
 
 async function signInWithInvite(code: string): Promise<G50Session> {
-  const res = await fetch(`${G50_SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({
-      email: inviteEmail(code),
-      password: invitePassword(code),
-    }),
-  });
-  const data = (await res.json()) as G50Session & {
-    error?: string;
-    error_description?: string;
-    msg?: string;
-  };
-  if (!res.ok || !data.access_token || !data.refresh_token) {
-    throw new Error(data.error_description || data.msg || data.error || '登录失败');
-  }
-  return data;
+  const { res, data } = await postInviteAuth(
+    '/auth/v1/token?grant_type=password',
+    { email: inviteEmail(code), password: invitePassword(code) },
+    authHeaders(),
+  );
+  const session = sessionFromPayload(data);
+  if (res.ok && session) return session;
+  if (isDefinitiveAuthStatus(res.status)) throw new Error(INVITE_CREDENTIAL_ERROR);
+  throw new Error(INVITE_NETWORK_ERROR);
 }
 
 async function signUpWithInvite(code: string, nickname: string): Promise<G50Session> {
-  const res = await fetch(`${G50_SUPABASE_URL}/auth/v1/signup`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({
+  const { res, data } = await postInviteAuth(
+    '/auth/v1/signup',
+    {
       email: inviteEmail(code),
       password: invitePassword(code),
       data: { nickname },
-    }),
-  });
-  const data = (await res.json()) as G50Session & {
-    user?: { id?: string };
-    error?: string;
-    error_description?: string;
-    msg?: string;
-    message?: string;
-  };
-  if (!res.ok || !data.access_token || !data.refresh_token) {
-    throw new Error(
-      data.error_description || data.msg || data.message || data.error || '注册失败',
-    );
+    },
+    authHeaders(),
+  );
+  const session = sessionFromPayload(data);
+  if (!res.ok || !session) {
+    if (isDefinitiveAuthStatus(res.status)) throw new Error(INVITE_CREDENTIAL_ERROR);
+    throw new Error(INVITE_NETWORK_ERROR);
   }
   // 对方站点注册后会调 complete_registration；尽量补齐，失败不阻断进入
   try {
-    await fetch(`${G50_SUPABASE_URL}/rest/v1/rpc/complete_registration`, {
-      method: 'POST',
-      headers: {
-        ...authHeaders(),
-        Authorization: `Bearer ${data.access_token}`,
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({
+    await postInviteAuth(
+      '/rest/v1/rpc/complete_registration',
+      {
         invite_code: code.trim().toUpperCase(),
         user_nickname: nickname.trim() || '同行者',
-      }),
-    });
+      },
+      {
+        ...authHeaders(session.access_token),
+        Prefer: 'return=minimal',
+      },
+    );
   } catch {
     /* ignore */
   }
-  return data;
+  return session;
+}
+
+export function inviteCampaignEnterErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? '');
+  if (raw.includes(INVITE_CREDENTIAL_ERROR)) return INVITE_CREDENTIAL_ERROR;
+  const friendly = friendlyError(err, '进入失败，请检查邀请码后重试');
+  if (friendly === INVITE_NETWORK_ERROR) return friendly;
+  if (/invalid login|invalid_grant|credential|unauthorized|登录失败|注册失败/i.test(raw)) {
+    return INVITE_CREDENTIAL_ERROR;
+  }
+  return friendly;
 }
 
 export function buildGenesis50AuthedUrl(href: string, session: G50Session): string {

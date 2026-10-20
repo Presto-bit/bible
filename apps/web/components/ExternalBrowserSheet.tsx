@@ -13,6 +13,7 @@ import {
 } from '@/lib/external_browser';
 import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
 import {
+  inviteCampaignEnterErrorMessage,
   readRememberedGenesis50InviteCode,
   resolveInviteCampaignEnterUrl,
 } from '@/lib/genesis50_auth';
@@ -179,7 +180,7 @@ export default function ExternalBrowserSheet() {
       }));
       setFrameBlocked(false);
     } catch (err) {
-      setInviteError(err instanceof Error ? err.message : '进入失败，请检查邀请码后重试');
+      setInviteError(inviteCampaignEnterErrorMessage(err));
     } finally {
       setInviteBusy(false);
     }
