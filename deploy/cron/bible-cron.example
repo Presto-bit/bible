@@ -1,0 +1,18 @@
+# 彼爱生产 cron 示例（服务器 crontab -e 合并；密钥用环境变量，勿提交真 secret）
+# 依赖：curl、API 本机 8011、PUSH_CRON_SECRET
+
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# 消息 30 天清理：每天 04:20（中国时间需自行 TZ）
+20 4 * * * curl -fsS -X POST -H "X-Cron-Secret: ${PUSH_CRON_SECRET}" http://127.0.0.1:8011/social/retention/run >> /var/log/bible-retention.log 2>&1
+
+# 每日经文暖场：6:00–23:00 每 30 分钟（后台需开启暖场；一键：deploy/cron/install_cron.sh）
+*/30 6-22 * * * curl -fsS -X POST -H "X-Cron-Secret: ${PUSH_CRON_SECRET}" http://127.0.0.1:8011/content/cron/daily-verse-warm >> /var/log/bible-daily-verse-warm.log 2>&1
+0 23 * * * curl -fsS -X POST -H "X-Cron-Secret: ${PUSH_CRON_SECRET}" http://127.0.0.1:8011/content/cron/daily-verse-warm >> /var/log/bible-daily-verse-warm.log 2>&1
+
+# 推送 digest 兜底 tick（若未跑 api-worker 内嵌 digest，可每分钟唤一次）
+# * * * * * curl -fsS -X POST -H "X-Cron-Secret: ${PUSH_CRON_SECRET}" http://127.0.0.1:8011/push/cron/tick >> /var/log/bible-digest-tick.log 2>&1
+
+# Web 探活（也可由 deploy/harden_runtime.sh 安装）
+# * * * * * /opt/bible/deploy/web_watchdog.sh # bible-web-watchdog
