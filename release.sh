@@ -20,6 +20,7 @@
 #   STRICT_PUBLIC=0|1      默认 1：重建 web 后公网 app-version/sw 必须与本机一致，否则失败
 #   SKIP_PUBLIC_CHECK=1    跳过全部公网检查（证书过期/本机无法回环公网时临时用；不代替修 SSL）
 #   RECREATE_WEB=0|1       默认 1：重建 web 镜像后 --force-recreate 容器（避免旧进程挂着）
+#   INSTALL_BIBLE_CRON=0|1  默认 1：同步消息 30 天清理 + 每日经文暖场 crontab（需 PUSH_CRON_SECRET）
 #   INSTALL_HIJACK_CRON=1  安装每分钟劫持探测+自愈 cron（默认 0）
 #   SKIP_SW_CHECK=1        跳过 SW 烙印 / Cache-Control 门禁（默认 0；紧急回滚时可开）
 #   SKIP_CONTENT_DATA=1    跳过 post_deploy 内容 SQLite（无构建发版时默认自动开启）
@@ -49,6 +50,7 @@ WEB_BUILD_NO_CACHE="${WEB_BUILD_NO_CACHE:-0}"
 FORCE_FULL="${FORCE_FULL:-0}"
 STRICT_PUBLIC="${STRICT_PUBLIC:-1}"
 RECREATE_WEB="${RECREATE_WEB:-1}"
+INSTALL_BIBLE_CRON="${INSTALL_BIBLE_CRON:-1}"
 INSTALL_HIJACK_CRON="${INSTALL_HIJACK_CRON:-0}"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.production"
@@ -340,7 +342,7 @@ if [[ "${RELEASE_BOOTSTRAPPED:-0}" != "1" && "$(id -un)" != "$DEPLOY_USER" ]]; t
      ALLOW_DIRTY='$ALLOW_DIRTY' WEB_BUILD_NO_CACHE='$WEB_BUILD_NO_CACHE' \
      FORCE_FULL='$FORCE_FULL' BUILD_API='${BUILD_API:-}' BUILD_WEB='${BUILD_WEB:-}' \
      STRICT_PUBLIC='${STRICT_PUBLIC:-1}' RECREATE_WEB='${RECREATE_WEB:-1}' \
-     INSTALL_HIJACK_CRON='$INSTALL_HIJACK_CRON' SKIP_SW_CHECK='${SKIP_SW_CHECK:-0}' \
+     INSTALL_BIBLE_CRON='${INSTALL_BIBLE_CRON:-1}' INSTALL_HIJACK_CRON='$INSTALL_HIJACK_CRON' SKIP_SW_CHECK='${SKIP_SW_CHECK:-0}' \
      NEXT_PUBLIC_APP_VERSION='${NEXT_PUBLIC_APP_VERSION:-}' RELEASE_BOOTSTRAPPED=1 \
      bash '$release_script'"
 fi
@@ -873,6 +875,30 @@ log "若前有 Nginx/CDN，请确认 / 与 /sw.js 不缓存（见 DEPLOYMENT.md 
 # 记录成功发版 SHA，供下次增量构建
 git rev-parse HEAD > "$RELEASE_SHA_FILE" || true
 log "  ✓ 已写入 $RELEASE_SHA_FILE=$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+
+if [[ "$INSTALL_BIBLE_CRON" == "1" ]]; then
+  cron_installer="$APP_DIR/deploy/cron/install_cron.sh"
+  cron_secret_lib="$APP_DIR/deploy/cron/push_cron_secret.sh"
+  if [[ ! -f "$cron_installer" ]] || [[ ! -f "$cron_secret_lib" ]]; then
+    log "⚠️  缺少 deploy/cron/install_cron.sh 或 push_cron_secret.sh，跳过 cron 同步"
+  elif ! command -v crontab >/dev/null 2>&1; then
+    log "⚠️  未安装 crontab 命令，跳过 cron 同步（可 apt install cron）"
+  else
+    # shellcheck source=deploy/cron/push_cron_secret.sh
+    # shellcheck disable=SC1091
+    source "$cron_secret_lib"
+    if push_cron_secret="$(bible_resolve_push_cron_secret "$APP_DIR/$ENV_FILE" 2>&1)"; then
+      api_local="${API_LOCAL:-http://127.0.0.1:8011}"
+      if ENV_FILE="$APP_DIR/$ENV_FILE" API_LOCAL="$api_local" bash "$cron_installer"; then
+        log "  ✓ 已同步 crontab：消息 30 天 retention + 每日经文暖场"
+      else
+        log "⚠️  cron 同步失败，请手动：cd $APP_DIR && bash deploy/cron/install_cron.sh"
+      fi
+    else
+      log "⚠️  $push_cron_secret（跳过 cron；见 docs/DEPLOY-RUNBOOK.md）"
+    fi
+  fi
+fi
 
 if [[ "$INSTALL_HIJACK_CRON" == "1" ]]; then
   cron_src="$APP_DIR/scripts/check_web_hijack.sh"

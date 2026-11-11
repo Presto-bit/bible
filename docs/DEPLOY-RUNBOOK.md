@@ -25,9 +25,14 @@
 一键安装（服务器）：
 
 ```bash
-export PUSH_CRON_SECRET='与 .env.production 相同'
-sudo -E bash deploy/cron/install_cron.sh
+# .env.production 中配置 PUSH_CRON_SECRET（随机串，勿填文档里的中文说明）
+# 生成示例：openssl rand -hex 32
+cd /opt/bible && bash deploy/cron/install_cron.sh
 ```
+
+脚本会从 `.env.production` **自动读取**密钥并写入 crontab（行内嵌入真实 secret）。**不要**手抄 `export PUSH_CRON_SECRET='与 .env.production 相同'` 这类占位符。
+
+`release.sh` 默认 `INSTALL_BIBLE_CRON=1`：发版成功后会调用上脚本。跳过：`INSTALL_BIBLE_CRON=0 bash release.sh`。
 
 - 每天 04:20：`POST /social/retention/run`（`X-Cron-Secret`）
 - 每日经文暖场：6:00–23:00 每 30 分钟 `POST /content/cron/daily-verse-warm`（管理后台需开启暖场开关）
@@ -76,7 +81,7 @@ sudo -E bash deploy/cron/install_cron.sh
 | **Postgres 异地备份** | 故障可恢复 | 磁盘/机故障即不可恢复用户数据 |
 | **SSH 密钥 + 禁密码** | 降爆破面 | 暴露面大；密钥泄露或弱密可直入 |
 
-安装 cron：`sudo -E bash deploy/cron/install_cron.sh`（需 `PUSH_CRON_SECRET`）。
+安装 cron：`cd /opt/bible && bash deploy/cron/install_cron.sh`（读 `.env.production` 中的 `PUSH_CRON_SECRET`）。
 
 ## 相关脚本
 
