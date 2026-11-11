@@ -243,7 +243,6 @@ export default function DiscoverContactsPane() {
                       <span className="discover-conv-unread">{incoming.length}</span>
                     </div>
                   </div>
-                  <span className="muted" aria-hidden>›</span>
                 </button>
               </li>
             ) : null}
@@ -267,7 +266,6 @@ export default function DiscoverContactsPane() {
                       </p>
                     </div>
                   </div>
-                  <span className="muted" aria-hidden>›</span>
                 </button>
               </li>
             ) : null}
@@ -299,7 +297,6 @@ export default function DiscoverContactsPane() {
                     </p>
                   </div>
                 </div>
-                <span className="muted" aria-hidden>›</span>
               </button>
             </li>
           </ul>
@@ -356,7 +353,6 @@ export default function DiscoverContactsPane() {
                       <p className="muted discover-conv-sub">{sub}</p>
                     </div>
                   </div>
-                  <span className="muted" aria-hidden>›</span>
                 </button>
               </li>
             );

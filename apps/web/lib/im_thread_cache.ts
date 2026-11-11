@@ -10,6 +10,7 @@ export type ImThreadScope = 'dm' | 'group';
 export type ImThreadCacheMeta = {
   peer_user_id?: string | null;
   peer_title?: string | null;
+  peer_avatar_id?: string | null;
   title?: string | null;
 };
 

@@ -79,6 +79,8 @@ import { keepIfSameMessageList, mergeImMessageTail, runReloadGate, type ReloadGa
 import { useOnline } from '@/lib/use_online';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { readImThreadCache, writeImThreadCache } from '@/lib/im_thread_cache';
+import { FriendAvatar } from '@/components/discover/FriendAvatar';
+import { userLsGet } from '@/lib/user_storage';
 
 const ReportSheet = dynamic(() =>
   import('@/components/social/ReportSheet').then((m) => ({ default: m.ReportSheet })),
@@ -136,6 +138,7 @@ function DmThreadPageInner() {
   const [title, setTitle] = useState('私信');
   const [peerTitleRaw, setPeerTitleRaw] = useState('私信');
   const [peerUserId, setPeerUserId] = useState<string | null>(null);
+  const [peerAvatarId, setPeerAvatarId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<LocalDm[]>([]);
   const [threadBooting, setThreadBooting] = useState(true);
   const threadLoadedRef = useRef(false);
@@ -299,6 +302,7 @@ function DmThreadPageInner() {
         const r = await api.dmMessages(threadId, { limit: 50 });
         const incoming = (r.messages || []) as LocalDm[];
         if (r.peer_user_id) setPeerUserId(r.peer_user_id);
+        if (r.peer_avatar_id !== undefined) setPeerAvatarId(r.peer_avatar_id);
         if (r.peer_title || r.peer_user_id) {
           const raw = r.peer_title || '私信';
           setPeerTitleRaw(raw);
@@ -310,6 +314,7 @@ function DmThreadPageInner() {
             writeImThreadCache('dm', threadId, next, {
               peer_user_id: r.peer_user_id,
               peer_title: r.peer_title || (r.peer_user_id ? '私信' : undefined),
+              peer_avatar_id: r.peer_avatar_id,
             });
             return next;
           });
@@ -379,6 +384,9 @@ function DmThreadPageInner() {
     if (cached?.messages?.length) {
       setMsgs(cached.messages);
       if (cached.meta?.peer_user_id) setPeerUserId(cached.meta.peer_user_id);
+      if (cached.meta?.peer_avatar_id !== undefined) {
+        setPeerAvatarId(cached.meta.peer_avatar_id);
+      }
       if (cached.meta?.peer_title) {
         setPeerTitleRaw(cached.meta.peer_title);
         setTitle(dmTitleWithRemark(cached.meta.peer_user_id, cached.meta.peer_title));
@@ -1326,6 +1334,9 @@ function DmThreadPageInner() {
     return items;
   })();
 
+  const myAvatarId =
+    typeof window !== 'undefined' ? userLsGet('profile_avatar')?.trim() || null : null;
+
   return (
     <main className="dm-page">
       <ImThreadNav
@@ -1407,6 +1418,7 @@ function DmThreadPageInner() {
               && prev!.sender_id === m.sender_id;
             const selected = selectedIds.has(m.id);
             const canSelect = selectMode && !m.recalled && !m.pending && !m.id.startsWith('temp-');
+            const showAvatar = !sameSender;
 
             return (
               <div
@@ -1441,6 +1453,19 @@ function DmThreadPageInner() {
                       if (canSelect || selected) toggleSelect(m.id);
                     }}
                   />
+                ) : null}
+                {!mine ? (
+                  <div className={`dm-msg-avatar${showAvatar ? '' : ' is-placeholder'}`}>
+                    {showAvatar && peerUserId ? (
+                      <FriendAvatar
+                        friend={{
+                          user_id: peerUserId,
+                          avatar_id: peerAvatarId,
+                        }}
+                        size={40}
+                      />
+                    ) : null}
+                  </div>
                 ) : null}
                 {m.sendFailed && mine ? (
                   <ImSendFailBadge
@@ -1640,6 +1665,19 @@ function DmThreadPageInner() {
                   );
                 })()}
                 </div>
+                {mine ? (
+                  <div className={`dm-msg-avatar${showAvatar ? '' : ' is-placeholder'}`}>
+                    {showAvatar && uid ? (
+                      <FriendAvatar
+                        friend={{
+                          user_id: uid,
+                          avatar_id: myAvatarId,
+                        }}
+                        size={40}
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
                 </div>
               </div>
             );
@@ -1707,7 +1745,14 @@ function DmThreadPageInner() {
             onConfirm={() => void confirmPending()}
           />
         ) : null}
-        <div className="im-composer-row">
+        <div className="im-composer-row dm-composer-row">
+          {uid ? (
+            <FriendAvatar
+              friend={{ user_id: uid, avatar_id: myAvatarId }}
+              size={36}
+              className="dm-composer-avatar"
+            />
+          ) : null}
           <div className={`im-composer-field-wrap${!online ? ' is-offline' : ''}`}>
             {voiceMode ? (
               <button

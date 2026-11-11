@@ -191,6 +191,14 @@
 
 .discover-contacts-pin-avatar {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discover-contacts-pin-avatar svg {
+  display: block;
+  margin: auto;
 }
 
 .discover-subhead {

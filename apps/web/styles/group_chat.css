@@ -3136,8 +3136,28 @@ html.app-theme-dark .muted {
   display:flex;
   align-items:flex-start;
   gap:8px;
-  max-width:82%;
+  max-width:calc(100% - 8px);
   margin-top:8px;
+}
+.dm-msg-avatar{
+  flex-shrink:0;
+  width:40px;
+  height:40px;
+  align-self:flex-start;
+}
+.dm-msg-avatar.is-placeholder{
+  visibility:hidden;
+  pointer-events:none;
+}
+.dm-msg-row.is-mine .dm-msg-avatar{
+  order:3;
+}
+.dm-msg-row.is-mine .dm-bubble-wrap{
+  order:2;
+}
+.dm-msg-row.is-mine .im-send-fail-btn,
+.dm-msg-row.is-mine .im-msg-check{
+  order:1;
 }
 .dm-msg-row.is-continue{margin-top:2px;}
 .dm-msg-row.is-mine{align-self:flex-end;margin-left:auto;}
@@ -3211,7 +3231,9 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
 .im-msg-menu-panel button{appearance:none;border:0;background:transparent;text-align:left;padding:8px 10px;font-size:13px;border-radius:8px;cursor:pointer;}
 .im-msg-menu-panel button:hover{background:var(--card,#f3f1ec);}
 .im-upload-pct{font-size:12px;color:var(--muted);}
-.discover-conv-li .swipe-reveal-content{background:transparent;}
+.discover-conv-li .swipe-reveal-row{border-radius:0;overflow:hidden;}
+.discover-conv-li .swipe-reveal-content{background:var(--surface,#fff);}
+.discover-conv-list.is-ruled .discover-conv-li .swipe-reveal-content{background:var(--surface,#fff);}
 .discover-conv-li .discover-conv-row{width:100%;}
 /* 私信：全屏固定壳，顶栏冻结，仅消息列表滚动（对齐微信） */
 .dm-page{
@@ -4666,7 +4688,9 @@ html.perf-lite .im-msg-popover {
 .group-announce-text{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);}
 .group-nav-tools{display:flex;align-items:center;gap:8px;justify-content:flex-end;padding:4px 12px 6px;background:var(--bg);border-bottom:1px solid var(--line);}
 .group-feed-load-sentinel{display:flex;justify-content:center;padding:8px 0 4px;min-height:28px;font-size:12px;}
-.dm-bubble-wrap{flex:1;min-width:0;display:flex;flex-direction:column;}
+.dm-bubble-wrap{flex:1;min-width:0;max-width:min(72vw,280px);display:flex;flex-direction:column;}
+.dm-composer-row{align-items:flex-end;}
+.dm-composer-avatar{align-self:flex-end;margin-bottom:6px;flex-shrink:0;}
 .im-chat-search-backdrop{
   position:fixed;
   inset:0;

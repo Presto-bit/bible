@@ -1240,6 +1240,7 @@ export const api = {
       peer_last_read_at?: string | null;
       peer_user_id?: string;
       peer_title?: string | null;
+      peer_avatar_id?: string | null;
     }>(`/social/dm/${threadId}/messages?${q}`);
   },
   sendDm: (

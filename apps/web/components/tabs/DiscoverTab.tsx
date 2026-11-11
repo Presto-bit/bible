@@ -26,6 +26,7 @@ import { formatConvListTime } from '@/lib/im_ui';
 import { getImDraftRecord, IM_DRAFTS_EVENT } from '@/lib/im_drafts';
 import { listFailedText, listFailedMediaMeta } from '@/lib/im_send_queue';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
+import { swipeRevealCloseActive } from '@/lib/swipe_reveal_bus';
 import { timedPerf } from '@/lib/perf_rum';
 import {
   useHomePullRefresh,
@@ -522,7 +523,11 @@ export default function DiscoverTab({
       >
         <span ref={ptrLabelRef} className={`home-ptr-label${ptrRefreshing ? ' is-busy' : ''}`} />
       </div>
-      <div ref={ptrContentRef} className="home-ptr-content discover-ptr-content">
+      <div
+        ref={ptrContentRef}
+        className="home-ptr-content discover-ptr-content"
+        onScroll={() => swipeRevealCloseActive()}
+      >
       {!online ? (
         <p className="muted offline-page-hint">当前离线，消息需联网后刷新。</p>
       ) : null}
@@ -703,7 +708,6 @@ export default function DiscoverTab({
                   ) : null}
                 </div>
               </div>
-              <span className="muted" aria-hidden>›</span>
             </Pressable>
           </li>
         </ul>

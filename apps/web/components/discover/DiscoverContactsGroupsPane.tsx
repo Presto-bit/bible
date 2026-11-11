@@ -156,7 +156,6 @@ export default function DiscoverContactsGroupsPane() {
                     </p>
                   </div>
                 </div>
-                <span className="muted" aria-hidden>›</span>
               </button>
             </li>
           ))}

@@ -1323,12 +1323,14 @@ def list_dm_messages(
             except Exception:
                 pass
             peer_read = None
+        peer_avatar_id = _peer_avatars(conn, [peer]).get(peer)
     return {
         "messages": msgs,
         "has_more": has_more,
         "peer_last_read_at": peer_read,
         "peer_user_id": peer,
         "peer_title": peer_title,
+        "peer_avatar_id": peer_avatar_id,
     }
 
 

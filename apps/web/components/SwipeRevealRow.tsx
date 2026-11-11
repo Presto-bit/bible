@@ -50,6 +50,7 @@ export function SwipeRevealRow({
   const revealPx = Math.max(BTN_PX, resolved.length * BTN_PX);
   /** 钝一档：需拖更远才吸到打开档 */
   const openThreshold = Math.min(52, Math.max(44, revealPx / 2.4));
+  const peekThreshold = Math.min(36, Math.max(28, openThreshold * 0.55));
 
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -129,6 +130,8 @@ export function SwipeRevealRow({
         axisLock.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
       }
       if (axisLock.current === 'y') {
+        dragging.current = false;
+        setIsDragging(false);
         if (offsetRef.current < 0) setOffsetSafe(0);
         return;
       }
@@ -182,6 +185,8 @@ export function SwipeRevealRow({
     handleContentClick();
   };
 
+  const actionsRevealed = offset < -peekThreshold;
+
   if (!resolved.length) {
     return (
       <div className="swipe-reveal-row" onClick={() => onClickRef.current?.()}>
@@ -193,16 +198,16 @@ export function SwipeRevealRow({
   return (
     <div className="swipe-reveal-row" ref={rowRef}>
       <div
-        className={`swipe-reveal-actions${offset < -4 ? ' is-revealed' : ''}`}
+        className={`swipe-reveal-actions${actionsRevealed ? ' is-revealed' : ''}`}
         style={{ width: revealPx }}
-        aria-hidden={offset >= -4}
+        aria-hidden={!actionsRevealed}
       >
         {resolved.map((a) => (
           <button
             key={a.label}
             type="button"
             className={`swipe-reveal-action swipe-reveal-action-${a.tone || 'muted'}`}
-            tabIndex={offset < -4 ? 0 : -1}
+            tabIndex={actionsRevealed ? 0 : -1}
             onClick={(e) => {
               e.stopPropagation();
               a.onClick();
