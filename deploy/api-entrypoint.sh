@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# 经文 SQLite 生成失败不应阻止 uvicorn（健康检查依赖进程先起来）
+_run_import() {
+  local label="$1"
+  shift
+  if "$@"; then
+    return 0
+  fi
+  echo "[entrypoint] WARN: ${label} 失败，跳过（API 仍会启动；可稍后 exec 容器重跑 import）" >&2
+  return 0
+}
+
 CNV="/app/build/bible_cnv.sqlite"
 KJV="/app/build/bible_kjv.sqlite"
 CUVS="/app/build/bible_cuvs.sqlite"
@@ -9,7 +20,7 @@ NIV="/app/build/bible_niv.sqlite"
 
 if [[ ! -f "$CNV" && -f /app/data/bible/cnv/verses.json ]]; then
   echo "[entrypoint] 生成 bible_cnv.sqlite …"
-  python /app/scripts/import_bible.py \
+  _run_import bible_cnv python /app/scripts/import_bible.py \
     --input /app/data/bible/cnv/verses.json \
     --out "$CNV"
 fi
@@ -17,18 +28,18 @@ fi
 if [[ ! -f "$KJV" ]]; then
   if [[ -f /app/data/bible/kjv/verses.json ]]; then
     echo "[entrypoint] 生成 bible_kjv.sqlite …"
-    python /app/scripts/import_bible.py \
+    _run_import bible_kjv python /app/scripts/import_bible.py \
       --input /app/data/bible/kjv/verses.json \
       --out "$KJV"
   elif [[ -x /app/scripts/import_kjv_scrollmapper.py ]]; then
     echo "[entrypoint] 拉取 scrollmapper KJV …"
-    python /app/scripts/import_kjv_scrollmapper.py --sqlite "$KJV"
+    _run_import bible_kjv_scrollmapper python /app/scripts/import_kjv_scrollmapper.py --sqlite "$KJV"
   fi
 fi
 
 if [[ ! -f "$CUVS" && -f /app/data/bible/cuvs/verses.json ]]; then
   echo "[entrypoint] 生成 bible_cuvs.sqlite …"
-  python /app/scripts/import_bible.py \
+  _run_import bible_cuvs python /app/scripts/import_bible.py \
     --input /app/data/bible/cuvs/verses.json \
     --out "$CUVS"
 fi
@@ -38,7 +49,7 @@ if [[ -f "$CUVS" && -f /app/data/bible/cuvs/verses.json ]]; then
   cuvs_n="$(python -c "import sqlite3; c=sqlite3.connect('$CUVS'); print(c.execute('SELECT COUNT(*) FROM verses').fetchone()[0]); c.close()" 2>/dev/null || echo 0)"
   if [[ "${cuvs_n:-0}" -lt 10000 ]]; then
     echo "[entrypoint] 重建 bible_cuvs.sqlite（当前仅 ${cuvs_n} 节）…"
-    python /app/scripts/import_bible.py \
+    _run_import bible_cuvs_rebuild python /app/scripts/import_bible.py \
       --input /app/data/bible/cuvs/verses.json \
       --out "$CUVS"
   fi
@@ -46,7 +57,7 @@ fi
 
 if [[ ! -f "$CONTEMPORARY" && -f /app/data/bible/contemporary/verses.json ]]; then
   echo "[entrypoint] 生成 bible_contemporary.sqlite …"
-  python /app/scripts/import_bible.py \
+  _run_import bible_contemporary python /app/scripts/import_bible.py \
     --input /app/data/bible/contemporary/verses.json \
     --out "$CONTEMPORARY"
 fi
@@ -56,7 +67,7 @@ if [[ -f "$CONTEMPORARY" && -f /app/data/bible/contemporary/verses.json ]]; then
   contemporary_jhn="$(python -c "import sqlite3; c=sqlite3.connect('$CONTEMPORARY'); print(c.execute(\"SELECT COUNT(*) FROM verses WHERE book='JHN' AND chapter=3\").fetchone()[0]); c.close()" 2>/dev/null || echo 0)"
   if [[ "${contemporary_n:-0}" -lt 10000 || "${contemporary_jhn:-0}" -lt 1 ]]; then
     echo "[entrypoint] 重建 bible_contemporary.sqlite（节数=${contemporary_n:-0} · JHN.3=${contemporary_jhn:-0}）…"
-    python /app/scripts/import_bible.py \
+    _run_import bible_contemporary_rebuild python /app/scripts/import_bible.py \
       --input /app/data/bible/contemporary/verses.json \
       --out "$CONTEMPORARY"
   fi
@@ -64,7 +75,7 @@ fi
 
 if [[ ! -f "$NIV" && -f /app/data/bible/niv/verses.json ]]; then
   echo "[entrypoint] 生成 bible_niv.sqlite …"
-  python /app/scripts/import_bible.py \
+  _run_import bible_niv python /app/scripts/import_bible.py \
     --input /app/data/bible/niv/verses.json \
     --out "$NIV"
 fi
@@ -74,7 +85,7 @@ if [[ -f "$NIV" && -f /app/data/bible/niv/verses.json ]]; then
   niv_jhn="$(python -c "import sqlite3; c=sqlite3.connect('$NIV'); print(c.execute(\"SELECT COUNT(*) FROM verses WHERE book='JHN' AND chapter=3\").fetchone()[0]); c.close()" 2>/dev/null || echo 0)"
   if [[ "${niv_n:-0}" -lt 10000 || "${niv_jhn:-0}" -lt 1 ]]; then
     echo "[entrypoint] 重建 bible_niv.sqlite（节数=${niv_n:-0} · JHN.3=${niv_jhn:-0}）…"
-    python /app/scripts/import_bible.py \
+    _run_import bible_niv_rebuild python /app/scripts/import_bible.py \
       --input /app/data/bible/niv/verses.json \
       --out "$NIV"
   fi

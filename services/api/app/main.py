@@ -33,8 +33,8 @@ from .sync.router import router as sync_router
 logger = logging.getLogger(__name__)
 
 
-def _schema_bootstrap_background() -> None:
-    """PG 补齐不阻塞 uvicorn 监听；DB 慢/不可达时避免拖垮 /health。"""
+def _background_startup() -> None:
+    """PG / Redis / worker 均在后台；lifespan 尽快 yield，避免探活卡在启动阶段。"""
     try:
         bootstrap_schemas(get_pool())
     except Exception:
@@ -45,17 +45,6 @@ def _schema_bootstrap_background() -> None:
         ensure_migrations_table(get_pool())
     except Exception:
         logger.exception("schema_migrations bootstrap failed")
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    settings = get_settings()
-    threading.Thread(
-        target=_schema_bootstrap_background,
-        name="schema-bootstrap",
-        daemon=True,
-    ).start()
-
     try:
         from .social.im_router import start_sse_wake_redis_bridge
 
@@ -63,6 +52,7 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("sse wake redis bridge failed")
 
+    settings = get_settings()
     if settings.api_embedded_workers:
         try:
             from .admin.rag_jobs import start_rag_index_worker
@@ -87,6 +77,15 @@ async def lifespan(app: FastAPI):
             logger.exception("start_outreach_worker failed")
     else:
         logger.info("api_embedded_workers=false; digest/rag run in api-worker")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    threading.Thread(
+        target=_background_startup,
+        name="api-background-startup",
+        daemon=True,
+    ).start()
 
     yield
     close_pool()
