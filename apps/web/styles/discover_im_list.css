@@ -50,7 +50,12 @@
 }
 .group-mark{
   display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
-  border-radius:10px;background:var(--accent-wash,#e8efe9);color:var(--accent-deep,#2f4a3a);
+  border-radius:6px;background:var(--accent-wash,#e8efe9);color:var(--accent-deep,#2f4a3a);
+}
+.discover-conv-badge{
+  font-size:11px;padding:2px 6px;border-radius:6px;
+  background:var(--accent-soft,#e4efe8);color:var(--accent,#3d5c4a);
+  max-width:7.5em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;
 }
 .discover-im-search .search-input{
   min-height:48px;

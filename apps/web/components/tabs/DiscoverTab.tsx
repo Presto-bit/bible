@@ -663,41 +663,50 @@ export default function DiscoverTab({
       ) : null}
 
       {!searching && hubEmbedded ? (
-        <div className="discover-contacts-pin">
-          <Pressable
-            className="discover-contacts-pin-row"
-            aria-label="通讯录"
-            onTap={() => go('/discover/contacts')}
-          >
-            <span className="discover-contacts-pin-icon" aria-hidden>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <circle cx="9" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
-                <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.8" />
-                <path
-                  d="M3.5 19.5c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M14.5 17.5c.4-1.8 1.8-3 3.5-3s3.1 1.2 3.5 3"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-              {contactsBadge > 0 ? (
-                <span className="discover-contacts-pin-badge">
-                  {contactsBadge > 99 ? '99+' : contactsBadge}
-                </span>
-              ) : null}
-            </span>
-            <span className="discover-contacts-pin-label">通讯录</span>
-            <span className="discover-contacts-pin-chevron" aria-hidden>
-              ›
-            </span>
-          </Pressable>
-        </div>
+        <ul className="discover-conv-list is-ruled discover-contacts-pin">
+          <li className="discover-conv-li">
+            <Pressable
+              className="discover-conv-row"
+              aria-label="通讯录"
+              onTap={() => go('/discover/contacts')}
+            >
+              <span className="discover-conv-avatar scope-inbox_friends discover-contacts-pin-avatar" aria-hidden>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <circle cx="9" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+                  <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+                  <path
+                    d="M3.5 19.5c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M14.5 17.5c.4-1.8 1.8-3 3.5-3s3.1 1.2 3.5 3"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <div className="discover-conv-main">
+                <div className="discover-conv-title-row">
+                  <div className="discover-conv-title-left">
+                    <strong>通讯录</strong>
+                  </div>
+                </div>
+                <div className="discover-conv-sub-row">
+                  <p className="muted discover-conv-sub">好友、群与申请</p>
+                  {contactsBadge > 0 ? (
+                    <span className="discover-conv-unread">
+                      {contactsBadge > 99 ? '99+' : contactsBadge}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <span className="muted" aria-hidden>›</span>
+            </Pressable>
+          </li>
+        </ul>
       ) : null}
 
       {!searching && (!loading || items.length > 0) ? (

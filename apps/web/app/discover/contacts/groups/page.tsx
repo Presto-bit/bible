@@ -9,8 +9,8 @@ export default function DiscoverContactsGroupsPage() {
 
   return (
     <main className="container discover-page discover-im">
-      <header className="page-head" style={{ marginBottom: 8 }}>
-        <PageBackBar href="/discover/contacts" label="通讯录" />
+      <header className="page-head discover-subhead" style={{ marginBottom: 8 }}>
+        <PageBackBar href="/discover/contacts" ariaLabel="返回" />
         <h2 className="page-head-title">我的群</h2>
       </header>
       <DiscoverContactsGroupsPane />

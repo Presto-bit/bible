@@ -132,22 +132,29 @@ export default function DiscoverContactsGroupsPane() {
       ) : filteredGroups.length === 0 && groups.length > 0 ? (
         <p className="muted discover-empty-inline">无匹配群</p>
       ) : (
-        <ul className="discover-conv-list">
+        <ul className="discover-conv-list is-ruled">
           {filteredGroups.map((g) => (
-            <li key={g.id}>
+            <li key={g.id} className="discover-conv-li">
               <button
                 type="button"
                 className="discover-conv-row"
                 onClick={() => go(`/discover/group/${g.id}`)}
               >
-                <GroupMark size={40} />
+                <GroupMark size={48} />
                 <div className="discover-conv-main">
-                  <strong>{g.name}</strong>
-                  <p className="muted discover-conv-sub">
-                    {groupRoleLabel(g.role)}
-                    {g.members ? ` · ${g.members} 人` : ''}
-                    {g.plan_title ? ` · ${g.plan_title}` : ''}
-                  </p>
+                  <div className="discover-conv-title-row">
+                    <div className="discover-conv-title-left">
+                      <strong>{g.name}</strong>
+                      <span className="discover-conv-badge">共读</span>
+                    </div>
+                  </div>
+                  <div className="discover-conv-sub-row">
+                    <p className="muted discover-conv-sub">
+                      {groupRoleLabel(g.role)}
+                      {g.members ? ` · ${g.members} 人` : ''}
+                      {g.plan_title ? ` · ${g.plan_title}` : ''}
+                    </p>
+                  </div>
                 </div>
                 <span className="muted" aria-hidden>›</span>
               </button>
