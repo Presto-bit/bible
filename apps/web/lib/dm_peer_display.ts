@@ -13,7 +13,6 @@ export function isOfficialDmPeer(args: {
   friend?: Pick<Friend, 'user_code' | 'relation' | 'avatar_id'> | null;
 }): boolean {
   return isPlatformOfficialFriend({
-    user_id: args.peerUserId || undefined,
     user_code: args.friend?.user_code,
     relation: args.friend?.relation,
     avatar_id: args.peerAvatarId ?? args.friend?.avatar_id,
