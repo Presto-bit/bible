@@ -58,6 +58,20 @@ MIGRATIONS=(
   infra/postgres/init/023_rag_index_jobs.sql
   infra/postgres/init/024_dm_reactions.sql
   infra/postgres/init/031_user_acquisition.sql
+  infra/postgres/init/032_daily_verse_react.sql
+  infra/postgres/init/033_analysis_share_snapshot.sql
+  infra/postgres/init/033_group_prayer.sql
+  infra/postgres/init/034_ops_campaign_rail_href.sql
+  infra/postgres/init/035_product_events.sql
+  infra/postgres/init/036_user_thought.sql
+  infra/postgres/init/037_client_kind.sql
+  infra/postgres/init/038_im_client_msg_id.sql
+  infra/postgres/init/039_shelf_platform.sql
+  infra/postgres/init/040_ai_conversations.sql
+  infra/postgres/init/041_admin_runtime_settings.sql
+  infra/postgres/init/042_ops_campaign_rail_slot_4.sql
+  infra/postgres/init/043_platform_outreach.sql
+  infra/postgres/init/044_platform_outreach_queue.sql
 )
 
 for sql in "${MIGRATIONS[@]}"; do

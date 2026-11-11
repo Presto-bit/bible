@@ -48,6 +48,10 @@ services:
       CONTENT_DATA_DIR: /app/data
       BIBLE_AUDIO_STORAGE_DIR: /app/data/bible_audio
       BIBLE_AUDIO_OFFLINE: ${BIBLE_AUDIO_OFFLINE:-1}
+      # 后台任务由 api-worker 承接，避免多副本重复推送/建索引
+      API_EMBEDDED_WORKERS: ${API_EMBEDDED_WORKERS:-0}
+      REDIS_URL: ${REDIS_URL:-}
+      RAG_ANSWER_CACHE_REDIS_URL: ${RAG_ANSWER_CACHE_REDIS_URL:-${REDIS_URL:-}}
     ports:
       - "127.0.0.1:8011:8011"
     volumes:
@@ -67,7 +71,37 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 40s
+      start_period: 55s
+
+  api-worker:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-mirrors.aliyun.com}
+    container_name: bible-api-worker
+    restart: unless-stopped
+    mem_limit: ${API_WORKER_MEM_LIMIT:-512m}
+    oom_score_adj: -400
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-bible}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-bible}
+      CONTENT_DATA_DIR: /app/data
+      API_EMBEDDED_WORKERS: "0"
+      REDIS_URL: ${REDIS_URL:-}
+      RAG_ANSWER_CACHE_REDIS_URL: ${RAG_ANSWER_CACHE_REDIS_URL:-${REDIS_URL:-}}
+    command: ["python", "-m", "app.workers"]
+    volumes:
+      - bible_sqlite_data:/app/build
+      - bible_rag_content:/app/content/commentary
+      - bible_rag_uploads:/app/data/rag/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
 
   web:
     build:

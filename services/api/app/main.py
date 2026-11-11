@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -32,21 +33,28 @@ from .sync.router import router as sync_router
 logger = logging.getLogger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    settings = get_settings()
+def _schema_bootstrap_background() -> None:
+    """PG 补齐不阻塞 uvicorn 监听；DB 慢/不可达时避免拖垮 /health。"""
     try:
         bootstrap_schemas(get_pool())
     except Exception:
-        # 仍允许进程起来供 /health；运维应盯日志与 /health/db
         logger.exception("bootstrap_schemas failed — schema may be incomplete")
-
     try:
         from .schema_migrations import ensure_migrations_table
 
         ensure_migrations_table(get_pool())
     except Exception:
         logger.exception("schema_migrations bootstrap failed")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    threading.Thread(
+        target=_schema_bootstrap_background,
+        name="schema-bootstrap",
+        daemon=True,
+    ).start()
 
     try:
         from .social.im_router import start_sse_wake_redis_bridge
