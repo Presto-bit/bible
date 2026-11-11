@@ -1906,6 +1906,157 @@
   max-width: 420px;
 }
 
+.admin-mobile-chrome .admin-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.admin-mobile-chrome .admin-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-mobile-chrome .admin-tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 13px;
+  padding: 8px 11px;
+}
+
+.admin-outreach-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 720px;
+}
+
+.admin-outreach-lead {
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.admin-outreach-quota-warn {
+  color: var(--warn, #b8860b);
+}
+
+.admin-outreach-card {
+  margin-top: 0 !important;
+}
+
+.admin-outreach-welcome-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.admin-outreach-job-list,
+.admin-outreach-feedback-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-outreach-job,
+.admin-outreach-feedback {
+  padding: 12px;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg, #f4f2ee) 40%, var(--card, #fff));
+}
+
+.admin-outreach-job-head,
+.admin-outreach-feedback-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-outreach-job-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.admin-outreach-status {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.1));
+}
+
+.admin-outreach-status.is-done {
+  color: #2d7a4f;
+  border-color: color-mix(in srgb, #2d7a4f 35%, transparent);
+  background: color-mix(in srgb, #2d7a4f 10%, transparent);
+}
+
+.admin-outreach-status.is-failed {
+  color: #c45c4a;
+  border-color: color-mix(in srgb, #c45c4a 35%, transparent);
+  background: color-mix(in srgb, #c45c4a 10%, transparent);
+}
+
+.admin-outreach-status.is-active {
+  color: var(--accent, #3d6b8e);
+  border-color: color-mix(in srgb, var(--accent, #3d6b8e) 35%, transparent);
+  background: color-mix(in srgb, var(--accent, #3d6b8e) 10%, transparent);
+}
+
+.admin-outreach-status.is-idle {
+  color: var(--muted, #6b6358);
+}
+
+.admin-outreach-job-meta,
+.admin-outreach-feedback-meta {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.admin-outreach-job-stats {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.admin-outreach-progress {
+  margin-top: 8px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line, rgba(0, 0, 0, 0.08));
+  overflow: hidden;
+}
+
+.admin-outreach-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent, #3d6b8e);
+  transition: width 0.25s ease;
+}
+
+.admin-outreach-feedback-cat {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-outreach-feedback-body {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .admin-stat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

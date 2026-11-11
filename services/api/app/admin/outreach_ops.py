@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from ..db import get_pool
 from ..social.official_outreach import (
     BROADCAST_MAX_PER_MONTH,
+    _month_broadcast_count,
     enqueue_broadcast_job,
     welcome_notice_body,
     welcome_notice_ref_json,
@@ -38,10 +39,12 @@ def list_jobs(_admin: str = Depends(require_admin)) -> dict:
                    total_targets, sent_count, skipped_count, failed_count,
                    created_at, sent_at
             FROM platform_outreach_job
+            WHERE kind = 'broadcast'
             ORDER BY created_at DESC
             LIMIT 50
             """
         ).fetchall()
+        sent_month = _month_broadcast_count(conn)
     return {
         "jobs": [
             {
@@ -61,6 +64,7 @@ def list_jobs(_admin: str = Depends(require_admin)) -> dict:
             for r in rows
         ],
         "broadcast_max_per_month": BROADCAST_MAX_PER_MONTH,
+        "broadcast_sent_this_month": sent_month,
     }
 
 

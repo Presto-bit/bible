@@ -73,6 +73,13 @@ export default function AdminCommandPalette({
         hint: '举报工单',
         run: () => onTab('moderation'),
       },
+      {
+        id: 'nav-outreach',
+        group: '导航',
+        label: '用户触达',
+        hint: '欢迎信与全员信',
+        run: () => onTab('outreach'),
+      },
     ];
 
     for (const c of campaigns) {
