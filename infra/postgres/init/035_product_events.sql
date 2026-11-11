@@ -22,6 +22,6 @@ CREATE INDEX IF NOT EXISTS product_events_created_idx
 
 CREATE INDEX IF NOT EXISTS product_events_day_name_idx
   ON product_events (
-    (timezone('Asia/Shanghai', created_at))::date,
+    ((timezone('Asia/Shanghai', created_at))::date),
     event_name
   );
