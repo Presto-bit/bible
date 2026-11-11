@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchRagWorkspaceTree, type RagWorkspaceTree } from '@/lib/admin_rag';
 import { api, type OpsCampaign } from '@/lib/api';
 
-export type AdminTab = 'stats' | 'ops' | 'rag' | 'moderation';
+export type AdminTab = 'stats' | 'ops' | 'rag' | 'moderation' | 'outreach';
 
 type CommandItem = {
   id: string;

@@ -25,8 +25,6 @@ from .moderation import ModerationError, moderate_text
 
 import asyncio
 import json as _json_mod
-import threading
-import time
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/social", tags=["social-im"])
@@ -34,15 +32,16 @@ router = APIRouter(prefix="/social", tags=["social-im"])
 _MSG_RETENTION = timedelta(days=30)
 _RECALL_WINDOW = timedelta(minutes=2)
 
-# realtime_cursor 短缓存：多 SSE / 多页同时订阅时合并探测
-_cursor_cache: dict[str, tuple[float, dict]] = {}
-_CURSOR_TTL_SEC = 1.0
-_cursor_lock = threading.Lock()
+from .im_realtime import (
+    SSE_IDLE_WAIT_SEC as _SSE_IDLE_WAIT_SEC,
+    compute_realtime_cursor,
+    invalidate_realtime_cursors,
+    start_sse_wake_redis_bridge,
+    wait_sse_wake as _wait_sse_wake,
+)
 
-# 发消息后唤醒正在等待的 SSE（threading.Event，跨线程安全）
-_wake_events: dict[str, threading.Event] = {}
-_wake_lock = threading.Lock()
-_SSE_IDLE_WAIT_SEC = 1.5
+# 兼容外部 `from ...im_router import invalidate_realtime_cursors`
+__all__ = ["router", "invalidate_realtime_cursors", "start_sse_wake_redis_bridge"]
 
 
 def _notify_group_realtime(gid: str, *, include_user_id: str | None = None) -> None:
@@ -60,36 +59,6 @@ def _notify_group_realtime(gid: str, *, include_user_id: str | None = None) -> N
         invalidate_realtime_cursors(ids)
     except Exception:
         logger.exception("notify group realtime failed gid=%s", gid[:8] if gid else "?")
-
-
-def invalidate_realtime_cursors(user_ids: list[str] | set[str] | tuple[str, ...]) -> None:
-    """清 cursor 缓存并为在线 SSE 连接发唤醒信号。"""
-    ids = [str(u).strip() for u in user_ids if u and str(u).strip()]
-    if not ids:
-        return
-    with _cursor_lock:
-        for uid in ids:
-            _cursor_cache.pop(uid, None)
-    with _wake_lock:
-        for uid in ids:
-            ev = _wake_events.get(uid)
-            if ev is not None:
-                ev.set()
-
-
-def _sse_wake_event(user_id: str) -> threading.Event:
-    with _wake_lock:
-        ev = _wake_events.get(user_id)
-        if ev is None:
-            ev = threading.Event()
-            _wake_events[user_id] = ev
-        return ev
-
-
-def _release_sse_wake(user_id: str, ev: threading.Event) -> None:
-    with _wake_lock:
-        if _wake_events.get(user_id) is ev:
-            _wake_events.pop(user_id, None)
 
 _FILE_EXT = frozenset({
     ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
@@ -179,7 +148,7 @@ def _resolve_peer_user_id(conn, peer_key: str) -> str:
             conn.execute(
                 "INSERT INTO users (id, display_name, handle) VALUES (%s, %s, %s) "
                 "ON CONFLICT (id) DO NOTHING",
-                (uid, "官方客服", "official"),
+                (uid, "彼爱团队", "official"),
             )
             return uid
         raise HTTPException(404, "用户不存在")
@@ -205,6 +174,8 @@ def _require_dm_allowed(conn, user_id: str, peer_id: str) -> None:
 
 
 def _display(conn, uid: str) -> str:
+    if _is_official_support_user_id(conn, uid):
+        return "彼爱团队"
     try:
         row = conn.execute(
             """
@@ -312,6 +283,9 @@ def _peer_avatars(conn, uids: list[str]) -> dict[str, str | None]:
             pass
     for u in uniq:
         out.setdefault(u, None)
+    official_id = _official_support_uuid()
+    if official_id in out:
+        out[official_id] = "official_app"
     return out
 
 
@@ -824,8 +798,30 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
         peer_avatars = _peer_avatars(conn, peers)
         dm_fnames = _attachment_names(conn, "dm", dm_attach_ids)
 
+        official_uid = _official_support_uuid()
+        welcome_pin_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+
         for tid, peer, last_id, last_kind, last_body, last_at, last_ref, pinned_at, muted, unread in parsed_threads:
             try:
+                pin_active = pinned_at is not None
+                if (
+                    pin_active
+                    and peer == official_uid
+                    and pinned_at
+                    and pinned_at < welcome_pin_cutoff
+                ):
+                    pin_active = False
+                    try:
+                        conn.execute(
+                            """
+                            UPDATE conversation_state
+                            SET pinned_at = NULL, updated_at = now()
+                            WHERE user_id = %s AND scope = 'dm' AND ref_id = %s
+                            """,
+                            (user_id, str(tid)),
+                        )
+                    except Exception:
+                        pass
                 fname = dm_fnames.get(str(last_id)) if last_id else None
                 items.append({
                     "scope": "dm",
@@ -843,7 +839,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                     ) if last_id else None,
                     "unread": int(unread or 0),
                     "updated_at": last_at.isoformat() if last_at else None,
-                    "pinned": pinned_at is not None,
+                    "pinned": pin_active,
                     "muted": bool(muted),
                     "badge": None,
                 })
@@ -883,6 +879,10 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                     conn.rollback()
                 except Exception:
                     pass
+        try:
+            conn.commit()
+        except Exception:
+            pass
 
     # inbox 置顶；其余置顶优先再按时间
     inbox = [i for i in items if i["scope"].startswith("inbox")]
@@ -993,6 +993,8 @@ def create_friend_request(
         fid = str(row[0])
         if fid == user_id:
             raise HTTPException(400, "不能添加自己")
+        if _is_official_support_user_id(conn, fid):
+            raise HTTPException(400, "此为彼爱团队官方账号，请从通讯录进入")
         existing = conn.execute(
             "SELECT 1 FROM friendship WHERE user_id = %s AND friend_id = %s",
             (user_id, fid),
@@ -1327,7 +1329,7 @@ def send_dm(
     thread_id: str, body: DmIn, user_id: str = Depends(get_current_user),
 ) -> dict:
     kind = (body.kind or "chat").lower()
-    if kind not in ("chat", "verse", "image", "file", "video", "audio"):
+    if kind not in ("chat", "verse", "image", "file", "video", "audio", "notice"):
         raise HTTPException(400, "不支持的消息类型")
     text = (body.body or "").strip()
     if kind in ("chat", "verse") and not text and not body.ref:
@@ -2309,86 +2311,42 @@ def search_messages(
     return {"items": (titles + msgs)[:limit]}
 
 
+def _compute_realtime_cursor(user_id: str) -> dict:
+    """查库算 cursor（同步，供 HTTP 与 SSE to_thread 共用）。"""
+    return compute_realtime_cursor(user_id, retention_cutoff=_retention_cutoff())
+
+
 @router.get("/realtime/cursor")
 def realtime_cursor(user_id: str = Depends(get_current_user)) -> dict:
     """轻量补拉：返回用户相关会话的最近消息时间，客户端对比后刷新。"""
-    now = time.monotonic()
-    with _cursor_lock:
-        hit = _cursor_cache.get(user_id)
-        if hit and now - hit[0] < _CURSOR_TTL_SEC:
-            return hit[1]
-
-    pool = get_pool()
-    cutoff = _retention_cutoff()
-    with pool.connection() as conn:
-        gmax = conn.execute(
-            """
-            SELECT COALESCE(MAX(gm.created_at), '-infinity'::timestamptz)
-            FROM group_message gm
-            JOIN group_member m ON m.group_id = gm.group_id AND m.user_id = %s
-            WHERE gm.created_at >= %s
-            """,
-            (user_id, cutoff),
-        ).fetchone()[0]
-        dmax = conn.execute(
-            """
-            SELECT COALESCE(MAX(dm.created_at), '-infinity'::timestamptz)
-            FROM direct_message dm
-            JOIN direct_thread t ON t.id = dm.thread_id
-            WHERE (t.user_low_id = %s OR t.user_high_id = %s)
-              AND dm.created_at >= %s
-            """,
-            (user_id, user_id, cutoff),
-        ).fetchone()[0]
-
-    def iso(v):
-        if v is None or str(v).startswith("-"):
-            return None
-        return v.isoformat() if hasattr(v, "isoformat") else str(v)
-
-    result = {
-        "group_max": iso(gmax),
-        "dm_max": iso(dmax),
-        "server_time": datetime.now(timezone.utc).isoformat(),
-    }
-    with _cursor_lock:
-        _cursor_cache[user_id] = (time.monotonic(), result)
-        # 防止缓存无限增长
-        if len(_cursor_cache) > 2000:
-            cutoff_t = time.monotonic() - 60
-            stale = [k for k, (ts, _) in _cursor_cache.items() if ts < cutoff_t]
-            for k in stale:
-                _cursor_cache.pop(k, None)
-    return result
+    return _compute_realtime_cursor(user_id)
 
 
 @router.get("/realtime/sse")
 async def realtime_sse(user_id: str = Depends(get_current_user)):
-    """PWA 实时：SSE 推送 cursor；发消息立即唤醒，空闲最长约 1.5s 探测。"""
+    """PWA 实时：SSE 推送 cursor；发消息立即唤醒，空闲最长约 1.5s 探测。
+
+    查库走 to_thread，唤醒用 asyncio.Future，避免阻塞事件循环 / 占满默认线程池。
+    """
 
     async def gen():
         last: tuple[str | None, str | None] | None = None
         ticks = 0
-        wake = _sse_wake_event(user_id)
         yield f"event: hello\ndata: {_json_mod.dumps({'ok': True})}\n\n"
-        try:
-            while ticks < 900:
-                try:
-                    cur = realtime_cursor(user_id)
-                    key = (cur.get("group_max"), cur.get("dm_max"))
-                    if key != last:
-                        last = key
-                        yield f"event: cursor\ndata: {_json_mod.dumps(cur, ensure_ascii=False)}\n\n"
-                    else:
-                        yield ": ping\n\n"
-                except Exception:
-                    yield f"event: error\ndata: {_json_mod.dumps({'message': 'cursor failed'})}\n\n"
-                    break
-                ticks += 1
-                wake.clear()
-                await asyncio.to_thread(wake.wait, _SSE_IDLE_WAIT_SEC)
-        finally:
-            _release_sse_wake(user_id, wake)
+        while ticks < 900:
+            try:
+                cur = await asyncio.to_thread(_compute_realtime_cursor, user_id)
+                key = (cur.get("group_max"), cur.get("dm_max"))
+                if key != last:
+                    last = key
+                    yield f"event: cursor\ndata: {_json_mod.dumps(cur, ensure_ascii=False)}\n\n"
+                else:
+                    yield ": ping\n\n"
+            except Exception:
+                yield f"event: error\ndata: {_json_mod.dumps({'message': 'cursor failed'})}\n\n"
+                break
+            ticks += 1
+            await _wait_sse_wake(user_id, _SSE_IDLE_WAIT_SEC)
 
     return StreamingResponse(
         gen(),

@@ -1,6 +1,7 @@
 """FastAPI 入口。M0：health 探针 + CORS。后续挂载 guide/ai/sync 路由。"""
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -28,25 +29,57 @@ from .listen.router import router as listen_router
 from .schema_bootstrap import bootstrap_schemas
 from .sync.router import router as sync_router
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings = get_settings()
     try:
         bootstrap_schemas(get_pool())
     except Exception:
-        pass
-    try:
-        from .admin.rag_jobs import start_rag_index_worker
+        # 仍允许进程起来供 /health；运维应盯日志与 /health/db
+        logger.exception("bootstrap_schemas failed — schema may be incomplete")
 
-        start_rag_index_worker()
-    except Exception:
-        pass
     try:
-        from .push.digest_scheduler import start_digest_worker
+        from .schema_migrations import ensure_migrations_table
 
-        start_digest_worker()
+        ensure_migrations_table(get_pool())
     except Exception:
-        pass
+        logger.exception("schema_migrations bootstrap failed")
+
+    try:
+        from .social.im_router import start_sse_wake_redis_bridge
+
+        start_sse_wake_redis_bridge()
+    except Exception:
+        logger.exception("sse wake redis bridge failed")
+
+    if settings.api_embedded_workers:
+        try:
+            from .admin.rag_jobs import start_rag_index_worker
+
+            start_rag_index_worker()
+            logger.info("embedded rag-index-worker started")
+        except Exception:
+            logger.exception("start_rag_index_worker failed")
+        try:
+            from .push.digest_scheduler import start_digest_worker
+
+            start_digest_worker()
+            logger.info("embedded push-digest-worker started")
+        except Exception:
+            logger.exception("start_digest_worker failed")
+        try:
+            from .social.outreach_worker import start_outreach_worker
+
+            start_outreach_worker()
+            logger.info("embedded outreach-broadcast-worker started")
+        except Exception:
+            logger.exception("start_outreach_worker failed")
+    else:
+        logger.info("api_embedded_workers=false; digest/rag run in api-worker")
+
     yield
     close_pool()
 

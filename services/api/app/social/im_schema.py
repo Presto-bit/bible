@@ -110,7 +110,7 @@ _STATEMENTS: tuple[str, ...] = (
     """
     ALTER TABLE direct_message
       ADD CONSTRAINT direct_message_kind_chk
-      CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system'))
+      CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system', 'notice'))
     """,
     """
     ALTER TABLE direct_message

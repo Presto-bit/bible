@@ -14,7 +14,6 @@ import {
   ensureAccountReady,
   logout,
 } from '@/lib/api';
-import { OFFICIAL_SUPPORT_USER_CODE } from '@/lib/official_support';
 import {
   getOfflineDownloadSnapshot,
   isOfflineDownloadActive,
@@ -238,20 +237,12 @@ export default function ProfileSettingsPanel() {
     };
   }, []);
 
-  const openHelpFeedback = async () => {
+  const openHelpFeedback = () => {
     if (helpBusy) return;
     setHelpBusy(true);
-    try {
-      await ensureAccountReady();
-      const dm = await api.openDm(OFFICIAL_SUPPORT_USER_CODE);
-      markRouteNavigation();
-      router.push(`/discover/dm/${dm.thread_id}`);
-    } catch (e) {
-      const detail = e instanceof Error ? e.message : String(e);
-      toast(detail.includes('自己') ? '不能联系自己' : detail || '暂时无法联系官方，请稍后重试');
-    } finally {
-      setHelpBusy(false);
-    }
+    markRouteNavigation();
+    router.push('/help/feedback');
+    setHelpBusy(false);
   };
 
   const handleAppPackageClick = () => {
@@ -409,6 +400,18 @@ export default function ProfileSettingsPanel() {
       <section className="settings-group">
         <h4 className="settings-group-label">支持与关于</h4>
         <div className="settings-group-list">
+          <SettingsNavRow
+            title="产品说明"
+            hint="功能介绍与更新记录"
+            href="/help/product"
+            onClick={markSettingsNav}
+            glyph={settingsGlyph(
+              <>
+                <path d="M7 4h10v16H7z" />
+                <path d="M10 8h7M10 12h7M10 16h5" />
+              </>,
+            )}
+          />
           <SettingsNavRow
             title="帮助与反馈"
             hint={helpBusy ? '打开中…' : '帮助与反馈'}

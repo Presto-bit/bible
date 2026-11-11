@@ -1913,21 +1913,32 @@ def list_friends(user_id: str = Depends(get_current_user)) -> dict:
                 "ORDER BY u.display_name NULLS LAST, u.handle NULLS LAST",
                 (user_id,),
             ).fetchall()
-    return {"friends": [
+    from .official_outreach import official_friend_dict
+
+    friends = [
         {
             "user_id": str(r[0]),
             "handle": r[1],
             "display_name": r[2],
             "avatar_id": r[3],
             "user_code": str(r[4]) if len(r) > 4 and r[4] else None,
-        } for r in rows
-    ]}
+        }
+        for r in rows
+    ]
+    official = official_friend_dict()
+    if not any(f["user_id"] == official["user_id"] for f in friends):
+        friends.insert(0, official)
+    return {"friends": friends}
 
 
 @router.delete("/friends/{friend_id}")
 def remove_friend(friend_id: str, user_id: str = Depends(get_current_user)) -> dict:
+    from .im_router import _is_official_support_user_id
+
     pool = get_pool()
     with pool.connection() as conn:
+        if _is_official_support_user_id(conn, friend_id):
+            raise HTTPException(400, "彼爱团队无法删除")
         conn.execute(
             "DELETE FROM friendship WHERE "
             "(user_id = %s AND friend_id = %s) OR (user_id = %s AND friend_id = %s)",
@@ -2187,4 +2198,44 @@ def cron_prune_inactive_groups(
         "deleted_ids": deleted,
         "inactive_days": GROUP_INACTIVE_DAYS,
         "ran_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+class UserFeedbackIn(BaseModel):
+    category: str = Field(min_length=1, max_length=32)
+    scene: str | None = Field(default=None, max_length=32)
+    body: str = Field(min_length=1, max_length=2000)
+
+
+@router.post("/feedback")
+def submit_user_feedback(
+    body: UserFeedbackIn, user_id: str = Depends(get_current_user),
+) -> dict:
+    from ..content.moderation import ModerationError, moderate_text
+    from .outreach_schema import ensure_outreach_schema
+
+    allowed = frozenset({"bug", "idea", "content", "ai", "other"})
+    cat = body.category.strip()
+    if cat not in allowed:
+        raise HTTPException(400, "反馈类型无效")
+    text = body.body.strip()
+    try:
+        moderate_text(text)
+    except ModerationError as exc:
+        raise HTTPException(400, exc.reason) from exc
+    pool = get_pool()
+    with pool.connection() as conn:
+        ensure_outreach_schema(conn)
+        row = conn.execute(
+            """
+            INSERT INTO user_feedback (user_id, category, scene, body)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id::text, created_at
+            """,
+            (user_id, cat, (body.scene or "").strip() or None, text),
+        ).fetchone()
+        conn.commit()
+    return {
+        "id": row[0],
+        "created_at": row[1].isoformat() if row[1] else None,
     }

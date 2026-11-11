@@ -49,9 +49,11 @@ from .hero_b_ops import (
 )
 from ..content.hero_b_link import LINK_CATALOG, resolve_hero_b_href, HeroBLinkError
 from .stats_ops import STATS_DETAIL_METRICS, fetch_admin_stats, fetch_admin_stats_detail
+from .outreach_ops import router as outreach_admin_router
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
+router.include_router(outreach_admin_router)
 
 _ALLOWED_SUFFIX = {".md", ".txt", ".markdown"}
 

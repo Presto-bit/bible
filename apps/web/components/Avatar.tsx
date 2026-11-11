@@ -13,6 +13,7 @@ import {
   normalizeCustomAvatarId,
 } from '@/lib/profile_avatar';
 import { userLsGet } from '@/lib/user_storage';
+import { OFFICIAL_APP_ICON, OFFICIAL_AVATAR_ID } from '@/lib/official_support';
 
 export type AvatarPalette = {
   name: string;
@@ -201,6 +202,28 @@ function AvatarScene({ sceneKey, pal }: { sceneKey: string; pal: AvatarPalette }
 export default function Avatar({ id, size = 48 }: { id: string; size?: number }) {
   const [failedFor, setFailedFor] = useState<string | null>(null);
   const showCustom = isCustomAvatarId(id) && failedFor !== id;
+
+  if (id === OFFICIAL_AVATAR_ID) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={OFFICIAL_APP_ICON}
+        alt=""
+        width={size}
+        height={size}
+        decoding="async"
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          display: 'block',
+          flexShrink: 0,
+          background: 'var(--surface, #faf8f5)',
+        }}
+      />
+    );
+  }
 
   if (showCustom) {
     const src = customAvatarSrc(id);

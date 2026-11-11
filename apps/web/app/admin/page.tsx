@@ -13,16 +13,26 @@ import AdminModerationPanel from '@/components/admin/AdminModerationPanel';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 import { CampaignsListPanel } from '@/components/campaigns/CampaignsListPanel';
 import AdminDailyVerseWarmPanel from '@/components/admin/AdminDailyVerseWarmPanel';
+import AdminOutreachPanel from '@/components/admin/AdminOutreachPanel';
 import { adminCheck, clearAdminToken } from '@/lib/admin_rag';
 
 function parseTab(value: string | null): AdminTab {
-  if (value === 'ops' || value === 'rag' || value === 'stats' || value === 'moderation') return value;
+  if (
+    value === 'ops' ||
+    value === 'rag' ||
+    value === 'stats' ||
+    value === 'moderation' ||
+    value === 'outreach'
+  ) {
+    return value;
+  }
   return 'stats';
 }
 
 const NAV: { id: AdminTab; label: string; desc: string }[] = [
   { id: 'stats', label: '数据预览', desc: '健康与趋势' },
   { id: 'ops', label: '活动运营', desc: '今日推荐活动' },
+  { id: 'outreach', label: '用户触达', desc: '欢迎信与全员信' },
   { id: 'moderation', label: '内容审核', desc: '举报与异端工单' },
   { id: 'rag', label: 'RAG 注释库', desc: 'Notion 式资料' },
 ];
@@ -96,6 +106,7 @@ function AdminPageInner() {
         </>
       ) : null}
       {tab === 'moderation' ? <AdminModerationPanel /> : null}
+      {tab === 'outreach' ? <AdminOutreachPanel /> : null}
     </>
   );
 

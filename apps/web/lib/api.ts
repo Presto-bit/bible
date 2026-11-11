@@ -229,6 +229,9 @@ export interface Friend {
   display_name?: string | null;
   avatar_id?: string | null;
   user_code?: string | null;
+  relation?: 'platform_official' | string | null;
+  pinned?: boolean;
+  removable?: boolean;
 }
 export interface ConversationItem {
   scope: 'group' | 'dm' | 'inbox_friends' | 'inbox_groups';
@@ -1484,6 +1487,11 @@ export const api = {
     }),
   removeFriend: (friendId: string) =>
     authed<{ ok: boolean }>(`/social/friends/${friendId}`, { method: 'DELETE' }),
+  submitFeedback: (body: { category: string; scene?: string; body: string }) =>
+    authed<{ id: string; created_at?: string }>('/social/feedback', {
+      method: 'POST',
+      body,
+    }),
   groupPendingInvites: (gid: string) =>
     authed<{ friend_ids: string[] }>(`/social/groups/${gid}/invites/pending`),
   cancelGroupInvite: (gid: string, friendId: string) =>

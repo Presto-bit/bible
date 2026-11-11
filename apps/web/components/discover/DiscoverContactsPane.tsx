@@ -18,6 +18,7 @@ import {
 } from '@/lib/discover_contacts_cache';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { friendDisplayName, friendRequestLabel } from '@/lib/friend_label';
+import { isPlatformOfficialFriend } from '@/lib/official_support';
 import { FRIEND_REMARKS_EVENT, friendRemarkOrName } from '@/lib/friend_remarks';
 import { useOnline, isBrowserOnline } from '@/lib/use_online';
 
@@ -320,9 +321,13 @@ export default function DiscoverContactsPane() {
       ) : (
         <ul className="discover-conv-list">
           {filteredFriends.map((f) => {
-            const name = friendRemarkOrName(f.user_id, friendDisplayName(f));
-            const sub =
-              f.handle && name !== f.handle
+            const official = isPlatformOfficialFriend(f);
+            const name = official
+              ? friendDisplayName(f)
+              : friendRemarkOrName(f.user_id, friendDisplayName(f));
+            const sub = official
+              ? '使用说明与反馈'
+              : f.handle && name !== f.handle
                 ? `@${f.handle}`
                 : f.user_code
                   ? `ID ${f.user_code}`
@@ -331,7 +336,7 @@ export default function DiscoverContactsPane() {
               <li key={f.user_id}>
                 <button
                   type="button"
-                  className="discover-conv-row"
+                  className={`discover-conv-row${official ? ' is-platform-official' : ''}`}
                   onClick={() => go(`/discover/friends/${f.user_id}`)}
                 >
                   <FriendAvatar friend={f} size={40} />

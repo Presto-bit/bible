@@ -15,6 +15,9 @@ import { friendDisplayName } from '@/lib/friend_label';
 import { friendRemarkOrName, getFriendRemark, setFriendRemark } from '@/lib/friend_remarks';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { isPlatformOfficialFriend } from '@/lib/official_support';
+import Link from 'next/link';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 export default function FriendProfilePage() {
   const params = useParams();
@@ -57,8 +60,11 @@ export default function FriendProfilePage() {
     return friendDisplayName(friend);
   }, [friend, remarkTick]);
 
+  const isOfficial = friend ? isPlatformOfficialFriend(friend) : false;
+
   const displayName = useMemo(() => {
     if (!friend) return '好友';
+    if (isPlatformOfficialFriend(friend)) return friendDisplayName(friend);
     return friendRemarkOrName(friend.user_id, originalName);
   }, [friend, originalName, remarkTick]);
 
@@ -124,6 +130,11 @@ export default function FriendProfilePage() {
               ) : null}
             </div>
           </div>
+          {isOfficial ? (
+            <p className="muted" style={{ fontSize: 14, lineHeight: 1.7, marginTop: 8 }}>
+              使用问题、功能建议可以在这里直接回复我们；完整说明见产品说明页。
+            </p>
+          ) : null}
           <div className="friend-profile-card-actions">
             <button
               type="button"
@@ -131,20 +142,32 @@ export default function FriendProfilePage() {
               disabled={dmBusy}
               onClick={() => void openDm()}
             >
-              {dmBusy ? '打开中…' : '发私信'}
+              {dmBusy ? '打开中…' : '发消息'}
             </button>
-            <button
-              type="button"
-              className="friend-action-btn"
-              onClick={() => setEditingRemark((v) => !v)}
-            >
-              {editingRemark ? '收起备注' : '修改备注'}
-            </button>
-            <button type="button" className="friend-action-btn" onClick={() => void onDelete()}>
-              删除
-            </button>
+            {isOfficial ? (
+              <Link
+                href="/help/product"
+                className="friend-action-btn"
+                onClick={() => markRouteNavigation()}
+              >
+                产品说明
+              </Link>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="friend-action-btn"
+                  onClick={() => setEditingRemark((v) => !v)}
+                >
+                  {editingRemark ? '收起备注' : '修改备注'}
+                </button>
+                <button type="button" className="friend-action-btn" onClick={() => void onDelete()}>
+                  删除
+                </button>
+              </>
+            )}
           </div>
-          {editingRemark ? (
+          {!isOfficial && editingRemark ? (
             <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
               <input
                 className="search-input"

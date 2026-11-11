@@ -28,7 +28,7 @@ from ..content.moderation import ModerationError, moderate_text
 from .random_username import is_generated_username
 from .session import get_current_user, resolve_user_id
 from .user_code import is_user_code, pick_user_code, uuid_for_code as _uuid_for_code
-from ..social.im_router import OFFICIAL_SUPPORT_USER_CODE
+from ..social.official_outreach import send_welcome_if_needed
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -528,6 +528,7 @@ def register(
             caller = resolve_user_id(authorization=authorization)
             bound_now = _lookup_bound_user_code(conn, x_device_id)
             owns = (caller == user_id) or (bound_now == code)
+            new_account = False
 
             if securing:
                 if existing and existing[2]:
@@ -564,6 +565,8 @@ def register(
                 )
                 if name:
                     upsert_user_profile(conn, user_id=user_id, user_code=code, username=name)
+                if not existing:
+                    new_account = True
                 _bind_device_user(conn, x_device_id, code, reclaim=True)
             else:
                 # 静默建档：已存在账号必须证明所有权，禁止对任意 user_code 签发会话
@@ -588,6 +591,7 @@ def register(
                         (code, user_id, name),
                     ).fetchone()
                     if inserted:
+                        new_account = True
                         # 新账号可无 username（占位「读经伙伴」）；勿把 name is None 当成并发失败
                         if name:
                             upsert_user_profile(
@@ -611,6 +615,8 @@ def register(
             phone = row[4] if row else None
             uname = (row[1] if row else None)
             phash = row[2] if row else pwd_hash
+        if new_account:
+            send_welcome_if_needed(user_id)
         return {
             "ok": True,
             **_issue_payload(code, uname, phash, phone, x_device_id),
@@ -670,6 +676,20 @@ def login(
                     body.password, pwd_salt or "", pwd_hash
                 ):
                     raise HTTPException(status_code=401, detail="密码不正确")
+                # 旧版单次 SHA256 → 登录成功升 PBKDF2
+                if not str(pwd_hash).startswith("pbkdf2$"):
+                    salt = pwd_salt or ""
+                    if not salt:
+                        import secrets
+
+                        salt = secrets.token_hex(16)
+                    new_hash = _hash_pwd(body.password, salt)
+                    conn.execute(
+                        "UPDATE accounts SET pwd_hash = %s, pwd_salt = %s WHERE user_code = %s",
+                        (new_hash, salt, code),
+                    )
+                    pwd_hash = new_hash
+                    pwd_salt = salt
             elif is_user_code(idf):
                 bound = _lookup_bound_user_code(conn, x_device_id)
                 if bound != code:

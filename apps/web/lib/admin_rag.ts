@@ -142,6 +142,23 @@ export function adminHeaders(): HeadersInit {
   };
 }
 
+/** 管理端 JSON API（path 以 /admin 开头） */
+export async function adminJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      ...adminHeaders(),
+      Accept: 'application/json',
+      ...(init?.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `请求失败 ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 /** 管理员新建运营笔记手稿 */
 export async function createKnowledgeNote(body: {
   title: string;

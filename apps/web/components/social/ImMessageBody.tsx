@@ -6,6 +6,7 @@ import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { setReaderReturnHref } from '@/lib/reader_return';
+import { DmNoticeCard } from '@/components/social/DmNoticeCard';
 
 const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?"')\]])/gi;
 const MENTION_RE = /@(所有人|[^\s@]+)/g;
@@ -111,6 +112,9 @@ function ImMessageBodyInner({
   showVerseCard = true,
   showKindChip = true,
 }: Props) {
+  if (kind === 'notice') {
+    return <DmNoticeCard body={body} ref={verseRef} />;
+  }
   const showVerse = showVerseCard && shouldShowVerse(kind, verseRef);
   const href = verseRef ? readerHrefFromRef(verseRef) : null;
   const textNodes = useMemo(() => (body ? renderLinkedText(body) : null), [body]);

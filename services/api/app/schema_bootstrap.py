@@ -81,5 +81,12 @@ def bootstrap_schemas(pool) -> None:
         ensure_shelf_posts_schema(pool)
     except Exception:
         logger.exception("bootstrap: shelf posts schema failed")
+    try:
+        from .social.outreach_schema import ensure_outreach_schema
+
+        with pool.connection() as conn:
+            ensure_outreach_schema(conn)
+    except Exception:
+        logger.exception("bootstrap: platform outreach schema failed")
     _bootstrapped = True
     logger.info("schema bootstrap complete")

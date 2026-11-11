@@ -1053,3 +1053,137 @@ textarea.input {
   margin-bottom: 10px;
   pointer-events: none !important;
 }
+
+.product-guide-intro {
+  font-size: 14px;
+  line-height: 1.75;
+  margin-top: 10px;
+}
+
+.product-guide-version {
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.product-guide-toc {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.product-guide-toc ul {
+  margin: 0;
+  padding: 0 0 0 18px;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.product-guide-section {
+  scroll-margin-top: 12px;
+}
+
+.product-guide-p {
+  font-size: 14px;
+  line-height: 1.75;
+  margin: 0 0 10px;
+}
+
+.product-guide-p:last-child {
+  margin-bottom: 0;
+}
+
+.product-guide-ul {
+  margin: 0;
+  padding: 0 0 0 18px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--muted, #6b6358);
+}
+
+.product-guide-ul li {
+  margin-bottom: 6px;
+}
+
+.product-changelog {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.product-changelog-item {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.product-changelog-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.product-changelog-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.product-changelog-head time {
+  font-size: 12px;
+  color: var(--muted, #6b6358);
+}
+
+.dm-notice-card {
+  max-width: 100%;
+}
+
+.dm-notice-title {
+  font-weight: 600;
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.dm-notice-body {
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.dm-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dm-notice-btn {
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.feedback-category-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feedback-category-row .chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  background: var(--surface);
+}
+
+.feedback-category-row .chip.is-active {
+  border-color: var(--primary, #5b6b4f);
+  background: color-mix(in srgb, var(--primary, #5b6b4f) 12%, var(--surface));
+}
+
+.discover-conv-row.is-platform-official .discover-conv-sub {
+  color: var(--primary, #5b6b4f);
+}
