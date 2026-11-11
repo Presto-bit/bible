@@ -92,10 +92,7 @@ export default function HelpFeedbackFormPage() {
       ) : (
         <div className="settings-card" style={{ marginTop: 12 }}>
           <label className="settings-title">类型</label>
-          <motion-select-row
-            category={category}
-            setCategory={setCategory}
-          />
+          <FeedbackCategoryRow category={category} setCategory={setCategory} />
           <label className="settings-title" style={{ marginTop: 12 }}>
             场景
           </label>
@@ -135,7 +132,7 @@ export default function HelpFeedbackFormPage() {
   );
 }
 
-function motion-select-row({
+function FeedbackCategoryRow({
   category,
   setCategory,
 }: {
