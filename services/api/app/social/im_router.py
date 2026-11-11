@@ -1172,7 +1172,15 @@ def open_dm(peer_id: str, user_id: str = Depends(get_current_user)) -> dict:
             raise HTTPException(400, "不能与自己私信")
         _require_dm_allowed(conn, user_id, peer_id)
         tid = _get_or_create_thread(conn, user_id, peer_id)
+        is_official_peer = _is_official_support_user_id(conn, peer_id)
         conn.commit()
+    if is_official_peer:
+        try:
+            from .official_outreach import send_welcome_if_needed
+
+            send_welcome_if_needed(user_id)
+        except Exception:
+            logger.exception("official welcome on open_dm failed user=%s", user_id[:8])
     return {"thread_id": tid, "peer_user_id": peer_id}
 
 

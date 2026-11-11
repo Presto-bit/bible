@@ -104,7 +104,7 @@ export default function AdminOutreachPanel() {
     <div className="admin-outreach-panel">
       <h3 className="settings-title">用户触达</h3>
       <p className="muted product-guide-p">
-        全员信每月最多 {maxPerMonth} 次；欢迎信在注册时自动发送（模板 welcome_v1）。
+        全员信每月最多 {maxPerMonth} 次；欢迎信在注册或首次打开官方会话时发送（welcome_v2）。
       </p>
       {err ? <p className="error-text">{err}</p> : null}
 

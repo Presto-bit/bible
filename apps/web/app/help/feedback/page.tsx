@@ -8,7 +8,7 @@ import {
   PROFILE_SETTINGS_BACK_LABEL,
   PROFILE_SETTINGS_HREF,
 } from '@/lib/profile_settings';
-import { OFFICIAL_SUPPORT_USER_CODE } from '@/lib/official_support';
+import { navigateToOfficialDm } from '@/lib/official_support';
 import { useRouter } from 'next/navigation';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
@@ -55,10 +55,7 @@ export default function HelpFeedbackFormPage() {
   const openOfficialDm = async () => {
     setBusy(true);
     try {
-      await ensureAccountReady();
-      const dm = await api.openDm(OFFICIAL_SUPPORT_USER_CODE);
-      markRouteNavigation();
-      router.push(`/discover/dm/${dm.thread_id}`);
+      await navigateToOfficialDm(router);
     } catch (e) {
       setErr(e instanceof Error ? e.message : '暂时无法打开会话');
     } finally {

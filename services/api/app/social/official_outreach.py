@@ -16,25 +16,35 @@ from .outreach_schema import ensure_outreach_schema
 logger = logging.getLogger(__name__)
 
 OFFICIAL_DISPLAY_NAME = "彼爱团队"
-WELCOME_TEMPLATE_KEY = "welcome_v1"
+WELCOME_TEMPLATE_KEY = "welcome_v2"
 WELCOME_PIN_DAYS = 7
 BROADCAST_MAX_PER_MONTH = 2
 
 
 def welcome_notice_body() -> str:
     return (
-        "你好，欢迎来彼爱读经 App。这里有小爱帮你解释经文，可以和同路人共读，"
-        "浏览属灵书籍，探索圣经里有意思的主题，也能分享你的观点。"
-        "更多用法请看产品说明；有问题随时在这里回复我们。"
+        "欢迎使用彼爱APP，使用中的任何问题，功能建议等直接这里回复即可，期待和您同行。"
     )
 
 
 def welcome_notice_ref_json() -> str:
     payload = {
-        "title": "欢迎使用彼爱",
+        "title": "彼爱团队",
         "actions": [{"label": "产品说明", "href": "/help/product"}],
     }
     return json.dumps(payload, ensure_ascii=False)
+
+
+def _user_has_welcome_delivery(conn, user_id: str) -> bool:
+    row = conn.execute(
+        """
+        SELECT 1 FROM platform_outreach_delivery
+        WHERE user_id = %s AND template_key LIKE 'welcome_%%'
+        LIMIT 1
+        """,
+        (user_id,),
+    ).fetchone()
+    return row is not None
 
 
 def _pair(a: str, b: str) -> tuple[str, str]:
@@ -148,10 +158,13 @@ def send_official_dm(
 
 
 def send_welcome_if_needed(user_id: str) -> bool:
-    """新用户欢迎 notice（幂等）。成功新发返回 True。"""
+    """欢迎 notice（幂等）：尚无 welcome_* 投递时发一条，含产品说明入口。"""
     pool = get_pool()
     try:
         with pool.connection() as conn:
+            ensure_outreach_schema(conn)
+            if _user_has_welcome_delivery(conn, user_id):
+                return False
             mid = send_official_dm(
                 conn,
                 user_id,

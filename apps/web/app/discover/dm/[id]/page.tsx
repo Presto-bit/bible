@@ -48,6 +48,7 @@ import {
 } from '@/lib/use_voice_recorder';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
 import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
+import { OFFICIAL_DISPLAY_NAME } from '@/lib/official_support';
 import {
   dequeueFailedText,
   enqueueFailedText,
@@ -1332,7 +1333,7 @@ function DmThreadPageInner() {
         title={title}
         items={[
           { id: 'search', label: '搜索聊天记录', onSelect: () => setSearchOpen(true) },
-          ...(peerUserId
+          ...(peerUserId && title !== OFFICIAL_DISPLAY_NAME
             ? [{
                 id: 'profile',
                 label: '资料',

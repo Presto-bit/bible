@@ -18,7 +18,7 @@ import {
 } from '@/lib/discover_contacts_cache';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { friendDisplayName, friendRequestLabel } from '@/lib/friend_label';
-import { isPlatformOfficialFriend } from '@/lib/official_support';
+import { isPlatformOfficialFriend, navigateToOfficialDm } from '@/lib/official_support';
 import { FRIEND_REMARKS_EVENT, friendRemarkOrName } from '@/lib/friend_remarks';
 import { useOnline, isBrowserOnline } from '@/lib/use_online';
 
@@ -155,6 +155,13 @@ export default function DiscoverContactsPane() {
   const go = (href: string) => {
     markRouteNavigation();
     router.push(href);
+  };
+
+  const openOfficialChat = () => {
+    setErr(null);
+    void navigateToOfficialDm(router).catch((e) =>
+      setErr(errorMessage(e, '打开会话失败')),
+    );
   };
 
   if (!uid && !effectiveId()) {
@@ -326,7 +333,7 @@ export default function DiscoverContactsPane() {
               ? friendDisplayName(f)
               : friendRemarkOrName(f.user_id, friendDisplayName(f));
             const sub = official
-              ? '使用说明与反馈'
+              ? '有问题或建议，直接这里说'
               : f.handle && name !== f.handle
                 ? `@${f.handle}`
                 : f.user_code
@@ -337,7 +344,7 @@ export default function DiscoverContactsPane() {
                 <button
                   type="button"
                   className={`discover-conv-row${official ? ' is-platform-official' : ''}`}
-                  onClick={() => go(`/discover/friends/${f.user_id}`)}
+                  onClick={() => (official ? openOfficialChat() : go(`/discover/friends/${f.user_id}`))}
                 >
                   <FriendAvatar friend={f} size={40} />
                   <div className="discover-conv-main">
