@@ -231,6 +231,7 @@ export const BACK_PATH_LABELS: Record<string, string> = {
   '/discover': '消息',
   '/discover/contacts': '通讯录',
   '/discover/contacts/groups': '我的群',
+  '/discover/contacts/requests': '好友申请',
   '/discover?tab=friends': '通讯录',
   '/discover/friends': '通讯录',
   '/discover/groups': '通讯录',

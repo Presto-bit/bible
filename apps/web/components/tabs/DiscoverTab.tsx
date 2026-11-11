@@ -734,7 +734,7 @@ export default function DiscoverTab({
           </div>
         ) : (
           <ul
-            className={`discover-conv-list${staggerEnter && !reducedMotion ? ' discover-stagger-enter' : ''}`}
+            className={`discover-conv-list is-ruled${staggerEnter && !reducedMotion ? ' discover-stagger-enter' : ''}`}
           >
             {items.map((it, index) => {
               const key = `${it.scope}:${it.ref_id}`;

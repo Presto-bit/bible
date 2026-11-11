@@ -402,7 +402,7 @@ export default function ProfileSettingsPanel() {
         <div className="settings-group-list">
           <SettingsNavRow
             title="产品说明"
-            hint="功能介绍与更新记录"
+            hint="功能介绍与使用说明"
             href="/help/product"
             onClick={markSettingsNav}
             glyph={settingsGlyph(

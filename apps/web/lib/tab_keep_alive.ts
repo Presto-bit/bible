@@ -49,6 +49,7 @@ export const DISCOVER_SECONDARY_PREFIXES = [
   '/discover/join',
   '/discover/contacts',
   '/discover/contacts/',
+  '/discover/contacts/requests',
   '/discover/friends',
   '/discover/group/',
   '/discover/dm/',

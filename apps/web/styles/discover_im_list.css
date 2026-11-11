@@ -114,6 +114,47 @@
 .discover-conv-list{
   list-style:none;margin:0;padding:8px 12px 12px;display:flex;flex-direction:column;gap:8px;
 }
+/* 消息 / 通讯录：单卡多行 + 横线分隔（替代逐行独立阴影） */
+.discover-conv-list.is-ruled{
+  gap:0;
+  padding:0;
+  background:var(--surface,#fff);
+  border-radius:16px;
+  box-shadow:var(--home-shadow, 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.08));
+  overflow:hidden;
+  border:1px solid color-mix(in srgb, var(--line,#e8e4dc) 70%, transparent);
+}
+.discover-conv-list.is-ruled > .discover-conv-li,
+.discover-conv-list.is-ruled > li.discover-conv-li{
+  border-radius:0;
+  box-shadow:none;
+  border-bottom:1px solid color-mix(in srgb, var(--line,#e8e4dc) 88%, transparent);
+}
+.discover-conv-list.is-ruled > .discover-conv-li:last-child,
+.discover-conv-list.is-ruled > li.discover-conv-li:last-child{
+  border-bottom:0;
+}
+.discover-friends-pane .section-label{
+  margin:4px 4px 8px;
+}
+.discover-conv-row.discover-conv-row-static{
+  cursor:default;
+}
+.discover-conv-actions{
+  display:flex;
+  flex-shrink:0;
+  gap:6px;
+  align-items:center;
+}
+.discover-conv-action-btn{
+  padding:6px 10px;
+  font-size:13px;
+  min-height:32px;
+}
+.discover-conv-pending-label{
+  flex-shrink:0;
+  font-size:13px;
+}
 .discover-conv-li.is-navigating .discover-conv-row{
   opacity:.72;
   background:color-mix(in srgb, var(--accent-wash,#e8efe9) 45%, transparent);

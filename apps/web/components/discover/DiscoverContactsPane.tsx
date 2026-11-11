@@ -17,7 +17,7 @@ import {
   writeDiscoverContactsCache,
 } from '@/lib/discover_contacts_cache';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
-import { friendDisplayName, friendRequestLabel } from '@/lib/friend_label';
+import { friendDisplayName } from '@/lib/friend_label';
 import { isPlatformOfficialFriend, navigateToOfficialDm } from '@/lib/official_support';
 import { FRIEND_REMARKS_EVENT, friendRemarkOrName } from '@/lib/friend_remarks';
 import { useOnline, isBrowserOnline } from '@/lib/use_online';
@@ -201,115 +201,108 @@ export default function DiscoverContactsPane() {
       {showPending ? (
         <section className="discover-contacts-pending" style={{ marginBottom: 16 }}>
           <p className="section-label">待处理</p>
-          <ul className="discover-conv-list">
+          <ul className="discover-conv-list is-ruled">
             {groupInviteCount > 0 ? (
-              <li>
+              <li className="discover-conv-li">
                 <button
                   type="button"
-                  className="discover-conv-row discover-contacts-entry"
+                  className="discover-conv-row"
                   onClick={() => go('/discover/invites')}
                 >
                   <span className="discover-conv-avatar scope-inbox_groups" aria-hidden>邀</span>
                   <div className="discover-conv-main">
-                    <strong>群邀请</strong>
-                    <p className="muted discover-conv-sub">{groupInviteCount} 条待确认</p>
+                    <div className="discover-conv-title-row">
+                      <div className="discover-conv-title-left">
+                        <strong>群邀请</strong>
+                      </div>
+                    </div>
+                    <div className="discover-conv-sub-row">
+                      <p className="muted discover-conv-sub">{groupInviteCount} 条待确认</p>
+                      <span className="discover-conv-unread">{groupInviteCount}</span>
+                    </div>
                   </div>
-                  <span className="discover-conv-unread">{groupInviteCount}</span>
                 </button>
               </li>
             ) : null}
-            {incoming.map((r) => (
-              <li key={r.id} className="card card-2" style={{ padding: 12, marginBottom: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <p className="muted" style={{ margin: '0 0 2px', fontSize: 11 }}>新的朋友</p>
-                    <strong>{friendRequestLabel(r)}</strong>
-                    {r.user_code && friendRequestLabel(r) !== `ID ${r.user_code}` ? (
-                      <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>
-                        ID {r.user_code}
-                      </p>
-                    ) : r.handle && friendRequestLabel(r) !== `@${r.handle}` ? (
-                      <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>
-                        @{r.handle}
-                      </p>
-                    ) : null}
-                    {r.message ? (
-                      <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-                        附言：{r.message}
-                      </p>
-                    ) : null}
+            {incoming.length > 0 ? (
+              <li className="discover-conv-li">
+                <button
+                  type="button"
+                  className="discover-conv-row"
+                  onClick={() => go('/discover/contacts/requests')}
+                >
+                  <span className="discover-conv-avatar scope-inbox_friends" aria-hidden>友</span>
+                  <div className="discover-conv-main">
+                    <div className="discover-conv-title-row">
+                      <div className="discover-conv-title-left">
+                        <strong>新的朋友</strong>
+                      </div>
+                    </div>
+                    <div className="discover-conv-sub-row">
+                      <p className="muted discover-conv-sub">{incoming.length} 条待你确认</p>
+                      <span className="discover-conv-unread">{incoming.length}</span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button
-                      type="button"
-                      className="btn"
-                      style={{ padding: '6px 10px', fontSize: 13 }}
-                      onClick={() =>
-                        void api.acceptFriendRequest(r.id).then(() => {
-                          setErr(null);
-                          void reload();
-                        })
-                      }
-                    >
-                      同意
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      style={{ padding: '6px 10px', fontSize: 13 }}
-                      onClick={() => void api.declineFriendRequest(r.id).then(reload)}
-                    >
-                      拒绝
-                    </button>
-                  </div>
-                </div>
+                  <span className="muted" aria-hidden>›</span>
+                </button>
               </li>
-            ))}
-            {outgoing.map((r) => (
-              <li key={r.id} className="card card-2" style={{ padding: 12, marginBottom: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <p className="muted" style={{ margin: '0 0 2px', fontSize: 11 }}>等待验证</p>
-                    <strong>{friendRequestLabel(r)}</strong>
-                    {r.user_code && friendRequestLabel(r) !== `ID ${r.user_code}` ? (
-                      <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>
-                        ID {r.user_code}
+            ) : null}
+            {outgoing.length > 0 ? (
+              <li className="discover-conv-li">
+                <button
+                  type="button"
+                  className="discover-conv-row"
+                  onClick={() => go('/discover/contacts/requests')}
+                >
+                  <span className="discover-conv-avatar scope-inbox_friends" aria-hidden>友</span>
+                  <div className="discover-conv-main">
+                    <div className="discover-conv-title-row">
+                      <div className="discover-conv-title-left">
+                        <strong>等待验证</strong>
+                      </div>
+                    </div>
+                    <div className="discover-conv-sub-row">
+                      <p className="muted discover-conv-sub">
+                        {outgoing.length} 条等待对方同意
                       </p>
-                    ) : null}
-                    {r.message ? (
-                      <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-                        附言：{r.message}
-                      </p>
-                    ) : (
-                      <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-                        已发送申请，等待对方同意
-                      </p>
-                    )}
+                    </div>
                   </div>
-                  <span className="muted" style={{ fontSize: 13, flexShrink: 0 }}>待同意</span>
-                </div>
+                  <span className="muted" aria-hidden>›</span>
+                </button>
               </li>
-            ))}
+            ) : null}
           </ul>
         </section>
       ) : null}
 
       {!query ? (
-        <section style={{ marginBottom: 16 }}>
-          <button
-            type="button"
-            className="discover-conv-row discover-contacts-entry"
-            onClick={() => go('/discover/contacts/groups')}
-          >
-            <span className="discover-conv-avatar scope-group" aria-hidden>群</span>
-            <div className="discover-conv-main">
-              <strong>我的群</strong>
-              <p className="muted discover-conv-sub">
-                {groupCount > 0 ? `${groupCount} 个共读群` : '建群或加入共读群'}
-              </p>
-            </div>
-            <span className="muted" aria-hidden>›</span>
-          </button>
+        <section className="discover-contacts-section" style={{ marginBottom: 16 }}>
+          <p className="section-label">入口</p>
+          <ul className="discover-conv-list is-ruled">
+            <li className="discover-conv-li">
+              <button
+                type="button"
+                className="discover-conv-row"
+                onClick={() => go('/discover/contacts/groups')}
+              >
+                <span className="discover-conv-avatar scope-group" aria-hidden>群</span>
+                <div className="discover-conv-main">
+                  <div className="discover-conv-title-row">
+                    <div className="discover-conv-title-left">
+                      <strong>我的群</strong>
+                      <span className="discover-conv-badge">共读</span>
+                    </div>
+                  </div>
+                  <div className="discover-conv-sub-row">
+                    <p className="muted discover-conv-sub">
+                      {groupCount > 0 ? `${groupCount} 个共读群` : '建群或加入共读群'}
+                    </p>
+                  </div>
+                </div>
+                <span className="muted" aria-hidden>›</span>
+              </button>
+            </li>
+          </ul>
         </section>
       ) : null}
 
@@ -326,7 +319,13 @@ export default function DiscoverContactsPane() {
       ) : filteredFriends.length === 0 && friends.length > 0 ? (
         <p className="muted discover-empty-inline">无匹配好友</p>
       ) : (
-        <ul className="discover-conv-list">
+        <>
+          {!query && filteredFriends.length > 0 ? (
+            <p className="section-label" style={{ marginTop: 4 }}>
+              好友
+            </p>
+          ) : null}
+          <ul className="discover-conv-list is-ruled">
           {filteredFriends.map((f) => {
             const official = isPlatformOfficialFriend(f);
             const name = official
@@ -340,16 +339,22 @@ export default function DiscoverContactsPane() {
                   ? `ID ${f.user_code}`
                   : '查看资料 · 发私信';
             return (
-              <li key={f.user_id}>
+              <li key={f.user_id} className="discover-conv-li">
                 <button
                   type="button"
                   className={`discover-conv-row${official ? ' is-platform-official' : ''}`}
                   onClick={() => (official ? openOfficialChat() : go(`/discover/friends/${f.user_id}`))}
                 >
-                  <FriendAvatar friend={f} size={40} />
+                  <FriendAvatar friend={f} size={48} />
                   <div className="discover-conv-main">
-                    <strong>{name}</strong>
-                    <p className="muted discover-conv-sub">{sub}</p>
+                    <div className="discover-conv-title-row">
+                      <div className="discover-conv-title-left">
+                        <strong>{name}</strong>
+                      </div>
+                    </div>
+                    <div className="discover-conv-sub-row">
+                      <p className="muted discover-conv-sub">{sub}</p>
+                    </div>
                   </div>
                   <span className="muted" aria-hidden>›</span>
                 </button>
@@ -357,6 +362,7 @@ export default function DiscoverContactsPane() {
             );
           })}
         </ul>
+        </>
       )}
     </div>
   );
