@@ -823,12 +823,17 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                     except Exception:
                         pass
                 fname = dm_fnames.get(str(last_id)) if last_id else None
+                peer_title = (
+                    "彼爱团队"
+                    if peer == official_uid
+                    else (peer_names.get(peer) or f"用户{peer[:4]}")
+                )
                 items.append({
                     "scope": "dm",
                     "ref_id": str(tid),
                     "peer_user_id": peer,
                     "peer_avatar_id": peer_avatars.get(peer),
-                    "title": peer_names.get(peer) or f"用户{peer[:4]}",
+                    "title": peer_title,
                     "subtitle": _conv_preview(
                         kind=last_kind,
                         body=last_body,
@@ -1202,6 +1207,14 @@ def list_dm_messages(
         ).fetchone()
         if not t or user_id not in (str(t[0]), str(t[1])):
             raise HTTPException(404, "会话不存在")
+        peer = str(t[1]) if str(t[0]) == user_id else str(t[0])
+        if not before and _is_official_support_user_id(conn, peer):
+            try:
+                from .official_outreach import send_welcome_if_needed
+
+                send_welcome_if_needed(user_id)
+            except Exception:
+                logger.exception("official welcome on list_dm failed user=%s", user_id[:8])
         try:
             if before:
                 rows = conn.execute(
@@ -1306,7 +1319,6 @@ def list_dm_messages(
                 "mine": str(r[1]) == user_id,
                 "reactions": reactions or {},
             })
-        peer = str(t[1]) if str(t[0]) == user_id else str(t[0])
         peer_title = _display(conn, peer)
         peer_read = None
         try:

@@ -47,8 +47,9 @@ import {
   voiceRecorderSupported,
 } from '@/lib/use_voice_recorder';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
-import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
-import { OFFICIAL_DISPLAY_NAME } from '@/lib/official_support';
+import { FRIEND_REMARKS_EVENT } from '@/lib/friend_remarks';
+import { isOfficialDmPeer, resolveDmPeerTitle } from '@/lib/dm_peer_display';
+import { OFFICIAL_AVATAR_ID, OFFICIAL_DISPLAY_NAME } from '@/lib/official_support';
 import {
   dequeueFailedText,
   enqueueFailedText,
@@ -224,11 +225,18 @@ function DmThreadPageInner() {
 
   useEffect(() => {
     if (!peerUserId) return;
-    const sync = () => setTitle(dmTitleWithRemark(peerUserId, peerTitleRaw));
+    const sync = () =>
+      setTitle(
+        resolveDmPeerTitle({
+          peerUserId,
+          peerAvatarId,
+          apiTitle: peerTitleRaw,
+        }),
+      );
     sync();
     window.addEventListener(FRIEND_REMARKS_EVENT, sync);
     return () => window.removeEventListener(FRIEND_REMARKS_EVENT, sync);
-  }, [peerUserId, peerTitleRaw]);
+  }, [peerUserId, peerTitleRaw, peerAvatarId]);
 
   const sendBodyRef = useRef<
     (body: string, replyId?: string, replaceTempId?: string) => Promise<boolean>
@@ -306,7 +314,13 @@ function DmThreadPageInner() {
         if (r.peer_title || r.peer_user_id) {
           const raw = r.peer_title || '私信';
           setPeerTitleRaw(raw);
-          setTitle(dmTitleWithRemark(r.peer_user_id, raw));
+          setTitle(
+            resolveDmPeerTitle({
+              peerUserId: r.peer_user_id,
+              peerAvatarId: r.peer_avatar_id,
+              apiTitle: raw,
+            }),
+          );
         }
         startTransition(() => {
           setMsgs((prev) => {
@@ -389,7 +403,13 @@ function DmThreadPageInner() {
       }
       if (cached.meta?.peer_title) {
         setPeerTitleRaw(cached.meta.peer_title);
-        setTitle(dmTitleWithRemark(cached.meta.peer_user_id, cached.meta.peer_title));
+        setTitle(
+          resolveDmPeerTitle({
+            peerUserId: cached.meta.peer_user_id,
+            peerAvatarId: cached.meta.peer_avatar_id,
+            apiTitle: cached.meta.peer_title,
+          }),
+        );
       }
       threadLoadedRef.current = true;
       setThreadBooting(false);
@@ -1460,7 +1480,12 @@ function DmThreadPageInner() {
                       <FriendAvatar
                         friend={{
                           user_id: peerUserId,
-                          avatar_id: peerAvatarId,
+                          avatar_id: isOfficialDmPeer({
+                            peerUserId,
+                            peerAvatarId,
+                          })
+                            ? OFFICIAL_AVATAR_ID
+                            : peerAvatarId,
                         }}
                         size={40}
                       />
@@ -1745,14 +1770,7 @@ function DmThreadPageInner() {
             onConfirm={() => void confirmPending()}
           />
         ) : null}
-        <div className="im-composer-row dm-composer-row">
-          {uid ? (
-            <FriendAvatar
-              friend={{ user_id: uid, avatar_id: myAvatarId }}
-              size={36}
-              className="dm-composer-avatar"
-            />
-          ) : null}
+        <div className="im-composer-row dm-composer-row dm-composer-row--full">
           <div className={`im-composer-field-wrap${!online ? ' is-offline' : ''}`}>
             {voiceMode ? (
               <button
@@ -1782,6 +1800,14 @@ function DmThreadPageInner() {
                   setPlusOpen(false);
                   setComposerFocused(true);
                   scrollImChatToBottom(listRef.current, { gentle: true });
+                  window.setTimeout(
+                    () => scrollImChatToBottom(listRef.current, { gentle: true }),
+                    120,
+                  );
+                  window.setTimeout(
+                    () => scrollImChatToBottom(listRef.current, { gentle: true }),
+                    280,
+                  );
                 }}
                 onBlur={() => {
                   window.setTimeout(() => {
@@ -1799,6 +1825,32 @@ function DmThreadPageInner() {
               />
             )}
           </div>
+          {((!text.trim() && !pending && !voiceMode) || plusOpen) ? (
+            <button
+              type="button"
+              className={`im-composer-plus${plusOpen ? ' is-open' : ''}`}
+              disabled={uploading || sending || !online}
+              aria-expanded={plusOpen}
+              aria-label={plusOpen ? '收起更多' : '更多'}
+              onClick={() => {
+                setPlusOpen((v) => {
+                  const next = !v;
+                  if (next) {
+                    inputRef.current?.blur();
+                    setVoiceMode(false);
+                    setComposerFocused(false);
+                    document.body.classList.add('im-plus-sheet');
+                    clearImKeyboardLift();
+                  } else {
+                    document.body.classList.remove('im-plus-sheet');
+                  }
+                  return next;
+                });
+              }}
+            >
+              {plusOpen ? <IconClose /> : <IconPlus />}
+            </button>
+          ) : null}
           <button
             type="button"
             className="im-composer-voice-toggle"
@@ -1833,28 +1885,6 @@ function DmThreadPageInner() {
               {sending ? '…' : '发送'}
             </button>
           ) : null}
-          <button
-            type="button"
-            className={`im-composer-plus${plusOpen ? ' is-open' : ''}`}
-            disabled={uploading || sending || !online}
-            aria-expanded={plusOpen}
-            aria-label={plusOpen ? '收起更多' : '更多'}
-            onClick={() => {
-              setPlusOpen((v) => {
-                const next = !v;
-                if (next) {
-                  inputRef.current?.blur();
-                  setVoiceMode(false);
-                  setComposerFocused(false);
-                  document.body.classList.add('im-plus-sheet');
-                  clearImKeyboardLift();
-                }
-                return next;
-              });
-            }}
-          >
-            {plusOpen ? <IconClose /> : <IconPlus />}
-          </button>
         </div>
         {plusOpen ? (
           <div className="im-plus-panel" role="menu">

@@ -21,7 +21,7 @@ import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
 import { friendDisplayName } from '@/lib/friend_label';
-import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
+import { FRIEND_REMARKS_EVENT } from '@/lib/friend_remarks';
 import { formatConvListTime } from '@/lib/im_ui';
 import { getImDraftRecord, IM_DRAFTS_EVENT } from '@/lib/im_drafts';
 import { listFailedText, listFailedMediaMeta } from '@/lib/im_send_queue';
@@ -41,6 +41,7 @@ import { shellTapProps } from '@/lib/shell_tap';
 import { peiaiDiscoverStaggerProps, peiaiStaggerDurationMs } from '@/lib/peiai_motion';
 import { GroupMark } from '@/components/discover/GroupMark';
 import { splitConvKind } from '@/lib/conv_preview';
+import { dmConversationAvatarFriend, resolveDmPeerTitle } from '@/lib/dm_peer_display';
 
 const CONV_CACHE_KEY = 'presto_discover_conv_cache_v1';
 
@@ -93,13 +94,7 @@ function ConversationAvatar({
 }) {
   if (it.scope === 'dm') {
     return (
-      <FriendAvatar
-        friend={{
-          user_id: it.peer_user_id || it.ref_id,
-          avatar_id: friend?.avatar_id || it.peer_avatar_id,
-        }}
-        size={40}
-      />
+      <FriendAvatar friend={dmConversationAvatarFriend(it, friend)} size={40} />
     );
   }
   if (it.scope === 'group') {
@@ -762,12 +757,12 @@ export default function DiscoverTab({
                   : null;
               const title =
                 it.scope === 'dm'
-                  ? dmTitleWithRemark(
-                      it.peer_user_id,
-                      peerFriend
-                        ? friendDisplayName(peerFriend)
-                        : it.title,
-                    )
+                  ? resolveDmPeerTitle({
+                      peerUserId: it.peer_user_id,
+                      peerAvatarId: it.peer_avatar_id,
+                      friend: peerFriend,
+                      apiTitle: it.title,
+                    })
                   : it.title;
               void remarkTick;
               void draftTick;

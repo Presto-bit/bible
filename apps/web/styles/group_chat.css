@@ -3356,9 +3356,14 @@ body.im-vv-shell .dm-page {
   top: var(--im-shell-top, 0px);
   height: var(--im-shell-h, 100dvh);
   bottom: auto;
-  max-height: none;
+  max-height: var(--im-shell-h, 100dvh);
   min-height: 0;
   transform: none;
+}
+html.android-flutter-h5 body.im-keyboard .dm-page,
+html.android-flutter-h5 body.im-keyboard .group-page-checkin {
+  height: var(--im-shell-h, var(--im-vv-h, 100dvh)) !important;
+  max-height: var(--im-shell-h, var(--im-vv-h, 100dvh)) !important;
 }
 body.im-keyboard .group-page-checkin,
 body.im-keyboard .dm-page {
@@ -3372,6 +3377,10 @@ body.im-keyboard .group-wechat-composer.im-composer-dock{
   right: auto;
   bottom: auto;
   padding-bottom: 4px;
+}
+body.im-keyboard .dm-page-body{
+  flex:1;
+  min-height:0;
 }
 body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(0,100%,0);}
 body.im-plus-sheet .tabbar,
@@ -4690,6 +4699,7 @@ html.perf-lite .im-msg-popover {
 .group-feed-load-sentinel{display:flex;justify-content:center;padding:8px 0 4px;min-height:28px;font-size:12px;}
 .dm-bubble-wrap{flex:1;min-width:0;max-width:min(72vw,280px);display:flex;flex-direction:column;}
 .dm-composer-row{align-items:flex-end;}
+.dm-composer-row--full .im-composer-field-wrap{flex:1;min-width:0;}
 .dm-composer-avatar{align-self:flex-end;margin-bottom:6px;flex-shrink:0;}
 .im-chat-search-backdrop{
   position:fixed;
