@@ -1948,11 +1948,22 @@
   margin-top: 0 !important;
 }
 
-.admin-outreach-welcome-body {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.75;
-  white-space: pre-wrap;
+.admin-outreach-preview-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-outreach-notice-frame {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  background: var(--surface, #faf9f7);
+  max-width: 360px;
+}
+
+.admin-outreach-notice-frame .dm-notice-btn {
+  pointer-events: none;
 }
 
 .admin-outreach-job-list,

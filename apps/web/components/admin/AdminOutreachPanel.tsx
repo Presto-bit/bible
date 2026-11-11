@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { DmNoticeCard } from '@/components/social/DmNoticeCard';
 import { adminJson } from '@/lib/admin_rag';
 
 type OutreachJob = {
@@ -47,6 +48,17 @@ const FEEDBACK_CATEGORY_LABEL: Record<string, string> = {
   other: '其他',
 };
 
+function friendlyErrMessage(message: string): string {
+  const t = message.trim();
+  if (t.includes('<!DOCTYPE') || t.includes('<html') || t.startsWith('<')) {
+    return '接口未就绪或登录已过期，请刷新页面后重试';
+  }
+  if (t.length > 240) {
+    return `${t.slice(0, 240)}…`;
+  }
+  return t;
+}
+
 function formatAdminTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = iso.slice(0, 16).replace('T', ' ');
@@ -78,7 +90,17 @@ export default function AdminOutreachPanel() {
   const [audience, setAudience] = useState<'all' | 'active_30d'>('all');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [welcomePreview, setWelcomePreview] = useState<string>('');
+  const [welcomeBody, setWelcomeBody] = useState('');
+  const [welcomeRef, setWelcomeRef] = useState<string | null>(null);
+
+  const broadcastRef = useMemo(
+    () =>
+      JSON.stringify({
+        title: title.trim() || '彼爱团队',
+        actions: [{ label: '产品说明', href: '/help/product' }],
+      }),
+    [title],
+  );
 
   const loadJobs = useCallback(async () => {
     const j = await adminJson<{
@@ -94,10 +116,12 @@ export default function AdminOutreachPanel() {
   const loadStatic = useCallback(async () => {
     const f = await adminJson<{ items: FeedbackItem[] }>('/admin/outreach/feedback');
     setFeedback(f.items || []);
-    const w = await adminJson<{ body: string }>('/admin/outreach/preview-welcome', {
-      method: 'POST',
-    });
-    setWelcomePreview(w.body || '');
+    const w = await adminJson<{ body: string; ref?: Record<string, unknown> }>(
+      '/admin/outreach/preview-welcome',
+      { method: 'POST' },
+    );
+    setWelcomeBody(w.body || '');
+    setWelcomeRef(w.ref ? JSON.stringify(w.ref) : null);
   }, []);
 
   const reloadAll = useCallback(async () => {
@@ -105,7 +129,7 @@ export default function AdminOutreachPanel() {
       await Promise.all([loadJobs(), loadStatic()]);
       setErr(null);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : '加载失败');
+      setErr(friendlyErrMessage(e instanceof Error ? e.message : '加载失败'));
     }
   }, [loadJobs, loadStatic]);
 
@@ -147,7 +171,7 @@ export default function AdminOutreachPanel() {
       setBody('');
       await loadJobs();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : '发送失败');
+      setErr(friendlyErrMessage(e instanceof Error ? e.message : '发送失败'));
     } finally {
       setBusy(false);
     }
@@ -158,7 +182,7 @@ export default function AdminOutreachPanel() {
   return (
     <div className="admin-outreach-panel">
       <p className="muted admin-outreach-lead">
-        欢迎信在注册或首次打开官方会话时自动发送（welcome_v2）。全员信本月已完成{' '}
+        欢迎信在用户注册或首次打开彼爱团队会话时自动发送。全员信本月已完成{' '}
         <strong>{sentThisMonth}</strong> / {maxPerMonth} 次
         {quotaLeft === 0 ? (
           <span className="admin-outreach-quota-warn"> · 本月额度已用尽</span>
@@ -170,15 +194,24 @@ export default function AdminOutreachPanel() {
       {err ? <p className="error-text">{err}</p> : null}
 
       <div className="settings-card admin-outreach-card">
-        <p className="settings-title">欢迎信预览</p>
-        <p className="admin-outreach-welcome-body">{welcomePreview || '加载中…'}</p>
+        <p className="settings-title">欢迎信 · 用户端效果</p>
+        <p className="muted admin-outreach-preview-hint">与发现里彼爱团队会话中展示一致</p>
+        <div className="admin-outreach-notice-frame">
+          {welcomeBody ? (
+            <DmNoticeCard body={welcomeBody} ref={welcomeRef} />
+          ) : (
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+              加载中…
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="settings-card admin-outreach-card">
-        <p className="settings-title">新建全员信（notice）</p>
+        <p className="settings-title">新建全员信</p>
         <input
           className="input"
-          placeholder="标题"
+          placeholder="标题（显示在消息卡片顶部）"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
@@ -199,6 +232,16 @@ export default function AdminOutreachPanel() {
           <option value="all">全部用户</option>
           <option value="active_30d">近 30 天活跃</option>
         </select>
+        <p className="settings-title" style={{ marginTop: 14 }}>
+          发送前预览
+        </p>
+        <p className="muted admin-outreach-preview-hint">以下为私信里用户看到的卡片，不是源码</p>
+        <div className="admin-outreach-notice-frame">
+          <DmNoticeCard
+            body={body.trim() || '在这里输入正文后，会实时显示在下方卡片中。'}
+            ref={broadcastRef}
+          />
+        </div>
         <button
           type="button"
           className="btn"
