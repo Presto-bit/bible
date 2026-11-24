@@ -101,7 +101,7 @@ _STATEMENTS: tuple[str, ...] = (
       reactions JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       CONSTRAINT direct_message_kind_chk
-        CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system'))
+        CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system', 'notice'))
     )
     """,
     """

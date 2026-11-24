@@ -69,14 +69,22 @@ CREATE TABLE IF NOT EXISTS direct_message (
   recalled_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT direct_message_kind_chk
-    CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system'))
+    CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system', 'notice'))
 );
 
--- 已有库放宽 kind（音视频）
-ALTER TABLE direct_message DROP CONSTRAINT IF EXISTS direct_message_kind_chk;
-ALTER TABLE direct_message
-  ADD CONSTRAINT direct_message_kind_chk
-  CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system'));
+-- 已有库补约束：禁止 DROP 后再加窄 CHECK。
+-- ensure_pg_schema 每次发版重放本文件；若此处不含 'notice'，会撞上 043 写入的触达信。
+-- 扩容 kind 由后续迁移（043）负责；这里仅在约束缺失时补上（含 notice）。
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'direct_message_kind_chk'
+  ) THEN
+    ALTER TABLE direct_message
+      ADD CONSTRAINT direct_message_kind_chk
+      CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system', 'notice'));
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS direct_message_thread_idx
   ON direct_message (thread_id, created_at DESC);
