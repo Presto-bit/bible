@@ -32,7 +32,7 @@ const FALLBACK: ClientDefaults = {
     reading_dnd_default: true,
   },
   home: { rail_slot_min: 1, rail_slot_max: 4, warm_excluded_from_uv: true },
-  discover: { tab_bar_unread_badge: false },
+  discover: { tab_bar_unread_badge: true },
   copy: {
     guilt_free: true,
     reminder_body_hint: '愿话语成为你脚前的灯 · 今日也可打开圣经读一章',

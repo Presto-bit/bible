@@ -287,7 +287,7 @@ export default function RemindersPage() {
           <div>
             <strong>读经勿扰</strong>
             <p className="muted reminder-card-sub">
-              默认开启。在圣经阅读页不弹群/私信通知；底栏发现永不显示未读角标。
+              默认开启。在圣经阅读页不弹群/私信通知；发现未读见消息列表与底栏数字。
             </p>
           </div>
           <button

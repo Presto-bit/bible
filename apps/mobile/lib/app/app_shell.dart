@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/background_digest_service.dart';
+import '../core/discover_tab_unread.dart';
 import '../core/discover_warmup.dart';
 import '../core/api_client.dart';
 import '../core/app_update.dart';
@@ -270,6 +271,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final online = ref
         .watch(networkOkProvider)
         .maybeWhen(data: (ok) => ok, orElse: () => true);
+    final discoverBadge = ref.watch(discoverTabBadgeProvider);
 
     return SyncLifecycle(
       child: AnnotatedRegion<SystemUiOverlayStyle>(
@@ -318,6 +320,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   bottomPadding: barBottomPad,
                   online: online,
                   scrolling: scrolling,
+                  discoverBadge: discoverBadge,
                   onSelect: (i) {
                     // 已在圣经 Tab 时再点一次：切换沉浸/顶栏（对齐 PWA 底栏 re-tap）
                     if (i == index && i == 1) {
@@ -330,6 +333,11 @@ class _AppShellState extends ConsumerState<AppShell> {
                     }
                     if (i != 3) {
                       ref.read(discoverImmersiveProvider.notifier).set(false);
+                    }
+                    if (i == 3) {
+                      unawaited(
+                        ref.read(discoverTabUnreadProvider.notifier).refresh(),
+                      );
                     }
                     ref.read(navIndexProvider.notifier).set(i);
                   },
@@ -391,6 +399,7 @@ class _PeiaiTabBar extends StatelessWidget {
     required this.bottomPadding,
     required this.online,
     required this.scrolling,
+    this.discoverBadge,
   });
 
   final int index;
@@ -398,6 +407,7 @@ class _PeiaiTabBar extends StatelessWidget {
   final double bottomPadding;
   final bool online;
   final bool scrolling;
+  final String? discoverBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -438,6 +448,7 @@ class _PeiaiTabBar extends StatelessWidget {
                     activeColor: active,
                     inactiveColor: faint,
                     dimmed: !online && (i == 2 || i == 3),
+                    badge: i == 3 ? discoverBadge : null,
                     onTap: () => onSelect(i),
                   ),
                 ),
@@ -471,6 +482,7 @@ class _TabItem extends StatefulWidget {
     required this.inactiveColor,
     required this.onTap,
     this.dimmed = false,
+    this.badge,
   });
 
   final String outlineSvg;
@@ -481,6 +493,7 @@ class _TabItem extends StatefulWidget {
   final Color inactiveColor;
   final VoidCallback onTap;
   final bool dimmed;
+  final String? badge;
 
   @override
   State<_TabItem> createState() => _TabItemState();
@@ -544,6 +557,32 @@ class _TabItemState extends State<_TabItem> {
                         ),
                       ),
                     ),
+                    if (widget.badge != null)
+                      Positioned(
+                        top: -4,
+                        right: -10,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE54D42),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 1,
+                            ),
+                            child: Text(
+                              widget.badge!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

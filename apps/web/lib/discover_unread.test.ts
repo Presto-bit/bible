@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import {
   DISCOVER_UNREAD_CHANGED,
+  formatDiscoverTabBadge,
   notifyDiscoverUnreadChanged,
   subscribeDiscoverUnreadChanged,
 } from './discover_unread';
@@ -24,6 +25,13 @@ describe('discover_unread', () => {
     const ev = (window.dispatchEvent as ReturnType<typeof vi.fn>).mock.calls[0][0] as CustomEvent;
     expect(ev.type).toBe(DISCOVER_UNREAD_CHANGED);
     expect(ev.detail).toEqual({ delta: -1 });
+  });
+
+  it('formatDiscoverTabBadge follows 0 / 99+ rules', () => {
+    expect(formatDiscoverTabBadge(0)).toBeNull();
+    expect(formatDiscoverTabBadge(3)).toBe('3');
+    expect(formatDiscoverTabBadge(99)).toBe('99');
+    expect(formatDiscoverTabBadge(100)).toBe('99+');
   });
 
   it('subscribe returns unsubscribe', () => {

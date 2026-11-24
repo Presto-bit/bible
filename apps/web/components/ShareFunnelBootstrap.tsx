@@ -1,25 +1,49 @@
 'use client';
 
 /**
- * 分享漏斗：识别 fw=1，记住装后深链，静默去掉参数。
- * 安装/添加到主屏幕由落地页自己的提示承担，这里不再弹第二层。
+ * 分享漏斗：fw=1、逃逸进系统浏览器 → 统一安装页；记住装后深链。
  */
 
-import { Suspense, useEffect } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useRef } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { detectInstallPlatform } from '@/lib/pwa_platform';
 import { isShareLandingPath } from '@/lib/share_pwa_guide';
+import {
+  buildShareInstallHubUrl,
+  isShareInstallHubLanding,
+  sharePathForInstallNext,
+  SHARE_INSTALL_NEXT_PARAM,
+} from '@/lib/share_install_hub';
 import { bootstrapFromWechatParam, notePostInstallPath } from '@/lib/wechat_escape';
 
 function ShareFunnelBootstrapInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const redirectedRef = useRef(false);
 
   useEffect(() => {
     const platform = detectInstallPlatform();
+    const fwPresent = searchParams.get('fw') === '1' || searchParams.get('fw') === 'true';
     const result = bootstrapFromWechatParam(searchParams);
+    const shouldHub =
+      platform !== 'inapp'
+      && platform !== 'standalone'
+      && (result.shouldBoostInstall || fwPresent)
+      && isShareLandingPath(pathname)
+      && !isShareInstallHubLanding(pathname);
 
-    // 微信内必须保留 ?fw=1，供「在浏览器打开」带参；系统浏览器落地后静默剥掉，不整页再跳一次
+    if (shouldHub && !redirectedRef.current) {
+      redirectedRef.current = true;
+      const next = sharePathForInstallNext(
+        pathname,
+        typeof window !== 'undefined' ? window.location.search : '',
+      );
+      notePostInstallPath(next);
+      router.replace(buildShareInstallHubUrl(next));
+      return;
+    }
+
     if (
       result.stripQuery
       && platform !== 'inapp'
@@ -34,9 +58,14 @@ function ShareFunnelBootstrapInner() {
     }
 
     if (isShareLandingPath(pathname)) {
-      notePostInstallPath();
+      const nextParam = searchParams.get(SHARE_INSTALL_NEXT_PARAM);
+      notePostInstallPath(
+        isShareInstallHubLanding(pathname) && nextParam
+          ? nextParam
+          : undefined,
+      );
     }
-  }, [pathname, searchParams]);
+  }, [pathname, router, searchParams]);
 
   return null;
 }

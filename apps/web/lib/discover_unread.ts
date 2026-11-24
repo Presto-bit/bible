@@ -1,4 +1,12 @@
-/** 发现页内未读同步（会话列表 / 通讯录角标）。底栏发现永不显示未读角标。 */
+/** 发现页内未读同步（会话列表 / 通讯录 / 底栏角标，由 client-defaults 开关）。 */
+
+/** 底栏「发现」数字：0 不展示；1–99 原样；≥100 为 99+ */
+export function formatDiscoverTabBadge(count: number): string | null {
+  const n = Math.max(0, Math.floor(count));
+  if (n <= 0) return null;
+  if (n >= 100) return '99+';
+  return String(n);
+}
 
 export const DISCOVER_UNREAD_CHANGED = 'presto-discover-unread-changed';
 

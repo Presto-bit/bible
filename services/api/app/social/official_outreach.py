@@ -23,13 +23,19 @@ BROADCAST_MAX_PER_MONTH = 2
 
 def welcome_notice_body() -> str:
     return (
-        "欢迎使用彼爱APP，使用中的任何问题，功能建议等直接这里回复即可，期待和您同行。"
+        "你好，欢迎来彼爱APP\n\n"
+        "在这里可以安静读经、向小爱问经文、和好友一起共读打卡。\n"
+        "使用中的问题或功能建议，直接在这里回复我们就好。\n\n"
+        "装到手机上更好读：\n"
+        "· iPhone：Safari 打开后，点「分享」→「添加到主屏幕」\n"
+        "· 安卓：浏览器里点「下载安装包」，从桌面打开「彼爱」\n\n"
+        "完整说明见产品说明"
     )
 
 
 def welcome_notice_ref_json() -> str:
     payload = {
-        "title": "彼爱团队",
+        "title": "你好，欢迎来彼爱APP",
         "actions": [{"label": "产品说明", "href": "/help/product"}],
     }
     return json.dumps(payload, ensure_ascii=False)

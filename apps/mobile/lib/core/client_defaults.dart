@@ -22,7 +22,7 @@ class ClientDefaults {
     dailyReadingEnabledDefault: false,
     readingDndDefault: true,
     railSlotMax: 4,
-    tabBarUnreadBadge: false,
+    tabBarUnreadBadge: true,
   );
 }
 
@@ -50,7 +50,7 @@ Future<ClientDefaults> fetchClientDefaults({Dio? dio}) async {
           reminders['daily_reading_enabled_default'] as bool? ?? false,
       readingDndDefault: reminders['reading_dnd_default'] as bool? ?? true,
       railSlotMax: home['rail_slot_max'] as int? ?? 4,
-      tabBarUnreadBadge: discover['tab_bar_unread_badge'] as bool? ?? false,
+      tabBarUnreadBadge: discover['tab_bar_unread_badge'] as bool? ?? true,
     );
     return _cached!;
   } catch (_) {

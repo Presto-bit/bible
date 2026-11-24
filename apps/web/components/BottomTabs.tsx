@@ -17,6 +17,7 @@ import { useOnline } from '@/lib/use_online';
 import { isShareLandingPath } from '@/lib/share_pwa_guide';
 import { shellTapProps } from '@/lib/shell_tap';
 import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
+import { useDiscoverTabBadge } from '@/lib/use_discover_tab_badge';
 
 /**
  * 五 Tab 自绘图标（24×24）：线框 ↔ 实心。
@@ -98,6 +99,7 @@ export default function BottomTabs() {
   const pathname = normalizeAppPath(useRouterPathname());
   const router = useRouter();
   const online = useOnline();
+  const discoverBadge = useDiscoverTabBadge();
   const onShareLanding = isShareLandingPath(pathname);
   const compact =
     SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -211,13 +213,21 @@ export default function BottomTabs() {
         const active =
           t.href === '/' ? pathname === '/' : pathname.startsWith(t.href);
         const needsNet = (t.href === '/discover' || t.href === '/assistant') && !online;
+        const unreadHint =
+          t.href === '/discover' && discoverBadge
+            ? `，${discoverBadge}条未读`
+            : '';
         return (
           <button
             key={t.href}
             type="button"
             className={`tab ${active ? 'tab-active' : ''}${needsNet ? ' tab-offline-hint' : ''}`}
             aria-current={active ? 'page' : undefined}
-            aria-label={needsNet ? `${t.label}，当前离线需联网` : t.label}
+            aria-label={
+              needsNet
+                ? `${t.label}，当前离线需联网${unreadHint}`
+                : `${t.label}${unreadHint}`
+            }
             title={needsNet ? '当前离线，此功能需联网' : undefined}
             onContextMenu={(e) => e.preventDefault()}
             {...shellTapProps({
@@ -244,6 +254,9 @@ export default function BottomTabs() {
               >
                 <path fillRule="evenodd" d={t.filled} />
               </svg>
+              {t.href === '/discover' && discoverBadge ? (
+                <span className="tab-unread-badge">{discoverBadge}</span>
+              ) : null}
             </span>
             <span>{t.label}</span>
           </button>

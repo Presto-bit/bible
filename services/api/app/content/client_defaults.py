@@ -15,7 +15,8 @@ def client_defaults_payload() -> dict:
             "warm_excluded_from_uv": True,
         },
         "discover": {
-            "tab_bar_unread_badge": False,
+            # 官方欢迎等未读可在底栏「发现」显示数字（仍受读经勿扰约束）
+            "tab_bar_unread_badge": True,
         },
         "copy": {
             "guilt_free": True,
