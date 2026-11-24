@@ -191,7 +191,7 @@ body.reader-active .proper-noun--artifact {
 .reader-loc-popover {
   position: fixed;
   z-index: 241;
-  max-height: min(52vh, 420px);
+  max-height: min(62vh, 504px);
   display: flex;
   flex-direction: column;
   padding: 12px 14px 14px;
@@ -246,7 +246,7 @@ body.reader-active .proper-noun--artifact {
 }
 .reader-loc-book-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
 }
 .reader-loc-book-cell {

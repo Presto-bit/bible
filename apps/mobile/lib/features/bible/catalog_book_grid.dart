@@ -1,4 +1,4 @@
-/// 经卷目录网格（方案 B：4 列 · 简称 + 副行，固定字号单行省略）。
+/// 经卷目录网格（方案 B：简称 + 副行，固定字号单行省略）。
 library;
 
 import 'package:flutter/material.dart';
@@ -16,6 +16,7 @@ class CatalogBookGrid extends StatelessWidget {
     required this.onPick,
     this.englishUI = false,
     this.compactRadius = false,
+    this.crossAxisCount = 4,
   });
 
   final List<BibleBook> books;
@@ -26,17 +27,20 @@ class CatalogBookGrid extends StatelessWidget {
   /// 弹层用 12px 圆角；全屏目录用 12（默认与 [compactRadius] false 一致）。
   final bool compactRadius;
 
+  /// 顶栏弹层 5 列；全屏目录默认 4 列。
+  final int crossAxisCount;
+
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: books.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
-        childAspectRatio: 0.92,
+        childAspectRatio: crossAxisCount >= 5 ? 0.88 : 0.92,
       ),
       itemBuilder: (_, i) {
         final b = books[i];

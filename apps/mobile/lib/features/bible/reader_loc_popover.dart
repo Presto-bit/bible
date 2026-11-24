@@ -24,7 +24,7 @@ Future<({BibleBook book, int chapter})?> showReaderLocPopover(
   final offset = box.localToGlobal(Offset.zero);
   final size = box.size;
   final media = MediaQuery.of(context);
-  final maxW = (media.size.width - 16).clamp(240.0, 340.0);
+  final maxW = (media.size.width - 16).clamp(260.0, 408.0);
   var left = offset.dx;
   if (left + maxW > media.size.width - 8) {
     left = media.size.width - 8 - maxW;
@@ -166,7 +166,7 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
         visible.where((b) => !b.isOldTestament).toList(growable: false);
     final allowed = _allowedChapters;
     final mediaH = MediaQuery.sizeOf(context).height;
-    final maxH = mediaH * 0.52;
+    final maxH = mediaH * 0.624;
 
     return Container(
       constraints: BoxConstraints(maxHeight: maxH),
@@ -326,6 +326,7 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
                           onPick: _pickBook,
                           englishUI: widget.englishUI,
                           compactRadius: true,
+                          crossAxisCount: 5,
                         ),
                       ],
                       if (nt.isNotEmpty) ...[
@@ -337,6 +338,7 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
                           onPick: _pickBook,
                           englishUI: widget.englishUI,
                           compactRadius: true,
+                          crossAxisCount: 5,
                         ),
                       ],
                     ],

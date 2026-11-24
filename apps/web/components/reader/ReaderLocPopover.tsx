@@ -60,7 +60,7 @@ export function ReaderLocPopover({
       const anchor = anchorRef.current;
       if (!anchor) return;
       const r = anchor.getBoundingClientRect();
-      const maxW = Math.min(340, window.innerWidth - 16);
+      const maxW = Math.min(408, window.innerWidth - 16);
       let left = r.left;
       if (left + maxW > window.innerWidth - 8) {
         left = window.innerWidth - 8 - maxW;
