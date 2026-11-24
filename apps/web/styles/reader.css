@@ -246,23 +246,58 @@ body.reader-active .proper-noun--artifact {
 }
 .reader-loc-book-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 .reader-loc-book-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 52px;
   border: 1px solid var(--line);
   background: var(--bg);
-  border-radius: 8px;
-  padding: 8px 2px;
+  border-radius: 10px;
+  padding: 8px 4px;
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
   color: var(--ink);
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.reader-loc-book-cell .catalog-abbr {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.reader-loc-book-cell .catalog-name {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.15;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 .reader-loc-book-cell.is-active {
   border-color: var(--accent);
   background: var(--accent-wash);
+}
+.reader-loc-book-cell.is-active .catalog-abbr {
   color: var(--accent-deep);
 }
 .reader-loc-warn {

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../plans/plan_navigation.dart';
 import '../plans/plan_steps.dart';
+import 'catalog_book_grid.dart';
 import 'models.dart';
 import 'bible_book_names.dart';
 
@@ -319,21 +320,23 @@ class _ReaderLocPanelState extends State<_ReaderLocPanel> {
                     children: [
                       if (ot.isNotEmpty) ...[
                         _GroupLabel(widget.englishUI ? 'Old Testament' : '旧约'),
-                        _BookGrid(
+                        CatalogBookGrid(
                           books: ot,
                           selectedId: _selectedBookId,
                           onPick: _pickBook,
                           englishUI: widget.englishUI,
+                          compactRadius: true,
                         ),
                       ],
                       if (nt.isNotEmpty) ...[
                         const SizedBox(height: 10),
                         _GroupLabel(widget.englishUI ? 'New Testament' : '新约'),
-                        _BookGrid(
+                        CatalogBookGrid(
                           books: nt,
                           selectedId: _selectedBookId,
                           onPick: _pickBook,
                           englishUI: widget.englishUI,
+                          compactRadius: true,
                         ),
                       ],
                     ],
@@ -400,50 +403,3 @@ class _GroupLabel extends StatelessWidget {
   }
 }
 
-class _BookGrid extends StatelessWidget {
-  const _BookGrid({
-    required this.books,
-    required this.selectedId,
-    required this.onPick,
-    this.englishUI = false,
-  });
-  final List<BibleBook> books;
-  final String selectedId;
-  final void Function(BibleBook) onPick;
-  final bool englishUI;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (final b in books)
-          Material(
-            color: b.id == selectedId
-                ? AppColors.accentWash
-                : AppColors.surfaceSunken,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              onTap: () => onPick(b),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                child: Text(
-                  bibleBookAbbrFor(b.id, b.name, english: englishUI),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: b.id == selectedId
-                        ? AppColors.accentDeep
-                        : AppColors.ink,
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}

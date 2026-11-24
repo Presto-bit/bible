@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import type { BibleBook } from '@/lib/api';
 import { allowedChaptersForBook, isChapterInPlan, planBooksInSteps } from '@/lib/plan_navigation';
 import type { PlanStep } from '@/lib/plan_steps';
+import { CatalogBookCell } from '@/components/reader/CatalogBookCell';
 import { useCloseOnTabNav } from '@/lib/use_close_on_tab_nav';
 
 type LocTab = 'chapters' | 'books';
@@ -124,14 +125,15 @@ export function ReaderLocPopover({
         <p className="reader-loc-book-label">{label}</p>
         <div className="reader-loc-book-grid">
           {list.map((b) => (
-            <button
+            <CatalogBookCell
               key={b.id}
-              type="button"
-              className={`reader-loc-book-cell${selectedBookId === b.id ? ' is-active' : ''}`}
+              variant="reader-loc-book-cell"
+              bookId={b.id}
+              name={b.name}
+              englishUI={englishUI}
+              selected={selectedBookId === b.id}
               onClick={() => pickBook(b)}
-            >
-              {bookAbbr(b.name, b.id)}
-            </button>
+            />
           ))}
         </div>
       </div>

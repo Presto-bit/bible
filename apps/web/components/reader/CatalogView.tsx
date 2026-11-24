@@ -7,6 +7,7 @@ import { allowedChaptersForBook, isChapterInPlan, planBooksInSteps } from '@/lib
 import type { PlanStep } from '@/lib/plan_steps';
 import { clearReaderChrome } from '@/lib/reader_chrome';
 import { catalogUi } from '@/lib/reader_i18n';
+import { CatalogBookCell } from '@/components/reader/CatalogBookCell';
 import { getLastRead } from '@/lib/reading';
 
 type CatalogTab = 'books' | 'chapters';
@@ -108,25 +109,21 @@ function CatalogView({
       ) : null}
       <div className="catalog-grid">
         {items.map((b) => (
-          <button
+          <CatalogBookCell
             key={b.id}
-            id={`catalog-book-${b.id}`}
-            type="button"
-            className={`catalog-card${
-              selectedBookId === b.id ? ' catalog-card-active' : ''
-            }${currentBookId === b.id ? ' catalog-card-reading' : ''}${
-              planBookIds && !planBookIds.has(b.id) ? ' catalog-card-disabled' : ''
-            }`}
+            htmlId={`catalog-book-${b.id}`}
+            variant="catalog-card"
+            bookId={b.id}
+            name={b.name}
+            chapterCount={b.chapter_count}
+            englishUI={englishUI}
+            selected={selectedBookId === b.id}
+            disabled={Boolean(planBookIds && !planBookIds.has(b.id))}
+            extraClassName={`${
+              currentBookId === b.id ? ' catalog-card-reading' : ''
+            }${planBookIds && !planBookIds.has(b.id) ? ' catalog-card-disabled' : ''}`}
             onClick={() => pickBook(b)}
-            aria-label={
-              englishUI
-                ? `${b.name}, ${b.chapter_count} chapters`
-                : `${b.name}，${b.chapter_count}章`
-            }
-            title={b.name}
-          >
-            <span className="catalog-abbr">{bookAbbr(b.name, b.id)}</span>
-          </button>
+          />
         ))}
       </div>
     </>

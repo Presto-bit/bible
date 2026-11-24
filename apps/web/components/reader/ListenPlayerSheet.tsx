@@ -7,6 +7,7 @@ import type { BibleListenSettings, BibleListenUiState } from '@/hooks/useBibleLi
 import { useSheetOpenGuard } from '@/lib/use_sheet_open_guard';
 import { SHEET_OPEN_GUARD_MS } from '@/lib/reader_gesture';
 import { useVerticalSwipeDismiss } from '@/lib/use_vertical_swipe_dismiss';
+import { CatalogBookCell } from '@/components/reader/CatalogBookCell';
 import { scrollElementToBand } from '@/lib/listen_api';
 
 const SLEEP_OPTIONS: { label: string; minutes: number | null }[] = [
@@ -521,19 +522,18 @@ export function ListenPlayerSheet({
                         <p className="reader-loc-book-label">{label as string}</p>
                         <div className="reader-loc-book-grid">
                           {(list as BibleBook[]).map((b) => (
-                            <button
+                            <CatalogBookCell
                               key={b.id}
-                              type="button"
-                              className={`reader-loc-book-cell${
-                                selectedBookId === b.id ? ' is-active' : ''
-                              }`}
+                              variant="reader-loc-book-cell"
+                              bookId={b.id}
+                              name={b.name}
+                              englishUI={englishUI}
+                              selected={selectedBookId === b.id}
                               onClick={() => {
                                 setSelectedBookId(b.id);
                                 setLocTab('chapters');
                               }}
-                            >
-                              {bookAbbr(b.name, b.id)}
-                            </button>
+                            />
                           ))}
                         </div>
                       </div>

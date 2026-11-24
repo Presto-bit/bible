@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../plans/plan_navigation.dart';
 import '../plans/plan_steps.dart';
+import 'catalog_book_grid.dart';
 import 'models.dart';
 import 'bible_book_names.dart';
 
@@ -351,7 +352,7 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
                   children: [
                     if (ot.isNotEmpty) ...[
                       _Label(widget.englishUI ? 'Old Testament' : '旧约'),
-                      _BookGrid(
+                      CatalogBookGrid(
                         books: ot,
                         selectedId: _selectedBookId,
                         onPick: _pickBook,
@@ -361,7 +362,7 @@ class _ReaderCatalogViewState extends State<ReaderCatalogView> {
                     if (nt.isNotEmpty) ...[
                       const SizedBox(height: 14),
                       _Label(widget.englishUI ? 'New Testament' : '新约'),
-                      _BookGrid(
+                      CatalogBookGrid(
                         books: nt,
                         selectedId: _selectedBookId,
                         onPick: _pickBook,
@@ -427,68 +428,3 @@ class _Label extends StatelessWidget {
   }
 }
 
-class _BookGrid extends StatelessWidget {
-  const _BookGrid({
-    required this.books,
-    required this.selectedId,
-    required this.onPick,
-    this.englishUI = false,
-  });
-  final List<BibleBook> books;
-  final String selectedId;
-  final void Function(BibleBook) onPick;
-  final bool englishUI;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: books.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 0.92,
-      ),
-      itemBuilder: (_, i) {
-        final b = books[i];
-        final active = b.id == selectedId;
-        return Material(
-          color: active ? AppColors.goldWash : AppColors.surfaceSunken,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            onTap: () => onPick(b),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    bibleBookAbbrFor(b.id, b.name, english: englishUI),
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: active ? AppColors.accentDeep : AppColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    b.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.inkFaint,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}

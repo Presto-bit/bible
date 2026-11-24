@@ -157,6 +157,41 @@ String bibleBookAbbrFor(String bookId, String name, {bool english = false}) {
   return bibleBookAbbrZh(name);
 }
 
+/// 目录格副行：长卷用静态短文案，其余全名（单行省略，不改字号）。
+String catalogBookSublineFor(
+  String bookId,
+  String fullName, {
+  bool english = false,
+}) {
+  final id = bookId.toUpperCase();
+  if (english) {
+    const en = {
+      '1CO': '1 Cor.',
+      '2CO': '2 Cor.',
+      '1TH': '1 Thess.',
+      '2TH': '2 Thess.',
+      '1TI': '1 Tim.',
+      '2TI': '2 Tim.',
+      '1PE': '1 Pet.',
+      '2PE': '2 Pet.',
+      '1JN': '1 John',
+      '2JN': '2 John',
+      '3JN': '3 John',
+      'SNG': 'Song',
+      'PHM': 'Phlm.',
+    };
+    return en[id] ?? fullName;
+  }
+  const zh = {
+    '1TH': '帖前书',
+    '2TH': '帖后书',
+    'LAM': '哀歌',
+    'OBA': '俄巴底',
+    'ZEC': '撒迦利亚',
+  };
+  return zh[id] ?? fullName;
+}
+
 String bibleBookAbbrZh(String name) {
   const zh = {
     '创世记': '创',
