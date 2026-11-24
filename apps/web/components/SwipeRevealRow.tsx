@@ -170,7 +170,8 @@ export function SwipeRevealRow({
   const handleContentClick = () => {
     if (suppressClick.current) {
       suppressClick.current = false;
-      if (offsetRef.current < -10) setOffsetSafe(0);
+      // 横滑松手会紧跟合成 pointerup：只吞误进会话，勿收起已吸合的操作条
+      if (offsetRef.current > -openThreshold) setOffsetSafe(0);
       return;
     }
     if (offsetRef.current < -10) {
